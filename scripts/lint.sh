@@ -1,6 +1,6 @@
 #!/bin/sh -ex
 
-mypy python_project_template
-flake8 python_project_template tests
-black python_project_template tests --check
-isort python_project_template tests scripts --check-only
+mypy galileo_python
+flake8 galileo_python tests
+black galileo_python tests --check
+isort galileo_python tests scripts --check-only

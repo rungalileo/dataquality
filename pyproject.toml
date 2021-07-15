@@ -3,16 +3,22 @@ requires = ["flit_core >=2,<3"]
 build-backend = "flit_core.buildapi"
 
 [tool.flit.metadata]
-module = "python_project_template"
-author = "Anthony Corletti"
-author-email = "python_project_template@example.com"
-home-page = "https://www.github.com/anthcor/python_project_template"
+module = "galileo_python"
+author = "Galileo Technologies, Inc"
+author-email = "team@rungalileo.io"
+home-page = "https://www.github.com/rungalileo/galileo_python"
 description-file = "README.md"
-requires-python = ">=3.8"
-requires = []
+requires-python = ">=3.7"
+requires = [
+    "pydantic",
+    "torch",
+    "keras",
+    "tensorflow",
+    "pytorch-lightning",
+]
 
 [tool.flit.metadata.urls]
-Documentation = "https://www.github.com/anthcor/python_project_template/docs"
+Documentation = "https://www.github.com/rungalileo/galileo_python/docs"
 
 [tool.flit.metadata.requires-extra]
 test = [

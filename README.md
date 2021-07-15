@@ -1,10 +1,8 @@
-# python_project_template
+# galileo_python
 
-A minimal python project template, using `flit` for depenency management and publishing, which can be used for CLIs, APIs, GRPC, and other python applications.
+The Python client for [Galileo](https://rungalileo.io).
 
 ## Usage
-
-Replace instances of `python_project_template` with then namespace of your project. Rename the source folder `python_project_template` with that same name too.
 
 Replace `pyproject.toml` with relevant values for your project.
 

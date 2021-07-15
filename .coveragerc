@@ -1,6 +1,6 @@
 [run]
 source =
-    python_project_template
+    galileo_python
     tests
 
 omit =
