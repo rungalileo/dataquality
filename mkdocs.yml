@@ -1,6 +1,3 @@
 site_name: The Galileo Python Client
 theme:
   name: material
-plugins:
-  - encryptcontent:
-      remember_password: True

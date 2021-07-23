@@ -1,6 +1,6 @@
 from torch import Tensor, nn
 
-from galileo_python.logger import Logger
+from galileo_python.log import Logger
 from galileo_python.schemas.logger import LoggerMode
 
 
