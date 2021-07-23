@@ -1,4 +1,4 @@
-class Finish:
+class _Finish:
     pass
 
 

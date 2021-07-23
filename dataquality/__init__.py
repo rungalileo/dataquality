@@ -8,5 +8,14 @@ from dataquality.config import config
 from dataquality.finish import finish
 from dataquality.init import init
 from dataquality.log import log
+from dataquality.view import view
 
-__all__ = ["__version__", "login", "init", "log", "config", "finish"]
+__all__ = [
+    "__version__",
+    "login",
+    "init",
+    "log",
+    "config",
+    "finish",
+    "view",
+]

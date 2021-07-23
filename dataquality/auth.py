@@ -1,7 +1,7 @@
-class Auth:
+class _Auth:
     pass
 
 
 def login() -> None:
-    auth = Auth()
-    print(auth)
+    _auth = _Auth()
+    print(_auth)

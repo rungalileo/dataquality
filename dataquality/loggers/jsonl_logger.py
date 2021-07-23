@@ -1,5 +1,5 @@
 class JsonlLogger:
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
     def _create_writers(self) -> None:

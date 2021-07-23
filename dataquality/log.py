@@ -10,3 +10,4 @@ class Logger:
 
 def log(data: Dict) -> None:
     logger = Logger()
+    print(logger)
