@@ -1,6 +1,6 @@
 from typing import Dict
 
-from galileo_python.loggers import JsonlLogger
+from dataquality.loggers import JsonlLogger
 
 
 class Logger:

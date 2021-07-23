@@ -3,10 +3,10 @@ requires = ["flit_core >=2,<3"]
 build-backend = "flit_core.buildapi"
 
 [tool.flit.metadata]
-module = "galileo_python"
+module = "dataquality"
 author = "Galileo Technologies, Inc"
 author-email = "team@rungalileo.io"
-home-page = "https://www.github.com/rungalileo/galileo_python"
+home-page = "https://www.github.com/rungalileo/dataquality"
 description-file = "README.md"
 requires-python = ">=3.7"
 requires = [
@@ -18,7 +18,7 @@ requires = [
 ]
 
 [tool.flit.metadata.urls]
-Documentation = "https://www.github.com/rungalileo/galileo_python/docs"
+Documentation = "https://www.github.com/rungalileo/dataquality/docs"
 
 [tool.flit.metadata.requires-extra]
 doc = [

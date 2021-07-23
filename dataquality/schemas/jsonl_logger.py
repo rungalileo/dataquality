@@ -2,7 +2,7 @@ from typing import List
 
 from pydantic import BaseModel
 
-from galileo_python.schemas.logger import LoggerMode
+from dataquality.schemas.logger import LoggerMode
 
 
 class JsonlTrainingInputItem(BaseModel):

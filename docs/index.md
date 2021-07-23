@@ -1,8 +1,8 @@
-# The Galileo Python Client
+# dataquality
 
 The Official Python Client for [Galileo](https://rungalileo.io).
 
-## Quickstart & Examples
+## Installation & Examples
 
 Coming soon!
 

@@ -1,7 +1,7 @@
 from torch import Tensor, nn
 
-from galileo_python.log import Logger
-from galileo_python.schemas.logger import LoggerMode
+from dataquality.log import Logger
+from dataquality.schemas.logger import LoggerMode
 
 
 def galileo_module_hook(

@@ -1,4 +1,4 @@
-from galileo_python import __version__
+from dataquality import __version__
 
 
 def test_version():

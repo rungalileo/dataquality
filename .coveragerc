@@ -1,6 +1,6 @@
 [run]
 source =
-    galileo_python
+    dataquality
     tests
 
 omit =
