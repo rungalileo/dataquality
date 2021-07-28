@@ -1,6 +1,6 @@
 #!/bin/sh -ex
 
 mypy dataquality
-flake8 dataquality tests
-black dataquality tests --check
-isort dataquality tests scripts --check-only
+flake8 dataquality tests docs_src
+black dataquality tests docs_src --check
+isort dataquality tests docs_src --check-only

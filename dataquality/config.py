@@ -13,7 +13,7 @@ class _Config:
             os.makedirs(self.abs_dir_path)
 
 
-def config(sdk_config: Optional[Dict]) -> None:
+def config(sdk_config: Optional[Dict] = None) -> None:
     _config = _Config()
     _sdk_config = SDKConfig()
     if sdk_config:
