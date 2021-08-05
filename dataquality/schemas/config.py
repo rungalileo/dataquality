@@ -11,6 +11,6 @@ class AuthMethod(str, Enum):
 
 
 class Config(BaseModel):
-    api_url: str = os.environ["GALILEO_API_URL"] or "https://api.rungalileo.io"
+    api_url: str = os.getenv("GALILEO_API_URL") or "https://api.rungalileo.io"
     auth_method: AuthMethod = AuthMethod.email
     token: Optional[str] = None
