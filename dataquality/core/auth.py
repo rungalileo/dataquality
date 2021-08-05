@@ -16,6 +16,9 @@ class _Auth:
         return {AuthMethod.email: self.email_login}
 
     def email_login(self) -> None:
+        if self.email_token_present_and_valid(self.config):
+            return
+
         email_credentials = [
             inquirer.Text("username", message="😎 Enter your email"),
             inquirer.Password("password", message="🤫 Enter your password"),
@@ -34,9 +37,20 @@ class _Auth:
         _config = _Config()
         _config.write_config(self.config.dict())
 
+    def email_token_present_and_valid(self, config: Config) -> bool:
+        return config.auth_method == "email" and self.current_user_by_email(config)
+
+    def current_user_by_email(self, config: Config) -> bool:
+        return (
+            requests.get(
+                f"{self.config.api_url}/current_user",
+                headers={"Authorization": f"Bearer {config.token}"},
+            ).status_code
+            == 200
+        )
+
 
 def login() -> None:
-    _config = config()
     print("🔭 Logging you into Galileo")
     auth_method_question = [
         inquirer.List(
@@ -46,6 +60,7 @@ def login() -> None:
         )
     ]
     auth_method = inquirer.prompt(auth_method_question).get("auth_method").lower()
-    _config.auth_method = auth_method
-    _auth = _Auth(config=_config, auth_method=_config.auth_method)
-    _auth.auth_methods()[_config.auth_method]()
+    config.auth_method = auth_method
+    _auth = _Auth(config=config, auth_method=config.auth_method)
+    _auth.auth_methods()[config.auth_method]()
+    print("🚀 You're all set!")
