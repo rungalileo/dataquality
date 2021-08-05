@@ -8,13 +8,12 @@ author = "Galileo Technologies, Inc"
 author-email = "team@rungalileo.io"
 home-page = "https://www.github.com/rungalileo/dataquality"
 description-file = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 requires = [
-    "pydantic",
-    "torch",
-    "keras",
-    "tensorflow",
-    "pytorch-lightning",
+    "pydantic==1.8.2",
+    "requests==2.26.0",
+    "types-requests==2.25.2",
+    "inquirer==2.7.0"
 ]
 
 [tool.flit.metadata.urls]
