@@ -63,4 +63,4 @@ def login() -> None:
     config.auth_method = auth_method
     _auth = _Auth(config=config, auth_method=config.auth_method)
     _auth.auth_methods()[config.auth_method]()
-    print("🚀 You're all set!")
+    print("🚀 You're logged in!")
