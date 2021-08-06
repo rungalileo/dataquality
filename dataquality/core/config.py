@@ -1,8 +1,9 @@
 import json
 import os
-from typing import Dict
+from enum import Enum, unique
+from typing import Dict, Optional
 
-from dataquality.schemas.config import Config
+from pydantic import BaseModel
 
 
 class _Config:
@@ -33,8 +34,26 @@ class _Config:
         with open(self.config_file, "w+") as f:
             f.write(json.dumps(data))
 
-    def config(self) -> Config:
+    def config(self) -> "Config":
         return Config(**self.config_dict)
+
+
+@unique
+class AuthMethod(str, Enum):
+    email = "email"
+
+
+class Config(BaseModel):
+    api_url: str = os.getenv("GALILEO_API_URL") or "https://api.rungalileo.io"
+    auth_method: AuthMethod = AuthMethod.email
+    token: Optional[str] = None
+    current_user: Optional[str] = None
+    current_project: Optional[str] = None
+    current_run: Optional[str] = None
+
+    def update_file_config(self) -> None:
+        _config = _Config()
+        _config.write_config(self.dict())
 
 
 config = Config()

@@ -1,38 +1,139 @@
-from typing import Dict
+from typing import Dict, List, Optional
 
+import requests
 from pydantic.types import UUID4
 
-from dataquality.core.config import config
+from dataquality.core.auth import _Auth
+from dataquality.core.config import Config, config
+from dataquality.utils.auth import headers
 from dataquality.utils.name import random_name
 
 
 class _Init:
-    def create_new_project_and_run(self) -> Dict:
-        pass
+    def create_project(self, data: Dict, config: Config) -> Dict:
+        req = requests.post(
+            f"{config.api_url}/projects", json=data, headers=headers(config.token)
+        )
+        return req.json()
 
-    def get_project(self) -> Dict:
-        pass
+    def create_project_run(self, project_id: UUID4, data: Dict, config: Config) -> Dict:
+        req = requests.post(
+            f"{config.api_url}/projects/{project_id}/runs",
+            json=data,
+            headers=headers(config.token),
+        )
+        return req.json()
 
-    def get_project_and_start_new_run(self, project_name: str) -> Dict:
-        pass
+    def get_user_projects(self, user_id: UUID4) -> List[Dict]:
+        req = requests.get(
+            f"{config.api_url}/users/{user_id}/projects",
+            headers=headers(config.token),
+        )
+        return req.json()
 
-    def get_run_from_project(self, project_name: str, run_id: UUID4) -> Dict:
-        pass
+    def get_project_by_name_for_user(self, user_id: UUID4, project_name: str) -> Dict:
+        projects = self.get_user_projects(user_id)
+        return [project for project in projects if project["name"] == project_name][0]
+
+    def get_run_from_project(
+        self, config: Config, project_id: UUID4, run_id: UUID4
+    ) -> Dict:
+        return requests.get(
+            f"{config.api_url}/projects/{project_id}/runs/{run_id}",
+            headers=headers(config.token),
+        ).json()
+
+    def get_user_id(self, _auth: _Auth, config: Config) -> UUID4:
+        return _auth.get_current_user(config)["id"]
+
+    def _initialize_new_project(self, config: Config, project_name: str) -> Dict:
+        print(f"✨ Initializing project {project_name}")
+        body = {"name": project_name}
+        return self.create_project(body, config)
+
+    def _initialize_run_for_project(
+        self, config: Config, project_id: UUID4, run_name: str
+    ) -> Dict:
+        print(f"🏃‍♂️ Starting run {run_name}")
+        body = {"name": run_name}
+        return self.create_project_run(project_id, body, config)
 
 
-def init(project_name: str, run_id: str) -> None:
+def init(project_name: Optional[str] = None, run_id: Optional[UUID4] = None) -> None:
+    _auth = _Auth(config=config, auth_method=config.auth_method)
     _init = _Init()
     if project_name is None and run_id is None:
         # no project and no run id, start a new project and start a new run
-        print(f"✨ Initializing project {project_name}")
+        project_name, run_name = random_name(), random_name()
+        project_response = _init._initialize_new_project(
+            config=config, project_name=project_name
+        )
+        run_response = _init._initialize_run_for_project(
+            config=config, project_id=project_response["id"], run_name=run_name
+        )
+        config.current_project = project_response["name"]
+        config.current_run = run_response["name"]
+        print(f"🛰 Created project, {project_name}, and new run, {run_name}.")
     elif project_name is not None and run_id is None:
+        user_id = _init.get_user_id(_auth, config)
+        project = _init.get_project_by_name_for_user(user_id, project_name)
         # if project exists, start new run
-        print(f"📡 Retrieving project, {project_name}, and starting a new run")
+        if project.get("id") is not None:
+            run_name = random_name()
+            print(f"📡 Retrieved project, {project_name}, and starting a new run")
+            run_response = _init._initialize_run_for_project(
+                config=config, project_id=project["id"], run_name=run_name
+            )
+            config.current_project = project["name"]
+            config.current_run = run_response["name"]
+            print(
+                f"🛰 Connected to project, {project_name}, and created run, {run_name}."
+            )
         # otherwise create project with given name and start new run
-        print(f"✨ Project {project_name} was not found. Initializing a Galileo project")
+        else:
+            print(f"💭 Project {project_name} was not found.")
+            project_name, run_name = random_name(), random_name()
+            project_response = _init._initialize_new_project(
+                config=config, project_name=project_name
+            )
+            run_response = _init._initialize_run_for_project(
+                config=config, project_id=project_response["id"], run_name=run_name
+            )
+            config.current_project = project_response["name"]
+            config.current_run = run_response["name"]
     elif project_name is not None and run_id is not None:
-        # given a project and run retrieve the data and set info to state
+        # given a project and run, retrieve the data and set info to state
         print(f"📡 Retrieving existing run from project, {project_name}")
+        user_id = _init.get_user_id(_auth, config)
+        project = _init.get_project_by_name_for_user(user_id, project_name)
+        # if project actually exists, get the run
+        if project.get("id") is not None:
+            run = _init.get_run_from_project(
+                config=config, project_id=project["id"], run_id=run_id
+            )
+            if run.get("id") is not None:
+                config.current_project = project["name"]
+                config.current_run = run["name"]
+                print(
+                    f"🛰 Connected to project, {project_name}, and run, {run['name']}."
+                )
+            else:
+                print(
+                    f"⚠️ The Galileo account associated with {config.current_user}"
+                    f" does not have a run with id {run_id} "
+                    f"associated with the project {project_name}."
+                )
+                return
+        else:
+            print(
+                f"⚠️ The Galileo account associated with {config.current_user}"
+                f" does not have a project named {project_name}."
+            )
+            return
     else:
-        print("⚠️ Please specify a project name to initialize a new Galileo run.")
+        print(
+            "⚠️ You must specify a project name to initialize a new Galileo run"
+            " or simply run dataquality.init()."
+        )
+        return
     config.update_file_config()

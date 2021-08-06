@@ -1,10 +1,9 @@
+import getpass
 from typing import Callable, Dict
 
-import inquirer
 import requests
 
-from dataquality.core.config import _Config, config
-from dataquality.schemas.config import AuthMethod, Config
+from dataquality.core.config import AuthMethod, Config, _Config, config
 
 
 class _Auth:
@@ -19,16 +18,13 @@ class _Auth:
         if self.email_token_present_and_valid(self.config):
             return
 
-        email_credentials = [
-            inquirer.Text("username", message="😎 Enter your email"),
-            inquirer.Password("password", message="🤫 Enter your password"),
-        ]
-        answers = inquirer.prompt(email_credentials)
+        username = input("📧 Enter your email:")
+        password = getpass.getpass("🤫 Enter your password:")
         req = requests.post(
             f"{self.config.api_url}/login",
             data={
-                "username": answers.get("username"),
-                "password": answers.get("password"),
+                "username": username,
+                "password": password,
                 "auth_method": self.auth_method,
             },
         )
@@ -38,9 +34,9 @@ class _Auth:
         _config.write_config(self.config.dict())
 
     def email_token_present_and_valid(self, config: Config) -> bool:
-        return config.auth_method == "email" and self.current_user_by_email(config)
+        return config.auth_method == "email" and self.valid_current_user(config)
 
-    def current_user_by_email(self, config: Config) -> bool:
+    def valid_current_user(self, config: Config) -> bool:
         return (
             requests.get(
                 f"{self.config.api_url}/current_user",
@@ -49,18 +45,30 @@ class _Auth:
             == 200
         )
 
+    def get_current_user(self, config: Config) -> Dict:
+        return requests.get(
+            f"{self.config.api_url}/current_user",
+            headers={"Authorization": f"Bearer {config.token}"},
+        ).json()
+
 
 def login() -> None:
-    print("🔭 Logging you into Galileo")
-    auth_method_question = [
-        inquirer.List(
-            "auth_method",
-            message="🔐 How would you like to login?",
-            choices=[str(am.value).capitalize() for am in AuthMethod],
+    print("🔭 Logging you into Galileo\n")
+    auth_methods = ",".join([am.value for am in AuthMethod])
+    auth_method = input(
+        "🔐 How would you like to login? \n"
+        f"Enter one of the following: {auth_methods}\n"
+    )
+    if auth_method.lower() not in list(AuthMethod):
+        print(
+            "Invalid login request. You must input one of "
+            f"the following authentication methods: {auth_methods}."
         )
-    ]
-    auth_method = inquirer.prompt(auth_method_question).get("auth_method").lower()
-    config.auth_method = auth_method
+        return
+    config.auth_method = AuthMethod(auth_method)
     _auth = _Auth(config=config, auth_method=config.auth_method)
     _auth.auth_methods()[config.auth_method]()
-    print("🚀 You're logged in!")
+    current_user_email = _auth.get_current_user(config).get("email")
+    config.current_user = current_user_email
+    config.update_file_config()
+    print(f"🚀 You're logged in to Galileo as {current_user_email}!")
