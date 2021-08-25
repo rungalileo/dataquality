@@ -1,13 +1,15 @@
 import json
 import os
 from enum import Enum, unique
-from typing import Dict, Optional
+from typing import Optional
 
 from pydantic import BaseModel
+from pydantic.types import UUID4
 
 
 class _Config:
-    DEFAULT_GALILEO_CONFIG_FILE = f"{os.getcwd()}/.galileo/config.json"
+    DEFAULT_GALILEO_CONFIG_DIR = f"{os.getcwd()}/.galileo"
+    DEFAULT_GALILEO_CONFIG_FILE = f"{DEFAULT_GALILEO_CONFIG_DIR}/config.json"
 
     def __init__(self) -> None:
         self.config_file = self.DEFAULT_GALILEO_CONFIG_FILE
@@ -30,9 +32,9 @@ class _Config:
         with open(self.config_file) as f:
             return json.load(f)
 
-    def write_config(self, data: Dict) -> None:
+    def write_config(self, data: str) -> None:
         with open(self.config_file, "w+") as f:
-            f.write(json.dumps(data))
+            f.write(data)
 
     def config(self) -> "Config":
         return Config(**self.config_dict)
@@ -48,12 +50,12 @@ class Config(BaseModel):
     auth_method: AuthMethod = AuthMethod.email
     token: Optional[str] = None
     current_user: Optional[str] = None
-    current_project: Optional[str] = None
-    current_run: Optional[str] = None
+    current_project_id: Optional[UUID4] = None
+    current_run_id: Optional[UUID4] = None
 
     def update_file_config(self) -> None:
         _config = _Config()
-        _config.write_config(self.dict())
+        _config.write_config(self.json())
 
 
 config = Config()

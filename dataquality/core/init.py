@@ -71,8 +71,8 @@ def init(project_name: Optional[str] = None, run_id: Optional[UUID4] = None) -> 
         run_response = _init._initialize_run_for_project(
             config=config, project_id=project_response["id"], run_name=run_name
         )
-        config.current_project = project_response["name"]
-        config.current_run = run_response["name"]
+        config.current_project_id = project_response["id"]
+        config.current_run_id = run_response["id"]
         print(f"🛰 Created project, {project_name}, and new run, {run_name}.")
     elif project_name is not None and run_id is None:
         user_id = _init.get_user_id(_auth, config)
@@ -84,8 +84,8 @@ def init(project_name: Optional[str] = None, run_id: Optional[UUID4] = None) -> 
             run_response = _init._initialize_run_for_project(
                 config=config, project_id=project["id"], run_name=run_name
             )
-            config.current_project = project["name"]
-            config.current_run = run_response["name"]
+            config.current_project_id = project["id"]
+            config.current_run_id = run_response["id"]
             print(
                 f"🛰 Connected to project, {project_name}, and created run, {run_name}."
             )
@@ -99,8 +99,8 @@ def init(project_name: Optional[str] = None, run_id: Optional[UUID4] = None) -> 
             run_response = _init._initialize_run_for_project(
                 config=config, project_id=project_response["id"], run_name=run_name
             )
-            config.current_project = project_response["name"]
-            config.current_run = run_response["name"]
+            config.current_project_id = project_response["id"]
+            config.current_run_id = run_response["id"]
     elif project_name is not None and run_id is not None:
         # given a project and run, retrieve the data and set info to state
         print(f"📡 Retrieving existing run from project, {project_name}")
@@ -112,8 +112,8 @@ def init(project_name: Optional[str] = None, run_id: Optional[UUID4] = None) -> 
                 config=config, project_id=project["id"], run_id=run_id
             )
             if run.get("id") is not None:
-                config.current_project = project["name"]
-                config.current_run = run["name"]
+                config.current_project_id = project["id"]
+                config.current_run_id = run["id"]
                 print(
                     f"🛰 Connected to project, {project_name}, and run, {run['name']}."
                 )

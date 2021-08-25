@@ -1,78 +1,79 @@
 from typing import List
 
 from pydantic import BaseModel
+from pydantic.types import StrictFloat, StrictInt, StrictStr
 
 from dataquality.schemas.logger import LoggerMode
 
 
 class JsonlTrainingInputItem(BaseModel):
-    id: int
-    text: str
-    gold: str
+    id: StrictInt
+    text: StrictStr
+    gold: StrictStr
     logger_mode: LoggerMode = LoggerMode.training
 
 
 class JsonlTrainingOutputItem(BaseModel):
-    id: int
-    epoch: int
-    emb: List[float]
-    prob: List[float]
+    id: StrictInt
+    epoch: StrictInt
+    emb: List[StrictFloat]
+    prob: List[StrictFloat]
     logger_mode: LoggerMode = LoggerMode.training
 
 
 class JsonlTrainingOutputItemLogged(JsonlTrainingOutputItem):
-    pred: int
+    pred: StrictInt
 
 
 class JsonlValidationInputItem(BaseModel):
-    id: int
-    text: str
-    gold: str
+    id: StrictInt
+    text: StrictStr
+    gold: StrictStr
     logger_mode: LoggerMode = LoggerMode.validation
 
 
 class JsonlValidationOutputItem(BaseModel):
-    id: int
-    epoch: int
-    emb: List[float]
-    prob: List[float]
+    id: StrictInt
+    epoch: StrictInt
+    emb: List[StrictFloat]
+    prob: List[StrictFloat]
     logger_mode: LoggerMode = LoggerMode.validation
 
 
 class JsonlValidationOutputItemLogged(JsonlValidationOutputItem):
-    pred: int
+    pred: StrictInt
 
 
 class JsonlTestInputItem(BaseModel):
-    id: int
-    text: str
-    gold: str
+    id: StrictInt
+    text: StrictStr
+    gold: StrictStr
     logger_mode: LoggerMode = LoggerMode.test
 
 
 class JsonlTestOutputItem(BaseModel):
-    id: int
-    emb: List[float]
-    prob: List[float]
+    id: StrictInt
+    emb: List[StrictFloat]
+    prob: List[StrictFloat]
     logger_mode: LoggerMode = LoggerMode.test
 
 
 class JsonlTestOutputItemLogged(JsonlTestOutputItem):
-    pred: int
+    pred: StrictInt
 
 
 class JsonlInferenceInputItem(BaseModel):
-    id: int
-    text: str
+    id: StrictInt
+    text: StrictStr
     logger_mode: LoggerMode = LoggerMode.inference
 
 
 class JsonlInferenceOutputItem(BaseModel):
-    id: int
-    emb: List[float]
-    prob: List[float]
+    id: StrictInt
+    emb: List[StrictFloat]
+    prob: List[StrictFloat]
     logger_mode: LoggerMode = LoggerMode.inference
 
 
 class JsonlInferenceOutputItemLogged(JsonlInferenceOutputItem):
-    pred: int
+    pred: StrictInt

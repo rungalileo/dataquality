@@ -31,7 +31,7 @@ class _Auth:
         access_token = req.json().get("access_token")
         self.config.token = access_token
         _config = _Config()
-        _config.write_config(self.config.dict())
+        _config.write_config(self.config.json())
 
     def email_token_present_and_valid(self, config: Config) -> bool:
         return config.auth_method == "email" and self.valid_current_user(config)

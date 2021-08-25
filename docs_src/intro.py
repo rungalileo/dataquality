@@ -4,7 +4,7 @@ dataquality.login()
 
 dataquality.init()
 
-dataquality.config()
+dataquality.config
 
 dataquality.log({})
 
