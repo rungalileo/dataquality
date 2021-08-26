@@ -5,6 +5,7 @@ from pydantic.types import UUID4
 
 from dataquality.core.auth import _Auth
 from dataquality.core.config import Config, config
+from dataquality.core.log import Logger
 from dataquality.utils.auth import headers
 from dataquality.utils.name import random_name
 

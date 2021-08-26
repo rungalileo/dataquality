@@ -1,79 +1,30 @@
-from typing import List
+from typing import Dict, List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from pydantic.types import StrictFloat, StrictInt, StrictStr
 
-from dataquality.schemas.logger import LoggerMode
+from dataquality.schemas.split import Split
 
 
-class JsonlTrainingInputItem(BaseModel):
+class JsonlInputLogItem(BaseModel):
     id: StrictInt
+    split: Split
     text: StrictStr
-    gold: StrictStr
-    logger_mode: LoggerMode = LoggerMode.training
+    gold: Optional[StrictStr] = None
+
+    @validator("gold", always=True)
+    def gold_for_split(cls: BaseModel, v: str, values: Dict) -> Optional[str]:
+        if v is not None and values["split"] == Split.inference:
+            raise ValueError("gold should not be defined for inference!")
+        if v is None and values["split"] != Split.inference:
+            raise ValueError(f"gold must be defined for {values['split']}!")
+        return v
 
 
-class JsonlTrainingOutputItem(BaseModel):
+class JsonlOutputLogItem(BaseModel):
     id: StrictInt
+    split: Split
     epoch: StrictInt
     emb: List[StrictFloat]
     prob: List[StrictFloat]
-    logger_mode: LoggerMode = LoggerMode.training
-
-
-class JsonlTrainingOutputItemLogged(JsonlTrainingOutputItem):
-    pred: StrictInt
-
-
-class JsonlValidationInputItem(BaseModel):
-    id: StrictInt
-    text: StrictStr
-    gold: StrictStr
-    logger_mode: LoggerMode = LoggerMode.validation
-
-
-class JsonlValidationOutputItem(BaseModel):
-    id: StrictInt
-    epoch: StrictInt
-    emb: List[StrictFloat]
-    prob: List[StrictFloat]
-    logger_mode: LoggerMode = LoggerMode.validation
-
-
-class JsonlValidationOutputItemLogged(JsonlValidationOutputItem):
-    pred: StrictInt
-
-
-class JsonlTestInputItem(BaseModel):
-    id: StrictInt
-    text: StrictStr
-    gold: StrictStr
-    logger_mode: LoggerMode = LoggerMode.test
-
-
-class JsonlTestOutputItem(BaseModel):
-    id: StrictInt
-    emb: List[StrictFloat]
-    prob: List[StrictFloat]
-    logger_mode: LoggerMode = LoggerMode.test
-
-
-class JsonlTestOutputItemLogged(JsonlTestOutputItem):
-    pred: StrictInt
-
-
-class JsonlInferenceInputItem(BaseModel):
-    id: StrictInt
-    text: StrictStr
-    logger_mode: LoggerMode = LoggerMode.inference
-
-
-class JsonlInferenceOutputItem(BaseModel):
-    id: StrictInt
-    emb: List[StrictFloat]
-    prob: List[StrictFloat]
-    logger_mode: LoggerMode = LoggerMode.inference
-
-
-class JsonlInferenceOutputItemLogged(JsonlInferenceOutputItem):
-    pred: StrictInt
+    pred: Optional[StrictStr] = None

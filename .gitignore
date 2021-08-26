@@ -139,7 +139,12 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
+# PyTorch Lightning
+
+lightning_logs
+
 *.lock
 
 tmp/
 .galileo/
+
