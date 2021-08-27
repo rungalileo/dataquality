@@ -15,7 +15,7 @@ class ObjectStore:
             return Minio(
                 config.minio_url,
                 access_key=config.minio_access_key,
-                secret_key=config.minio_secret_key,
+                secret_key=config.minio_secret_key.get_secret_value(),
                 secure=False if config.minio_url == "127.0.0.1:9000" else True,
             )
         except Exception as e:
