@@ -14,6 +14,7 @@ requires = [
     "pydantic==1.8.2",
     "requests==2.26.0",
     "types-requests==2.25.2",
+    "minio==7.1.0"
 ]
 
 [tool.flit.metadata.urls]

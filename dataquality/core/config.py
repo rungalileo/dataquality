@@ -4,7 +4,7 @@ from enum import Enum, unique
 from typing import Optional
 
 from pydantic import BaseModel
-from pydantic.types import UUID4
+from pydantic.types import UUID4, SecretStr
 
 
 class _Config:
@@ -47,8 +47,11 @@ class AuthMethod(str, Enum):
 
 class Config(BaseModel):
     api_url: str = os.getenv("GALILEO_API_URL") or "https://api.rungalileo.io"
+    minio_url: str = os.getenv("GALILEO_MINIO_URL") or "https://minio.rungalileo.io"
+    minio_access_key: str = "minioadmin"
+    minio_secret_key: SecretStr = SecretStr("minioadmin")
     auth_method: AuthMethod = AuthMethod.email
-    token: Optional[str] = None
+    token: Optional[SecretStr] = None
     current_user: Optional[str] = None
     current_project_id: Optional[UUID4] = None
     current_run_id: Optional[UUID4] = None
