@@ -5,30 +5,37 @@ from pydantic.types import UUID4
 
 from dataquality.core.auth import _Auth
 from dataquality.core.config import Config, config
-from dataquality.core.log import Logger
 from dataquality.utils.auth import headers
 from dataquality.utils.name import random_name
 
 
 class _Init:
     def create_project(self, data: Dict, config: Config) -> Dict:
+        if not config.token:
+            raise Exception("Token not present, please log in!")
         req = requests.post(
-            f"{config.api_url}/projects", json=data, headers=headers(config.token)
+            f"{config.api_url}/projects",
+            json=data,
+            headers=headers(config.token.get_secret_value()),
         )
         return req.json()
 
     def create_project_run(self, project_id: UUID4, data: Dict, config: Config) -> Dict:
+        if not config.token:
+            raise Exception("Token not present, please log in!")
         req = requests.post(
             f"{config.api_url}/projects/{project_id}/runs",
             json=data,
-            headers=headers(config.token),
+            headers=headers(config.token.get_secret_value()),
         )
         return req.json()
 
     def get_user_projects(self, user_id: UUID4) -> List[Dict]:
+        if not config.token:
+            raise Exception("Token not present, please log in!")
         req = requests.get(
             f"{config.api_url}/users/{user_id}/projects",
-            headers=headers(config.token),
+            headers=headers(config.token.get_secret_value()),
         )
         return req.json()
 
@@ -39,9 +46,11 @@ class _Init:
     def get_run_from_project(
         self, config: Config, project_id: UUID4, run_id: UUID4
     ) -> Dict:
+        if not config.token:
+            raise Exception("Token not present, please log in!")
         return requests.get(
             f"{config.api_url}/projects/{project_id}/runs/{run_id}",
-            headers=headers(config.token),
+            headers=headers(config.token.get_secret_value()),
         ).json()
 
     def get_user_id(self, _auth: _Auth, config: Config) -> UUID4:

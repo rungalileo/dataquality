@@ -38,4 +38,4 @@ class ObjectStore:
         )
 
 
-objectstore = ObjectStore()
+object_store = ObjectStore()

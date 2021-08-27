@@ -1,3 +1,3 @@
-from dataquality.clients.objectstore import objectstore
+from dataquality.clients.objectstore import object_store
 
-__all__ = ["objectstore"]
+__all__ = ["object_store"]

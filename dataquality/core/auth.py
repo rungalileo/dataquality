@@ -2,6 +2,7 @@ import getpass
 from typing import Callable, Dict
 
 import requests
+from pydantic.types import SecretStr
 
 from dataquality.core.config import AuthMethod, Config, _Config, config
 
@@ -20,7 +21,7 @@ class _Auth:
 
         username = input("📧 Enter your email:")
         password = getpass.getpass("🤫 Enter your password:")
-        req = requests.post(
+        res = requests.post(
             f"{self.config.api_url}/login",
             data={
                 "username": username,
@@ -28,8 +29,12 @@ class _Auth:
                 "auth_method": self.auth_method,
             },
         )
-        access_token = req.json().get("access_token")
-        self.config.token = access_token
+        if res.status_code != 200:
+            print(res.json())
+            return
+
+        access_token = res.json().get("access_token")
+        self.config.token = SecretStr(access_token)
         _config = _Config()
         _config.write_config(self.config.json())
 
@@ -37,18 +42,26 @@ class _Auth:
         return config.auth_method == "email" and self.valid_current_user(config)
 
     def valid_current_user(self, config: Config) -> bool:
-        return (
-            requests.get(
-                f"{self.config.api_url}/current_user",
-                headers={"Authorization": f"Bearer {config.token}"},
-            ).status_code
-            == 200
-        )
+        if config.token:
+            return (
+                requests.get(
+                    f"{self.config.api_url}/current_user",
+                    headers={
+                        "Authorization": f"Bearer {config.token.get_secret_value()}"
+                    },
+                ).status_code
+                == 200
+            )
+        else:
+            return False
 
     def get_current_user(self, config: Config) -> Dict:
+        if not config.token:
+            raise Exception("Current user is not set!")
+
         return requests.get(
             f"{self.config.api_url}/current_user",
-            headers={"Authorization": f"Bearer {config.token}"},
+            headers={"Authorization": f"Bearer {config.token.get_secret_value()}"},
         ).json()
 
 
@@ -69,6 +82,8 @@ def login() -> None:
     _auth = _Auth(config=config, auth_method=config.auth_method)
     _auth.auth_methods()[config.auth_method]()
     current_user_email = _auth.get_current_user(config).get("email")
+    if not current_user_email:
+        return
     config.current_user = current_user_email
     config.update_file_config()
     print(f"🚀 You're logged in to Galileo as {current_user_email}!")
