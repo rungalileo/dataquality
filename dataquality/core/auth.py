@@ -2,7 +2,6 @@ import getpass
 from typing import Callable, Dict
 
 import requests
-from pydantic.types import SecretStr
 
 from dataquality.core.config import AuthMethod, Config, _Config, config
 
@@ -34,7 +33,7 @@ class _Auth:
             return
 
         access_token = res.json().get("access_token")
-        self.config.token = SecretStr(access_token)
+        self.config.token = access_token
         _config = _Config()
         _config.write_config(self.config.json())
 
@@ -46,9 +45,7 @@ class _Auth:
             return (
                 requests.get(
                     f"{self.config.api_url}/current_user",
-                    headers={
-                        "Authorization": f"Bearer {config.token.get_secret_value()}"
-                    },
+                    headers={"Authorization": f"Bearer {config.token}"},
                 ).status_code
                 == 200
             )
@@ -61,7 +58,7 @@ class _Auth:
 
         return requests.get(
             f"{self.config.api_url}/current_user",
-            headers={"Authorization": f"Bearer {config.token.get_secret_value()}"},
+            headers={"Authorization": f"Bearer {config.token}"},
         ).json()
 
 

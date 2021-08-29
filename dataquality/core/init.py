@@ -16,7 +16,7 @@ class _Init:
         req = requests.post(
             f"{config.api_url}/projects",
             json=data,
-            headers=headers(config.token.get_secret_value()),
+            headers=headers(config.token),
         )
         return req.json()
 
@@ -26,7 +26,7 @@ class _Init:
         req = requests.post(
             f"{config.api_url}/projects/{project_id}/runs",
             json=data,
-            headers=headers(config.token.get_secret_value()),
+            headers=headers(config.token),
         )
         return req.json()
 
@@ -35,7 +35,7 @@ class _Init:
             raise Exception("Token not present, please log in!")
         req = requests.get(
             f"{config.api_url}/users/{user_id}/projects",
-            headers=headers(config.token.get_secret_value()),
+            headers=headers(config.token),
         )
         return req.json()
 
@@ -50,7 +50,7 @@ class _Init:
             raise Exception("Token not present, please log in!")
         return requests.get(
             f"{config.api_url}/projects/{project_id}/runs/{run_id}",
-            headers=headers(config.token.get_secret_value()),
+            headers=headers(config.token),
         ).json()
 
     def get_user_id(self, _auth: _Auth, config: Config) -> UUID4:
