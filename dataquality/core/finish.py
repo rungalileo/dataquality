@@ -1,4 +1,7 @@
 import os
+import shutil
+
+import dask.dataframe as dd
 
 from dataquality import config
 from dataquality.clients import object_store
@@ -6,20 +9,35 @@ from dataquality.loggers.jsonl_logger import JsonlLogger
 
 
 def finish() -> None:
-    # TODO: build final frame and upload!
-    # TODO: will need to upload embeddings and joined input and output
     assert config.current_project_id
     assert config.current_run_id
-    for fname in [
-        JsonlLogger.INPUT_FILENAME,
-        JsonlLogger.OUTPUT_FILENAME,
-        JsonlLogger.EMB_LOG_FILENAME,
-    ]:
-        print(f"☁️ Uploading {fname}")
+    location = (
+        f"{JsonlLogger.LOG_FILE_DIR}/{config.current_project_id}"
+        f"/{config.current_run_id}"
+    )
+    in_frame = dd.read_json(f"{location}/{JsonlLogger.INPUT_FILENAME}", lines=True)
+    out_frame = dd.read_json(f"{location}/{JsonlLogger.OUTPUT_FILENAME}", lines=True)
+    in_out = in_frame.merge(out_frame, on=["split", "id"], how="left")
+    in_out_file_dir = f"{location}/in_out"
+    in_out_filepaths = in_out.to_json(filename=in_out_file_dir)
+
+    print("☁️ Uploading Data")
+    for io_path in in_out_filepaths:
+        fname = os.path.basename(io_path)
         object_store.create_project_run_object(
             config.current_project_id,
             config.current_run_id,
-            object_name=fname,
-            file_path=f"{os.getcwd()}/.galileo/logs/{config.current_project_id}"
-            f"/{config.current_run_id}/{fname}",
+            object_name=f"in_out/{fname}.jsonl",
+            file_path=f"{in_out_file_dir}/{fname}",
         )
+
+    print("☁️ Uploading Embeddings")
+    object_store.create_project_run_object(
+        config.current_project_id,
+        config.current_run_id,
+        object_name=JsonlLogger.EMB_LOG_FILENAME,
+        file_path=f"{location}/{JsonlLogger.EMB_LOG_FILENAME}",
+    )
+
+    print("🧹 Cleaning up")
+    shutil.rmtree(location)

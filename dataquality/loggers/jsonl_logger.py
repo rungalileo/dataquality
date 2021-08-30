@@ -1,4 +1,5 @@
 import os
+from typing import Optional
 
 import jsonlines
 import numpy as np
@@ -12,9 +13,11 @@ class JsonlLogger:
     INPUT_FILENAME = "input_data.jsonl"
     OUTPUT_FILENAME = "model_output_data.jsonl"
     EMB_LOG_FILENAME = "model_output_embeddings.h5"
+    LOG_FILE_DIR = f"{_Config.DEFAULT_GALILEO_CONFIG_DIR}/logs"
 
     def __init__(self) -> None:
-        self.log_file_dir = f"{_Config.DEFAULT_GALILEO_CONFIG_DIR}/logs"
+        self.hdf5_store: Optional[HDF5Store] = None
+        self.log_file_dir = f"{self.LOG_FILE_DIR}"
         if not os.path.exists(self.log_file_dir):
             os.makedirs(self.log_file_dir)
 
@@ -44,15 +47,20 @@ class JsonlLogger:
             ),
             flush=True,
         )
+
         # grab the embeddings
         emb = np.array(data[emb_column_name])
-        embeddings_writer = HDF5Store(
-            f"{write_output_dir}/{self.EMB_LOG_FILENAME}",
-            emb_column_name,
-            shape=emb.shape,
-        )
-        embeddings_writer.write(emb)
+        if (
+            not self.hdf5_store
+            or self.hdf5_store.datapath != f"{write_output_dir}/{self.EMB_LOG_FILENAME}"
+        ):
+            self.hdf5_store = HDF5Store(
+                f"{write_output_dir}/{self.EMB_LOG_FILENAME}",
+                emb_column_name,
+                shape=emb.shape,
+            )
+        self.hdf5_store.write(emb)
 
         # swap embeddings for the id
-        data[emb_column_name] = embeddings_writer.i
+        data[emb_column_name] = self.hdf5_store.i
         output_writer.write(data)
