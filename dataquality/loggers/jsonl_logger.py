@@ -9,7 +9,6 @@ from dataquality.core.config import _Config
 class JsonlLogger:
     INPUT_FILENAME = "input_data.jsonl"
     OUTPUT_FILENAME = "model_output_data.jsonl"
-    EMB_LOG_FILENAME = "model_output_embeddings.h5"
     LOG_FILE_DIR = f"{_Config.DEFAULT_GALILEO_CONFIG_DIR}/logs"
 
     def __init__(self) -> None:

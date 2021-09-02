@@ -18,8 +18,7 @@ def finish() -> None:
     in_frame = dd.read_json(f"{location}/{JsonlLogger.INPUT_FILENAME}", lines=True)
     out_frame = dd.read_json(f"{location}/{JsonlLogger.OUTPUT_FILENAME}", lines=True)
     in_out = in_frame.merge(out_frame, on=["split", "id"], how="left")
-    in_out_file_dir = f"{location}/in_out"
-    in_out_filepaths = in_out.to_json(filename=in_out_file_dir)
+    in_out_filepaths = in_out.to_json(filename=location)
 
     print("☁️ Uploading Data")
     for io_path in in_out_filepaths:
@@ -27,17 +26,9 @@ def finish() -> None:
         object_store.create_project_run_object(
             config.current_project_id,
             config.current_run_id,
-            object_name=f"in_out/{fname}.jsonl",
-            file_path=f"{in_out_file_dir}/{fname}",
+            object_name=f"{fname}.jsonl",
+            file_path=io_path,
         )
-
-    print("☁️ Uploading Embeddings")
-    object_store.create_project_run_object(
-        config.current_project_id,
-        config.current_run_id,
-        object_name=JsonlLogger.EMB_LOG_FILENAME,
-        file_path=f"{location}/{JsonlLogger.EMB_LOG_FILENAME}",
-    )
 
     print("🧹 Cleaning up")
     shutil.rmtree(location)
