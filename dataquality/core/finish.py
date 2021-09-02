@@ -23,7 +23,7 @@ def finish() -> None:
 
     print("☁️ Uploading Data")
     for io_path in in_out_filepaths:
-        fname = os.path.basename(io_path)
+        fname = os.path.basename(io_path).split(".")[0]
         object_store.create_project_run_object(
             config.current_project_id,
             config.current_run_id,
