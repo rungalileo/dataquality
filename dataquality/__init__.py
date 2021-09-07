@@ -8,7 +8,6 @@ from dataquality.core.config import config
 from dataquality.core.finish import finish
 from dataquality.core.init import init
 from dataquality.core.log import log_input_data, log_model_output
-from dataquality.core.view import view
 
 __all__ = [
     "__version__",
@@ -18,5 +17,4 @@ __all__ = [
     "log_model_output",
     "config",
     "finish",
-    "view",
 ]
