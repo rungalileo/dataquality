@@ -42,9 +42,10 @@ class DataQualityCallback(Callback):
                 if split in ("test", "validation")
                 else loader.dataset.datasets
             )
-            assert hasattr(dataset, "dataset") or hasattr(
-                dataset, "data"
-            ), "Your Dataloader's Dataset must have a 'data' or 'dataset' attribute with your data!"
+            assert hasattr(dataset, "dataset") or hasattr(dataset, "data"), (
+                "Your Dataloader's Dataset must have a 'data' or "
+                "'dataset' attribute with your data!"
+            )
             data = dataset.dataset if hasattr(dataset, "dataset") else dataset.data
             for i in range(len(data)):
                 dataquality.log_input_data(
@@ -61,19 +62,21 @@ class DataQualityCallback(Callback):
         out = trainer.model.model(x, attention_mask=attention_mask)
         probs = F.softmax(out.logits, dim=1)
         encoded_layers = trainer.model.feature_extractor(x, return_dict=False)[0]
-        print(f"Logging model outputs for split {split} epoch {self.epoch}")
+        epoch = self.checkpoint_data["epoch"]
+        print(f"Logging model outputs for split {split} epoch {epoch}")
         if x_idxs is not None:
             for i in range(len(x_idxs)):
                 index = int(x_idxs[i])
                 prob = probs[i].detach().cpu().numpy().tolist()
                 emb = encoded_layers[i, 0].detach().cpu().numpy().tolist()
+
                 #
                 # 🔭 Logging outputs with Galileo!
                 #
                 dataquality.log_model_output(
                     {
-                        "id": int(x_idxs[i]),
-                        "epoch": self.epoch,
+                        "id": index,
+                        "epoch": epoch,
                         "split": split,
                         "emb": emb,
                         "prob": prob,
@@ -125,8 +128,9 @@ class DataQualityCallback(Callback):
     def on_epoch_end(
         self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
     ) -> None:
-        # We need to implement epoch counting like this because there is a bug in pytorch where at the end of each epoch
-        # The on_epoch_end callback is called twice. This makes sure we only count it once
+        # We need to implement epoch counting like this because there is a
+        # bug in pytorch where at the end of each epoch The on_epoch_end
+        # callback is called twice. This makes sure we only count it once
         # https://github.com/PyTorchLightning/pytorch-lightning/issues/5007
         if self.checkpoint_data["epoch_start"]:
             self.checkpoint_data["epoch"] += 1
@@ -165,8 +169,9 @@ class DataQualityCallback(Callback):
     ) -> None:
         self._log_model_outputs(trainer, batch, "test")
 
-    # TODO: Is this okay? This will be called whenever training validation or testing end. Theres no callback for ONLY after ALL 3 end
-    # TODO: We could change this to on_test_end which we can assume occurs after train/validation and is the last action
+    # TODO: Is this okay? This will be called whenever training validation or testing
+    #  end. Theres no callback for ONLY after ALL 3 end We could change this to
+    #  on_test_end which we can assume occurs after train/val and is the last action
     def teardown(
         self,
         trainer: "pl.Trainer",
