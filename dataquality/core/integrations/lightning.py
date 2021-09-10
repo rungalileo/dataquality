@@ -19,7 +19,8 @@ class DataQualityCallback(Callback):
     def on_load_checkpoint(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule", callback_state: Any) -> None:
         self.checkpoint_data = callback_state
 
-    def on_save_checkpoint(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule", checkpoint: Any) -> Dict[str,str]:
+    def on_save_checkpoint(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule", checkpoint: Any
+                           ) -> Dict[str, Any]:
         return self.checkpoint_data.copy()
 
     def _log_dataquality_input_data(self, split: str, dataloader: Union[DataLoader, Sequence[DataLoader]]) -> None:
