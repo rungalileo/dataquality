@@ -1,18 +1,28 @@
 from typing import Any, Dict, Optional, Sequence, Union
+import warnings
 
 import numpy as np
 import pytorch_lightning as pl
-import torch.nn.functional as F
 from pytorch_lightning.callbacks import Callback
+from pytorch_lightning.trainer.supporters import CombinedDataset
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 from torch.utils.data.dataloader import DataLoader
 
 import dataquality
 from dataquality import config
+from .config import GDataConfig, GModelConfig, get_modelconfig_attr, get_dataconfig_attr
 
 
 class DataQualityCallback(Callback):
-    def __init__(self) -> None:  # dataloader_config: Dict[str, str] = None
+    """
+    The PyTorch Lightning Callback for Galileo's dataquality module. This module
+    handles the logging of input data and model configs to Galileo. It makes the
+    following assumptions:
+    * Your model class has an attribute containing a valid GModelConfig
+    * You have a DataSet that extends PyTorch's DataSet and has an attribute containing
+    a valid GDataConfig
+    """
+    def __init__(self) -> None:
         self.checkpoint_data = {"epoch_start": False, "epoch": 0}
 
     def on_load_checkpoint(
@@ -28,61 +38,85 @@ class DataQualityCallback(Callback):
     ) -> Dict[str, Any]:
         return self.checkpoint_data.copy()
 
-    def _log_dataquality_input_data(
+    def _log_input_data(
         self, split: str, dataloader: Union[DataLoader, Sequence[DataLoader]]
     ) -> None:
         #
         # 🔭 Logging Inputs with Galileo!
         #
-        print(f"Logging data input for split {split} of epoch {self.epoch}")
         loaders = dataloader if isinstance(dataloader, Sequence) else [dataloader]
         for loader in loaders:
-            dataset = (
-                loader.dataset
-                if split in ("test", "validation")
-                else loader.dataset.datasets
-            )
-            assert hasattr(dataset, "dataset") or hasattr(dataset, "data"), (
-                "Your Dataloader's Dataset must have a 'data' or "
-                "'dataset' attribute with your data!"
-            )
-            data = dataset.dataset if hasattr(dataset, "dataset") else dataset.data
-            for i in range(len(data)):
+            dataset = loader.dataset
+            if isinstance(dataset, CombinedDataset):
+                dataset = dataset.datasets
+            try:
+                config_attr = get_dataconfig_attr(dataset)
+            except AttributeError:
+                warnings.warn('No GDataConfig found in your DataSet. Logging of input '
+                              'data to Galileo will be skipped')
+                return
+
+            data_config: GDataConfig = getattr(dataset, config_attr)
+            try:
+                data_config.validate()
+            except AssertionError as e:
+                warnings.warn(f'The provided GDataConfig is invalid. Logging to '
+                              f'Galileo will be skipped. Config Error: {str(e)}')
+                return
+
+            ids = data_config.ids if data_config.ids else range(len(data_config.text))
+            for id, text, label in zip(ids, data_config.text, data_config.labels):
                 dataquality.log_input_data(
                     {
-                        "id": i,
-                        "text": data["text"][i],
-                        "gold": str(data["label"][i]),
+                        "id": id,
+                        "text": text,
+                        "gold": str(label),
                         "split": split,
                     }
                 )
 
-    def _log_model_outputs(self, trainer: pl.Trainer, batch: Any, split: str) -> None:
-        x_idxs, x, attention_mask, y = batch
-        out = trainer.model.model(x, attention_mask=attention_mask)
-        probs = F.softmax(out.logits, dim=1)
-        encoded_layers = trainer.model.feature_extractor(x, return_dict=False)[0]
-        epoch = self.checkpoint_data["epoch"]
-        print(f"Logging model outputs for split {split} epoch {epoch}")
-        if x_idxs is not None:
-            for i in range(len(x_idxs)):
-                index = int(x_idxs[i])
-                prob = probs[i].detach().cpu().numpy().tolist()
-                emb = encoded_layers[i, 0].detach().cpu().numpy().tolist()
+    def _log_model_outputs(self, trainer: pl.Trainer, split: str) -> None:
 
-                #
-                # 🔭 Logging outputs with Galileo!
-                #
-                dataquality.log_model_output(
-                    {
-                        "id": index,
-                        "epoch": epoch,
-                        "split": split,
-                        "emb": emb,
-                        "prob": prob,
-                        "pred": str(int(np.argmax(prob))),
-                    }
-                )
+        try:
+            config_attr = get_modelconfig_attr(trainer.model)
+        except AttributeError:
+            warnings.warn('No GModelConfig found for this model, logging of model '
+                          'config to Galileo will be skipped.')
+            return
+
+        model_config: GModelConfig = getattr(trainer.model, config_attr)
+        try:
+            model_config.validate()
+        except AssertionError as e:
+            warnings.warn(f'The provided GModelConfig is invalid. Logging to '
+                          f'Galileo will be skipped. Config Error: {str(e)}')
+            return
+
+        log = True
+        for id, prob, emb in zip(model_config.ids, model_config.probs,
+                                 model_config.emb):
+
+            #
+            # 🔭 Logging outputs with Galileo!
+            #
+            # if log:
+            #     print(id)
+            #     print()
+            #     print(prob)
+            #     print()
+            #     print(emb)
+            #     print()
+            #     log = False
+            dataquality.log_model_output(
+                {
+                    "id": id,
+                    "epoch": self.checkpoint_data['epoch'],
+                    "split": split,
+                    "emb": emb,
+                    "prob": prob,
+                    "pred": str(int(np.argmax(prob))),
+                }
+            )
 
     def on_train_start(
         self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
@@ -94,7 +128,7 @@ class DataQualityCallback(Callback):
             config.current_run_id
         ), "You must initialize dataquality before invoking a callback!"
         print("Starting train!")
-        self._log_dataquality_input_data("training", trainer.train_dataloader)
+        self._log_input_data("training", trainer.train_dataloader)
 
     def on_test_start(
         self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
@@ -106,7 +140,7 @@ class DataQualityCallback(Callback):
             config.current_run_id
         ), "You must initialize dataquality before invoking a callback!"
         print("Starting test!")
-        self._log_dataquality_input_data("test", trainer.test_dataloaders)
+        self._log_input_data("test", trainer.test_dataloaders)
 
     def on_validation_start(
         self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
@@ -118,7 +152,7 @@ class DataQualityCallback(Callback):
             config.current_run_id
         ), "You must initialize dataquality before invoking a callback!"
         print("Starting validation!")
-        self._log_dataquality_input_data("validation", trainer.val_dataloaders)
+        self._log_input_data("validation", trainer.val_dataloaders)
 
     def on_epoch_start(
         self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
@@ -145,7 +179,7 @@ class DataQualityCallback(Callback):
         batch_idx: int,
         dataloader_idx: int,
     ) -> None:
-        self._log_model_outputs(trainer, batch, "training")
+        self._log_model_outputs(trainer, "training")
 
     def on_validation_batch_end(
         self,
@@ -156,7 +190,7 @@ class DataQualityCallback(Callback):
         batch_idx: int,
         dataloader_idx: int,
     ) -> None:
-        self._log_model_outputs(trainer, batch, "validation")
+        self._log_model_outputs(trainer, "validation")
 
     def on_test_batch_end(
         self,
@@ -167,7 +201,7 @@ class DataQualityCallback(Callback):
         batch_idx: int,
         dataloader_idx: int,
     ) -> None:
-        self._log_model_outputs(trainer, batch, "test")
+        self._log_model_outputs(trainer, "test")
 
     # TODO: Is this okay? This will be called whenever training validation or testing
     #  end. Theres no callback for ONLY after ALL 3 end We could change this to
