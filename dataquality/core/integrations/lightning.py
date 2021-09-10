@@ -1,14 +1,14 @@
+from typing import Any, Dict, Optional, Sequence, Union
+
+import numpy as np
 import pytorch_lightning as pl
+import torch.nn.functional as F
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.utilities.types import STEP_OUTPUT
-import torch.nn.functional as F
+from torch.utils.data.dataloader import DataLoader
 
 import dataquality
 from dataquality import config
-from typing import Sequence, Union, Optional, Any, Dict
-from torch.utils.data.dataloader import DataLoader
-
-import numpy as np
 
 
 class DataQualityCallback(Callback):
@@ -16,13 +16,13 @@ class DataQualityCallback(Callback):
     def __init__(self, dataloader_config: Dict[str, str] = None):
         self.checkpoint_data = {'epoch_start': False, 'epoch': 0}
 
-    def on_load_checkpoint(self, trainer, pl_module, callback_state):
+    def on_load_checkpoint(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule", callback_state: Any) -> None:
         self.checkpoint_data = callback_state
 
-    def on_save_checkpoint(self, trainer, pl_module, checkpoint):
+    def on_save_checkpoint(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule", checkpoint: Any) -> Dict[str,str]:
         return self.checkpoint_data.copy()
 
-    def _log_dataquality_input_data(self, split: str, dataloader: Union[DataLoader, Sequence[DataLoader]]):
+    def _log_dataquality_input_data(self, split: str, dataloader: Union[DataLoader, Sequence[DataLoader]]) -> None:
         #
         # 🔭 Logging Inputs with Galileo!
         #
@@ -80,7 +80,7 @@ class DataQualityCallback(Callback):
         print('Starting validation!')
         self._log_dataquality_input_data('validation', trainer.val_dataloaders)
 
-    def on_epoch_start(self, *args, **kwargs):
+    def on_epoch_start(self,trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
         self.checkpoint_data['epoch_start'] = True
 
     def on_epoch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
