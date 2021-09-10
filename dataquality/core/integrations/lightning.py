@@ -181,8 +181,12 @@ class DataQualityCallback(Callback):
         print("done!")
         dataquality.finish()
 
-    """
-    def on_test_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
+    """ (like this)
+    def on_test_end(
+            self,
+            trainer: "pl.Trainer",
+            pl_module: "pl.LightningModule"
+    ) -> None:
         print('done!')
         dataquality.finish()
     """
