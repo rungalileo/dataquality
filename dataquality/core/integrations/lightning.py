@@ -12,7 +12,7 @@ from dataquality import config
 
 
 class DataQualityCallback(Callback):
-    def __init__(self): # dataloader_config: Dict[str, str] = None
+    def __init__(self) -> None:  # dataloader_config: Dict[str, str] = None
         self.checkpoint_data = {"epoch_start": False, "epoch": 0}
 
     def on_load_checkpoint(
