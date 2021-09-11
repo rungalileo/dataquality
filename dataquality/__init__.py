@@ -17,5 +17,5 @@ __all__ = [
     "log_model_output",
     "config",
     "finish",
-    "cleanup"
+    "cleanup",
 ]
