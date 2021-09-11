@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Sequence, Union, Iterable
+from typing import Any, Dict, Optional, Sequence, Union
 import warnings
 
 import numpy as np
