@@ -1,5 +1,5 @@
-from typing import Any, Dict, Optional, Sequence, Union
 import warnings
+from typing import Any, Dict, Optional, Sequence, Union
 
 import numpy as np
 import pytorch_lightning as pl
@@ -11,7 +11,8 @@ from torch.utils.data.dataloader import DataLoader
 
 import dataquality
 from dataquality import config
-from .config import GDataConfig, GModelConfig, get_modelconfig_attr, get_dataconfig_attr
+
+from .config import GDataConfig, GModelConfig, get_dataconfig_attr, get_modelconfig_attr
 
 
 class DataQualityCallback(Callback):
