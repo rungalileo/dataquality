@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Sequence, Union
+from typing import Any, Dict, Optional, Sequence, Union, Iterable
 import warnings
 
 import numpy as np
@@ -6,6 +6,7 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.trainer.supporters import CombinedDataset
 from pytorch_lightning.utilities.types import STEP_OUTPUT
+from torch.utils.data import Dataset
 from torch.utils.data.dataloader import DataLoader
 
 import dataquality
@@ -22,6 +23,7 @@ class DataQualityCallback(Callback):
     * You have a DataSet that extends PyTorch's DataSet and has an attribute containing
     a valid GDataConfig
     """
+
     def __init__(self) -> None:
         self.checkpoint_data = {"epoch_start": False, "epoch": 0}
 
@@ -39,36 +41,59 @@ class DataQualityCallback(Callback):
         return self.checkpoint_data.copy()
 
     def _log_input_data(
-        self, split: str, dataloader: Union[DataLoader, Sequence[DataLoader]]
+        self, split: str, dataloader: Optional[Union[DataLoader, Sequence[DataLoader]]]
     ) -> None:
         #
         # 🔭 Logging Inputs with Galileo!
         #
+        if dataloader is None:
+            warnings.warn(f"No {split} dataset available. Cannot log to Galileo")
+            return
         loaders = dataloader if isinstance(dataloader, Sequence) else [dataloader]
         for loader in loaders:
             dataset = loader.dataset
             if isinstance(dataset, CombinedDataset):
-                dataset = dataset.datasets
+                datasets = dataset.datasets
+                if isinstance(datasets, Dataset):
+                    dataset = datasets
+                elif isinstance(datasets, Sequence):
+                    warnings.warn(
+                        "Galileo currently supports logging one dataset. "
+                        "The first dataset in your CombinedDataset will be "
+                        "logged"
+                    )
+                    dataset = datasets[0]
+                else:
+                    warnings.warn(
+                        f"Your {split} dataset is of an unsupported type "
+                        f"{type(datasets)}. Currently a single dataset is "
+                        f"supported for logging."
+                    )
+                    return
             try:
                 config_attr = get_dataconfig_attr(dataset)
             except AttributeError:
-                warnings.warn('No GDataConfig found in your DataSet. Logging of input '
-                              'data to Galileo will be skipped')
+                warnings.warn(
+                    "No GDataConfig found in your DataSet. Logging of input "
+                    "data to Galileo will be skipped"
+                )
                 return
 
             data_config: GDataConfig = getattr(dataset, config_attr)
             try:
                 data_config.validate()
             except AssertionError as e:
-                warnings.warn(f'The provided GDataConfig is invalid. Logging to '
-                              f'Galileo will be skipped. Config Error: {str(e)}')
+                warnings.warn(
+                    f"The provided GDataConfig is invalid. Logging to "
+                    f"Galileo will be skipped. Config Error: {str(e)}"
+                )
                 return
 
             ids = data_config.ids if data_config.ids else range(len(data_config.text))
-            for id, text, label in zip(ids, data_config.text, data_config.labels):
+            for idx, text, label in zip(ids, data_config.text, data_config.labels):
                 dataquality.log_input_data(
                     {
-                        "id": id,
+                        "id": idx,
                         "text": text,
                         "gold": str(label),
                         "split": split,
@@ -80,37 +105,33 @@ class DataQualityCallback(Callback):
         try:
             config_attr = get_modelconfig_attr(trainer.model)
         except AttributeError:
-            warnings.warn('No GModelConfig found for this model, logging of model '
-                          'config to Galileo will be skipped.')
+            warnings.warn(
+                "No GModelConfig found for this model, logging of model "
+                "config to Galileo will be skipped."
+            )
             return
 
         model_config: GModelConfig = getattr(trainer.model, config_attr)
         try:
             model_config.validate()
         except AssertionError as e:
-            warnings.warn(f'The provided GModelConfig is invalid. Logging to '
-                          f'Galileo will be skipped. Config Error: {str(e)}')
+            warnings.warn(
+                f"The provided GModelConfig is invalid. Logging to "
+                f"Galileo will be skipped. Config Error: {str(e)}"
+            )
             return
 
-        log = True
-        for id, prob, emb in zip(model_config.ids, model_config.probs,
-                                 model_config.emb):
+        for id, prob, emb in zip(
+            model_config.ids, model_config.probs, model_config.emb
+        ):
 
             #
             # 🔭 Logging outputs with Galileo!
             #
-            # if log:
-            #     print(id)
-            #     print()
-            #     print(prob)
-            #     print()
-            #     print(emb)
-            #     print()
-            #     log = False
             dataquality.log_model_output(
                 {
                     "id": id,
-                    "epoch": self.checkpoint_data['epoch'],
+                    "epoch": self.checkpoint_data["epoch"],
                     "split": split,
                     "emb": emb,
                     "prob": prob,
@@ -127,7 +148,6 @@ class DataQualityCallback(Callback):
         assert (
             config.current_run_id
         ), "You must initialize dataquality before invoking a callback!"
-        print("Starting train!")
         self._log_input_data("training", trainer.train_dataloader)
 
     def on_test_start(
@@ -139,7 +159,6 @@ class DataQualityCallback(Callback):
         assert (
             config.current_run_id
         ), "You must initialize dataquality before invoking a callback!"
-        print("Starting test!")
         self._log_input_data("test", trainer.test_dataloaders)
 
     def on_validation_start(
@@ -151,7 +170,6 @@ class DataQualityCallback(Callback):
         assert (
             config.current_run_id
         ), "You must initialize dataquality before invoking a callback!"
-        print("Starting validation!")
         self._log_input_data("validation", trainer.val_dataloaders)
 
     def on_epoch_start(
@@ -203,9 +221,6 @@ class DataQualityCallback(Callback):
     ) -> None:
         self._log_model_outputs(trainer, "test")
 
-    # TODO: Is this okay? This will be called whenever training validation or testing
-    #  end. Theres no callback for ONLY after ALL 3 end We could change this to
-    #  on_test_end which we can assume occurs after train/val and is the last action
     def teardown(
         self,
         trainer: "pl.Trainer",
@@ -213,14 +228,6 @@ class DataQualityCallback(Callback):
         stage: Optional[str] = None,
     ) -> None:
         print("done!")
-        dataquality.finish()
-
-    """ (like this)
-    def on_test_end(
-            self,
-            trainer: "pl.Trainer",
-            pl_module: "pl.LightningModule"
-    ) -> None:
-        print('done!')
-        dataquality.finish()
-    """
+        # Don't cleanup because might call test after fit many times. We'd want to
+        # append in that case
+        dataquality.finish(cleanup=False)
