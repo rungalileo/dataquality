@@ -43,8 +43,8 @@ class GalileoModelConfig:
         assert (
             self.emb is not None and self.probs is not None and self.ids is not None
         ), (
-            f"All of emb, probs, and ids for your GalileoModelConfig must be set, but got "
-            f"emb:{bool(self.emb)}, probs:{bool(self.probs)}, ids:{bool(self.ids)}"
+            f"All of emb, probs, and ids for your GalileoModelConfig must be set, but "
+            f"got emb:{bool(self.emb)}, probs:{bool(self.probs)}, ids:{bool(self.ids)}"
         )
 
         assert len(self.emb) == len(self.probs) == len(self.ids), (
