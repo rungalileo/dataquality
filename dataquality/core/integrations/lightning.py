@@ -12,7 +12,7 @@ from torch.utils.data.dataloader import DataLoader
 import dataquality
 from dataquality import config
 
-from .config import GDataConfig, GModelConfig, get_dataconfig_attr, get_modelconfig_attr
+from .config import GalileoDataConfig, GalileoModelConfig, get_dataconfig_attr, get_modelconfig_attr
 
 
 class DataQualityCallback(Callback):
@@ -20,9 +20,9 @@ class DataQualityCallback(Callback):
     The PyTorch Lightning Callback for Galileo's dataquality module. This module
     handles the logging of input data and model configs to Galileo. It makes the
     following assumptions:
-    * Your model class has an attribute containing a valid GModelConfig
+    * Your model class has an attribute containing a valid GalileoModelConfig
     * You have a DataSet that extends PyTorch's DataSet and has an attribute containing
-    a valid GDataConfig
+    a valid GalileoDataConfig
     """
 
     def __init__(self) -> None:
@@ -75,17 +75,17 @@ class DataQualityCallback(Callback):
                 config_attr = get_dataconfig_attr(dataset)
             except AttributeError:
                 warnings.warn(
-                    "No GDataConfig found in your DataSet. Logging of input "
+                    "No GalileoDataConfig found in your DataSet. Logging of input "
                     "data to Galileo will be skipped"
                 )
                 return
 
-            data_config: GDataConfig = getattr(dataset, config_attr)
+            data_config: GalileoDataConfig = getattr(dataset, config_attr)
             try:
                 data_config.validate()
             except AssertionError as e:
                 warnings.warn(
-                    f"The provided GDataConfig is invalid. Logging to "
+                    f"The provided GalileoDataConfig is invalid. Logging to "
                     f"Galileo will be skipped. Config Error: {str(e)}"
                 )
                 return
@@ -107,17 +107,17 @@ class DataQualityCallback(Callback):
             config_attr = get_modelconfig_attr(trainer.model)
         except AttributeError:
             warnings.warn(
-                "No GModelConfig found for this model, logging of model "
+                "No GalileoModelConfig found for this model, logging of model "
                 "config to Galileo will be skipped."
             )
             return
 
-        model_config: GModelConfig = getattr(trainer.model, config_attr)
+        model_config: GalileoModelConfig = getattr(trainer.model, config_attr)
         try:
             model_config.validate()
         except AssertionError as e:
             warnings.warn(
-                f"The provided GModelConfig is invalid. Logging to "
+                f"The provided GalileoModelConfig is invalid. Logging to "
                 f"Galileo will be skipped. Config Error: {str(e)}"
             )
             return

@@ -2,7 +2,7 @@ import inspect
 from typing import Any, Dict, List, Union
 
 
-class GModelConfig:
+class GalileoModelConfig:
     """
     Class for storing model metadata to be logged to Galileo.
     * Embeddings: List[List[Union[int,float]]]
@@ -26,7 +26,7 @@ class GModelConfig:
     @staticmethod
     def get_valid() -> List[str]:
         """
-        Returns a list of valid attributes that GModelConfig accepts
+        Returns a list of valid attributes that GalileoModelConfig accepts
         :return: List[str]
         """
         return ["emb", "probs", "ids"]
@@ -43,19 +43,19 @@ class GModelConfig:
         assert (
             self.emb is not None and self.probs is not None and self.ids is not None
         ), (
-            f"All of emb, probs, and ids for your GModelConfig must be set, but got "
+            f"All of emb, probs, and ids for your GalileoModelConfig must be set, but got "
             f"emb:{bool(self.emb)}, probs:{bool(self.probs)}, ids:{bool(self.ids)}"
         )
 
         assert len(self.emb) == len(self.probs) == len(self.ids), (
-            f"All of emb, probs, and ids for your GModelConfig must be the same "
+            f"All of emb, probs, and ids for your GalileoModelConfig must be the same "
             f"length, but got (emb, probs, ids) "
             f"({len(self.emb)},{len(self.probs)}, {self.ids})"
         )
 
     def is_valid(self) -> bool:
         """
-        A function that returns if your GModelConfig is valid or not
+        A function that returns if your GalileoModelConfig is valid or not
         :return: bool
         """
         try:
@@ -65,18 +65,18 @@ class GModelConfig:
             return False
 
     def __setattr__(self, key: Any, value: Any) -> None:
-        if key not in GModelConfig.get_valid():
+        if key not in GalileoModelConfig.get_valid():
             raise AttributeError(
-                f"{key} is not a valid attribute of GModelConfig. "
-                f"Only {GModelConfig.get_valid()}"
+                f"{key} is not a valid attribute of GalileoModelConfig. "
+                f"Only {GalileoModelConfig.get_valid()}"
             )
         super().__setattr__(key, value)
 
 
-class GDataConfig:
+class GalileoDataConfig:
     """
     Class for storing training data metadata to be logged to Galileo. Separate
-    GDataConfigs will be created for training, validation, and testing data
+    GalileoDataConfigs will be created for training, validation, and testing data
     * text: The raw text inputs for model training. List[str]
     * labels: the ground truth labels aligned to each text field. List[Union[str,int]]
     * ids: Optional unique indexes for each record. If not provided, will default to
@@ -98,7 +98,7 @@ class GDataConfig:
     @staticmethod
     def get_valid() -> List[str]:
         """
-        Returns a list of valid attributes that GModelConfig accepts
+        Returns a list of valid attributes that GalileoModelConfig accepts
         :return: List[str]
         """
         return ["text", "labels", "ids"]
@@ -115,7 +115,7 @@ class GDataConfig:
         :return:
         """
         assert self.labels is not None and self.text is not None, (
-            f"Both text and labels for your GDataConfig must be set, but got "
+            f"Both text and labels for your GalileoDataConfig must be set, but got "
             f"text:{bool(self.text)}, labels:{bool(self.labels)}"
         )
 
@@ -132,7 +132,7 @@ class GDataConfig:
 
     def is_valid(self) -> bool:
         """
-        A function that returns if your GDataConfig is valid or not
+        A function that returns if your GalileoDataConfig is valid or not
         :return: bool
         """
         try:
@@ -142,37 +142,37 @@ class GDataConfig:
             return False
 
     def __setattr__(self, key: Any, value: Any) -> None:
-        if key not in GDataConfig.get_valid():
+        if key not in GalileoDataConfig.get_valid():
             raise AttributeError(
-                f"{key} is not a valid attribute of GDataConfig. "
-                f"Only {GDataConfig.get_valid()}"
+                f"{key} is not a valid attribute of GalileoDataConfig. "
+                f"Only {GalileoDataConfig.get_valid()}"
             )
         super().__setattr__(key, value)
 
 
 def get_dataconfig_attr(cls: object) -> str:
     """
-    Returns the attribute of a class that corresponds to the GDataConfig class.
-    This assumes only 1 GDataConfig object exists in the class
+    Returns the attribute of a class that corresponds to the GalileoDataConfig class.
+    This assumes only 1 GalileoDataConfig object exists in the class
 
     :param cls: The class
     :return: The attribute name
     """
     for attr, member_class in inspect.getmembers(cls):
-        if isinstance(member_class, GDataConfig):
+        if isinstance(member_class, GalileoDataConfig):
             return attr
-    raise AttributeError("No GDataConfig attribute found!")
+    raise AttributeError("No GalileoDataConfig attribute found!")
 
 
 def get_modelconfig_attr(cls: object) -> str:
     """
-    Returns the attribute of a class that corresponds to the GModelConfig class.
-    This assumes only 1 GModelConfig object exists in the class
+    Returns the attribute of a class that corresponds to the GalileoModelConfig class.
+    This assumes only 1 GalileoModelConfig object exists in the class
 
     :param cls: The class
     :return: The attribute name
     """
     for attr, member_class in inspect.getmembers(cls):
-        if isinstance(member_class, GModelConfig):
+        if isinstance(member_class, GalileoModelConfig):
             return attr
-    raise AttributeError("No GModelConfig attribute found!")
+    raise AttributeError("No GalileoModelConfig attribute found!")
