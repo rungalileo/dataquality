@@ -12,7 +12,7 @@ from torch.utils.data.dataloader import DataLoader
 import dataquality
 from dataquality import config
 
-from .config import (
+from dataquality.core.integrations.config import (
     GalileoDataConfig,
     GalileoModelConfig,
     get_dataconfig_attr,
