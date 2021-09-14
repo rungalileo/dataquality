@@ -181,7 +181,7 @@ class DataQualityCallback(Callback):
     def on_epoch_start(
         self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
     ) -> None:
-        self.checkpoint_data["epoch_start"] = True
+        self.checkpoint_data["start_of_new_epoch"] = True
 
     def on_epoch_end(
         self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
@@ -190,9 +190,9 @@ class DataQualityCallback(Callback):
         # bug in pytorch where at the end of each epoch The on_epoch_end
         # callback is called twice. This makes sure we only count it once
         # https://github.com/PyTorchLightning/pytorch-lightning/issues/5007
-        if self.checkpoint_data["epoch_start"]:
+        if self.checkpoint_data["start_of_new_epoch"]:
             self.checkpoint_data["epoch"] += 1
-        self.checkpoint_data["epoch_start"] = False
+        self.checkpoint_data["start_of_new_epoch"] = False
 
     def on_train_batch_end(
         self,
@@ -233,7 +233,6 @@ class DataQualityCallback(Callback):
         pl_module: "pl.LightningModule",
         stage: Optional[str] = None,
     ) -> None:
-        print("done!")
         # Don't cleanup because might call test after fit many times. We'd want to
         # append in that case
         dataquality.finish(cleanup=False)
