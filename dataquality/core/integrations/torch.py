@@ -43,7 +43,7 @@ def watch(model: Module) -> None:
         config.current_run_id
     ), "You must initialize dataquality before invoking a callback!"
     if not isinstance(model, Module):
-        raise ValueError(
+        raise GalileoException(
             "Expected a pytorch model (torch.nn.Module). Received " + str(type(model))
         )
 
