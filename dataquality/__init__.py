@@ -2,7 +2,6 @@
 
 __version__ = "0.0.1"
 
-
 from dataquality.core.auth import login
 from dataquality.core.config import config
 from dataquality.core.finish import cleanup, finish
@@ -19,3 +18,11 @@ __all__ = [
     "finish",
     "cleanup",
 ]
+
+
+class GalileoException(Exception):
+    """
+    A class for Galileo Exceptions
+    """
+
+    pass
