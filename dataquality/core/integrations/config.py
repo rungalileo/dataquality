@@ -1,7 +1,32 @@
 import inspect
-from typing import Any, Dict, List, Optional, Union
+from enum import Enum, unique
+from typing import Any, List, Optional, Union
 
-from ...schemas.split import Split
+from dataquality.schemas.split import Split
+
+
+@unique
+class GalileoModelConfigAttributes(str, Enum):
+    emb = "emb"
+    probs = "probs"
+    ids = "ids"
+    split = "split"  # type: ignore
+    epoch = "epoch"
+
+    @staticmethod
+    def get_valid() -> List[str]:
+        return list(map(lambda x: x.value, GalileoModelConfigAttributes))
+
+
+@unique
+class GalileoDataConfigAttributes(str, Enum):
+    text = "text"
+    labels = "labels"
+    ids = "ids"
+
+    @staticmethod
+    def get_valid() -> List[str]:
+        return list(map(lambda x: x.value, GalileoDataConfigAttributes))
 
 
 class GalileoModelConfig:
@@ -35,10 +60,7 @@ class GalileoModelConfig:
         Returns a list of valid attributes that GalileoModelConfig accepts
         :return: List[str]
         """
-        return ["emb", "probs", "ids", "split", "epoch"]
-
-    def dict(self) -> Dict[str, Any]:
-        return dict(emb=self.emb, probs=self.probs, ids=self.ids, split=self.split)
+        return GalileoModelConfigAttributes.get_valid()
 
     def validate(self) -> None:
         """
@@ -120,10 +142,7 @@ class GalileoDataConfig:
         Returns a list of valid attributes that GalileoModelConfig accepts
         :return: List[str]
         """
-        return ["text", "labels", "ids"]
-
-    def dict(self) -> Dict[str, Any]:
-        return dict(text=self.text, labels=self.labels, ids=self.ids)
+        return GalileoDataConfigAttributes.get_valid()
 
     def validate(self) -> None:
         """

@@ -11,4 +11,4 @@ class Split(str, Enum):
 
     @staticmethod
     def get_valid_attributes() -> List[str]:
-        return [Split.training, Split.validation, Split.test, Split.inference]
+        return list(map(lambda x: x.value, Split))

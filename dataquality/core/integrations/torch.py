@@ -9,9 +9,12 @@ from torch.utils.data.dataloader import DataLoader
 
 import dataquality
 from dataquality import GalileoException, config
+from dataquality.core.integrations.config import (
+    GalileoModelConfig,
+    get_dataconfig_attr,
+    get_modelconfig_attr,
+)
 from dataquality.schemas.split import Split
-
-from .config import GalileoModelConfig, get_dataconfig_attr, get_modelconfig_attr
 
 _GORILLA_WATCH_SETTINGS = gorilla.Settings(allow_hit=True, store_hit=True)
 _GORILLA_UNWATCH_SETTINGS = gorilla.Settings(allow_hit=True, store_hit=False)
