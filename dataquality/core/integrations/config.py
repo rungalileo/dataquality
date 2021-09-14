@@ -60,8 +60,12 @@ class GalileoModelConfig:
         )
         if self.split:
             assert (
-                isinstance(self.split, str) and self.split in Split.get_valid()
-            ), f"Split should be one of {Split.get_valid()} but got {self.split}"
+                isinstance(self.split, str)
+                and self.split in Split.get_valid_attributes()
+            ), (
+                f"Split should be one of {Split.get_valid_attributes()} "
+                f"but got {self.split}"
+            )
 
         if self.epoch:
             assert isinstance(self.epoch, int), (

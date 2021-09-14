@@ -10,5 +10,5 @@ class Split(str, Enum):
     inference = "inference"
 
     @staticmethod
-    def get_valid() -> List[str]:
+    def get_valid_attributes() -> List[str]:
         return [Split.training, Split.validation, Split.test, Split.inference]

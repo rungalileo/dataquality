@@ -152,9 +152,9 @@ def log_input_data(data: Union[DataLoader, Dataset], split: str) -> None:
     :param split: The data split. One of (training, validation, test, inference)
     :return: None
     """
-    if split not in Split.get_valid():
+    if split not in Split.get_valid_attributes():
         raise GalileoException(
-            f"split must be one of {Split.get_valid()} but got {split}"
+            f"split must be one of {Split.get_valid_attributes()} but got {split}"
         )
 
     try:
