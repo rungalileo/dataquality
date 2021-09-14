@@ -10,6 +10,7 @@ class GalileoModelConfigAttributes(str, Enum):
     emb = "emb"
     probs = "probs"
     ids = "ids"
+    # we need to ignore this because "split" is a builtin function in python
     split = "split"  # type: ignore
     epoch = "epoch"
 
