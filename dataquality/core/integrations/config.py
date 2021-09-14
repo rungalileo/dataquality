@@ -30,7 +30,7 @@ class GalileoModelConfig:
         self.epoch = epoch
 
     @staticmethod
-    def get_valid() -> List[str]:
+    def get_valid_attributes() -> List[str]:
         """
         Returns a list of valid attributes that GalileoModelConfig accepts
         :return: List[str]
@@ -80,10 +80,10 @@ class GalileoModelConfig:
             return False
 
     def __setattr__(self, key: Any, value: Any) -> None:
-        if key not in GalileoModelConfig.get_valid():
+        if key not in GalileoModelConfig.get_valid_attributes():
             raise AttributeError(
                 f"{key} is not a valid attribute of GalileoModelConfig. "
-                f"Only {GalileoModelConfig.get_valid()}"
+                f"Only {GalileoModelConfig.get_valid_attributes()}"
             )
         super().__setattr__(key, value)
 
@@ -111,7 +111,7 @@ class GalileoDataConfig:
         self.ids = ids if ids is not None else []
 
     @staticmethod
-    def get_valid() -> List[str]:
+    def get_valid_attributes() -> List[str]:
         """
         Returns a list of valid attributes that GalileoModelConfig accepts
         :return: List[str]
@@ -157,10 +157,10 @@ class GalileoDataConfig:
             return False
 
     def __setattr__(self, key: Any, value: Any) -> None:
-        if key not in GalileoDataConfig.get_valid():
+        if key not in GalileoDataConfig.get_valid_attributes():
             raise AttributeError(
                 f"{key} is not a valid attribute of GalileoDataConfig. "
-                f"Only {GalileoDataConfig.get_valid()}"
+                f"Only {GalileoDataConfig.get_valid_attributes()}"
             )
         super().__setattr__(key, value)
 
