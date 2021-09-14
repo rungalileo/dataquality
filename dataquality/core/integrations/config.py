@@ -1,4 +1,3 @@
-import inspect
 from typing import Any, Dict, List, Union
 
 
@@ -158,7 +157,8 @@ def get_dataconfig_attr(cls: object) -> str:
     :param cls: The class
     :return: The attribute name
     """
-    for attr, member_class in inspect.getmembers(cls):
+    for attr in dir(cls):
+        member_class = getattr(cls, attr)
         if isinstance(member_class, GalileoDataConfig):
             return attr
     raise AttributeError("No GalileoDataConfig attribute found!")
@@ -172,7 +172,8 @@ def get_modelconfig_attr(cls: object) -> str:
     :param cls: The class
     :return: The attribute name
     """
-    for attr, member_class in inspect.getmembers(cls):
+    for attr in dir(cls):
+        member_class = getattr(cls, attr)
         if isinstance(member_class, GalileoModelConfig):
             return attr
     raise AttributeError("No GalileoModelConfig attribute found!")

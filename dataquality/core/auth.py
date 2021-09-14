@@ -6,7 +6,7 @@ import requests
 
 from dataquality.core.config import AuthMethod, Config, _Config, config
 
-GALILEO_AUTH_METHOD = 'GALILEO_AUTH_METHOD'
+GALILEO_AUTH_METHOD = "GALILEO_AUTH_METHOD"
 
 
 class _Auth:
@@ -46,11 +46,11 @@ class _Auth:
     def valid_current_user(self, config: Config) -> bool:
         if config.token:
             return (
-                    requests.get(
-                        f"{self.config.api_url}/current_user",
-                        headers={"Authorization": f"Bearer {config.token}"},
-                    ).status_code
-                    == 200
+                requests.get(
+                    f"{self.config.api_url}/current_user",
+                    headers={"Authorization": f"Bearer {config.token}"},
+                ).status_code
+                == 200
             )
         else:
             return False
@@ -85,7 +85,7 @@ def login() -> None:
             print("🤝 Saving preferred login method")
             os.environ[GALILEO_AUTH_METHOD] = auth_method
     else:
-        print(f'👀 Found auth method {auth_method} set via env, skipping prompt.')
+        print(f"👀 Found auth method {auth_method} set via env, skipping prompt.")
     config.auth_method = AuthMethod(auth_method)
     _auth = _Auth(config=config, auth_method=config.auth_method)
     _auth.auth_methods()[config.auth_method]()

@@ -93,7 +93,6 @@ class DataQualityCallback(Callback):
                     f"Galileo will be skipped. Config Error: {str(e)}"
                 )
                 return
-
             ids = data_config.ids if data_config.ids else range(len(data_config.text))
             for idx, text, label in zip(ids, data_config.text, data_config.labels):
                 dataquality.log_input_data(
@@ -106,7 +105,6 @@ class DataQualityCallback(Callback):
                 )
 
     def _log_model_outputs(self, trainer: pl.Trainer, split: str) -> None:
-
         try:
             config_attr = get_modelconfig_attr(trainer.model)
         except AttributeError:
@@ -125,7 +123,6 @@ class DataQualityCallback(Callback):
                 f"Galileo will be skipped. Config Error: {str(e)}"
             )
             return
-
         for id, prob, emb in zip(
             model_config.ids, model_config.probs, model_config.emb
         ):
