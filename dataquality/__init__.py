@@ -7,6 +7,7 @@ from dataquality.core.config import config
 from dataquality.core.finish import cleanup, finish
 from dataquality.core.init import init
 from dataquality.core.log import log_input_data, log_model_output
+from dataquality.exceptions import GalileoException
 
 __all__ = [
     "__version__",
@@ -17,12 +18,5 @@ __all__ = [
     "config",
     "finish",
     "cleanup",
+    "GalileoException",
 ]
-
-
-class GalileoException(Exception):
-    """
-    A class for Galileo Exceptions
-    """
-
-    pass
