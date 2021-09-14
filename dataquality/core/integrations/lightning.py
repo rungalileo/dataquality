@@ -17,6 +17,7 @@ from dataquality.core.integrations.config import (
     get_dataconfig_attr,
     get_modelconfig_attr,
 )
+from dataquality.schemas.split import Split
 
 
 class DataQualityCallback(Callback):
@@ -86,7 +87,7 @@ class DataQualityCallback(Callback):
 
             data_config: GalileoDataConfig = getattr(dataset, config_attr)
             try:
-                data_config.validate()
+                data_config.validate(split=split)
             except AssertionError as e:
                 warnings.warn(
                     f"The provided GalileoDataConfig is invalid. Logging to "
@@ -99,7 +100,7 @@ class DataQualityCallback(Callback):
                     {
                         "id": idx,
                         "text": text,
-                        "gold": str(label),
+                        "gold": str(label) if split != Split.inference else None,
                         "split": split,
                     }
                 )
@@ -141,38 +142,33 @@ class DataQualityCallback(Callback):
                 }
             )
 
-    def on_train_start(
-        self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
-    ) -> None:
+    def on_init_start(self, trainer: "pl.Trainer") -> None:
         assert (
             config.current_project_id
         ), "You must initialize dataquality before invoking a callback!"
         assert (
             config.current_run_id
         ), "You must initialize dataquality before invoking a callback!"
-        self._log_input_data("training", trainer.train_dataloader)
+
+    def on_train_start(
+        self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
+    ) -> None:
+        self._log_input_data(Split.training, trainer.train_dataloader)
 
     def on_test_start(
         self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
     ) -> None:
-        assert (
-            config.current_project_id
-        ), "You must initialize dataquality before invoking a callback!"
-        assert (
-            config.current_run_id
-        ), "You must initialize dataquality before invoking a callback!"
-        self._log_input_data("test", trainer.test_dataloaders)
+        self._log_input_data(Split.test, trainer.test_dataloaders)
 
     def on_validation_start(
         self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
     ) -> None:
-        assert (
-            config.current_project_id
-        ), "You must initialize dataquality before invoking a callback!"
-        assert (
-            config.current_run_id
-        ), "You must initialize dataquality before invoking a callback!"
-        self._log_input_data("validation", trainer.val_dataloaders)
+        self._log_input_data(Split.validation, trainer.val_dataloaders)
+
+    def on_predict_start(
+        self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
+    ) -> None:
+        self._log_input_data(Split.inference, trainer.predict_dataloaders)
 
     def on_epoch_start(
         self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
@@ -199,7 +195,7 @@ class DataQualityCallback(Callback):
         batch_idx: int,
         dataloader_idx: int,
     ) -> None:
-        self._log_model_outputs(trainer, "training")
+        self._log_model_outputs(trainer, Split.training)
 
     def on_validation_batch_end(
         self,
@@ -210,7 +206,7 @@ class DataQualityCallback(Callback):
         batch_idx: int,
         dataloader_idx: int,
     ) -> None:
-        self._log_model_outputs(trainer, "validation")
+        self._log_model_outputs(trainer, Split.validation)
 
     def on_test_batch_end(
         self,
@@ -221,7 +217,18 @@ class DataQualityCallback(Callback):
         batch_idx: int,
         dataloader_idx: int,
     ) -> None:
-        self._log_model_outputs(trainer, "test")
+        self._log_model_outputs(trainer, Split.test)
+
+    def on_predict_batch_end(
+        self,
+        trainer: "pl.Trainer",
+        pl_module: "pl.LightningModule",
+        outputs: Any,
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int,
+    ) -> None:
+        self._log_model_outputs(trainer, Split.inference)
 
     def teardown(
         self,

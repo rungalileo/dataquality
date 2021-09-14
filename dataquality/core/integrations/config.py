@@ -68,17 +68,17 @@ class GalileoModelConfig:
         * emb, probs, and ids must exist and be the same length
         :return:
         """
-        assert (
-            self.emb is not None and self.probs is not None and self.ids is not None
-        ), (
+        emb_len = len(self.emb)
+        prob_len = len(self.probs)
+        id_len = len(self.ids)
+        assert emb_len and prob_len and id_len, (
             f"All of emb, probs, and ids for your GalileoModelConfig must be set, but "
-            f"got emb:{bool(self.emb)}, probs:{bool(self.probs)}, ids:{bool(self.ids)}"
+            f"got emb:{bool(emb_len)}, probs:{bool(prob_len)}, ids:{bool(id_len)}"
         )
 
-        assert len(self.emb) == len(self.probs) == len(self.ids), (
+        assert emb_len == prob_len == id_len, (
             f"All of emb, probs, and ids for your GalileoModelConfig must be the same "
-            f"length, but got (emb, probs, ids) "
-            f"({len(self.emb)},{len(self.probs)}, {self.ids})"
+            f"length, but got (emb, probs, ids) -> ({emb_len},{prob_len}, {id_len})"
         )
         if self.split:
             assert (
@@ -144,28 +144,38 @@ class GalileoDataConfig:
         """
         return GalileoDataConfigAttributes.get_valid()
 
-    def validate(self) -> None:
+    def validate(self, split: Optional[str] = None) -> None:
         """
         Validates that the current config is correct.
-        * Text and Labels must both exist
+        * Text and Labels must both exist (unless split is 'inference' in which case
+        labels must be None)
         * Text and Labels must be the same length
         * If ids exist, it must be the same length as text/labels
         :return:
         """
-        assert self.labels is not None and self.text is not None, (
-            f"Both text and labels for your GalileoDataConfig must be set, but got "
-            f"text:{bool(self.text)}, labels:{bool(self.labels)}"
-        )
 
-        assert len(self.text) == len(self.labels), (
-            f"labels and text must be the same length, but got"
-            f"(labels, text) ({len(self.labels)},{len(self.text)})"
-        )
+        label_len = len(self.labels)
+        text_len = len(self.text)
+        id_len = len(self.ids)
+        if split == Split.validation:
+            assert not len(
+                self.labels
+            ), "You cannot have labels in your inference split!"
+        else:
+            assert label_len and text_len, (
+                f"Both text and labels for your GalileoDataConfig must be set, but got"
+                f" text:{bool(text_len)}, labels:{bool(text_len)}"
+            )
+
+            assert text_len == label_len, (
+                f"labels and text must be the same length, but got"
+                f"(labels, text) ({label_len},{text_len})"
+            )
 
         if self.ids:
-            assert len(self.ids) == len(self.labels), (
+            assert id_len == text_len, (
                 f"Ids exists but are not the same length as text and labels. "
-                f"(ids, text) ({len(self.ids)}, {len(self.text)})"
+                f"(ids, text) ({id_len}, {text_len})"
             )
 
     def is_valid(self) -> bool:
