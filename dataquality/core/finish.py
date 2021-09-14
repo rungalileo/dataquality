@@ -8,7 +8,7 @@ from dataquality.clients import object_store
 from dataquality.loggers.jsonl_logger import JsonlLogger
 
 
-def finish() -> None:
+def finish(cleanup: bool = True) -> None:
     assert config.current_project_id
     assert config.current_run_id
     location = (
@@ -30,5 +30,20 @@ def finish() -> None:
             file_path=io_path,
         )
 
+    if cleanup:
+        print("🧹 Cleaning up")
+        shutil.rmtree(location)
+
+
+def cleanup() -> None:
+    """
+    Cleans up the current run data locally
+    """
+    assert config.current_project_id
+    assert config.current_run_id
+    location = (
+        f"{JsonlLogger.LOG_FILE_DIR}/{config.current_project_id}"
+        f"/{config.current_run_id}"
+    )
     print("🧹 Cleaning up")
     shutil.rmtree(location)
