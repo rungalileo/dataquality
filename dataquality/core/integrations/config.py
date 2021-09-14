@@ -1,4 +1,32 @@
-from typing import Any, Dict, List, Union
+from enum import Enum, unique
+from typing import Any, List, Optional, Union
+
+from dataquality.schemas.split import Split
+
+
+@unique
+class GalileoModelConfigAttributes(str, Enum):
+    emb = "emb"
+    probs = "probs"
+    ids = "ids"
+    # we need to ignore this because "split" is a builtin function in python
+    split = "split"  # type: ignore
+    epoch = "epoch"
+
+    @staticmethod
+    def get_valid() -> List[str]:
+        return list(map(lambda x: x.value, GalileoModelConfigAttributes))
+
+
+@unique
+class GalileoDataConfigAttributes(str, Enum):
+    text = "text"
+    labels = "labels"
+    ids = "ids"
+
+    @staticmethod
+    def get_valid() -> List[str]:
+        return list(map(lambda x: x.value, GalileoDataConfigAttributes))
 
 
 class GalileoModelConfig:
@@ -15,12 +43,16 @@ class GalileoModelConfig:
         emb: List[List[Union[int, float]]] = None,
         probs: List[List[float]] = None,
         ids: List[Union[int, str]] = None,
+        split: Optional[str] = None,
+        epoch: Optional[int] = None,
     ) -> None:
         # Need to compare to None because they may be np arrays which cannot be
         # evaluated with bool directly
         self.emb = emb if emb is not None else []
         self.probs = probs if probs is not None else []
         self.ids = ids if ids is not None else []
+        self.split = split
+        self.epoch = epoch
 
     @staticmethod
     def get_valid_attributes() -> List[str]:
@@ -28,10 +60,7 @@ class GalileoModelConfig:
         Returns a list of valid attributes that GalileoModelConfig accepts
         :return: List[str]
         """
-        return ["emb", "probs", "ids"]
-
-    def dict(self) -> Dict[str, Any]:
-        return dict(emb=self.emb, probs=self.probs, ids=self.ids)
+        return GalileoModelConfigAttributes.get_valid()
 
     def validate(self) -> None:
         """
@@ -51,6 +80,19 @@ class GalileoModelConfig:
             f"length, but got (emb, probs, ids) "
             f"({len(self.emb)},{len(self.probs)}, {self.ids})"
         )
+        if self.split:
+            assert (
+                isinstance(self.split, str)
+                and self.split in Split.get_valid_attributes()
+            ), (
+                f"Split should be one of {Split.get_valid_attributes()} "
+                f"but got {self.split}"
+            )
+
+        if self.epoch:
+            assert isinstance(self.epoch, int), (
+                f"If set, epoch must be int but was " f"{type(self.epoch)}"
+            )
 
     def is_valid(self) -> bool:
         """
@@ -100,10 +142,7 @@ class GalileoDataConfig:
         Returns a list of valid attributes that GalileoModelConfig accepts
         :return: List[str]
         """
-        return ["text", "labels", "ids"]
-
-    def dict(self) -> Dict[str, Any]:
-        return dict(text=self.text, labels=self.labels, ids=self.ids)
+        return GalileoDataConfigAttributes.get_valid()
 
     def validate(self) -> None:
         """
