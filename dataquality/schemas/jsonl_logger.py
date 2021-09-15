@@ -3,10 +3,24 @@ from typing import Dict, List, Optional
 from pydantic import BaseModel, validator
 from pydantic.types import StrictFloat, StrictInt, StrictStr
 
+from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.split import Split
 
 
-class JsonlInputLogItem(BaseModel):
+class BaseLogItem(BaseModel):
+    data_schema_version: int = __data_schema_version__
+
+    @validator("data_schema_version", always=True)
+    def validate_version(cls: BaseModel, v: int) -> int:
+        if v != __data_schema_version__:
+            raise ValueError(
+                "You cannot change the data_schema_version! This is for "
+                "internal use only."
+            )
+        return v
+
+
+class JsonlInputLogItem(BaseLogItem):
     id: StrictInt
     split: Split
     text: StrictStr
@@ -21,7 +35,7 @@ class JsonlInputLogItem(BaseModel):
         return v
 
 
-class JsonlOutputLogItem(BaseModel):
+class JsonlOutputLogItem(BaseLogItem):
     id: StrictInt
     split: Split
     epoch: StrictInt

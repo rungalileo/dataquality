@@ -1,9 +1,12 @@
 import getpass
+import os
 from typing import Callable, Dict
 
 import requests
 
 from dataquality.core.config import AuthMethod, Config, _Config, config
+
+GALILEO_AUTH_METHOD = "GALILEO_AUTH_METHOD"
 
 
 class _Auth:
@@ -65,16 +68,24 @@ class _Auth:
 def login() -> None:
     print("🔭 Logging you into Galileo\n")
     auth_methods = ",".join([am.value for am in AuthMethod])
-    auth_method = input(
-        "🔐 How would you like to login? \n"
-        f"Enter one of the following: {auth_methods}\n"
-    )
-    if auth_method.lower() not in list(AuthMethod):
-        print(
-            "Invalid login request. You must input one of "
-            f"the following authentication methods: {auth_methods}."
+    # Try auto auth config
+    auth_method = os.getenv(GALILEO_AUTH_METHOD)
+    if not auth_method or auth_method.lower() not in list(AuthMethod):
+        auth_method = input(
+            "🔐 How would you like to login? \n"
+            f"Enter one of the following: {auth_methods}\n"
         )
-        return
+        if auth_method.lower() not in list(AuthMethod):
+            print(
+                "Invalid login request. You must input one of "
+                f"the following authentication methods: {auth_methods}."
+            )
+            return
+        else:  # Save it as an environment variable for the next login
+            print("🤝 Saving preferred login method")
+            os.environ[GALILEO_AUTH_METHOD] = auth_method
+    else:
+        print(f"👀 Found auth method {auth_method} set via env, skipping prompt.")
     config.auth_method = AuthMethod(auth_method)
     _auth = _Auth(config=config, auth_method=config.auth_method)
     _auth.auth_methods()[config.auth_method]()

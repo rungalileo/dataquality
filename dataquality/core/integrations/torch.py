@@ -177,7 +177,7 @@ def log_input_data(data: Union[DataLoader, Dataset], split: str) -> None:
             "dataset. You must include one to call this function."
         )
     try:
-        data_config.validate()
+        data_config.validate(split=split)
     except AssertionError as e:
         raise GalileoException(
             f"The provided GalileoDataConfig is invalid. Logging to "
@@ -189,7 +189,7 @@ def log_input_data(data: Union[DataLoader, Dataset], split: str) -> None:
             {
                 "id": idx,
                 "text": text,
-                "gold": str(label),
+                "gold": str(label) if split != Split.inference else None,
                 "split": split,
             }
         )
