@@ -15,7 +15,7 @@ requires = [
     "requests==2.26.0",
     "types-requests==2.25.2",
     "minio==7.1.0",
-    "dask[dataframe]==2021.8.1",
+    "pandas>=0.20.0",
     "gorilla==0.3.0"
 ]
 

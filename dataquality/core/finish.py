@@ -1,7 +1,7 @@
 import os
 import shutil
 
-import dask.dataframe as dd
+import pandas as pd
 
 from dataquality import config
 from dataquality.clients import object_store
@@ -15,20 +15,23 @@ def finish(cleanup: bool = True) -> None:
         f"{JsonlLogger.LOG_FILE_DIR}/{config.current_project_id}"
         f"/{config.current_run_id}"
     )
-    in_frame = dd.read_json(f"{location}/{JsonlLogger.INPUT_FILENAME}", lines=True)
-    out_frame = dd.read_json(f"{location}/{JsonlLogger.OUTPUT_FILENAME}", lines=True)
-    in_out = in_frame.merge(out_frame, on=["split", "id"], how="left")
-    in_out_filepaths = in_out.to_json(filename=location)
+    in_frame = pd.read_json(f"{location}/{JsonlLogger.INPUT_FILENAME}", lines=True)
+    out_frame = pd.read_json(f"{location}/{JsonlLogger.OUTPUT_FILENAME}", lines=True)
+    in_out = in_frame.merge(
+        out_frame,
+        on=["split", "id", "data_schema_version"],
+        how="left"
+    )
+    # Protocol 4 so it is backwards compatible to 3.4 (5 is 3.8)
+    in_out.to_pickle(f'{location}/file.pkl', protocol=4)
 
     print("☁️ Uploading Data")
-    for io_path in in_out_filepaths:
-        fname = os.path.basename(io_path).split(".")[0]
-        object_store.create_project_run_object(
-            config.current_project_id,
-            config.current_run_id,
-            object_name=f"{fname}.jsonl",
-            file_path=io_path,
-        )
+    object_store.create_project_run_object(
+        config.current_project_id,
+        config.current_run_id,
+        object_name="file.pkl",
+        file_path=f'{location}/file.pkl'
+    )
 
     if cleanup:
         print("🧹 Cleaning up")
