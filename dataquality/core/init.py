@@ -1,3 +1,4 @@
+import os
 from typing import Dict, List, Optional
 
 import requests
@@ -5,6 +6,7 @@ from pydantic.types import UUID4
 
 from dataquality.core.auth import _Auth
 from dataquality.core.config import Config, config
+from dataquality.core.log import JsonlLogger
 from dataquality.utils.auth import headers
 from dataquality.utils.name import random_name
 
@@ -67,6 +69,11 @@ class _Init:
         print(f"🏃‍♂️ Starting run {run_name}")
         body = {"name": run_name}
         return self.create_project_run(project_id, body, config)
+
+    def create_log_file_dir(self, project_id: UUID4, run_id: UUID4) -> None:
+        write_output_dir = f"{JsonlLogger.LOG_FILE_DIR}/{project_id}/{run_id}"
+        if not os.path.exists(write_output_dir):
+            os.makedirs(write_output_dir)
 
 
 def init(project_name: Optional[str] = None, run_id: Optional[UUID4] = None) -> None:
@@ -147,3 +154,5 @@ def init(project_name: Optional[str] = None, run_id: Optional[UUID4] = None) -> 
         )
         return
     config.update_file_config()
+    if config.current_project_id and config.current_run_id:
+        _init.create_log_file_dir(config.current_project_id, config.current_run_id)

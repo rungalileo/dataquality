@@ -1,7 +1,11 @@
 from enum import Enum, unique
 from typing import Any, List, Optional, Union
 
+from dataquality.schemas.jsonl_logger import USING_TORCH
 from dataquality.schemas.split import Split
+
+if USING_TORCH:
+    from torch import Tensor
 
 
 @unique
@@ -71,6 +75,20 @@ class GalileoModelConfig:
         emb_len = len(self.emb)
         prob_len = len(self.probs)
         id_len = len(self.ids)
+
+        if USING_TORCH:
+            err = "{tens} tensor must be 2D shape, but got shape {shape}"
+            if isinstance(self.emb, Tensor):
+                assert len(self.emb.shape) == 2, err.format(
+                    tens="Embedding", shape=self.emb.shape
+                )
+            if isinstance(self.probs, Tensor):
+                assert len(self.probs.shape) == 2, err.format(
+                    tens="Probs", shape=self.probs.shape
+                )
+            if isinstance(self.ids, Tensor):
+                self.ids = self.ids.detach().numpy().tolist()
+
         assert emb_len and prob_len and id_len, (
             f"All of emb, probs, and ids for your GalileoModelConfig must be set, but "
             f"got emb:{bool(emb_len)}, probs:{bool(prob_len)}, ids:{bool(id_len)}"
@@ -157,7 +175,7 @@ class GalileoDataConfig:
         label_len = len(self.labels)
         text_len = len(self.text)
         id_len = len(self.ids)
-        if split == Split.validation:
+        if split == Split.inference:
             assert not len(
                 self.labels
             ), "You cannot have labels in your inference split!"

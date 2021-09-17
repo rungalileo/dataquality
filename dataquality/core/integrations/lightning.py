@@ -3,6 +3,7 @@ from typing import Any, Dict, Optional, Sequence, Union
 
 import numpy as np
 import pytorch_lightning as pl
+import torch
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.trainer.supporters import CombinedDataset
 from pytorch_lightning.utilities.types import STEP_OUTPUT
@@ -52,6 +53,8 @@ class DataQualityCallback(Callback):
         #
         # 🔭 Logging Inputs with Galileo!
         #
+        if split == Split.validation:
+            print(f"logging for validation - {split}")
         if dataloader is None:
             warnings.warn(f"No {split} dataset available. Cannot log to Galileo")
             return
@@ -131,6 +134,8 @@ class DataQualityCallback(Callback):
             #
             # 🔭 Logging outputs with Galileo!
             #
+            if isinstance(prob, torch.Tensor):
+                prob = prob.detach().numpy()
             dataquality.log_model_output(
                 {
                     "id": id,

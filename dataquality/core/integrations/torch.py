@@ -3,6 +3,7 @@ from typing import Any, Union
 
 import gorilla
 import numpy as np
+import torch
 from torch.nn import Module
 from torch.utils.data import Dataset
 from torch.utils.data.dataloader import DataLoader
@@ -113,6 +114,8 @@ def watch(model: Module) -> None:
             #
             # 🔭 Logging outputs with Galileo!
             #
+            if isinstance(prob, torch.Tensor):
+                prob = prob.detach().numpy()
             dataquality.log_model_output(
                 {
                     "id": id,
