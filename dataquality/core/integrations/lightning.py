@@ -53,8 +53,6 @@ class DataQualityCallback(Callback):
         #
         # 🔭 Logging Inputs with Galileo!
         #
-        if split == Split.validation:
-            print(f"logging for validation - {split}")
         if dataloader is None:
             warnings.warn(f"No {split} dataset available. Cannot log to Galileo")
             return

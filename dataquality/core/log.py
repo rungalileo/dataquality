@@ -1,4 +1,3 @@
-import time
 from threading import Thread
 from typing import Dict
 
@@ -42,7 +41,6 @@ def _threaded_output_log(data: Dict) -> None:
     """
     try:
         output_data = JsonlOutputLogItem(**data)
-        time.sleep(0.5)
     except ValidationError as e:
         raise e
     assert config.current_project_id is not None
