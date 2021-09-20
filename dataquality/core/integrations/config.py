@@ -1,10 +1,10 @@
 from enum import Enum, unique
 from typing import Any, List, Optional, Union
 
-from dataquality.schemas.jsonl_logger import USING_TORCH
+from dataquality.schemas.jsonl_logger import TORCH_AVAILABLE
 from dataquality.schemas.split import Split
 
-if USING_TORCH:
+if TORCH_AVAILABLE:
     from torch import Tensor
 
 
@@ -27,6 +27,7 @@ class GalileoDataConfigAttributes(str, Enum):
     text = "text"
     labels = "labels"
     ids = "ids"
+    split = "split"
 
     @staticmethod
     def get_valid() -> List[str]:
@@ -76,16 +77,24 @@ class GalileoModelConfig:
         prob_len = len(self.probs)
         id_len = len(self.ids)
 
-        if USING_TORCH:
+        # We add validation here instead of requiring the params at init because
+        # for lightning callbacks, we add these automatically for the user, so they
+        # can create the config in their training loop and we will manage this metadata
+        assert self.split, "Your GalileoModelConfig has no split!"
+        assert self.epoch is not None, "Your GalileoModelConfig has no epoch!"
+
+        if TORCH_AVAILABLE:
             err = "{tens} tensor must be 2D shape, but got shape {shape}"
             if isinstance(self.emb, Tensor):
                 assert len(self.emb.shape) == 2, err.format(
                     tens="Embedding", shape=self.emb.shape
                 )
+                self.emb = self.emb.detach()
             if isinstance(self.probs, Tensor):
                 assert len(self.probs.shape) == 2, err.format(
                     tens="Probs", shape=self.probs.shape
                 )
+                self.probs = self.probs.detach()
             if isinstance(self.ids, Tensor):
                 self.ids = self.ids.detach().numpy().tolist()
 
@@ -99,6 +108,7 @@ class GalileoModelConfig:
             f"length, but got (emb, probs, ids) -> ({emb_len},{prob_len}, {id_len})"
         )
         if self.split:
+            self.split = 'training' if self.split == 'train' else self.split
             assert (
                 isinstance(self.split, str)
                 and self.split in Split.get_valid_attributes()
@@ -147,12 +157,14 @@ class GalileoDataConfig:
         text: List[str] = None,
         labels: List[Union[int, str]] = None,
         ids: List[Union[int, str]] = None,
+        split: Split = None
     ) -> None:
         # Need to compare to None because they may be np arrays which cannot be
         # evaluated with bool directly
         self.text = text if text is not None else []
         self.labels = labels if labels is not None else []
         self.ids = ids if ids is not None else []
+        self.split = split
 
     @staticmethod
     def get_valid_attributes() -> List[str]:
@@ -162,20 +174,29 @@ class GalileoDataConfig:
         """
         return GalileoDataConfigAttributes.get_valid()
 
-    def validate(self, split: Optional[str] = None) -> None:
+    def validate(self) -> None:
         """
         Validates that the current config is correct.
         * Text and Labels must both exist (unless split is 'inference' in which case
         labels must be None)
         * Text and Labels must be the same length
         * If ids exist, it must be the same length as text/labels
-        :return:
+        :return: None
         """
 
         label_len = len(self.labels)
         text_len = len(self.text)
         id_len = len(self.ids)
-        if split == Split.inference:
+        assert self.split, "Your GalileoDataConfig has no split!"
+        self.split = 'training' if self.split == 'train' else self.split
+        assert (
+            isinstance(self.split, str)
+            and self.split in Split.get_valid_attributes()
+        ), (
+            f"Split should be one of {Split.get_valid_attributes()} "
+            f"but got {self.split}"
+        )
+        if self.split == Split.inference:
             assert not len(
                 self.labels
             ), "You cannot have labels in your inference split!"

@@ -10,9 +10,9 @@ from dataquality.schemas.split import Split
 try:
     from torch import Tensor
 
-    USING_TORCH = True
+    TORCH_AVAILABLE = True
 except ImportError:
-    USING_TORCH = False
+    TORCH_AVAILABLE = False
 
 
 class BaseLogItem(BaseModel):
@@ -51,11 +51,13 @@ class JsonlOutputLogItem(BaseLogItem):
     prob: List[StrictFloat]
     pred: Optional[StrictStr] = None
 
+    # This validator checks if the input is a Pytorch Tensor and converts it to a list
+    # so all formats conform for logging. This allows users to directly log Tensors
     @validator("emb", "prob", always=True, pre=True)
     def validate_embedding_shape(
         cls, v: Union[List[StrictFloat], Any]
     ) -> List[StrictFloat]:
-        if USING_TORCH and isinstance(v, Tensor):  # Validate the tensor shape is 1D
+        if TORCH_AVAILABLE and isinstance(v, Tensor):  # Validate the tensor shape is 1D
             if len(v.shape) != 1:
                 raise ValueError(f"Tensor shape must be 1D, but got {v.shape}")
             return v.detach().numpy().tolist()
