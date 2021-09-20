@@ -76,7 +76,7 @@ def finish() -> None:
         upload()
 
     # Kick off API pipeline to calculate statistics
-    requests.post(
+    r = requests.post(
         f"{config.api_url}/{Route.pipelines}",
         data=dict(
             project_id=config.current_project_id,
@@ -88,3 +88,5 @@ def finish() -> None:
         ),
         headers=headers(config.token),
     )
+    r.raise_for_status()
+    return r.json()
