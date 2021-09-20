@@ -238,4 +238,4 @@ class DataQualityCallback(Callback):
     ) -> None:
         # Don't cleanup because might call test after fit many times. We'd want to
         # append in that case
-        dataquality.finish(cleanup=False)
+        dataquality.upload(cleanup=False)

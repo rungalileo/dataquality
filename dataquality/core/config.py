@@ -1,7 +1,7 @@
 import json
 import os
 from enum import Enum, unique
-from typing import Optional
+from typing import Optional, List
 
 from pydantic import BaseModel
 from pydantic.types import UUID4
@@ -55,6 +55,7 @@ class Config(BaseModel):
     current_user: Optional[str] = None
     current_project_id: Optional[UUID4] = None
     current_run_id: Optional[UUID4] = None
+    labels: Optional[List[str]] = None
 
     def update_file_config(self) -> None:
         _config = _Config()

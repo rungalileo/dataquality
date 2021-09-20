@@ -5,6 +5,7 @@ from pydantic.types import UUID4
 
 from dataquality.core.auth import _Auth
 from dataquality.core.config import Config, config
+from dataquality.schemas import Pipeline, Route
 from dataquality.utils.auth import headers
 from dataquality.utils.name import random_name
 
@@ -14,7 +15,7 @@ class _Init:
         if not config.token:
             raise Exception("Token not present, please log in!")
         req = requests.post(
-            f"{config.api_url}/projects",
+            f"{config.api_url}/{Route.projects}",
             json=data,
             headers=headers(config.token),
         )
@@ -24,7 +25,7 @@ class _Init:
         if not config.token:
             raise Exception("Token not present, please log in!")
         req = requests.post(
-            f"{config.api_url}/projects/{project_id}/runs",
+            f"{config.api_url}/{Route.projects}/{project_id}/runs",
             json=data,
             headers=headers(config.token),
         )
@@ -34,7 +35,7 @@ class _Init:
         if not config.token:
             raise Exception("Token not present, please log in!")
         req = requests.get(
-            f"{config.api_url}/users/{user_id}/projects",
+            f"{config.api_url}/{Route.users}/{user_id}/projects",
             headers=headers(config.token),
         )
         return req.json()
@@ -49,7 +50,7 @@ class _Init:
         if not config.token:
             raise Exception("Token not present, please log in!")
         return requests.get(
-            f"{config.api_url}/projects/{project_id}/runs/{run_id}",
+            f"{config.api_url}/{Route.projects}/{project_id}/runs/{run_id}",
             headers=headers(config.token),
         ).json()
 

@@ -2,13 +2,22 @@ import os
 import shutil
 
 import dask.dataframe as dd
+import requests
 
 from dataquality import config
 from dataquality.clients import object_store
 from dataquality.loggers.jsonl_logger import JsonlLogger
+from dataquality.schemas import Route, Pipeline
+from dataquality.utils.auth import headers
 
 
-def finish(cleanup: bool = True) -> None:
+def upload(cleanup: bool = True) -> None:
+    """
+    Uploads the local data to minio and optionally cleans up the local disk
+
+    :param cleanup: Whether to clean up the local disk
+    :return:
+    """
     assert config.current_project_id
     assert config.current_run_id
     location = (
@@ -47,3 +56,35 @@ def cleanup() -> None:
     )
     print("🧹 Cleaning up")
     shutil.rmtree(location)
+
+
+def finish() -> None:
+    """
+    Finishes the current run and invokes the pipeline to begin processing
+    """
+    assert config.current_project_id, 'You must have an active project to call finish'
+    assert config.current_run_id, 'You must have an active run to call finish'
+    assert config.labels, (
+        'You must set your config labels before calling finish. '
+        'See dataquality.set_labels'
+    )
+    location = (
+        f"{JsonlLogger.LOG_FILE_DIR}/{config.current_project_id}"
+        f"/{config.current_run_id}"
+    )
+    if os.path.exists(location):
+        upload()
+
+    # Kick off API pipeline to calculate statistics
+    requests.post(
+        f"{config.api_url}/{Route.pipelines}",
+        data=dict(
+            project_id=config.current_project_id,
+            run_id=config.current_run_id,
+            pipeline_name=Pipeline.calculate_metrics,
+            pipeline_env_vars=dict(
+                labels=str(config.labels)
+            )
+        ),
+        headers=headers(config.token),
+    )

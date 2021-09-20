@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, List
 
 from pydantic.error_wrappers import ValidationError
 
@@ -37,3 +37,13 @@ def log_model_output(data: Dict) -> None:
     logger.jsonl_logger.write_output(
         config.current_project_id, config.current_run_id, output_data.dict()
     )
+
+
+def set_labels(labels: List[str]) -> None:
+    """
+    Creates the mapping of the labels for the model to their respective indexes.
+
+    :param labels: An ordered list of labels (ie ['dog','cat','fish']
+    :return: None
+    """
+    config.labels = labels
