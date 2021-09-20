@@ -7,7 +7,7 @@ import requests
 from dataquality import config
 from dataquality.clients import object_store
 from dataquality.loggers.jsonl_logger import JsonlLogger
-from dataquality.schemas import Route, Pipeline
+from dataquality.schemas import Pipeline, Route
 from dataquality.utils.auth import headers
 
 
@@ -62,11 +62,11 @@ def finish() -> None:
     """
     Finishes the current run and invokes the pipeline to begin processing
     """
-    assert config.current_project_id, 'You must have an active project to call finish'
-    assert config.current_run_id, 'You must have an active run to call finish'
+    assert config.current_project_id, "You must have an active project to call finish"
+    assert config.current_run_id, "You must have an active run to call finish"
     assert config.labels, (
-        'You must set your config labels before calling finish. '
-        'See dataquality.set_labels'
+        "You must set your config labels before calling finish. "
+        "See dataquality.set_labels"
     )
     location = (
         f"{JsonlLogger.LOG_FILE_DIR}/{config.current_project_id}"
@@ -82,9 +82,7 @@ def finish() -> None:
             project_id=config.current_project_id,
             run_id=config.current_run_id,
             pipeline_name=Pipeline.calculate_metrics,
-            pipeline_env_vars=dict(
-                labels=str(config.labels)
-            )
+            pipeline_env_vars=dict(labels=str(config.labels)),
         ),
         headers=headers(config.token),
     )
