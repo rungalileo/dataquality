@@ -96,7 +96,6 @@ class DataQualityCallback(Callback):
                     f"exception: {str(e)}"
                 )
                 return
-            dataquality.log_batch_input_data(data_config)
 
     def _log_model_outputs(self, trainer: pl.Trainer, split: str) -> None:
         try:
