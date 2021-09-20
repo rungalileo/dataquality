@@ -2,8 +2,6 @@ import warnings
 from typing import Any, Union
 
 import gorilla
-import numpy as np
-import torch
 from torch.nn import Module
 from torch.utils.data import Dataset
 from torch.utils.data.dataloader import DataLoader
@@ -102,8 +100,10 @@ def watch(model: Module) -> None:
         try:
             dataquality.log_model_outputs(model_config)
         except GalileoException as e:
-            warnings.warn(f'Logging model outputs to Galileo could not be '
-                          f'completed. See exception: {str(e)}')
+            warnings.warn(
+                f"Logging model outputs to Galileo could not be "
+                f"completed. See exception: {str(e)}"
+            )
         return res
 
     patch = gorilla.Patch(

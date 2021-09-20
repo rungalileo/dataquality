@@ -27,7 +27,7 @@ class GalileoDataConfigAttributes(str, Enum):
     text = "text"
     labels = "labels"
     ids = "ids"
-    split = "split"
+    split = "split"  # type: ignore
 
     @staticmethod
     def get_valid() -> List[str]:
@@ -108,7 +108,7 @@ class GalileoModelConfig:
             f"length, but got (emb, probs, ids) -> ({emb_len},{prob_len}, {id_len})"
         )
         if self.split:
-            self.split = 'training' if self.split == 'train' else self.split
+            self.split = "training" if self.split == "train" else self.split
             assert (
                 isinstance(self.split, str)
                 and self.split in Split.get_valid_attributes()
@@ -157,7 +157,7 @@ class GalileoDataConfig:
         text: List[str] = None,
         labels: List[Union[int, str]] = None,
         ids: List[Union[int, str]] = None,
-        split: Split = None
+        split: Split = None,
     ) -> None:
         # Need to compare to None because they may be np arrays which cannot be
         # evaluated with bool directly
@@ -188,10 +188,9 @@ class GalileoDataConfig:
         text_len = len(self.text)
         id_len = len(self.ids)
         assert self.split, "Your GalileoDataConfig has no split!"
-        self.split = 'training' if self.split == 'train' else self.split
+        self.split = Split.training if self.split == "train" else self.split
         assert (
-            isinstance(self.split, str)
-            and self.split in Split.get_valid_attributes()
+            isinstance(self.split, str) and self.split in Split.get_valid_attributes()
         ), (
             f"Split should be one of {Split.get_valid_attributes()} "
             f"but got {self.split}"

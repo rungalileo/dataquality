@@ -1,9 +1,7 @@
 import warnings
 from typing import Any, Dict, Optional, Sequence, Union
 
-import numpy as np
 import pytorch_lightning as pl
-import torch
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.trainer.supporters import CombinedDataset
 from pytorch_lightning.utilities.types import STEP_OUTPUT
@@ -11,7 +9,7 @@ from torch.utils.data import Dataset
 from torch.utils.data.dataloader import DataLoader
 
 import dataquality
-from dataquality import config, GalileoException
+from dataquality import GalileoException, config
 from dataquality.core.integrations.config import (
     GalileoDataConfig,
     GalileoModelConfig,
@@ -48,7 +46,9 @@ class DataQualityCallback(Callback):
         return self.checkpoint_data.copy()
 
     def _log_input_data(
-        self, split: str, dataloader: Optional[Union[DataLoader, Sequence[DataLoader]]]
+        self,
+        split: Split,
+        dataloader: Optional[Union[DataLoader, Sequence[DataLoader]]],
     ) -> None:
         #
         # 🔭 Logging Inputs with Galileo!

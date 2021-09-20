@@ -5,13 +5,10 @@ import numpy as np
 from pydantic.error_wrappers import ValidationError
 
 from dataquality import config
+from dataquality.core.integrations.config import GalileoDataConfig, GalileoModelConfig
 from dataquality.exceptions import GalileoException
 from dataquality.loggers import JsonlLogger
 from dataquality.schemas.jsonl_logger import JsonlInputLogItem, JsonlOutputLogItem
-from dataquality.core.integrations.config import (
-    GalileoModelConfig,
-    GalileoDataConfig
-)
 from dataquality.schemas.split import Split
 
 
@@ -38,9 +35,7 @@ def log_input_data(data: Dict) -> None:
     assert config.current_project_id is not None
     assert config.current_run_id is not None
     logger.jsonl_logger.write_input(
-        config.current_project_id,
-        config.current_run_id,
-        input_data.dict()
+        config.current_project_id, config.current_run_id, input_data.dict()
     )
 
 
@@ -116,7 +111,7 @@ def _log_model_outputs(outputs: GalileoModelConfig) -> None:
     try:
         outputs.validate()
     except AssertionError as e:
-        raise GalileoException(f'The provided GalileoModelConfig is invalid. {e}')
+        raise GalileoException(f"The provided GalileoModelConfig is invalid. {e}")
     for id, prob, emb in zip(outputs.ids, outputs.probs, outputs.emb):
         log_model_output(
             {
