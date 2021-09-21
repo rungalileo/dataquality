@@ -8,4 +8,4 @@ dataquality.config
 
 dataquality.log({})
 
-dataquality.finish()
+dataquality.upload()

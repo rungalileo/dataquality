@@ -190,6 +190,7 @@ class GalileoDataConfig:
         label_len = len(self.labels)
         text_len = len(self.text)
         id_len = len(self.ids)
+
         assert self.split, "Your GalileoDataConfig has no split!"
         self.split = Split.training if self.split == "train" else self.split
         assert (
