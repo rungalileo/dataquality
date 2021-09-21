@@ -13,7 +13,7 @@ class GalileoModelConfigAttributes(str, Enum):
     emb = "emb"
     probs = "probs"
     ids = "ids"
-    # we need to ignore this because "split" is a builtin function in python
+    # mixin restriction on str (due to "str".split(...))
     split = "split"  # type: ignore
     epoch = "epoch"
 
@@ -27,6 +27,7 @@ class GalileoDataConfigAttributes(str, Enum):
     text = "text"
     labels = "labels"
     ids = "ids"
+    # mixin restriction on str (due to "str".split(...))
     split = "split"  # type: ignore
 
     @staticmethod
@@ -108,7 +109,9 @@ class GalileoModelConfig:
             f"length, but got (emb, probs, ids) -> ({emb_len},{prob_len}, {id_len})"
         )
         if self.split:
-            self.split = "training" if self.split == "train" else self.split
+            # User may manually pass in 'train' instead of 'training'
+            # but we want it to conform
+            self.split = Split.training if self.split == "train" else self.split
             assert (
                 isinstance(self.split, str)
                 and self.split in Split.get_valid_attributes()
