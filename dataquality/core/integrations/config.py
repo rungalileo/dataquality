@@ -157,7 +157,7 @@ class GalileoDataConfig:
         label_len = len(self.labels)
         text_len = len(self.text)
         id_len = len(self.ids)
-        if split == Split.validation:
+        if split == Split.inference:
             assert not len(
                 self.labels
             ), "You cannot have labels in your inference split!"

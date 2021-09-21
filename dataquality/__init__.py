@@ -6,7 +6,7 @@ from dataquality.core.auth import login
 from dataquality.core.config import config
 from dataquality.core.finish import cleanup, finish, upload
 from dataquality.core.init import init
-from dataquality.core.log import log_input_data, log_model_output
+from dataquality.core.log import log_input_data, log_model_output, set_labels_for_run
 from dataquality.exceptions import GalileoException
 
 __all__ = [
@@ -19,5 +19,6 @@ __all__ = [
     "upload",
     "cleanup",
     "finish",
+    "set_labels_for_run",
     "GalileoException",
 ]

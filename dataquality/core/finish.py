@@ -1,5 +1,6 @@
 import os
 import shutil
+from uuid import uuid4
 
 import dask.dataframe as dd
 import requests
@@ -31,11 +32,10 @@ def upload(cleanup: bool = True) -> None:
 
     print("☁️ Uploading Data")
     for io_path in in_out_filepaths:
-        fname = os.path.basename(io_path).split(".")[0]
         object_store.create_project_run_object(
             config.current_project_id,
             config.current_run_id,
-            object_name=f"{fname}.jsonl",
+            object_name=f"{str(uuid4())[:7]}.jsonl",
             file_path=io_path,
         )
 
@@ -66,7 +66,7 @@ def finish() -> None:
     assert config.current_run_id, "You must have an active run to call finish"
     assert config.labels, (
         "You must set your config labels before calling finish. "
-        "See dataquality.set_labels"
+        "See `dataquality.set_labels_for_run`"
     )
     location = (
         f"{JsonlLogger.LOG_FILE_DIR}/{config.current_project_id}"
@@ -78,9 +78,9 @@ def finish() -> None:
     # Kick off API pipeline to calculate statistics
     r = requests.post(
         f"{config.api_url}/{Route.pipelines}",
-        data=dict(
-            project_id=config.current_project_id,
-            run_id=config.current_run_id,
+        json=dict(
+            project_id=str(config.current_project_id),
+            run_id=str(config.current_run_id),
             pipeline_name=Pipeline.calculate_metrics,
             pipeline_env_vars=dict(labels=str(config.labels)),
         ),

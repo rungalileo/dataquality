@@ -39,7 +39,7 @@ def log_model_output(data: Dict) -> None:
     )
 
 
-def set_labels(labels: List[str]) -> None:
+def set_labels_for_run(labels: List[str]) -> None:
     """
     Creates the mapping of the labels for the model to their respective indexes.
 
@@ -47,3 +47,4 @@ def set_labels(labels: List[str]) -> None:
     :return: None
     """
     config.labels = labels
+    config.update_file_config()

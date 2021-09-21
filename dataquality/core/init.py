@@ -73,6 +73,7 @@ class _Init:
 def init(project_name: Optional[str] = None, run_id: Optional[UUID4] = None) -> None:
     _auth = _Auth(config=config, auth_method=config.auth_method)
     _init = _Init()
+    config.labels = None
     if project_name is None and run_id is None:
         # no project and no run id, start a new project and start a new run
         project_name, run_name = random_name(), random_name()
