@@ -1,5 +1,6 @@
 import os
 import shutil
+from typing import Any, Dict, Optional
 from uuid import uuid4
 
 import dask.dataframe as dd
@@ -60,7 +61,7 @@ def cleanup() -> None:
     shutil.rmtree(location)
 
 
-def finish() -> None:
+def finish() -> Optional[Dict[Any]]:
     """
     Finishes the current run and invokes the pipeline to begin processing
     """
@@ -78,14 +79,15 @@ def finish() -> None:
         upload()
 
     # Kick off API pipeline to calculate statistics
+    body = dict(
+        project_id=config.current_project_id,
+        run_id=config.current_run_id,
+        pipeline_name=Pipeline.calculate_metrics.value,
+        pipeline_env_vars=dict(GALILEO_LABELS=config.labels),
+    )
     r = requests.post(
         f"{config.api_url}/{Route.pipelines}",
-        json=dict(
-            project_id=str(config.current_project_id),
-            run_id=str(config.current_run_id),
-            pipeline_name=Pipeline.calculate_metrics,
-            pipeline_env_vars=dict(GALILEO_LABELS=config.labels),
-        ),
+        json=body,
         headers=headers(config.token),
     )
     try:
@@ -103,4 +105,6 @@ def finish() -> None:
             )
         raise GalileoException(err) from None
 
-    return r.json()
+    res = r.json()
+    print(f"Job {res['pipeline_name']} successfully submitted.")
+    return res
