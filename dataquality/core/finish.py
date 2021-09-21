@@ -61,7 +61,7 @@ def cleanup() -> None:
     shutil.rmtree(location)
 
 
-def finish() -> Optional[Dict[Any]]:
+def finish() -> Optional[Dict[str, Any]]:
     """
     Finishes the current run and invokes the pipeline to begin processing
     """
@@ -82,7 +82,7 @@ def finish() -> Optional[Dict[Any]]:
     body = dict(
         project_id=config.current_project_id,
         run_id=config.current_run_id,
-        pipeline_name=Pipeline.calculate_metrics.value,
+        pipeline_name=Pipeline.default.value,
         pipeline_env_vars=dict(GALILEO_LABELS=config.labels),
     )
     r = requests.post(
