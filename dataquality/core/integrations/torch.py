@@ -2,7 +2,6 @@ import warnings
 from typing import Any, Union
 
 import gorilla
-import numpy as np
 from torch.nn import Module
 from torch.utils.data import Dataset
 from torch.utils.data.dataloader import DataLoader
@@ -64,20 +63,12 @@ def watch(model: Module) -> None:
         try:
             config_attr = get_modelconfig_attr(cls)
         except AttributeError:  # User didn't specify a model config
-            raise GalileoException(
-                "Your model must utilize the GalileoModelConfig in"
-                " order to enable automated logging to Galileo!"
-            )
-        model_config: GalileoModelConfig = getattr(cls, config_attr)
-
-        try:
-            model_config.validate()
-        except AssertionError as e:
             warnings.warn(
-                f"The provided GalileoModelConfig is invalid. Logging to "
-                f"Galileo will be skipped. Config Error: {str(e)}"
+                "Your model must utilize the GalileoModelConfig in order to enable "
+                "automated logging to Galileo! Logging will be skipped."
             )
             return res
+        model_config: GalileoModelConfig = getattr(cls, config_attr)
 
         if model_config.epoch is None:  # Compare to None because 0 will be False
             warnings.warn(
@@ -88,13 +79,12 @@ def watch(model: Module) -> None:
             )
             return res
 
-        split = model_config.split
         if not model_config.split:
             if not model.training:
                 warnings.warn(
                     "either split must be set in your GalileoModelConfig or your model "
                     "must be in 'training' mode (calling `model.train()`) for pytorch "
-                    "models to enable autologging to Galileo. If you are using, "
+                    "models to enable autologging to Galileo. If you are using "
                     "Lightning consider using the DataQualityCallback in your trainer "
                     "instead."
                 )
@@ -105,23 +95,14 @@ def watch(model: Module) -> None:
                     "set in your model. Using split=training for logging to"
                     "Galileo"
                 )
-                split = "training"
+                model_config.split = "training"
 
-        for id, prob, emb in zip(
-            model_config.ids, model_config.probs, model_config.emb
-        ):
-            #
-            # 🔭 Logging outputs with Galileo!
-            #
-            dataquality.log_model_output(
-                {
-                    "id": id,
-                    "epoch": model_config.epoch,
-                    "split": split,
-                    "emb": emb,
-                    "prob": prob,
-                    "pred": str(int(np.argmax(prob))),
-                }
+        try:
+            dataquality.log_model_outputs(model_config)
+        except GalileoException as e:
+            warnings.warn(
+                f"Logging model outputs to Galileo could not be "
+                f"completed. See exception: {str(e)}"
             )
         return res
 
@@ -174,22 +155,7 @@ def log_input_data(data: Union[DataLoader, Dataset], split: str) -> None:
     except AttributeError:
         raise GalileoException(
             "Could not find a GalileoDataConfig as a part of your "
-            "dataset. You must include one to call this function."
+            "Dataset. You must include one to call this function."
         )
-    try:
-        data_config.validate(split=split)
-    except AssertionError as e:
-        raise GalileoException(
-            f"The provided GalileoDataConfig is invalid. Logging to "
-            f"Galileo cannot be performed. Config Error: {str(e)}"
-        ) from None
-    ids = data_config.ids if data_config.ids else range(len(data_config.text))
-    for idx, text, label in zip(ids, data_config.text, data_config.labels):
-        dataquality.log_input_data(
-            {
-                "id": idx,
-                "text": text,
-                "gold": str(label) if split != Split.inference else None,
-                "split": split,
-            }
-        )
+    data_config.split = split
+    dataquality.log_batch_input_data(data_config)

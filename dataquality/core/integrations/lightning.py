@@ -1,7 +1,6 @@
 import warnings
 from typing import Any, Dict, Optional, Sequence, Union
 
-import numpy as np
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.trainer.supporters import CombinedDataset
@@ -10,7 +9,7 @@ from torch.utils.data import Dataset
 from torch.utils.data.dataloader import DataLoader
 
 import dataquality
-from dataquality import config
+from dataquality import GalileoException, config
 from dataquality.core.integrations.config import (
     GalileoDataConfig,
     GalileoModelConfig,
@@ -47,7 +46,9 @@ class DataQualityCallback(Callback):
         return self.checkpoint_data.copy()
 
     def _log_input_data(
-        self, split: str, dataloader: Optional[Union[DataLoader, Sequence[DataLoader]]]
+        self,
+        split: Split,
+        dataloader: Optional[Union[DataLoader, Sequence[DataLoader]]],
     ) -> None:
         #
         # 🔭 Logging Inputs with Galileo!
@@ -86,24 +87,15 @@ class DataQualityCallback(Callback):
                 return
 
             data_config: GalileoDataConfig = getattr(dataset, config_attr)
+            data_config.split = split
             try:
-                data_config.validate(split=split)
-            except AssertionError as e:
+                dataquality.log_batch_input_data(data_config)
+            except GalileoException as e:
                 warnings.warn(
-                    f"The provided GalileoDataConfig is invalid. Logging to "
-                    f"Galileo will be skipped. Config Error: {str(e)}"
+                    f"Logging data inputs to Galileo could not be completed. See "
+                    f"exception: {str(e)}"
                 )
                 return
-            ids = data_config.ids if data_config.ids else range(len(data_config.text))
-            for idx, text, label in zip(ids, data_config.text, data_config.labels):
-                dataquality.log_input_data(
-                    {
-                        "id": idx,
-                        "text": text,
-                        "gold": str(label) if split != Split.inference else None,
-                        "split": split,
-                    }
-                )
 
     def _log_model_outputs(self, trainer: pl.Trainer, split: str) -> None:
         try:
@@ -116,31 +108,17 @@ class DataQualityCallback(Callback):
             return
 
         model_config: GalileoModelConfig = getattr(trainer.model, config_attr)
+        model_config.epoch = self.checkpoint_data["epoch"]
+        model_config.split = split
+
         try:
-            model_config.validate()
-        except AssertionError as e:
+            dataquality.log_model_outputs(model_config)
+        except GalileoException as e:
             warnings.warn(
-                f"The provided GalileoModelConfig is invalid. Logging to "
-                f"Galileo will be skipped. Config Error: {str(e)}"
+                f"Logging model outputs to Galileo could not occur. "
+                f"See exception: {str(e)}"
             )
             return
-        for id, prob, emb in zip(
-            model_config.ids, model_config.probs, model_config.emb
-        ):
-
-            #
-            # 🔭 Logging outputs with Galileo!
-            #
-            dataquality.log_model_output(
-                {
-                    "id": id,
-                    "epoch": self.checkpoint_data["epoch"],
-                    "split": split,
-                    "emb": emb,
-                    "prob": prob,
-                    "pred": str(int(np.argmax(prob))),
-                }
-            )
 
     def on_init_start(self, trainer: "pl.Trainer") -> None:
         assert (
