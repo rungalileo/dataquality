@@ -4,9 +4,11 @@ from uuid import uuid4
 
 import dask.dataframe as dd
 import requests
+from requests import HTTPError
 
 from dataquality import config
 from dataquality.clients import object_store
+from dataquality.exceptions import GalileoException
 from dataquality.loggers.jsonl_logger import JsonlLogger
 from dataquality.schemas import Pipeline, Route
 from dataquality.utils.auth import headers
@@ -86,5 +88,20 @@ def finish() -> None:
         ),
         headers=headers(config.token),
     )
-    r.raise_for_status()
+    try:
+        r.raise_for_status()
+    except HTTPError:
+        try:
+            details = r.json()["detail"][0]
+            err = (
+                f"There was an error with your request."
+                f' The provided {details["loc"][-1]} {details["msg"]}'
+            )
+        except Exception:
+            err = (
+                f"Your request could not be completed. The following error was "
+                f"raised: {r.text}"
+            )
+        raise GalileoException(err) from None
+
     return r.json()
