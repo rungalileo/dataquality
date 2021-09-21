@@ -82,7 +82,7 @@ def finish() -> None:
             project_id=str(config.current_project_id),
             run_id=str(config.current_run_id),
             pipeline_name=Pipeline.calculate_metrics,
-            pipeline_env_vars=dict(labels=str(config.labels)),
+            pipeline_env_vars=dict(GALILEO_LABELS=config.labels),
         ),
         headers=headers(config.token),
     )
