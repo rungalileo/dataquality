@@ -6,8 +6,8 @@ from pydantic.types import UUID4
 
 from dataquality.core.auth import _Auth
 from dataquality.core.config import Config, config
-from dataquality.schemas import Route
 from dataquality.core.log import JsonlLogger
+from dataquality.schemas import Route
 from dataquality.utils.auth import headers
 from dataquality.utils.name import random_name
 

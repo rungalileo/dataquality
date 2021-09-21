@@ -1,5 +1,5 @@
-from typing import Dict, List
 from threading import Thread
+from typing import Dict, List
 
 import numpy as np
 from pydantic.error_wrappers import ValidationError
