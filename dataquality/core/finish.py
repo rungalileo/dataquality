@@ -92,11 +92,10 @@ def finish() -> None:
         r.raise_for_status()
     except HTTPError:
         try:
-            details = r.json()["detail"][0]
-            err = (
-                f"There was an error with your request."
-                f' The provided {details["loc"][-1]} {details["msg"]}'
-            )
+            err = 'There was an issue with your request. The following was raised:\n'
+            details = r.json()["detail"]
+            for detail in details:
+                err += f'The provided {detail["loc"][-1]} {detail["msg"]}\n'
         except Exception:
             err = (
                 f"Your request could not be completed. The following error was "
