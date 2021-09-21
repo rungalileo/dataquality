@@ -1,12 +1,15 @@
 import os
 import shutil
+from typing import Any, Dict, Optional
 from uuid import uuid4
 
 import dask.dataframe as dd
 import requests
+from requests import HTTPError
 
 from dataquality import config
 from dataquality.clients import object_store
+from dataquality.exceptions import GalileoException
 from dataquality.loggers.jsonl_logger import JsonlLogger
 from dataquality.schemas import Pipeline, Route
 from dataquality.utils.auth import headers
@@ -58,7 +61,7 @@ def cleanup() -> None:
     shutil.rmtree(location)
 
 
-def finish() -> None:
+def finish() -> Optional[Dict[str, Any]]:
     """
     Finishes the current run and invokes the pipeline to begin processing
     """
@@ -76,15 +79,32 @@ def finish() -> None:
         upload()
 
     # Kick off API pipeline to calculate statistics
+    body = dict(
+        project_id=config.current_project_id,
+        run_id=config.current_run_id,
+        pipeline_name=Pipeline.default.value,
+        pipeline_env_vars=dict(GALILEO_LABELS=config.labels),
+    )
     r = requests.post(
         f"{config.api_url}/{Route.pipelines}",
-        json=dict(
-            project_id=str(config.current_project_id),
-            run_id=str(config.current_run_id),
-            pipeline_name=Pipeline.calculate_metrics,
-            pipeline_env_vars=dict(GALILEO_LABELS=config.labels),
-        ),
+        json=body,
         headers=headers(config.token),
     )
-    r.raise_for_status()
-    return r.json()
+    try:
+        r.raise_for_status()
+    except HTTPError:
+        try:
+            err = "There was an issue with your request. The following was raised:\n"
+            details = r.json()["detail"]
+            for detail in details:
+                err += f'The provided {detail["loc"][-1]} {detail["msg"]}\n'
+        except Exception:
+            err = (
+                f"Your request could not be completed. The following error was "
+                f"raised: {r.text}"
+            )
+        raise GalileoException(err) from None
+
+    res = r.json()
+    print(f"Job {res['pipeline_name']} successfully submitted.")
+    return res
