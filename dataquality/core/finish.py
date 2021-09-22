@@ -1,4 +1,5 @@
 import os
+import pickle
 import shutil
 from typing import Any, Dict, Optional
 from uuid import uuid4
@@ -39,9 +40,11 @@ def upload(cleanup: bool = True) -> None:
     file_path = f"{location}/{object_name}"
     if config.serialization == Serialization.pickle:
         # Protocol 4 so it is backwards compatible to 3.4 (5 is 3.8)
-        in_out.to_pickle(file_path, protocol=4)
+        records = in_out.to_json(lines=True, orient="records")
+        with open(file_path, "wb") as f:
+            pickle.dump(records, f, protocol=4)
     else:
-        in_out.to_json(file_path, lines=True)
+        in_out.to_json(file_path, lines=True, orient="records")
 
     print("☁️ Uploading Data")
     object_store.create_project_run_object(
@@ -88,10 +91,15 @@ def finish() -> Optional[Dict[str, Any]]:
         upload()
 
     # Kick off API pipeline to calculate statistics
+    pipeline = (
+        Pipeline.default.value
+        if config.serialization == Serialization.jsonl
+        else Pipeline.default_pickle.value
+    )
     body = dict(
         project_id=config.current_project_id,
         run_id=config.current_run_id,
-        pipeline_name=Pipeline.default.value,
+        pipeline_name=pipeline,
         pipeline_env_vars=dict(GALILEO_LABELS=config.labels),
     )
     r = requests.post(
