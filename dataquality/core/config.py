@@ -1,10 +1,12 @@
 import json
 import os
 from enum import Enum, unique
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel
 from pydantic.types import UUID4
+
+from dataquality.schemas import Serialization
 
 
 class _Config:
@@ -55,6 +57,8 @@ class Config(BaseModel):
     current_user: Optional[str] = None
     current_project_id: Optional[UUID4] = None
     current_run_id: Optional[UUID4] = None
+    labels: Optional[List[str]] = None
+    serialization: Serialization.pickle
 
     def update_file_config(self) -> None:
         _config = _Config()

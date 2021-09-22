@@ -1,10 +1,18 @@
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
+import numpy as np
 from pydantic import BaseModel, validator
 from pydantic.types import StrictFloat, StrictInt, StrictStr
 
 from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.split import Split
+
+try:
+    from torch import Tensor
+
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
 
 
 class BaseLogItem(BaseModel):
@@ -42,3 +50,17 @@ class JsonlOutputLogItem(BaseLogItem):
     emb: List[StrictFloat]
     prob: List[StrictFloat]
     pred: Optional[StrictStr] = None
+
+    # This validator checks if the input is a Pytorch Tensor and converts it to a list
+    # so all formats conform for logging. This allows users to directly log Tensors
+    @validator("emb", "prob", always=True, pre=True)
+    def validate_embedding_shape(
+        cls, v: Union[List[StrictFloat], Any]
+    ) -> List[StrictFloat]:
+        if TORCH_AVAILABLE and isinstance(v, Tensor):  # Validate the tensor shape is 1D
+            if len(v.shape) != 1:
+                raise ValueError(f"Tensor shape must be 1D, but got {v.shape}")
+            return v.detach().numpy().tolist()
+        elif isinstance(v, np.ndarray):
+            return v.tolist()
+        return v

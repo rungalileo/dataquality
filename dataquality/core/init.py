@@ -1,3 +1,4 @@
+import os
 from typing import Dict, List, Optional
 
 import requests
@@ -5,6 +6,8 @@ from pydantic.types import UUID4
 
 from dataquality.core.auth import _Auth
 from dataquality.core.config import Config, config
+from dataquality.core.log import JsonlLogger
+from dataquality.schemas import Route
 from dataquality.utils.auth import headers
 from dataquality.utils.name import random_name
 
@@ -14,7 +17,7 @@ class _Init:
         if not config.token:
             raise Exception("Token not present, please log in!")
         req = requests.post(
-            f"{config.api_url}/projects",
+            f"{config.api_url}/{Route.projects}",
             json=data,
             headers=headers(config.token),
         )
@@ -24,7 +27,7 @@ class _Init:
         if not config.token:
             raise Exception("Token not present, please log in!")
         req = requests.post(
-            f"{config.api_url}/projects/{project_id}/runs",
+            f"{config.api_url}/{Route.projects}/{project_id}/runs",
             json=data,
             headers=headers(config.token),
         )
@@ -34,7 +37,7 @@ class _Init:
         if not config.token:
             raise Exception("Token not present, please log in!")
         req = requests.get(
-            f"{config.api_url}/users/{user_id}/projects",
+            f"{config.api_url}/{Route.users}/{user_id}/projects",
             headers=headers(config.token),
         )
         return req.json()
@@ -49,7 +52,7 @@ class _Init:
         if not config.token:
             raise Exception("Token not present, please log in!")
         return requests.get(
-            f"{config.api_url}/projects/{project_id}/runs/{run_id}",
+            f"{config.api_url}/{Route.projects}/{project_id}/runs/{run_id}",
             headers=headers(config.token),
         ).json()
 
@@ -68,10 +71,16 @@ class _Init:
         body = {"name": run_name}
         return self.create_project_run(project_id, body, config)
 
+    def create_log_file_dir(self, project_id: UUID4, run_id: UUID4) -> None:
+        write_output_dir = f"{JsonlLogger.LOG_FILE_DIR}/{project_id}/{run_id}"
+        if not os.path.exists(write_output_dir):
+            os.makedirs(write_output_dir)
+
 
 def init(project_name: Optional[str] = None, run_id: Optional[UUID4] = None) -> None:
     _auth = _Auth(config=config, auth_method=config.auth_method)
     _init = _Init()
+    config.labels = None
     if project_name is None and run_id is None:
         # no project and no run id, start a new project and start a new run
         project_name, run_name = random_name(), random_name()
@@ -147,3 +156,5 @@ def init(project_name: Optional[str] = None, run_id: Optional[UUID4] = None) -> 
         )
         return
     config.update_file_config()
+    if config.current_project_id and config.current_run_id:
+        _init.create_log_file_dir(config.current_project_id, config.current_run_id)
