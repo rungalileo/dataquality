@@ -58,7 +58,7 @@ class Config(BaseModel):
     current_project_id: Optional[UUID4] = None
     current_run_id: Optional[UUID4] = None
     labels: Optional[List[str]] = None
-    serialization: Serialization.pickle
+    serialization: Serialization = Serialization.pickle
 
     def update_file_config(self) -> None:
         _config = _Config()

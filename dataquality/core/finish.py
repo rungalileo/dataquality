@@ -1,7 +1,7 @@
+import os
 import shutil
 from typing import Any, Dict, Optional
 from uuid import uuid4
-import os
 
 import pandas as pd
 import requests
@@ -35,7 +35,7 @@ def upload(cleanup: bool = True) -> None:
     )
 
     file_type = config.serialization.value
-    object_name = f'{str(uuid4())[:7]}.{file_type}'
+    object_name = f"{str(uuid4())[:7]}.{file_type}"
     file_path = f"{location}/{object_name}"
     if config.serialization == Serialization.pickle:
         # Protocol 4 so it is backwards compatible to 3.4 (5 is 3.8)
