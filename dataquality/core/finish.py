@@ -1,9 +1,10 @@
 import os
+import pickle
 import shutil
 from typing import Any, Dict, Optional
 from uuid import uuid4
 
-import dask.dataframe as dd
+import pandas as pd
 import requests
 from requests import HTTPError
 
@@ -11,7 +12,7 @@ from dataquality import config
 from dataquality.clients import object_store
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.jsonl_logger import JsonlLogger
-from dataquality.schemas import Pipeline, Route
+from dataquality.schemas import Pipeline, Route, Serialization
 from dataquality.utils.auth import headers
 
 
@@ -28,19 +29,30 @@ def upload(cleanup: bool = True) -> None:
         f"{JsonlLogger.LOG_FILE_DIR}/{config.current_project_id}"
         f"/{config.current_run_id}"
     )
-    in_frame = dd.read_json(f"{location}/{JsonlLogger.INPUT_FILENAME}", lines=True)
-    out_frame = dd.read_json(f"{location}/{JsonlLogger.OUTPUT_FILENAME}", lines=True)
-    in_out = in_frame.merge(out_frame, on=["split", "id"], how="left")
-    in_out_filepaths = in_out.to_json(filename=location)
+    in_frame = pd.read_json(f"{location}/{JsonlLogger.INPUT_FILENAME}", lines=True)
+    out_frame = pd.read_json(f"{location}/{JsonlLogger.OUTPUT_FILENAME}", lines=True)
+    in_out = in_frame.merge(
+        out_frame, on=["split", "id", "data_schema_version"], how="left"
+    )
+
+    file_type = config.serialization.value
+    object_name = f"{str(uuid4())[:7]}.{file_type}"
+    file_path = f"{location}/{object_name}"
+    if config.serialization == Serialization.pickle:
+        # Protocol 4 so it is backwards compatible to 3.4 (5 is 3.8)
+        records = in_out.to_json(lines=True, orient="records")
+        with open(file_path, "wb") as f:
+            pickle.dump(records, f, protocol=4)
+    else:
+        in_out.to_json(file_path, lines=True, orient="records")
 
     print("☁️ Uploading Data")
-    for io_path in in_out_filepaths:
-        object_store.create_project_run_object(
-            config.current_project_id,
-            config.current_run_id,
-            object_name=f"{str(uuid4())[:7]}.jsonl",
-            file_path=io_path,
-        )
+    object_store.create_project_run_object(
+        config.current_project_id,
+        config.current_run_id,
+        object_name=f"{object_name}",
+        file_path=file_path,
+    )
 
     if cleanup:
         print("🧹 Cleaning up")
@@ -79,10 +91,15 @@ def finish() -> Optional[Dict[str, Any]]:
         upload()
 
     # Kick off API pipeline to calculate statistics
+    pipeline = (
+        Pipeline.default.value
+        if config.serialization == Serialization.jsonl
+        else Pipeline.default_pickle.value
+    )
     body = dict(
         project_id=config.current_project_id,
         run_id=config.current_run_id,
-        pipeline_name=Pipeline.default.value,
+        pipeline_name=pipeline,
         pipeline_env_vars=dict(GALILEO_LABELS=config.labels),
     )
     r = requests.post(
