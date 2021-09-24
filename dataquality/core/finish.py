@@ -88,7 +88,8 @@ def finish() -> Optional[Dict[str, Any]]:
     assert len(config.labels) == config.observed_num_labels, (
         f"You set your labels to be {config.labels} ({len(config.labels)} labels) "
         f"but based on training, your model "
-        f"is expecting {config.observed_num_labels} labels"
+        f"is expecting {config.observed_num_labels} labels. "
+        f"Use dataquality.set_labels_for_run to update your config labels"
     )
     location = (
         f"{JsonlLogger.LOG_FILE_DIR}/{config.current_project_id}"
