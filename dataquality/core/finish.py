@@ -35,6 +35,8 @@ def upload(cleanup: bool = True) -> None:
         out_frame, on=["split", "id", "data_schema_version"], how="left"
     )
 
+    config.observed_num_labels = len(out_frame["prob"].values[0])
+
     file_type = config.serialization.value
     object_name = f"{str(uuid4())[:7]}.{file_type}"
     file_path = f"{location}/{object_name}"
@@ -82,6 +84,12 @@ def finish() -> Optional[Dict[str, Any]]:
     assert config.labels, (
         "You must set your config labels before calling finish. "
         "See `dataquality.set_labels_for_run`"
+    )
+    assert len(config.labels) == config.observed_num_labels, (
+        f"You set your labels to be {config.labels} ({len(config.labels)} labels) "
+        f"but based on training, your model "
+        f"is expecting {config.observed_num_labels} labels. "
+        f"Use dataquality.set_labels_for_run to update your config labels"
     )
     location = (
         f"{JsonlLogger.LOG_FILE_DIR}/{config.current_project_id}"
