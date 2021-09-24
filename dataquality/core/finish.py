@@ -35,7 +35,7 @@ def upload(cleanup: bool = True) -> None:
         out_frame, on=["split", "id", "data_schema_version"], how="left"
     )
 
-    config.observed_num_labels = len(out_frame['prob'].values[0])
+    config.observed_num_labels = len(out_frame["prob"].values[0])
 
     file_type = config.serialization.value
     object_name = f"{str(uuid4())[:7]}.{file_type}"
