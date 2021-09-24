@@ -90,12 +90,10 @@ def finish() -> Optional[Dict[str, Any]]:
     if os.path.exists(location):
         upload()
 
-    # Kick off API pipeline to calculate statistics
-    pipeline = (
-        Pipeline.default.value
-        if config.serialization == Serialization.jsonl
-        else Pipeline.default_pickle.value
-    )
+    # Kick off the default API pipeline to calculate statistics
+    # to populate the main home console
+    pipeline = Pipeline.default.value
+
     body = dict(
         project_id=config.current_project_id,
         run_id=config.current_run_id,

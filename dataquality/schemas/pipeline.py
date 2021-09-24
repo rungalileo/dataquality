@@ -7,4 +7,3 @@ class Pipeline(str, Enum):
     """
 
     default = "default"
-    default_pickle = "default_pickle"
