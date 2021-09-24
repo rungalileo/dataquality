@@ -59,6 +59,7 @@ class Config(BaseModel):
     current_run_id: Optional[UUID4] = None
     labels: Optional[List[str]] = None
     serialization: Serialization = Serialization.pickle
+    observed_num_labels: Optional[int] = 0
 
     def update_file_config(self) -> None:
         _config = _Config()
