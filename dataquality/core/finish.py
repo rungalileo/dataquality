@@ -106,7 +106,10 @@ def finish() -> Optional[Dict[str, Any]]:
         project_id=config.current_project_id,
         run_id=config.current_run_id,
         pipeline_name=pipeline,
-        pipeline_env_vars=dict(GALILEO_LABELS=config.labels),
+        pipeline_env_vars=dict(
+            GALILEO_LABELS=config.labels,
+            GALILEO_SERIALIZE_MODE=config.serialization.value,
+        ),
     )
     r = requests.post(
         f"{config.api_url}/{Route.pipelines}",
