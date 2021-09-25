@@ -1,6 +1,6 @@
+import glob
 import os
 import pickle
-import shutil
 from typing import Any, Dict, Optional
 from uuid import uuid4
 
@@ -12,11 +12,11 @@ from dataquality import config
 from dataquality.clients import object_store
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.jsonl_logger import JsonlLogger
-from dataquality.schemas import Pipeline, Route, Serialization
+from dataquality.schemas import Pipeline, Route, Serialization, Split
 from dataquality.utils.auth import headers
 
 
-def upload(cleanup: bool = True) -> None:
+def upload(split: Split, cleanup: bool = True) -> None:
     """
     Uploads the local data to minio and optionally cleans up the local disk
 
@@ -25,12 +25,17 @@ def upload(cleanup: bool = True) -> None:
     """
     assert config.current_project_id
     assert config.current_run_id
+    assert split
     location = (
         f"{JsonlLogger.LOG_FILE_DIR}/{config.current_project_id}"
         f"/{config.current_run_id}"
     )
-    in_frame = pd.read_json(f"{location}/{JsonlLogger.INPUT_FILENAME}", lines=True)
-    out_frame = pd.read_json(f"{location}/{JsonlLogger.OUTPUT_FILENAME}", lines=True)
+    in_frame = pd.read_json(
+        f"{location}/{split}_{JsonlLogger.INPUT_FILENAME_SUFFIX}", lines=True
+    )
+    out_frame = pd.read_json(
+        f"{location}/{split}_{JsonlLogger.OUTPUT_FILENAME_SUFFIX}", lines=True
+    )
     in_out = in_frame.merge(
         out_frame, on=["split", "id", "data_schema_version"], how="left"
     )
@@ -38,7 +43,7 @@ def upload(cleanup: bool = True) -> None:
     config.observed_num_labels = len(out_frame["prob"].values[0])
 
     file_type = config.serialization.value
-    object_name = f"{str(uuid4())[:7]}.{file_type}"
+    object_name = f"{uuid4()}.{file_type}"
     file_path = f"{location}/{object_name}"
     if config.serialization == Serialization.pickle:
         # Protocol 4 so it is backwards compatible to 3.4 (5 is 3.8)
@@ -56,23 +61,21 @@ def upload(cleanup: bool = True) -> None:
         file_path=file_path,
     )
 
-    if cleanup:
-        print("🧹 Cleaning up")
-        shutil.rmtree(location)
 
-
-def cleanup() -> None:
+def cleanup(split: Split) -> None:
     """
     Cleans up the current run data locally
     """
     assert config.current_project_id
     assert config.current_run_id
+    assert split
     location = (
         f"{JsonlLogger.LOG_FILE_DIR}/{config.current_project_id}"
-        f"/{config.current_run_id}"
+        f"/{config.current_run_id}/{split}*"
     )
-    print("🧹 Cleaning up")
-    shutil.rmtree(location)
+    print(f"🧹 Cleaning up from {split}")
+    for path in glob.glob(location):
+        os.remove(path)
 
 
 def finish() -> Optional[Dict[str, Any]]:
@@ -91,12 +94,12 @@ def finish() -> Optional[Dict[str, Any]]:
         f"is expecting {config.observed_num_labels} labels. "
         f"Use dataquality.set_labels_for_run to update your config labels"
     )
-    location = (
-        f"{JsonlLogger.LOG_FILE_DIR}/{config.current_project_id}"
-        f"/{config.current_run_id}"
-    )
-    if os.path.exists(location):
-        upload()
+    # location = (
+    #     f"{JsonlLogger.LOG_FILE_DIR}/{config.current_project_id}"
+    #     f"/{config.current_run_id}"
+    # )
+    # if os.path.exists(location):
+    #     upload()
 
     # Kick off the default API pipeline to calculate statistics
     # to populate the main home console
@@ -132,5 +135,9 @@ def finish() -> Optional[Dict[str, Any]]:
         raise GalileoException(err) from None
 
     res = r.json()
+
+    # TODO: cleanup the response here we dont actually want to show
+    # the entire json response – just enough to generate a link for the
+    # user
     print(f"Job {res['pipeline_name']} successfully submitted.")
     return res

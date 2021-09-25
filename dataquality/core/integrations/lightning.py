@@ -153,6 +153,38 @@ class DataQualityCallback(Callback):
     ) -> None:
         self.checkpoint_data["start_of_new_epoch"] = True
 
+    def on_train_end(
+        self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
+    ) -> None:
+        print("on_train_end: starting")
+        dataquality.upload(Split("training"))
+        dataquality.cleanup(Split("training"))
+        print("on_train_end: complete")
+
+    def on_test_end(
+        self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
+    ) -> None:
+        print("on_test_end: starting")
+        dataquality.upload(Split("test"))
+        dataquality.cleanup(Split("test"))
+        print("on_test_end: complete")
+
+    def on_validation_end(
+        self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
+    ) -> None:
+        print("on_validation_end: starting")
+        dataquality.upload(Split("validation"))
+        dataquality.cleanup(Split("validation"))
+        print("on_validation_end: complete")
+
+    def on_predict_end(
+        self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
+    ) -> None:
+        print("on_predict_end: starting")
+        dataquality.upload(Split("inference"))
+        dataquality.cleanup(Split("inference"))
+        print("on_predict_end: complete")
+
     def on_epoch_end(
         self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
     ) -> None:
@@ -214,4 +246,5 @@ class DataQualityCallback(Callback):
         pl_module: "pl.LightningModule",
         stage: Optional[str] = None,
     ) -> None:
-        dataquality.upload()
+        # dataquality.cleanup()
+        pass

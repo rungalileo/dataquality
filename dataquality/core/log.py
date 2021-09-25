@@ -35,7 +35,10 @@ def log_input_data(data: Dict) -> None:
     assert config.current_project_id is not None
     assert config.current_run_id is not None
     logger.jsonl_logger.write_input(
-        config.current_project_id, config.current_run_id, input_data.dict()
+        split=data["split"],
+        project_id=config.current_project_id,
+        run_id=config.current_run_id,
+        data=input_data.dict(),
     )
 
 
@@ -96,7 +99,10 @@ def log_model_output(data: Dict) -> None:
     assert config.current_run_id is not None
 
     logger.jsonl_logger.write_output(
-        config.current_project_id, config.current_run_id, output_data.dict()
+        split=data["split"],
+        project_id=config.current_project_id,
+        run_id=config.current_run_id,
+        data=output_data.dict(),
     )
 
 
@@ -139,7 +145,7 @@ def _log_model_outputs(outputs: GalileoModelConfig) -> None:
 def log_model_outputs(outputs: GalileoModelConfig) -> None:
     """
     First class function to log all model outputs in a training/validation/test
-    batch. Use log_model_outputs instead of log_model_outputs to take advantage of
+    batch. Use log_model_outputs instead of log_model_output to take advantage of
     multithreading and other validation support.
 
     :param outputs: GalileoModelConfig
