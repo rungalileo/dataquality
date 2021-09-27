@@ -1,6 +1,7 @@
 import warnings
 from typing import Any, Dict, Optional, Sequence, Union
 
+import numpy as np
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.trainer.supporters import CombinedDataset
@@ -89,7 +90,23 @@ class DataQualityCallback(Callback):
             data_config: GalileoDataConfig = getattr(dataset, config_attr)
             data_config.split = split
             try:
-                dataquality.log_batch_input_data(data_config)
+                # dataquality.log_batch_input_data(data_config)
+                # TODO: remove below
+                data_config.validate()
+                ids = (
+                    data_config.ids if data_config.ids else range(len(data_config.text))
+                )
+                for idx, text, label in zip(ids, data_config.text, data_config.labels):
+                    dataquality.log_input_data(
+                        {
+                            "id": idx,
+                            "text": text,
+                            "gold": str(label)
+                            if data_config.split != Split.inference
+                            else None,
+                            "split": data_config.split,
+                        }
+                    )
             except GalileoException as e:
                 warnings.warn(
                     f"Logging data inputs to Galileo could not be completed. See "
@@ -112,7 +129,22 @@ class DataQualityCallback(Callback):
         model_config.split = split
 
         try:
-            dataquality.log_model_outputs(model_config)
+            # dataquality.log_batch_input_data(model_config)
+            # TODO: remove below
+            model_config.validate()
+            for id, prob, emb in zip(
+                model_config.ids, model_config.probs, model_config.emb
+            ):
+                dataquality.log_model_output(
+                    {
+                        "id": id,
+                        "epoch": model_config.epoch,
+                        "split": model_config.split,
+                        "emb": emb,
+                        "prob": prob,
+                        "pred": str(int(np.argmax(prob))),
+                    }
+                )
         except GalileoException as e:
             warnings.warn(
                 f"Logging model outputs to Galileo could not occur. "
@@ -158,7 +190,7 @@ class DataQualityCallback(Callback):
     ) -> None:
         print("on_train_end: starting")
         dataquality.upload(Split("training"))
-        dataquality.cleanup(Split("training"))
+        # dataquality.cleanup(Split("training"))
         print("on_train_end: complete")
 
     def on_test_end(
@@ -166,7 +198,7 @@ class DataQualityCallback(Callback):
     ) -> None:
         print("on_test_end: starting")
         dataquality.upload(Split("test"))
-        dataquality.cleanup(Split("test"))
+        # dataquality.cleanup(Split("test"))
         print("on_test_end: complete")
 
     def on_validation_end(
@@ -174,7 +206,7 @@ class DataQualityCallback(Callback):
     ) -> None:
         print("on_validation_end: starting")
         dataquality.upload(Split("validation"))
-        dataquality.cleanup(Split("validation"))
+        # dataquality.cleanup(Split("validation"))
         print("on_validation_end: complete")
 
     def on_predict_end(
@@ -182,7 +214,7 @@ class DataQualityCallback(Callback):
     ) -> None:
         print("on_predict_end: starting")
         dataquality.upload(Split("inference"))
-        dataquality.cleanup(Split("inference"))
+        # dataquality.cleanup(Split("inference"))
         print("on_predict_end: complete")
 
     def on_epoch_end(
@@ -246,5 +278,6 @@ class DataQualityCallback(Callback):
         pl_module: "pl.LightningModule",
         stage: Optional[str] = None,
     ) -> None:
+        # TODO? clear out entire run dir
         # dataquality.cleanup()
         pass

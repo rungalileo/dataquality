@@ -43,7 +43,7 @@ def upload(split: Split, cleanup: bool = True) -> None:
     config.observed_num_labels = len(out_frame["prob"].values[0])
 
     file_type = config.serialization.value
-    object_name = f"{uuid4()}.{file_type}"
+    object_name = f"{split}.{file_type}"
     file_path = f"{location}/{object_name}"
     if config.serialization == Serialization.pickle:
         # Protocol 4 so it is backwards compatible to 3.4 (5 is 3.8)
