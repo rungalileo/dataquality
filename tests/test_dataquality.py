@@ -52,7 +52,6 @@ def _log_data(num_records=100) -> None:
 
     # Log train data
     for split in [Split.test, Split.training]:
-        print("logging data for split", split)
         newsgroups_train = fetch_20newsgroups(
             subset="train" if split == Split.training else split.value,
             remove=("headers", "footers", "quotes"),
@@ -67,7 +66,6 @@ def _log_data(num_records=100) -> None:
         dataquality.log_batch_input_data(gconfig_train)
 
     for split in [Split.training, Split.test]:
-        print("Logging model data for split ", split)
         for _ in tqdm(range(num_records)):
             emb = [[random() for _ in range(700)] for _ in range(len(dataset))]
             probs = [[random() for _ in range(8)] for _ in range(len(dataset))]
