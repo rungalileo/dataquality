@@ -4,7 +4,7 @@ from enum import Enum, unique
 from typing import List, Optional
 
 from pydantic import BaseModel
-from pydantic.types import UUID4
+from pydantic.types import UUID4, StrictStr
 
 from dataquality.schemas import Serialization
 
@@ -57,7 +57,7 @@ class Config(BaseModel):
     current_user: Optional[str] = None
     current_project_id: Optional[UUID4] = None
     current_run_id: Optional[UUID4] = None
-    labels: Optional[List[str]] = None
+    labels: Optional[List[StrictStr]] = None
     serialization: Serialization = Serialization.pickle
     observed_num_labels: Optional[int] = 0
 
