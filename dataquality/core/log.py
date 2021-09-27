@@ -107,7 +107,7 @@ def set_labels_for_run(labels: List[str]) -> None:
     :param labels: An ordered list of labels (ie ['dog','cat','fish']
     :return: None
     """
-    config.labels = labels
+    config.labels = [str(i) for i in labels]
     config.update_file_config()
 
 
