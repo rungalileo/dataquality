@@ -158,14 +158,14 @@ class GalileoDataConfig:
     def __init__(
         self,
         text: List[str] = None,
-        labels: List[Union[int, str]] = None,
+        labels: List[str] = None,
         ids: List[Union[int, str]] = None,
         split: Split = None,
     ) -> None:
         # Need to compare to None because they may be np arrays which cannot be
         # evaluated with bool directly
         self.text = text if text is not None else []
-        self.labels = labels if labels is not None else []
+        self.labels = [str(i) for i in labels] if labels is not None else []
         self.ids = ids if ids is not None else []
         self.split = split
 
