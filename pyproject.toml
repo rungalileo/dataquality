@@ -31,7 +31,8 @@ test = [
     "pytest >=5.2",
     "mypy >=0.812",
     "coverage >=5.5",
-    "pytest-cov >=2.11.1"
+    "pytest-cov >=2.11.1",
+    "scikit-learn == 1.0"
 ]
 dev = [
     "flake8 >=3.8.4",
