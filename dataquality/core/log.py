@@ -1,4 +1,3 @@
-import json
 from typing import Dict, List
 
 import numpy as np
@@ -107,8 +106,7 @@ def set_labels_for_run(labels: List[str]) -> None:
     :param labels: An ordered list of labels (ie ['dog','cat','fish']
     :return: None
     """
-    print('test')
-    config.labels = json.dumps([str(i) for i in labels])
+    config.labels = [str(i) for i in labels]
     config.update_file_config()
 
 
