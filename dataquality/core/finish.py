@@ -14,6 +14,7 @@ from dataquality.exceptions import GalileoException
 from dataquality.loggers.jsonl_logger import JsonlLogger
 from dataquality.schemas import Pipeline, Route, Serialization
 from dataquality.utils.auth import headers
+from dataquality.utils.thread_pool import ThreadPoolManager
 
 
 def upload(cleanup: bool = True) -> None:
@@ -25,6 +26,7 @@ def upload(cleanup: bool = True) -> None:
     """
     assert config.current_project_id
     assert config.current_run_id
+    ThreadPoolManager.wait_for_threads()
     location = (
         f"{JsonlLogger.LOG_FILE_DIR}/{config.current_project_id}"
         f"/{config.current_run_id}"
@@ -57,11 +59,10 @@ def upload(cleanup: bool = True) -> None:
     )
 
     if cleanup:
-        print("🧹 Cleaning up")
-        shutil.rmtree(location)
+        _cleanup()
 
 
-def cleanup() -> None:
+def _cleanup() -> None:
     """
     Cleans up the current run data locally
     """

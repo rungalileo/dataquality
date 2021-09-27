@@ -10,6 +10,7 @@ from dataquality.exceptions import GalileoException
 from dataquality.loggers import JsonlLogger
 from dataquality.schemas.jsonl_logger import JsonlInputLogItem, JsonlOutputLogItem
 from dataquality.schemas.split import Split
+from dataquality.utils.thread_pool import ThreadPoolManager
 
 
 class Logger:
@@ -73,8 +74,7 @@ def log_batch_input_data(data: GalileoDataConfig) -> None:
     :return: None
     """
     try:
-        in_thread = Thread(target=_log_batch_input_data, args=[data])
-        in_thread.start()
+        ThreadPoolManager.add_thread(target=_log_batch_input_data, args=[data])
     except Exception as e:
         raise GalileoException(e)
 
@@ -146,7 +146,6 @@ def log_model_outputs(outputs: GalileoModelConfig) -> None:
     :return: None
     """
     try:
-        out_thread = Thread(target=_log_model_outputs, args=[outputs])
-        out_thread.start()
+        ThreadPoolManager.add_thread(target=_log_model_outputs, args=[outputs])
     except Exception as e:
         raise GalileoException(e)

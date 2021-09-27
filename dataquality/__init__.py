@@ -4,7 +4,7 @@ __version__ = "0.0.1"
 
 from dataquality.core.auth import login
 from dataquality.core.config import config
-from dataquality.core.finish import cleanup, finish, upload
+from dataquality.core.finish import _cleanup, finish, upload
 from dataquality.core.init import init
 from dataquality.core.log import (
     log_batch_input_data,
@@ -25,7 +25,7 @@ __all__ = [
     "log_model_output",
     "config",
     "upload",
-    "cleanup",
+    "_cleanup",
     "finish",
     "set_labels_for_run",
     "GalileoException",

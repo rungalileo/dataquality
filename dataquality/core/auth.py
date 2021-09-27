@@ -21,8 +21,11 @@ class _Auth:
         if self.email_token_present_and_valid(self.config):
             return
 
-        username = input("📧 Enter your email:")
-        password = getpass.getpass("🤫 Enter your password:")
+        username = os.getenv("GALILEO_USERNAME")
+        password = os.getenv("GALILEO_PASSWORD")
+        if not username or not password:
+            username = input("📧 Enter your email:")
+            password = getpass.getpass("🤫 Enter your password:")
         res = requests.post(
             f"{self.config.api_url}/login",
             data={
