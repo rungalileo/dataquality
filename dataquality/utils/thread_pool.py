@@ -1,19 +1,19 @@
 from collections.abc import Callable
-from typing import List, Any
 from threading import Thread
 from time import sleep
+from typing import Any, Iterable, List
 
 
 class ThreadPoolManager:
     """
     A class for managing the threaded logging calls throughout dataquality
     """
+
     THREADS: List[Thread] = []
     MAX_THREADS = 100
 
-
     @staticmethod
-    def add_thread(target: Callable, args: List[Any] = None) -> None:
+    def add_thread(target: Callable, args: Iterable[Any] = None) -> None:
         """
         Start a new function in a thread and store that in the global list of threads
 
@@ -22,7 +22,7 @@ class ThreadPoolManager:
         :return: None
         """
         ThreadPoolManager.wait_for_thread()
-        thread = Thread(target=target, args=args)
+        thread = Thread(target=target, args=args or [])
         thread.start()
         ThreadPoolManager.THREADS.append(thread)
 
@@ -35,7 +35,8 @@ class ThreadPoolManager:
         """
         ThreadPoolManager._cleanup()
         # Waits for each thread to finish
-        [i.join() for i in ThreadPoolManager.THREADS]
+        for i in ThreadPoolManager.THREADS:
+            i.join()
         ThreadPoolManager._cleanup()
 
     @staticmethod
