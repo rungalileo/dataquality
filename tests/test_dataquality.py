@@ -4,7 +4,6 @@ from random import random
 import pandas as pd
 import pytest
 from sklearn.datasets import fetch_20newsgroups
-from tqdm import tqdm
 
 import dataquality
 from dataquality import config
@@ -66,7 +65,7 @@ def _log_data(num_records=100) -> None:
         dataquality.log_batch_input_data(gconfig_train)
 
     for split in [Split.training, Split.test]:
-        for _ in tqdm(range(num_records)):
+        for _ in range(num_records):
             emb = [[random() for _ in range(700)] for _ in range(len(dataset))]
             probs = [[random() for _ in range(8)] for _ in range(len(dataset))]
             epoch = 0

@@ -1,7 +1,6 @@
-from collections.abc import Callable
 from threading import Thread
 from time import sleep
-from typing import Any, Iterable, List
+from typing import Any, Callable, Iterable, List
 
 
 class ThreadPoolManager:
