@@ -32,7 +32,7 @@ def upload(cleanup: bool = True) -> None:
         f"/{config.current_run_id}"
     )
     in_frame_dtypes = {"gold": "object"}
-    out_frame_dtypes = {"pred": "object"}
+    out_frame_dtypes = {"pred": "int64"}
     in_frame = pd.read_json(
         f"{location}/{JsonlLogger.INPUT_FILENAME}",
         lines=True,
