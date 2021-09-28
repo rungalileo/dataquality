@@ -31,8 +31,18 @@ def upload(cleanup: bool = True) -> None:
         f"{JsonlLogger.LOG_FILE_DIR}/{config.current_project_id}"
         f"/{config.current_run_id}"
     )
-    in_frame = pd.read_json(f"{location}/{JsonlLogger.INPUT_FILENAME}", lines=True)
-    out_frame = pd.read_json(f"{location}/{JsonlLogger.OUTPUT_FILENAME}", lines=True)
+    in_frame_dtypes = {"gold": "object"}
+    out_frame_dtypes = {"pred": "int64"}
+    in_frame = pd.read_json(
+        f"{location}/{JsonlLogger.INPUT_FILENAME}",
+        lines=True,
+        dtype=in_frame_dtypes,
+    )
+    out_frame = pd.read_json(
+        f"{location}/{JsonlLogger.OUTPUT_FILENAME}",
+        lines=True,
+        dtype=out_frame_dtypes,
+    )
     in_out = in_frame.merge(
         out_frame, on=["split", "id", "data_schema_version"], how="left"
     )
