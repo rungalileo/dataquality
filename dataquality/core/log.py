@@ -107,7 +107,7 @@ def set_labels_for_run(labels: List[str]) -> None:
     :return: None
     """
     if len(labels) == 1:
-        labels = [labels[0], f'NOT_{labels[0]}']
+        labels = [labels[0], f"NOT_{labels[0]}"]
     config.labels = [str(i) for i in labels]
     config.update_file_config()
 
