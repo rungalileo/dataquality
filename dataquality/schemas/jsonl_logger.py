@@ -64,3 +64,11 @@ class JsonlOutputLogItem(BaseLogItem):
         elif isinstance(v, np.ndarray):
             return v.tolist()
         return v
+
+    # Validator to force prob to always have >= 2 probs. For binary, if they log a
+    # single value, make the second prob 1-prob they passed in
+    @validator("prob", always=True)
+    def fix_probs(cls, v: List[StrictFloat]) -> List[StrictFloat]:
+        if len(v) == 1:
+            v = [v[0], 1 - v[0]]
+        return v
