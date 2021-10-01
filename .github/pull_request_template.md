@@ -7,7 +7,6 @@
 * [ ] I have added tests to `tests` to cover my changes.
 * [ ] I have updated `docs/`, if necessary.
 * [ ] I have updated the `README.md`, if necessary.
-* [ ] I have updated the `CHANGELOG.md`, if necessary.
 
 ***What existing issue does this pull request close?***
 
