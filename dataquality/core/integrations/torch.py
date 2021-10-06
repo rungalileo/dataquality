@@ -36,14 +36,11 @@ def watch(model: Module) -> None:
     :return: None
     """
     assert (
-        config.current_project_id
-    ), "You must initialize dataquality before invoking a callback!"
-    assert (
-        config.current_run_id
+        config.current_project_id and config.current_run_id
     ), "You must initialize dataquality before invoking a callback!"
     if not isinstance(model, Module):
         raise GalileoException(
-            "Expected a pytorch model (torch.nn.Module). Received " + str(type(model))
+            f"Expected a pytorch model (torch.nn.Module). Received {str(type(model))}"
         )
 
     if not hasattr(model, "forward"):
@@ -98,7 +95,7 @@ def watch(model: Module) -> None:
                 model_config.split = "training"
 
         try:
-            dataquality.log_model_outputs(model_config)
+            dataquality.log_model_outputs(model_config, upload=True)
         except GalileoException as e:
             warnings.warn(
                 f"Logging model outputs to Galileo could not be "

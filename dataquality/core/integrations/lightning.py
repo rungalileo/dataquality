@@ -17,6 +17,7 @@ from dataquality.core.integrations.config import (
     get_modelconfig_attr,
 )
 from dataquality.schemas.split import Split
+from dataquality.utils.thread_pool import ThreadPoolManager
 
 
 class DataQualityCallback(Callback):
@@ -112,7 +113,7 @@ class DataQualityCallback(Callback):
         model_config.split = split
 
         try:
-            dataquality.log_model_outputs(model_config)
+            dataquality.log_model_outputs(model_config, upload=True)
         except GalileoException as e:
             warnings.warn(
                 f"Logging model outputs to Galileo could not occur. "
@@ -214,4 +215,6 @@ class DataQualityCallback(Callback):
         pl_module: "pl.LightningModule",
         stage: Optional[str] = None,
     ) -> None:
-        dataquality.upload()
+        # So we know everything has been fully uploaded and finished
+        ThreadPoolManager.wait_for_threads()
+        dataquality._cleanup()
