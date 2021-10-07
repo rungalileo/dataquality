@@ -1,8 +1,10 @@
 from typing import Dict, List
 
 import numpy as np
+import pandas as pd
 from pydantic.error_wrappers import ValidationError
 
+import dataquality
 from dataquality import config
 from dataquality.core.integrations.config import GalileoDataConfig, GalileoModelConfig
 from dataquality.exceptions import GalileoException
@@ -78,6 +80,17 @@ def log_batch_input_data(data: GalileoDataConfig) -> None:
         raise GalileoException(e)
 
 
+def validate_model_output(data: Dict) -> JsonlOutputLogItem:
+    """
+    Validates the model output data
+    """
+    try:
+        output_data = JsonlOutputLogItem(**data)
+    except ValidationError as e:
+        raise e
+    return output_data
+
+
 def log_model_output(data: Dict) -> None:
     """
     Function to log a single model output for a train/test/validation dataset.
@@ -87,10 +100,8 @@ def log_model_output(data: Dict) -> None:
     probabilities and prediction)
     :return: None
     """
-    try:
-        output_data = JsonlOutputLogItem(**data)
-    except ValidationError as e:
-        raise e
+    output_data = validate_model_output(data)
+
     assert config.current_project_id is not None
     assert config.current_run_id is not None
 
@@ -112,41 +123,47 @@ def set_labels_for_run(labels: List[str]) -> None:
     config.update_file_config()
 
 
-def _log_model_outputs(outputs: GalileoModelConfig) -> None:
+def _log_model_outputs(outputs: GalileoModelConfig, upload: bool = True) -> None:
     """
     Threaded child function for logging model outputs. Used as target for
     log_model_outputs
 
     :param outputs: GalileoModelConfig
-    :return:
+    :param upload: Whether or not to immediately upload the logged data
     """
     try:
         outputs.validate()
     except AssertionError as e:
         raise GalileoException(f"The provided GalileoModelConfig is invalid. {e}")
+    data = []
     for id, prob, emb in zip(outputs.ids, outputs.probs, outputs.emb):
-        log_model_output(
-            {
-                "id": id,
-                "epoch": outputs.epoch,
-                "split": outputs.split,
-                "emb": emb,
-                "prob": prob,
-                "pred": str(int(np.argmax(prob))),
-            }
-        )
+        record = {
+            "id": id,
+            "epoch": outputs.epoch,
+            "split": outputs.split,
+            "emb": emb,
+            "prob": prob,
+            "pred": str(int(np.argmax(prob))),
+        }
+        if upload:
+            record = validate_model_output(record).dict()
+            data.append(record)
+        else:
+            log_model_output(record)
+    if upload:
+        dataquality.upload(_in_thread=True, _model_output=pd.DataFrame(data))
 
 
-def log_model_outputs(outputs: GalileoModelConfig) -> None:
+def log_model_outputs(outputs: GalileoModelConfig, upload: bool = True) -> None:
     """
     First class function to log all model outputs in a training/validation/test
     batch. Use log_model_outputs instead of log_model_outputs to take advantage of
     multithreading and other validation support.
 
     :param outputs: GalileoModelConfig
-    :return: None
+    :param upload: Whether or not to immediately upload the logged data
     """
     try:
-        ThreadPoolManager.add_thread(target=_log_model_outputs, args=[outputs])
+        ThreadPoolManager.add_thread(target=_log_model_outputs, args=[outputs, upload])
     except Exception as e:
         raise GalileoException(e)

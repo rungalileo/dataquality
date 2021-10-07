@@ -1,6 +1,7 @@
 import os
 import pickle
-import shutil
+import threading
+from glob import glob
 from typing import Any, Dict, Optional
 from uuid import uuid4
 
@@ -16,17 +17,32 @@ from dataquality.schemas import Pipeline, Route, Serialization
 from dataquality.utils.auth import headers
 from dataquality.utils.thread_pool import ThreadPoolManager
 
+lock = threading.Lock()
 
-def upload(cleanup: bool = True) -> None:
+
+def upload(
+    cleanup: bool = True, _in_thread: bool = False, _model_output: pd.DataFrame = None
+) -> None:
     """
     Uploads the local data to minio and optionally cleans up the local disk
 
     :param cleanup: Whether to clean up the local disk
-    :return:
+    :param _in_thread: Whether this is being called from a threaded process or not
+    :param _model_output: The model output to log. If _in_thread is set, _model_output
+    must also be set. When uploading from a thread, we will upload the dataset provided
+    directly, instead of reading from files as to avoid thread management and locking
     """
     assert config.current_project_id
     assert config.current_run_id
-    ThreadPoolManager.wait_for_threads()
+
+    if _in_thread and _model_output is None:
+        raise GalileoException(
+            "Threaded uploads require a _model_output. This should"
+            "not be used by the end user."
+        )
+    if not _in_thread:
+        ThreadPoolManager.wait_for_threads()
+
     location = (
         f"{JsonlLogger.LOG_FILE_DIR}/{config.current_project_id}"
         f"/{config.current_run_id}"
@@ -38,19 +54,23 @@ def upload(cleanup: bool = True) -> None:
         lines=True,
         dtype=in_frame_dtypes,
     )
-    out_frame = pd.read_json(
-        f"{location}/{JsonlLogger.OUTPUT_FILENAME}",
-        lines=True,
-        dtype=out_frame_dtypes,
+    out_frame = (
+        pd.read_json(f"{location}/{JsonlLogger.OUTPUT_FILENAME}", lines=True)
+        if not _in_thread
+        else _model_output
     )
-    in_out = in_frame.merge(
-        out_frame, on=["split", "id", "data_schema_version"], how="left"
+    out_frame = out_frame.astype(dtype=out_frame_dtypes)
+
+    in_out = out_frame.merge(
+        in_frame, on=["split", "id", "data_schema_version"], how="left"
     )
 
     config.observed_num_labels = len(out_frame["prob"].values[0])
 
     file_type = config.serialization.value
-    object_name = f"{str(uuid4())[:7]}.{file_type}"
+    # Ensure no collisions
+    random_name = f"{str(uuid4()).replace('-','')[:12]}"
+    object_name = f"{random_name}.{file_type}"
     file_path = f"{location}/{object_name}"
     if config.serialization == Serialization.pickle:
         # Protocol 4 so it is backwards compatible to 3.4 (5 is 3.8)
@@ -60,7 +80,9 @@ def upload(cleanup: bool = True) -> None:
     else:
         in_out.to_json(file_path, lines=True, orient="records")
 
-    print("☁️ Uploading Data")
+    # Causes a lot of prints if we're doing threaded uploading
+    if not _in_thread:
+        print("☁️ Uploading Data")
     object_store.create_project_run_object(
         config.current_project_id,
         config.current_run_id,
@@ -68,7 +90,9 @@ def upload(cleanup: bool = True) -> None:
         file_path=file_path,
     )
 
-    if cleanup:
+    if cleanup and _in_thread:
+        os.remove(file_path)
+    elif cleanup:
         _cleanup()
 
 
@@ -83,7 +107,9 @@ def _cleanup() -> None:
         f"/{config.current_run_id}"
     )
     print("🧹 Cleaning up")
-    shutil.rmtree(location)
+    for path in glob(f"{location}/*"):
+        if os.path.isfile(path):
+            os.remove(path)
 
 
 def finish() -> Optional[Dict[str, Any]]:
@@ -106,7 +132,7 @@ def finish() -> Optional[Dict[str, Any]]:
         f"{JsonlLogger.LOG_FILE_DIR}/{config.current_project_id}"
         f"/{config.current_run_id}"
     )
-    if os.path.exists(location):
+    if len(os.listdir(location)) == 2:  # Have input and model output data
         upload()
 
     # Kick off the default API pipeline to calculate statistics
@@ -144,4 +170,5 @@ def finish() -> Optional[Dict[str, Any]]:
 
     res = r.json()
     print(f"Job {res['pipeline_name']} successfully submitted.")
+    _cleanup()
     return res
