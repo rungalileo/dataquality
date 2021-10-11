@@ -60,6 +60,7 @@ def validate_uploaded_data(expected_num_records: int) -> None:
                     data = np.load(file, allow_pickle=True)
                     assert not np.isnan(data).any()
                 output_results[subdir].append(data)
+            print(output_files)
         # The files should have identical names (file ext removed)
         assert output_files["data"] == output_files["emb"] == output_files["prob"]
         data = pd.concat(output_results["data"])
