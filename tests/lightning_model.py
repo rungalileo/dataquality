@@ -3,7 +3,6 @@ import pandas as pd
 import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
-import torchmetrics
 from sklearn.datasets import fetch_20newsgroups
 from transformers import (
     AutoModel,
@@ -77,9 +76,6 @@ class LightningDistilBERT(pl.LightningModule):
             "distilbert-base-uncased", config=DistilBertConfig(num_labels=20)
         )
         self.feature_extractor = AutoModel.from_pretrained("distilbert-base-uncased")
-        self.train_acc = torchmetrics.Accuracy()
-        self.val_acc = torchmetrics.Accuracy()
-        self.test_acc = torchmetrics.Accuracy()
 
     def forward(self, x, attention_mask, x_idxs, epoch, split):
         out = self.model(x, attention_mask=attention_mask)
@@ -107,8 +103,6 @@ class LightningDistilBERT(pl.LightningModule):
             split="training",
         )
         loss = F.nll_loss(log_probs, y)
-        self.train_acc(torch.argmax(log_probs, 1), y)
-        self.log("train_acc", self.train_acc, prog_bar=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -122,8 +116,6 @@ class LightningDistilBERT(pl.LightningModule):
             split="validation",
         )
         loss = F.nll_loss(log_probs, y)
-        self.val_acc(torch.argmax(log_probs, 1), y)
-        self.log("val_acc", self.val_acc, prog_bar=True)
         return loss
 
     def test_step(self, batch, batch_idx):
@@ -137,8 +129,6 @@ class LightningDistilBERT(pl.LightningModule):
             split="test",
         )
         loss = F.nll_loss(log_probs, y)
-        self.test_acc(torch.argmax(log_probs, 1), y)
-        self.log("test_acc", self.test_acc, prog_bar=True)
         return loss
 
     def configure_optimizers(self):

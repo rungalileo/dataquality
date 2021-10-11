@@ -32,7 +32,10 @@ test = [
     "mypy >=0.812",
     "coverage >=5.5",
     "pytest-cov >=2.11.1",
-    "scikit-learn == 1.0"
+    "scikit-learn == 1.0",
+    "pytorch-lightning ==1.4.9",
+    "torch ==1.9.1",
+    "transformers ==4.11.3",
 ]
 dev = [
     "flake8 >=3.8.4",
