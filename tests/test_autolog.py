@@ -3,8 +3,8 @@ import torch
 
 from dataquality.core.integrations.lightning import DataQualityCallback
 from dataquality.utils.thread_pool import ThreadPoolManager
-from tests.lightning_model import NUM_RECORDS, NewsgroupDataset, model
 from tests.test_dataquality import validate_uploaded_data
+from tests.utils.lightning_model import NUM_RECORDS, NewsgroupDataset, model
 
 
 def test_lightning_autolog(cleanup_after_use) -> None:

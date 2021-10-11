@@ -2,9 +2,11 @@ import os
 import shutil
 
 import pytest
+from pydantic.types import UUID4
 
 import dataquality
 from dataquality import config
+from dataquality.clients import object_store
 from dataquality.loggers.jsonl_logger import JsonlLogger
 
 dataquality.config.current_project_id = "asdf"
@@ -30,3 +32,24 @@ def cleanup_after_use():
         yield
     finally:
         shutil.rmtree(LOCATION)
+
+
+def patch_object_upload(
+    project_id: UUID4,
+    run_id: UUID4,
+    object_name: str,
+    file_path: str,
+    content_type: str = "application/octet-stream",
+) -> None:
+    """
+    A patch for the object_store.create_project_run_object so we don't have to talk to
+    minio for testing
+    """
+    # separate folder per split (test, train, val) and data type (emb, prob, data)
+    split, epoch, data_type, file_name = object_name.split("/")[-4:]
+    print(f"HERE: {split, epoch, data_type, file_name}")
+    os.system(f"cp {file_path} {TEST_PATH}/{split}/{data_type}/{file_name}")
+
+
+# Patch the upload so we don't write to S3/minio
+object_store.create_project_run_object = patch_object_upload
