@@ -14,7 +14,7 @@ from dataquality.schemas.split import Split
 from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.conftest import LOCATION, SPLITS, SUBDIRS, TEST_PATH
 
-NUM_RECORDS = 23
+NUM_RECORDS = 50
 NUM_LOGS = 100
 
 
@@ -65,7 +65,7 @@ def validate_uploaded_data(expected_num_records: int) -> None:
         data = output_results["data"]
         emb = output_results["emb"]
         prob = output_results["prob"]
-        assert len(data) == len(emb) == len(prob)
+        assert len(data) == len(emb) == len(prob) == expected_num_records
 
 
 def _log_data(num_records=NUM_RECORDS, num_logs=NUM_LOGS) -> None:
@@ -110,7 +110,7 @@ def test_threaded_logging_and_upload(cleanup_after_use) -> None:
     try:
         # Equivalent to the users `finish` call, but we don't want to clean up files yet
         ThreadPoolManager.wait_for_threads()
-        validate_uploaded_data(num_records * NUM_LOGS)
+        validate_uploaded_data(NUM_LOGS)
     finally:
         ThreadPoolManager.wait_for_threads()
         dataquality._cleanup()

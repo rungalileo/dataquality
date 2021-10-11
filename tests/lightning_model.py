@@ -11,8 +11,13 @@ from transformers import (
     DistilBertTokenizerFast,
 )
 
+from dataquality.clients import object_store
 from dataquality.core.integrations.config import GalileoDataConfig, GalileoModelConfig
 
+# Patch the upload so we don't write to S3/minio
+from tests.test_dataquality import patch_object_upload
+
+object_store.create_project_run_object = patch_object_upload
 NUM_RECORDS = 23
 
 
