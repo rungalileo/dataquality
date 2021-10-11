@@ -31,6 +31,7 @@ def patch_object_upload(
     """
     # separate folder per split (test, train, val) and data type (emb, prob, data)
     split, epoch, data_type, file_name = object_name.split("/")[-4:]
+    print(f"HERE: {split, epoch, data_type, file_name}")
     os.system(f"cp {file_path} {TEST_PATH}/{split}/{data_type}/{file_name}")
 
 
@@ -60,7 +61,7 @@ def validate_uploaded_data(expected_num_records: int) -> None:
                     data = np.load(file, allow_pickle=True)
                     assert not np.isnan(data).any()
                 output_results[subdir].append(data)
-            print(output_files)
+            # print(output_files)
         # The files should have identical names (file ext removed)
         assert output_files["data"] == output_files["emb"] == output_files["prob"]
         data = pd.concat(output_results["data"])
