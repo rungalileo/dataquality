@@ -1,8 +1,9 @@
+from random import random
+
 import numpy as np
 import pandas as pd
 import pytorch_lightning as pl
 import torch
-import torch.nn.functional as F
 from sklearn.datasets import fetch_20newsgroups
 from transformers import (
     AutoModel,
@@ -83,58 +84,52 @@ class LightningDistilBERT(pl.LightningModule):
         self.feature_extractor = AutoModel.from_pretrained("distilbert-base-uncased")
 
     def forward(self, x, attention_mask, x_idxs, epoch, split):
-        out = self.model(x, attention_mask=attention_mask)
-        log_probs = F.log_softmax(out.logits, dim=1)
-        probs = F.softmax(out.logits, dim=1)
-        encoded_layers = self.feature_extractor(x, return_dict=False)[0]
+        print("in forward call")
+        # Fake model building for less memory usage
+        probs = [[random() for _ in range(20)] for _ in range(NUM_RECORDS)]
+        emb = [[random() for _ in range(50)] for _ in range(NUM_RECORDS)]
 
         # Logging with Galileo!
         self.g_model_config = GalileoModelConfig(
-            emb=[i[0] for i in encoded_layers.tolist()],
+            emb=emb,
             probs=probs,
             ids=x_idxs,
         )
 
-        return log_probs
+        return 0
 
     def training_step(self, batch, batch_idx):
         """Model training step."""
         x_idxs, x, attention_mask, y = batch
-        log_probs = self(
+        self(
             x=x,
             attention_mask=attention_mask,
             x_idxs=x_idxs,
             epoch=self.current_epoch,
             split="training",
         )
-        loss = F.nll_loss(log_probs, y)
-        return loss
 
     def validation_step(self, batch, batch_idx):
         """Model validation step."""
         x_idxs, x, attention_mask, y = batch
-        log_probs = self(
+        self(
             x=x,
             attention_mask=attention_mask,
             x_idxs=x_idxs,
             epoch=self.current_epoch,
             split="validation",
         )
-        loss = F.nll_loss(log_probs, y)
-        return loss
 
     def test_step(self, batch, batch_idx):
         """Model test step."""
         x_idxs, x, attention_mask, y = batch
-        log_probs = self(
+        self(
             x=x,
             attention_mask=attention_mask,
             x_idxs=x_idxs,
             epoch=self.current_epoch,
             split="test",
         )
-        loss = F.nll_loss(log_probs, y)
-        return loss
 
     def configure_optimizers(self):
         """Model optimizers."""
