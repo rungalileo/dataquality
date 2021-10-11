@@ -95,7 +95,7 @@ def watch(model: Module) -> None:
                 model_config.split = "training"
 
         try:
-            dataquality.log_model_outputs(model_config, upload=True)
+            dataquality.log_model_outputs(model_config)
         except GalileoException as e:
             warnings.warn(
                 f"Logging model outputs to Galileo could not be "

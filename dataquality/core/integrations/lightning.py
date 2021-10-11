@@ -113,7 +113,7 @@ class DataQualityCallback(Callback):
         model_config.split = split
 
         try:
-            dataquality.log_model_outputs(model_config, upload=True)
+            dataquality.log_model_outputs(model_config)
         except GalileoException as e:
             warnings.warn(
                 f"Logging model outputs to Galileo could not occur. "
@@ -123,10 +123,7 @@ class DataQualityCallback(Callback):
 
     def on_init_start(self, trainer: "pl.Trainer") -> None:
         assert (
-            config.current_project_id
-        ), "You must initialize dataquality before invoking a callback!"
-        assert (
-            config.current_run_id
+            config.current_project_id and config.current_run_id
         ), "You must initialize dataquality before invoking a callback!"
 
     def on_train_start(

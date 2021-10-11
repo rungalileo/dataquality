@@ -1,10 +1,10 @@
 import os
-import pickle
 import threading
 from glob import glob
 from typing import Any, Dict, Optional
 from uuid import uuid4
 
+import numpy as np
 import pandas as pd
 import requests
 from requests import HTTPError
@@ -13,7 +13,7 @@ from dataquality import config
 from dataquality.clients import object_store
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.jsonl_logger import JsonlLogger
-from dataquality.schemas import Pipeline, Route, Serialization
+from dataquality.schemas import Pipeline, Route
 from dataquality.utils.auth import headers
 from dataquality.utils.thread_pool import ThreadPoolManager
 
@@ -67,33 +67,57 @@ def upload(
 
     config.observed_num_labels = len(out_frame["prob"].values[0])
 
-    file_type = config.serialization.value
-    # Ensure no collisions
-    random_name = f"{str(uuid4()).replace('-','')[:12]}"
-    object_name = f"{random_name}.{file_type}"
-    file_path = f"{location}/{object_name}"
-    if config.serialization == Serialization.pickle:
-        # Protocol 4 so it is backwards compatible to 3.4 (5 is 3.8)
-        records = in_out.to_json(lines=True, orient="records")
-        with open(file_path, "wb") as f:
-            pickle.dump(records, f, protocol=4)
-    else:
-        in_out.to_json(file_path, lines=True, orient="records")
-
     # Causes a lot of prints if we're doing threaded uploading
     if not _in_thread:
         print("☁️ Uploading Data")
-    object_store.create_project_run_object(
-        config.current_project_id,
-        config.current_run_id,
-        object_name=f"{object_name}",
-        file_path=file_path,
-    )
 
-    if cleanup and _in_thread:
+    # Separate out embeddings and probabilities into numpy matrices
+    emb = np.array(list(in_out["emb"].values))
+    prob = np.array(list(in_out["prob"].values))
+    other_cols = [i for i in in_out.columns if i not in ["emb", "prob"]]
+    in_out = in_out[other_cols]
+
+    # Each input file will have all records from the same split and epoch, so we can
+    # store them in minio partitioned by split/epoch
+    epoch, split = in_out[["epoch", "split"]].loc[0]
+
+    # We name each file the same thing in minio (in different folders) so we can align
+    # them later
+    object_name = f"{str(uuid4()).replace('-', '')[:12]}"
+    for file, data_name in zip([emb, prob, in_out], ["emb", "prob", "data"]):
+        if data_name == "data":
+            file_path = _save_arrow_file(location, object_name, file)
+        else:
+            file_path = _save_numpy_file(location, object_name, file)
+        file_ext = os.path.splitext(file_path)[-1]
+        object_path = f"{split}/{epoch}/{data_name}/{object_name}{file_ext}"
+        object_store.create_project_run_object(
+            config.current_project_id,
+            config.current_run_id,
+            object_name=object_path,
+            file_path=file_path,
+        )
         os.remove(file_path)
-    elif cleanup:
+    if cleanup and not _in_thread:
         _cleanup()
+
+
+def _save_arrow_file(location: str, file_name: str, file: pd.DataFrame) -> str:
+    object_name = f"{file_name}.arrow"
+    file_path = f"{location}/{object_name}"
+    try:
+        file.to_feather(file_path, compression="zstd")
+    except Exception:
+        file.to_feather(file_path)
+    return file_path
+
+
+def _save_numpy_file(location: str, file_name: str, file: np.ndarray) -> str:
+    object_name = f"{file_name}.npy"
+    file_path = f"{location}/{object_name}"
+    with open(file_path, "wb") as numpy_file:
+        np.save(numpy_file, file)
+    return file_path
 
 
 def _cleanup() -> None:
