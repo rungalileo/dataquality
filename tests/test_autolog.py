@@ -13,10 +13,10 @@ def test_lightning_autolog(cleanup_after_use) -> None:
     """
 
     train_dataloader = torch.utils.data.DataLoader(
-        NewsgroupDataset("training"), batch_size=8, shuffle=True
+        NewsgroupDataset("training"), batch_size=64, shuffle=True
     )
     test_dataloader = torch.utils.data.DataLoader(
-        NewsgroupDataset("test"), batch_size=8, shuffle=True
+        NewsgroupDataset("test"), batch_size=64, shuffle=True
     )
     trainer = pl.Trainer(
         max_epochs=1, num_sanity_val_steps=0, callbacks=[(DataQualityCallback())]

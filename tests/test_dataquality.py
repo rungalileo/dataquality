@@ -15,7 +15,7 @@ from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.conftest import LOCATION, SPLITS, SUBDIRS, TEST_PATH
 
 NUM_RECORDS = 50
-NUM_LOGS = 100
+NUM_LOGS = 10
 
 
 def patch_object_upload(
@@ -62,9 +62,9 @@ def validate_uploaded_data(expected_num_records: int) -> None:
                 output_results[subdir].append(data)
         # The files should have identical names (file ext removed)
         assert output_files["data"] == output_files["emb"] == output_files["prob"]
-        data = output_results["data"]
-        emb = output_results["emb"]
-        prob = output_results["prob"]
+        data = pd.concat(output_results["data"])
+        emb = np.concatenate(output_results["emb"])
+        prob = np.concatenate(output_results["prob"])
         assert len(data) == len(emb) == len(prob) == expected_num_records
 
 
@@ -90,8 +90,8 @@ def _log_data(num_records=NUM_RECORDS, num_logs=NUM_LOGS) -> None:
 
     for split in [Split.training, Split.test]:
         for _ in range(num_logs):
-            emb = [[random() for _ in range(700)] for _ in range(num_records)]
-            probs = [[random() for _ in range(8)] for _ in range(num_records)]
+            emb = [[random() for _ in range(20)] for _ in range(num_records)]
+            probs = [[random() for _ in range(4)] for _ in range(num_records)]
             epoch = 0
             ids = list(range(num_records))
 
@@ -110,7 +110,7 @@ def test_threaded_logging_and_upload(cleanup_after_use) -> None:
     try:
         # Equivalent to the users `finish` call, but we don't want to clean up files yet
         ThreadPoolManager.wait_for_threads()
-        validate_uploaded_data(NUM_LOGS)
+        validate_uploaded_data(num_records * NUM_LOGS)
     finally:
         ThreadPoolManager.wait_for_threads()
         dataquality._cleanup()
