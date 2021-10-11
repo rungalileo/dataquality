@@ -2,7 +2,6 @@ import os
 from glob import glob
 from random import random
 
-import numpy as np
 import pandas as pd
 from sklearn.datasets import fetch_20newsgroups
 
@@ -30,19 +29,20 @@ def validate_uploaded_data(expected_num_records: int) -> None:
                 # Ensure file was cleaned up
                 assert not os.path.isfile(f"{LOCATION}/{fname}")
                 output_files[subdir].append(fname.split(".")[0])
-                if "arrow" in fname:
-                    data = pd.read_feather(file)
-                    assert not data.isnull().any().any()
-                else:
-                    data = np.load(file, allow_pickle=True)
-                    assert not np.isnan(data).any()
+                data = pd.read_feather(file)
+                assert not data.isnull().any().any()
                 output_results[subdir].append(data)
         # The files should have identical names (file ext removed)
         assert output_files["data"] == output_files["emb"] == output_files["prob"]
         data = pd.concat(output_results["data"])
-        emb = np.concatenate(output_results["emb"])
-        prob = np.concatenate(output_results["prob"])
+        emb = pd.concat(output_results["emb"])
+        prob = pd.concat(output_results["prob"])
         assert len(data) == len(emb) == len(prob) == expected_num_records
+        assert (
+            sorted(data["id"].unique())
+            == sorted(emb["id"].unique())
+            == sorted(prob["id"].unique())
+        )
 
 
 def _log_data(num_records=NUM_RECORDS, num_logs=NUM_LOGS) -> None:

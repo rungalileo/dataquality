@@ -6,8 +6,6 @@ from typing import List, Optional
 from pydantic import BaseModel
 from pydantic.types import UUID4, StrictStr
 
-from dataquality.schemas import Serialization
-
 
 class _Config:
     DEFAULT_GALILEO_CONFIG_DIR = f"{os.getcwd()}/.galileo"
@@ -58,7 +56,6 @@ class Config(BaseModel):
     current_project_id: Optional[UUID4] = None
     current_run_id: Optional[UUID4] = None
     labels: Optional[List[StrictStr]] = None
-    serialization: Serialization = Serialization.jsonl
     observed_num_labels: Optional[int] = 0
 
     def update_file_config(self) -> None:

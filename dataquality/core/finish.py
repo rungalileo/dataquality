@@ -4,7 +4,6 @@ from glob import glob
 from typing import Any, Dict, Optional
 from uuid import uuid4
 
-import numpy as np
 import pandas as pd
 import requests
 from requests import HTTPError
@@ -71,9 +70,9 @@ def upload(
     if not _in_thread:
         print("☁️ Uploading Data")
 
-    # Separate out embeddings and probabilities into numpy matrices
-    emb = np.array(list(in_out["emb"].values))
-    prob = np.array(list(in_out["prob"].values))
+    # Separate out embeddings and probabilities into their own arrow files
+    emb = in_out[["id", "emb"]]
+    prob = in_out[["id", "prob"]]
     other_cols = [i for i in in_out.columns if i not in ["emb", "prob"]]
     in_out = in_out[other_cols]
 
@@ -85,10 +84,7 @@ def upload(
     # them later
     object_name = f"{str(uuid4()).replace('-', '')[:12]}"
     for file, data_name in zip([emb, prob, in_out], ["emb", "prob", "data"]):
-        if data_name == "data":
-            file_path = _save_arrow_file(location, object_name, file)
-        else:
-            file_path = _save_numpy_file(location, object_name, file)
+        file_path = _save_arrow_file(location, object_name, file)
         file_ext = os.path.splitext(file_path)[-1]
         object_path = f"{split}/{epoch}/{data_name}/{object_name}{file_ext}"
         object_store.create_project_run_object(
@@ -109,14 +105,6 @@ def _save_arrow_file(location: str, file_name: str, file: pd.DataFrame) -> str:
         file.to_feather(file_path, compression="zstd")
     except Exception:
         file.to_feather(file_path)
-    return file_path
-
-
-def _save_numpy_file(location: str, file_name: str, file: np.ndarray) -> str:
-    object_name = f"{file_name}.npy"
-    file_path = f"{location}/{object_name}"
-    with open(file_path, "wb") as numpy_file:
-        np.save(numpy_file, file)
     return file_path
 
 
@@ -169,7 +157,6 @@ def finish() -> Optional[Dict[str, Any]]:
         pipeline_name=pipeline,
         pipeline_env_vars=dict(
             GALILEO_LABELS=config.labels,
-            GALILEO_SERIALIZE_MODE=config.serialization.value,
         ),
     )
     r = requests.post(
