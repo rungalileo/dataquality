@@ -84,7 +84,7 @@ def upload(
     # We name each file the same thing in minio (in different folders) so we can align
     # them later
     object_name = f"{str(uuid4()).replace('-', '')[:12]}"
-    for file, data_name in zip([in_out, emb, prob], ["data", "emb", "prob"]):
+    for file, data_name in zip([emb, prob, in_out], ["emb", "prob", "data"]):
         if data_name == "data":
             file_path = _save_arrow_file(location, object_name, file)
         else:
