@@ -6,6 +6,7 @@ from uuid import uuid4
 
 import pandas as pd
 import requests
+from pyarrow.lib import ArrowException, ArrowIOError, FeatherError
 from requests import HTTPError
 
 from dataquality import config
@@ -113,7 +114,8 @@ def _save_arrow_file(location: str, file_name: str, file: pd.DataFrame) -> str:
     file_path = f"{location}/{object_name}"
     try:
         file.to_feather(file_path, compression="zstd")
-    except Exception:
+    # In case zstd compression is not available
+    except (ArrowException, ArrowIOError, FeatherError):
         file.to_feather(file_path)
     return file_path
 
