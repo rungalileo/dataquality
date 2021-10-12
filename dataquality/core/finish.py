@@ -99,6 +99,16 @@ def upload(
 
 
 def _save_arrow_file(location: str, file_name: str, file: pd.DataFrame) -> str:
+    """
+    Helper function to save a pandas dataframe as an arrow file. We use the
+    to_feather function as the wrapper to arrow
+    https://arrow.apache.org/docs/python/generated/pyarrow.feather.write_feather.html
+    Feather is an arrow storage: https://arrow.apache.org/docs/python/feather.html
+
+    We try to save the file with zstd compression first, falling back to default
+    (lz4) if zstd is for some reason unavailable. We try zstd first because testing
+    has showed better compression levels for our data.
+    """
     object_name = f"{file_name}.arrow"
     file_path = f"{location}/{object_name}"
     try:
