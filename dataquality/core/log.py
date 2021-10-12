@@ -41,10 +41,11 @@ def log_input_data(data: Dict) -> None:
     )
 
 
-def _log_batch_input_data(data: GalileoDataConfig) -> None:
+def log_batch_input_data(data: GalileoDataConfig) -> None:
     """
-    Threaded batch logger for Galileo input data. Used as target for
-    log_batch_input_data
+    First class function to log all input data in batch for a training/validation/test
+    batch. Use log_batch_input_data instead of log_input_data to take advantage of
+    validation support and logging many records at once
 
     :param data: GalileoDataConfig
     :return: None
@@ -63,21 +64,6 @@ def _log_batch_input_data(data: GalileoDataConfig) -> None:
                 "split": data.split,
             }
         )
-
-
-def log_batch_input_data(data: GalileoDataConfig) -> None:
-    """
-    First class function to log all input data in batch for a training/validation/test
-    batch. Use log_batch_input_data instead of log_input_data to take advantage of
-    multithreading and other validation support.
-
-    :param data: GalileoDataConfig
-    :return: None
-    """
-    try:
-        ThreadPoolManager.add_thread(target=_log_batch_input_data, args=[data])
-    except Exception as e:
-        raise GalileoException(e)
 
 
 def validate_model_output(data: Dict) -> JsonlOutputLogItem:
@@ -154,16 +140,15 @@ def _log_model_outputs(outputs: GalileoModelConfig, upload: bool = True) -> None
         dataquality.upload(_in_thread=True, _model_output=pd.DataFrame(data))
 
 
-def log_model_outputs(outputs: GalileoModelConfig, upload: bool = True) -> None:
+def log_model_outputs(outputs: GalileoModelConfig) -> None:
     """
     First class function to log all model outputs in a training/validation/test
     batch. Use log_model_outputs instead of log_model_outputs to take advantage of
     multithreading and other validation support.
 
     :param outputs: GalileoModelConfig
-    :param upload: Whether or not to immediately upload the logged data
     """
     try:
-        ThreadPoolManager.add_thread(target=_log_model_outputs, args=[outputs, upload])
+        ThreadPoolManager.add_thread(target=_log_model_outputs, args=[outputs, True])
     except Exception as e:
         raise GalileoException(e)
