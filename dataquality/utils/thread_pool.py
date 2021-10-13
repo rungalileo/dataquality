@@ -29,7 +29,6 @@ class ThreadPoolManager:
             ThreadPoolManager.THREADS.append(thread)
         # Push up to the user
         except Exception as e:
-            print("we have an exception!!!!!")
             raise GalileoException(e)
 
     @staticmethod

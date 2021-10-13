@@ -8,4 +8,4 @@ dataquality.config
 
 dataquality.log({})
 
-dataquality.write_model_output()
+dataquality.finish()
