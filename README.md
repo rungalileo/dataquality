@@ -27,7 +27,7 @@ dataquality.log(...)
 Upload data to view in the Galileo Cloud Console.
 
 ```python
-dataquality.upload()
+dataquality.write_model_output()
 ```
 
 ## Contibuting
