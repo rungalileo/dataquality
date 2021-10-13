@@ -73,7 +73,7 @@ def upload(
 
     # Separate out embeddings and probabilities into their own arrow files
     emb = in_out[["id", "emb"]]
-    prob = in_out[["id", "prob"]]
+    prob = in_out[["id", "prob", "gold"]]
     other_cols = [i for i in in_out.columns if i not in ["emb", "prob"]]
     in_out = in_out[other_cols]
 
