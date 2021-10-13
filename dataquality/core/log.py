@@ -77,25 +77,6 @@ def validate_model_output(data: Dict) -> JsonlOutputLogItem:
     return output_data
 
 
-def log_model_output(data: Dict) -> None:
-    """
-    Function to log a single model output for a train/test/validation dataset.
-    Use the log_model_outputs instead to take advantage of threading.
-
-    :param data: Dictionary of model output (id, split, epoch, embeddings,
-    probabilities and prediction)
-    :return: None
-    """
-    output_data = validate_model_output(data)
-
-    assert config.current_project_id is not None
-    assert config.current_run_id is not None
-
-    logger.jsonl_logger.write_output(
-        config.current_project_id, config.current_run_id, output_data.dict()
-    )
-
-
 def set_labels_for_run(labels: List[str]) -> None:
     """
     Creates the mapping of the labels for the model to their respective indexes.
@@ -109,35 +90,30 @@ def set_labels_for_run(labels: List[str]) -> None:
     config.update_file_config()
 
 
-def _log_model_outputs(outputs: GalileoModelConfig, upload: bool = True) -> None:
+def _log_model_outputs(outputs: GalileoModelConfig) -> None:
     """
     Threaded child function for logging model outputs. Used as target for
     log_model_outputs
 
     :param outputs: GalileoModelConfig
-    :param upload: Whether or not to immediately upload the logged data
     """
     try:
         outputs.validate()
     except AssertionError as e:
         raise GalileoException(f"The provided GalileoModelConfig is invalid. {e}")
     data = []
-    for id, prob, emb in zip(outputs.ids, outputs.probs, outputs.emb):
+    for record_id, prob, emb in zip(outputs.ids, outputs.probs, outputs.emb):
         record = {
-            "id": id,
+            "id": record_id,
             "epoch": outputs.epoch,
             "split": outputs.split,
             "emb": emb,
             "prob": prob,
             "pred": str(int(np.argmax(prob))),
         }
-        if upload:
-            record = validate_model_output(record).dict()
-            data.append(record)
-        else:
-            log_model_output(record)
-    if upload:
-        dataquality.upload(_in_thread=True, _model_output=pd.DataFrame(data))
+        record = validate_model_output(record).dict()
+        data.append(record)
+    dataquality.write_model_output(model_output=pd.DataFrame(data))
 
 
 def log_model_outputs(outputs: GalileoModelConfig) -> None:
@@ -148,7 +124,4 @@ def log_model_outputs(outputs: GalileoModelConfig) -> None:
 
     :param outputs: GalileoModelConfig
     """
-    try:
-        ThreadPoolManager.add_thread(target=_log_model_outputs, args=[outputs, True])
-    except Exception as e:
-        raise GalileoException(e)
+    ThreadPoolManager.add_thread(target=_log_model_outputs, args=[outputs])

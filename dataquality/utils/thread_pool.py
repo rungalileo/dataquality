@@ -2,6 +2,8 @@ from threading import Thread
 from time import sleep
 from typing import Any, Callable, Iterable, List
 
+from dataquality.exceptions import GalileoException
+
 
 class ThreadPoolManager:
     """
@@ -22,8 +24,13 @@ class ThreadPoolManager:
         """
         ThreadPoolManager.wait_for_thread()
         thread = Thread(target=target, args=args or [])
-        thread.start()
-        ThreadPoolManager.THREADS.append(thread)
+        try:
+            thread.start()
+            ThreadPoolManager.THREADS.append(thread)
+        # Push up to the user
+        except Exception as e:
+            print("we have an exception!!!!!")
+            raise GalileoException(e)
 
     @staticmethod
     def wait_for_threads() -> None:
