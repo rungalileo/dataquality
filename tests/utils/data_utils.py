@@ -1,8 +1,8 @@
 import os
-from glob import glob
 from random import random
 
 import pandas as pd
+import vaex
 from sklearn.datasets import fetch_20newsgroups
 
 import dataquality
@@ -19,30 +19,35 @@ def validate_uploaded_data(expected_num_records: int) -> None:
     Checks for testing
     """
     for split in SPLITS:
-        # Output file names
-        output_files = {"data": [], "emb": [], "prob": []}
         # Output data
-        output_results = {"data": [], "emb": [], "prob": []}
+        split_output_data = {}
         for subdir in SUBDIRS:
-            for file in sorted(glob(f"{TEST_PATH}/{split}/{subdir}/*")):
-                fname = file.split("/")[-1]
-                # Ensure file was cleaned up
-                assert not os.path.isfile(f"{LOCATION}/{fname}")
-                output_files[subdir].append(fname.split(".")[0])
-                data = pd.read_feather(file)
-                assert not data.isnull().any().any()
-                output_results[subdir].append(data)
-        # The files should have identical names (file ext removed)
-        assert output_files["data"] == output_files["emb"] == output_files["prob"]
-        data = pd.concat(output_results["data"])
-        emb = pd.concat(output_results["emb"])
-        prob = pd.concat(output_results["prob"])
+            file_path = f"{TEST_PATH}/{split}/{subdir}/{subdir}.arrow"
+            # Ensure files were cleaned up
+            data = vaex.open(file_path).to_pandas_df()
+            assert not data.isnull().any().any()
+            split_output_data[subdir] = data
+
+        data = split_output_data["data"]
+        emb = split_output_data["emb"]
+        prob = split_output_data["prob"]
         assert len(data) == len(emb) == len(prob) == expected_num_records
         assert (
             sorted(data["id"].unique())
             == sorted(emb["id"].unique())
             == sorted(prob["id"].unique())
         )
+
+
+def validate_cleanup_data():
+    """
+    Checks for testing
+    """
+    for split in SPLITS:
+        # Output data
+        for subdir in SUBDIRS:
+            # Ensure files were cleaned up
+            assert not os.path.isdir(f"{LOCATION}/{split}")
 
 
 def _log_data(num_records=NUM_RECORDS, num_logs=NUM_LOGS) -> None:

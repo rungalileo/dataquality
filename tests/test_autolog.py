@@ -1,9 +1,11 @@
 import pytorch_lightning as pl
 import torch
 
+from dataquality.core.finish import _cleanup, _upload
 from dataquality.core.integrations.lightning import DataQualityCallback
 from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.test_dataquality import validate_uploaded_data
+from tests.utils.data_utils import validate_cleanup_data
 from tests.utils.lightning_model import NUM_RECORDS, NewsgroupDataset, model
 
 
@@ -25,4 +27,8 @@ def test_lightning_autolog(cleanup_after_use) -> None:
     trainer.fit(model, train_dataloader)
     trainer.test(model, test_dataloader)
     ThreadPoolManager.wait_for_threads()
+    # Mock call to finish
+    _upload()
     validate_uploaded_data(expected_num_records=NUM_RECORDS)
+    _cleanup()
+    validate_cleanup_data()

@@ -212,6 +212,5 @@ class DataQualityCallback(Callback):
         pl_module: "pl.LightningModule",
         stage: Optional[str] = None,
     ) -> None:
-        # So we know everything has been fully uploaded and finished
+        # So we know everything has been fully written and finished
         ThreadPoolManager.wait_for_threads()
-        dataquality._cleanup()
