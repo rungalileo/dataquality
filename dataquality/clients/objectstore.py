@@ -56,10 +56,10 @@ class ObjectStore:
     def get_fs_options(self) -> Dict[str, Any]:
         return dict(
             endpoint_override=config.minio_url,
-            scheme="http" if config.minio_url == "127.0.0.1:9000" else "https",
+            scheme="https" if config.minio_url.startswith("https") else "http",
             access_key=config.minio_access_key,
             secret_key=config.minio_secret_key,
-            region="us-east-1",  # TODO: Can we guarantee this?
+            region=config.minio_region,
         )
 
 

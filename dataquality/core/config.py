@@ -50,6 +50,7 @@ class Config(BaseModel):
     minio_url: str = os.getenv("GALILEO_MINIO_URL") or "https://minio.rungalileo.io"
     minio_access_key: str = os.environ["GALILEO_MINIO_ACCESS_KEY"]
     minio_secret_key: str = os.environ["GALILEO_MINIO_SECRET_KEY"]
+    minio_region: str = os.getenv("GALILEO_MINIO_REGION", "us-east-1")
     auth_method: AuthMethod = AuthMethod.email
     token: Optional[str] = None
     current_user: Optional[str] = None
