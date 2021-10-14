@@ -13,7 +13,7 @@ from dataquality.clients import object_store
 from dataquality.core.log import DATA_FOLDERS
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.jsonl_logger import JsonlLogger
-from dataquality.schemas import Pipeline, Route
+from dataquality.schemas import JobName, Route
 from dataquality.schemas.split import Split
 from dataquality.utils.auth import headers
 from dataquality.utils.thread_pool import ThreadPoolManager
@@ -70,7 +70,7 @@ def _cleanup() -> None:
 
 def finish() -> Optional[Dict[str, Any]]:
     """
-    Finishes the current run and invokes the pipeline to begin processing
+    Finishes the current run and invokes a job to begin processing
     """
     assert config.current_project_id, "You must have an active project to call finish"
     assert config.current_run_id, "You must have an active run to call finish"
@@ -84,23 +84,19 @@ def finish() -> Optional[Dict[str, Any]]:
         f"is expecting {config.observed_num_labels} labels. "
         f"Use dataquality.set_labels_for_run to update your config labels"
     )
-    _upload()
-    _cleanup()
-
-    # Kick off the default API pipeline to calculate statistics
-    # to populate the main home console
-    pipeline = Pipeline.default.value
+    # _upload()
+    # _cleanup()
 
     body = dict(
         project_id=str(config.current_project_id),
         run_id=str(config.current_run_id),
-        pipeline_name=pipeline,
-        pipeline_env_vars=dict(
+        job_name=JobName.default.value,
+        job_env_vars=dict(
             GALILEO_LABELS=config.labels,
         ),
     )
     r = requests.post(
-        f"{config.api_url}/{Route.pipelines}",
+        f"{config.api_url}/{Route.jobs}",
         json=body,
         headers=headers(config.token),
     )
@@ -120,5 +116,5 @@ def finish() -> Optional[Dict[str, Any]]:
         raise GalileoException(err) from None
 
     res = r.json()
-    print(f"Job {res['pipeline_name']} successfully submitted.")
+    print(f"Job {res['job_name']} successfully submitted.")
     return res

@@ -6,7 +6,7 @@ class Route(str, Enum):
     List of available API routes
     """
 
-    pipelines = "pipelines"
+    jobs = "jobs"
     projects = "projects"
     users = "users"
     cleanup = "cleanup"
