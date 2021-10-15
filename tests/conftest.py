@@ -8,8 +8,8 @@ from dataquality import config
 from dataquality.clients import object_store
 from dataquality.loggers.jsonl_logger import JsonlLogger
 
-config.current_project_id = "asdf"
-config.current_run_id = "asdf"
+config.current_project_id = "test-project-id"
+config.current_run_id = "test-run-id"
 
 LOCATION = (
     f"{JsonlLogger.LOG_FILE_DIR}/{config.current_project_id}"
