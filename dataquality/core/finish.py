@@ -84,8 +84,8 @@ def finish() -> Optional[Dict[str, Any]]:
         f"is expecting {config.observed_num_labels} labels. "
         f"Use dataquality.set_labels_for_run to update your config labels"
     )
-    # _upload()
-    # _cleanup()
+    _upload()
+    _cleanup()
 
     body = dict(
         project_id=str(config.current_project_id),
