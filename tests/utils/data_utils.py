@@ -31,6 +31,7 @@ def validate_uploaded_data(expected_num_records: int) -> None:
         data = split_output_data["data"]
         emb = split_output_data["emb"]
         prob = split_output_data["prob"]
+
         assert len(data) == len(emb) == len(prob) == expected_num_records
         assert (
             sorted(data["id"].unique())
@@ -44,10 +45,8 @@ def validate_cleanup_data():
     Checks for testing
     """
     for split in SPLITS:
-        # Output data
-        for subdir in SUBDIRS:
-            # Ensure files were cleaned up
-            assert not os.path.isdir(f"{LOCATION}/{split}")
+        # Ensure files were cleaned up
+        assert not os.path.isdir(f"{LOCATION}/{split}")
 
 
 def _log_data(num_records=NUM_RECORDS, num_logs=NUM_LOGS) -> None:

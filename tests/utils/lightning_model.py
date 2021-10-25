@@ -70,6 +70,27 @@ class NewsgroupDataset(torch.utils.data.Dataset):
         return len(self.dataset)
 
 
+class TorchDistilBERTTorch(pl.LightningModule):
+    def __init__(self):
+        super().__init__()
+        self.model = DistilBertForSequenceClassification.from_pretrained(
+            "distilbert-base-uncased", config=DistilBertConfig(num_labels=20)
+        )
+        self.feature_extractor = AutoModel.from_pretrained("distilbert-base-uncased")
+
+    def forward(self, x, attention_mask, x_idxs, epoch, split):
+        # Fake model building for less memory usage
+        probs = [[random() for _ in range(20)] for _ in range(NUM_RECORDS)]
+        emb = [[random() for _ in range(50)] for _ in range(NUM_RECORDS)]
+
+        # Logging with Galileo!
+        self.g_model_config = GalileoModelConfig(
+            emb=emb, probs=probs, ids=x_idxs, split=split, epoch=epoch
+        )
+
+        return 0
+
+
 class LightningDistilBERT(pl.LightningModule):
     def __init__(self):
         super().__init__()
@@ -79,17 +100,12 @@ class LightningDistilBERT(pl.LightningModule):
         self.feature_extractor = AutoModel.from_pretrained("distilbert-base-uncased")
 
     def forward(self, x, attention_mask, x_idxs, epoch, split):
-        print("in forward call")
         # Fake model building for less memory usage
         probs = [[random() for _ in range(20)] for _ in range(NUM_RECORDS)]
         emb = [[random() for _ in range(50)] for _ in range(NUM_RECORDS)]
 
         # Logging with Galileo!
-        self.g_model_config = GalileoModelConfig(
-            emb=emb,
-            probs=probs,
-            ids=x_idxs,
-        )
+        self.g_model_config = GalileoModelConfig(emb=emb, probs=probs, ids=x_idxs)
 
         return 0
 
@@ -134,3 +150,4 @@ class LightningDistilBERT(pl.LightningModule):
 
 
 model = LightningDistilBERT()
+torch_model = TorchDistilBERTTorch()

@@ -89,7 +89,7 @@ def watch(model: Module) -> None:
             else:
                 warnings.warn(
                     "Model config split was not set, but training mode is "
-                    "set in your model. Using split=training for logging to"
+                    "set in your model. Using split=training for logging to "
                     "Galileo"
                 )
                 model_config.split = "training"
