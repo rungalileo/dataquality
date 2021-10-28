@@ -90,10 +90,8 @@ def finish() -> Optional[Dict[str, Any]]:
     body = dict(
         project_id=str(config.current_project_id),
         run_id=str(config.current_run_id),
-        job_name=JobName.default.value,
-        job_env_vars=dict(
-            GALILEO_LABELS=config.labels,
-        ),
+        proc_name=JobName.default.value,
+        labels=config.labels
     )
     r = requests.post(
         f"{config.api_url}/{Route.jobs}",
