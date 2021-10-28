@@ -163,6 +163,12 @@ def write_model_output(model_output: pd.DataFrame) -> None:
 
     # Separate out embeddings and probabilities into their own arrow files
     emb = in_out[["id", "emb"]]
+    n_emb = len(emb["emb"][0])
+    # We want embeddings to be a wide dataframe 1 column per emb
+    cols = [f"emb_{i}" for i in range(n_emb)]
+    emb_wide = pd.DataFrame(emb["emb"].tolist(), columns=cols)
+    emb_wide.insert(loc=0, column="id", value=emb["id"])
+
     prob = in_out[["id", "prob", "gold"]]
     other_cols = [i for i in in_out.columns if i not in ["emb", "prob"]]
     in_out = in_out[other_cols]
@@ -173,7 +179,7 @@ def write_model_output(model_output: pd.DataFrame) -> None:
 
     # Random name to avoid collisions
     object_name = f"{str(uuid4()).replace('-', '')[:12]}.arrow"
-    for file, data_name in zip([emb, prob, in_out], DATA_FOLDERS):
+    for file, data_name in zip([emb_wide, prob, in_out], DATA_FOLDERS):
         path = f"{location}/{split}/{epoch}/{data_name}"
         _save_arrow_file(path, object_name, file)
 
