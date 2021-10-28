@@ -1,5 +1,6 @@
 import os
 import shutil
+from uuid import uuid4
 
 import pytest
 from vaex.dataframe import DataFrame
@@ -8,8 +9,8 @@ from dataquality import config
 from dataquality.clients import object_store
 from dataquality.loggers.jsonl_logger import JsonlLogger
 
-config.current_project_id = "test-project-id"
-config.current_run_id = "test-run-id"
+config.current_project_id = uuid4()
+config.current_run_id = uuid4()
 
 LOCATION = (
     f"{JsonlLogger.LOG_FILE_DIR}/{config.current_project_id}"
