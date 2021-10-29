@@ -91,10 +91,10 @@ def finish() -> Optional[Dict[str, Any]]:
         project_id=str(config.current_project_id),
         run_id=str(config.current_run_id),
         proc_name=JobName.default.value,
-        labels=config.labels
+        labels=config.labels,
     )
     r = requests.post(
-        f"{config.api_url}/{Route.jobs}",
+        f"{config.api_url}/{Route.proc_pool}",
         json=body,
         headers=headers(config.token),
     )
@@ -114,5 +114,5 @@ def finish() -> Optional[Dict[str, Any]]:
         raise GalileoException(err) from None
 
     res = r.json()
-    print(f"Job {res['job_name']} successfully submitted.")
+    print(f"Job {res['proc_name']} successfully submitted.")
     return res
