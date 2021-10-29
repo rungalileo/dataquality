@@ -13,7 +13,7 @@ from dataquality.clients import object_store
 from dataquality.core.log import DATA_FOLDERS
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.jsonl_logger import JsonlLogger
-from dataquality.schemas import JobName, Route
+from dataquality.schemas import ProcName, Route
 from dataquality.schemas.split import Split
 from dataquality.utils.auth import headers
 from dataquality.utils.thread_pool import ThreadPoolManager
@@ -90,13 +90,11 @@ def finish() -> Optional[Dict[str, Any]]:
     body = dict(
         project_id=str(config.current_project_id),
         run_id=str(config.current_run_id),
-        job_name=JobName.default.value,
-        job_env_vars=dict(
-            GALILEO_LABELS=config.labels,
-        ),
+        proc_name=ProcName.default.value,
+        labels=config.labels,
     )
     r = requests.post(
-        f"{config.api_url}/{Route.jobs}",
+        f"{config.api_url}/{Route.proc_pool}",
         json=body,
         headers=headers(config.token),
     )
@@ -116,5 +114,5 @@ def finish() -> Optional[Dict[str, Any]]:
         raise GalileoException(err) from None
 
     res = r.json()
-    print(f"Job {res['job_name']} successfully submitted.")
+    print(f"Job {res['proc_name']} successfully submitted.")
     return res
