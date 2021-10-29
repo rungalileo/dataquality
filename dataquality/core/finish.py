@@ -13,7 +13,7 @@ from dataquality.clients import object_store
 from dataquality.core.log import DATA_FOLDERS
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.jsonl_logger import JsonlLogger
-from dataquality.schemas import JobName, Route
+from dataquality.schemas import ProcName, Route
 from dataquality.schemas.split import Split
 from dataquality.utils.auth import headers
 from dataquality.utils.thread_pool import ThreadPoolManager
@@ -90,7 +90,7 @@ def finish() -> Optional[Dict[str, Any]]:
     body = dict(
         project_id=str(config.current_project_id),
         run_id=str(config.current_run_id),
-        proc_name=JobName.default.value,
+        proc_name=ProcName.default.value,
         labels=config.labels,
     )
     r = requests.post(
