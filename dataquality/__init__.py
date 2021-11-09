@@ -1,6 +1,6 @@
 "dataquality"
 
-__version__ = "0.0.1"
+__version__ = "0.0.2"
 
 from dataquality.core.auth import login
 from dataquality.core.config import config
