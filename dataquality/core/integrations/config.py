@@ -90,14 +90,14 @@ class GalileoModelConfig:
                 assert len(self.emb.shape) == 2, err.format(
                     tens="Embedding", shape=self.emb.shape
                 )
-                self.emb = self.emb.detach()
+                self.emb = self.emb.detach().cpu().numpy()
             if isinstance(self.probs, Tensor):
                 assert len(self.probs.shape) == 2, err.format(
                     tens="Probs", shape=self.probs.shape
                 )
-                self.probs = self.probs.detach()
+                self.probs = self.probs.detach().cpu().numpy()
             if isinstance(self.ids, Tensor):
-                self.ids = self.ids.detach().numpy().tolist()
+                self.ids = self.ids.detach().cpu().numpy().tolist()
 
         assert emb_len and prob_len and id_len, (
             f"All of emb, probs, and ids for your GalileoModelConfig must be set, but "
@@ -214,7 +214,7 @@ class GalileoDataConfig:
                 f"(labels, text) ({label_len},{text_len})"
             )
 
-        if self.ids:
+        if self.ids is not None:
             assert id_len == text_len, (
                 f"Ids exists but are not the same length as text and labels. "
                 f"(ids, text) ({id_len}, {text_len})"

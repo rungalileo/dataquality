@@ -8,7 +8,6 @@ author = "Galileo Technologies, Inc"
 author-email = "team@rungalileo.io"
 home-page = "https://www.github.com/rungalileo/dataquality"
 description-file = "README.md"
-requires-python = ">=3.8"
 requires = [
     "jsonlines==2.0.0",
     "pydantic==1.8.2",

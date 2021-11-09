@@ -60,7 +60,7 @@ def log_batch_input_data(data: GalileoDataConfig) -> None:
         data.validate()
     except AssertionError as e:
         raise GalileoException(e)
-    ids = data.ids if data.ids else range(len(data.text))
+    ids = data.ids if data.ids is not None else range(len(data.text))
     for idx, text, label in zip(ids, data.text, data.labels):
         log_input_data(
             {
