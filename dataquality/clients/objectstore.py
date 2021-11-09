@@ -32,7 +32,6 @@ class ObjectStore:
         file_path: str,
         content_type: str = "application/octet-stream",
     ) -> None:
-        """https://docs.min.io/docs/python-client-api-reference.html#fput_object"""
         self.minio_client.fput_object(
             self.ROOT_BUCKET_NAME,
             f"{project_id}/{run_id}/{object_name}",
