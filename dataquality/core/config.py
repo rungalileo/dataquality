@@ -46,11 +46,11 @@ class AuthMethod(str, Enum):
 
 
 class Config(BaseModel):
-    api_url: str = os.getenv("GALILEO_API_URL") or "https://api.rungalileo.io"
-    minio_url: str = os.getenv("GALILEO_MINIO_URL") or "https://minio.rungalileo.io"
+    api_url: str = os.environ["GALILEO_API_URL"]
+    minio_url: str = os.environ["GALILEO_MINIO_URL"]
     minio_access_key: str = os.environ["GALILEO_MINIO_ACCESS_KEY"]
     minio_secret_key: str = os.environ["GALILEO_MINIO_SECRET_KEY"]
-    minio_region: str = os.getenv("GALILEO_MINIO_REGION", "us-east-1")
+    minio_region: str = os.environ["GALILEO_MINIO_REGION"]
     auth_method: AuthMethod = AuthMethod.email
     token: Optional[str] = None
     current_user: Optional[str] = None
