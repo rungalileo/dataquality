@@ -29,7 +29,7 @@ class BaseLogItem(BaseModel):
 
 
 class JsonlInputLogItem(BaseLogItem):
-    id: StrictInt
+    id: int
     split: Split
     text: StrictStr
     gold: Optional[StrictStr] = None
@@ -44,7 +44,7 @@ class JsonlInputLogItem(BaseLogItem):
 
 
 class JsonlOutputLogItem(BaseLogItem):
-    id: StrictInt
+    id: int
     split: Split
     epoch: StrictInt
     emb: List[StrictFloat]

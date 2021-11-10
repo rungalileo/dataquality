@@ -1,5 +1,6 @@
 .vscode
 .idea
+.DS_STORE
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -80,6 +81,7 @@ target/
 
 # Jupyter Notebook
 .ipynb_checkpoints
+tests/notebooks/*.yaml
 
 # IPython
 profile_default/
@@ -148,4 +150,12 @@ lightning_logs
 
 tmp/
 .galileo/
+
+# Testing data files
+*.arrow
+*.hdf5
+*.h5
+*.csv
+*.jsonl
+*.ann
 
