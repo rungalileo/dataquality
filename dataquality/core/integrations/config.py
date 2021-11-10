@@ -1,6 +1,8 @@
 from enum import Enum, unique
 from typing import Any, List, Optional, Union
 
+import numpy as np
+
 from dataquality.schemas.jsonl_logger import TORCH_AVAILABLE
 from dataquality.schemas.split import Split
 
@@ -84,20 +86,9 @@ class GalileoModelConfig:
         assert self.split, "Your GalileoModelConfig has no split!"
         assert self.epoch is not None, "Your GalileoModelConfig has no epoch!"
 
-        if TORCH_AVAILABLE:
-            err = "{tens} tensor must be 2D shape, but got shape {shape}"
-            if isinstance(self.emb, Tensor):
-                assert len(self.emb.shape) == 2, err.format(
-                    tens="Embedding", shape=self.emb.shape
-                )
-                self.emb = self.emb.detach().cpu().numpy()
-            if isinstance(self.probs, Tensor):
-                assert len(self.probs.shape) == 2, err.format(
-                    tens="Probs", shape=self.probs.shape
-                )
-                self.probs = self.probs.detach().cpu().numpy()
-            if isinstance(self.ids, Tensor):
-                self.ids = self.ids.detach().cpu().numpy().tolist()
+        self.emb = _convert_tensor_ndarray(self.emb, "Embedding")
+        self.probs = _convert_tensor_ndarray(self.probs, "Prob")
+        self.ids = _convert_tensor_ndarray(self.ids)
 
         assert emb_len and prob_len and id_len, (
             f"All of emb, probs, and ids for your GalileoModelConfig must be set, but "
@@ -191,6 +182,10 @@ class GalileoDataConfig:
         text_len = len(self.text)
         id_len = len(self.ids)
 
+        self.text = _convert_tensor_ndarray(self.text)
+        self.labels = _convert_tensor_ndarray(self.labels)
+        self.ids = _convert_tensor_ndarray(self.ids)
+
         assert self.split, "Your GalileoDataConfig has no split!"
         self.split = Split.training if self.split == "train" else self.split
         assert (
@@ -214,11 +209,13 @@ class GalileoDataConfig:
                 f"(labels, text) ({label_len},{text_len})"
             )
 
-        if self.ids is not None:
+        if self.ids:
             assert id_len == text_len, (
                 f"Ids exists but are not the same length as text and labels. "
                 f"(ids, text) ({id_len}, {text_len})"
             )
+        else:
+            self.ids = list(range(text_len))
 
     def is_valid(self) -> bool:
         """
@@ -268,3 +265,17 @@ def get_modelconfig_attr(cls: object) -> str:
         if isinstance(member_class, GalileoModelConfig):
             return attr
     raise AttributeError("No GalileoModelConfig attribute found!")
+
+
+def _convert_tensor_ndarray(
+    arr: Union[Tensor, np.ndarray, List], attr: Optional[str] = None
+) -> List:
+    """Handles numpy arrays and tensors conversions"""
+    if TORCH_AVAILABLE:
+        if isinstance(arr, Tensor):
+            arr = arr.detach().cpu().numpy()
+    if isinstance(arr, np.ndarray):
+        if attr in ("Embedding", "Prob"):
+            shp = arr.shape
+            assert len(shp) == 2, f"{attr} tensor must be 2D shape, but got shape {shp}"
+    return list(arr)

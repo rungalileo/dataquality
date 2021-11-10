@@ -1,5 +1,6 @@
 .vscode
 .idea
+.DS_STORE
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -148,4 +149,12 @@ lightning_logs
 
 tmp/
 .galileo/
+
+# Testing data files
+*.arrow
+*.hdf5
+*.h5
+*.csv
+*.jsonl
+*.ann
 
