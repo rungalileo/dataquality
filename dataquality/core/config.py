@@ -59,6 +59,9 @@ class Config(BaseModel):
     labels: Optional[List[StrictStr]] = None
     observed_num_labels: Optional[int] = 0
 
+    class Config:
+        validate_assignment = True
+
     def update_file_config(self) -> None:
         _config = _Config()
         _config.write_config(self.json())
