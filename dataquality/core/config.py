@@ -5,6 +5,7 @@ from getpass import getpass
 from typing import Dict, List, Optional
 
 from pydantic import BaseModel
+from pydantic.class_validators import validator
 from pydantic.types import UUID4, StrictStr
 
 
@@ -13,7 +14,6 @@ class GalileoConfigVars(str, Enum):
     MINIO_URL = "GALILEO_MINIO_URL"
     MINIO_ACCESS_KEY = "GALILEO_MINIO_ACCESS_KEY"
     MINIO_SECRET_KEY = "GALILEO_MINIO_SECRET_KEY"
-    MINIO_REGION = "GALILEO_MINIO_REGION"
 
     @staticmethod
     def get_valid_attributes() -> List[str]:
@@ -71,7 +71,7 @@ class Config(BaseModel):
     minio_url: str
     minio_access_key: str
     minio_secret_key: str
-    minio_region: str
+    minio_region: str = "us-east-1"
     auth_method: AuthMethod = AuthMethod.email
     token: Optional[str] = None
     current_user: Optional[str] = None
@@ -86,6 +86,20 @@ class Config(BaseModel):
     def update_file_config(self) -> None:
         _config = _Config()
         _config.write_config(self.json())
+
+    @validator("minio_url", pre=True, always=True, allow_reuse=True)
+    def remove_scheme(cls, v: str) -> str:
+        if v.startswith("http"):
+            # Minio url cannot have the scheme - fqdm
+            v = v.split("://")[-1]
+        return v
+
+    @validator("api_url", pre=True, always=True, allow_reuse=True)
+    def add_scheme(cls, v: str) -> str:
+        if not v.startswith("http"):
+            # api url needs the scheme
+            v = f"http://{v}"
+        return v
 
 
 if os.path.exists(_Config.DEFAULT_GALILEO_CONFIG_FILE):
@@ -103,12 +117,6 @@ else:
         print(f"you entered {console_url}")
         api_url = console_url.replace("console.", "api.")
         minio_url = console_url.replace("console.", "data.")
-        if console_url.startswith("http"):
-            # Minio url cannot have the scheme in the url
-            minio_url = minio_url.split("://")[-1]
-        else:
-            # api url needs the scheme
-            api_url = f"http://{api_url}"
 
         os.environ[GalileoConfigVars.API_URL] = api_url
         os.environ[GalileoConfigVars.MINIO_URL] = minio_url
@@ -117,12 +125,6 @@ else:
         )
         os.environ[GalileoConfigVars.MINIO_SECRET_KEY] = getpass(
             "🤫 Enter the secret key of your Galileo Minio server\n"
-        )
-        os.environ[GalileoConfigVars.MINIO_REGION] = (
-            input(
-                "📍 Enter the region of your Galileo Minio server [default us-east-1]\n"
-            )
-            or "us-east-1"
         )
     galileo_vars = GalileoConfigVars.get_config_mapping()
     config = Config(**galileo_vars)
