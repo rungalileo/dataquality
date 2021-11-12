@@ -1,12 +1,11 @@
 import json
 import os
 from enum import Enum, unique
+from getpass import getpass
 from typing import Dict, List, Optional
 
 from pydantic import BaseModel
 from pydantic.types import UUID4, StrictStr
-
-from dataquality.exceptions import GalileoException
 
 
 class GalileoConfigVars(str, Enum):
@@ -95,9 +94,32 @@ if os.path.exists(_Config.DEFAULT_GALILEO_CONFIG_FILE):
 
 else:
     if not GalileoConfigVars.vars_available():
-        raise GalileoException(
-            f"The following environment variables must be set before using dataquality:"
-            f" {GalileoConfigVars.get_valid_attributes()}"
+        print("Welcome to Galileo! To get started, we need some information:")
+        print(
+            "(To skip this prompt in the future, set the following environment "
+            f"variables: {GalileoConfigVars.get_valid_attributes()})"
+        )
+        console_url = input("🔭 Enter the url of your Galileo console\n")
+        print(f"you entered {console_url}")
+        api_url = console_url.replace("console.", "api.")
+        minio_url = console_url.replace("console.", "data.")
+        if console_url.startswith("http"):
+            # Minio url cannot have the scheme in the url
+            minio_url = minio_url.split("://")[-1]
+        else:
+            # api url needs the scheme
+            api_url = f"http://{api_url}"
+
+        os.environ[GalileoConfigVars.API_URL] = api_url
+        os.environ[GalileoConfigVars.MINIO_URL] = minio_url
+        os.environ[GalileoConfigVars.MINIO_ACCESS_KEY] = input(
+            "🔑 Enter the access key of your Galileo Minio server\n"
+        )
+        os.environ[GalileoConfigVars.MINIO_SECRET_KEY] = getpass(
+            "🤫 Enter the secret key of your Galileo Minio server\n"
+        )
+        os.environ[GalileoConfigVars.MINIO_REGION] = input(
+            "📍 Enter the region of your Galileo Minio server (us-east-1/us-west-1...)\n"
         )
     galileo_vars = GalileoConfigVars.get_config_mapping()
     config = Config(**galileo_vars)

@@ -15,11 +15,12 @@ class ObjectStore:
 
     def _minio_client(self) -> Minio:
         try:
+            local_urls = ["127.0.0.1:9000", "localhost:9000"]
             return Minio(
                 config.minio_url,
                 access_key=config.minio_access_key,
                 secret_key=config.minio_secret_key,
-                secure=False if config.minio_url == "127.0.0.1:9000" else True,
+                secure=False if config.minio_url in local_urls else True,
             )
         except Exception as e:
             raise Exception(f"Error initializing minio session: {e}")

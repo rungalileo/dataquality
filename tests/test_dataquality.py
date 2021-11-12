@@ -5,7 +5,6 @@ import pytest
 
 import dataquality
 import dataquality.core.config
-from dataquality import GalileoException
 from dataquality.core.finish import _cleanup, _upload
 from dataquality.schemas.jsonl_logger import JsonlInputLogItem
 from dataquality.schemas.split import Split
@@ -47,11 +46,18 @@ def test_set_data_version_fail():
         )
 
 
-def test_config_no_vars():
+def test_config_no_vars(monkeypatch):
     """Should throw a nice error if we don't set our env vars"""
     x = os.getenv("GALILEO_API_URL")
     os.environ["GALILEO_API_URL"] = ""
-    os.remove(".galileo/config.json")
-    with pytest.raises(GalileoException):
-        reload(dataquality.core.config)
+    if os.path.isfile(".galileo/config.json"):
+        os.remove(".galileo/config.json")
+
+    monkeypatch.setattr("builtins.input", lambda _: "test_input")
+    monkeypatch.setattr("getpass.getpass", lambda _: "test_pass")
+
+    reload(dataquality.core.config)
+    assert dataquality.core.config.config.api_url == "http://test_input"
+    assert dataquality.core.config.config.minio_secret_key == "test_pass"
+
     os.environ["GALILEO_API_URL"] = x
