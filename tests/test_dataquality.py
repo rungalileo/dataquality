@@ -1,5 +1,10 @@
+import os
+from importlib import reload
+
 import pytest
 
+import dataquality
+import dataquality.core.config
 from dataquality.core.finish import _cleanup, _upload
 from dataquality.schemas.jsonl_logger import JsonlInputLogItem
 from dataquality.schemas.split import Split
@@ -39,3 +44,21 @@ def test_set_data_version_fail():
         JsonlInputLogItem(
             id=1, split=Split.training, text="test", data_schema_version=5
         )
+
+
+def test_config_no_vars(monkeypatch):
+    """Should throw a nice error if we don't set our env vars"""
+    x = os.getenv("GALILEO_API_URL")
+    os.environ["GALILEO_API_URL"] = ""
+    if os.path.isfile(".galileo/config.json"):
+        os.remove(".galileo/config.json")
+
+    monkeypatch.setattr("builtins.input", lambda inp: "" if "region" in inp else "test")
+    monkeypatch.setattr("getpass.getpass", lambda _: "test_pass")
+
+    reload(dataquality.core.config)
+    assert dataquality.core.config.config.api_url == "http://test"
+    assert dataquality.core.config.config.minio_secret_key == "test_pass"
+    assert dataquality.core.config.config.minio_region == "us-east-1"
+
+    os.environ["GALILEO_API_URL"] = x
