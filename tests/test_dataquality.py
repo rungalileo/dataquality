@@ -1,5 +1,11 @@
+import os
+from importlib import reload
+
 import pytest
 
+import dataquality
+import dataquality.core.config
+from dataquality import GalileoException
 from dataquality.core.finish import _cleanup, _upload
 from dataquality.schemas.jsonl_logger import JsonlInputLogItem
 from dataquality.schemas.split import Split
@@ -39,3 +45,13 @@ def test_set_data_version_fail():
         JsonlInputLogItem(
             id=1, split=Split.training, text="test", data_schema_version=5
         )
+
+
+def test_config_no_vars():
+    """Should throw a nice error if we don't set our env vars"""
+    x = os.getenv("GALILEO_API_URL")
+    os.environ["GALILEO_API_URL"] = ""
+    os.remove(".galileo/config.json")
+    with pytest.raises(GalileoException):
+        reload(dataquality.core.config)
+    os.environ["GALILEO_API_URL"] = x

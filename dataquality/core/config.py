@@ -1,10 +1,32 @@
 import json
 import os
 from enum import Enum, unique
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel
 from pydantic.types import UUID4, StrictStr
+
+from dataquality.exceptions import GalileoException
+
+
+class GalileoConfigVars(str, Enum):
+    API_URL = "GALILEO_API_URL"
+    MINIO_URL = "GALILEO_MINIO_URL"
+    MINIO_ACCESS_KEY = "GALILEO_MINIO_ACCESS_KEY"
+    MINIO_SECRET_KEY = "GALILEO_MINIO_SECRET_KEY"
+    MINIO_REGION = "GALILEO_MINIO_REGION"
+
+    @staticmethod
+    def get_valid_attributes() -> List[str]:
+        return list(map(lambda x: x.value, GalileoConfigVars))
+
+    @staticmethod
+    def get_config_mapping() -> Dict[str, str]:
+        return {i.name.lower(): os.environ[i.value] for i in GalileoConfigVars}
+
+    @staticmethod
+    def vars_available() -> bool:
+        return all(os.getenv(i) for i in GalileoConfigVars.get_valid_attributes())
 
 
 class _Config:
@@ -46,11 +68,11 @@ class AuthMethod(str, Enum):
 
 
 class Config(BaseModel):
-    api_url: str = os.environ["GALILEO_API_URL"]
-    minio_url: str = os.environ["GALILEO_MINIO_URL"]
-    minio_access_key: str = os.environ["GALILEO_MINIO_ACCESS_KEY"]
-    minio_secret_key: str = os.environ["GALILEO_MINIO_SECRET_KEY"]
-    minio_region: str = os.environ["GALILEO_MINIO_REGION"]
+    api_url: str
+    minio_url: str
+    minio_access_key: str
+    minio_secret_key: str
+    minio_region: str
     auth_method: AuthMethod = AuthMethod.email
     token: Optional[str] = None
     current_user: Optional[str] = None
@@ -67,7 +89,15 @@ class Config(BaseModel):
         _config.write_config(self.json())
 
 
-config = Config()
 if os.path.exists(_Config.DEFAULT_GALILEO_CONFIG_FILE):
     with open(_Config.DEFAULT_GALILEO_CONFIG_FILE) as f:
         config = Config(**json.load(f))
+
+else:
+    if not GalileoConfigVars.vars_available():
+        raise GalileoException(
+            f"The following environment variables must be set before using dataquality:"
+            f" {GalileoConfigVars.get_valid_attributes()}"
+        )
+    galileo_vars = GalileoConfigVars.get_config_mapping()
+    config = Config(**galileo_vars)
