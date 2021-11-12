@@ -118,8 +118,11 @@ else:
         os.environ[GalileoConfigVars.MINIO_SECRET_KEY] = getpass(
             "🤫 Enter the secret key of your Galileo Minio server\n"
         )
-        os.environ[GalileoConfigVars.MINIO_REGION] = input(
-            "📍 Enter the region of your Galileo Minio server (us-east-1/us-west-1...)\n"
+        os.environ[GalileoConfigVars.MINIO_REGION] = (
+            input(
+                "📍 Enter the region of your Galileo Minio server [default us-east-1]\n"
+            )
+            or "us-east-1"
         )
     galileo_vars = GalileoConfigVars.get_config_mapping()
     config = Config(**galileo_vars)

@@ -53,11 +53,12 @@ def test_config_no_vars(monkeypatch):
     if os.path.isfile(".galileo/config.json"):
         os.remove(".galileo/config.json")
 
-    monkeypatch.setattr("builtins.input", lambda _: "test_input")
+    monkeypatch.setattr("builtins.input", lambda inp: "" if "region" in inp else "test")
     monkeypatch.setattr("getpass.getpass", lambda _: "test_pass")
 
     reload(dataquality.core.config)
-    assert dataquality.core.config.config.api_url == "http://test_input"
+    assert dataquality.core.config.config.api_url == "http://test"
     assert dataquality.core.config.config.minio_secret_key == "test_pass"
+    assert dataquality.core.config.config.minio_region == "us-east-1"
 
     os.environ["GALILEO_API_URL"] = x
