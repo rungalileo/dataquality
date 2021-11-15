@@ -14,6 +14,9 @@ class MockResponse:
         self.json_data = json_data
         self.status_code = status_code
 
+    def ok(self):
+        return True
+
     def json(self):
         return self.json_data
 
