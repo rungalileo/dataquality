@@ -1,0 +1,8 @@
+dataquality==0.0.3
+torch
+sklearn
+transformers
+pandas
+numpy
+pytorch_lightning
+torchmetrics
