@@ -42,7 +42,6 @@ def mocked_failed_login_requests(*args: Any, **kwargs: Dict[str, Any]):
 def mocked_get_project_run(*args: Any, **kwargs: Dict[Any, Any]):
     if args[0].endswith("current_user"):
         return MockResponse({"id": "user"}, 200)
-    print(f"HERE {TMP_CREATE_NEW_PROJ_RUN}")
     res = [
         {"id": uuid4(), "name": EXISTING_PROJECT},
         {"id": uuid4(), "name": EXISTING_RUN},
@@ -54,7 +53,6 @@ def mocked_get_project_run(*args: Any, **kwargs: Dict[Any, Any]):
 def mocked_create_project_run(*args: Any, **kwargs: Dict[Any, Any]):
     global TMP_CREATE_NEW_PROJ_RUN
     TMP_CREATE_NEW_PROJ_RUN = kwargs["json"]["name"]
-    print(f"HERE CREATING PROJ {TMP_CREATE_NEW_PROJ_RUN}")
     res = {"id": uuid4(), "name": TMP_CREATE_NEW_PROJ_RUN}
     return MockResponse(res, 200)
 
