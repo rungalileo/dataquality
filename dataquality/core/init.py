@@ -43,13 +43,26 @@ class _Init:
         )
         if req.ok:
             result = {}
-            projects = self.get_user_projects()
-            for project in projects:
-                if project["id"] == project_id:
-                    for run in project["runs"]:
-                        if run["name"] == data["name"]:
-                            result = run
+            runs = self.get_project_runs(project_id)
+            for run in runs:
+                if run["name"] == data["name"]:
+                    result = run
             return result
+        else:
+            msg = (
+                "Something didn't go quite right."
+                " the api returned a non-ok status code"
+                f" {req.status_code} with output: {req.text}"
+            )
+            raise GalileoException(msg)
+
+    def get_project_runs(self, project_id: UUID4) -> Dict:
+        req = requests.get(
+            f"{config.api_url}/{Route.projects}/{project_id}/runs",
+            headers=headers(config.token),
+        )
+        if req.ok:
+            return req.json()
         else:
             msg = (
                 "Something didn't go quite right."
