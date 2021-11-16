@@ -1,6 +1,3 @@
-import os
-from typing import List, Text
-
 import dataquality
 
 dataquality.login()
@@ -76,7 +73,6 @@ import pytorch_lightning as pl
 import torch.nn.functional as F
 import torchmetrics
 from transformers import (
-    AdamW,
     AutoModel,
     DistilBertConfig,
     DistilBertForSequenceClassification,
