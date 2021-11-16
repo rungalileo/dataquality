@@ -23,7 +23,15 @@ class _Init:
             json=data,
             headers=headers(config.token),
         )
-        return req.json()
+        if req.ok:
+            return self.get_project_by_name_for_user(project_name=data["name"])
+        else:
+            msg = (
+                "Something didn't go quite right."
+                " the api returned a non-ok status code"
+                f" {req.status_code} with output: {req.text}"
+            )
+            raise GalileoException(msg)
 
     def create_project_run(self, project_id: UUID4, data: Dict) -> Dict:
         if not config.token:
@@ -33,7 +41,35 @@ class _Init:
             json=data,
             headers=headers(config.token),
         )
-        return req.json()
+        if req.ok:
+            result = {}
+            runs = self.get_project_runs(project_id)
+            for run in runs:
+                if run["name"] == data["name"]:
+                    result = run
+            return result
+        else:
+            msg = (
+                "Something didn't go quite right."
+                " the api returned a non-ok status code"
+                f" {req.status_code} with output: {req.text}"
+            )
+            raise GalileoException(msg)
+
+    def get_project_runs(self, project_id: UUID4) -> Dict:
+        req = requests.get(
+            f"{config.api_url}/{Route.projects}/{project_id}/runs",
+            headers=headers(config.token),
+        )
+        if req.ok:
+            return req.json()
+        else:
+            msg = (
+                "Something didn't go quite right."
+                " the api returned a non-ok status code"
+                f" {req.status_code} with output: {req.text}"
+            )
+            raise GalileoException(msg)
 
     def get_user_projects(self) -> List[Dict]:
         user_id = self.get_user_id()
@@ -41,7 +77,15 @@ class _Init:
             f"{config.api_url}/{Route.users}/{user_id}/projects",
             headers=headers(config.token),
         )
-        return req.json()
+        if req.ok:
+            return req.json()
+        else:
+            msg = (
+                "Something didn't go quite right."
+                " the api returned a non-ok status code"
+                f" {req.status_code} with output: {req.text}"
+            )
+            raise GalileoException(msg)
 
     def get_project_by_name_for_user(self, project_name: str) -> Dict:
         projects = self.get_user_projects()
@@ -58,7 +102,15 @@ class _Init:
             f"{config.api_url}/{Route.projects}/{pid}/runs",
             headers=headers(config.token),
         )
-        return req.json()
+        if req.ok:
+            return req.json()
+        else:
+            msg = (
+                "Something didn't go quite right."
+                " the api returned a non-ok status code"
+                f" {req.status_code} with output: {req.text}"
+            )
+            raise GalileoException(msg)
 
     def get_project_run_by_name_for_user(
         self, project_name: str, run_name: str

@@ -267,9 +267,7 @@ def get_modelconfig_attr(cls: object) -> str:
     raise AttributeError("No GalileoModelConfig attribute found!")
 
 
-def _convert_tensor_ndarray(
-    arr: Union[Tensor, np.ndarray, List], attr: Optional[str] = None
-) -> List:
+def _convert_tensor_ndarray(arr: List, attr: Optional[str] = None) -> List:
     """Handles numpy arrays and tensors conversions"""
     if TORCH_AVAILABLE:
         if isinstance(arr, Tensor):

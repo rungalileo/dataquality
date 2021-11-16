@@ -16,6 +16,7 @@ from tests.utils.mock_request import (
 
 
 @mock.patch("requests.post", side_effect=mocked_create_project_run)
+@mock.patch("requests.get", side_effect=mocked_get_project_run)
 def test_init(*args) -> None:
     """Base case: Tests creating a new project and run"""
     config.token = "sometoken"

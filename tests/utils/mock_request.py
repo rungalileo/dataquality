@@ -7,12 +7,16 @@ config = dataquality.config
 
 EXISTING_PROJECT = "existing_proj"
 EXISTING_RUN = "existing_run"
+TMP_CREATE_NEW_PROJ_RUN = None
 
 
 class MockResponse:
     def __init__(self, json_data, status_code):
         self.json_data = json_data
         self.status_code = status_code
+
+    def ok(self):
+        return True
 
     def json(self):
         return self.json_data
@@ -41,12 +45,15 @@ def mocked_get_project_run(*args: Any, **kwargs: Dict[Any, Any]):
     res = [
         {"id": uuid4(), "name": EXISTING_PROJECT},
         {"id": uuid4(), "name": EXISTING_RUN},
+        {"id": uuid4(), "name": TMP_CREATE_NEW_PROJ_RUN},
     ]
     return MockResponse(res, 200)
 
 
 def mocked_create_project_run(*args: Any, **kwargs: Dict[Any, Any]):
-    res = {"id": uuid4(), "name": "existing"}
+    global TMP_CREATE_NEW_PROJ_RUN
+    TMP_CREATE_NEW_PROJ_RUN = kwargs["json"]["name"]
+    res = {"id": uuid4(), "name": TMP_CREATE_NEW_PROJ_RUN}
     return MockResponse(res, 200)
 
 
@@ -55,7 +62,7 @@ def mocked_missing_run(*args: Any, **kwargs: Dict[Any, Any]):
         return MockResponse({"id": "user"}, 200)
     # Run does not exist
     if args[0].endswith("runs"):
-        return MockResponse({}, 204)
+        return MockResponse([{"id": uuid4(), "name": TMP_CREATE_NEW_PROJ_RUN}], 204)
     # Project does exist
     else:
         res = {"id": uuid4(), "name": EXISTING_PROJECT}
@@ -65,4 +72,4 @@ def mocked_missing_run(*args: Any, **kwargs: Dict[Any, Any]):
 def mocked_missing_project_run(*args: Any, **kwargs: Dict[Any, Any]):
     if args[0].endswith("current_user"):
         return MockResponse({"id": "user"}, 200)
-    return MockResponse({}, 204)
+    return MockResponse([{"id": uuid4(), "name": TMP_CREATE_NEW_PROJ_RUN}], 200)
