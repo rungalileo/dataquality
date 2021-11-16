@@ -24,7 +24,7 @@ class _Init:
             headers=headers(config.token),
         )
         if req.ok:
-            return req.json()
+            return self.get_project_by_name_for_user(project_name=data["name"])
         else:
             msg = (
                 "Something didn't go quite right."
@@ -42,7 +42,14 @@ class _Init:
             headers=headers(config.token),
         )
         if req.ok:
-            return req.json()
+            result = {}
+            projects = self.get_user_projects()
+            for project in projects:
+                if project["id"] == project_id:
+                    for run in project["runs"]:
+                        if run["name"] == data["name"]:
+                            result = run
+            return result
         else:
             msg = (
                 "Something didn't go quite right."
