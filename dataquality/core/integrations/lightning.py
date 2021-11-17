@@ -9,13 +9,14 @@ from torch.utils.data import Dataset
 from torch.utils.data.dataloader import DataLoader
 
 import dataquality
-from dataquality import GalileoException, config
+from dataquality import config
 from dataquality.core.integrations.config import (
     GalileoDataConfig,
     GalileoModelConfig,
     get_dataconfig_attr,
     get_modelconfig_attr,
 )
+from dataquality.exceptions import GalileoException
 from dataquality.schemas.split import Split
 from dataquality.utils.thread_pool import ThreadPoolManager
 

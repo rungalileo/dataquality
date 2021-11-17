@@ -3,10 +3,8 @@ from typing import Any, Dict, List
 from pydantic.types import UUID4
 
 from dataquality import config
-from dataquality.core.auth import _Auth
 from dataquality.exceptions import GalileoException
-from dataquality.schemas import Route
-from dataquality.schemas.request_type import RequestType
+from dataquality.schemas import RequestType, Route
 from dataquality.utils.auth import headers
 
 
@@ -17,14 +15,22 @@ class ApiClient:
 
     def _get_user_id(self) -> UUID4:
         self.__check_login()
-        _auth = _Auth(config=config, auth_method=config.auth_method)
-        return _auth.get_current_user(config)["id"]
+        return self.get_current_user()["id"]
+
+    def get_current_user(self) -> Dict:
+        if not config.token:
+            raise GalileoException("Current user is not set!")
+
+        return self.make_request(
+            RequestType.GET, url=f"{config.api_url}/{Route.current_user}"
+        )
 
     def make_request(
         self,
         request: RequestType,
         url: str,
         body: Dict = None,
+        data: Dict = None,
         params: Dict = None,
         header: Dict = None,
     ) -> Any:
@@ -36,13 +42,12 @@ class ApiClient:
         self.__check_login()
         header = header or headers(config.token)
         req = RequestType.get_method(request.value)(
-            url, json=body, params=params, headers=header
+            url, json=body, params=params, headers=header, data=data
         )
         if not req.ok:
             msg = (
-                "Something didn't go quite right."
-                " the api returned a non-ok status code"
-                f" {req.status_code} with output: {req.text}"
+                "Something didn't go quite right. The api returned a non-ok status "
+                f"code {req.status_code} with output: {req.text}"
             )
             raise GalileoException(msg)
         return req.json()
