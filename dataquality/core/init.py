@@ -1,141 +1,32 @@
 import os
 import warnings
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
-import requests
 from pydantic.types import UUID4
 
 from dataquality import config
-from dataquality.core.auth import _Auth
+from dataquality.clients import api_client
 from dataquality.core.log import JsonlLogger
 from dataquality.exceptions import GalileoException
-from dataquality.schemas import Route
-from dataquality.utils.auth import headers
 from dataquality.utils.name import random_name
 
 
 class _Init:
-    def create_project(self, data: Dict) -> Dict:
-        req = requests.post(
-            f"{config.api_url}/{Route.projects}",
-            json=data,
-            headers=headers(config.token),
-        )
-        if req.ok:
-            return self.get_project_by_name_for_user(project_name=data["name"])
-        else:
-            msg = (
-                "Something didn't go quite right."
-                " the api returned a non-ok status code"
-                f" {req.status_code} with output: {req.text}"
-            )
-            raise GalileoException(msg)
-
-    def create_project_run(self, project_id: UUID4, data: Dict) -> Dict:
-        req = requests.post(
-            f"{config.api_url}/{Route.projects}/{project_id}/runs",
-            json=data,
-            headers=headers(config.token),
-        )
-        if req.ok:
-            result = {}
-            runs = self.get_project_runs(project_id)
-            for run in runs:
-                if run["name"] == data["name"]:
-                    result = run
-            return result
-        else:
-            msg = (
-                "Something didn't go quite right."
-                " the api returned a non-ok status code"
-                f" {req.status_code} with output: {req.text}"
-            )
-            raise GalileoException(msg)
-
-    def get_project_runs(self, project_id: UUID4) -> Dict:
-        req = requests.get(
-            f"{config.api_url}/{Route.projects}/{project_id}/runs",
-            headers=headers(config.token),
-        )
-        if req.ok:
-            return req.json()
-        else:
-            msg = (
-                "Something didn't go quite right."
-                " the api returned a non-ok status code"
-                f" {req.status_code} with output: {req.text}"
-            )
-            raise GalileoException(msg)
-
-    def get_user_projects(self) -> List[Dict]:
-        user_id = self.get_user_id()
-        req = requests.get(
-            f"{config.api_url}/{Route.users}/{user_id}/projects",
-            headers=headers(config.token),
-        )
-        if req.ok:
-            return req.json()
-        else:
-            msg = (
-                "Something didn't go quite right."
-                " the api returned a non-ok status code"
-                f" {req.status_code} with output: {req.text}"
-            )
-            raise GalileoException(msg)
-
     def get_project_by_name_for_user(self, project_name: str) -> Dict:
-        projects = self.get_user_projects()
-        name_project = {project["name"]: project for project in projects}
-        return name_project.get(project_name, {})
-
-    def get_runs_from_project_for_user(self, project_name: str) -> Dict:
-        """Gets the runs for a given project for a given user"""
-        project = self.get_project_by_name_for_user(project_name)
-        if not project:
-            return {}
-        pid = project.get("id")
-        req = requests.get(
-            f"{config.api_url}/{Route.projects}/{pid}/runs",
-            headers=headers(config.token),
-        )
-        if req.ok:
-            return req.json()
-        else:
-            msg = (
-                "Something didn't go quite right."
-                " the api returned a non-ok status code"
-                f" {req.status_code} with output: {req.text}"
-            )
-            raise GalileoException(msg)
+        return api_client.get_project_by_name(project_name)
 
     def get_project_run_by_name_for_user(
         self, project_name: str, run_name: str
     ) -> Dict:
-        runs = self.get_runs_from_project_for_user(project_name)
-        name_run = {run["name"]: run for run in runs}
-        return name_run.get(run_name, {})
-
-    def get_run_from_project(self, project_id: UUID4, run_id: UUID4) -> Dict:
-        return requests.get(
-            f"{config.api_url}/{Route.projects}/{project_id}/runs/{run_id}",
-            headers=headers(config.token),
-        ).json()
-
-    def get_user_id(self) -> UUID4:
-        if not config.token:
-            raise GalileoException("Token not present, please log in!")
-        _auth = _Auth(config=config, auth_method=config.auth_method)
-        return _auth.get_current_user(config)["id"]
+        return api_client.get_project_run_by_name(project_name, run_name)
 
     def _initialize_new_project(self, project_name: str) -> Dict:
         print(f"✨ Initializing project {project_name}")
-        body = {"name": project_name}
-        return self.create_project(body)
+        return api_client.create_project(project_name=project_name)
 
-    def _initialize_run_for_project(self, project_id: UUID4, run_name: str) -> Dict:
+    def _initialize_run_for_project(self, project_name: str, run_name: str) -> Dict:
         print(f"🏃‍♂️ Starting run {run_name}")
-        body = {"name": run_name}
-        return self.create_project_run(project_id, body)
+        return api_client.create_run(project_name, run_name)
 
     def create_log_file_dir(self, project_id: UUID4, run_id: UUID4) -> None:
         write_output_dir = f"{JsonlLogger.LOG_FILE_DIR}/{project_id}/{run_id}"
@@ -171,7 +62,7 @@ def init(project_name: Optional[str] = None, run_name: Optional[str] = None) -> 
         project_name, run_name = random_name(), random_name()
         project_response = _init._initialize_new_project(project_name=project_name)
         run_response = _init._initialize_run_for_project(
-            project_id=project_response["id"], run_name=run_name
+            project_name=project_name, run_name=run_name
         )
         config.current_project_id = project_response["id"]
         config.current_run_id = run_response["id"]
@@ -183,7 +74,7 @@ def init(project_name: Optional[str] = None, run_name: Optional[str] = None) -> 
             run_name = random_name()
             print(f"📡 Retrieved project, {project_name}, and starting a new run")
             run_response = _init._initialize_run_for_project(
-                project_id=project["id"], run_name=run_name
+                project_name=project_name, run_name=run_name
             )
             config.current_project_id = project["id"]
             config.current_run_id = run_response["id"]
@@ -196,7 +87,7 @@ def init(project_name: Optional[str] = None, run_name: Optional[str] = None) -> 
             run_name = random_name()
             project_response = _init._initialize_new_project(project_name=project_name)
             run_response = _init._initialize_run_for_project(
-                project_id=project_response["id"], run_name=run_name
+                project_name=project_name, run_name=run_name
             )
             config.current_project_id = project_response["id"]
             config.current_run_id = run_response["id"]
@@ -229,7 +120,7 @@ def init(project_name: Optional[str] = None, run_name: Optional[str] = None) -> 
             print(f"💭 Project {project_name} was not found.")
             project_response = _init._initialize_new_project(project_name=project_name)
             run_response = _init._initialize_run_for_project(
-                project_id=project_response["id"], run_name=run_name
+                project_name, run_name=run_name
             )
             config.current_project_id = project_response["id"]
             config.current_run_id = run_response["id"]

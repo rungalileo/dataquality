@@ -1,5 +1,6 @@
 from collections import Callable
 from enum import Enum
+
 import requests
 
 
