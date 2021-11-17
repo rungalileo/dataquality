@@ -6,6 +6,7 @@ import pytest
 import dataquality
 import dataquality.core.config
 from dataquality.core.finish import _cleanup, _upload
+from dataquality.exceptions import GalileoException
 from dataquality.schemas.jsonl_logger import JsonlInputLogItem
 from dataquality.schemas.split import Split
 from dataquality.utils.thread_pool import ThreadPoolManager
@@ -44,6 +45,22 @@ def test_set_data_version_fail():
         JsonlInputLogItem(
             id=1, split=Split.training, text="test", data_schema_version=5
         )
+
+
+def test_logging_duplicate_ids(cleanup_after_use) -> None:
+    """
+    Tests that logging duplicate ids triggers a failure
+    """
+    num_records = 50
+    _log_data(num_records=num_records, unique_ids=False)
+    try:
+        # Equivalent to the users `finish` call, but we don't want to clean up files yet
+        ThreadPoolManager.wait_for_threads()
+        with pytest.raises(GalileoException):
+            _upload()
+    finally:
+        # Mock finish() call without calling the API
+        ThreadPoolManager.wait_for_threads()
 
 
 def test_config_no_vars(monkeypatch):
