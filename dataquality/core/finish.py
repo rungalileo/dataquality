@@ -41,6 +41,16 @@ def _upload() -> None:
             for data_folder in DATA_FOLDERS:
                 files_dir = f"{epoch_dir}/{data_folder}"
                 df = vaex.open(f"{files_dir}/*")
+
+                # Validate all ids within an epoch/split are unique
+                if df["id"].nunique() != len(df):
+                    epoch = epoch_dir.split("/")[-1]
+                    raise GalileoException(
+                        "It seems as though you do not have unique ids in this "
+                        f"split/epoch. Did you provide your own IDs?\n"
+                        f"split:{split}, epoch:{epoch}, ids:{df['id'].tolist()}"
+                    )
+
                 # Remove the log_file_dir from the object store path
                 epoch = epoch_dir.split("/")[-1]
                 proj_run = f"{config.current_project_id}/{config.current_run_id}"
@@ -114,5 +124,8 @@ def finish() -> Optional[Dict[str, Any]]:
         raise GalileoException(err) from None
 
     res = r.json()
-    print(f"Job {res['proc_name']} successfully submitted.")
+    print(
+        f"Job {res['proc_name']} successfully submitted. Results will be available "
+        f"soon at {res['link']}"
+    )
     return res
