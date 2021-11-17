@@ -10,3 +10,4 @@ class Route(str, Enum):
     projects = "projects"
     users = "users"
     cleanup = "cleanup"
+    login = "login"
