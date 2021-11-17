@@ -8,6 +8,7 @@ import pandas as pd
 from pyarrow.lib import ArrowException, ArrowIOError
 from pydantic.error_wrappers import ValidationError
 
+from dataquality import __version__ as dq_client_version
 from dataquality import config
 from dataquality.core.integrations.config import GalileoDataConfig, GalileoModelConfig
 from dataquality.exceptions import GalileoException
@@ -143,7 +144,7 @@ def write_model_output(model_output: pd.DataFrame) -> None:
 
     location = (
         f"{JsonlLogger.LOG_FILE_DIR}/{config.current_project_id}"
-        f"/{config.current_run_id}"
+        f"/{config.current_run_id}/{dq_client_version}"
     )
     in_frame_dtypes = {"gold": "object"}
     out_frame_dtypes = {"pred": "int64"}

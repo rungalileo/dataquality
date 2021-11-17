@@ -6,6 +6,7 @@ from typing import Any, Dict, Optional
 
 import vaex
 
+from dataquality import __version__ as dq_client_version
 from dataquality import config
 from dataquality.clients import api_client, object_store
 from dataquality.core.log import DATA_FOLDERS
@@ -14,6 +15,7 @@ from dataquality.loggers.jsonl_logger import JsonlLogger
 from dataquality.schemas import ProcName, RequestType, Route
 from dataquality.schemas.split import Split
 from dataquality.utils.thread_pool import ThreadPoolManager
+from dataquality.utils.version import _version_check
 
 lock = threading.Lock()
 
@@ -28,7 +30,7 @@ def _upload() -> None:
     print("☁️ Uploading Data")
     location = (
         f"{JsonlLogger.LOG_FILE_DIR}/{config.current_project_id}"
-        f"/{config.current_run_id}"
+        f"/{config.current_run_id}/{dq_client_version}"
     )
     for split in Split.get_valid_attributes():
         split_loc = f"{location}/{split}"
@@ -52,7 +54,8 @@ def _upload() -> None:
                 epoch = epoch_dir.split("/")[-1]
                 proj_run = f"{config.current_project_id}/{config.current_run_id}"
                 minio_file = (
-                    f"{proj_run}/{split}/{epoch}/{data_folder}/{data_folder}.arrow"
+                    f"{proj_run}/{dq_client_version}/"
+                    f"{split}/{epoch}/{data_folder}/{data_folder}.arrow"
                 )
                 object_store.create_project_run_object_from_df(df, minio_file)
 
@@ -91,6 +94,7 @@ def finish() -> Optional[Dict[str, Any]]:
         f"is expecting {config.observed_num_labels} labels. "
         f"Use dataquality.set_labels_for_run to update your config labels"
     )
+    _version_check()
     _upload()
     _cleanup()
 
