@@ -114,5 +114,8 @@ def finish() -> Optional[Dict[str, Any]]:
         raise GalileoException(err) from None
 
     res = r.json()
-    print(f"Job {res['proc_name']} successfully submitted.")
+    print(
+        f"Job {res['proc_name']} successfully submitted. Results will be available "
+        f"soon at {res['link']}"
+    )
     return res
