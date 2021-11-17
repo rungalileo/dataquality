@@ -162,7 +162,7 @@ def init(project_name: Optional[str] = None, run_name: Optional[str] = None) -> 
     """
     if not config.token:
         raise GalileoException(
-            "You must log in before calling init. " "Call dataquality.login()"
+            "You must log in before calling init. Call dataquality.login()"
         )
     _init = _Init()
     config.labels = None
