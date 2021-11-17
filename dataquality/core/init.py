@@ -16,8 +16,6 @@ from dataquality.utils.name import random_name
 
 class _Init:
     def create_project(self, data: Dict) -> Dict:
-        if not config.token:
-            raise GalileoException("Token not present, please log in!")
         req = requests.post(
             f"{config.api_url}/{Route.projects}",
             json=data,
@@ -34,8 +32,6 @@ class _Init:
             raise GalileoException(msg)
 
     def create_project_run(self, project_id: UUID4, data: Dict) -> Dict:
-        if not config.token:
-            raise GalileoException("Token not present, please log in!")
         req = requests.post(
             f"{config.api_url}/{Route.projects}/{project_id}/runs",
             json=data,
@@ -120,8 +116,6 @@ class _Init:
         return name_run.get(run_name, {})
 
     def get_run_from_project(self, project_id: UUID4, run_id: UUID4) -> Dict:
-        if not config.token:
-            raise GalileoException("Token not present, please log in!")
         return requests.get(
             f"{config.api_url}/{Route.projects}/{project_id}/runs/{run_id}",
             headers=headers(config.token),
@@ -166,6 +160,10 @@ def init(project_name: Optional[str] = None, run_name: Optional[str] = None) -> 
     generated. If provided, and the project does not exist, it will be created. If it
     does exist, it will be set.
     """
+    if not config.token:
+        raise GalileoException(
+            "You must log in before calling init. " "Call dataquality.login()"
+        )
     _init = _Init()
     config.labels = None
     if not project_name and not run_name:
