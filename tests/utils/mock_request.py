@@ -2,6 +2,7 @@ from typing import Any, Dict
 from uuid import uuid4
 
 import dataquality
+from dataquality import __version__
 
 config = dataquality.config
 
@@ -20,6 +21,20 @@ class MockResponse:
 
     def json(self):
         return self.json_data
+
+
+def mocked_healthcheck_request(*args: Any, **kwargs: Dict[str, Any]):
+    if args[0].endswith("healthcheck"):
+        return MockResponse({"api_version": __version__}, 200)
+
+    return MockResponse(None, 200)
+
+
+def mocked_healthcheck_request_new_api_version(*args: Any, **kwargs: Dict[str, Any]):
+    if args[0].endswith("healthcheck"):
+        return MockResponse({"api_version": "100.0.0"}, 200)
+
+    return MockResponse(None, 200)
 
 
 def mocked_login_requests(*args: Any, **kwargs: Dict[str, Any]):
