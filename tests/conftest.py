@@ -5,7 +5,6 @@ from uuid import uuid4
 import pytest
 from vaex.dataframe import DataFrame
 
-from dataquality import __version__ as dq_client_version
 from dataquality import config
 from dataquality.clients import object_store
 from dataquality.loggers.jsonl_logger import JsonlLogger
@@ -15,10 +14,10 @@ config.current_run_id = uuid4()
 
 LOCATION = (
     f"{JsonlLogger.LOG_FILE_DIR}/{config.current_project_id}"
-    f"/{config.current_run_id}/"
+    f"/{config.current_run_id}"
 )
 TEST_STORE_DIR = "TEST_STORE"
-TEST_PATH = f"{LOCATION}/{dq_client_version}/{TEST_STORE_DIR}"
+TEST_PATH = f"{LOCATION}/{TEST_STORE_DIR}"
 SPLITS = ["training", "test"]
 SUBDIRS = ["data", "emb", "prob"]
 

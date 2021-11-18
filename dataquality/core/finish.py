@@ -6,7 +6,6 @@ from typing import Any, Dict, Optional
 
 import vaex
 
-from dataquality import __version__ as dq_client_version
 from dataquality import config
 from dataquality.clients import api_client, object_store
 from dataquality.core.log import DATA_FOLDERS
@@ -30,7 +29,7 @@ def _upload() -> None:
     print("☁️ Uploading Data")
     location = (
         f"{JsonlLogger.LOG_FILE_DIR}/{config.current_project_id}"
-        f"/{config.current_run_id}/{dq_client_version}"
+        f"/{config.current_run_id}"
     )
     for split in Split.get_valid_attributes():
         split_loc = f"{location}/{split}"
@@ -54,8 +53,7 @@ def _upload() -> None:
                 epoch = epoch_dir.split("/")[-1]
                 proj_run = f"{config.current_project_id}/{config.current_run_id}"
                 minio_file = (
-                    f"{proj_run}/{dq_client_version}/"
-                    f"{split}/{epoch}/{data_folder}/{data_folder}.arrow"
+                    f"{proj_run}/{split}/{epoch}/{data_folder}/{data_folder}.arrow"
                 )
                 object_store.create_project_run_object_from_df(df, minio_file)
 
