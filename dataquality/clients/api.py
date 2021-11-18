@@ -55,39 +55,39 @@ class ApiClient:
     def get_projects(self) -> List[Dict]:
         user_id = self._get_user_id()
         return self.make_request(
-            RequestType.GET, url=f"{config.api_url}/{Route.users}/{user_id}/projects"
+            RequestType.GET, url=f"{config.api_url}/{Route.users}/{user_id}/{Route.projects}"
         )
 
     def get_project_by_name(self, project_name: str) -> Dict:
         projs = self.make_request(
             RequestType.GET,
-            url=f"{config.api_url}/{Route.projects}/?project_name={project_name}",
+            url=f"{config.api_url}/{Route.projects}?project_name={project_name}",
         )
         return projs[0] if projs else {}
 
     def get_project_runs(self, project_id: UUID4) -> List[Dict]:
         """Gets all runs from a project by ID"""
         return self.make_request(
-            RequestType.GET, url=f"{config.api_url}/{Route.projects}/{project_id}/runs/"
+            RequestType.GET, url=f"{config.api_url}/{Route.projects}/{project_id}/{Route.runs}/"
         )
 
     def get_project_runs_by_name(self, project_name: str) -> List[Dict]:
         """Gets all runs from a project by name"""
         proj = self.get_project_by_name(project_name)
         return self.make_request(
-            RequestType.GET, url=f"{config.api_url}/{Route.projects}/{proj['id']}/runs/"
+            RequestType.GET, url=f"{config.api_url}/{Route.projects}/{proj['id']}/{Route.runs}/"
         )
 
     def get_project_run(self, project_id: UUID4, run_id: UUID4) -> Dict:
         """Gets a run in a project by ID"""
         return self.make_request(
             RequestType.GET,
-            url=f"{config.api_url}/{Route.projects}/{project_id}/runs/{run_id}",
+            url=f"{config.api_url}/{Route.projects}/{project_id}/{Route.runs}/{run_id}",
         )
 
     def get_project_run_by_name(self, project_name: str, run_name: str) -> Dict:
         proj = self.get_project_by_name(project_name)
-        url = f"{config.api_url}/{Route.projects}/{proj['id']}/runs?run_name={run_name}"
+        url = f"{config.api_url}/{Route.projects}/{proj['id']}/{Route.runs}?run_name={run_name}"
         runs = self.make_request(RequestType.GET, url=url)
         return runs[0] if runs else {}
 
@@ -104,7 +104,7 @@ class ApiClient:
         proj = self.get_project_by_name(project_name)
         return self.make_request(
             RequestType.POST,
-            url=f"{config.api_url}/{Route.projects}/{proj['id']}/runs",
+            url=f"{config.api_url}/{Route.projects}/{proj['id']}/{Route.runs}",
             body=body,
         )
 
