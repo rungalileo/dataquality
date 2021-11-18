@@ -3,7 +3,7 @@ import os
 from typing import Callable, Dict
 
 from dataquality.clients import api_client
-from dataquality.core.config import AuthMethod, Config, _Config, config
+from dataquality.core._config import AuthMethod, Config, _Config, config
 from dataquality.exceptions import GalileoException
 from dataquality.schemas import RequestType, Route
 
@@ -92,4 +92,3 @@ def login() -> None:
     config.current_user = current_user_email
     config.update_file_config()
     print(f"🚀 You're logged in to Galileo as {current_user_email}!")
-

@@ -4,8 +4,8 @@ __version__ = "0.0.4"
 
 import resource
 
+from dataquality.core._config import config
 from dataquality.core.auth import login
-from dataquality.core.config import config
 from dataquality.core.finish import finish
 from dataquality.core.init import init
 from dataquality.core.log import (
