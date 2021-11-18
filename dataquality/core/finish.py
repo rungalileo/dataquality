@@ -14,6 +14,7 @@ from dataquality.loggers.jsonl_logger import JsonlLogger
 from dataquality.schemas import ProcName, RequestType, Route
 from dataquality.schemas.split import Split
 from dataquality.utils.thread_pool import ThreadPoolManager
+from dataquality.utils.version import _version_check
 
 lock = threading.Lock()
 
@@ -91,6 +92,7 @@ def finish() -> Optional[Dict[str, Any]]:
         f"is expecting {config.observed_num_labels} labels. "
         f"Use dataquality.set_labels_for_run to update your config labels"
     )
+    _version_check()
     _upload()
     _cleanup()
 
