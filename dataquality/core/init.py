@@ -102,7 +102,7 @@ def init(project_name: Optional[str] = None, run_name: Optional[str] = None) -> 
         # if project actually exists, get the run
         if project.get("name"):
             # If the project and run exist, connect to them
-            print(f"📡 Retrieving existing run from project, {project_name}")
+            print(f"📡 Retrieving run from existing project, {project_name}")
             run = _init.get_project_run_by_name_for_user(
                 project["name"], run_name=run_name
             )
