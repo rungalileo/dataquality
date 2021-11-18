@@ -16,6 +16,7 @@ def test_good_login(*args) -> None:
     os.environ[GALILEO_AUTH_METHOD] = "email"
     os.environ["GALILEO_USERNAME"] = "user"
     os.environ["GALILEO_PASSWORD"] = "password"
+    config.token = "mytoken"
     dataquality.login()
 
 
