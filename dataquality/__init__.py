@@ -13,7 +13,6 @@ from dataquality.core.log import (
     log_model_outputs,
     set_labels_for_run,
 )
-from dataquality.exceptions import GalileoException
 
 __all__ = [
     "__version__",
@@ -24,7 +23,6 @@ __all__ = [
     "config",
     "finish",
     "set_labels_for_run",
-    "GalileoException",
 ]
 
 resource.setrlimit(resource.RLIMIT_NOFILE, (65535, 65535))

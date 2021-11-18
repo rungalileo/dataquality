@@ -4,18 +4,15 @@ import threading
 from glob import glob
 from typing import Any, Dict, Optional
 
-import requests
 import vaex
-from requests import HTTPError
 
 from dataquality import config
-from dataquality.clients import object_store
+from dataquality.clients import api_client, object_store
 from dataquality.core.log import DATA_FOLDERS
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.jsonl_logger import JsonlLogger
-from dataquality.schemas import ProcName, Route
+from dataquality.schemas import ProcName, RequestType, Route
 from dataquality.schemas.split import Split
-from dataquality.utils.auth import headers
 from dataquality.utils.thread_pool import ThreadPoolManager
 
 lock = threading.Lock()
@@ -103,27 +100,9 @@ def finish() -> Optional[Dict[str, Any]]:
         proc_name=ProcName.default.value,
         labels=config.labels,
     )
-    r = requests.post(
-        f"{config.api_url}/{Route.proc_pool}",
-        json=body,
-        headers=headers(config.token),
+    res = api_client.make_request(
+        RequestType.POST, url=f"{config.api_url}/{Route.proc_pool}", body=body
     )
-    try:
-        r.raise_for_status()
-    except HTTPError:
-        try:
-            err = "There was an issue with your request. The following was raised:\n"
-            details = r.json()["detail"]
-            for detail in details:
-                err += f'The provided {detail["loc"][-1]} {detail["msg"]}\n'
-        except Exception:
-            err = (
-                f"Your request could not be completed. The following error was "
-                f"raised: {r.text}"
-            )
-        raise GalileoException(err) from None
-
-    res = r.json()
     print(
         f"Job {res['proc_name']} successfully submitted. Results will be available "
         f"soon at {res['link']}"
