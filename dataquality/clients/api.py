@@ -63,10 +63,7 @@ class ApiClient:
             RequestType.GET,
             url=f"{config.api_url}/{Route.projects}/?project_name={project_name}",
         )
-        p = {}
-        if projs:
-            p = projs[0]
-        return p
+        return projs[0] if projs else {}
 
     def get_project_runs(self, project_id: UUID4) -> List[Dict]:
         """Gets all runs from a project by ID"""
@@ -90,33 +87,26 @@ class ApiClient:
 
     def get_project_run_by_name(self, project_name: str, run_name: str) -> Dict:
         proj = self.get_project_by_name(project_name)
-        runs = self.make_request(
-            RequestType.GET, url=f"{config.api_url}/{Route.projects}/{proj['id']}/runs/"
-        )
-        named_run = {}
-        for run in runs:
-            if run["name"] == run_name:
-                named_run = run
-        return named_run
+        url = f"{config.api_url}/{Route.projects}/{proj['id']}/runs?run_name={run_name}"
+        runs = self.make_request(RequestType.GET, url=url)
+        return runs[0] if runs else {}
 
     def create_project(self, project_name: str) -> Dict:
         """Creates a project given a name and returns the project information"""
         body = {"name": project_name}
-        self.make_request(
+        return self.make_request(
             RequestType.POST, url=f"{config.api_url}/{Route.projects}", body=body
         )
-        return self.get_project_by_name(project_name)
 
     def create_run(self, project_name: str, run_name: str) -> Dict:
         """Creates a run in a given project"""
         body = {"name": run_name}
         proj = self.get_project_by_name(project_name)
-        self.make_request(
+        return self.make_request(
             RequestType.POST,
             url=f"{config.api_url}/{Route.projects}/{proj['id']}/runs",
             body=body,
         )
-        return self.get_project_run_by_name(project_name, run_name)
 
 
 api_client = ApiClient()

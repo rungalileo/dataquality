@@ -22,7 +22,13 @@ class _Init:
 
     def _initialize_new_project(self, project_name: str) -> Dict:
         print(f"✨ Initializing project {project_name}")
-        return api_client.create_project(project_name=project_name)
+        try:
+            return api_client.create_project(project_name=project_name)
+        except GalileoException as e:
+            if "A project with this name already exists" in str(e):
+                return api_client.get_project_by_name(project_name)
+            else:
+                raise e
 
     def _initialize_run_for_project(self, project_name: str, run_name: str) -> Dict:
         print(f"🏃‍♂️ Starting run {run_name}")
@@ -92,11 +98,11 @@ def init(project_name: Optional[str] = None, run_name: Optional[str] = None) -> 
             config.current_project_id = project_response["id"]
             config.current_run_id = run_response["id"]
     elif project_name and run_name:
-        # If the project and run exist, connect to them
-        print(f"📡 Retrieving existing run from project, {project_name}")
         project = _init.get_project_by_name_for_user(project_name)
         # if project actually exists, get the run
         if project.get("name"):
+            # If the project and run exist, connect to them
+            print(f"📡 Retrieving existing run from project, {project_name}")
             run = _init.get_project_run_by_name_for_user(
                 project["name"], run_name=run_name
             )
