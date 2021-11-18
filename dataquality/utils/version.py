@@ -10,8 +10,10 @@ from dataquality.schemas.route import Route
 def _version_check() -> None:
     """_version_check.
 
-    Asserts that the dataquality python client has
-    matching major and minor versions.
+    Asserts that the dataquality python client and the api have
+    matching major versions.
+
+    https://semver.org/#summary.
 
     Returns:
         None
@@ -19,12 +21,10 @@ def _version_check() -> None:
     client_semver = _parse_version(_get_client_version())
     server_semver = _parse_version(_get_api_version())
     try:
-        major_match = client_semver.major == server_semver.major
-        minor_match = client_semver.minor == server_semver.minor
-        assert major_match and minor_match
+        assert client_semver.major == server_semver.major
     except AssertionError:
         raise GalileoException(
-            "Major-minor mismatch between client, "
+            "Major mismatch between client, "
             f"{client_semver}, and server {server_semver}."
         )
 
