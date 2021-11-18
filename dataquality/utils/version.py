@@ -21,12 +21,19 @@ def _version_check() -> None:
     client_semver = _parse_version(_get_client_version())
     server_semver = _parse_version(_get_api_version())
     try:
-        assert client_semver.major == server_semver.major
+        assert _major_version(client_semver) == _major_version(server_semver)
     except AssertionError:
         raise GalileoException(
             "Major mismatch between client, "
             f"{client_semver}, and server {server_semver}."
         )
+
+
+def _major_version(v: pkg_resources.extern.packaging.version.Version) -> str:
+    if hasattr(v, "major"):
+        return str(v.major)
+    else:
+        return str(v.base_version).split(".")[0]
 
 
 def _parse_version(version: str) -> pkg_resources.extern.packaging.version.Version:
