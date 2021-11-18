@@ -4,7 +4,7 @@ from importlib import reload
 import pytest
 
 import dataquality
-import dataquality.core.config
+import dataquality.core._config
 from dataquality.core.finish import _cleanup, _upload
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.jsonl_logger import JsonlInputLogItem
@@ -73,9 +73,9 @@ def test_config_no_vars(monkeypatch):
     monkeypatch.setattr("builtins.input", lambda inp: "" if "region" in inp else "test")
     monkeypatch.setattr("getpass.getpass", lambda _: "test_pass")
 
-    reload(dataquality.core.config)
-    assert dataquality.core.config.config.api_url == "http://test"
-    assert dataquality.core.config.config.minio_secret_key == "test_pass"
-    assert dataquality.core.config.config.minio_region == "us-east-1"
+    reload(dataquality.core._config)
+    assert dataquality.core._config.config.api_url == "http://test"
+    assert dataquality.core._config.config.minio_secret_key == "test_pass"
+    assert dataquality.core._config.config.minio_region == "us-east-1"
 
     os.environ["GALILEO_API_URL"] = x

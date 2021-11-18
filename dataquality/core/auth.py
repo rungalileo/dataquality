@@ -2,9 +2,10 @@ import getpass
 import os
 from typing import Callable, Dict
 
-import requests
-
-from dataquality.core.config import AuthMethod, Config, _Config, config
+from dataquality.clients import api_client
+from dataquality.core._config import AuthMethod, Config, _Config, config
+from dataquality.exceptions import GalileoException
+from dataquality.schemas import RequestType, Route
 
 GALILEO_AUTH_METHOD = "GALILEO_AUTH_METHOD"
 
@@ -26,19 +27,21 @@ class _Auth:
         if not username or not password:
             username = input("📧 Enter your email:")
             password = getpass.getpass("🤫 Enter your password:")
-        res = requests.post(
-            f"{self.config.api_url}/login",
-            data={
+
+        try:
+            data = {
                 "username": username,
                 "password": password,
                 "auth_method": self.auth_method,
-            },
-        )
-        if res.status_code != 200:
-            print(res.json())
+            }
+            res = api_client.make_request(
+                RequestType.POST, url=f"{self.config.api_url}/{Route.login}", data=data
+            )
+        except GalileoException as e:
+            print(e)
             return
 
-        access_token = res.json().get("access_token")
+        access_token = res.get("access_token")
         self.config.token = access_token
         _config = _Config()
         _config.write_config(self.config.json())
@@ -48,24 +51,15 @@ class _Auth:
 
     def valid_current_user(self, config: Config) -> bool:
         if config.token:
-            return (
-                requests.get(
-                    f"{self.config.api_url}/current_user",
-                    headers={"Authorization": f"Bearer {config.token}"},
-                ).status_code
-                == 200
-            )
+            try:
+                api_client.make_request(
+                    RequestType.GET, url=f"{config.api_url}/{Route.current_user}"
+                )
+                return True
+            except GalileoException:
+                return False
         else:
             return False
-
-    def get_current_user(self, config: Config) -> Dict:
-        if not config.token:
-            raise Exception("Current user is not set!")
-
-        return requests.get(
-            f"{self.config.api_url}/current_user",
-            headers={"Authorization": f"Bearer {config.token}"},
-        ).json()
 
 
 def login() -> None:
@@ -92,7 +86,7 @@ def login() -> None:
     config.auth_method = AuthMethod(auth_method)
     _auth = _Auth(config=config, auth_method=config.auth_method)
     _auth.auth_methods()[config.auth_method]()
-    current_user_email = _auth.get_current_user(config).get("email")
+    current_user_email = api_client.get_current_user().get("email")
     if not current_user_email:
         return
     config.current_user = current_user_email

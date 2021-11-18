@@ -4,7 +4,7 @@ import threading
 import jsonlines
 from pydantic.types import UUID4
 
-from dataquality.core.config import _Config
+from dataquality.core._config import _Config
 
 lock = threading.Lock()
 
