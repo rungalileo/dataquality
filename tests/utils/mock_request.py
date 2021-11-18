@@ -76,8 +76,8 @@ def mocked_missing_run(*args: Any, **kwargs: Dict[Any, Any]):
     if args[0].endswith("current_user"):
         return MockResponse({"id": "user"}, 200)
     # Run does not exist
-    if "run" in args[0]:
-        return MockResponse([{"id": uuid4(), "name": TMP_CREATE_NEW_PROJ_RUN}], 204)
+    if "run_name" in args[0]:
+        return MockResponse([], 204)
     # Project does exist
     else:
         res = {"id": uuid4(), "name": EXISTING_PROJECT}

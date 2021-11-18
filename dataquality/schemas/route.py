@@ -8,6 +8,7 @@ class Route(str, Enum):
 
     proc_pool = "proc/pool"
     projects = "projects"
+    runs = "runs"
     users = "users"
     cleanup = "cleanup"
     login = "login"
