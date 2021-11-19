@@ -112,9 +112,7 @@ def init(project_name: Optional[str] = None, run_name: Optional[str] = None) -> 
                 print(f"🛰 Connected to project, {project_name}, and run, {run_name}.")
             else:
                 # If the run does not exist, create it
-                run_response = _init._initialize_run_for_project(
-                    project["id"], run_name
-                )
+                run_response = _init._initialize_run_for_project(project_name, run_name)
                 config.current_project_id = project["id"]
                 config.current_run_id = run_response["id"]
                 print(
@@ -126,7 +124,7 @@ def init(project_name: Optional[str] = None, run_name: Optional[str] = None) -> 
             print(f"💭 Project {project_name} was not found.")
             project_response = _init._initialize_new_project(project_name=project_name)
             run_response = _init._initialize_run_for_project(
-                project_name, run_name=run_name
+                project_name=project_name, run_name=run_name
             )
             config.current_project_id = project_response["id"]
             config.current_run_id = run_response["id"]
