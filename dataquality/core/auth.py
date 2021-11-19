@@ -2,8 +2,10 @@ import getpass
 import os
 from typing import Callable, Dict
 
+import requests
+
 from dataquality.clients import api_client
-from dataquality.core._config import AuthMethod, Config, _Config, config
+from dataquality.core._config import AuthMethod, Config, config
 from dataquality.exceptions import GalileoException
 from dataquality.schemas import RequestType, Route
 
@@ -27,24 +29,21 @@ class _Auth:
         if not username or not password:
             username = input("📧 Enter your email:")
             password = getpass.getpass("🤫 Enter your password:")
-
-        try:
-            data = {
+        res = requests.post(
+            f"{self.config.api_url}/login",
+            data={
                 "username": username,
                 "password": password,
                 "auth_method": self.auth_method,
-            }
-            res = api_client.make_request(
-                RequestType.POST, url=f"{self.config.api_url}/{Route.login}", data=data
-            )
-        except GalileoException as e:
-            print(e)
+            },
+        )
+        if res.status_code != 200:
+            print(res.json())
             return
 
-        access_token = res.get("access_token")
-        self.config.token = access_token
-        _config = _Config()
-        _config.write_config(self.config.json())
+        access_token = res.json().get("access_token")
+        config.token = access_token
+        config.update_file_config()
 
     def email_token_present_and_valid(self, config: Config) -> bool:
         return config.auth_method == "email" and self.valid_current_user(config)
