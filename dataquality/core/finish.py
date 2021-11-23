@@ -93,6 +93,9 @@ def finish() -> Optional[Dict[str, Any]]:
         f"Use dataquality.set_labels_for_run to update your config labels"
     )
     _version_check()
+    # Clear the data in minio before uploading new data
+    # If this is a run that already existed, we want to fully overwrite the old data
+    api_client.reset_run(config.current_project_id, config.current_run_id)
     _upload()
     _cleanup()
 
