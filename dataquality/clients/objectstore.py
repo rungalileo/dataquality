@@ -1,3 +1,4 @@
+from tempfile import NamedTemporaryFile
 from typing import Any, Dict
 
 from minio import Minio
@@ -44,14 +45,16 @@ class ObjectStore:
         self, df: DataFrame, object_name: str
     ) -> None:
         """Uploads a Vaex dataframe to Minio at the specified object_name location"""
-        minio_path = f"s3://{self.ROOT_BUCKET_NAME}/{object_name}"
-        df.export_arrow(
-            minio_path,
-            fs_options=self.get_fs_options(),
-            parallel=True,
-            reduce_large=True,
-            as_stream=True,
-        )
+        assert config.current_project_id is not None
+        assert config.current_run_id is not None
+        with NamedTemporaryFile(suffix=".arrow") as f:
+            df.export_arrow(f.name)
+            self.create_project_run_object(
+                project_id=config.current_project_id,
+                run_id=config.current_run_id,
+                object_name=object_name,
+                file_path=f.name,
+            )
 
     def get_fs_options(self) -> Dict[str, Any]:
         return dict(
