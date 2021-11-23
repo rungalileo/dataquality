@@ -114,5 +114,25 @@ class ApiClient:
             body=body,
         )
 
+    def reset_run(self, project_id: UUID4, run_id: UUID4) -> Dict:
+        """Resets a run by clearing all minio run data.
+
+        Called before any call to `dataquality.finish`
+        """
+        url = (
+            f"{config.api_url}/{Route.projects}/{project_id}/{Route.runs}/{run_id}/data"
+        )
+        return self.make_request(RequestType.DELETE, url=url)
+
+    def delete_run(self, project_id: UUID4, run_id: UUID4) -> Dict:
+        """Deletes a run
+
+        This clears all metadata about the run, all object data, and the run itself
+        """
+        return self.make_request(
+            RequestType.DELETE,
+            url=f"{config.api_url}/{Route.projects}/{project_id}/{Route.runs}/{run_id}",
+        )
+
 
 api_client = ApiClient()
