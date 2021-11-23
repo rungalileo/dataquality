@@ -1,4 +1,4 @@
-import os
+from tempfile import NamedTemporaryFile
 from typing import Any, Dict
 
 from minio import Minio
@@ -6,7 +6,6 @@ from pydantic.types import UUID4
 from vaex.dataframe import DataFrame
 
 from dataquality import config
-from dataquality.loggers import JsonlLogger
 
 
 class ObjectStore:
@@ -46,17 +45,16 @@ class ObjectStore:
         self, df: DataFrame, object_name: str
     ) -> None:
         """Uploads a Vaex dataframe to Minio at the specified object_name location"""
-        tmp_filename = f"{JsonlLogger.LOG_FILE_DIR}/{object_name}.tmp"
-        df.export_arrow(tmp_filename)
         assert config.current_project_id is not None
         assert config.current_run_id is not None
-        self.create_project_run_object(
-            project_id=config.current_project_id,
-            run_id=config.current_run_id,
-            object_name=object_name,
-            file_path=tmp_filename,
-        )
-        os.remove(tmp_filename)
+        with NamedTemporaryFile(suffix=".arrow") as f:
+            df.export_arrow(f.name)
+            self.create_project_run_object(
+                project_id=config.current_project_id,
+                run_id=config.current_run_id,
+                object_name=object_name,
+                file_path=f.name,
+            )
 
     def get_fs_options(self) -> Dict[str, Any]:
         return dict(
