@@ -60,14 +60,18 @@ def log_batch_input_data(data: GalileoDataConfig) -> None:
         data.validate()
     except AssertionError as e:
         raise GalileoException(e)
-    for idx, text, label in zip(data.ids, data.text, data.labels):
-        log_input_data(
-            {
+    for idx, text, label, *meta_vals in zip(data.ids, data.text, data.labels, *data.meta.values()):
+        inp = {
                 "id": idx,
                 "text": text,
                 "gold": str(label) if data.split != Split.inference else None,
                 "split": data.split,
             }
+        for k, v in zip(data.meta.keys(), meta_vals):
+            inp[k] = v
+
+        log_input_data(
+            inp
         )
 
 
