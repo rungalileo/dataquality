@@ -1,5 +1,6 @@
 import os
 from random import random
+from typing import List, Optional
 
 import pandas as pd
 import vaex
@@ -14,10 +15,13 @@ NUM_RECORDS = 50
 NUM_LOGS = 10
 
 
-def validate_uploaded_data(expected_num_records: int) -> None:
+def validate_uploaded_data(
+    expected_num_records: int, meta_cols: Optional[List] = None
+) -> None:
     """
     Checks for testing
     """
+    meta_cols = meta_cols or []
     for split in SPLITS:
         # Output data
         split_output_data = {}
@@ -32,6 +36,8 @@ def validate_uploaded_data(expected_num_records: int) -> None:
         emb = split_output_data["emb"]
         prob = split_output_data["prob"]
 
+        for i in meta_cols:
+            assert i in data.columns
         assert len(data) == len(emb) == len(prob) == expected_num_records
         assert (
             sorted(data["id"].unique())
@@ -49,11 +55,13 @@ def validate_cleanup_data():
         assert not os.path.isdir(f"{LOCATION}/{split}")
 
 
-def _log_data(num_records=NUM_RECORDS, num_logs=NUM_LOGS, unique_ids=True) -> None:
+def _log_data(
+    num_records=NUM_RECORDS, num_logs=NUM_LOGS, unique_ids=True, meta_cols=None
+) -> None:
     """
     Logs some mock data to disk
     """
-
+    meta_cols = meta_cols or []
     # Log train/test data
     for split in [Split.test, Split.training]:
         newsgroups_train = fetch_20newsgroups(
@@ -64,6 +72,9 @@ def _log_data(num_records=NUM_RECORDS, num_logs=NUM_LOGS, unique_ids=True) -> No
         dataset["text"] = newsgroups_train.data
         dataset["label"] = newsgroups_train.target
         dataset = dataset[: num_records * num_logs]
+        meta = {}
+        for i in meta_cols:
+            meta[i] = [random() for _ in range(len(dataset))]
         gconfig = GalileoDataConfig(
             text=dataset["text"], labels=dataset["label"], split=split.value
         )

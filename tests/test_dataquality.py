@@ -36,6 +36,25 @@ def test_threaded_logging_and_upload(cleanup_after_use) -> None:
         ThreadPoolManager.wait_for_threads()
 
 
+def test_metadata_logging(cleanup_after_use) -> None:
+    """
+    Tests that threaded calls to upload still yield non-missing datasets
+    """
+    num_records = 50
+    meta_cols = ["test1", "meta2"]
+    _log_data(num_records=num_records, meta_cols=meta_cols)
+    try:
+        # Equivalent to the users `finish` call, but we don't want to clean up files yet
+        ThreadPoolManager.wait_for_threads()
+        _upload()
+        validate_uploaded_data(num_records * NUM_LOGS)
+        _cleanup()
+        validate_cleanup_data()
+    finally:
+        # Mock finish() call without calling the API
+        ThreadPoolManager.wait_for_threads()
+
+
 def test_set_data_version_fail():
     """
     You should not be able to set the data_schema_version of your logged data.

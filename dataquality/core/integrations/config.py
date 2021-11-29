@@ -1,6 +1,6 @@
 import warnings
 from enum import Enum, unique
-from typing import Any, List, Optional, Union, Dict
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 
@@ -51,12 +51,12 @@ class GalileoModelConfig:
     """
 
     def __init__(
-            self,
-            emb: List[List[Union[int, float]]] = None,
-            probs: List[List[float]] = None,
-            ids: List[Union[int, str]] = None,
-            split: Optional[str] = None,
-            epoch: Optional[int] = None,
+        self,
+        emb: List[List[Union[int, float]]] = None,
+        probs: List[List[float]] = None,
+        ids: List[Union[int, str]] = None,
+        split: Optional[str] = None,
+        epoch: Optional[int] = None,
     ) -> None:
         # Need to compare to None because they may be np arrays which cannot be
         # evaluated with bool directly
@@ -108,8 +108,8 @@ class GalileoModelConfig:
             # but we want it to conform
             self.split = Split.training if self.split == "train" else self.split
             assert (
-                    isinstance(self.split, str)
-                    and self.split in Split.get_valid_attributes()
+                isinstance(self.split, str)
+                and self.split in Split.get_valid_attributes()
             ), (
                 f"Split should be one of {Split.get_valid_attributes()} "
                 f"but got {self.split}"
@@ -151,12 +151,12 @@ class GalileoDataConfig:
     """
 
     def __init__(
-            self,
-            text: List[str] = None,
-            labels: List[str] = None,
-            ids: List[Union[int, str]] = None,
-            split: Split = None,
-            **kwargs: Optional[Dict[str, List[Union[str, float, int]]]]
+        self,
+        text: List[str] = None,
+        labels: List[str] = None,
+        ids: List[Union[int, str]] = None,
+        split: Split = None,
+        **kwargs: Dict[str, List[Union[str, float, int]]],
     ) -> None:
         # Need to compare to None because they may be np arrays which cannot be
         # evaluated with bool directly
@@ -195,8 +195,7 @@ class GalileoDataConfig:
         assert self.split, "Your GalileoDataConfig has no split!"
         self.split = Split.training if self.split == "train" else self.split
         assert (
-                isinstance(self.split,
-                           str) and self.split in Split.get_valid_attributes()
+            isinstance(self.split, str) and self.split in Split.get_valid_attributes()
         ), (
             f"Split should be one of {Split.get_valid_attributes()} "
             f"but got {self.split}"
@@ -225,8 +224,10 @@ class GalileoDataConfig:
             self.ids = list(range(text_len))
 
         if len(self.meta.keys()) > MAX_META_COLS:
-            warnings.warn(f"You can only log up to {MAX_META_COLS} metadata attrs. "
-                          f"The first {MAX_META_COLS} will be logged only.")
+            warnings.warn(
+                f"You can only log up to {MAX_META_COLS} metadata attrs. "
+                f"The first {MAX_META_COLS} will be logged only."
+            )
         # When logging metadata columns, if the user breaks a rule, don't fail
         # completely, just warn them and remove that metadata column
         # Cast to list for in-place dictionary mutation
@@ -242,8 +243,10 @@ class GalileoDataConfig:
                 continue
             # Must be the same length as input
             if len(values) != text_len:
-                warnings.warn(f"Expected {text_len} values for key {key} but got "
-                              f"{len(values)}. Will not log this metadata column.")
+                warnings.warn(
+                    f"Expected {text_len} values for key {key} but got "
+                    f"{len(values)}. Will not log this metadata column."
+                )
                 self.meta.pop(key)
                 continue
             # Values must be a point, not an iterable

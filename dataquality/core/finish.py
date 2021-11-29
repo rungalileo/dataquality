@@ -1,6 +1,7 @@
 import os
 import shutil
 import threading
+from collections import Counter
 from glob import glob
 from typing import Any, Dict, Optional
 
@@ -43,10 +44,12 @@ def _upload() -> None:
                 # Validate all ids within an epoch/split are unique
                 if df["id"].nunique() != len(df):
                     epoch = epoch_dir.split("/")[-1]
+                    id_counts: Counter = Counter(df["id"].tolist())
+                    dup_ids = [i for i, ct in id_counts.items() if ct > 1]
                     raise GalileoException(
                         "It seems as though you do not have unique ids in this "
                         f"split/epoch. Did you provide your own IDs?\n"
-                        f"split:{split}, epoch:{epoch}, ids:{df['id'].tolist()}"
+                        f"split:{split}, epoch:{epoch}, dup ids:{dup_ids}"
                     )
 
                 # Remove the log_file_dir from the object store path

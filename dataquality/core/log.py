@@ -42,6 +42,7 @@ def log_input_data(data: Dict) -> None:
         raise e
     assert config.current_project_id is not None
     assert config.current_run_id is not None
+    data.update(input_data.dict())
     logger.jsonl_logger.write_input(
         config.current_project_id, config.current_run_id, data
     )
@@ -60,19 +61,19 @@ def log_batch_input_data(data: GalileoDataConfig) -> None:
         data.validate()
     except AssertionError as e:
         raise GalileoException(e)
-    for idx, text, label, *meta_vals in zip(data.ids, data.text, data.labels, *data.meta.values()):
+    for idx, text, label, *meta_vals in zip(
+        data.ids, data.text, data.labels, *data.meta.values()
+    ):
         inp = {
-                "id": idx,
-                "text": text,
-                "gold": str(label) if data.split != Split.inference else None,
-                "split": data.split,
-            }
+            "id": idx,
+            "text": text,
+            "gold": str(label) if data.split != Split.inference else None,
+            "split": data.split,
+        }
         for k, v in zip(data.meta.keys(), meta_vals):
             inp[k] = v
 
-        log_input_data(
-            inp
-        )
+        log_input_data(inp)
 
 
 def validate_model_output(data: Dict) -> JsonlOutputLogItem:
