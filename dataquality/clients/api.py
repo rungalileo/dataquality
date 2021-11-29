@@ -140,6 +140,10 @@ class ApiClient:
         This clears all metadata about the run, all object data, and the run itself
         """
         run = self.get_project_run_by_name(project_name, run_name)
+        if not run:
+            raise GalileoException(
+                f"No project/run found with name " f"{project_name}/{run_name}"
+            )
         project_id = run["project_id"]
         run_id = run["id"]
         return self.make_request(
@@ -171,6 +175,8 @@ class ApiClient:
         all object data, and the run itself
         """
         project = self.get_project_by_name(project_name)
+        if not project:
+            raise GalileoException(f"No project found with name {project_name}")
         self.delete_project(project["id"])
 
 
