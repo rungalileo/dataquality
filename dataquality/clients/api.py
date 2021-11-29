@@ -134,5 +134,44 @@ class ApiClient:
             url=f"{config.api_url}/{Route.projects}/{project_id}/{Route.runs}/{run_id}",
         )
 
+    def delete_project_run_by_name(self, project_name: str, run_name: str) -> None:
+        """Deletes a run via name
+
+        This clears all metadata about the run, all object data, and the run itself
+        """
+        run = self.get_project_run_by_name(project_name, run_name)
+        project_id = run["project_id"]
+        run_id = run["id"]
+        return self.make_request(
+            RequestType.DELETE,
+            url=f"{config.api_url}/{Route.projects}/{project_id}/{Route.runs}/{run_id}",
+        )
+
+    def delete_project(self, project_id: UUID4) -> Dict:
+        """Deletes a project
+
+        For each run in the project, this clears all metadata about the run,
+        all object data, and the run itself
+        """
+        runs = self.get_project_runs(project_id)
+        print("Deleting all runs within project.")
+        for run in runs:
+            print(f"Deleting run {run['name']}", end="... ")
+            self.delete_run(project_id, run["id"])
+            print("Done.")
+        return self.make_request(
+            RequestType.DELETE,
+            url=f"{config.api_url}/{Route.projects}/{project_id}",
+        )
+
+    def delete_project_by_name(self, project_name: str) -> None:
+        """Deletes a project by name
+
+        For each run in the project, this clears all metadata about the run,
+        all object data, and the run itself
+        """
+        project = self.get_project_by_name(project_name)
+        self.delete_project(project["id"])
+
 
 api_client = ApiClient()
