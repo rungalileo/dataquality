@@ -2,7 +2,6 @@ from tempfile import NamedTemporaryFile
 from typing import Any, Dict
 
 from minio import Minio
-from pydantic.types import UUID4
 from vaex.dataframe import DataFrame
 
 from dataquality import config
