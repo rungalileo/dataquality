@@ -134,7 +134,7 @@ class ApiClient:
             url=f"{config.api_url}/{Route.projects}/{project_id}/{Route.runs}/{run_id}",
         )
 
-    def delete_project_run_by_name(self, project_name: str, run_name: str) -> None:
+    def delete_run_by_name(self, project_name: str, run_name: str) -> None:
         """Deletes a run via name
 
         This clears all metadata about the run, all object data, and the run itself
