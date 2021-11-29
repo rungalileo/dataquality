@@ -28,15 +28,13 @@ class ObjectStore:
 
     def create_project_run_object(
         self,
-        project_id: UUID4,
-        run_id: UUID4,
         object_name: str,
         file_path: str,
         content_type: str = "application/octet-stream",
     ) -> None:
         self.minio_client.fput_object(
             self.ROOT_BUCKET_NAME,
-            f"{project_id}/{run_id}/{object_name}",
+            object_name,
             file_path=file_path,
             content_type=content_type,
         )
@@ -45,13 +43,9 @@ class ObjectStore:
         self, df: DataFrame, object_name: str
     ) -> None:
         """Uploads a Vaex dataframe to Minio at the specified object_name location"""
-        assert config.current_project_id is not None
-        assert config.current_run_id is not None
         with NamedTemporaryFile(suffix=".arrow") as f:
             df.export_arrow(f.name)
             self.create_project_run_object(
-                project_id=config.current_project_id,
-                run_id=config.current_run_id,
                 object_name=object_name,
                 file_path=f.name,
             )
