@@ -43,7 +43,7 @@ def log_input_data(data: Dict) -> None:
     assert config.current_project_id is not None
     assert config.current_run_id is not None
     logger.jsonl_logger.write_input(
-        config.current_project_id, config.current_run_id, input_data.dict()
+        config.current_project_id, config.current_run_id, data
     )
 
 
