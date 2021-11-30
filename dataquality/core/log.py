@@ -12,11 +12,13 @@ from dataquality import config
 from dataquality.core.integrations.config import GalileoDataConfig, GalileoModelConfig
 from dataquality.exceptions import GalileoException
 from dataquality.loggers import JsonlLogger
-from dataquality.schemas.jsonl_logger import JsonlInputLogItem, JsonlOutputLogItem
+from dataquality.schemas import __data_schema_version__
+from dataquality.schemas.jsonl_logger import JsonlOutputLogItem
 from dataquality.schemas.split import Split
 from dataquality.utils.thread_pool import ThreadPoolManager
 
 DATA_FOLDERS = ["emb", "prob", "data"]
+INPUT_DATA_NAME = "input_data.pkl"
 
 
 class Logger:
@@ -36,14 +38,12 @@ def log_input_data(data: Dict) -> None:
     :param data: Dictionary of data attributes (input text, labels, and ids)
     :return: None
     """
-    try:
-        input_data = JsonlInputLogItem(**data)
-    except ValidationError as e:
-        raise e
+    input_data = data
+    input_data["data_schema_version"] = __data_schema_version__
     assert config.current_project_id is not None
     assert config.current_run_id is not None
     logger.jsonl_logger.write_input(
-        config.current_project_id, config.current_run_id, input_data.dict()
+        config.current_project_id, config.current_run_id, input_data
     )
 
 
@@ -60,15 +60,26 @@ def log_batch_input_data(data: GalileoDataConfig) -> None:
         data.validate()
     except AssertionError as e:
         raise GalileoException(e)
-    for idx, text, label in zip(data.ids, data.text, data.labels):
-        log_input_data(
-            {
-                "id": idx,
-                "text": text,
-                "gold": str(label) if data.split != Split.inference else None,
-                "split": data.split,
-            }
+
+    write_input_dir = (
+        f"{logger.jsonl_logger.log_file_dir}/{config.current_project_id}/"
+        f"{config.current_run_id}"
+    )
+    if not os.path.exists(write_input_dir):
+        os.makedirs(write_input_dir)
+    df = pd.DataFrame(
+        dict(
+            id=data.ids,
+            text=data.text,
+            split=data.split,
+            data_schema_version=1,
+            gold=data.labels if data.split != Split.validation else None,
         )
+    )
+    file_path = f"{write_input_dir}/{INPUT_DATA_NAME}"
+    if os.path.isfile(file_path):
+        df = pd.concat([df, pd.read_pickle(file_path)])
+    df.to_pickle(file_path)
 
 
 def validate_model_output(data: Dict) -> JsonlOutputLogItem:
@@ -147,11 +158,7 @@ def write_model_output(model_output: pd.DataFrame) -> None:
     )
     in_frame_dtypes = {"gold": "object"}
     out_frame_dtypes = {"pred": "int64"}
-    in_frame = pd.read_json(
-        f"{location}/{JsonlLogger.INPUT_FILENAME}",
-        lines=True,
-        dtype=in_frame_dtypes,
-    )
+    in_frame = pd.read_pickle(f"{location}/{INPUT_DATA_NAME}").astype(in_frame_dtypes)
     out_frame = model_output.astype(dtype=out_frame_dtypes)
 
     in_out = out_frame.merge(

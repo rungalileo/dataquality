@@ -102,7 +102,7 @@ class GalileoModelConfig:
         if self.split:
             # User may manually pass in 'train' instead of 'training'
             # but we want it to conform
-            self.split = Split.training if self.split == "train" else self.split
+            self.split = Split.training.value if self.split == "train" else self.split
             assert (
                 isinstance(self.split, str)
                 and self.split in Split.get_valid_attributes()
@@ -151,7 +151,7 @@ class GalileoDataConfig:
         text: List[str] = None,
         labels: List[str] = None,
         ids: List[Union[int, str]] = None,
-        split: Split = None,
+        split: str = None,
     ) -> None:
         # Need to compare to None because they may be np arrays which cannot be
         # evaluated with bool directly
@@ -187,7 +187,7 @@ class GalileoDataConfig:
         self.ids = _convert_tensor_ndarray(self.ids)
 
         assert self.split, "Your GalileoDataConfig has no split!"
-        self.split = Split.training if self.split == "train" else self.split
+        self.split = Split.training.value if self.split == "train" else self.split
         assert (
             isinstance(self.split, str) and self.split in Split.get_valid_attributes()
         ), (
