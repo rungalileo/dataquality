@@ -1,3 +1,10 @@
+"""Use dataquality client as if we were training a model without training a model
+
+Usage: python model_training_run.py
+To change datasets change DATASET FLAG to something in this s3 bucket:
+https://s3.console.aws.amazon.com/s3/buckets/galileo-ml-train?region=us-west-1&prefix=datasets/original/&showversions=false
+"""
+
 # Set environment flags for dataquality import
 import os
 os.environ['GALILEO_API_URL'] = "https://api.dev.rungalileo.io"
@@ -33,16 +40,20 @@ def download_dataset_from_aws(dataset_folder_path: str) -> None:
     )
     os.system(cmd)
 
+
 def load_dataset_split(dataset: str, split: str) -> pd.DataFrame:
     dataset = pd.read_csv(dataset + f"_{split}.csv")
     print(dataset.info(memory_usage="deep"))
 
+
 def generate_random_embeddings(batch_size: int, emb_dims: int) -> np.ndarray:
     return np.random.rand(batch_size, emb_dims)
+
 
 def generate_random_probabilities(batch_size: int, num_classes: int) -> np.ndarray:
     probs = np.random.rand(batch_size, num_classes)
     return probs / probs.sum(axis=-1).reshape(-1, 1) # Normalize to sum to 1
+
 
 if __name__ == '__main__':
     download_dataset_from_aws(DATASET_FOLDER_PATH)
@@ -96,4 +107,3 @@ if __name__ == '__main__':
                 emb=embedding, probs=probs, split="test", epoch=epoch_idx, ids=batch["id"]
             ))
     print(f"Took {time.time() - t_start} seconds")
-
