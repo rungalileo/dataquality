@@ -1,6 +1,6 @@
 """Use dataquality client as if we were training a model without training a model
 
-Usage: python model_training_run.py
+Usage: `python model_training_run.py`
 To change datasets change DATASET flag to something in this s3 bucket:
 https://s3.console.aws.amazon.com/s3/buckets/galileo-ml-train?region=us-west-
 1&prefix=datasets/original/&showversions=false
