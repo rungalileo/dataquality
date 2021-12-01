@@ -27,24 +27,25 @@ from alive_progress import alive_it
 import dataquality
 from dataquality.core.integrations.config import GalileoDataConfig, GalileoModelConfig
 
-DATASET = "trec6"
+DATASET = "agnews"
 TRAIN_DATASET_NAME = f"{DATASET}_train.csv"
 TEST_DATASET_NAME = f"{DATASET}_test.csv"
 DATASET_FOLDER_PATH = Path("galileo-ml-train") / "datasets" / "original" / DATASET
 
-NUM_EPOCHS = 5
+NUM_EPOCHS = 1
 BATCH_SIZE = 32
 EMB_DIM = 768
 
 
 def download_dataset_from_aws(dataset_folder_path: str) -> None:
-    cmd = f"aws s3 sync s3://{dataset_folder_path} ."
+    cmd = f"aws s3 cp --recursive s3://{dataset_folder_path} ."
     os.system(cmd)
 
 
 def load_dataset_split(dataset: str, split: str) -> pd.DataFrame:
     dataset = pd.read_csv(dataset + f"_{split}.csv")
     print(dataset.info(memory_usage="deep"))
+    return dataset
 
 
 def generate_random_embeddings(batch_size: int, emb_dims: int) -> np.ndarray:
@@ -58,7 +59,6 @@ def generate_random_probabilities(batch_size: int, num_classes: int) -> np.ndarr
 
 if __name__ == "__main__":
     download_dataset_from_aws(DATASET_FOLDER_PATH)
-
     train_dataset = load_dataset_split(DATASET, "train")
     test_dataset = load_dataset_split(DATASET, "test")
 
@@ -82,6 +82,7 @@ if __name__ == "__main__":
             split="test",
         )
     )
+    dataquality.set_labels_for_run(train_dataset["label"].unique())
     print(f"Took {time.time() - t_start} seconds")
 
     t_start = time.time()
