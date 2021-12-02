@@ -1,7 +1,6 @@
 import pytorch_lightning as pl
 import torch
 
-import vaex
 from dataquality.core.finish import _cleanup, _upload
 from dataquality.core.integrations.lightning import DataQualityCallback
 from dataquality.core.integrations.torch import log_input_data, watch

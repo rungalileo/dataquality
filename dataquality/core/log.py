@@ -84,7 +84,7 @@ def log_batch_input_data(data: GalileoDataConfig) -> None:
     if os.path.isfile(file_path):
         df = vaex.concat([df, vaex.open(file_path)])
     df.export_arrow(file_path)
-    df.close()
+    # df.close()
 
 
 def validate_model_output(data: Dict) -> JsonlOutputLogItem:
