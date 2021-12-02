@@ -60,6 +60,9 @@ def _log_data(num_records=NUM_RECORDS, num_logs=NUM_LOGS, unique_ids=True) -> No
             subset="train" if split == Split.training else split.value,
             remove=("headers", "footers", "quotes"),
         )
+        assert num_records * num_logs <= len(
+            newsgroups_train.data
+        ), f"num_records*num_logs must be less than {len(newsgroups_train.data)} "
         dataset = pd.DataFrame()
         dataset["text"] = newsgroups_train.data
         dataset["label"] = newsgroups_train.target

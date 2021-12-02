@@ -45,7 +45,7 @@ class JsonlInputLogItem(BaseLogItem):
 
 class JsonlOutputLogItem(BaseLogItem):
     id: int
-    split: Split
+    split: str
     epoch: StrictInt
     emb: List[StrictFloat]
     prob: List[StrictFloat]

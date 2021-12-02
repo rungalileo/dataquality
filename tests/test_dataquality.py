@@ -11,7 +11,6 @@ from dataquality.schemas.jsonl_logger import JsonlInputLogItem
 from dataquality.schemas.split import Split
 from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.utils.data_utils import (
-    NUM_LOGS,
     _log_data,
     validate_cleanup_data,
     validate_uploaded_data,
@@ -22,13 +21,14 @@ def test_threaded_logging_and_upload(cleanup_after_use) -> None:
     """
     Tests that threaded calls to upload still yield non-missing datasets
     """
-    num_records = 50
-    _log_data(num_records=num_records)
+    num_records = 32
+    num_logs = 20
+    _log_data(num_records=num_records, num_logs=num_logs)
     try:
         # Equivalent to the users `finish` call, but we don't want to clean up files yet
         ThreadPoolManager.wait_for_threads()
         _upload()
-        validate_uploaded_data(num_records * NUM_LOGS)
+        validate_uploaded_data(num_records * num_logs)
         _cleanup()
         validate_cleanup_data()
     finally:

@@ -11,7 +11,7 @@ class ThreadPoolManager:
     """
 
     THREADS: List[Thread] = []
-    MAX_THREADS = 100
+    MAX_THREADS = 25
 
     @staticmethod
     def add_thread(target: Callable, args: Iterable[Any] = None) -> None:
