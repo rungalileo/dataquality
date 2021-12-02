@@ -27,10 +27,10 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: install dependencies
         run: scripts/install.sh
+      - name: Set Swap Space
+        uses: pierotofy/set-swap-space@v1.0
       - name: test
         run: scripts/test.sh
-        with:
-          swap-size-gb: 5
       - name: upload coverage
         uses: codecov/codecov-action@v1
         with:
