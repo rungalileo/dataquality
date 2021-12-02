@@ -22,7 +22,7 @@ def test_threaded_logging_and_upload(cleanup_after_use) -> None:
     Tests that threaded calls to upload still yield non-missing datasets
     """
     num_records = 32
-    num_logs = 200  # More than max threads
+    num_logs = 20
     # _log_data(num_records=num_records)
     _log_data(num_records=num_records, num_logs=num_logs)
     try:
