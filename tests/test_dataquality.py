@@ -23,7 +23,6 @@ def test_threaded_logging_and_upload(cleanup_after_use) -> None:
     """
     num_records = 32
     num_logs = 20
-    # _log_data(num_records=num_records)
     _log_data(num_records=num_records, num_logs=num_logs)
     try:
         # Equivalent to the users `finish` call, but we don't want to clean up files yet
