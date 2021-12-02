@@ -19,12 +19,13 @@ def test_lightning_autolog(cleanup_after_use) -> None:
     """
     Tests the lightning autolog config and that data is properly stored / logged
     """
+    ThreadPoolManager.MAX_THREADS = 1  # For github actions
 
     train_dataloader = torch.utils.data.DataLoader(
-        NewsgroupDataset("training"), batch_size=64, shuffle=True
+        NewsgroupDataset("training"), batch_size=NUM_RECORDS, shuffle=True
     )
     test_dataloader = torch.utils.data.DataLoader(
-        NewsgroupDataset("test"), batch_size=64, shuffle=True
+        NewsgroupDataset("test"), batch_size=NUM_RECORDS, shuffle=True
     )
     trainer = pl.Trainer(
         max_epochs=1, num_sanity_val_steps=0, callbacks=[(DataQualityCallback())]
