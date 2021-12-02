@@ -210,7 +210,7 @@ def write_model_output(model_output: pd.DataFrame) -> None:
     for file, data_name in zip([emb_wide, prob, in_out], DATA_FOLDERS):
         path = f"{location}/{split}/{epoch}/{data_name}"
         _save_arrow_file(path, object_name, file)
-        file.close()
+        # file.close()
 
 
 def _save_arrow_file(location: str, file_name: str, file: DataFrame) -> None:
@@ -232,6 +232,6 @@ def _save_arrow_file(location: str, file_name: str, file: DataFrame) -> None:
         if len(arrow_files) > 25:
             df = vaex.open_many(arrow_files)
             df.export_arrow(f"{location}/{new_name}")
-            df.close()
+            # df.close()
             for f in arrow_files:
                 os.remove(f)
