@@ -24,8 +24,10 @@ os.environ["GALILEO_AUTH_METHOD"] = "email"
 os.environ["GALILEO_USERNAME"] = "adminy_guy@rungalileo.io"
 os.environ["GALILEO_PASSWORD"] = "Admin123@"
 import dataquality  # noqa
-from dataquality.core.integrations.config import GalileoDataConfig, GalileoModelConfig  # noqa
-
+from dataquality.core.integrations.config import (  # noqa
+    GalileoDataConfig,
+    GalileoModelConfig,
+)
 
 DATASET = "amazon_polarity"
 TRAIN_DATASET_NAME = f"{DATASET}_train.csv"
