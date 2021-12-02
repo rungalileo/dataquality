@@ -43,10 +43,10 @@ def test_lightning_autolog(cleanup_after_use) -> None:
 def test_torch_autolog(cleanup_after_use) -> None:
     """Tests our watch(model) functionality for pytorch"""
     train_dataloader = torch.utils.data.DataLoader(
-        NewsgroupDataset("training"), batch_size=64, shuffle=True
+        NewsgroupDataset("training"), batch_size=NUM_RECORDS, shuffle=True
     )
     test_dataloader = torch.utils.data.DataLoader(
-        NewsgroupDataset("test"), batch_size=64, shuffle=True
+        NewsgroupDataset("test"), batch_size=NUM_RECORDS, shuffle=True
     )
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     torch_model.to(device)
