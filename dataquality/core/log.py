@@ -32,23 +32,6 @@ logger = Logger()
 lock = threading.Lock()
 
 
-def log_input_data(data: Dict) -> None:
-    """
-    Function to log a single line of input data for a train/test/validation dataset.
-    Use the log_batch_input_data instead to take advantage of threading.
-
-    :param data: Dictionary of data attributes (input text, labels, and ids)
-    :return: None
-    """
-    input_data = data
-    input_data["data_schema_version"] = __data_schema_version__
-    assert config.current_project_id is not None
-    assert config.current_run_id is not None
-    logger.jsonl_logger.write_input(
-        config.current_project_id, config.current_run_id, input_data
-    )
-
-
 def log_batch_input_data(data: GalileoDataConfig) -> None:
     """
     First class function to log all input data in batch for a training/validation/test
@@ -75,7 +58,7 @@ def log_batch_input_data(data: GalileoDataConfig) -> None:
                 id=data.ids,
                 text=data.text,
                 split=data.split,
-                data_schema_version=1,
+                data_schema_version=__data_schema_version__,
                 gold=data.labels if data.split != Split.validation else None,
             )
         )
@@ -84,7 +67,7 @@ def log_batch_input_data(data: GalileoDataConfig) -> None:
     if os.path.isfile(file_path):
         df = vaex.concat([df, vaex.open(file_path)])
     df.export_arrow(file_path)
-    # df.close()
+    df.close()
 
 
 def validate_model_output(data: Dict) -> JsonlOutputLogItem:
@@ -210,7 +193,7 @@ def write_model_output(model_output: pd.DataFrame) -> None:
     for file, data_name in zip([emb_wide, prob, in_out], DATA_FOLDERS):
         path = f"{location}/{split}/{epoch}/{data_name}"
         _save_arrow_file(path, object_name, file)
-        # file.close()
+        file.close()
 
 
 def _save_arrow_file(location: str, file_name: str, file: DataFrame) -> None:
@@ -232,6 +215,6 @@ def _save_arrow_file(location: str, file_name: str, file: DataFrame) -> None:
         if len(arrow_files) > 25:
             df = vaex.open_many(arrow_files)
             df.export_arrow(f"{location}/{new_name}")
-            # df.close()
+            df.close()
             for f in arrow_files:
                 os.remove(f)
