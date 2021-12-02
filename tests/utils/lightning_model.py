@@ -80,8 +80,8 @@ class TorchDistilBERTTorch(pl.LightningModule):
 
     def forward(self, x, attention_mask, x_idxs, epoch, split):
         # Fake model building for less memory usage
-        probs = [[random() for _ in range(20)] for _ in range(NUM_RECORDS)]
-        emb = [[random() for _ in range(50)] for _ in range(NUM_RECORDS)]
+        probs = [[random() for _ in range(5)] for _ in range(NUM_RECORDS)]
+        emb = [[random() for _ in range(10)] for _ in range(NUM_RECORDS)]
 
         # Logging with Galileo!
         self.g_model_config = GalileoModelConfig(
@@ -101,8 +101,8 @@ class LightningDistilBERT(pl.LightningModule):
 
     def forward(self, x, attention_mask, x_idxs, epoch, split):
         # Fake model building for less memory usage
-        probs = [[random() for _ in range(20)] for _ in range(NUM_RECORDS)]
-        emb = [[random() for _ in range(50)] for _ in range(NUM_RECORDS)]
+        probs = [[random() for _ in range(5)] for _ in range(NUM_RECORDS)]
+        emb = [[random() for _ in range(10)] for _ in range(NUM_RECORDS)]
 
         # Logging with Galileo!
         self.g_model_config = GalileoModelConfig(emb=emb, probs=probs, ids=x_idxs)

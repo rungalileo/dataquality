@@ -15,9 +15,11 @@ class MockResponse:
     def __init__(self, json_data, status_code):
         self.json_data = json_data
         self.status_code = status_code
-
-    def ok(self):
-        return True
+        if status_code in (200, 204):
+            self.ok = True
+        else:
+            self.ok = False
+            self.text = json_data
 
     def json(self):
         return self.json_data
@@ -58,9 +60,9 @@ def mocked_get_project_run(*args: Any, **kwargs: Dict[Any, Any]):
     if args[0].endswith("current_user"):
         return MockResponse({"id": "user"}, 200)
     res = [
-        {"id": uuid4(), "name": EXISTING_PROJECT},
-        {"id": uuid4(), "name": EXISTING_RUN},
-        {"id": uuid4(), "name": TMP_CREATE_NEW_PROJ_RUN},
+        {"id": uuid4(), "name": EXISTING_PROJECT, "project_id": uuid4()},
+        {"id": uuid4(), "name": EXISTING_RUN, "project_id": uuid4()},
+        {"id": uuid4(), "name": TMP_CREATE_NEW_PROJ_RUN, "project_id": uuid4()},
     ]
     return MockResponse(res, 200)
 
@@ -88,3 +90,21 @@ def mocked_missing_project_run(*args: Any, **kwargs: Dict[Any, Any]):
     if args[0].endswith("current_user"):
         return MockResponse({"id": "user"}, 200)
     return MockResponse([{"id": uuid4(), "name": TMP_CREATE_NEW_PROJ_RUN}], 200)
+
+
+def mocked_missing_project_name(*args: Any, **kwargs: Dict[Any, Any]):
+    if args[0].endswith("current_user"):
+        return MockResponse({"id": "user"}, 200)
+    return MockResponse([], 200)
+
+
+def mocked_delete_project_run(*args: Any, **kwargs: Dict[Any, Any]):
+    if args[0].endswith("current_user"):
+        return MockResponse({"id": "user"}, 200)
+    return MockResponse([{"id": uuid4(), "name": TMP_CREATE_NEW_PROJ_RUN}], 200)
+
+
+def mocked_delete_project_not_found(*args: Any, **kwargs: Dict[Any, Any]):
+    if args[0].endswith("current_user"):
+        return MockResponse({"id": "user"}, 200)
+    return MockResponse({"project not found"}, 404)

@@ -101,6 +101,7 @@ def finish() -> Optional[Dict[str, Any]]:
     api_client.reset_run(config.current_project_id, config.current_run_id)
     _upload()
     _cleanup()
+    config.update_file_config()
 
     body = dict(
         project_id=str(config.current_project_id),

@@ -12,15 +12,16 @@ from dataquality.schemas.split import Split
 from tests.conftest import LOCATION, SPLITS, SUBDIRS, TEST_PATH
 
 NUM_RECORDS = 50
-NUM_LOGS = 10
+NUM_LOGS = 30
 
 
 def validate_uploaded_data(
-    expected_num_records: int, meta_cols: Optional[List] = None
+    expected_num_records: int = None, meta_cols: Optional[List] = None
 ) -> None:
     """
     Checks for testing
     """
+    expected_num_records = expected_num_records or NUM_RECORDS * NUM_LOGS
     meta_cols = meta_cols or []
     for split in SPLITS:
         # Output data
@@ -68,6 +69,9 @@ def _log_data(
             subset="train" if split == Split.training else split.value,
             remove=("headers", "footers", "quotes"),
         )
+        assert num_records * num_logs <= len(
+            newsgroups_train.data
+        ), f"num_records*num_logs must be less than {len(newsgroups_train.data)} "
         dataset = pd.DataFrame()
         dataset["text"] = newsgroups_train.data
         dataset["label"] = newsgroups_train.target
