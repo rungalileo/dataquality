@@ -8,6 +8,12 @@ https://s3.console.aws.amazon.com/s3/buckets/galileo-ml-train?region=us-west-
 
 # Set environment flags for dataquality import
 import os
+import time
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+from alive_progress import alive_it
 
 os.environ["GALILEO_API_URL"] = "https://api.dev.rungalileo.io"
 os.environ["GALILEO_MINIO_URL"] = "data.dev.rungalileo.io"
@@ -17,17 +23,11 @@ os.environ["GALILEO_MINIO_REGION"] = "us-east-1"
 os.environ["GALILEO_AUTH_METHOD"] = "email"
 os.environ["GALILEO_USERNAME"] = "adminy_guy@rungalileo.io"
 os.environ["GALILEO_PASSWORD"] = "Admin123@"
-import time
-from pathlib import Path
+import dataquality  # noqa
+from dataquality.core.integrations.config import GalileoDataConfig, GalileoModelConfig  # noqa
 
-import numpy as np
-import pandas as pd
-from alive_progress import alive_it
 
-import dataquality
-from dataquality.core.integrations.config import GalileoDataConfig, GalileoModelConfig
-
-DATASET = "agnews"
+DATASET = "amazon_polarity"
 TRAIN_DATASET_NAME = f"{DATASET}_train.csv"
 TEST_DATASET_NAME = f"{DATASET}_test.csv"
 DATASET_FOLDER_PATH = Path("galileo-ml-train") / "datasets" / "original" / DATASET
