@@ -27,8 +27,6 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: install dependencies
         run: scripts/install.sh
-      - name: Set Swap Space
-        uses: pierotofy/set-swap-space@v1.0
       - name: test
         run: scripts/test.sh
       - name: upload coverage

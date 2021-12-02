@@ -65,8 +65,12 @@ def log_batch_input_data(data: GalileoDataConfig) -> None:
     )
     file_path = f"{write_input_dir}/{INPUT_DATA_NAME}"
     if os.path.isfile(file_path):
-        df = vaex.concat([df, vaex.open(file_path)])
-    df.export_arrow(file_path)
+        new_name = f"{write_input_dir}/{str(uuid4()).replace('-', '')[:12]}.arrow"
+        os.rename(file_path, new_name)
+        vaex.concat([df, vaex.open(new_name)]).export_arrow(file_path)
+        os.remove(new_name)
+    else:
+        df.export_arrow(file_path)
     df.close()
 
 
