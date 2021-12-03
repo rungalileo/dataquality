@@ -129,7 +129,9 @@ def _log_model_outputs(outputs: GalileoModelConfig) -> None:
     try:
         _log_model_outputs_target(outputs)
     except Exception as e:
-        print(f"An error occurred while logging: {e}")
+        print(f"An error occurred while logging: {str(e)}")
+        import traceback
+        traceback.print_exc()
 
 
 def log_model_outputs(outputs: GalileoModelConfig) -> None:
@@ -158,50 +160,59 @@ def write_model_output(model_output: pd.DataFrame) -> None:
     )
 
     config.observed_num_labels = len(model_output["prob"].values[0])
+    epoch, split = model_output[["epoch", "split"]].iloc[0]
+    path = f"{location}/{split}/{epoch}"
+    object_name = f"{str(uuid4()).replace('-', '')[:12]}.arrow"
+    with lock:
+        if not os.path.isdir(path):
+            os.makedirs(path)
+        model_output.to_feather(f"{path}/{object_name}")
+    _try_concat_df(path)
 
-    out_frame_dtypes = {"pred": "int64"}
-    in_frame = vaex.open(f"{location}/{INPUT_DATA_NAME}").copy()
 
-    out_frame = vaex.from_pandas(model_output.astype(dtype=out_frame_dtypes))
-
-    in_frame["split_id"] = in_frame["split"] + in_frame["id"].astype("string")
-    out_frame["split_id"] = out_frame["split"] + out_frame["id"].astype("string")
-
-    t0 = time()
-    in_out = out_frame.join(
-        in_frame, on="split_id", how="left", lsuffix="_L", rsuffix="_R"
-    ).copy()
+    # out_frame_dtypes = {"pred": "int64"}
+    # in_frame = vaex.open(f"{location}/{INPUT_DATA_NAME}").copy()
+    #
+    # out_frame = vaex.from_pandas(model_output.astype(dtype=out_frame_dtypes))
+    #
+    # in_frame["split_id"] = in_frame["split"] + in_frame["id"].astype("string")
+    # out_frame["split_id"] = out_frame["split"] + out_frame["id"].astype("string")
+    #
+    # t0 = time()
+    # in_out = out_frame.join(
+    #     in_frame, on="split_id", how="left", lsuffix="_L", rsuffix="_R"
+    # ).copy()
     # t1 = time() - t0
     # if t1 > 1:
     #     print(f'join took {t1} seconds')
-    keep_cols = [c for c in in_out.get_column_names() if not c.endswith("_L")]
-    in_out = in_out[keep_cols]
-    for c in in_out.get_column_names():
-        if c.endswith("_R"):
-            in_out.rename(c, c.rstrip("_R"))
-
-    # Separate out embeddings and probabilities into their own arrow files
-    prob = in_out[["id", "prob", "gold"]]
-    emb = in_out[["id","emb"]]
-    ignore_cols = ["emb", "prob", "split_id"]
-    other_cols = [i for i in in_out.columns if i not in ignore_cols]
-    in_out = in_out[other_cols]
-
-    # Each input file will have all records from the same split and epoch, so we can
-    # store them in minio partitioned by split/epoch
-    epoch, split = in_out[["epoch", "split"]][0]
-
-    # Random name to avoid collisions
-    object_name = f"{str(uuid4()).replace('-', '')[:12]}.arrow"
-    for file, data_name in zip([emb, prob, in_out], DATA_FOLDERS):
-        path = f"{location}/{split}/{epoch}/{data_name}"
-        _save_arrow_file(path, object_name, file)
-        ct0 = time()
-        _try_concat_df(path)
-        # ct1 = time() - ct0
-        # if ct1 > 1:
-        #     print(f'concat took {ct1} seconds')
-        file.close()
+    # keep_cols = [c for c in in_out.get_column_names() if not c.endswith("_L")]
+    # in_out = in_out[keep_cols]
+    # for c in in_out.get_column_names():
+    #     if c.endswith("_R"):
+    #         in_out.rename(c, c.rstrip("_R"))
+    #
+    # # Separate out embeddings and probabilities into their own arrow files
+    # prob = in_out[["id", "prob", "gold"]]
+    # emb = in_out[["id","emb"]]
+    # ignore_cols = ["emb", "prob", "split_id"]
+    # other_cols = [i for i in in_out.columns if i not in ignore_cols]
+    # in_out = in_out[other_cols]
+    #
+    # # Each input file will have all records from the same split and epoch, so we can
+    # # store them in minio partitioned by split/epoch
+    # epoch, split = in_out[["epoch", "split"]][0]
+    #
+    # # Random name to avoid collisions
+    # object_name = f"{str(uuid4()).replace('-', '')[:12]}.arrow"
+    # for file, data_name in zip([emb, prob, in_out], DATA_FOLDERS):
+    #     path = f"{location}/{split}/{epoch}/{data_name}"
+    #     _save_arrow_file(path, object_name, file)
+    #     ct0 = time()
+    #     _try_concat_df(path)
+    #     ct1 = time() - ct0
+    #     if ct1 > 1:
+    #         print(f'concat took {ct1} seconds')
+    #     file.close()
 
 
 def _save_arrow_file(location: str, file_name: str, file: DataFrame) -> None:
@@ -215,9 +226,9 @@ def _save_arrow_file(location: str, file_name: str, file: DataFrame) -> None:
         file_path = f"{location}/{file_name}"
         wt0 = time()
         file.export_arrow(file_path)
-        # wt1 = time() - wt0
-        # if wt1 > 1:
-        #     print(f'write took {wt1} seconds')
+        wt1 = time() - wt0
+        if wt1 > 1:
+            print(f'write took {wt1} seconds')
 
 
 def _try_concat_df(location: str) -> None:
@@ -239,8 +250,8 @@ def _try_concat_df(location: str) -> None:
             df.close()
             for f in arrow_files:
                 os.remove(f)
-            # d = location.split('/')[-1]
-            # tt = time() - t0
-            # if tt >= 1:
-            #     print(f' {d} took {time() - t0} seconds')
+            d = location.split('/')[-1]
+            tt = time() - t0
+            if tt >= 1:
+                print(f' {d} took {time() - t0} seconds')
         ThreadPoolManager.can_concat = True

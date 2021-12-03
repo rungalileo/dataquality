@@ -36,6 +36,7 @@ def validate_uploaded_data(expected_num_records: int, expected_num_emb=None) -> 
         if expected_num_emb:
             assert len(emb.columns) == expected_num_emb+1
 
+        assert "data_schema_version" in data.columns
         assert len(data) == len(emb) == len(prob) == expected_num_records
         assert (
             sorted(data["id"].unique())
