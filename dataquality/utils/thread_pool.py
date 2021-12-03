@@ -12,6 +12,7 @@ class ThreadPoolManager:
 
     THREADS: List[Thread] = []
     MAX_THREADS = 25
+    can_concat: bool = True
 
     @staticmethod
     def add_thread(target: Callable, args: Iterable[Any] = None) -> None:

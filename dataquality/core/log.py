@@ -1,6 +1,7 @@
 import os
 import threading
 from glob import glob
+from time import time
 from typing import Dict, List
 from uuid import uuid4
 
@@ -157,12 +158,6 @@ def write_model_output(model_output: pd.DataFrame) -> None:
     )
 
     config.observed_num_labels = len(model_output["prob"].values[0])
-    n_emb = len(model_output["emb"][0])
-    # We want embeddings to be a wide dataframe 1 column per emb
-    emb_cols = [f"emb_{i}" for i in range(n_emb)]
-    model_output[emb_cols] = pd.DataFrame(
-        model_output["emb"].tolist(), columns=emb_cols
-    )
 
     out_frame_dtypes = {"pred": "int64"}
     in_frame = vaex.open(f"{location}/{INPUT_DATA_NAME}").copy()
@@ -172,19 +167,23 @@ def write_model_output(model_output: pd.DataFrame) -> None:
     in_frame["split_id"] = in_frame["split"] + in_frame["id"].astype("string")
     out_frame["split_id"] = out_frame["split"] + out_frame["id"].astype("string")
 
+    t0 = time()
     in_out = out_frame.join(
         in_frame, on="split_id", how="left", lsuffix="_L", rsuffix="_R"
     ).copy()
-    drop_cols = [c for c in in_out.get_column_names() if not c.endswith("_L")]
-    in_out = in_out[drop_cols]
+    # t1 = time() - t0
+    # if t1 > 1:
+    #     print(f'join took {t1} seconds')
+    keep_cols = [c for c in in_out.get_column_names() if not c.endswith("_L")]
+    in_out = in_out[keep_cols]
     for c in in_out.get_column_names():
         if c.endswith("_R"):
             in_out.rename(c, c.rstrip("_R"))
 
     # Separate out embeddings and probabilities into their own arrow files
     prob = in_out[["id", "prob", "gold"]]
-    emb_wide = in_out[["id"] + emb_cols]
-    ignore_cols = emb_cols + ["emb", "prob", "split_id"]
+    emb = in_out[["id","emb"]]
+    ignore_cols = ["emb", "prob", "split_id"]
     other_cols = [i for i in in_out.columns if i not in ignore_cols]
     in_out = in_out[other_cols]
 
@@ -194,9 +193,14 @@ def write_model_output(model_output: pd.DataFrame) -> None:
 
     # Random name to avoid collisions
     object_name = f"{str(uuid4()).replace('-', '')[:12]}.arrow"
-    for file, data_name in zip([emb_wide, prob, in_out], DATA_FOLDERS):
+    for file, data_name in zip([emb, prob, in_out], DATA_FOLDERS):
         path = f"{location}/{split}/{epoch}/{data_name}"
         _save_arrow_file(path, object_name, file)
+        ct0 = time()
+        _try_concat_df(path)
+        # ct1 = time() - ct0
+        # if ct1 > 1:
+        #     print(f'concat took {ct1} seconds')
         file.close()
 
 
@@ -204,21 +208,39 @@ def _save_arrow_file(location: str, file_name: str, file: DataFrame) -> None:
     """
     Helper function to save a vaex dataframe as an arrow file. We use the
     to_feather function as the wrapper to arrow.
-
-    We try to save the file with zstd compression first, falling back to default
-    (lz4) if zstd is for some reason unavailable. We try zstd first because testing
-    has showed better compression levels for our data.
     """
     with lock:
         if not os.path.isdir(location):
             os.makedirs(location)
         file_path = f"{location}/{file_name}"
+        wt0 = time()
         file.export_arrow(file_path)
-        new_name = f"{str(uuid4()).replace('-', '')[:12]}.arrow"
+        # wt1 = time() - wt0
+        # if wt1 > 1:
+        #     print(f'write took {wt1} seconds')
+
+
+def _try_concat_df(location: str) -> None:
+    """Tries to concatenate dataframes eagerly during the logging process
+
+    Multiple threads cannot concatenate dataframe simultaneously so we first check
+    if anyone is concatenating (booleans are thread safe). If not, we concatenate.
+    If yes, we simply pass.
+    """
+    if ThreadPoolManager.can_concat:
+        # Only one thread can concat files at a time, but this doesn't need the lock
+        ThreadPoolManager.can_concat = False
         arrow_files = glob(f"{location}/*.arrow")
-        if len(arrow_files) > 25:
+        if len(arrow_files) > 10:
+            new_name = f"{str(uuid4()).replace('-', '')[:12]}.arrow"
+            t0 = time()
             df = vaex.open_many(arrow_files)
             df.export_arrow(f"{location}/{new_name}")
             df.close()
             for f in arrow_files:
                 os.remove(f)
+            # d = location.split('/')[-1]
+            # tt = time() - t0
+            # if tt >= 1:
+            #     print(f' {d} took {time() - t0} seconds')
+        ThreadPoolManager.can_concat = True

@@ -4,6 +4,7 @@ from random import random
 import pandas as pd
 import vaex
 from sklearn.datasets import fetch_20newsgroups
+from tqdm import tqdm
 
 import dataquality
 from dataquality.core.integrations.config import GalileoDataConfig, GalileoModelConfig
@@ -14,7 +15,7 @@ NUM_RECORDS = 50
 NUM_LOGS = 10
 
 
-def validate_uploaded_data(expected_num_records: int) -> None:
+def validate_uploaded_data(expected_num_records: int, expected_num_emb=None) -> None:
     """
     Checks for testing
     """
@@ -31,6 +32,9 @@ def validate_uploaded_data(expected_num_records: int) -> None:
         data = split_output_data["data"]
         emb = split_output_data["emb"]
         prob = split_output_data["prob"]
+
+        if expected_num_emb:
+            assert len(emb.columns) == expected_num_emb+1
 
         assert len(data) == len(emb) == len(prob) == expected_num_records
         assert (
@@ -49,7 +53,7 @@ def validate_cleanup_data():
         assert not os.path.isdir(f"{LOCATION}/{split}")
 
 
-def _log_data(num_records=NUM_RECORDS, num_logs=NUM_LOGS, unique_ids=True) -> None:
+def _log_data(num_records=NUM_RECORDS, num_logs=NUM_LOGS, unique_ids=True, num_emb=20) -> None:
     """
     Logs some mock data to disk
     """
@@ -73,8 +77,8 @@ def _log_data(num_records=NUM_RECORDS, num_logs=NUM_LOGS, unique_ids=True) -> No
         dataquality.log_batch_input_data(gconfig)
 
     for split in [Split.training, Split.test]:
-        for ln in range(num_logs):
-            emb = [[random() for _ in range(20)] for _ in range(num_records)]
+        for ln in tqdm(range(num_logs)):
+            emb = [[random() for _ in range(num_emb)] for _ in range(num_records)]
             probs = [[random() for _ in range(4)] for _ in range(num_records)]
             epoch = 0
 

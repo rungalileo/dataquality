@@ -15,6 +15,7 @@ from dataquality.schemas import ProcName, RequestType, Route
 from dataquality.schemas.split import Split
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.version import _version_check
+from dataquality.utils.vaex import expand_df
 
 lock = threading.Lock()
 
@@ -55,6 +56,8 @@ def _upload() -> None:
                 minio_file = (
                     f"{proj_run}/{split}/{epoch}/{data_folder}/{data_folder}.arrow"
                 )
+                if data_folder == "emb":
+                    df = expand_df(df, "emb")
                 object_store.create_project_run_object_from_df(df, minio_file)
 
 
