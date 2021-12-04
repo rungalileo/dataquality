@@ -39,7 +39,7 @@ def _upload() -> None:
             _validate_unique_ids(out_frame)
             in_out = _join_in_out_frames(in_frame, out_frame)
 
-            # Separate out embeddings and probabilities into their own arrow files
+            # Separate out embeddings and probabilities into their own files
             prob = in_out[["id", "prob", "gold"]]
             emb = in_out[["id", "emb"]]
             ignore_cols = ["emb", "prob", "gold", "split_id"]
