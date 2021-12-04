@@ -1,45 +1,92 @@
-from typing import List, Union
+import os
+import threading
+from collections import Counter
+from glob import glob
+from typing import List
+from uuid import uuid4
 
-import numpy as np
-import pyarrow as pa
 import vaex
 from vaex.dataframe import DataFrame
 
+from dataquality.exceptions import GalileoException
+from dataquality.utils.thread_pool import ThreadPoolManager
 
-def expand_df(df: DataFrame, col: str = "emb") -> DataFrame:
-    """Expands a dataframe with a single column list into many columns.
+lock = threading.Lock()
 
-    ex: a dataframe with "emb" column containing a list of 10 floats
 
-    #    id    emb
-    0    0     '[0.936133472790654, 0.5483493321472575, 0.48622...
-    1    1     '[0.7135356216870609, 0.21236254961668966, 0.465...
-    2    2     '[0.7181627347404738, 0.9197334314857543, 0.3790...
-    ...  ...   ...
-    will be returned as a new dataframe with 10 new columns, and the original column
-    removed:
-
-    #    id    emb_0                 emb_1                emb_2               ...
-    0    0     0.9993798461057117    0.02304161614313227  0.0859653860282843  ...
-    1    1     0.9303099983067433    0.7801853589012353   0.4132189907682057  ...
-    2    2     0.6392906559734074    0.9060376615716177   0.9146933280987043  ...
-    ...  ...   ...                   ...                  ...
-
-    NOTE: The dataframe passed in is modified and returned, a copy IS NOT made
-
-    :param df: The Vaex DataFrame
-    :param col: The column to expand
+def _save_hdf5_file(location: str, file_name: str, file: DataFrame) -> None:
     """
-    @vaex.register_function()
-    def expand(col: List[List[Union[float, pa.float64]]], ind: int):
-        is_pa = not isinstance(col[0][0], float)
-        get_float = lambda v: v.as_py() if is_pa else float(v)
-        t = [get_float(row[ind]) for row in col]
-        return pa.array(t)
+    Helper function to save a vaex dataframe as an hdf5 file. We use the
+    to_feather function as the wrapper to arrow.
+    """
+    with lock:
+        if not os.path.isdir(location):
+            os.makedirs(location)
+        file_path = f"{location}/{file_name}"
+        file.export(file_path)
 
-    num_c = len(df[col][:1].values[0])
-    for i in range(num_c):
-        df[f"{col}_{i}"] = df[col].expand(i)
-    cols = [c for c in df.get_column_names() if c != col]
-    return df[cols]
 
+def _try_concat_df(location: str) -> None:
+    """Tries to concatenate dataframes eagerly during the logging process
+
+    Multiple threads cannot concatenate dataframe simultaneously so we first check
+    if anyone is concatenating (booleans are thread safe). If not, we concatenate.
+    If yes, we simply pass.
+    """
+    if ThreadPoolManager.can_concat:
+        # Only one thread can concat files at a time, but allow other threads to
+        # continue writing new files
+        ThreadPoolManager.can_concat = False
+        with lock:  # Ensure we don't read while a thread is writing
+            files = glob(f"{location}/*.hdf5")
+        if len(files) > 25:
+            new_name = f"{str(uuid4()).replace('-', '')[:12]}.hdf5"
+            new_file = f"{location}/{new_name}"
+            files_to_concat = _get_smallest_n_files(files, len(files) - 1)
+            vaex.open_many(files_to_concat).export(new_file)
+            for file in files_to_concat:
+                os.remove(file)
+        ThreadPoolManager.can_concat = True
+
+
+def _get_smallest_n_files(files: List[str], n: int) -> List[str]:
+    file_sizes = []
+    for f in files:
+        size = os.stat(f).st_size
+        file_sizes.append((f, size))
+    file_sizes = sorted(file_sizes, key=lambda r: r[1])
+    smallest_files = [r[0] for r in file_sizes[:n]]
+    return smallest_files
+
+
+def _join_in_out_frames(in_df: DataFrame, out_df: DataFrame) -> DataFrame:
+    """Helper function to join our input and output frames"""
+    in_frame = in_df.copy()
+    out_frame = out_df.copy()
+    in_frame["split_id"] = in_frame["split"] + in_frame["id"].astype("string")
+    out_frame["split_id"] = out_frame["split"] + out_frame["id"].astype("string")
+    in_out = out_frame.join(
+        in_frame, on="split_id", how="left", lsuffix="_L", rsuffix="_R"
+    ).copy()
+    keep_cols = [c for c in in_out.get_column_names() if not c.endswith("_L")]
+    in_out = in_out[keep_cols]
+    for c in in_out.get_column_names():
+        if c.endswith("_R"):
+            in_out.rename(c, c.rstrip("_R"))
+    return in_out
+
+
+def _validate_unique_ids(df: DataFrame) -> None:
+    """Helper function to validate the logged df has unique ids
+
+    Fail gracefully otherwise
+    """
+    if df["id"].nunique() != len(df):
+        epoch, split = df[["epoch", "split"]][0]
+        all_ids: List[int] = df["id"].tolist()
+        dup_ids = [i for i, count in Counter(all_ids).items() if count > 1]
+        raise GalileoException(
+            "It seems as though you do not have unique ids in this "
+            f"split/epoch. Did you provide your own IDs?\n"
+            f"split:{split}, epoch:{epoch}, dup ids:{dup_ids}"
+        )

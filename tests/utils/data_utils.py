@@ -1,6 +1,7 @@
 import os
 from random import random
 
+import numpy as np
 import pandas as pd
 import vaex
 from sklearn.datasets import fetch_20newsgroups
@@ -15,7 +16,7 @@ NUM_RECORDS = 50
 NUM_LOGS = 10
 
 
-def validate_uploaded_data(expected_num_records: int, expected_num_emb=None) -> None:
+def validate_uploaded_data(expected_num_records: int) -> None:
     """
     Checks for testing
     """
@@ -23,18 +24,22 @@ def validate_uploaded_data(expected_num_records: int, expected_num_emb=None) -> 
         # Output data
         split_output_data = {}
         for subdir in SUBDIRS:
-            file_path = f"{TEST_PATH}/{split}/{subdir}/{subdir}.arrow"
+            file_path = f"{TEST_PATH}/{split}/{subdir}/{subdir}.hdf5"
             # Ensure files were cleaned up
-            data = vaex.open(file_path).to_pandas_df()
-            assert not data.isnull().any().any()
+            data = vaex.open(file_path)
+            for c in data.get_column_names():
+                if c not in ["text", "split", "gold"]:
+                    assert not np.isnan(data[c].values).any()
+                else:
+                    vals = data[c].values
+                    assert all([i and i != "nan" for i in vals])
             split_output_data[subdir] = data
 
         data = split_output_data["data"]
         emb = split_output_data["emb"]
         prob = split_output_data["prob"]
 
-        if expected_num_emb:
-            assert len(emb.columns) == expected_num_emb+1
+        assert list(emb.get_column_names()) == ["id", "emb"]
 
         assert "data_schema_version" in data.columns
         assert len(data) == len(emb) == len(prob) == expected_num_records
@@ -54,7 +59,9 @@ def validate_cleanup_data():
         assert not os.path.isdir(f"{LOCATION}/{split}")
 
 
-def _log_data(num_records=NUM_RECORDS, num_logs=NUM_LOGS, unique_ids=True, num_emb=20) -> None:
+def _log_data(
+    num_records=NUM_RECORDS, num_logs=NUM_LOGS, unique_ids=True, num_emb=20
+) -> None:
     """
     Logs some mock data to disk
     """

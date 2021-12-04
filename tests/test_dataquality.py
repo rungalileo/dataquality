@@ -1,11 +1,7 @@
 import os
 from importlib import reload
 
-import numpy as np
-import pandas as pd
 import pytest
-from random import random
-import vaex
 
 import dataquality
 import dataquality.core._config
@@ -14,11 +10,10 @@ from dataquality.exceptions import GalileoException
 from dataquality.schemas.jsonl_logger import JsonlInputLogItem
 from dataquality.schemas.split import Split
 from dataquality.utils.thread_pool import ThreadPoolManager
-from dataquality.utils.vaex import expand_df
 from tests.utils.data_utils import (
     _log_data,
     validate_cleanup_data,
-    validate_uploaded_data, NUM_RECORDS,
+    validate_uploaded_data,
 )
 
 
@@ -28,13 +23,13 @@ def test_threaded_logging_and_upload(cleanup_after_use) -> None:
     """
     num_records = 32
     num_logs = 200
-    num_emb = 700
+    num_emb = 50
     _log_data(num_records=num_records, num_logs=num_logs, num_emb=num_emb)
     try:
         # Equivalent to the users `finish` call, but we don't want to clean up files yet
         ThreadPoolManager.wait_for_threads()
         _upload()
-        validate_uploaded_data(num_records * num_logs, expected_num_emb=num_emb)
+        validate_uploaded_data(num_records * num_logs)
         _cleanup()
         validate_cleanup_data()
     finally:
@@ -85,18 +80,3 @@ def test_config_no_vars(monkeypatch):
     assert dataquality.core._config.config.minio_region == "us-east-1"
 
     os.environ["GALILEO_API_URL"] = x
-
-
-def test_expand_df():
-    embeds_a = [np.array([random() for _ in range(100)]) for _ in range(NUM_RECORDS)]
-    ids = list(range(NUM_RECORDS))
-    data = {
-        'embeds_a': embeds_a,
-        'id': ids
-    }
-    df = vaex.from_pandas(pd.DataFrame(data))
-    emb = np.array(list(df["embeds_a"][:1].values))
-    df = expand_df(df, "embeds_a")
-    cols = [i for i in df.get_column_names() if i != "id"]
-    emb_exp = df[cols][:1].values
-    assert (np.isclose(np.array(emb), np.array(emb_exp))).all()
