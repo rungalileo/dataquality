@@ -16,8 +16,7 @@ lock = threading.Lock()
 
 def _save_hdf5_file(location: str, file_name: str, file: DataFrame) -> None:
     """
-    Helper function to save a vaex dataframe as an hdf5 file. We use the
-    to_feather function as the wrapper to arrow.
+    Helper function to save a vaex dataframe as an hdf5 file.
     """
     with lock:
         if not os.path.isdir(location):
