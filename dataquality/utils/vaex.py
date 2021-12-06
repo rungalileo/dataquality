@@ -22,7 +22,7 @@ def _save_hdf5_file(location: str, file_name: str, file: DataFrame) -> None:
         if not os.path.isdir(location):
             os.makedirs(location)
         file_path = f"{location}/{file_name}"
-        file.export(file_path)
+        file.export_hdf5(file_path)
 
 
 def _try_concat_df(location: str) -> None:
@@ -42,7 +42,7 @@ def _try_concat_df(location: str) -> None:
             new_name = f"{str(uuid4()).replace('-', '')[:12]}.hdf5"
             new_file = f"{location}/{new_name}"
             files_to_concat = _get_smallest_n_files(files, len(files) - 1)
-            vaex.open_many(files_to_concat).export(new_file)
+            vaex.open_many(files_to_concat).export_hdf5(new_file)
             for file in files_to_concat:
                 os.remove(file)
         ThreadPoolManager.can_concat = True
