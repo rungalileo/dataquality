@@ -55,7 +55,7 @@ def log_batch_input_data(data: GalileoDataConfig) -> None:
         split=data.split,
         data_schema_version=__data_schema_version__,
         gold=data.labels if data.split != Split.inference.value else None,
-        **data.meta
+        **data.meta,
     )
     df = vaex.from_pandas(pd.DataFrame(inp))
     file_path = f"{write_input_dir}/{INPUT_DATA_NAME}"
