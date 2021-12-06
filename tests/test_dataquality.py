@@ -22,8 +22,9 @@ def test_threaded_logging_and_upload(cleanup_after_use) -> None:
     Tests that threaded calls to upload still yield non-missing datasets
     """
     num_records = 32
-    num_logs = 20
-    _log_data(num_records=num_records, num_logs=num_logs)
+    num_logs = 200
+    num_emb = 50
+    _log_data(num_records=num_records, num_logs=num_logs, num_emb=num_emb)
     try:
         # Equivalent to the users `finish` call, but we don't want to clean up files yet
         ThreadPoolManager.wait_for_threads()

@@ -1,6 +1,5 @@
 import os
 import shutil
-import threading
 from glob import glob
 from typing import Any, Dict, Optional
 
@@ -8,15 +7,13 @@ import vaex
 
 from dataquality import config
 from dataquality.clients import api_client, object_store
-from dataquality.core.log import DATA_FOLDERS
-from dataquality.exceptions import GalileoException
+from dataquality.core.log import DATA_FOLDERS, INPUT_DATA_NAME
 from dataquality.loggers.jsonl_logger import JsonlLogger
 from dataquality.schemas import ProcName, RequestType, Route
 from dataquality.schemas.split import Split
 from dataquality.utils.thread_pool import ThreadPoolManager
+from dataquality.utils.vaex import _join_in_out_frames, _validate_unique_ids
 from dataquality.utils.version import _version_check
-
-lock = threading.Lock()
 
 
 def _upload() -> None:
@@ -27,35 +24,33 @@ def _upload() -> None:
     """
     ThreadPoolManager.wait_for_threads()
     print("☁️ Uploading Data")
-    location = (
-        f"{JsonlLogger.LOG_FILE_DIR}/{config.current_project_id}"
-        f"/{config.current_run_id}"
-    )
+    proj_run = f"{config.current_project_id}/{config.current_run_id}"
+    location = f"{JsonlLogger.LOG_FILE_DIR}/{proj_run}"
+
+    in_frame = vaex.open(f"{location}/{INPUT_DATA_NAME}").copy()
     for split in Split.get_valid_attributes():
         split_loc = f"{location}/{split}"
         if not os.path.exists(split_loc):
             continue
         for epoch_dir in glob(f"{split_loc}/*"):
-            for data_folder in DATA_FOLDERS:
-                files_dir = f"{epoch_dir}/{data_folder}"
-                df = vaex.open(f"{files_dir}/*")
+            epoch = int(epoch_dir.split("/")[-1])
 
-                # Validate all ids within an epoch/split are unique
-                if df["id"].nunique() != len(df):
-                    epoch = epoch_dir.split("/")[-1]
-                    raise GalileoException(
-                        "It seems as though you do not have unique ids in this "
-                        f"split/epoch. Did you provide your own IDs?\n"
-                        f"split:{split}, epoch:{epoch}, ids:{df['id'].tolist()}"
-                    )
+            out_frame = vaex.open(f"{epoch_dir}/*")
+            _validate_unique_ids(out_frame)
+            in_out = _join_in_out_frames(in_frame, out_frame)
 
-                # Remove the log_file_dir from the object store path
-                epoch = epoch_dir.split("/")[-1]
-                proj_run = f"{config.current_project_id}/{config.current_run_id}"
+            # Separate out embeddings and probabilities into their own files
+            prob = in_out[["id", "prob", "gold"]]
+            emb = in_out[["id", "emb"]]
+            ignore_cols = ["emb", "prob", "gold", "split_id"]
+            other_cols = [i for i in in_out.get_column_names() if i not in ignore_cols]
+            in_out = in_out[other_cols]
+
+            for data_folder, df_obj in zip(DATA_FOLDERS, [emb, prob, in_out]):
                 minio_file = (
-                    f"{proj_run}/{split}/{epoch}/{data_folder}/{data_folder}.arrow"
+                    f"{proj_run}/{split}/{epoch}/{data_folder}/{data_folder}.hdf5"
                 )
-                object_store.create_project_run_object_from_df(df, minio_file)
+                object_store.create_project_run_object_from_df(df_obj, minio_file)
 
 
 def _cleanup() -> None:

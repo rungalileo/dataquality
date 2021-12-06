@@ -46,7 +46,7 @@ def patch_object_upload(df: DataFrame, object_name: str) -> None:
 
     if not os.path.isdir(export_path):
         os.makedirs(export_path)
-    df.export_arrow(export_loc)
+    df.export(export_loc)
 
 
 # Patch the upload so we don't write to S3/minio
