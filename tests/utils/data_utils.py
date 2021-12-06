@@ -47,6 +47,7 @@ def validate_uploaded_data(
         for c in meta_cols:
             assert c in data.get_column_names()
         assert list(emb.get_column_names()) == ["id", "emb"]
+
         assert "data_schema_version" in data.columns
         assert len(data) == len(emb) == len(prob) == expected_num_records
         assert (
