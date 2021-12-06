@@ -42,8 +42,8 @@ class ObjectStore:
         self, df: DataFrame, object_name: str
     ) -> None:
         """Uploads a Vaex dataframe to Minio at the specified object_name location"""
-        with NamedTemporaryFile(suffix=".arrow") as f:
-            df.export_arrow(f.name)
+        with NamedTemporaryFile(suffix=".hdf5") as f:
+            df.export(f.name)
             self.create_project_run_object(
                 object_name=object_name,
                 file_path=f.name,

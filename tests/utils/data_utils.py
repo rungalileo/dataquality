@@ -2,9 +2,11 @@ import os
 from random import random
 from typing import List, Optional
 
+import numpy as np
 import pandas as pd
 import vaex
 from sklearn.datasets import fetch_20newsgroups
+from tqdm import tqdm
 
 import dataquality
 from dataquality.core.integrations.config import GalileoDataConfig, GalileoModelConfig
@@ -22,23 +24,30 @@ def validate_uploaded_data(
     Checks for testing
     """
     expected_num_records = expected_num_records or NUM_RECORDS * NUM_LOGS
-    meta_cols = meta_cols or []
+    meta_cols = meta_cols or {}
     for split in SPLITS:
         # Output data
         split_output_data = {}
         for subdir in SUBDIRS:
-            file_path = f"{TEST_PATH}/{split}/{subdir}/{subdir}.arrow"
+            file_path = f"{TEST_PATH}/{split}/{subdir}/{subdir}.hdf5"
             # Ensure files were cleaned up
-            data = vaex.open(file_path).to_pandas_df()
-            assert not data.isnull().any().any()
+            data = vaex.open(file_path)
+            for c in data.get_column_names():
+                if c not in ["text", "split", "gold"]:
+                    assert not np.isnan(data[c].values).any()
+                else:
+                    vals = data[c].values
+                    assert all([i and i != "nan" for i in vals])
             split_output_data[subdir] = data
 
         data = split_output_data["data"]
         emb = split_output_data["emb"]
         prob = split_output_data["prob"]
 
-        for i in meta_cols:
-            assert i in data.columns
+        for c in meta_cols:
+            assert c in data.get_column_names()
+        assert list(emb.get_column_names()) == ["id", "emb"]
+        assert "data_schema_version" in data.columns
         assert len(data) == len(emb) == len(prob) == expected_num_records
         assert (
             sorted(data["id"].unique())
@@ -57,12 +66,16 @@ def validate_cleanup_data():
 
 
 def _log_data(
-    num_records=NUM_RECORDS, num_logs=NUM_LOGS, unique_ids=True, meta_cols=None
+    num_records=NUM_RECORDS,
+    num_logs=NUM_LOGS,
+    unique_ids=True,
+    num_emb=20,
+    meta=None,
 ) -> None:
     """
     Logs some mock data to disk
     """
-    meta_cols = meta_cols or []
+    meta = meta or {}
     # Log train/test data
     for split in [Split.test, Split.training]:
         newsgroups_train = fetch_20newsgroups(
@@ -76,17 +89,15 @@ def _log_data(
         dataset["text"] = newsgroups_train.data
         dataset["label"] = newsgroups_train.target
         dataset = dataset[: num_records * num_logs]
-        meta = {}
-        for i in meta_cols:
-            meta[i] = [random() for _ in range(len(dataset))]
+
         gconfig = GalileoDataConfig(
-            text=dataset["text"], labels=dataset["label"], split=split.value
+            text=dataset["text"], labels=dataset["label"], split=split.value, **meta
         )
         dataquality.log_batch_input_data(gconfig)
 
     for split in [Split.training, Split.test]:
-        for ln in range(num_logs):
-            emb = [[random() for _ in range(20)] for _ in range(num_records)]
+        for ln in tqdm(range(num_logs)):
+            emb = [[random() for _ in range(num_emb)] for _ in range(num_records)]
             probs = [[random() for _ in range(4)] for _ in range(num_records)]
             epoch = 0
 
