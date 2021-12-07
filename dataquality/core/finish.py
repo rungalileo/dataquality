@@ -39,6 +39,8 @@ def _upload() -> None:
             _validate_unique_ids(out_frame)
             in_out = _join_in_out_frames(in_frame, out_frame)
 
+            in_out["id"] = in_out["id"].astype("int64")
+
             # Separate out embeddings and probabilities into their own files
             prob = in_out[["id", "prob", "gold"]]
             emb = in_out[["id", "emb"]]
