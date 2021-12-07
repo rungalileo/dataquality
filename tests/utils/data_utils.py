@@ -91,10 +91,13 @@ def _log_data(
         dataset["label"] = newsgroups_train.target
         dataset = dataset[: num_records * num_logs]
 
-        gconfig = GalileoDataConfig(
+        # gconfig = GalileoDataConfig(
+        #     text=dataset["text"], labels=dataset["label"], split=split.value, **meta
+        # )
+        # dataquality.log_batch_input_data(gconfig)
+        dataquality.log_batch_input_data(
             text=dataset["text"], labels=dataset["label"], split=split.value, **meta
         )
-        dataquality.log_batch_input_data(gconfig)
 
     for split in [Split.training, Split.test]:
         for ln in tqdm(range(num_logs)):

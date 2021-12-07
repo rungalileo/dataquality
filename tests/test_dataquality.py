@@ -6,9 +6,10 @@ import pytest
 
 import dataquality
 import dataquality.core._config
-from dataquality.core.finish import _cleanup, _upload
+# from dataquality.core.finish import _cleanup, _upload
 from dataquality.core.integrations.config import MAX_META_COLS, MAX_STR_LEN
 from dataquality.exceptions import GalileoException
+from dataquality.loggers.config.data_config import BaseGalileoDataConfig
 from dataquality.schemas.jsonl_logger import JsonlInputLogItem
 from dataquality.schemas.split import Split
 from dataquality.utils.thread_pool import ThreadPoolManager
@@ -25,16 +26,19 @@ def test_threaded_logging_and_upload(cleanup_after_use) -> None:
     """
     Tests that threaded calls to upload still yield non-missing datasets
     """
+    dataquality.config.task_type = "text_classification"
     num_records = 32
     num_logs = 200
     num_emb = 50
     _log_data(num_records=num_records, num_logs=num_logs, num_emb=num_emb)
     try:
         # Equivalent to the users `finish` call, but we don't want to clean up files yet
-        ThreadPoolManager.wait_for_threads()
-        _upload()
+        # ThreadPoolManager.wait_for_threads()
+        # _upload()
+        c = BaseGalileoDataConfig().get_config("text_classification")()
+        c.upload()
         validate_uploaded_data(num_records * num_logs)
-        _cleanup()
+        c._cleanup()
         validate_cleanup_data()
     finally:
         # Mock finish() call without calling the API

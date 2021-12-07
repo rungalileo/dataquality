@@ -79,6 +79,7 @@ class Config(BaseModel):
     current_run_id: Optional[UUID4] = None
     labels: Optional[List[StrictStr]] = None
     observed_num_labels: Optional[int] = 0
+    task_type: Optional[str] = None
 
     class Config:
         validate_assignment = True

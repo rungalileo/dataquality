@@ -1,0 +1,1 @@
+from dataquality.loggers.config.data_config.base_data_config import BaseGalileoDataConfig
