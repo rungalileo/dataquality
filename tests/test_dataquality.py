@@ -1,16 +1,20 @@
 import os
 from importlib import reload
+from random import random
 
 import pytest
 
 import dataquality
 import dataquality.core._config
 from dataquality.core.finish import _cleanup, _upload
+from dataquality.core.integrations.config import MAX_META_COLS, MAX_STR_LEN
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.jsonl_logger import JsonlInputLogItem
 from dataquality.schemas.split import Split
 from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.utils.data_utils import (
+    NUM_LOGS,
+    NUM_RECORDS,
     _log_data,
     validate_cleanup_data,
     validate_uploaded_data,
@@ -30,6 +34,64 @@ def test_threaded_logging_and_upload(cleanup_after_use) -> None:
         ThreadPoolManager.wait_for_threads()
         _upload()
         validate_uploaded_data(num_records * num_logs)
+        _cleanup()
+        validate_cleanup_data()
+    finally:
+        # Mock finish() call without calling the API
+        ThreadPoolManager.wait_for_threads()
+
+
+def test_metadata_logging(cleanup_after_use) -> None:
+    """
+    Tests that logging metadata columns persist
+    """
+    meta_cols = ["test1", "meta2"]
+    meta = {}
+    for i in meta_cols:
+        meta[i] = [random() for _ in range(NUM_RECORDS * NUM_LOGS)]
+    _log_data(meta=meta)
+    try:
+        # Equivalent to the users `finish` call, but we don't want to clean up files yet
+        ThreadPoolManager.wait_for_threads()
+        _upload()
+        validate_uploaded_data(meta_cols=meta_cols)
+        _cleanup()
+        validate_cleanup_data()
+    finally:
+        # Mock finish() call without calling the API
+        ThreadPoolManager.wait_for_threads()
+
+
+def test_metadata_logging_invalid(cleanup_after_use) -> None:
+    """
+    Tests our metadata logging validation
+    """
+    meta = {
+        "test1": [random() for _ in range(NUM_RECORDS * NUM_LOGS)],
+        "meta2": [random() for _ in range(NUM_RECORDS * NUM_LOGS)],
+        "bad_attr": [
+            "te" * MAX_STR_LEN for _ in range(NUM_RECORDS * NUM_LOGS)
+        ],  # String too long
+        "another_bad_attr": ["test", "test", "test"],  # Wrong number of values
+        "bad_attr_3": [[1]]
+        + [
+            random() for _ in range(NUM_RECORDS * NUM_LOGS - 1)
+        ],  # Right length, but can't contain a list
+        "gold": [random() for _ in range(NUM_RECORDS * NUM_LOGS)],  # Reserved key
+    }
+
+    # Too many metadata columns
+    for i in range(MAX_META_COLS):
+        meta[f"attr_{i}"] = [random() for _ in range(NUM_RECORDS * NUM_LOGS)]
+
+    _log_data(meta=meta)
+    valid_meta_cols = ["test1", "meta2"]
+    valid_meta_cols += [f"attr_{i}" for i in range(44)]
+    try:
+        # Equivalent to the users `finish` call, but we don't want to clean up files yet
+        ThreadPoolManager.wait_for_threads()
+        _upload()
+        validate_uploaded_data(meta_cols=valid_meta_cols)
         _cleanup()
         validate_cleanup_data()
     finally:

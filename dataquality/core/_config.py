@@ -114,7 +114,6 @@ else:
             f"variables: {GalileoConfigVars.get_valid_attributes()})"
         )
         console_url = input("🔭 Enter the url of your Galileo console\n")
-        print(f"you entered {console_url}")
         api_url = console_url.replace("console.", "api.")
         minio_url = console_url.replace("console.", "data.")
 

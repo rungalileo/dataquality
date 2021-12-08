@@ -33,9 +33,7 @@ logger = Logger()
 
 def log_batch_input_data(data: GalileoDataConfig) -> None:
     """
-    First class function to log all input data in batch for a training/validation/test
-    batch. Use log_batch_input_data instead of log_input_data to take advantage of
-    validation support and logging many records at once
+    First class function to log all input data for a training/validation/test set
 
     :param data: GalileoDataConfig
     :return: None
@@ -43,7 +41,7 @@ def log_batch_input_data(data: GalileoDataConfig) -> None:
     try:
         data.validate()
     except AssertionError as e:
-        raise GalileoException(e)
+        raise GalileoException(e) from None
 
     write_input_dir = (
         f"{logger.jsonl_logger.log_file_dir}/{config.current_project_id}/"
@@ -51,17 +49,15 @@ def log_batch_input_data(data: GalileoDataConfig) -> None:
     )
     if not os.path.exists(write_input_dir):
         os.makedirs(write_input_dir)
-    df = vaex.from_pandas(
-        pd.DataFrame(
-            dict(
-                id=data.ids,
-                text=data.text,
-                split=data.split,
-                data_schema_version=__data_schema_version__,
-                gold=data.labels if data.split != Split.validation else None,
-            )
-        )
+    inp = dict(
+        id=data.ids,
+        text=data.text,
+        split=data.split,
+        data_schema_version=__data_schema_version__,
+        gold=data.labels if data.split != Split.inference.value else None,
+        **data.meta,
     )
+    df = vaex.from_pandas(pd.DataFrame(inp))
     file_path = f"{write_input_dir}/{INPUT_DATA_NAME}"
     if os.path.isfile(file_path):
         new_name = f"{write_input_dir}/{str(uuid4()).replace('-', '')[:12]}.arrow"

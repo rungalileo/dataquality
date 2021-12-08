@@ -1,5 +1,6 @@
+import warnings
 from enum import Enum, unique
-from typing import Any, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 
@@ -8,6 +9,9 @@ from dataquality.schemas.split import Split
 
 if TORCH_AVAILABLE:
     from torch import Tensor
+
+MAX_META_COLS = 50  # Limit the number of metadata attrs a user can log
+MAX_STR_LEN = 50  # Max characters in a string metadata attribute
 
 
 @unique
@@ -31,6 +35,7 @@ class GalileoDataConfigAttributes(str, Enum):
     ids = "ids"
     # mixin restriction on str (due to "str".split(...))
     split = "split"  # type: ignore
+    meta = "meta"  # Metadata columns for logging
 
     @staticmethod
     def get_valid() -> List[str]:
@@ -152,6 +157,7 @@ class GalileoDataConfig:
         labels: List[str] = None,
         ids: List[Union[int, str]] = None,
         split: str = None,
+        **kwargs: Dict[str, List[Union[str, float, int]]],
     ) -> None:
         # Need to compare to None because they may be np arrays which cannot be
         # evaluated with bool directly
@@ -159,6 +165,7 @@ class GalileoDataConfig:
         self.labels = [str(i) for i in labels] if labels is not None else []
         self.ids = ids if ids is not None else []
         self.split = split
+        self.meta = kwargs
 
     @staticmethod
     def get_valid_attributes() -> List[str]:
@@ -188,13 +195,14 @@ class GalileoDataConfig:
 
         assert self.split, "Your GalileoDataConfig has no split!"
         self.split = Split.training.value if self.split == "train" else self.split
+        self.split = self.split.value if isinstance(self.split, Split) else self.split
         assert (
             isinstance(self.split, str) and self.split in Split.get_valid_attributes()
         ), (
             f"Split should be one of {Split.get_valid_attributes()} "
             f"but got {self.split}"
         )
-        if self.split == Split.inference:
+        if self.split == Split.inference.value:
             assert not len(
                 self.labels
             ), "You cannot have labels in your inference split!"
@@ -216,6 +224,54 @@ class GalileoDataConfig:
             )
         else:
             self.ids = list(range(text_len))
+
+        if len(self.meta.keys()) > MAX_META_COLS:
+            warnings.warn(
+                f"You can only log up to {MAX_META_COLS} metadata attrs. "
+                f"The first {MAX_META_COLS} will be logged only."
+            )
+        # When logging metadata columns, if the user breaks a rule, don't fail
+        # completely, just warn them and remove that metadata column
+        # Cast to list for in-place dictionary mutation
+        reserved_keys = (
+            GalileoDataConfig.get_valid_attributes()
+            + GalileoModelConfig.get_valid_attributes()
+            + ["gold", "pred"]
+        )
+        valid_meta = {}
+        for key, values in list(self.meta.items())[:MAX_META_COLS]:
+            # Key must not override a default
+            if key in reserved_keys:
+                warnings.warn(
+                    f"Metadata column names must not override default values "
+                    f"{reserved_keys}. This metadata field "
+                    f"will be removed."
+                )
+                continue
+            # Must be the same length as input
+            if len(values) != text_len:
+                warnings.warn(
+                    f"Expected {text_len} values for key {key} but got "
+                    f"{len(values)}. Will not log this metadata column."
+                )
+                continue
+            # Values must be a point, not an iterable
+            valid_types = (str, int, float, np.floating, np.integer)
+            invalid_values = filter(
+                lambda t: not isinstance(t, valid_types)
+                or (isinstance(t, str) and len(t) > MAX_STR_LEN),
+                values,
+            )
+            bad_val = next(invalid_values, None)
+            if bad_val:
+                warnings.warn(
+                    f"Metadata column {key} has one or more invalid values {bad_val} "
+                    f"of type {type(bad_val)}. Only strings of len < {MAX_STR_LEN} "
+                    "and numbers can be logged."
+                )
+                continue
+            valid_meta[key] = values
+        self.meta = valid_meta
 
     def is_valid(self) -> bool:
         """

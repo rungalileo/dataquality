@@ -1,5 +1,6 @@
 import os
 from random import random
+from typing import List, Optional
 
 import numpy as np
 import pandas as pd
@@ -13,13 +14,17 @@ from dataquality.schemas.split import Split
 from tests.conftest import LOCATION, SPLITS, SUBDIRS, TEST_PATH
 
 NUM_RECORDS = 50
-NUM_LOGS = 10
+NUM_LOGS = 30
 
 
-def validate_uploaded_data(expected_num_records: int) -> None:
+def validate_uploaded_data(
+    expected_num_records: int = None, meta_cols: Optional[List] = None
+) -> None:
     """
     Checks for testing
     """
+    expected_num_records = expected_num_records or NUM_RECORDS * NUM_LOGS
+    meta_cols = meta_cols or {}
     for split in SPLITS:
         # Output data
         split_output_data = {}
@@ -39,6 +44,8 @@ def validate_uploaded_data(expected_num_records: int) -> None:
         emb = split_output_data["emb"]
         prob = split_output_data["prob"]
 
+        for c in meta_cols:
+            assert c in data.get_column_names()
         assert list(emb.get_column_names()) == ["id", "emb"]
 
         assert "data_schema_version" in data.columns
@@ -60,12 +67,16 @@ def validate_cleanup_data():
 
 
 def _log_data(
-    num_records=NUM_RECORDS, num_logs=NUM_LOGS, unique_ids=True, num_emb=20
+    num_records=NUM_RECORDS,
+    num_logs=NUM_LOGS,
+    unique_ids=True,
+    num_emb=20,
+    meta=None,
 ) -> None:
     """
     Logs some mock data to disk
     """
-
+    meta = meta or {}
     # Log train/test data
     for split in [Split.test, Split.training]:
         newsgroups_train = fetch_20newsgroups(
@@ -79,8 +90,9 @@ def _log_data(
         dataset["text"] = newsgroups_train.data
         dataset["label"] = newsgroups_train.target
         dataset = dataset[: num_records * num_logs]
+
         gconfig = GalileoDataConfig(
-            text=dataset["text"], labels=dataset["label"], split=split.value
+            text=dataset["text"], labels=dataset["label"], split=split.value, **meta
         )
         dataquality.log_batch_input_data(gconfig)
 
