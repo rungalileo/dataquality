@@ -1,8 +1,7 @@
 import os
-import shutil
 from enum import Enum, unique
 from glob import glob
-from typing import List, Union, Dict
+from typing import Dict, List, Optional, Union
 from uuid import uuid4
 
 import pandas as pd
@@ -10,20 +9,18 @@ import vaex
 
 from dataquality import config
 from dataquality.clients import object_store
-from dataquality.loggers.config.base_config import BaseGalileoConfig
-from dataquality.loggers.config.data_config import BaseGalileoDataConfig
+from dataquality.loggers import BaseGalileoLogger
+from dataquality.loggers.data_logger.base_data_logger import BaseGalileoDataLogger
 from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.split import Split
 from dataquality.utils.thread_pool import ThreadPoolManager
-from dataquality.utils.vaex import _validate_unique_ids, _join_in_out_frames
+from dataquality.utils.vaex import _join_in_out_frames, _validate_unique_ids
 
-MAX_META_COLS = BaseGalileoDataConfig.MAX_META_COLS
-MAX_STR_LEN = BaseGalileoDataConfig.MAX_STR_LEN
 DATA_FOLDERS = ["emb", "prob", "data"]
 
 
 @unique
-class GalileoDataConfigAttributes(str, Enum):
+class GalileoDataLogAttributes(str, Enum):
     text = "text"
     labels = "labels"
     ids = "ids"
@@ -33,10 +30,10 @@ class GalileoDataConfigAttributes(str, Enum):
 
     @staticmethod
     def get_valid() -> List[str]:
-        return list(map(lambda x: x.value, GalileoDataConfigAttributes))
+        return list(map(lambda x: x.value, GalileoDataLogAttributes))
 
 
-class TextClassificationDataConfig(BaseGalileoDataConfig):
+class TextClassificationDataLogger(BaseGalileoDataLogger):
     """
     Class for logging input data/metadata of Text Classification models to Galileo.
 
@@ -45,7 +42,8 @@ class TextClassificationDataConfig(BaseGalileoDataConfig):
     * ids: Optional unique indexes for each record. If not provided, will default to
     the index of the record. Optional[List[Union[int,str]]]
     """
-    __name__ = "text_classification"
+
+    __logger_name__ = "text_classification"
 
     def __init__(
         self,
@@ -53,16 +51,15 @@ class TextClassificationDataConfig(BaseGalileoDataConfig):
         labels: List[str] = None,
         ids: List[Union[int, str]] = None,
         split: str = None,
-        **kwargs: Dict[str, List[Union[str, float, int]]],
+        meta: Optional[Dict[str, List[Union[str, float, int]]]] = None,
     ) -> None:
-        super().__init__()
+        super().__init__(meta)
         # Need to compare to None because they may be np arrays which cannot be
         # evaluated with bool directly
         self.text = text if text is not None else []
         self.labels = [str(i) for i in labels] if labels is not None else []
         self.ids = ids if ids is not None else []
         self.split = split
-        self.meta = kwargs
 
     @staticmethod
     def get_valid_attributes() -> List[str]:
@@ -70,7 +67,7 @@ class TextClassificationDataConfig(BaseGalileoDataConfig):
         Returns a list of valid attributes that GalileoModelConfig accepts
         :return: List[str]
         """
-        return GalileoDataConfigAttributes.get_valid()
+        return GalileoDataLogAttributes.get_valid()
 
     def validate(self) -> None:
         """
@@ -86,9 +83,9 @@ class TextClassificationDataConfig(BaseGalileoDataConfig):
         text_len = len(self.text)
         id_len = len(self.ids)
 
-        self.text = self._convert_tensor_ndarray(self.text)
-        self.labels = self._convert_tensor_ndarray(self.labels)
-        self.ids = self._convert_tensor_ndarray(self.ids)
+        self.text = list(self._convert_tensor_ndarray(self.text))
+        self.labels = list(self._convert_tensor_ndarray(self.labels))
+        self.ids = list(self._convert_tensor_ndarray(self.ids))
 
         assert self.split, "Your GalileoDataConfig has no split!"
         self.split = Split.training.value if self.split == "train" else self.split
@@ -127,7 +124,7 @@ class TextClassificationDataConfig(BaseGalileoDataConfig):
     def log(self) -> None:
         self.validate()
         write_input_dir = (
-            f"{BaseGalileoConfig.LOG_FILE_DIR}/{config.current_project_id}/"
+            f"{BaseGalileoLogger.LOG_FILE_DIR}/{config.current_project_id}/"
             f"{config.current_run_id}"
         )
         if not os.path.exists(write_input_dir):
@@ -141,7 +138,7 @@ class TextClassificationDataConfig(BaseGalileoDataConfig):
             **self.meta,
         )
         df = vaex.from_pandas(pd.DataFrame(inp))
-        file_path = f"{write_input_dir}/{BaseGalileoDataConfig.INPUT_DATA_NAME}"
+        file_path = f"{write_input_dir}/{BaseGalileoDataLogger.INPUT_DATA_NAME}"
         if os.path.isfile(file_path):
             new_name = f"{write_input_dir}/{str(uuid4()).replace('-', '')[:12]}.arrow"
             os.rename(file_path, new_name)
@@ -151,18 +148,20 @@ class TextClassificationDataConfig(BaseGalileoDataConfig):
             df.export(file_path)
         df.close()
 
-    def upload(self):
+    @classmethod
+    def upload(cls) -> None:
         """
         Iterates through all of the splits/epochs/[data/emb/prob] folders, concatenates
-        all of the files with vaex, and uploads them to a single file in minio in the same
-        directory structure
+        all of the files with vaex, and uploads them to a single file in minio
         """
         ThreadPoolManager.wait_for_threads()
         print("☁️ Uploading Data")
         proj_run = f"{config.current_project_id}/{config.current_run_id}"
-        location = f"{self.LOG_FILE_DIR}/{proj_run}"
+        location = f"{cls.LOG_FILE_DIR}/{proj_run}"
 
-        in_frame = vaex.open(f"{location}/{BaseGalileoDataConfig.INPUT_DATA_NAME}").copy()
+        in_frame = vaex.open(
+            f"{location}/{BaseGalileoDataLogger.INPUT_DATA_NAME}"
+        ).copy()
         for split in Split.get_valid_attributes():
             split_loc = f"{location}/{split}"
             if not os.path.exists(split_loc):
@@ -178,8 +177,9 @@ class TextClassificationDataConfig(BaseGalileoDataConfig):
                 prob = in_out[["id", "prob", "gold"]]
                 emb = in_out[["id", "emb"]]
                 ignore_cols = ["emb", "prob", "gold", "split_id"]
-                other_cols = [i for i in in_out.get_column_names() if
-                              i not in ignore_cols]
+                other_cols = [
+                    i for i in in_out.get_column_names() if i not in ignore_cols
+                ]
                 in_out = in_out[other_cols]
 
                 for data_folder, df_obj in zip(DATA_FOLDERS, [emb, prob, in_out]):
@@ -187,4 +187,3 @@ class TextClassificationDataConfig(BaseGalileoDataConfig):
                         f"{proj_run}/{split}/{epoch}/{data_folder}/{data_folder}.hdf5"
                     )
                     object_store.create_project_run_object_from_df(df_obj, minio_file)
-

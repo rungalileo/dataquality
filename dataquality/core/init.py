@@ -6,8 +6,8 @@ from pydantic.types import UUID4
 
 from dataquality import config
 from dataquality.clients import api_client
-from dataquality.core.log import JsonlLogger
 from dataquality.exceptions import GalileoException
+from dataquality.loggers import BaseGalileoLogger
 from dataquality.utils.name import random_name
 
 
@@ -35,12 +35,14 @@ class _Init:
         return api_client.create_run(project_name, run_name)
 
     def create_log_file_dir(self, project_id: UUID4, run_id: UUID4) -> None:
-        write_output_dir = f"{JsonlLogger.LOG_FILE_DIR}/{project_id}/{run_id}"
+        write_output_dir = f"{BaseGalileoLogger.LOG_FILE_DIR}/{project_id}/{run_id}"
         if not os.path.exists(write_output_dir):
             os.makedirs(write_output_dir)
 
 
-def init(project_name: Optional[str] = None, run_name: Optional[str] = None) -> None:
+def init(
+    task_type: str, project_name: Optional[str] = None, run_name: Optional[str] = None
+) -> None:
     """
     Start a run
 
@@ -50,6 +52,8 @@ def init(project_name: Optional[str] = None, run_name: Optional[str] = None) -> 
     Optionally provide project and run names to create a new project/run or restart
     existing ones.
 
+    :param task_type: The task type for modeling. This must be one of the valid
+    TaskType options
     :param project_name: The project name. If not passed in, a random one will be
     generated. If provided, and the project does not exist, it will be created. If it
     does exist, it will be set.
@@ -63,6 +67,8 @@ def init(project_name: Optional[str] = None, run_name: Optional[str] = None) -> 
         )
     _init = _Init()
     config.labels = None
+    BaseGalileoLogger.validate_task(task_type)
+    config.task_type = task_type
     if not project_name and not run_name:
         # no project and no run id, start a new project and start a new run
         project_name, run_name = random_name(), random_name()

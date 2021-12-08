@@ -6,12 +6,8 @@ import pytest
 
 import dataquality
 import dataquality.core._config
-# from dataquality.core.finish import _cleanup, _upload
-from dataquality.core.integrations.config import MAX_META_COLS, MAX_STR_LEN
 from dataquality.exceptions import GalileoException
-from dataquality.loggers.config.data_config import BaseGalileoDataConfig
-from dataquality.schemas.jsonl_logger import JsonlInputLogItem
-from dataquality.schemas.split import Split
+from dataquality.loggers.data_logger import BaseGalileoDataLogger
 from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.utils.data_utils import (
     NUM_LOGS,
@@ -20,6 +16,9 @@ from tests.utils.data_utils import (
     validate_cleanup_data,
     validate_uploaded_data,
 )
+
+MAX_META_COLS = BaseGalileoDataLogger.MAX_META_COLS
+MAX_STR_LEN = BaseGalileoDataLogger.MAX_STR_LEN
 
 
 def test_threaded_logging_and_upload(cleanup_after_use) -> None:
@@ -33,9 +32,7 @@ def test_threaded_logging_and_upload(cleanup_after_use) -> None:
     _log_data(num_records=num_records, num_logs=num_logs, num_emb=num_emb)
     try:
         # Equivalent to the users `finish` call, but we don't want to clean up files yet
-        # ThreadPoolManager.wait_for_threads()
-        # _upload()
-        c = BaseGalileoDataConfig().get_config("text_classification")()
+        c = dataquality.get_data_logger("text_classification")
         c.upload()
         validate_uploaded_data(num_records * num_logs)
         c._cleanup()
@@ -56,10 +53,10 @@ def test_metadata_logging(cleanup_after_use) -> None:
     _log_data(meta=meta)
     try:
         # Equivalent to the users `finish` call, but we don't want to clean up files yet
-        ThreadPoolManager.wait_for_threads()
-        _upload()
+        c = dataquality.get_data_logger("text_classification")
+        c.upload()
         validate_uploaded_data(meta_cols=meta_cols)
-        _cleanup()
+        c._cleanup()
         validate_cleanup_data()
     finally:
         # Mock finish() call without calling the API
@@ -77,10 +74,8 @@ def test_metadata_logging_invalid(cleanup_after_use) -> None:
             "te" * MAX_STR_LEN for _ in range(NUM_RECORDS * NUM_LOGS)
         ],  # String too long
         "another_bad_attr": ["test", "test", "test"],  # Wrong number of values
-        "bad_attr_3": [[1]]
-        + [
-            random() for _ in range(NUM_RECORDS * NUM_LOGS - 1)
-        ],  # Right length, but can't contain a list
+        # Right length, but can't contain a list
+        "bad_attr_3": [[1]] + [random() for _ in range(NUM_RECORDS * NUM_LOGS - 1)],
         "gold": [random() for _ in range(NUM_RECORDS * NUM_LOGS)],  # Reserved key
     }
 
@@ -93,25 +88,14 @@ def test_metadata_logging_invalid(cleanup_after_use) -> None:
     valid_meta_cols += [f"attr_{i}" for i in range(44)]
     try:
         # Equivalent to the users `finish` call, but we don't want to clean up files yet
-        ThreadPoolManager.wait_for_threads()
-        _upload()
+        c = dataquality.get_data_logger("text_classification")
+        c.upload()
         validate_uploaded_data(meta_cols=valid_meta_cols)
-        _cleanup()
+        c._cleanup()
         validate_cleanup_data()
     finally:
         # Mock finish() call without calling the API
         ThreadPoolManager.wait_for_threads()
-
-
-def test_set_data_version_fail():
-    """
-    You should not be able to set the data_schema_version of your logged data.
-    An error should be thrown
-    """
-    with pytest.raises(ValueError):
-        JsonlInputLogItem(
-            id=1, split=Split.training, text="test", data_schema_version=5
-        )
 
 
 def test_logging_duplicate_ids(cleanup_after_use) -> None:
@@ -123,8 +107,9 @@ def test_logging_duplicate_ids(cleanup_after_use) -> None:
     try:
         # Equivalent to the users `finish` call, but we don't want to clean up files yet
         ThreadPoolManager.wait_for_threads()
+        c = dataquality.get_data_logger("text_classification")
         with pytest.raises(GalileoException):
-            _upload()
+            c.upload()
     finally:
         # Mock finish() call without calling the API
         ThreadPoolManager.wait_for_threads()

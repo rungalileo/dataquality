@@ -12,9 +12,12 @@ from transformers import (
     DistilBertTokenizerFast,
 )
 
-from dataquality.core.integrations.config import GalileoDataConfig, GalileoModelConfig
+import dataquality
 
 NUM_RECORDS = 23
+
+
+dataquality.config.task_type = "text_classification"
 
 
 def introduce_label_errors(
@@ -51,7 +54,7 @@ class NewsgroupDataset(torch.utils.data.Dataset):
         #
         # 🔭 Logging Inputs with Galileo!
         #
-        self.gconfig = GalileoDataConfig(
+        self.gconfig = dataquality.get_data_logger()(
             text=self.dataset["text"], labels=self.dataset["label"]
         )
 
@@ -84,7 +87,7 @@ class TorchDistilBERTTorch(pl.LightningModule):
         emb = [[random() for _ in range(10)] for _ in range(NUM_RECORDS)]
 
         # Logging with Galileo!
-        self.g_model_config = GalileoModelConfig(
+        self.g_model_config = dataquality.get_model_logger()(
             emb=emb, probs=probs, ids=x_idxs, split=split, epoch=epoch
         )
 
@@ -105,7 +108,9 @@ class LightningDistilBERT(pl.LightningModule):
         emb = [[random() for _ in range(10)] for _ in range(NUM_RECORDS)]
 
         # Logging with Galileo!
-        self.g_model_config = GalileoModelConfig(emb=emb, probs=probs, ids=x_idxs)
+        self.g_model_config = dataquality.get_model_logger()(
+            emb=emb, probs=probs, ids=x_idxs
+        )
 
         return 0
 

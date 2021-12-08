@@ -1,6 +1,6 @@
 from collections import defaultdict
-from enum import unique, Enum
-from typing import List, Union, Optional
+from enum import Enum, unique
+from typing import Any, List, Optional, Union
 from uuid import uuid4
 
 import numpy as np
@@ -9,15 +9,15 @@ from vaex.dataframe import DataFrame
 
 from dataquality import config
 from dataquality.exceptions import GalileoException
-from dataquality.loggers.config.base_config import BaseConfigAttributes
-from dataquality.loggers.config.model_config import BaseGalileoModelConfig
+from dataquality.loggers.base_logger import BaseLoggerAttributes
+from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.split import Split
 from dataquality.utils.vaex import _save_hdf5_file, _try_concat_df
 
 
 @unique
-class GalileoModelConfigAttributes(str, Enum):
+class GalileoModelLogAttributes(str, Enum):
     emb = "emb"
     probs = "probs"
     ids = "ids"
@@ -27,13 +27,14 @@ class GalileoModelConfigAttributes(str, Enum):
 
     @staticmethod
     def get_valid() -> List[str]:
-        return list(map(lambda x: x.value, GalileoModelConfigAttributes))
-
-    for i in get_valid():
-        assert i in BaseConfigAttributes.get_valid()
+        return list(map(lambda x: x.value, GalileoModelLogAttributes))
 
 
-class TextClassificationDataConfig(BaseGalileoModelConfig):
+for i in GalileoModelLogAttributes.get_valid():
+    assert i in BaseLoggerAttributes.get_valid()
+
+
+class TextClassificationModelLogger(BaseGalileoModelLogger):
     """
     Class for logging model output data of Text Classification models to Galileo.
 
@@ -42,16 +43,18 @@ class TextClassificationDataConfig(BaseGalileoModelConfig):
     List[List[float]]
     * ids: Indexes of each input field: List[Union[int,str]]
     """
-    __name__ = "text_classification"
+
+    __logger_name__ = "text_classification"
 
     def __init__(
         self,
-        emb: List[List[Union[int, float]]] = None,
-        probs: List[List[float]] = None,
-        ids: List[Union[int, str]] = None,
+        emb: Union[List, np.ndarray] = None,
+        probs: Union[List, np.ndarray] = None,
+        ids: Union[List, np.ndarray] = None,
         split: Optional[str] = None,
         epoch: Optional[int] = None,
     ) -> None:
+        super().__init__()
         # Need to compare to None because they may be np arrays which cannot be
         # evaluated with bool directly
         self.emb = emb if emb is not None else []
@@ -66,7 +69,7 @@ class TextClassificationDataConfig(BaseGalileoModelConfig):
         Returns a list of valid attributes that GalileoModelConfig accepts
         :return: List[str]
         """
-        return GalileoModelConfigAttributes.get_valid()
+        return GalileoModelLogAttributes.get_valid()
 
     def validate(self) -> None:
         """
@@ -145,10 +148,16 @@ class TextClassificationDataConfig(BaseGalileoModelConfig):
                 "emb": emb,
                 "prob": p,
                 "pred": int(np.argmax(prob)),
-                "data_schema_version": __data_schema_version__
+                "data_schema_version": __data_schema_version__,
             }
             for k in record.keys():
                 data[k].append(record[k])
         self.write_model_output(model_output=vaex.from_dict(data))
 
-
+    def __setattr__(self, key: Any, value: Any) -> None:
+        if key not in self.get_valid_attributes():
+            raise AttributeError(
+                f"{key} is not a valid attribute of GalileoModelConfig. "
+                f"Only {self.get_valid_attributes()}"
+            )
+        super().__setattr__(key, value)

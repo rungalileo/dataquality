@@ -6,14 +6,10 @@ from torch.nn import Module
 from torch.utils.data import Dataset
 from torch.utils.data.dataloader import DataLoader
 
-import dataquality
 from dataquality import config
-from dataquality.core.integrations.config import (
-    GalileoModelConfig,
-    get_dataconfig_attr,
-    get_modelconfig_attr,
-)
 from dataquality.exceptions import GalileoException
+from dataquality.loggers.data_logger import BaseGalileoDataLogger
+from dataquality.loggers.model_logger import BaseGalileoModelLogger
 from dataquality.schemas.split import Split
 
 _GORILLA_WATCH_SETTINGS = gorilla.Settings(allow_hit=True, store_hit=True)
@@ -59,14 +55,14 @@ def watch(model: Module) -> None:
         orig = gorilla.get_original_attribute(cls, "forward")
         res = orig(*args, **kwargs)
         try:
-            config_attr = get_modelconfig_attr(cls)
+            config_attr = BaseGalileoModelLogger.get_modellogger_attr(cls)
         except AttributeError:  # User didn't specify a model config
             warnings.warn(
                 "Your model must utilize the GalileoModelConfig in order to enable "
                 "automated logging to Galileo! Logging will be skipped."
             )
             return res
-        model_config: GalileoModelConfig = getattr(cls, config_attr)
+        model_config: BaseGalileoModelLogger = getattr(cls, config_attr)
 
         if model_config.epoch is None:  # Compare to None because 0 will be False
             warnings.warn(
@@ -96,7 +92,7 @@ def watch(model: Module) -> None:
                 model_config.split = "training"
 
         try:
-            dataquality.log_model_outputs(model_config)
+            model_config.log()
         except GalileoException as e:
             warnings.warn(
                 f"Logging model outputs to Galileo could not be "
@@ -141,10 +137,10 @@ def log_input_data(data: Union[DataLoader, Dataset], split: str) -> None:
 
     try:
         if isinstance(data, Dataset):
-            dataset_config = get_dataconfig_attr(data)
+            dataset_config = BaseGalileoDataLogger.get_datalogger_attr(data)
             data_config = getattr(data, dataset_config)
         elif isinstance(data, DataLoader):
-            dataset_config = get_dataconfig_attr(data.dataset)
+            dataset_config = BaseGalileoDataLogger.get_datalogger_attr(data.dataset)
             data_config = getattr(data.dataset, dataset_config)
         else:
             raise GalileoException(
@@ -156,4 +152,4 @@ def log_input_data(data: Union[DataLoader, Dataset], split: str) -> None:
             "Dataset. You must include one to call this function."
         )
     data_config.split = split
-    dataquality.log_batch_input_data(data_config)
+    data_config.log()

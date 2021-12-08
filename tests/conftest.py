@@ -7,13 +7,13 @@ from vaex.dataframe import DataFrame
 
 from dataquality import config
 from dataquality.clients import object_store
-from dataquality.loggers.jsonl_logger import JsonlLogger
+from dataquality.loggers import BaseGalileoLogger
 
 config.current_project_id = uuid4()
 config.current_run_id = uuid4()
 
 LOCATION = (
-    f"{JsonlLogger.LOG_FILE_DIR}/{config.current_project_id}"
+    f"{BaseGalileoLogger.LOG_FILE_DIR}/{config.current_project_id}"
     f"/{config.current_run_id}"
 )
 TEST_STORE_DIR = "TEST_STORE"
