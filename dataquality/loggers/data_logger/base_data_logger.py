@@ -82,7 +82,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         return loggers[task_type]
 
     @staticmethod
-    def get_datalogger_attr(cls: object) -> str:
+    def get_data_logger_attr(cls: object) -> str:
         """
         Returns the attribute that corresponds to the GalileoDataConfig class.
         This assumes only 1 GalileoDataConfig object exists in the class

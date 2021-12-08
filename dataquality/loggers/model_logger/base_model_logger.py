@@ -54,7 +54,7 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         BaseGalileoDataLogger.get_logger(cls.__logger_name__).upload()
 
     @staticmethod
-    def get_modellogger_attr(cls: object) -> str:
+    def get_model_logger_attr(cls: object) -> str:
         """
         Returns the attribute that corresponds to the GalileoModelConfig class.
         This assumes only 1 GalileoModelConfig object exists in the class

@@ -55,7 +55,7 @@ def watch(model: Module) -> None:
         orig = gorilla.get_original_attribute(cls, "forward")
         res = orig(*args, **kwargs)
         try:
-            config_attr = BaseGalileoModelLogger.get_modellogger_attr(cls)
+            config_attr = BaseGalileoModelLogger.get_model_logger_attr(cls)
         except AttributeError:  # User didn't specify a model config
             warnings.warn(
                 "Your model must utilize the GalileoModelConfig in order to enable "
@@ -137,10 +137,10 @@ def log_input_data(data: Union[DataLoader, Dataset], split: str) -> None:
 
     try:
         if isinstance(data, Dataset):
-            dataset_config = BaseGalileoDataLogger.get_datalogger_attr(data)
+            dataset_config = BaseGalileoDataLogger.get_data_logger_attr(data)
             data_config = getattr(data, dataset_config)
         elif isinstance(data, DataLoader):
-            dataset_config = BaseGalileoDataLogger.get_datalogger_attr(data.dataset)
+            dataset_config = BaseGalileoDataLogger.get_data_logger_attr(data.dataset)
             data_config = getattr(data.dataset, dataset_config)
         else:
             raise GalileoException(

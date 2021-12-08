@@ -75,7 +75,7 @@ class DataQualityCallback(Callback):
                     )
                     return
             try:
-                config_attr = BaseGalileoDataLogger.get_datalogger_attr(dataset)
+                config_attr = BaseGalileoDataLogger.get_data_logger_attr(dataset)
             except AttributeError:
                 warnings.warn(
                     "No GalileoDataConfig found in your DataSet. Logging of input "
@@ -98,7 +98,7 @@ class DataQualityCallback(Callback):
 
     def _log_model_outputs(self, trainer: pl.Trainer, split: Split) -> None:
         try:
-            config_attr = BaseGalileoModelLogger.get_modellogger_attr(trainer.model)
+            config_attr = BaseGalileoModelLogger.get_model_logger_attr(trainer.model)
         except AttributeError:
             warnings.warn(
                 "No GalileoModelConfig found for this model, logging of model "
