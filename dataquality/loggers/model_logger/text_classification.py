@@ -9,7 +9,6 @@ from vaex.dataframe import DataFrame
 
 from dataquality import config
 from dataquality.exceptions import GalileoException
-from dataquality.loggers.base_logger import BaseLoggerAttributes
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.split import Split
@@ -17,7 +16,7 @@ from dataquality.utils.vaex import _save_hdf5_file, _try_concat_df
 
 
 @unique
-class GalileoModelLogAttributes(str, Enum):
+class GalileoModelLoggerAttributes(str, Enum):
     emb = "emb"
     probs = "probs"
     ids = "ids"
@@ -27,11 +26,7 @@ class GalileoModelLogAttributes(str, Enum):
 
     @staticmethod
     def get_valid() -> List[str]:
-        return list(map(lambda x: x.value, GalileoModelLogAttributes))
-
-
-for i in GalileoModelLogAttributes.get_valid():
-    assert i in BaseLoggerAttributes.get_valid()
+        return list(map(lambda x: x.value, GalileoModelLoggerAttributes))
 
 
 class TextClassificationModelLogger(BaseGalileoModelLogger):
@@ -69,7 +64,7 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         Returns a list of valid attributes that GalileoModelConfig accepts
         :return: List[str]
         """
-        return GalileoModelLogAttributes.get_valid()
+        return GalileoModelLoggerAttributes.get_valid()
 
     def validate(self) -> None:
         """

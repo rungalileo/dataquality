@@ -56,6 +56,10 @@ class BaseGalileoLogger:
     def __init__(self) -> None:
         self.split: Optional[str] = None
 
+    @staticmethod
+    def get_valid_attributes() -> List[str]:
+        return BaseLoggerAttributes.get_valid()
+
     @abstractmethod
     def validate(self) -> None:
         pass

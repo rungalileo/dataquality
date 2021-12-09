@@ -8,6 +8,8 @@ from pydantic import BaseModel
 from pydantic.class_validators import validator
 from pydantic.types import UUID4, StrictStr
 
+from dataquality.schemas.task_type import TaskType
+
 
 class GalileoConfigVars(str, Enum):
     API_URL = "GALILEO_API_URL"
@@ -79,7 +81,7 @@ class Config(BaseModel):
     current_run_id: Optional[UUID4] = None
     labels: Optional[List[StrictStr]] = None
     observed_num_labels: Optional[int] = 0
-    task_type: Optional[str] = None
+    task_type: Optional[TaskType] = None
 
     class Config:
         validate_assignment = True

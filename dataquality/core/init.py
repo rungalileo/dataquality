@@ -53,7 +53,7 @@ def init(
     existing ones.
 
     :param task_type: The task type for modeling. This must be one of the valid
-    TaskType options
+    `dataquality.schemas.task_type.TaskType` options
     :param project_name: The project name. If not passed in, a random one will be
     generated. If provided, and the project does not exist, it will be created. If it
     does exist, it will be set.

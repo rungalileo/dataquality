@@ -19,11 +19,11 @@ from dataquality.utils.thread_pool import ThreadPoolManager
 class DataQualityCallback(Callback):
     """
     The PyTorch Lightning Callback for Galileo's dataquality module. This module
-    handles the logging of input data and model configs to Galileo. It makes the
+    handles the logging of input data and model loggers to Galileo. It makes the
     following assumptions:
-    * Your model class has an attribute containing a valid GalileoModelConfig
+    * Your model class has an attribute containing a valid GalileoModelLogger
     * You have a DataSet that extends PyTorch's DataSet and has an attribute containing
-    a valid GalileoDataConfig
+    a valid GalileoDataLogger
     """
 
     def __init__(self) -> None:
@@ -75,20 +75,18 @@ class DataQualityCallback(Callback):
                     )
                     return
             try:
-                config_attr = BaseGalileoDataLogger.get_data_logger_attr(dataset)
+                logger_attr = BaseGalileoDataLogger.get_data_logger_attr(dataset)
             except AttributeError:
                 warnings.warn(
-                    "No GalileoDataConfig found in your DataSet. Logging of input "
+                    "No GalileoDataLogger found in your DataSet. Logging of input "
                     "data to Galileo will be skipped"
                 )
                 return
 
-            data_config: BaseGalileoDataLogger = getattr(dataset, config_attr)
-            data_config.split = split
+            data_logger: BaseGalileoDataLogger = getattr(dataset, logger_attr)
+            data_logger.split = split
             try:
-                print("here trying to log")
-                data_config.log()
-                print("done logging")
+                data_logger.log()
             except GalileoException as e:
                 warnings.warn(
                     f"Logging data inputs to Galileo could not be completed. See "
@@ -98,22 +96,20 @@ class DataQualityCallback(Callback):
 
     def _log_model_outputs(self, trainer: pl.Trainer, split: Split) -> None:
         try:
-            config_attr = BaseGalileoModelLogger.get_model_logger_attr(trainer.model)
+            logger_attr = BaseGalileoModelLogger.get_model_logger_attr(trainer.model)
         except AttributeError:
             warnings.warn(
-                "No GalileoModelConfig found for this model, logging of model "
-                "config to Galileo will be skipped."
+                "No GalileoModelLogger found for this model, logging of model "
+                "to Galileo will be skipped."
             )
             return
 
-        model_config: BaseGalileoModelLogger = getattr(trainer.model, config_attr)
-        model_config.epoch = self.checkpoint_data["epoch"]
-        model_config.split = split.value
+        model_logger: BaseGalileoModelLogger = getattr(trainer.model, logger_attr)
+        model_logger.epoch = self.checkpoint_data["epoch"]
+        model_logger.split = split.value
 
         try:
-            print("here logging model outputs")
-            model_config.log()
-            print("here done model outputs")
+            model_logger.log()
         except GalileoException as e:
             warnings.warn(
                 f"Logging model outputs to Galileo could not occur. "

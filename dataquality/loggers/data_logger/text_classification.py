@@ -20,7 +20,7 @@ DATA_FOLDERS = ["emb", "prob", "data"]
 
 
 @unique
-class GalileoDataLogAttributes(str, Enum):
+class GalileoDataLoggerAttributes(str, Enum):
     text = "text"
     labels = "labels"
     ids = "ids"
@@ -30,7 +30,7 @@ class GalileoDataLogAttributes(str, Enum):
 
     @staticmethod
     def get_valid() -> List[str]:
-        return list(map(lambda x: x.value, GalileoDataLogAttributes))
+        return list(map(lambda x: x.value, GalileoDataLoggerAttributes))
 
 
 class TextClassificationDataLogger(BaseGalileoDataLogger):
@@ -67,7 +67,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         Returns a list of valid attributes that GalileoModelConfig accepts
         :return: List[str]
         """
-        return GalileoDataLogAttributes.get_valid()
+        return GalileoDataLoggerAttributes.get_valid()
 
     def validate(self) -> None:
         """
