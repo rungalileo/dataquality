@@ -8,6 +8,7 @@ from dataquality import config
 from dataquality.clients import api_client
 from dataquality.exceptions import GalileoException
 from dataquality.loggers import BaseGalileoLogger
+from dataquality.schemas.task_type import TaskType
 from dataquality.utils.name import random_name
 
 
@@ -68,7 +69,7 @@ def init(
     _init = _Init()
     config.labels = None
     BaseGalileoLogger.validate_task(task_type)
-    config.task_type = task_type
+    config.task_type = TaskType[task_type]
     if not project_name and not run_name:
         # no project and no run id, start a new project and start a new run
         project_name, run_name = random_name(), random_name()
