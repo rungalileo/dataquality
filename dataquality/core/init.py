@@ -31,9 +31,11 @@ class _Init:
             else:
                 raise e
 
-    def _initialize_run_for_project(self, project_name: str, run_name: str) -> Dict:
+    def _initialize_run_for_project(
+        self, project_name: str, run_name: str, task_type: TaskType
+    ) -> Dict:
         print(f"🏃‍♂️ Starting run {run_name}")
-        return api_client.create_run(project_name, run_name)
+        return api_client.create_run(project_name, run_name, task_type)
 
     def create_log_file_dir(self, project_id: UUID4, run_id: UUID4) -> None:
         write_output_dir = f"{BaseGalileoLogger.LOG_FILE_DIR}/{project_id}/{run_id}"
@@ -69,13 +71,14 @@ def init(
     _init = _Init()
     config.labels = None
     BaseGalileoLogger.validate_task(task_type)
-    config.task_type = TaskType[task_type]
+    task_type = TaskType[task_type]
+    config.task_type = task_type
     if not project_name and not run_name:
         # no project and no run id, start a new project and start a new run
         project_name, run_name = random_name(), random_name()
         project_response = _init._initialize_new_project(project_name=project_name)
         run_response = _init._initialize_run_for_project(
-            project_name=project_name, run_name=run_name
+            project_name=project_name, run_name=run_name, task_type=task_type
         )
         config.current_project_id = project_response["id"]
         config.current_run_id = run_response["id"]
@@ -87,7 +90,7 @@ def init(
             run_name = random_name()
             print(f"📡 Retrieved project, {project_name}, and starting a new run")
             run_response = _init._initialize_run_for_project(
-                project_name=project_name, run_name=run_name
+                project_name=project_name, run_name=run_name, task_type=task_type
             )
             config.current_project_id = project["id"]
             config.current_run_id = run_response["id"]
@@ -100,7 +103,7 @@ def init(
             run_name = random_name()
             project_response = _init._initialize_new_project(project_name=project_name)
             run_response = _init._initialize_run_for_project(
-                project_name=project_name, run_name=run_name
+                project_name=project_name, run_name=run_name, task_type=task_type
             )
             config.current_project_id = project_response["id"]
             config.current_run_id = run_response["id"]
@@ -119,7 +122,9 @@ def init(
                 print(f"🛰 Connected to project, {project_name}, and run, {run_name}.")
             else:
                 # If the run does not exist, create it
-                run_response = _init._initialize_run_for_project(project_name, run_name)
+                run_response = _init._initialize_run_for_project(
+                    project_name, run_name, task_type
+                )
                 config.current_project_id = project["id"]
                 config.current_run_id = run_response["id"]
                 print(
@@ -131,7 +136,7 @@ def init(
             print(f"💭 Project {project_name} was not found.")
             project_response = _init._initialize_new_project(project_name=project_name)
             run_response = _init._initialize_run_for_project(
-                project_name=project_name, run_name=run_name
+                project_name=project_name, run_name=run_name, task_type=task_type
             )
             config.current_project_id = project_response["id"]
             config.current_run_id = run_response["id"]
