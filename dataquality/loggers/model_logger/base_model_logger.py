@@ -1,13 +1,11 @@
 from abc import abstractmethod
-from typing import Any, Dict, Optional, TypeVar
+from typing import Any, Dict, Optional
 
 from vaex.dataframe import DataFrame
 
 from dataquality.loggers import BaseGalileoLogger
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
 from dataquality.utils.thread_pool import ThreadPoolManager
-
-T = TypeVar("T", bound="BaseGalileoModelLogger")
 
 
 class BaseGalileoModelLogger(BaseGalileoLogger):

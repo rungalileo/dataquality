@@ -1,18 +1,16 @@
 import warnings
 from abc import abstractmethod
-from typing import Any, Dict, List, Optional, TypeVar, Union
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 
 from dataquality.loggers.base_logger import BaseGalileoLogger, BaseLoggerAttributes
 
-T = TypeVar("T", bound="BaseGalileoDataLogger")
-
 
 class BaseGalileoDataLogger(BaseGalileoLogger):
     MAX_META_COLS = 50  # Limit the number of metadata attrs a user can log
     MAX_STR_LEN = 50  # Max characters in a string metadata attribute
-    INPUT_DATA_NAME = "input_data.arrow"
+    INPUT_DATA_NAME = "input_data.hdf5"
 
     def __init__(
         self, meta: Optional[Dict[str, List[Union[str, float, int]]]] = None

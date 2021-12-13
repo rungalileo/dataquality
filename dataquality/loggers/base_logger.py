@@ -3,7 +3,7 @@ import shutil
 from abc import abstractmethod
 from enum import Enum, unique
 from glob import glob
-from typing import Any, Dict, List, Optional, Type, TypeVar, Union
+from typing import Any, Dict, List, Optional, Type, Union
 
 import numpy as np
 
@@ -24,9 +24,6 @@ try:
     TF_AVAILABLE = True
 except ImportError:
     TF_AVAILABLE = False
-
-
-T = TypeVar("T", bound="BaseGalileoLogger")
 
 
 @unique

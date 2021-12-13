@@ -2,11 +2,11 @@ import json
 import os
 from enum import Enum, unique
 from getpass import getpass
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 from pydantic import BaseModel
 from pydantic.class_validators import validator
-from pydantic.types import UUID4, StrictStr
+from pydantic.types import UUID4
 
 from dataquality.schemas.task_type import TaskType
 
@@ -79,7 +79,7 @@ class Config(BaseModel):
     current_user: Optional[str] = None
     current_project_id: Optional[UUID4] = None
     current_run_id: Optional[UUID4] = None
-    labels: Optional[List[StrictStr]] = None
+    labels: Optional[Union[Dict[str, List[str]], List[str]]] = None
     observed_num_labels: Optional[int] = 0
     task_type: Optional[TaskType] = None
 

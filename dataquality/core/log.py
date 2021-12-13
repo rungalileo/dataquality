@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Type
+from typing import Any, Dict, List, Type, Union
 
 from deprecate import deprecated
 
@@ -29,17 +29,26 @@ def log_model_outputs(**kwargs: Any) -> None:
     model_logger.log()
 
 
-def set_labels_for_run(labels: List[str]) -> None:
+def set_labels_for_run(labels: Union[Dict[str, List[str]], List[str]]) -> None:
     """
     Creates the mapping of the labels for the model to their respective indexes.
 
     :param labels: An ordered list of labels (ie ['dog','cat','fish']
+    If this is a multi-label type, then labels are a dictionary where each value is
+    as listed above and the key is the label ("task")
     This order MUST match the order of probabilities that the model outputs
     :return: None
     """
-    if len(labels) == 1:
-        labels = [labels[0], f"NOT_{labels[0]}"]
-    config.labels = [str(i) for i in labels]
+    if isinstance(labels, List):
+        if len(labels) == 1:
+            labels = [labels[0], f"NOT_{labels[0]}"]
+        config.labels = [str(i) for i in labels]
+    elif isinstance(labels, Dict):  # multi-label
+        for k in list(labels.keys()):
+            if len(k) == 1:
+                labels[k] = [labels[k][0], f"NOT_{labels[k][0]}"]
+            labels[k] = [str(i) for i in labels[k]]
+        config.labels = labels
     config.update_file_config()
 
 
