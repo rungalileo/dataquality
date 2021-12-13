@@ -1,5 +1,5 @@
-from typing import Any, Dict, List, Type
 import warnings
+from typing import Any, Dict, List, Type
 
 from dataquality import config
 from dataquality.exceptions import GalileoException
