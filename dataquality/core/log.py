@@ -1,6 +1,5 @@
 from typing import Any, Dict, List, Type
-
-from deprecate import deprecated
+import warnings
 
 from dataquality import config
 from dataquality.exceptions import GalileoException
@@ -15,10 +14,8 @@ def log_input_data(**kwargs: Dict[str, Any]) -> None:
 
 
 # Backwards compatibility
-@deprecated(
-    target=None, template_mgs="`%(source_name)s` was deprecated, use `log_input_data`"
-)
 def log_batch_input_data(**kwargs: Any) -> None:
+    warnings.warn("log_batch_input_data is deprecated. Use log_input_data")
     log_input_data(**kwargs)
 
 
