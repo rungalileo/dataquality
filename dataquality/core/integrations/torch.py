@@ -6,14 +6,10 @@ from torch.nn import Module
 from torch.utils.data import Dataset
 from torch.utils.data.dataloader import DataLoader
 
-import dataquality
 from dataquality import config
-from dataquality.core.integrations.config import (
-    GalileoModelConfig,
-    get_dataconfig_attr,
-    get_modelconfig_attr,
-)
 from dataquality.exceptions import GalileoException
+from dataquality.loggers.data_logger import BaseGalileoDataLogger
+from dataquality.loggers.model_logger import BaseGalileoModelLogger
 from dataquality.schemas.split import Split
 
 _GORILLA_WATCH_SETTINGS = gorilla.Settings(allow_hit=True, store_hit=True)
@@ -28,10 +24,9 @@ def watch(model: Module) -> None:
 
     NOTE: This will turn on autologging for ALL models of this class
 
-    In order for this function to work, users must utilize the GalileoModelConfig in
+    In order for this function to work, users must utilize the GalileoModelLogger in
     their Pytorch model class `__init__ or `forward` function, and implement a
     `forward` function
-    (see `dataquality.core.integrations.config.GalileoModelConfig`)
 
     :param model: The torch.nn.Module to watch
     :return: None
@@ -59,28 +54,28 @@ def watch(model: Module) -> None:
         orig = gorilla.get_original_attribute(cls, "forward")
         res = orig(*args, **kwargs)
         try:
-            config_attr = get_modelconfig_attr(cls)
-        except AttributeError:  # User didn't specify a model config
+            logger_attr = BaseGalileoModelLogger.get_model_logger_attr(cls)
+        except AttributeError:  # User didn't specify a model logger
             warnings.warn(
-                "Your model must utilize the GalileoModelConfig in order to enable "
+                "Your model must utilize the GalileoModelLogger in order to enable "
                 "automated logging to Galileo! Logging will be skipped."
             )
             return res
-        model_config: GalileoModelConfig = getattr(cls, config_attr)
+        model_logger: BaseGalileoModelLogger = getattr(cls, logger_attr)
 
-        if model_config.epoch is None:  # Compare to None because 0 will be False
+        if model_logger.epoch is None:  # Compare to None because 0 will be False
             warnings.warn(
-                "epoch must be set in your GalileoModelConfig for pytorch models to "
+                "epoch must be set in your GalileoModelLogger for pytorch models to "
                 "enable autologging to Galileo. If you are using Pytorch Lightning, "
                 "consider using the DataQualityCallback in your trainer instead. "
                 "Logging will be skipped."
             )
             return res
 
-        if not model_config.split:
+        if not model_logger.split:
             if not model.training:
                 warnings.warn(
-                    "either split must be set in your GalileoModelConfig or your model "
+                    "either split must be set in your GalileoModelLogger or your model "
                     "must be in 'training' mode (calling `model.train()`) for pytorch "
                     "models to enable autologging to Galileo. If you are using "
                     "Lightning consider using the DataQualityCallback in your trainer "
@@ -89,14 +84,14 @@ def watch(model: Module) -> None:
                 return res
             else:
                 warnings.warn(
-                    "Model config split was not set, but training mode is "
+                    "Model logger split was not set, but training mode is "
                     "set in your model. Using split=training for logging to "
                     "Galileo"
                 )
-                model_config.split = "training"
+                model_logger.split = "training"
 
         try:
-            dataquality.log_model_outputs(model_config)
+            model_logger.log()
         except GalileoException as e:
             warnings.warn(
                 f"Logging model outputs to Galileo could not be "
@@ -141,19 +136,19 @@ def log_input_data(data: Union[DataLoader, Dataset], split: str) -> None:
 
     try:
         if isinstance(data, Dataset):
-            dataset_config = get_dataconfig_attr(data)
-            data_config = getattr(data, dataset_config)
+            logger_attr = BaseGalileoDataLogger.get_data_logger_attr(data)
+            data_logger = getattr(data, logger_attr)
         elif isinstance(data, DataLoader):
-            dataset_config = get_dataconfig_attr(data.dataset)
-            data_config = getattr(data.dataset, dataset_config)
+            logger_attr = BaseGalileoDataLogger.get_data_logger_attr(data.dataset)
+            data_logger = getattr(data.dataset, logger_attr)
         else:
             raise GalileoException(
                 f"data must be one of (Dataset, DataLoader) but got {type(data)}"
             )
     except AttributeError:
         raise GalileoException(
-            "Could not find a GalileoDataConfig as a part of your "
+            "Could not find a GalileoDataLogger as a part of your "
             "Dataset. You must include one to call this function."
         )
-    data_config.split = split
-    dataquality.log_batch_input_data(data_config)
+    data_logger.split = split
+    data_logger.log()

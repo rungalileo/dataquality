@@ -1,3 +1,3 @@
-from dataquality.loggers.jsonl_logger import JsonlLogger
+from dataquality.loggers.base_logger import BaseGalileoLogger
 
-__all__ = ["JsonlLogger"]
+__all__ = ["BaseGalileoLogger"]

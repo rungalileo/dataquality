@@ -6,8 +6,9 @@ from pydantic.types import UUID4
 
 from dataquality import config
 from dataquality.clients import api_client
-from dataquality.core.log import JsonlLogger
 from dataquality.exceptions import GalileoException
+from dataquality.loggers import BaseGalileoLogger
+from dataquality.schemas.task_type import TaskType
 from dataquality.utils.name import random_name
 
 
@@ -30,17 +31,21 @@ class _Init:
             else:
                 raise e
 
-    def _initialize_run_for_project(self, project_name: str, run_name: str) -> Dict:
+    def _initialize_run_for_project(
+        self, project_name: str, run_name: str, task_type: TaskType
+    ) -> Dict:
         print(f"🏃‍♂️ Starting run {run_name}")
-        return api_client.create_run(project_name, run_name)
+        return api_client.create_run(project_name, run_name, task_type)
 
     def create_log_file_dir(self, project_id: UUID4, run_id: UUID4) -> None:
-        write_output_dir = f"{JsonlLogger.LOG_FILE_DIR}/{project_id}/{run_id}"
+        write_output_dir = f"{BaseGalileoLogger.LOG_FILE_DIR}/{project_id}/{run_id}"
         if not os.path.exists(write_output_dir):
             os.makedirs(write_output_dir)
 
 
-def init(project_name: Optional[str] = None, run_name: Optional[str] = None) -> None:
+def init(
+    task_type: str, project_name: Optional[str] = None, run_name: Optional[str] = None
+) -> None:
     """
     Start a run
 
@@ -50,6 +55,8 @@ def init(project_name: Optional[str] = None, run_name: Optional[str] = None) -> 
     Optionally provide project and run names to create a new project/run or restart
     existing ones.
 
+    :param task_type: The task type for modeling. This must be one of the valid
+    `dataquality.schemas.task_type.TaskType` options
     :param project_name: The project name. If not passed in, a random one will be
     generated. If provided, and the project does not exist, it will be created. If it
     does exist, it will be set.
@@ -63,12 +70,15 @@ def init(project_name: Optional[str] = None, run_name: Optional[str] = None) -> 
         )
     _init = _Init()
     config.labels = None
+    BaseGalileoLogger.validate_task(task_type)
+    task_type = TaskType[task_type]
+    config.task_type = task_type
     if not project_name and not run_name:
         # no project and no run id, start a new project and start a new run
         project_name, run_name = random_name(), random_name()
         project_response = _init._initialize_new_project(project_name=project_name)
         run_response = _init._initialize_run_for_project(
-            project_name=project_name, run_name=run_name
+            project_name=project_name, run_name=run_name, task_type=task_type
         )
         config.current_project_id = project_response["id"]
         config.current_run_id = run_response["id"]
@@ -80,7 +90,7 @@ def init(project_name: Optional[str] = None, run_name: Optional[str] = None) -> 
             run_name = random_name()
             print(f"📡 Retrieved project, {project_name}, and starting a new run")
             run_response = _init._initialize_run_for_project(
-                project_name=project_name, run_name=run_name
+                project_name=project_name, run_name=run_name, task_type=task_type
             )
             config.current_project_id = project["id"]
             config.current_run_id = run_response["id"]
@@ -93,7 +103,7 @@ def init(project_name: Optional[str] = None, run_name: Optional[str] = None) -> 
             run_name = random_name()
             project_response = _init._initialize_new_project(project_name=project_name)
             run_response = _init._initialize_run_for_project(
-                project_name=project_name, run_name=run_name
+                project_name=project_name, run_name=run_name, task_type=task_type
             )
             config.current_project_id = project_response["id"]
             config.current_run_id = run_response["id"]
@@ -112,7 +122,9 @@ def init(project_name: Optional[str] = None, run_name: Optional[str] = None) -> 
                 print(f"🛰 Connected to project, {project_name}, and run, {run_name}.")
             else:
                 # If the run does not exist, create it
-                run_response = _init._initialize_run_for_project(project_name, run_name)
+                run_response = _init._initialize_run_for_project(
+                    project_name, run_name, task_type
+                )
                 config.current_project_id = project["id"]
                 config.current_run_id = run_response["id"]
                 print(
@@ -124,7 +136,7 @@ def init(project_name: Optional[str] = None, run_name: Optional[str] = None) -> 
             print(f"💭 Project {project_name} was not found.")
             project_response = _init._initialize_new_project(project_name=project_name)
             run_response = _init._initialize_run_for_project(
-                project_name=project_name, run_name=run_name
+                project_name=project_name, run_name=run_name, task_type=task_type
             )
             config.current_project_id = project_response["id"]
             config.current_run_id = run_response["id"]

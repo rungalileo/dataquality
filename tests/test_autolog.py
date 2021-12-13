@@ -1,7 +1,7 @@
 import pytorch_lightning as pl
 import torch
 
-from dataquality.core.finish import _cleanup, _upload
+import dataquality
 from dataquality.core.integrations.lightning import DataQualityCallback
 from dataquality.core.integrations.torch import log_input_data, watch
 from dataquality.utils.thread_pool import ThreadPoolManager
@@ -13,6 +13,8 @@ from tests.utils.lightning_model import (
     model,
     torch_model,
 )
+
+dataquality.config.task_type = "text_classification"
 
 
 def test_lightning_autolog(cleanup_after_use) -> None:
@@ -33,9 +35,10 @@ def test_lightning_autolog(cleanup_after_use) -> None:
     trainer.test(model, test_dataloader)
     ThreadPoolManager.wait_for_threads()
     # Mock call to finish
-    _upload()
+    logger = dataquality.get_data_logger()
+    logger.upload()
     validate_uploaded_data(expected_num_records=NUM_RECORDS)
-    _cleanup()
+    logger._cleanup()
     validate_cleanup_data()
 
 
@@ -86,7 +89,8 @@ def test_torch_autolog(cleanup_after_use) -> None:
 
     ThreadPoolManager.wait_for_threads()
     # Mock call to finish
-    _upload()
+    logger = dataquality.get_data_logger()
+    logger.upload()
     validate_uploaded_data(expected_num_records=NUM_RECORDS)
-    _cleanup()
+    logger._cleanup()
     validate_cleanup_data()

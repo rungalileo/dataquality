@@ -5,6 +5,7 @@ from pydantic.types import UUID4
 from dataquality import config
 from dataquality.exceptions import GalileoException
 from dataquality.schemas import RequestType, Route
+from dataquality.schemas.task_type import TaskType
 from dataquality.utils.auth import headers
 
 
@@ -104,9 +105,9 @@ class ApiClient:
             RequestType.POST, url=f"{config.api_url}/{Route.projects}", body=body
         )
 
-    def create_run(self, project_name: str, run_name: str) -> Dict:
+    def create_run(self, project_name: str, run_name: str, task_type: TaskType) -> Dict:
         """Creates a run in a given project"""
-        body = {"name": run_name}
+        body = {"name": run_name, "task_type": task_type.value}
         proj = self.get_project_by_name(project_name)
         return self.make_request(
             RequestType.POST,

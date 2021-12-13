@@ -9,7 +9,6 @@ from sklearn.datasets import fetch_20newsgroups
 from tqdm import tqdm
 
 import dataquality
-from dataquality.core.integrations.config import GalileoDataConfig, GalileoModelConfig
 from dataquality.schemas.split import Split
 from tests.conftest import LOCATION, SPLITS, SUBDIRS, TEST_PATH
 
@@ -91,10 +90,9 @@ def _log_data(
         dataset["label"] = newsgroups_train.target
         dataset = dataset[: num_records * num_logs]
 
-        gconfig = GalileoDataConfig(
-            text=dataset["text"], labels=dataset["label"], split=split.value, **meta
+        dataquality.log_batch_input_data(
+            text=dataset["text"], labels=dataset["label"], split=split.value, meta=meta
         )
-        dataquality.log_batch_input_data(gconfig)
 
     for split in [Split.training, Split.test]:
         for ln in tqdm(range(num_logs)):
@@ -109,7 +107,6 @@ def _log_data(
             else:
                 ids = list(range(num_records))
 
-            model_config = GalileoModelConfig(
+            dataquality.log_model_outputs(
                 emb=emb, probs=probs, split=split.value, epoch=epoch, ids=ids
             )
-            dataquality.log_model_outputs(model_config)
