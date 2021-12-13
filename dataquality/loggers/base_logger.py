@@ -3,7 +3,7 @@ import shutil
 from abc import abstractmethod
 from enum import Enum, unique
 from glob import glob
-from typing import List, Optional, TypeVar, Union
+from typing import Any, Dict, List, Optional, Type, TypeVar, Union
 
 import numpy as np
 
@@ -17,6 +17,13 @@ try:
     TORCH_AVAILABLE = True
 except ImportError:
     TORCH_AVAILABLE = False
+
+try:
+    import tensorflow as tf
+
+    TF_AVAILABLE = True
+except ImportError:
+    TF_AVAILABLE = False
 
 
 T = TypeVar("T", bound="BaseGalileoLogger")
@@ -53,7 +60,7 @@ class BaseGalileoLogger:
     __logger_name__ = ""
     LOG_FILE_DIR = f"{_Config.DEFAULT_GALILEO_CONFIG_DIR}/logs"
 
-    def __init__(self) -> None:
+    def __init__(self, **kwargs: Dict[str, Any]) -> None:
         self.split: Optional[str] = None
 
     @staticmethod
@@ -83,6 +90,9 @@ class BaseGalileoLogger:
         if TORCH_AVAILABLE:
             if isinstance(arr, Tensor):
                 arr = arr.detach().cpu().numpy()
+        if TF_AVAILABLE:
+            if isinstance(arr, tf.Tensor):
+                arr = arr.cpu().numpy()
         if isinstance(arr, np.ndarray):
             if attr in ("Embedding", "Prob"):
                 shp = arr.shape
@@ -120,3 +130,19 @@ class BaseGalileoLogger:
     @classmethod
     def upload(cls) -> None:
         pass
+
+    @classmethod
+    def get_all_subclasses(cls) -> List[Type["BaseGalileoLogger"]]:
+        all_subclasses = []
+
+        for subclass in cls.__subclasses__():
+            all_subclasses.append(subclass)
+            all_subclasses.extend(subclass.get_all_subclasses())
+
+        return all_subclasses
+
+    @classmethod
+    def get_logger(cls, task_type: str) -> Type["BaseGalileoLogger"]:
+        cls.validate_task(task_type)
+        loggers = {i.__logger_name__: i for i in cls.get_all_subclasses()}
+        return loggers[task_type]

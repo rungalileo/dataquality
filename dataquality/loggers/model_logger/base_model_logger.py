@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Any, Dict, Optional, Type, TypeVar
+from typing import Any, Dict, Optional, TypeVar
 
 from vaex.dataframe import DataFrame
 
@@ -35,14 +35,6 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
     def log(self) -> None:
         """The top level log function that try/excepts it's child"""
         ThreadPoolManager.add_thread(target=self._add_threaded_log)
-
-    @staticmethod
-    def get_logger(task_type: str) -> Type["BaseGalileoModelLogger"]:
-        BaseGalileoLogger.validate_task(task_type)
-        loggers = {
-            i.__logger_name__: i for i in BaseGalileoModelLogger.__subclasses__()
-        }
-        return loggers[task_type]
 
     @abstractmethod
     def write_model_output(self, model_output: DataFrame) -> None:

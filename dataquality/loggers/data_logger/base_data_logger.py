@@ -1,6 +1,6 @@
 import warnings
 from abc import abstractmethod
-from typing import Any, Dict, Optional, Type, TypeVar
+from typing import Any, Dict, List, Optional, TypeVar, Union
 
 import numpy as np
 
@@ -14,7 +14,9 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     MAX_STR_LEN = 50  # Max characters in a string metadata attribute
     INPUT_DATA_NAME = "input_data.arrow"
 
-    def __init__(self, meta: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(
+        self, meta: Optional[Dict[str, List[Union[str, float, int]]]] = None
+    ) -> None:
         super().__init__()
         self.meta: Dict[str, Any] = meta or {}
 
@@ -74,12 +76,6 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                 continue
             valid_meta[key] = values
         self.meta = valid_meta
-
-    @staticmethod
-    def get_logger(task_type: str) -> Type["BaseGalileoDataLogger"]:
-        BaseGalileoLogger.validate_task(task_type)
-        loggers = {i.__logger_name__: i for i in BaseGalileoDataLogger.__subclasses__()}
-        return loggers[task_type]
 
     @staticmethod
     def get_data_logger_attr(cls: object) -> str:

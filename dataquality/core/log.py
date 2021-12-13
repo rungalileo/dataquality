@@ -4,6 +4,7 @@ from deprecate import deprecated
 
 from dataquality import config
 from dataquality.exceptions import GalileoException
+from dataquality.loggers import BaseGalileoLogger
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
 from dataquality.loggers.model_logger import BaseGalileoModelLogger
 
@@ -42,12 +43,12 @@ def set_labels_for_run(labels: List[str]) -> None:
     config.update_file_config()
 
 
-def get_model_logger(task_type: str = None) -> Type[BaseGalileoModelLogger]:
+def get_model_logger(task_type: str = None) -> Type[BaseGalileoLogger]:
     task_type = _get_task_type(task_type)
     return BaseGalileoModelLogger.get_logger(task_type)
 
 
-def get_data_logger(task_type: str = None) -> Type[BaseGalileoDataLogger]:
+def get_data_logger(task_type: str = None) -> Type[BaseGalileoLogger]:
     task_type = _get_task_type(task_type)
     return BaseGalileoDataLogger.get_logger(task_type)
 
