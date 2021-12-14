@@ -10,7 +10,7 @@ from dataquality.loggers.base_logger import BaseGalileoLogger, BaseLoggerAttribu
 class BaseGalileoDataLogger(BaseGalileoLogger):
     MAX_META_COLS = 50  # Limit the number of metadata attrs a user can log
     MAX_STR_LEN = 50  # Max characters in a string metadata attribute
-    INPUT_DATA_NAME = "input_data.hdf5"
+    INPUT_DATA_NAME = "input_data.arrow"
 
     def __init__(
         self, meta: Optional[Dict[str, List[Union[str, float, int]]]] = None
@@ -49,6 +49,10 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                     f"{reserved_keys}. Metadata field {key} "
                     f"will be removed."
                 )
+                continue
+            if key.startswith("galileo_") or key.startswith("prob_") or key.startswith("gold_"):
+                warnings.warn("Metadata name must not start with the following "
+                              f"prefixes: (galileo_, prob_, gold_. Removing key {key}")
                 continue
             # Must be the same length as input
             if len(values) != batch_size:

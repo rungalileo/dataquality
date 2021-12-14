@@ -4,6 +4,7 @@ import dataquality
 from dataquality import config
 from dataquality.clients import api_client
 from dataquality.schemas import ProcName, RequestType, Route
+from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.version import _version_check
 
 
@@ -11,6 +12,7 @@ def finish() -> Optional[Dict[str, Any]]:
     """
     Finishes the current run and invokes a job to begin processing
     """
+    ThreadPoolManager.wait_for_threads()
     assert config.current_project_id, "You must have an active project to call finish"
     assert config.current_run_id, "You must have an active run to call finish"
     assert config.labels, (

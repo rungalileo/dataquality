@@ -33,10 +33,13 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
     """
     Class for logging model output data of Text Classification models to Galileo.
 
-    * Embeddings: List[List[Union[int,float]]]
+    * Embeddings: List[List[Union[int,float]]]. The Embeddings per text sample input.
+    Only one embedding vector is allowed per input
     * Probabilities from forward passes during model training/evaluation.
     List[List[float]]
-    * ids: Indexes of each input field: List[Union[int,str]]
+    * ids: Indexes of each input field: List[int]. These IDs must align with the input
+    IDs for each sample input. This will be used to join them together for analysis
+    by Galileo.
     """
 
     __logger_name__ = "text_classification"

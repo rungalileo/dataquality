@@ -91,6 +91,8 @@ class BaseGalileoLogger:
             if isinstance(arr, tf.Tensor):
                 arr = arr.cpu().numpy()
         if isinstance(arr, np.ndarray):
+            if attr == "Embedding":
+
             if attr in ("Embedding", "Prob"):
                 shp = arr.shape
                 assert (

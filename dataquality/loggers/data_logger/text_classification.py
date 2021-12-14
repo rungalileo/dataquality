@@ -1,11 +1,12 @@
 import os
 from enum import Enum, unique
 from glob import glob
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union, Tuple
 from uuid import uuid4
 
 import pandas as pd
 import vaex
+from vaex.dataframe import DataFrame
 
 from dataquality import config
 from dataquality.clients import object_store
@@ -13,7 +14,6 @@ from dataquality.loggers import BaseGalileoLogger
 from dataquality.loggers.data_logger.base_data_logger import BaseGalileoDataLogger
 from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.split import Split
-from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import _join_in_out_frames, _validate_unique_ids
 
 DATA_FOLDERS = ["emb", "prob", "data"]
@@ -38,9 +38,9 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
     Class for logging input data/metadata of Text Classification models to Galileo.
 
     * text: The raw text inputs for model training. List[str]
-    * labels: the ground truth labels aligned to each text field. List[Union[str,int]]
+    * labels: the ground truth labels aligned to each text field. List[str]
     * ids: Optional unique indexes for each record. If not provided, will default to
-    the index of the record. Optional[List[Union[int,str]]]
+    the index of the record. Optional[List[int]]
     """
 
     __logger_name__ = "text_classification"
@@ -49,10 +49,17 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         self,
         text: List[str] = None,
         labels: List[str] = None,
-        ids: List[Union[int, str]] = None,
+        ids: List[int] = None,
         split: str = None,
         meta: Optional[Dict[str, List[Union[str, float, int]]]] = None,
     ) -> None:
+        """Create data logger.
+
+        :param text: The raw text inputs for model training. List[str]
+        :param labels: the ground truth labels aligned to each text field. List[Union[str,int]]
+        :param ids: Optional unique indexes for each record. If not provided, will default to
+        the index of the record. Optional[List[Union[int,str]]]
+        """
         super().__init__(meta)
         # Need to compare to None because they may be np arrays which cannot be
         # evaluated with bool directly
@@ -152,7 +159,6 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         Iterates through all of the splits/epochs/[data/emb/prob] folders, concatenates
         all of the files with vaex, and uploads them to a single file in minio
         """
-        ThreadPoolManager.wait_for_threads()
         print("☁️ Uploading Data")
         proj_run = f"{config.current_project_id}/{config.current_run_id}"
         location = f"{cls.LOG_FILE_DIR}/{proj_run}"
@@ -171,17 +177,28 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
                 _validate_unique_ids(out_frame)
                 in_out = _join_in_out_frames(in_frame, out_frame)
 
-                # Separate out embeddings and probabilities into their own files
-                prob = in_out[["id", "prob", "gold"]]
-                emb = in_out[["id", "emb"]]
-                ignore_cols = ["emb", "prob", "gold", "split_id"]
-                other_cols = [
-                    i for i in in_out.get_column_names() if i not in ignore_cols
-                ]
-                in_out = in_out[other_cols]
+                prob, emb, data_df = cls.split_dataframe(in_out)
 
-                for data_folder, df_obj in zip(DATA_FOLDERS, [emb, prob, in_out]):
+                for data_folder, df_obj in zip(DATA_FOLDERS, [emb, prob, data_df]):
                     minio_file = (
                         f"{proj_run}/{split}/{epoch}/{data_folder}/{data_folder}.hdf5"
                     )
                     object_store.create_project_run_object_from_df(df_obj, minio_file)
+
+    @classmethod
+    def split_dataframe(cls, df: DataFrame) -> Tuple[DataFrame, DataFrame, DataFrame]:
+        """Splits the singular dataframe into its 3 components
+
+        Gets the probability df, the embedding df, and the "data" df containing
+        all other columns
+        """
+        df_copy = df.copy()
+        # Separate out embeddings and probabilities into their own files
+        prob = df_copy[["id", "prob", "gold"]]
+        emb = df_copy[["id", "emb"]]
+        ignore_cols = ["emb", "prob", "gold", "split_id"]
+        other_cols = [
+            i for i in df_copy.get_column_names() if i not in ignore_cols
+        ]
+        data_df = df_copy[other_cols]
+        return prob, emb, data_df

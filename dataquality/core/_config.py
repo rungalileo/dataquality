@@ -79,8 +79,9 @@ class Config(BaseModel):
     current_user: Optional[str] = None
     current_project_id: Optional[UUID4] = None
     current_run_id: Optional[UUID4] = None
-    labels: Optional[Union[Dict[str, List[str]], List[str]]] = None
+    labels: Optional[Union[List[List[str]], List[str]]] = None
     observed_num_labels: Optional[int] = 0
+    observed_num_tasks: Optional[int] = 0
     task_type: Optional[TaskType] = None
 
     class Config:
