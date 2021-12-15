@@ -116,9 +116,9 @@ def _log_data(
         else:
             labels = dataset["label"]
             dataquality.set_labels_for_run([str(i) for i in range(len(set(labels)))])
-    dataquality.log_input_data(
-        text=dataset["text"], labels=labels, split=split.value, meta=meta
-    )
+        dataquality.log_input_data(
+            text=dataset["text"], labels=labels, split=split.value, meta=meta
+        )
 
     num_labels_in_task = np.random.randint(low=1, high=10, size=MULTI_LABEL_NUM_TASKS)
     if multi_label:
