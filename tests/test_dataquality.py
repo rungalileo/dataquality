@@ -34,6 +34,7 @@ def test_threaded_logging_and_upload(cleanup_after_use) -> None:
         # Equivalent to the users `finish` call, but we don't want to clean up files yet
         ThreadPoolManager.wait_for_threads()
         c = dataquality.get_data_logger("text_classification")
+        c.validate_labels()
         c.upload()
         validate_uploaded_data(num_records * num_logs)
         c._cleanup()
@@ -58,6 +59,7 @@ def test_multi_label_logging(cleanup_after_use) -> None:
         # Equivalent to the users `finish` call, but we don't want to clean up files yet
         ThreadPoolManager.wait_for_threads()
         c = dataquality.get_data_logger()
+        c.validate_labels()
         c.upload()
         validate_uploaded_data(num_records * num_logs, multi_label=True)
         c._cleanup()

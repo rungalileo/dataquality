@@ -110,13 +110,20 @@ def _log_data(
             for i in range(len(dataset)):
                 task_labels = np.random.randint(10, size=MULTI_LABEL_NUM_TASKS)
                 labels.append(task_labels)
+            dataquality.set_tasks_for_run(
+                [str(i) for i in range(MULTI_LABEL_NUM_TASKS)]
+            )
         else:
             labels = dataset["label"]
-        dataquality.log_input_data(
-            text=dataset["text"], labels=labels, split=split.value, meta=meta
-        )
+            dataquality.set_labels_for_run([str(i) for i in range(len(set(labels)))])
+    dataquality.log_input_data(
+        text=dataset["text"], labels=labels, split=split.value, meta=meta
+    )
 
     num_labels_in_task = np.random.randint(low=1, high=10, size=MULTI_LABEL_NUM_TASKS)
+    if multi_label:
+        run_labels = [[str(i) for i in range(tl)] for tl in num_labels_in_task]
+        dataquality.set_labels_for_run(run_labels)
     for split in [Split.training, Split.test]:
         for ln in tqdm(range(num_logs)):
             emb = [[random() for _ in range(num_emb)] for _ in range(num_records)]
@@ -127,15 +134,8 @@ def _log_data(
                     for num_labels in num_labels_in_task:
                         probs_per_task.append(np.random.rand(num_labels))
                     probs.append(probs_per_task)
-                d = {}
-                for i in range(len(probs[0])):
-                    d[f"prob_{i}"] = [p[i] for p in probs]
-                df = vaex.from_dict(d)
-                for c in df.columns:
-                    assert df[c].dtype == "float64"
-                # raise Exception()
             else:
-                probs = [[random() for _ in range(4)] for _ in range(num_records)]
+                probs = np.random.rand(num_records, len(set(labels)))
             epoch = 0
 
             # Need unique ids
