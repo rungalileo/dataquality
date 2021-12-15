@@ -1,12 +1,11 @@
-import pydoc
 import warnings
 from typing import Any, Dict, List, Type, Union
 
 from dataquality import config
 from dataquality.exceptions import GalileoException
-from dataquality.loggers import BaseGalileoLogger
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
 from dataquality.loggers.model_logger import BaseGalileoModelLogger
+from dataquality.schemas.task_type import TaskType
 
 
 def log_input_data(**kwargs: Dict[str, Any]) -> None:
@@ -49,8 +48,8 @@ def set_labels_for_run(labels: Union[List[List[str]], List[str]]) -> None:
 
     This order MUST match the order of probabilities that the model outputs.
 
-    In the multi-label case, the outer order must match the task-order of the
-    task-probabilities logged as well.
+    In the multi-label case, the outer order (order of the tasks) must match the
+    task-order of the task-probabilities logged as well.
     """
     if isinstance(labels[0], List):  # multi-label
         cleaned_labels = []
@@ -67,12 +66,26 @@ def set_labels_for_run(labels: Union[List[List[str]], List[str]]) -> None:
     config.update_file_config()
 
 
-def get_model_logger(task_type: str = None) -> Type[BaseGalileoLogger]:
+def set_tasks_for_run(tasks: List[str]) -> None:
+    """Sets the task names for the run (multi-label case only).
+
+    This order MUST match the order of the labels list provided in log_input_data
+    and the order of the probability vectors provided in log_model_outputs.
+
+    This also must match the order of the labels logged in set_labels_for_run (meaning
+    that the first list of labels must be the labels of the first task passed in here)
+    """
+    if config.task_type != TaskType.text_multi_label:
+        raise GalileoException("You can only set task names for multi-label use cases.")
+    config.tasks = [str(i) for i in tasks]
+
+
+def get_model_logger(task_type: str = None) -> Type[BaseGalileoModelLogger]:
     task_type = _get_task_type(task_type)
     return BaseGalileoModelLogger.get_logger(task_type)
 
 
-def get_data_logger(task_type: str = None) -> Type[BaseGalileoLogger]:
+def get_data_logger(task_type: str = None) -> Type[BaseGalileoDataLogger]:
     task_type = _get_task_type(task_type)
     return BaseGalileoDataLogger.get_logger(task_type)
 

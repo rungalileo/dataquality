@@ -1,6 +1,6 @@
 from collections import defaultdict
 from enum import Enum, unique
-from typing import Any, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 from uuid import uuid4
 
 import numpy as np
@@ -89,6 +89,8 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         self.probs = self._convert_tensor_ndarray(self.probs, "Prob")
         self.ids = self._convert_tensor_ndarray(self.ids)
 
+        assert self.emb.ndim == 2, "Only one embedding vector is allowed per input."
+
         assert emb_len and prob_len and id_len, (
             f"All of emb, probs, and ids for your GalileoModelConfig must be set, but "
             f"got emb:{bool(emb_len)}, probs:{bool(prob_len)}, ids:{bool(id_len)}"
@@ -121,11 +123,10 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
             f"/{config.current_run_id}"
         )
 
-        config.observed_num_labels = len(model_output["prob"].values[0])
+        config.observed_num_labels = self._get_num_labels(model_output)
         epoch, split = model_output[["epoch", "split"]][0]
         path = f"{location}/{split}/{epoch}"
         object_name = f"{str(uuid4()).replace('-', '')[:12]}.hdf5"
-
         _save_hdf5_file(path, object_name, model_output)
         _try_concat_df(path)
 
@@ -135,6 +136,10 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
             self.validate()
         except AssertionError as e:
             raise GalileoException(f"The provided GalileoModelConfig is invalid. {e}")
+        data = self._get_data_dict()
+        self.write_model_output(model_output=vaex.from_dict(data))
+
+    def _get_data_dict(self) -> Dict[str, Any]:
         data = defaultdict(list)
         for record_id, prob, emb in zip(self.ids, self.probs, self.emb):
             # Handle binary classification by making it 2-class classification
@@ -150,7 +155,10 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
             }
             for k in record.keys():
                 data[k].append(record[k])
-        self.write_model_output(model_output=vaex.from_dict(data))
+        return data
+
+    def _get_num_labels(self, df: DataFrame) -> Union[List[int], int]:
+        return len(df[:1]["prob"].values[0])
 
     def __setattr__(self, key: Any, value: Any) -> None:
         if key not in self.get_valid_attributes():

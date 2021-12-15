@@ -1,10 +1,21 @@
+import os
 import warnings
 from abc import abstractmethod
+from glob import glob
 from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
+import vaex
+from vaex.dataframe import DataFrame
 
+from dataquality import config
+from dataquality.clients import object_store
 from dataquality.loggers.base_logger import BaseGalileoLogger, BaseLoggerAttributes
+from dataquality.schemas.split import Split
+from dataquality.utils.thread_pool import ThreadPoolManager
+from dataquality.utils.vaex import _join_in_out_frames, _validate_unique_ids
+
+DATA_FOLDERS = ["emb", "prob", "data"]
 
 
 class BaseGalileoDataLogger(BaseGalileoLogger):
@@ -28,7 +39,50 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
     @classmethod
     def upload(cls) -> None:
-        pass
+        """
+        Iterates through all of the splits/epochs/[data/emb/prob] folders, concatenates
+        all of the files with vaex, and uploads them to a single file in minio
+        """
+        ThreadPoolManager.wait_for_threads()
+        print("☁️ Uploading Data")
+        proj_run = f"{config.current_project_id}/{config.current_run_id}"
+        location = f"{cls.LOG_FILE_DIR}/{proj_run}"
+
+        in_frame = vaex.open(
+            f"{location}/{BaseGalileoDataLogger.INPUT_DATA_NAME}"
+        ).copy()
+        for split in Split.get_valid_attributes():
+            split_loc = f"{location}/{split}"
+            if not os.path.exists(split_loc):
+                continue
+
+            for epoch_dir in glob(f"{split_loc}/*"):
+                epoch = int(epoch_dir.split("/")[-1])
+
+                out_frame = vaex.open(f"{epoch_dir}/*")
+                _validate_unique_ids(out_frame)
+                in_out = _join_in_out_frames(in_frame, out_frame)
+
+                prob, emb, data_df = cls.split_dataframe(in_out)
+
+                for data_folder, df_obj in zip(DATA_FOLDERS, [emb, prob, data_df]):
+                    minio_file = (
+                        f"{proj_run}/{split}/{epoch}/{data_folder}/{data_folder}.hdf5"
+                    )
+                    object_store.create_project_run_object_from_df(df_obj, minio_file)
+
+    @classmethod
+    def validate_labels(cls) -> None:
+        assert config.labels, (
+            "You must set your config labels before calling finish. "
+            "See `dataquality.set_labels_for_run`"
+        )
+        assert len(config.labels) == config.observed_num_labels, (
+            f"You set your labels to be {config.labels} ({len(config.labels)} labels) "
+            f"but based on training, your model "
+            f"is expecting {config.observed_num_labels} labels. "
+            f"Use dataquality.set_labels_for_run to update your config labels."
+        )
 
     def validate_metadata(self, batch_size: int) -> None:
         if len(self.meta.keys()) > self.MAX_META_COLS:
@@ -50,10 +104,14 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                     f"will be removed."
                 )
                 continue
-            if key.startswith("galileo_") or key.startswith("prob_") or key.startswith("gold_"):
-                warnings.warn("Metadata name must not start with the following "
-                              f"prefixes: (galileo_, prob_, gold_. Removing key {key}")
-                continue
+            bad_prefixes = ["galileo", "prob", "gold", "pred"]
+            for bad_start in bad_prefixes:
+                if key.startswith(bad_start):
+                    warnings.warn(
+                        "Metadata name must not start with the following "
+                        f"prefixes: (galileo_, prob_, gold_. Won't log {key}"
+                    )
+                    continue
             # Must be the same length as input
             if len(values) != batch_size:
                 warnings.warn(
@@ -93,3 +151,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             if isinstance(member_class, BaseGalileoDataLogger):
                 return attr
         raise AttributeError("No GalileoDataConfig attribute found!")
+
+    @classmethod
+    @abstractmethod
+    def split_dataframe(cls, df: DataFrame) -> DataFrame:
+        pass

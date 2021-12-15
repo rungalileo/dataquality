@@ -3,7 +3,7 @@ import shutil
 from abc import abstractmethod
 from enum import Enum, unique
 from glob import glob
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any, Dict, List, Optional, Type, TypeVar, Union
 
 import numpy as np
 
@@ -24,6 +24,9 @@ try:
     TF_AVAILABLE = True
 except ImportError:
     TF_AVAILABLE = False
+
+
+T = TypeVar("T", bound="BaseGalileoLogger")
 
 
 @unique
@@ -92,12 +95,20 @@ class BaseGalileoLogger:
                 arr = arr.cpu().numpy()
         if isinstance(arr, np.ndarray):
             if attr == "Embedding":
-
-            if attr in ("Embedding", "Prob"):
-                shp = arr.shape
                 assert (
-                    len(shp) == 2
-                ), f"{attr} tensor must be 2D shape, but got shape {shp}"
+                    len(arr.shape) == 2
+                ), f"{attr} tensor must be 2D shape, but got shape {arr.shape}"
+            elif attr == "Prob":
+                if config.task_type != TaskType.text_multi_label:
+                    assert (
+                        len(arr.shape) == 2
+                    ), f"{attr} tensor must be 2D shape, but got shape {arr.shape}"
+                else:
+                    # Because probs in multi label may not have a clear shape (each
+                    # task may have a different number of probabilities
+                    arr = np.array(arr, dtype=object)
+            elif attr == "Labels" and config.task_type == TaskType.text_multi_label:
+                arr = np.array(arr, dtype=object)
         return np.array(arr)
 
     @staticmethod
@@ -131,7 +142,7 @@ class BaseGalileoLogger:
         pass
 
     @classmethod
-    def get_all_subclasses(cls) -> List[Type["BaseGalileoLogger"]]:
+    def get_all_subclasses(cls: Type[T]) -> List[Type[T]]:
         all_subclasses = []
 
         for subclass in cls.__subclasses__():
@@ -141,7 +152,7 @@ class BaseGalileoLogger:
         return all_subclasses
 
     @classmethod
-    def get_logger(cls, task_type: str) -> Type["BaseGalileoLogger"]:
+    def get_logger(cls: Type[T], task_type: str) -> Type[T]:
         cls.validate_task(task_type)
         loggers = {i.__logger_name__: i for i in cls.get_all_subclasses()}
         return loggers[task_type]

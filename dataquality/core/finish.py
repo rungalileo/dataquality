@@ -15,21 +15,14 @@ def finish() -> Optional[Dict[str, Any]]:
     ThreadPoolManager.wait_for_threads()
     assert config.current_project_id, "You must have an active project to call finish"
     assert config.current_run_id, "You must have an active run to call finish"
-    assert config.labels, (
-        "You must set your config labels before calling finish. "
-        "See `dataquality.set_labels_for_run`"
-    )
-    assert len(config.labels) == config.observed_num_labels, (
-        f"You set your labels to be {config.labels} ({len(config.labels)} labels) "
-        f"but based on training, your model "
-        f"is expecting {config.observed_num_labels} labels. "
-        f"Use dataquality.set_labels_for_run to update your config labels"
-    )
+    data_logger = dataquality.get_data_logger()
+    data_logger.validate_labels()
+
     _version_check()
     # Clear the data in minio before uploading new data
     # If this is a run that already existed, we want to fully overwrite the old data
     api_client.reset_run(config.current_project_id, config.current_run_id)
-    data_logger = dataquality.get_data_logger()
+
     data_logger.upload()
     data_logger._cleanup()
     config.update_file_config()

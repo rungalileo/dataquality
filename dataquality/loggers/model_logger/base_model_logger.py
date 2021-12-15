@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from vaex.dataframe import DataFrame
 
@@ -9,7 +9,7 @@ from dataquality.utils.thread_pool import ThreadPoolManager
 
 
 class BaseGalileoModelLogger(BaseGalileoLogger):
-    def __init__(self) -> None:
+    def __init__(self, **kwargs: Dict[str, Any]) -> None:
         super().__init__()
         self.epoch: Optional[int] = None
 

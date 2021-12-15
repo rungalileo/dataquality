@@ -80,8 +80,9 @@ class Config(BaseModel):
     current_project_id: Optional[UUID4] = None
     current_run_id: Optional[UUID4] = None
     labels: Optional[Union[List[List[str]], List[str]]] = None
-    observed_num_labels: Optional[int] = 0
-    observed_num_tasks: Optional[int] = 0
+    observed_num_labels: Optional[Union[List[int], int]] = None
+    tasks: Optional[List[str]] = None
+    observed_num_tasks: int = 0
     task_type: Optional[TaskType] = None
 
     class Config:
