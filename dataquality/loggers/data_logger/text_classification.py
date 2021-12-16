@@ -13,6 +13,7 @@ from dataquality.loggers import BaseGalileoLogger
 from dataquality.loggers.data_logger.base_data_logger import BaseGalileoDataLogger
 from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.split import Split
+from dataquality.utils import tqdm
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import _join_in_out_frames, _validate_unique_ids
 
@@ -142,10 +143,10 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         if os.path.isfile(file_path):
             new_name = f"{write_input_dir}/{str(uuid4()).replace('-', '')[:12]}.arrow"
             os.rename(file_path, new_name)
-            vaex.concat([df, vaex.open(new_name)]).export(file_path)
+            vaex.concat([df, vaex.open(new_name)]).export(file_path, progress="vaex")
             os.remove(new_name)
         else:
-            df.export(file_path)
+            df.export(file_path, progress="vaex")
         df.close()
 
     @classmethod
@@ -182,7 +183,9 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
                 ]
                 in_out = in_out[other_cols]
 
-                for data_folder, df_obj in zip(DATA_FOLDERS, [emb, prob, in_out]):
+                for data_folder, df_obj in tqdm(
+                    zip(DATA_FOLDERS, [emb, prob, in_out]), total=3, desc=split
+                ):
                     minio_file = (
                         f"{proj_run}/{split}/{epoch}/{data_folder}/{data_folder}.hdf5"
                     )
