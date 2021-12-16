@@ -136,10 +136,10 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         if os.path.isfile(file_path):
             new_name = f"{write_input_dir}/{str(uuid4()).replace('-', '')[:12]}.arrow"
             os.rename(file_path, new_name)
-            vaex.concat([df, vaex.open(new_name)]).export(file_path)
+            vaex.concat([df, vaex.open(new_name)]).export(file_path, progress="vaex")
             os.remove(new_name)
         else:
-            df.export(file_path)
+            df.export(file_path, progress="vaex")
         df.close()
 
     def _get_input_dict(self) -> Dict[str, Any]:
