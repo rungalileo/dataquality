@@ -65,8 +65,17 @@ def _join_in_out_frames(in_df: DataFrame, out_df: DataFrame) -> DataFrame:
     in_frame["split_id"] = in_frame["split"] + in_frame["id"].astype("string")
     out_frame["split_id"] = out_frame["split"] + out_frame["id"].astype("string")
     in_out = out_frame.join(
-        in_frame, on="split_id", how="left", lsuffix="_L", rsuffix="_R"
+        in_frame, on="split_id", how="inner", lsuffix="_L", rsuffix="_R"
     ).copy()
+    if len(in_out) != len(out_frame):
+        num_missing = len(out_frame) - len(in_out)
+        missing_ids = set(out_frame["id"].unique()) - set(in_out["id"].unique())
+        split = out_frame["split"].unique()[0]
+        raise GalileoException(
+            "It seems there were logged outputs with no corresponding inputs logged "
+            f"for split {split}. {num_missing} corresponding input IDs are missing:\n"
+            f"{missing_ids}"
+        )
     keep_cols = [c for c in in_out.get_column_names() if not c.endswith("_L")]
     in_out = in_out[keep_cols]
     for c in in_out.get_column_names():
