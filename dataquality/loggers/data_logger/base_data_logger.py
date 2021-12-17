@@ -31,11 +31,11 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
     @abstractmethod
     def validate(self) -> None:
-        pass
+        ...
 
     @abstractmethod
     def log(self) -> None:
-        pass
+        ...
 
     @classmethod
     def upload(cls) -> None:
@@ -155,4 +155,4 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     @classmethod
     @abstractmethod
     def split_dataframe(cls, df: DataFrame) -> DataFrame:
-        pass
+        ...

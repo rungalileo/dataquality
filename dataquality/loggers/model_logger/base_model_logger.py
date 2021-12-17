@@ -5,6 +5,7 @@ from vaex.dataframe import DataFrame
 
 from dataquality.loggers.base_logger import BaseGalileoLogger
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
+from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 
 
@@ -15,7 +16,7 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
 
     @abstractmethod
     def validate(self) -> None:
-        pass
+        ...
 
     @abstractmethod
     def _log(self) -> None:
@@ -36,12 +37,12 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
 
     @abstractmethod
     def write_model_output(self, model_output: DataFrame) -> None:
-        pass
+        ...
 
     @classmethod
     def upload(cls) -> None:
         """The upload function is implemented in the sister DataConfig class"""
-        BaseGalileoDataLogger.get_logger(cls.__logger_name__).upload()
+        BaseGalileoDataLogger.get_logger(TaskType[cls.__logger_name__]).upload()
 
     @staticmethod
     def get_model_logger_attr(cls: object) -> str:

@@ -69,7 +69,7 @@ class BaseGalileoLogger:
 
     @abstractmethod
     def validate(self) -> None:
-        pass
+        ...
 
     def is_valid(self) -> bool:
         try:
@@ -80,7 +80,7 @@ class BaseGalileoLogger:
 
     @abstractmethod
     def log(self) -> None:
-        pass
+        ...
 
     @staticmethod
     def _convert_tensor_ndarray(
@@ -112,7 +112,7 @@ class BaseGalileoLogger:
         return np.array(arr)
 
     @staticmethod
-    def validate_task(task_type: str) -> None:
+    def validate_task(task_type: Union[str, TaskType]) -> None:
         if task_type not in TaskType.get_valid_tasks():
             raise GalileoException(
                 f"Task type {task_type} not valid. Choose one of "
@@ -139,7 +139,7 @@ class BaseGalileoLogger:
 
     @classmethod
     def upload(cls) -> None:
-        pass
+        ...
 
     @classmethod
     def get_all_subclasses(cls: Type[T]) -> List[Type[T]]:
@@ -152,7 +152,7 @@ class BaseGalileoLogger:
         return all_subclasses
 
     @classmethod
-    def get_logger(cls: Type[T], task_type: str) -> Type[T]:
+    def get_logger(cls: Type[T], task_type: TaskType) -> Type[T]:
         cls.validate_task(task_type)
         loggers = {i.__logger_name__: i for i in cls.get_all_subclasses()}
         return loggers[task_type]

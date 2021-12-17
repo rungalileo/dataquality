@@ -80,17 +80,17 @@ def set_tasks_for_run(tasks: List[str]) -> None:
     config.tasks = [str(i) for i in tasks]
 
 
-def get_model_logger(task_type: str = None) -> Type[BaseGalileoModelLogger]:
+def get_model_logger(task_type: TaskType = None) -> Type[BaseGalileoModelLogger]:
     task_type = _get_task_type(task_type)
     return BaseGalileoModelLogger.get_logger(task_type)
 
 
-def get_data_logger(task_type: str = None) -> Type[BaseGalileoDataLogger]:
+def get_data_logger(task_type: TaskType = None) -> Type[BaseGalileoDataLogger]:
     task_type = _get_task_type(task_type)
     return BaseGalileoDataLogger.get_logger(task_type)
 
 
-def _get_task_type(task_type: str = None) -> str:
+def _get_task_type(task_type: TaskType = None) -> TaskType:
     task = task_type or config.task_type
     if not task:
         raise GalileoException(
