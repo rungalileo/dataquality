@@ -7,7 +7,7 @@ import numpy as np
 import vaex
 from vaex.dataframe import DataFrame
 
-from dataquality import config
+from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.schemas import __data_schema_version__

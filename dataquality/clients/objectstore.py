@@ -4,7 +4,7 @@ from typing import Any, Dict
 from minio import Minio
 from vaex.dataframe import DataFrame
 
-from dataquality import config
+from dataquality.core._config import config
 
 
 class ObjectStore:

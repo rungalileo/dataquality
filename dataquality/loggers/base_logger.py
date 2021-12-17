@@ -3,7 +3,7 @@ import shutil
 from abc import abstractmethod
 from enum import Enum, unique
 from glob import glob
-from typing import Any, Dict, List, Optional, Type, TypeVar, Union
+from typing import List, Optional, Type, TypeVar, Union
 
 import numpy as np
 
@@ -60,7 +60,7 @@ class BaseGalileoLogger:
     __logger_name__ = ""
     LOG_FILE_DIR = f"{_Config.DEFAULT_GALILEO_CONFIG_DIR}/logs"
 
-    def __init__(self, **kwargs: Dict[str, Any]) -> None:
+    def __init__(self) -> None:
         self.split: Optional[str] = None
 
     @staticmethod
@@ -156,3 +156,7 @@ class BaseGalileoLogger:
         cls.validate_task(task_type)
         loggers = {i.__logger_name__: i for i in cls.get_all_subclasses()}
         return loggers[task_type]
+
+    @classmethod
+    def doc(cls) -> None:
+        print(cls.__doc__)

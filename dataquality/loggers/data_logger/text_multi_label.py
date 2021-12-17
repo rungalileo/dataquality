@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from vaex.dataframe import DataFrame
 
-from dataquality import config
+from dataquality.core._config import config
 from dataquality.loggers.data_logger.text_classification import (
     TextClassificationDataLogger,
 )

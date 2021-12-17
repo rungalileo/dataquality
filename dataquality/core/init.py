@@ -4,8 +4,8 @@ from typing import Dict, Optional
 
 from pydantic.types import UUID4
 
-from dataquality import config
 from dataquality.clients import api_client
+from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
 from dataquality.loggers import BaseGalileoLogger
 from dataquality.schemas.task_type import TaskType

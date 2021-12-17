@@ -8,8 +8,8 @@ import numpy as np
 import vaex
 from vaex.dataframe import DataFrame
 
-from dataquality import config
 from dataquality.clients import object_store
+from dataquality.core._config import config
 from dataquality.loggers.base_logger import BaseGalileoLogger, BaseLoggerAttributes
 from dataquality.schemas.split import Split
 from dataquality.utils.thread_pool import ThreadPoolManager

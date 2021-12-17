@@ -1,8 +1,8 @@
 from typing import Any, Dict, Optional
 
 import dataquality
-from dataquality import config
 from dataquality.clients import api_client
+from dataquality.core._config import config
 from dataquality.schemas import ProcName, RequestType, Route
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.version import _version_check

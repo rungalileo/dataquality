@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Union
 import numpy as np
 from vaex.dataframe import DataFrame
 
-from dataquality import config
+from dataquality.core._config import config
 from dataquality.loggers.model_logger.text_classification import (
     TextClassificationModelLogger,
 )

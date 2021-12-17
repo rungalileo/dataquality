@@ -3,7 +3,7 @@ from typing import Any, Dict, Optional
 
 from vaex.dataframe import DataFrame
 
-from dataquality.loggers import BaseGalileoLogger
+from dataquality.loggers.base_logger import BaseGalileoLogger
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
 from dataquality.utils.thread_pool import ThreadPoolManager
 

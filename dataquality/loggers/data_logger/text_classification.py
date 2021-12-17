@@ -7,7 +7,7 @@ import pandas as pd
 import vaex
 from vaex.dataframe import DataFrame
 
-from dataquality import config
+from dataquality.core._config import config
 from dataquality.loggers import BaseGalileoLogger
 from dataquality.loggers.data_logger.base_data_logger import BaseGalileoDataLogger
 from dataquality.schemas import __data_schema_version__

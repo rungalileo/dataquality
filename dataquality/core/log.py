@@ -1,14 +1,14 @@
 import warnings
-from typing import Any, Dict, List, Type, Union
+from typing import Any, List, Type, Union
 
-from dataquality import config
+from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
 from dataquality.loggers.model_logger import BaseGalileoModelLogger
 from dataquality.schemas.task_type import TaskType
 
 
-def log_input_data(**kwargs: Dict[str, Any]) -> None:
+def log_input_data(**kwargs: Any) -> None:
     """Logs input data for model training/test/validation.
 
     The expected arguments come from the task_type's data
