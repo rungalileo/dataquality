@@ -9,6 +9,9 @@ from vaex.dataframe import DataFrame
 
 from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
+from dataquality.loggers.logger_config.text_classification import (
+    text_classification_logger_config,
+)
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.split import Split
@@ -43,6 +46,7 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
     """
 
     __logger_name__ = "text_classification"
+    logger_config = text_classification_logger_config
 
     def __init__(
         self,
@@ -123,7 +127,7 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
             f"/{config.current_run_id}"
         )
 
-        config.observed_num_labels = self._get_num_labels(model_output)
+        self.logger_config.observed_num_labels = self._get_num_labels(model_output)
         epoch, split = model_output[["epoch", "split"]][0]
         path = f"{location}/{split}/{epoch}"
         object_name = f"{str(uuid4()).replace('-', '')[:12]}.hdf5"
@@ -157,13 +161,13 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
                 data[k].append(record[k])
         return data
 
-    def _get_num_labels(self, df: DataFrame) -> Union[List[int], int]:
+    def _get_num_labels(self, df: DataFrame) -> Any:
         return len(df[:1]["prob"].values[0])
 
     def __setattr__(self, key: Any, value: Any) -> None:
         if key not in self.get_valid_attributes():
             raise AttributeError(
-                f"{key} is not a valid attribute of GalileoModelConfig. "
+                f"{key} is not a valid attribute of {self.__logger_name__} logger. "
                 f"Only {self.get_valid_attributes()}"
             )
         super().__setattr__(key, value)

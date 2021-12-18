@@ -4,7 +4,10 @@ from typing import Any, Dict, List, Optional, Union
 import numpy as np
 from vaex.dataframe import DataFrame
 
-from dataquality.core._config import config
+from dataquality.loggers.logger_config.text_multi_label import (
+    TextMultiLabelLoggerConfig,
+    text_multi_label_logger_config,
+)
 from dataquality.loggers.model_logger.text_classification import (
     TextClassificationModelLogger,
 )
@@ -32,6 +35,9 @@ class TextMultiLabelModelLogger(TextClassificationModelLogger):
     """
 
     __logger_name__ = "text_multi_label"
+    logger_config: TextMultiLabelLoggerConfig = (
+        text_multi_label_logger_config  # type: ignore
+    )
 
     def __init__(
         self,
@@ -58,17 +64,17 @@ class TextMultiLabelModelLogger(TextClassificationModelLogger):
         """
         super().validate()
         for ind, probs_per_task in enumerate(self.probs):
-            assert len(probs_per_task) == config.observed_num_tasks, (
-                f"Expected {config.observed_num_tasks} probability vectors per input "
-                f"(based on input data logging) but found {len(probs_per_task)} for "
-                f"input {ind}."
+            assert len(probs_per_task) == self.logger_config.observed_num_tasks, (
+                f"Expected {self.logger_config.observed_num_tasks} probability vectors "
+                f"per input (based on input data logging) but found "
+                f"{len(probs_per_task)} for input {ind}."
             )
             for task_ind, task_probs in enumerate(probs_per_task):
                 assert (
                     len(task_probs) > 0
                 ), f"Cannot log empty probability list for task {task_ind}."
         # For each record, the task probability vector should be the same length
-        for task_ind in range(config.observed_num_tasks):
+        for task_ind in range(self.logger_config.observed_num_tasks):
             num_prob_per_task = set([len(p[task_ind]) for p in self.probs])
             assert len(num_prob_per_task) == 1, (
                 f"Task {task_ind} has an inconsistent number of probabilities in this "
@@ -89,7 +95,7 @@ class TextMultiLabelModelLogger(TextClassificationModelLogger):
                 "data_schema_version": __data_schema_version__,
             }
             # Break out the probabilities and predictions into a col per task
-            for task_num in range(config.observed_num_tasks):
+            for task_num in range(self.logger_config.observed_num_tasks):
                 task_probs: List[float] = prob_per_task[task_num]
                 if len(task_probs) == 1:  # Handle binary classification case
                     task_probs = [task_probs[0], 1 - task_probs[0]]
@@ -103,7 +109,7 @@ class TextMultiLabelModelLogger(TextClassificationModelLogger):
 
     def _get_num_labels(self, df: DataFrame) -> List[int]:
         num_labels_per_task = []
-        for task_num in range(config.observed_num_tasks):
+        for task_num in range(self.logger_config.observed_num_tasks):
             num_labels = len(df[:1][f"prob_{task_num}"].values[0])
             num_labels_per_task.append(num_labels)
         return num_labels_per_task
@@ -111,7 +117,7 @@ class TextMultiLabelModelLogger(TextClassificationModelLogger):
     def __setattr__(self, key: Any, value: Any) -> None:
         if key not in self.get_valid_attributes() and not key.startswith("prob_"):
             raise AttributeError(
-                f"{key} is not a valid attribute of GalileoModelConfig. "
+                f"{key} is not a valid attribute of {self.__logger_name__} logger. "
                 f"Only {self.get_valid_attributes()}"
             )
         super().__setattr__(key, value)

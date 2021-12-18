@@ -69,7 +69,6 @@ def init(
             "You must log in before calling init. Call dataquality.login()"
         )
     _init = _Init()
-    config.labels = None
     BaseGalileoLogger.validate_task(task_type)
     task_type = TaskType[task_type]
     config.task_type = task_type

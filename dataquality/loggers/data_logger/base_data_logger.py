@@ -72,17 +72,9 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                     object_store.create_project_run_object_from_df(df_obj, minio_file)
 
     @classmethod
+    @abstractmethod
     def validate_labels(cls) -> None:
-        assert config.labels, (
-            "You must set your config labels before calling finish. "
-            "See `dataquality.set_labels_for_run`"
-        )
-        assert len(config.labels) == config.observed_num_labels, (
-            f"You set your labels to be {config.labels} ({len(config.labels)} labels) "
-            f"but based on training, your model "
-            f"is expecting {config.observed_num_labels} labels. "
-            f"Use dataquality.set_labels_for_run to update your config labels."
-        )
+        ...
 
     def validate_metadata(self, batch_size: int) -> None:
         if len(self.meta.keys()) > self.MAX_META_COLS:

@@ -2,7 +2,7 @@ import json
 import os
 from enum import Enum, unique
 from getpass import getpass
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel
 from pydantic.class_validators import validator
@@ -87,14 +87,11 @@ class Config(BaseModel):
     current_user: Optional[str] = None
     current_project_id: Optional[UUID4] = None
     current_run_id: Optional[UUID4] = None
-    labels: Optional[Union[List[List[str]], List[str]]] = None
-    observed_num_labels: Optional[Union[List[int], int]] = None
-    tasks: Optional[List[str]] = None
-    observed_num_tasks: int = 0
     task_type: Optional[TaskType] = None
 
     class Config:
         validate_assignment = True
+        arbitrary_types_allowed = True
 
     def update_file_config(self) -> None:
         _config = _Config()

@@ -10,6 +10,9 @@ from vaex.dataframe import DataFrame
 from dataquality.core._config import config
 from dataquality.loggers import BaseGalileoLogger
 from dataquality.loggers.data_logger.base_data_logger import BaseGalileoDataLogger
+from dataquality.loggers.logger_config.text_classification import (
+    text_classification_logger_config,
+)
 from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.split import Split
 
@@ -39,6 +42,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
     """
 
     __logger_name__ = "text_classification"
+    logger_config = text_classification_logger_config
 
     def __init__(
         self,
@@ -167,3 +171,17 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         other_cols = [i for i in df_copy.get_column_names() if i not in ignore_cols]
         data_df = df_copy[other_cols]
         return prob, emb, data_df
+
+    @classmethod
+    def validate_labels(cls) -> None:
+        assert cls.logger_config.labels, (
+            "You must set your config labels before calling finish. "
+            "See `dataquality.set_labels_for_run`"
+        )
+
+        assert len(cls.logger_config.labels) == cls.logger_config.observed_num_labels, (
+            f"You set your labels to be {cls.logger_config.labels} "
+            f"({len(cls.logger_config.labels)} labels) but based on training, your "
+            f"model is expecting {cls.logger_config.observed_num_labels} labels. "
+            f"Use dataquality.set_labels_for_run to update your config labels."
+        )

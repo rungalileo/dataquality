@@ -9,6 +9,10 @@ import numpy as np
 
 from dataquality.core._config import _Config, config
 from dataquality.exceptions import GalileoException
+from dataquality.loggers.logger_config.base_logger_config import (
+    BaseLoggerConfig,
+    base_logger_config,
+)
 from dataquality.schemas.task_type import TaskType
 
 try:
@@ -59,6 +63,7 @@ class BaseGalileoLogger:
 
     __logger_name__ = ""
     LOG_FILE_DIR = f"{_Config.DEFAULT_GALILEO_CONFIG_DIR}/logs"
+    logger_config: BaseLoggerConfig = base_logger_config
 
     def __init__(self) -> None:
         self.split: Optional[str] = None

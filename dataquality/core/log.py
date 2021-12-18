@@ -51,19 +51,7 @@ def set_labels_for_run(labels: Union[List[List[str]], List[str]]) -> None:
     In the multi-label case, the outer order (order of the tasks) must match the
     task-order of the task-probabilities logged as well.
     """
-    if isinstance(labels[0], List):  # multi-label
-        cleaned_labels = []
-        for task_labels in labels:
-            if len(task_labels) == 1:
-                task_labels = [task_labels[0], f"NOT_{task_labels[0]}"]
-            cleaned_labels.append([str(i) for i in task_labels])
-        config.labels = cleaned_labels
-    else:
-        if len(labels) == 1:
-            labels = [labels[0], f"NOT_{labels[0]}"]
-        config.labels = [str(i) for i in labels]
-
-    config.update_file_config()
+    get_data_logger().logger_config.labels = labels
 
 
 def set_tasks_for_run(tasks: List[str]) -> None:
@@ -77,7 +65,7 @@ def set_tasks_for_run(tasks: List[str]) -> None:
     """
     if config.task_type != TaskType.text_multi_label:
         raise GalileoException("You can only set task names for multi-label use cases.")
-    config.tasks = [str(i) for i in tasks]
+    get_data_logger().logger_config.tasks = tasks
 
 
 def get_model_logger(task_type: TaskType = None) -> Type[BaseGalileoModelLogger]:
