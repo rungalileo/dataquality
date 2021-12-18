@@ -107,12 +107,12 @@ class TextMultiLabelModelLogger(TextClassificationModelLogger):
 
         return data
 
-    def _get_num_labels(self, df: DataFrame) -> List[int]:
+    def _set_num_labels(self, df: DataFrame) -> None:
         num_labels_per_task = []
         for task_num in range(self.logger_config.observed_num_tasks):
             num_labels = len(df[:1][f"prob_{task_num}"].values[0])
             num_labels_per_task.append(num_labels)
-        return num_labels_per_task
+        self.logger_config.observed_num_labels = num_labels_per_task
 
     def __setattr__(self, key: Any, value: Any) -> None:
         if key not in self.get_valid_attributes() and not key.startswith("prob_"):

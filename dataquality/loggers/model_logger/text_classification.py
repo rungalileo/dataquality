@@ -127,7 +127,7 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
             f"/{config.current_run_id}"
         )
 
-        self.logger_config.observed_num_labels = self._get_num_labels(model_output)
+        self._set_num_labels(model_output)
         epoch, split = model_output[["epoch", "split"]][0]
         path = f"{location}/{split}/{epoch}"
         object_name = f"{str(uuid4()).replace('-', '')[:12]}.hdf5"
@@ -161,8 +161,8 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
                 data[k].append(record[k])
         return data
 
-    def _get_num_labels(self, df: DataFrame) -> Any:
-        return len(df[:1]["prob"].values[0])
+    def _set_num_labels(self, df: DataFrame) -> None:
+        self.logger_config.observed_num_labels = len(df[:1]["prob"].values[0])
 
     def __setattr__(self, key: Any, value: Any) -> None:
         if key not in self.get_valid_attributes():
