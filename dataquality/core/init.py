@@ -4,8 +4,8 @@ from typing import Dict, Optional
 
 from pydantic.types import UUID4
 
-from dataquality import config
 from dataquality.clients import api_client
+from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
 from dataquality.loggers import BaseGalileoLogger
 from dataquality.schemas.task_type import TaskType
@@ -69,7 +69,6 @@ def init(
             "You must log in before calling init. Call dataquality.login()"
         )
     _init = _Init()
-    config.labels = None
     BaseGalileoLogger.validate_task(task_type)
     task_type = TaskType[task_type]
     config.task_type = task_type
@@ -119,6 +118,11 @@ def init(
             if run.get("id"):
                 config.current_project_id = project["id"]
                 config.current_run_id = run["id"]
+                warnings.warn(
+                    f"Project run {project_name}/{run_name} already exists. "
+                    "Logging and calling finish will overwrite all data in "
+                    "the server"
+                )
                 print(f"🛰 Connected to project, {project_name}, and run, {run_name}.")
             else:
                 # If the run does not exist, create it

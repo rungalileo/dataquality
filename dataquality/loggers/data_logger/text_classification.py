@@ -1,23 +1,20 @@
 import os
 from enum import Enum, unique
-from glob import glob
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 from uuid import uuid4
 
 import pandas as pd
 import vaex
+from vaex.dataframe import DataFrame
 
-from dataquality import config
-from dataquality.clients import object_store
+from dataquality.core._config import config
 from dataquality.loggers import BaseGalileoLogger
 from dataquality.loggers.data_logger.base_data_logger import BaseGalileoDataLogger
+from dataquality.loggers.logger_config.text_classification import (
+    text_classification_logger_config,
+)
 from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.split import Split
-from dataquality.utils import tqdm
-from dataquality.utils.thread_pool import ThreadPoolManager
-from dataquality.utils.vaex import _join_in_out_frames, _validate_unique_ids
-
-DATA_FOLDERS = ["emb", "prob", "data"]
 
 
 @unique
@@ -39,21 +36,30 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
     Class for logging input data/metadata of Text Classification models to Galileo.
 
     * text: The raw text inputs for model training. List[str]
-    * labels: the ground truth labels aligned to each text field. List[Union[str,int]]
+    * labels: the ground truth labels aligned to each text field. List[str]
     * ids: Optional unique indexes for each record. If not provided, will default to
-    the index of the record. Optional[List[Union[int,str]]]
+    the index of the record. Optional[List[int]]
     """
 
     __logger_name__ = "text_classification"
+    logger_config = text_classification_logger_config
 
     def __init__(
         self,
         text: List[str] = None,
         labels: List[str] = None,
-        ids: List[Union[int, str]] = None,
+        ids: List[int] = None,
         split: str = None,
         meta: Optional[Dict[str, List[Union[str, float, int]]]] = None,
     ) -> None:
+        """Create data logger.
+
+        :param text: The raw text inputs for model training. List[str]
+        :param labels: the ground truth labels aligned to each text field.
+        List[str]
+        :param ids: Optional unique indexes for each record. If not provided, will
+        default to the index of the record. Optional[List[Union[int,str]]]
+        """
         super().__init__(meta)
         # Need to compare to None because they may be np arrays which cannot be
         # evaluated with bool directly
@@ -85,7 +91,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         id_len = len(self.ids)
 
         self.text = list(self._convert_tensor_ndarray(self.text))
-        self.labels = list(self._convert_tensor_ndarray(self.labels))
+        self.labels = list(self._convert_tensor_ndarray(self.labels, attr="Labels"))
         self.ids = list(self._convert_tensor_ndarray(self.ids))
 
         assert self.split, "Your GalileoDataConfig has no split!"
@@ -98,9 +104,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
             f"but got {self.split}"
         )
         if self.split == Split.inference.value:
-            assert not len(
-                self.labels
-            ), "You cannot have labels in your inference split!"
+            assert not label_len, "You cannot have labels in your inference split!"
         else:
             assert label_len and text_len, (
                 f"Both text and labels for your GalileoDataConfig must be set, but got"
@@ -130,14 +134,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         )
         if not os.path.exists(write_input_dir):
             os.makedirs(write_input_dir)
-        inp = dict(
-            id=self.ids,
-            text=self.text,
-            split=self.split,
-            data_schema_version=__data_schema_version__,
-            gold=self.labels if self.split != Split.inference.value else None,
-            **self.meta,
-        )
+        inp = self._get_input_dict()
         df = vaex.from_pandas(pd.DataFrame(inp))
         file_path = f"{write_input_dir}/{BaseGalileoDataLogger.INPUT_DATA_NAME}"
         if os.path.isfile(file_path):
@@ -149,44 +146,42 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
             df.export(file_path, progress="vaex")
         df.close()
 
+    def _get_input_dict(self) -> Dict[str, Any]:
+        return dict(
+            id=self.ids,
+            text=self.text,
+            split=self.split,
+            data_schema_version=__data_schema_version__,
+            gold=self.labels if self.split != Split.inference.value else None,
+            **self.meta,
+        )
+
     @classmethod
-    def upload(cls) -> None:
+    def split_dataframe(cls, df: DataFrame) -> Tuple[DataFrame, DataFrame, DataFrame]:
+        """Splits the singular dataframe into its 3 components
+
+        Gets the probability df, the embedding df, and the "data" df containing
+        all other columns
         """
-        Iterates through all of the splits/epochs/[data/emb/prob] folders, concatenates
-        all of the files with vaex, and uploads them to a single file in minio
-        """
-        ThreadPoolManager.wait_for_threads()
-        print("☁️ Uploading Data")
-        proj_run = f"{config.current_project_id}/{config.current_run_id}"
-        location = f"{cls.LOG_FILE_DIR}/{proj_run}"
+        df_copy = df.copy()
+        # Separate out embeddings and probabilities into their own files
+        prob = df_copy[["id", "prob", "gold"]]
+        emb = df_copy[["id", "emb"]]
+        ignore_cols = ["emb", "prob", "gold", "split_id"]
+        other_cols = [i for i in df_copy.get_column_names() if i not in ignore_cols]
+        data_df = df_copy[other_cols]
+        return prob, emb, data_df
 
-        in_frame = vaex.open(
-            f"{location}/{BaseGalileoDataLogger.INPUT_DATA_NAME}"
-        ).copy()
-        for split in Split.get_valid_attributes():
-            split_loc = f"{location}/{split}"
-            if not os.path.exists(split_loc):
-                continue
-            for epoch_dir in glob(f"{split_loc}/*"):
-                epoch = int(epoch_dir.split("/")[-1])
+    @classmethod
+    def validate_labels(cls) -> None:
+        assert cls.logger_config.labels, (
+            "You must set your config labels before calling finish. "
+            "See `dataquality.set_labels_for_run`"
+        )
 
-                out_frame = vaex.open(f"{epoch_dir}/*")
-                _validate_unique_ids(out_frame)
-                in_out = _join_in_out_frames(in_frame, out_frame)
-
-                # Separate out embeddings and probabilities into their own files
-                prob = in_out[["id", "prob", "gold"]]
-                emb = in_out[["id", "emb"]]
-                ignore_cols = ["emb", "prob", "gold", "split_id"]
-                other_cols = [
-                    i for i in in_out.get_column_names() if i not in ignore_cols
-                ]
-                in_out = in_out[other_cols]
-
-                for data_folder, df_obj in tqdm(
-                    zip(DATA_FOLDERS, [emb, prob, in_out]), total=3, desc=split
-                ):
-                    minio_file = (
-                        f"{proj_run}/{split}/{epoch}/{data_folder}/{data_folder}.hdf5"
-                    )
-                    object_store.create_project_run_object_from_df(df_obj, minio_file)
+        assert len(cls.logger_config.labels) == cls.logger_config.observed_num_labels, (
+            f"You set your labels to be {cls.logger_config.labels} "
+            f"({len(cls.logger_config.labels)} labels) but based on training, your "
+            f"model is expecting {cls.logger_config.observed_num_labels} labels. "
+            f"Use dataquality.set_labels_for_run to update your config labels."
+        )

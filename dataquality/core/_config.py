@@ -6,7 +6,7 @@ from typing import Dict, List, Optional
 
 from pydantic import BaseModel
 from pydantic.class_validators import validator
-from pydantic.types import UUID4, StrictStr
+from pydantic.types import UUID4
 
 from dataquality.schemas.task_type import TaskType
 
@@ -24,6 +24,14 @@ class GalileoConfigVars(str, Enum):
     @staticmethod
     def get_config_mapping() -> Dict[str, str]:
         return {i.name.lower(): os.environ[i.value] for i in GalileoConfigVars}
+
+    @staticmethod
+    def get_available_config_attrs() -> Dict[str, str]:
+        return {
+            i.name.lower(): os.environ.get(i.value, "")
+            for i in GalileoConfigVars
+            if os.environ.get(i.value)
+        }
 
     @staticmethod
     def vars_available() -> bool:
@@ -79,12 +87,11 @@ class Config(BaseModel):
     current_user: Optional[str] = None
     current_project_id: Optional[UUID4] = None
     current_run_id: Optional[UUID4] = None
-    labels: Optional[List[StrictStr]] = None
-    observed_num_labels: Optional[int] = 0
     task_type: Optional[TaskType] = None
 
     class Config:
         validate_assignment = True
+        arbitrary_types_allowed = True
 
     def update_file_config(self) -> None:
         _config = _Config()
@@ -105,12 +112,20 @@ class Config(BaseModel):
         return v
 
 
-if os.path.exists(_Config.DEFAULT_GALILEO_CONFIG_FILE):
-    with open(_Config.DEFAULT_GALILEO_CONFIG_FILE) as f:
-        config = Config(**json.load(f))
+def set_config() -> Config:
+    if os.path.exists(_Config.DEFAULT_GALILEO_CONFIG_FILE):
+        with open(_Config.DEFAULT_GALILEO_CONFIG_FILE) as f:
+            config_vars: Dict[str, str] = json.load(f)
+        # If the user updated any config vars via env, grab those updates
+        new_config_attrs = GalileoConfigVars.get_available_config_attrs()
+        config_vars.update(**new_config_attrs)
+        config = Config(**config_vars)
 
-else:
-    if not GalileoConfigVars.vars_available():
+    elif GalileoConfigVars.vars_available():
+        galileo_vars = GalileoConfigVars.get_config_mapping()
+        config = Config(**galileo_vars)
+
+    else:
         print("Welcome to Galileo! To get started, we need some information:")
         print(
             "(To skip this prompt in the future, set the following environment "
@@ -128,5 +143,10 @@ else:
         os.environ[GalileoConfigVars.MINIO_SECRET_KEY] = getpass(
             "🤫 Enter the secret key of your Galileo Minio server\n"
         )
-    galileo_vars = GalileoConfigVars.get_config_mapping()
-    config = Config(**galileo_vars)
+        galileo_vars = GalileoConfigVars.get_config_mapping()
+        config = Config(**galileo_vars)
+    return config
+
+
+config = set_config()
+config.update_file_config()

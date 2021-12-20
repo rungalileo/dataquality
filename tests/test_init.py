@@ -1,3 +1,4 @@
+import os
 from unittest import mock
 
 import pytest
@@ -113,3 +114,20 @@ def test_init_bad_task(*args) -> None:
     config.token = "sometoken"
     with pytest.raises(GalileoException):
         dataquality.init(task_type="not_text_classification")
+
+
+@mock.patch("requests.post", side_effect=mocked_create_project_run)
+@mock.patch("requests.get", side_effect=mocked_get_project_run)
+def test_reconfigure(*args) -> None:
+    config.token = "sometoken"
+    dataquality.init(task_type="text_classification")
+    assert config.current_run_id
+    assert config.current_project_id
+    old_url = config.minio_url
+    test_url = f"{old_url}_TEST"
+    os.environ["GALILEO_MINIO_URL"] = test_url
+    dataquality.configure()
+    assert dataquality.config.minio_url == config.minio_url == test_url
+    os.environ["GALILEO_MINIO_URL"] = old_url
+    dataquality.configure()
+    assert dataquality.config.minio_url == config.minio_url == old_url

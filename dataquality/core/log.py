@@ -1,13 +1,19 @@
 import warnings
-from typing import Any, Dict, List, Type
+from typing import Any, List, Type, Union
 
-from dataquality import config
+from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
 from dataquality.loggers.model_logger import BaseGalileoModelLogger
+from dataquality.schemas.task_type import TaskType
 
 
-def log_input_data(**kwargs: Dict[str, Any]) -> None:
+def log_input_data(**kwargs: Any) -> None:
+    """Logs input data for model training/test/validation.
+
+    The expected arguments come from the task_type's data
+    logger: See print(dataquality.get_model_logger().__doc__) for details
+    """
     assert config.task_type, "You must call dataquality.init before logging data"
     data_logger = get_data_logger()(**kwargs)
     data_logger.log()
@@ -15,41 +21,64 @@ def log_input_data(**kwargs: Dict[str, Any]) -> None:
 
 # Backwards compatibility
 def log_batch_input_data(**kwargs: Any) -> None:
-    warnings.warn("log_batch_input_data is deprecated. Use log_input_data")
+    warnings.warn(
+        "log_batch_input_data is deprecated. Use log_input_data", DeprecationWarning
+    )
     log_input_data(**kwargs)
 
 
 def log_model_outputs(**kwargs: Any) -> None:
+    """Logs model outputs for model during training/test/validation.
+
+    The expected arguments come from the task_type's model
+    logger: See print(dataquality.get_model_logger().__doc__) for details
+    """
     assert config.task_type, "You must call dataquality.init before logging data"
     model_logger = get_model_logger()(**kwargs)
     model_logger.log()
 
 
-def set_labels_for_run(labels: List[str]) -> None:
+def set_labels_for_run(labels: Union[List[List[str]], List[str]]) -> None:
     """
     Creates the mapping of the labels for the model to their respective indexes.
 
     :param labels: An ordered list of labels (ie ['dog','cat','fish']
-    This order MUST match the order of probabilities that the model outputs
-    :return: None
+    If this is a multi-label type, then labels are a list of lists where each inner
+    list indicates the label for the given task
+
+    This order MUST match the order of probabilities that the model outputs.
+
+    In the multi-label case, the outer order (order of the tasks) must match the
+    task-order of the task-probabilities logged as well.
     """
-    if len(labels) == 1:
-        labels = [labels[0], f"NOT_{labels[0]}"]
-    config.labels = [str(i) for i in labels]
-    config.update_file_config()
+    get_data_logger().logger_config.labels = labels
 
 
-def get_model_logger(task_type: str = None) -> Type[BaseGalileoModelLogger]:
+def set_tasks_for_run(tasks: List[str]) -> None:
+    """Sets the task names for the run (multi-label case only).
+
+    This order MUST match the order of the labels list provided in log_input_data
+    and the order of the probability vectors provided in log_model_outputs.
+
+    This also must match the order of the labels logged in set_labels_for_run (meaning
+    that the first list of labels must be the labels of the first task passed in here)
+    """
+    if config.task_type != TaskType.text_multi_label:
+        raise GalileoException("You can only set task names for multi-label use cases.")
+    get_data_logger().logger_config.tasks = tasks
+
+
+def get_model_logger(task_type: TaskType = None) -> Type[BaseGalileoModelLogger]:
     task_type = _get_task_type(task_type)
     return BaseGalileoModelLogger.get_logger(task_type)
 
 
-def get_data_logger(task_type: str = None) -> Type[BaseGalileoDataLogger]:
+def get_data_logger(task_type: TaskType = None) -> Type[BaseGalileoDataLogger]:
     task_type = _get_task_type(task_type)
     return BaseGalileoDataLogger.get_logger(task_type)
 
 
-def _get_task_type(task_type: str = None) -> str:
+def _get_task_type(task_type: TaskType = None) -> TaskType:
     task = task_type or config.task_type
     if not task:
         raise GalileoException(

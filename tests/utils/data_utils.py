@@ -14,10 +14,13 @@ from tests.conftest import LOCATION, SPLITS, SUBDIRS, TEST_PATH
 
 NUM_RECORDS = 50
 NUM_LOGS = 30
+MULTI_LABEL_NUM_TASKS = 10
 
 
 def validate_uploaded_data(
-    expected_num_records: int = None, meta_cols: Optional[List] = None
+    expected_num_records: int = None,
+    meta_cols: Optional[List] = None,
+    multi_label=False,
 ) -> None:
     """
     Checks for testing
@@ -31,12 +34,13 @@ def validate_uploaded_data(
             file_path = f"{TEST_PATH}/{split}/{subdir}/{subdir}.hdf5"
             # Ensure files were cleaned up
             data = vaex.open(file_path)
+            prob_cols = data.get_column_names(regex="prob*")
             for c in data.get_column_names():
-                if c not in ["text", "split", "gold"]:
+                if c in prob_cols + ["emb"]:
                     assert not np.isnan(data[c].values).any()
                 else:
                     vals = data[c].values
-                    assert all([i and i != "nan" for i in vals])
+                    assert all([i is not None and i != "nan" for i in vals])
             split_output_data[subdir] = data
 
         data = split_output_data["data"]
@@ -54,6 +58,16 @@ def validate_uploaded_data(
             == sorted(emb["id"].unique())
             == sorted(prob["id"].unique())
         )
+        if multi_label:
+            for c in prob.get_column_names():
+                assert c == "id" or c.startswith("prob_") or c.startswith("gold_")
+                assert c != "prob" and c != "gold"
+            assert (
+                len(prob.get_column_names(regex="prob*"))
+                == len(prob.get_column_names(regex="gold*"))
+                == len(data.get_column_names(regex="pred*"))
+                == MULTI_LABEL_NUM_TASKS
+            )
 
 
 def validate_cleanup_data():
@@ -71,6 +85,7 @@ def _log_data(
     unique_ids=True,
     num_emb=20,
     meta=None,
+    multi_label=False,
 ) -> None:
     """
     Logs some mock data to disk
@@ -90,14 +105,37 @@ def _log_data(
         dataset["label"] = newsgroups_train.target
         dataset = dataset[: num_records * num_logs]
 
-        dataquality.log_batch_input_data(
-            text=dataset["text"], labels=dataset["label"], split=split.value, meta=meta
+        if multi_label:
+            labels = []
+            for i in range(len(dataset)):
+                task_labels = np.random.randint(10, size=MULTI_LABEL_NUM_TASKS)
+                labels.append(task_labels)
+            dataquality.set_tasks_for_run(
+                [str(i) for i in range(MULTI_LABEL_NUM_TASKS)]
+            )
+        else:
+            labels = dataset["label"]
+            dataquality.set_labels_for_run([str(i) for i in range(len(set(labels)))])
+        dataquality.log_input_data(
+            text=dataset["text"], labels=labels, split=split.value, meta=meta
         )
 
+    num_labels_in_task = np.random.randint(low=1, high=10, size=MULTI_LABEL_NUM_TASKS)
+    if multi_label:
+        run_labels = [[str(i) for i in range(tl)] for tl in num_labels_in_task]
+        dataquality.set_labels_for_run(run_labels)
     for split in [Split.training, Split.test]:
         for ln in tqdm(range(num_logs)):
             emb = [[random() for _ in range(num_emb)] for _ in range(num_records)]
-            probs = [[random() for _ in range(4)] for _ in range(num_records)]
+            if multi_label:
+                probs = []
+                for i in range(num_records):
+                    probs_per_task = []
+                    for num_labels in num_labels_in_task:
+                        probs_per_task.append(np.random.rand(num_labels))
+                    probs.append(probs_per_task)
+            else:
+                probs = np.random.rand(num_records, len(set(labels)))
             epoch = 0
 
             # Need unique ids

@@ -2,7 +2,7 @@ import requests
 from setuptools.version import pkg_resources
 
 from dataquality import __version__ as dq_client_version
-from dataquality import config
+from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.route import Route
 

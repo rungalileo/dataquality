@@ -3,12 +3,16 @@ import shutil
 from abc import abstractmethod
 from enum import Enum, unique
 from glob import glob
-from typing import List, Optional, TypeVar, Union
+from typing import List, Optional, Type, TypeVar, Union
 
 import numpy as np
 
 from dataquality.core._config import _Config, config
 from dataquality.exceptions import GalileoException
+from dataquality.loggers.logger_config.base_logger_config import (
+    BaseLoggerConfig,
+    base_logger_config,
+)
 from dataquality.schemas.task_type import TaskType
 
 try:
@@ -17,6 +21,13 @@ try:
     TORCH_AVAILABLE = True
 except ImportError:
     TORCH_AVAILABLE = False
+
+try:
+    import tensorflow as tf
+
+    TF_AVAILABLE = True
+except ImportError:
+    TF_AVAILABLE = False
 
 
 T = TypeVar("T", bound="BaseGalileoLogger")
@@ -52,6 +63,7 @@ class BaseGalileoLogger:
 
     __logger_name__ = ""
     LOG_FILE_DIR = f"{_Config.DEFAULT_GALILEO_CONFIG_DIR}/logs"
+    logger_config: BaseLoggerConfig = base_logger_config
 
     def __init__(self) -> None:
         self.split: Optional[str] = None
@@ -62,7 +74,7 @@ class BaseGalileoLogger:
 
     @abstractmethod
     def validate(self) -> None:
-        pass
+        ...
 
     def is_valid(self) -> bool:
         try:
@@ -73,7 +85,7 @@ class BaseGalileoLogger:
 
     @abstractmethod
     def log(self) -> None:
-        pass
+        ...
 
     @staticmethod
     def _convert_tensor_ndarray(
@@ -83,16 +95,29 @@ class BaseGalileoLogger:
         if TORCH_AVAILABLE:
             if isinstance(arr, Tensor):
                 arr = arr.detach().cpu().numpy()
+        if TF_AVAILABLE:
+            if isinstance(arr, tf.Tensor):
+                arr = arr.cpu().numpy()
         if isinstance(arr, np.ndarray):
-            if attr in ("Embedding", "Prob"):
-                shp = arr.shape
+            if attr == "Embedding":
                 assert (
-                    len(shp) == 2
-                ), f"{attr} tensor must be 2D shape, but got shape {shp}"
+                    len(arr.shape) == 2
+                ), f"{attr} tensor must be 2D shape, but got shape {arr.shape}"
+            elif attr == "Prob":
+                if config.task_type != TaskType.text_multi_label:
+                    assert (
+                        len(arr.shape) == 2
+                    ), f"{attr} tensor must be 2D shape, but got shape {arr.shape}"
+                else:
+                    # Because probs in multi label may not have a clear shape (each
+                    # task may have a different number of probabilities
+                    arr = np.array(arr, dtype=object)
+            elif attr == "Labels" and config.task_type == TaskType.text_multi_label:
+                arr = np.array(arr, dtype=object)
         return np.array(arr)
 
     @staticmethod
-    def validate_task(task_type: str) -> None:
+    def validate_task(task_type: Union[str, TaskType]) -> None:
         if task_type not in TaskType.get_valid_tasks():
             raise GalileoException(
                 f"Task type {task_type} not valid. Choose one of "
@@ -119,4 +144,24 @@ class BaseGalileoLogger:
 
     @classmethod
     def upload(cls) -> None:
-        pass
+        ...
+
+    @classmethod
+    def get_all_subclasses(cls: Type[T]) -> List[Type[T]]:
+        all_subclasses = []
+
+        for subclass in cls.__subclasses__():
+            all_subclasses.append(subclass)
+            all_subclasses.extend(subclass.get_all_subclasses())
+
+        return all_subclasses
+
+    @classmethod
+    def get_logger(cls: Type[T], task_type: TaskType) -> Type[T]:
+        cls.validate_task(task_type)
+        loggers = {i.__logger_name__: i for i in cls.get_all_subclasses()}
+        return loggers[task_type]
+
+    @classmethod
+    def doc(cls) -> None:
+        print(cls.__doc__)

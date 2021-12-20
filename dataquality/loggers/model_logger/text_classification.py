@@ -1,14 +1,17 @@
 from collections import defaultdict
 from enum import Enum, unique
-from typing import Any, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 from uuid import uuid4
 
 import numpy as np
 import vaex
 from vaex.dataframe import DataFrame
 
-from dataquality import config
+from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
+from dataquality.loggers.logger_config.text_classification import (
+    text_classification_logger_config,
+)
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.split import Split
@@ -33,13 +36,17 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
     """
     Class for logging model output data of Text Classification models to Galileo.
 
-    * Embeddings: List[List[Union[int,float]]]
+    * Embeddings: List[List[Union[int,float]]]. The Embeddings per text sample input.
+    Only one embedding vector is allowed per input
     * Probabilities from forward passes during model training/evaluation.
     List[List[float]]
-    * ids: Indexes of each input field: List[Union[int,str]]
+    * ids: Indexes of each input field: List[int]. These IDs must align with the input
+    IDs for each sample input. This will be used to join them together for analysis
+    by Galileo.
     """
 
     __logger_name__ = "text_classification"
+    logger_config = text_classification_logger_config
 
     def __init__(
         self,
@@ -86,6 +93,8 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         self.probs = self._convert_tensor_ndarray(self.probs, "Prob")
         self.ids = self._convert_tensor_ndarray(self.ids)
 
+        assert self.emb.ndim == 2, "Only one embedding vector is allowed per input."
+
         assert emb_len and prob_len and id_len, (
             f"All of emb, probs, and ids for your GalileoModelConfig must be set, but "
             f"got emb:{bool(emb_len)}, probs:{bool(prob_len)}, ids:{bool(id_len)}"
@@ -118,11 +127,10 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
             f"/{config.current_run_id}"
         )
 
-        config.observed_num_labels = len(model_output["prob"].values[0])
+        self._set_num_labels(model_output)
         epoch, split = model_output[["epoch", "split"]][0]
         path = f"{location}/{split}/{epoch}"
         object_name = f"{str(uuid4()).replace('-', '')[:12]}.hdf5"
-
         _save_hdf5_file(path, object_name, model_output)
         _try_concat_df(path)
 
@@ -132,6 +140,10 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
             self.validate()
         except AssertionError as e:
             raise GalileoException(f"The provided GalileoModelConfig is invalid. {e}")
+        data = self._get_data_dict()
+        self.write_model_output(model_output=vaex.from_dict(data))
+
+    def _get_data_dict(self) -> Dict[str, Any]:
         data = defaultdict(list)
         for record_id, prob, emb in zip(self.ids, self.probs, self.emb):
             # Handle binary classification by making it 2-class classification
@@ -147,12 +159,15 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
             }
             for k in record.keys():
                 data[k].append(record[k])
-        self.write_model_output(model_output=vaex.from_dict(data))
+        return data
+
+    def _set_num_labels(self, df: DataFrame) -> None:
+        self.logger_config.observed_num_labels = len(df[:1]["prob"].values[0])
 
     def __setattr__(self, key: Any, value: Any) -> None:
         if key not in self.get_valid_attributes():
             raise AttributeError(
-                f"{key} is not a valid attribute of GalileoModelConfig. "
+                f"{key} is not a valid attribute of {self.__logger_name__} logger. "
                 f"Only {self.get_valid_attributes()}"
             )
         super().__setattr__(key, value)

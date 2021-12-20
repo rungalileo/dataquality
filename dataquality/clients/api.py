@@ -2,7 +2,7 @@ from typing import Any, Dict, List
 
 from pydantic.types import UUID4
 
-from dataquality import config
+from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
 from dataquality.schemas import RequestType, Route
 from dataquality.schemas.task_type import TaskType

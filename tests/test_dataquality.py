@@ -32,9 +32,36 @@ def test_threaded_logging_and_upload(cleanup_after_use) -> None:
     _log_data(num_records=num_records, num_logs=num_logs, num_emb=num_emb)
     try:
         # Equivalent to the users `finish` call, but we don't want to clean up files yet
+        ThreadPoolManager.wait_for_threads()
         c = dataquality.get_data_logger("text_classification")
+        c.validate_labels()
         c.upload()
         validate_uploaded_data(num_records * num_logs)
+        c._cleanup()
+        validate_cleanup_data()
+    finally:
+        # Mock finish() call without calling the API
+        ThreadPoolManager.wait_for_threads()
+
+
+def test_multi_label_logging(cleanup_after_use) -> None:
+    """
+    Tests that threaded calls to upload still yield non-missing datasets
+    """
+    dataquality.config.task_type = "text_multi_label"
+    num_records = 32
+    num_logs = 200
+    num_emb = 50
+    _log_data(
+        num_records=num_records, num_logs=num_logs, num_emb=num_emb, multi_label=True
+    )
+    try:
+        # Equivalent to the users `finish` call, but we don't want to clean up files yet
+        ThreadPoolManager.wait_for_threads()
+        c = dataquality.get_data_logger()
+        c.validate_labels()
+        c.upload()
+        validate_uploaded_data(num_records * num_logs, multi_label=True)
         c._cleanup()
         validate_cleanup_data()
     finally:
@@ -46,6 +73,7 @@ def test_metadata_logging(cleanup_after_use) -> None:
     """
     Tests that logging metadata columns persist
     """
+    dataquality.config.task_type = "text_classification"
     meta_cols = ["test1", "meta2"]
     meta = {}
     for i in meta_cols:
@@ -53,6 +81,7 @@ def test_metadata_logging(cleanup_after_use) -> None:
     _log_data(meta=meta)
     try:
         # Equivalent to the users `finish` call, but we don't want to clean up files yet
+        ThreadPoolManager.wait_for_threads()
         c = dataquality.get_data_logger("text_classification")
         c.upload()
         validate_uploaded_data(meta_cols=meta_cols)
@@ -67,6 +96,7 @@ def test_metadata_logging_invalid(cleanup_after_use) -> None:
     """
     Tests our metadata logging validation
     """
+    dataquality.config.task_type = "text_classification"
     meta = {
         "test1": [random() for _ in range(NUM_RECORDS * NUM_LOGS)],
         "meta2": [random() for _ in range(NUM_RECORDS * NUM_LOGS)],
@@ -102,6 +132,7 @@ def test_logging_duplicate_ids(cleanup_after_use) -> None:
     """
     Tests that logging duplicate ids triggers a failure
     """
+    dataquality.config.task_type = "text_classification"
     num_records = 50
     _log_data(num_records=num_records, unique_ids=False)
     try:
