@@ -29,7 +29,10 @@ DATASET = "amazon_polarity"
 TRAIN_DATASET_NAME = f"{DATASET}_train.csv"
 TEST_DATASET_NAME = f"{DATASET}_test.csv"
 DATASET_FOLDER_PATH = Path("galileo-ml-train") / "datasets" / "original" / DATASET
+<<<<<<< HEAD
 TASK_TYPE = "text_classification"
+=======
+>>>>>>> main
 
 NUM_EPOCHS = 1
 BATCH_SIZE = 32
@@ -80,7 +83,11 @@ if __name__ == "__main__":
         split="test",
     )
     dataquality.set_labels_for_run(train_dataset["label"].unique())
+<<<<<<< HEAD
     print(f"Input logging took {time.time() - t_start} seconds")
+=======
+    print(f"Took {time.time() - t_start} seconds")
+>>>>>>> main
 
     t_start = time.time()
     num_classes = train_dataset["label"].nunique()
