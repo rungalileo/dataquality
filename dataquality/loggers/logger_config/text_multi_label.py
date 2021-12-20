@@ -1,5 +1,6 @@
 from typing import List, Optional
 
+import numpy as np
 from pydantic import validator
 
 from dataquality.loggers.logger_config.base_logger_config import BaseLoggerConfig
@@ -17,7 +18,9 @@ class TextMultiLabelLoggerConfig(BaseLoggerConfig):
     @validator("labels", always=True, pre=True)
     def clean_labels(cls, labels: List[List[str]]) -> List[List[str]]:
         cleaned_labels = []
-        if labels:
+        if isinstance(labels, np.ndarray):
+            labels = labels.tolist()
+        if labels is not None:
             assert isinstance(labels, List), "Labels must be a list of lists"
             for task_labels in labels:
                 assert isinstance(task_labels, List), "Labels must be a list of lists"
