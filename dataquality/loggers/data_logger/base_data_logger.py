@@ -12,6 +12,7 @@ from dataquality.clients import object_store
 from dataquality.core._config import config
 from dataquality.loggers.base_logger import BaseGalileoLogger, BaseLoggerAttributes
 from dataquality.schemas.split import Split
+from dataquality.utils import tqdm
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import _join_in_out_frames, _validate_unique_ids
 
@@ -65,7 +66,9 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
                 prob, emb, data_df = cls.split_dataframe(in_out)
 
-                for data_folder, df_obj in zip(DATA_FOLDERS, [emb, prob, data_df]):
+                for data_folder, df_obj in tqdm(
+                    zip(DATA_FOLDERS, [emb, prob, data_df]), total=3, desc=split
+                ):
                     minio_file = (
                         f"{proj_run}/{split}/{epoch}/{data_folder}/{data_folder}.hdf5"
                     )
