@@ -6,13 +6,19 @@ https://s3.console.aws.amazon.com/s3/buckets/galileo-ml-train?region=us-west-
 """
 
 # Set environment flags for dataquality import
+import json
 import os
 import time
+from datetime import datetime
+from io import StringIO
 from pathlib import Path
 from typing import Union
 
 import numpy as np
 import pandas as pd
+import requests
+
+from dataquality.utils.auth import headers
 
 os.environ["GALILEO_API_URL"] = "https://api.dev.rungalileo.io"
 os.environ["GALILEO_MINIO_URL"] = "data.dev.rungalileo.io"
@@ -25,7 +31,9 @@ os.environ["GALILEO_PASSWORD"] = "Admin123@"
 import dataquality  # noqa
 from dataquality.utils import tqdm  # noqa
 
-DATASET = "amazon_polarity"
+dataquality.configure()
+
+DATASET = "newsgroups"
 TRAIN_DATASET_NAME = f"{DATASET}_train.csv"
 TEST_DATASET_NAME = f"{DATASET}_test.csv"
 DATASET_FOLDER_PATH = Path("galileo-ml-train") / "datasets" / "original" / DATASET
@@ -56,14 +64,16 @@ def generate_random_probabilities(batch_size: int, num_classes: int) -> np.ndarr
     return probs / probs.sum(axis=-1).reshape(-1, 1)  # Normalize to sum to 1
 
 
-if __name__ == "__main__":
+def log_data():
     download_dataset_from_aws(DATASET_FOLDER_PATH)
     train_dataset = load_dataset_split(DATASET, "train")
     test_dataset = load_dataset_split(DATASET, "test")
 
     dataquality.login()
     dataquality.init(
-        project_name="test_large_dataset", run_name=DATASET, task_type=TASK_TYPE
+        project_name="test_IT",
+        run_name=f"{DATASET}_{datetime.today()}",
+        task_type=TASK_TYPE,
     )
 
     t_start = time.time()
@@ -105,7 +115,7 @@ if __name__ == "__main__":
         # Test
         print("Testing")
         for i in tqdm(range(0, len(test_dataset), BATCH_SIZE)):
-            batch = train_dataset[i : i + BATCH_SIZE]
+            batch = test_dataset[i : i + BATCH_SIZE]
 
             embedding = generate_random_embeddings(len(batch), EMB_DIM)
             probs = generate_random_probabilities(len(batch), num_classes)
@@ -117,4 +127,35 @@ if __name__ == "__main__":
                 epoch=epoch_idx,
                 ids=batch["id"],
             )
-    print(f"Took {time.time() - t_start} seconds")
+    time_spent = time.time() - t_start
+    print(f"Took {time_spent} seconds")
+    return time_spent
+
+
+if __name__ == "__main__":
+    time_spent_logging = log_data()
+    dataquality.finish()
+    print("Sleeping while job processes")
+    for i in tqdm(range(100)):
+        time.sleep(1)
+    req = dict(
+        project_id=str(dataquality.config.current_project_id),
+        run_id=str(dataquality.config.current_run_id),
+        split="training",
+        meta_cols=["galileo_text_length", "galileo_language_id"],
+    )
+
+    response = requests.post(
+        f"{dataquality.config.api_url}/proc/export",
+        data=json.dumps(req),
+        headers=headers(dataquality.config.token),
+    )
+    x = str(response.content, "utf-8")
+    data = StringIO(x)
+    pdf = pd.read_csv(data)
+    assert "galileo_language_id" in pdf.columns
+    assert "galileo_text_length" in pdf.columns
+    assert len(pdf) == len(load_dataset_split(DATASET, "train"))
+    assert pd.notna(pdf).all().values[0]
+    assert pd.notnull(pdf).all().values[0]
+    print("Done!")
