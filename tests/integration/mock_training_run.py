@@ -18,9 +18,9 @@ import numpy as np
 import pandas as pd
 import requests
 
-from dataquality.utils.auth import headers
 import dataquality
 from dataquality.utils import tqdm
+from dataquality.utils.auth import headers
 
 dataquality.configure()
 
