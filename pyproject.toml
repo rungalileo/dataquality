@@ -18,8 +18,8 @@ requires = [
     "pandas>=0.20.0",
     "gorilla==0.3.0",
     "pyarrow==5.0.0",
-    "vaex-core==4.5.1",
-    "vaex-hdf5==0.10.0",
+    "vaex-core==4.7.0",
+    "vaex-hdf5==0.11.1",
     "diskcache==5.2.1",
     "resource==0.2.1"
 ]

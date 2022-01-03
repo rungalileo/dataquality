@@ -69,7 +69,7 @@ def _join_in_out_frames(in_df: DataFrame, out_df: DataFrame) -> DataFrame:
     ).copy()
     if len(in_out) != len(out_frame):
         num_missing = len(out_frame) - len(in_out)
-        missing_ids = set(out_frame["id"].unique()) - set(in_out["id"].unique())
+        missing_ids = set(out_frame["id"].unique()) - set(in_out["id_L"].unique())
         split = out_frame["split"].unique()[0]
         raise GalileoException(
             "It seems there were logged outputs with no corresponding inputs logged "
