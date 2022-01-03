@@ -21,7 +21,8 @@ requires = [
     "vaex-core==4.7.0.post1",
     "vaex-hdf5==0.11.1",
     "diskcache==5.2.1",
-    "resource==0.2.1"
+    "resource==0.2.1",
+    "tqdm==4.62.3"
 ]
 
 [tool.flit.metadata.urls]
