@@ -1,10 +1,10 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 from pydantic.types import UUID4
 
 from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
-from dataquality.schemas import RequestType, Route
+from dataquality.schemas import RequestType, Route, ProcName
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.auth import headers
 
@@ -179,6 +179,95 @@ class ApiClient:
         if not project:
             raise GalileoException(f"No project found with name {project_name}")
         self.delete_project(project["id"])
+
+    def _get_project_run_id(self, project_name: str = None, run_name: str = None) -> Tuple[UUID4, UUID4]:
+        """Helper function to get the project/run ids
+
+        If project and run names are provided, the IDs will be fetched. Otherwise,
+        This will return the currently initialized project/run IDs
+        """
+        if (project_name and not run_name) or (run_name and not project_name):
+            raise GalileoException("You must either provide both a project and run"
+                                   "name or neither. If you provide neither, the "
+                                   "currently initialized project/run will be used.")
+        elif project_name and run_name:
+            res = self.get_project_run_by_name(project_name, run_name)
+            if not res:
+                raise GalileoException(f"No project/run found with name {project_name}/{run_name}")
+            project = res["project_id"]
+            run = res["id"]
+        else:
+            project = config.current_project_id
+            run = config.current_run_id
+        return project, run
+
+    def get_labels_for_run(self, project_name: str = None, run_name: str = None, task: str = None) -> List[str]:
+        """Gets the labels for a given run, else the currently initialized project/run
+
+        If you do not provide a project and run name, the currently initialized
+        project/run will be used. Otherwise you must provide both a project and run name
+        If the run is a multi-label run, a task must be provided
+        """
+        if not task and config.task_type == TaskType.text_multi_label:
+            raise GalileoException("For multi-label runs, a task name must be provided")
+
+        project, run = self._get_project_run_id(project_name=project_name, run_name=run_name)
+
+        url = f"{config.api_url}/{Route.proc}/{project}/{run}/labels"
+        if task:
+            url += f"?task={task}"
+        res = self.make_request(RequestType.GET, url=url)
+        return res["labels"]
+
+    def get_tasks_for_run(self, project_name: str = None, run_name: str = None) -> List[str]:
+        """Gets the task names for a given multi-label run,
+
+        If you do not provide a project and run name, the currently initialized
+        project/run will be used. Otherwise you must provide both a project and run name
+
+        This function is only valid for multi-label runs.
+        """
+        project, run = self._get_project_run_id(project_name=project_name, run_name=run_name)
+        url = f"{config.api_url}/{Route.proc}/{project}/{run}/tasks"
+        res = self.make_request(RequestType.GET, url=url)
+        return res["tasks"]
+
+    def reprocess_run(self, project_name: str = None, run_name: str = None) -> Dict:
+        """Reprocesses a project/run that has already been finished
+
+        If a project and run name have been provided, that project/run will be
+        reprocessed, otherwise the currently initialized project/run.
+
+        This will clear out the current state in the server, and will recalculate
+        * DEP score
+        * UMAP Embeddings for visualization
+        * Smart features
+        """
+        project, run = self._get_project_run_id(project_name, run_name)
+        if config.task_type == TaskType.text_multi_label:
+            tasks = self.get_tasks_for_run(project_name, run_name)
+            labels = [self.get_labels_for_run(project_name, run_name, t) for t in tasks]
+        else:
+            tasks = None
+            labels = self.get_labels_for_run(project_name, run_name)
+
+        body = dict(
+            project_id=str(project),
+            run_id=str(run),
+            proc_name=ProcName.default.value,
+            labels=labels,
+            tasks=tasks
+        )
+        res = self.make_request(
+            RequestType.POST,
+            url=f"{config.api_url}/{Route.proc_pool}",
+            body=body
+        )
+        print(
+            f"Job {res['proc_name']} successfully resubmitted. New results will be "
+            f"available soon at {res['link']}"
+        )
+        return res
 
 
 api_client = ApiClient()

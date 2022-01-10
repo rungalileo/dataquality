@@ -14,3 +14,4 @@ class Route(str, Enum):
     login = "login"
     current_user = "current_user"
     healthcheck = "healthcheck"
+    proc = "proc"
