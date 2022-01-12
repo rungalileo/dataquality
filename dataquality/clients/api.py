@@ -4,7 +4,7 @@ from pydantic.types import UUID4
 
 from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
-from dataquality.schemas import RequestType, Route, ProcName
+from dataquality.schemas import ProcName, RequestType, Route
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.auth import headers
 
@@ -52,6 +52,12 @@ class ApiClient:
             )
             raise GalileoException(msg)
         return req.json()
+
+    def get_project(self, project_id: UUID4) -> Dict:
+        return self.make_request(
+            RequestType.GET,
+            url=f"{config.api_url}/{Route.projects}/{project_id}",
+        )
 
     def get_projects(self) -> List[Dict]:
         user_id = self._get_user_id()
@@ -180,20 +186,26 @@ class ApiClient:
             raise GalileoException(f"No project found with name {project_name}")
         self.delete_project(project["id"])
 
-    def _get_project_run_id(self, project_name: str = None, run_name: str = None) -> Tuple[UUID4, UUID4]:
+    def _get_project_run_id(
+        self, project_name: str = None, run_name: str = None
+    ) -> Tuple[UUID4, UUID4]:
         """Helper function to get the project/run ids
 
         If project and run names are provided, the IDs will be fetched. Otherwise,
         This will return the currently initialized project/run IDs
         """
         if (project_name and not run_name) or (run_name and not project_name):
-            raise GalileoException("You must either provide both a project and run"
-                                   "name or neither. If you provide neither, the "
-                                   "currently initialized project/run will be used.")
+            raise GalileoException(
+                "You must either provide both a project and run"
+                "name or neither. If you provide neither, the "
+                "currently initialized project/run will be used."
+            )
         elif project_name and run_name:
             res = self.get_project_run_by_name(project_name, run_name)
             if not res:
-                raise GalileoException(f"No project/run found with name {project_name}/{run_name}")
+                raise GalileoException(
+                    f"No project/run found with name {project_name}/{run_name}"
+                )
             project = res["project_id"]
             run = res["id"]
         else:
@@ -201,7 +213,9 @@ class ApiClient:
             run = config.current_run_id
         return project, run
 
-    def get_labels_for_run(self, project_name: str = None, run_name: str = None, task: str = None) -> List[str]:
+    def get_labels_for_run(
+        self, project_name: str = None, run_name: str = None, task: str = None
+    ) -> List[str]:
         """Gets the labels for a given run, else the currently initialized project/run
 
         If you do not provide a project and run name, the currently initialized
@@ -211,7 +225,9 @@ class ApiClient:
         if not task and config.task_type == TaskType.text_multi_label:
             raise GalileoException("For multi-label runs, a task name must be provided")
 
-        project, run = self._get_project_run_id(project_name=project_name, run_name=run_name)
+        project, run = self._get_project_run_id(
+            project_name=project_name, run_name=run_name
+        )
 
         url = f"{config.api_url}/{Route.proc}/{project}/{run}/labels"
         if task:
@@ -219,7 +235,9 @@ class ApiClient:
         res = self.make_request(RequestType.GET, url=url)
         return res["labels"]
 
-    def get_tasks_for_run(self, project_name: str = None, run_name: str = None) -> List[str]:
+    def get_tasks_for_run(
+        self, project_name: str = None, run_name: str = None
+    ) -> List[str]:
         """Gets the task names for a given multi-label run,
 
         If you do not provide a project and run name, the currently initialized
@@ -227,7 +245,9 @@ class ApiClient:
 
         This function is only valid for multi-label runs.
         """
-        project, run = self._get_project_run_id(project_name=project_name, run_name=run_name)
+        project, run = self._get_project_run_id(
+            project_name=project_name, run_name=run_name
+        )
         url = f"{config.api_url}/{Route.proc}/{project}/{run}/tasks"
         res = self.make_request(RequestType.GET, url=url)
         return res["tasks"]
@@ -244,24 +264,33 @@ class ApiClient:
         * Smart features
         """
         project, run = self._get_project_run_id(project_name, run_name)
-        if config.task_type == TaskType.text_multi_label:
+        project_name = project_name or self.get_project(project)["name"]
+        run_name = run_name or self.get_project_run(project, run)["name"]
+
+        try:
             tasks = self.get_tasks_for_run(project_name, run_name)
             labels = [self.get_labels_for_run(project_name, run_name, t) for t in tasks]
-        else:
+        except GalileoException:
             tasks = None
-            labels = self.get_labels_for_run(project_name, run_name)
+            try:
+                labels = self.get_labels_for_run(project_name, run_name)
+            except GalileoException as e:
+                if "No data found" in str(e):
+                    e = GalileoException(
+                        f"It seems no data is available for run "
+                        f"{project_name}/{run_name}"
+                    )
+                raise e from None
 
         body = dict(
             project_id=str(project),
             run_id=str(run),
             proc_name=ProcName.default.value,
             labels=labels,
-            tasks=tasks
+            tasks=tasks,
         )
         res = self.make_request(
-            RequestType.POST,
-            url=f"{config.api_url}/{Route.proc_pool}",
-            body=body
+            RequestType.POST, url=f"{config.api_url}/{Route.proc_pool}", body=body
         )
         print(
             f"Job {res['proc_name']} successfully resubmitted. New results will be "

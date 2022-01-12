@@ -4,7 +4,6 @@ import dataquality
 from dataquality.clients import api_client
 from dataquality.core._config import config
 from dataquality.schemas import ProcName, RequestType, Route
-from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.version import _version_check
 
@@ -33,7 +32,7 @@ def finish() -> Optional[Dict[str, Any]]:
         run_id=str(config.current_run_id),
         proc_name=ProcName.default.value,
         labels=data_logger.logger_config.labels,
-        tasks=data_logger.logger_config.tasks
+        tasks=data_logger.logger_config.tasks,
     )
     res = api_client.make_request(
         RequestType.POST, url=f"{config.api_url}/{Route.proc_pool}", body=body
