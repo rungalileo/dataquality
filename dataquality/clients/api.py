@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Union
 
 from pydantic.types import UUID4
 
@@ -267,11 +267,14 @@ class ApiClient:
         project_name = project_name or self.get_project(project)["name"]
         run_name = run_name or self.get_project_run(project, run)["name"]
 
-        try:
+        # Multi-label has tasks and List[List] for labels
+        if config.task_type == TaskType.text_multi_label:
             tasks = self.get_tasks_for_run(project_name, run_name)
-            labels = [self.get_labels_for_run(project_name, run_name, t) for t in tasks]
-        except GalileoException:
-            tasks = None
+            labels: Union[List[str], List[List[str]]] = [
+                self.get_labels_for_run(project_name, run_name, t) for t in tasks
+            ]
+        else:
+            tasks = []
             try:
                 labels = self.get_labels_for_run(project_name, run_name)
             except GalileoException as e:
@@ -287,7 +290,7 @@ class ApiClient:
             run_id=str(run),
             proc_name=ProcName.default.value,
             labels=labels,
-            tasks=tasks,
+            tasks=tasks or None,
         )
         res = self.make_request(
             RequestType.POST, url=f"{config.api_url}/{Route.proc_pool}", body=body
