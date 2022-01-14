@@ -32,6 +32,7 @@ def finish() -> Optional[Dict[str, Any]]:
         run_id=str(config.current_run_id),
         proc_name=ProcName.default.value,
         labels=data_logger.logger_config.labels,
+        tasks=data_logger.logger_config.tasks,
     )
     res = api_client.make_request(
         RequestType.POST, url=f"{config.api_url}/{Route.proc_pool}", body=body
