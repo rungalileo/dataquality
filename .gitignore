@@ -158,4 +158,5 @@ tmp/
 *.csv
 *.jsonl
 *.ann
+tests/notebooks/dev/
 
