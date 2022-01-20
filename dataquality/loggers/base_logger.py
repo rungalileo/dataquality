@@ -13,6 +13,7 @@ from dataquality.loggers.logger_config.base_logger_config import (
     BaseLoggerConfig,
     base_logger_config,
 )
+from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 
 try:
@@ -74,7 +75,8 @@ class BaseGalileoLogger:
 
     @abstractmethod
     def validate(self) -> None:
-        ...
+        assert self.split, "You didn't log a split!"
+        self.split = self.validate_split(self.split)
 
     def is_valid(self) -> bool:
         try:
@@ -165,3 +167,14 @@ class BaseGalileoLogger:
     @classmethod
     def doc(cls) -> None:
         print(cls.__doc__)
+
+    @classmethod
+    def validate_split(cls, split: Union[str, Split]) -> str:
+        # User may manually pass in 'train' instead of 'training'
+        # but we want it to conform
+        split = Split.training.value if split == "train" else split
+        split = split.value if isinstance(split, Split) else split
+        assert isinstance(split, str) and split in Split.get_valid_attributes(), (
+            f"Split should be one of {Split.get_valid_attributes()} " f"but got {split}"
+        )
+        return split

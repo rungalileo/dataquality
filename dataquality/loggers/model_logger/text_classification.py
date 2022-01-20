@@ -14,7 +14,6 @@ from dataquality.loggers.logger_config.text_classification import (
 )
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.schemas import __data_schema_version__
-from dataquality.schemas.split import Split
 from dataquality.utils.vaex import _save_hdf5_file, _try_concat_df
 
 
@@ -43,6 +42,7 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
     * ids: Indexes of each input field: List[int]. These IDs must align with the input
     IDs for each sample input. This will be used to join them together for analysis
     by Galileo.
+    * split: The model training/test/validation split for the samples being logged
     """
 
     __logger_name__ = "text_classification"
@@ -68,7 +68,7 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
     @staticmethod
     def get_valid_attributes() -> List[str]:
         """
-        Returns a list of valid attributes that GalileoModelConfig accepts
+        Returns a list of valid attributes that this logger accepts
         :return: List[str]
         """
         return GalileoModelLoggerAttributes.get_valid()
@@ -79,15 +79,10 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         * emb, probs, and ids must exist and be the same length
         :return:
         """
+        super().validate()
         emb_len = len(self.emb)
         prob_len = len(self.probs)
         id_len = len(self.ids)
-
-        # We add validation here instead of requiring the params at init because
-        # for lightning callbacks, we add these automatically for the user, so they
-        # can create the config in their training loop and we will manage this metadata
-        assert self.split, "Your GalileoModelConfig has no split!"
-        assert self.epoch is not None, "Your GalileoModelConfig has no epoch!"
 
         self.emb = self._convert_tensor_ndarray(self.emb, "Embedding")
         self.probs = self._convert_tensor_ndarray(self.probs, "Prob")
@@ -96,30 +91,14 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         assert self.emb.ndim == 2, "Only one embedding vector is allowed per input."
 
         assert emb_len and prob_len and id_len, (
-            f"All of emb, probs, and ids for your GalileoModelConfig must be set, but "
+            f"All of emb, probs, and ids for your logger must be set, but "
             f"got emb:{bool(emb_len)}, probs:{bool(prob_len)}, ids:{bool(id_len)}"
         )
 
         assert emb_len == prob_len == id_len, (
-            f"All of emb, probs, and ids for your GalileoModelConfig must be the same "
+            f"All of emb, probs, and ids for your logger must be the same "
             f"length, but got (emb, probs, ids) -> ({emb_len},{prob_len}, {id_len})"
         )
-        if self.split:
-            # User may manually pass in 'train' instead of 'training'
-            # but we want it to conform
-            self.split = Split.training.value if self.split == "train" else self.split
-            assert (
-                isinstance(self.split, str)
-                and self.split in Split.get_valid_attributes()
-            ), (
-                f"Split should be one of {Split.get_valid_attributes()} "
-                f"but got {self.split}"
-            )
-
-        if self.epoch:
-            assert isinstance(self.epoch, int), (
-                f"If set, epoch must be int but was " f"{type(self.epoch)}"
-            )
 
     def write_model_output(self, model_output: DataFrame) -> None:
         location = (
@@ -139,7 +118,7 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         try:
             self.validate()
         except AssertionError as e:
-            raise GalileoException(f"The provided GalileoModelConfig is invalid. {e}")
+            raise GalileoException(f"The provided logged data is invalid. {e}")
         data = self._get_data_dict()
         self.write_model_output(model_output=vaex.from_dict(data))
 

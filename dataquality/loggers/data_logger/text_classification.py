@@ -1,14 +1,8 @@
-import os
 from enum import Enum, unique
 from typing import Any, Dict, List, Optional, Tuple, Union
-from uuid import uuid4
 
-import pandas as pd
-import vaex
 from vaex.dataframe import DataFrame
 
-from dataquality.core._config import config
-from dataquality.loggers import BaseGalileoLogger
 from dataquality.loggers.data_logger.base_data_logger import BaseGalileoDataLogger
 from dataquality.loggers.logger_config.text_classification import (
     text_classification_logger_config,
@@ -39,6 +33,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
     * labels: the ground truth labels aligned to each text field. List[str]
     * ids: Optional unique indexes for each record. If not provided, will default to
     the index of the record. Optional[List[int]]
+    * split: The split for training/test/validation
     """
 
     __logger_name__ = "text_classification"
@@ -59,6 +54,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         List[str]
         :param ids: Optional unique indexes for each record. If not provided, will
         default to the index of the record. Optional[List[Union[int,str]]]
+        :param split: The split for training/test/validation
         """
         super().__init__(meta)
         # Need to compare to None because they may be np arrays which cannot be
@@ -71,7 +67,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
     @staticmethod
     def get_valid_attributes() -> List[str]:
         """
-        Returns a list of valid attributes that GalileoModelConfig accepts
+        Returns a list of valid attributes that this logger accepts
         :return: List[str]
         """
         return GalileoDataLoggerAttributes.get_valid()
@@ -94,20 +90,13 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         self.labels = list(self._convert_tensor_ndarray(self.labels, attr="Labels"))
         self.ids = list(self._convert_tensor_ndarray(self.ids))
 
-        assert self.split, "Your GalileoDataConfig has no split!"
-        self.split = Split.training.value if self.split == "train" else self.split
-        self.split = self.split.value if isinstance(self.split, Split) else self.split
-        assert (
-            isinstance(self.split, str) and self.split in Split.get_valid_attributes()
-        ), (
-            f"Split should be one of {Split.get_valid_attributes()} "
-            f"but got {self.split}"
-        )
+        assert self.split, "Your logged data has no split!"
+        self.split = self.validate_split(self.split)
         if self.split == Split.inference.value:
             assert not label_len, "You cannot have labels in your inference split!"
         else:
             assert label_len and text_len, (
-                f"Both text and labels for your GalileoDataConfig must be set, but got"
+                f"Both text and labels for your logger must be set, but got"
                 f" text:{bool(text_len)}, labels:{bool(text_len)}"
             )
 
@@ -125,26 +114,6 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
             self.ids = list(range(text_len))
 
         self.validate_metadata(batch_size=text_len)
-
-    def log(self) -> None:
-        self.validate()
-        write_input_dir = (
-            f"{BaseGalileoLogger.LOG_FILE_DIR}/{config.current_project_id}/"
-            f"{config.current_run_id}"
-        )
-        if not os.path.exists(write_input_dir):
-            os.makedirs(write_input_dir)
-        inp = self._get_input_dict()
-        df = vaex.from_pandas(pd.DataFrame(inp))
-        file_path = f"{write_input_dir}/{BaseGalileoDataLogger.INPUT_DATA_NAME}"
-        if os.path.isfile(file_path):
-            new_name = f"{write_input_dir}/{str(uuid4()).replace('-', '')[:12]}.arrow"
-            os.rename(file_path, new_name)
-            vaex.concat([df, vaex.open(new_name)]).export(file_path, progress="vaex")
-            os.remove(new_name)
-        else:
-            df.export(file_path, progress="vaex")
-        df.close()
 
     def _get_input_dict(self) -> Dict[str, Any]:
         return dict(

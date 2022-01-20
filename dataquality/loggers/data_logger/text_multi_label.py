@@ -29,6 +29,7 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
     List[List[str]]
     * ids: Optional unique indexes for each record. If not provided, will default to
     the index of the record. Optional[List[int]]
+    * split: The split for training/test/validation
     """
 
     __logger_name__ = "text_multi_label"
@@ -51,6 +52,7 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
         List[List[str]]
         :param ids: Optional unique indexes for each record. If not provided, will
         default to the index of the record. Optional[List[Union[int,str]]]
+        :param split: The split for training/test/validation
         """
         super().__init__(text=text, ids=ids, split=split, meta=meta)
         if labels is not None:

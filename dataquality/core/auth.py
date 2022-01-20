@@ -65,6 +65,9 @@ def login() -> None:
     print("🔭 Logging you into Galileo\n")
     auth_methods = ",".join([am.value for am in AuthMethod])
     # Try auto auth config
+    if len(list(AuthMethod)) == 1:
+        auth_method = list(AuthMethod)[0].value
+        os.environ[GALILEO_AUTH_METHOD] = auth_method
     auth_method = os.getenv(GALILEO_AUTH_METHOD) or config.auth_method
     if not auth_method or auth_method.lower() not in list(AuthMethod):
         auth_method = input(

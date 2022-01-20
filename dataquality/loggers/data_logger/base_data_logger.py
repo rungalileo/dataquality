@@ -1,15 +1,19 @@
 import os
 import warnings
 from abc import abstractmethod
+from collections import Counter
 from glob import glob
 from typing import Any, Dict, List, Optional, Union
+from uuid import uuid4
 
 import numpy as np
+import pandas as pd
 import vaex
 from vaex.dataframe import DataFrame
 
 from dataquality.clients import object_store
 from dataquality.core._config import config
+from dataquality.exceptions import GalileoException
 from dataquality.loggers.base_logger import BaseGalileoLogger, BaseLoggerAttributes
 from dataquality.schemas.split import Split
 from dataquality.utils import tqdm
@@ -30,13 +34,40 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         super().__init__()
         self.meta: Dict[str, Any] = meta or {}
 
-    @abstractmethod
-    def validate(self) -> None:
-        ...
-
-    @abstractmethod
     def log(self) -> None:
-        ...
+        self.validate()
+        write_input_dir = (
+            f"{BaseGalileoLogger.LOG_FILE_DIR}/{config.current_project_id}/"
+            f"{config.current_run_id}"
+        )
+        if not os.path.exists(write_input_dir):
+            os.makedirs(write_input_dir)
+        inp = self._get_input_dict()
+        df = vaex.from_pandas(pd.DataFrame(inp))
+        file_path = f"{write_input_dir}/{BaseGalileoDataLogger.INPUT_DATA_NAME}"
+        if os.path.isfile(file_path):
+            new_name = f"{write_input_dir}/{str(uuid4()).replace('-', '')[:12]}.arrow"
+            os.rename(file_path, new_name)
+            logged_data = vaex.open(new_name)
+            combined_data = vaex.concat([logged_data, df])
+            # Validate there are no duplicated IDs
+            for split in df["split"].unique():
+                split_df = df[df["split"] == split]
+                if len(split_df) != split_df["id"].unique():
+                    counter: Counter = Counter(split_df["id"].tolist())
+                    dups = {k: v for k, v in counter.items() if v > 1}
+                    combined_data.close()
+                    os.rename(new_name, file_path)  # Revert name, we aren't logging
+                    raise GalileoException(
+                        "It seems the newly logged data has IDs that duplicate "
+                        f"previously logged data for split {split}. "
+                        f"Duplicated IDs: {dups}"
+                    )
+            combined_data.export(file_path, progress="vaex")
+            os.remove(new_name)
+        else:
+            df.export(file_path, progress="vaex")
+        df.close()
 
     @classmethod
     def upload(cls) -> None:
@@ -135,8 +166,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     @staticmethod
     def get_data_logger_attr(cls: object) -> str:
         """
-        Returns the attribute that corresponds to the GalileoDataConfig class.
-        This assumes only 1 GalileoDataConfig object exists in the class
+        Returns the attribute that corresponds to the logger in the class.
+        This assumes only 1 logger object exists in the class
 
         :param cls: The class
         :return: The attribute name
@@ -145,9 +176,13 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             member_class = getattr(cls, attr)
             if isinstance(member_class, BaseGalileoDataLogger):
                 return attr
-        raise AttributeError("No GalileoDataConfig attribute found!")
+        raise AttributeError("No data logger attribute found!")
 
     @classmethod
     @abstractmethod
     def split_dataframe(cls, df: DataFrame) -> DataFrame:
+        ...
+
+    @abstractmethod
+    def _get_input_dict(self) -> Dict[str, Any]:
         ...
