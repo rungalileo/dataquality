@@ -12,7 +12,7 @@ from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.utils.data_utils import (
     NUM_LOGS,
     NUM_RECORDS,
-    _log_data,
+    _log_text_data,
     validate_cleanup_data,
     validate_uploaded_data,
 )
@@ -29,7 +29,7 @@ def test_threaded_logging_and_upload(cleanup_after_use) -> None:
     num_records = 32
     num_logs = 200
     num_emb = 50
-    _log_data(num_records=num_records, num_logs=num_logs, num_emb=num_emb)
+    _log_text_data(num_records=num_records, num_logs=num_logs, num_emb=num_emb)
     try:
         # Equivalent to the users `finish` call, but we don't want to clean up files yet
         ThreadPoolManager.wait_for_threads()
@@ -52,7 +52,7 @@ def test_multi_label_logging(cleanup_after_use) -> None:
     num_records = 32
     num_logs = 200
     num_emb = 50
-    _log_data(
+    _log_text_data(
         num_records=num_records, num_logs=num_logs, num_emb=num_emb, multi_label=True
     )
     try:
@@ -78,7 +78,7 @@ def test_metadata_logging(cleanup_after_use) -> None:
     meta = {}
     for i in meta_cols:
         meta[i] = [random() for _ in range(NUM_RECORDS * NUM_LOGS)]
-    _log_data(meta=meta)
+    _log_text_data(meta=meta)
     try:
         # Equivalent to the users `finish` call, but we don't want to clean up files yet
         ThreadPoolManager.wait_for_threads()
@@ -113,7 +113,7 @@ def test_metadata_logging_invalid(cleanup_after_use) -> None:
     for i in range(MAX_META_COLS):
         meta[f"attr_{i}"] = [random() for _ in range(NUM_RECORDS * NUM_LOGS)]
 
-    _log_data(meta=meta)
+    _log_text_data(meta=meta)
     valid_meta_cols = ["test1", "meta2"]
     valid_meta_cols += [f"attr_{i}" for i in range(44)]
     try:
@@ -134,7 +134,7 @@ def test_logging_duplicate_ids(cleanup_after_use) -> None:
     """
     dataquality.config.task_type = "text_classification"
     num_records = 50
-    _log_data(num_records=num_records, unique_ids=False)
+    _log_text_data(num_records=num_records, unique_ids=False)
     try:
         # Equivalent to the users `finish` call, but we don't want to clean up files yet
         ThreadPoolManager.wait_for_threads()
@@ -162,3 +162,28 @@ def test_config_no_vars(monkeypatch):
     assert dataquality.core._config.config.minio_region == "us-east-1"
 
     os.environ["GALILEO_API_URL"] = x
+
+
+# def test_text_ner_logging(cleanup_after_use) -> None:
+#     """
+#     Tests that threaded calls to upload still yield non-missing datasets for NER
+#     """
+#     dataquality.config.task_type = "text_ner"
+#     num_records = 32
+#     num_logs = 200
+#     num_emb = 50
+#     _log_text_data(
+#         num_records=num_records, num_logs=num_logs, num_emb=num_emb, multi_label=True
+#     )
+#     try:
+#         # Equivalent to the users `finish` call, but don't want to clean up files yet
+#         ThreadPoolManager.wait_for_threads()
+#         c = dataquality.get_data_logger()
+#         c.validate_labels()
+#         c.upload()
+#         validate_uploaded_data(num_records * num_logs, multi_label=True)
+#         c._cleanup()
+#         validate_cleanup_data()
+#     finally:
+#         # Mock finish() call without calling the API
+#         ThreadPoolManager.wait_for_threads()

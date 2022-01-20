@@ -20,4 +20,6 @@ def test_attribute_subsets() -> None:
         [j for i in sub_model_loggers for j in i.get_valid_attributes()]
     )
     all_sub_attrs = data_logger_attrs.union(model_logger_attrs)
-    assert all_attrs.issuperset(all_sub_attrs)
+    assert all_attrs.issuperset(
+        all_sub_attrs
+    ), f"Missing attrs: {all_sub_attrs - all_attrs}"

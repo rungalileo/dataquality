@@ -10,6 +10,8 @@ from vaex.dataframe import DataFrame
 
 from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
+from dataquality.loggers import BaseGalileoLogger
+from dataquality.loggers.data_logger import BaseGalileoDataLogger
 from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.schemas import __data_schema_version__
@@ -26,6 +28,7 @@ class GalileoModelLoggerAttributes(str, Enum):
     # mixin restriction on str (due to "str".split(...))
     split = "split"  # type: ignore
     epoch = "epoch"
+    dep_scores = "dep_scores"
 
     @staticmethod
     def get_valid() -> List[str]:
@@ -40,17 +43,20 @@ class TextNERModelLogger(BaseGalileoModelLogger):
     tokens for the text_tokenized. This is per token of a span. For each gold (true)
     span in a text sample, there may be 1 or more tokens. Each token will have an
     embedding vector.
+    NOTE: Max 5 spans per text sample. More than 5 will throw an error
     * Pred Embeddings: List[List[List[np.array]]]. The Embeddings of the PREDICTED span
     tokens for the text_tokenized. This is per token of a span. For each predicted
     span in a text sample, there may be 1 or more tokens. Each token will have an
     embedding vector.
     NOTE: The pred embeddings will match the probabilities but may not match
     the gold embeddings (the model may predict the wrong span)
+    NOTE: Max 5 spans per text sample. More than 5 will throw an error
     * Probabilities: List[List[List[np.array]]]. The prediction probabilities of each
     spans' tokens. For each span in a sentence, there will be 1 or more tokens. The
     model will have a probability vector for each token.
     NOTE: The probabilities will match the pred embeddings but may not match
     the gold embeddings (the model may predict the wrong span)
+    NOTE: Max 5 spans per text sample. More than 5 will throw an error
     * ids: Indexes of each input field: List[int]. These IDs must align with the input
     IDs for each sample input. This will be used to join them together for analysis
     by Galileo.
@@ -116,8 +122,8 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         self,
         gold_emb: List[List[np.ndarray]] = None,
         pred_emb: List[List[np.ndarray]] = None,
-        pred_spans: List[List[List[np.ndarray]]] = None,
-        probs: Union[List, np.ndarray] = None,
+        pred_spans: List[List[dict]] = None,
+        probs: List[List[List[np.ndarray]]] = None,
         ids: Union[List, np.ndarray] = None,
         split: Optional[str] = None,
         epoch: Optional[int] = None,
@@ -149,6 +155,15 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         :return:
         """
         super().validate()
+
+        # Add the input data dataframe to the logger config so we can use it to eagerly
+        # calculate DEP score
+        if not self.logger_config.input_data:
+            df_dir = (
+                f"{BaseGalileoLogger.LOG_FILE_DIR}/{config.current_project_id}/"
+                f"{config.current_run_id}/{BaseGalileoDataLogger.INPUT_DATA_NAME}"
+            )
+            self.logger_config.input_data = vaex.open(df_dir).copy()
 
         gold_emb_len = len(self.gold_emb)
         pred_emb_len = len(self.pred_emb)
@@ -201,13 +216,18 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 [np.mean(pred_span, axis=0) for pred_span in pred_spans]
             )
             # TODO: Eagerly calculate the DEP score and discard the probs
+            if not self.logger_config.observed_num_labels:
+                # TODO: get the observed num labels
+                pass
+
         self.gold_emb = avg_gold_emb
         self.pred_emb = avg_pred_emb
         self.dep_scores = dep_scores
 
         # Get the embedding shape. Filter out nulls
-        emb = next(filter(lambda emb: not np.isnan(emb[0]).all(), self.gold_emb))[0]
-        self.logger_config.num_emb = emb.shape[0]
+        if not self.logger_config.num_emb:
+            emb = next(filter(lambda emb: not np.isnan(emb[0]).all(), self.gold_emb))[0]
+            self.logger_config.num_emb = emb.shape[0]
 
     def write_model_output(self, model_output: DataFrame) -> None:
         location = (
@@ -215,7 +235,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             f"/{config.current_run_id}"
         )
 
-        self._set_num_labels(model_output)
         epoch, split = model_output[["epoch", "split"]][0]
         path = f"{location}/{split}/{epoch}"
         object_name = f"{str(uuid4()).replace('-', '')[:12]}.hdf5"
@@ -267,9 +286,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             for k in record.keys():
                 data[k].append(record[k])
         return data
-
-    def _set_num_labels(self, df: DataFrame) -> None:
-        self.logger_config.observed_num_labels = len(df[:1]["prob"].values[0])
 
     def __setattr__(self, key: Any, value: Any) -> None:
         if key not in self.get_valid_attributes():

@@ -79,7 +79,7 @@ def validate_cleanup_data():
         assert not os.path.isdir(f"{LOCATION}/{split}")
 
 
-def _log_data(
+def _log_text_data(
     num_records=NUM_RECORDS,
     num_logs=NUM_LOGS,
     unique_ids=True,
@@ -88,7 +88,7 @@ def _log_data(
     multi_label=False,
 ) -> None:
     """
-    Logs some mock data to disk
+    Logs mock data for text classification/multi-label to disk
     """
     meta = meta or {}
     # Log train/test data
@@ -136,6 +136,56 @@ def _log_data(
                     probs.append(probs_per_task)
             else:
                 probs = np.random.rand(num_records, len(set(labels)))
+            epoch = 0
+
+            # Need unique ids
+            if unique_ids:
+                r = range(ln * num_records, (ln + 1) * num_records)
+                ids = list(r)
+            else:
+                ids = list(range(num_records))
+
+            dataquality.log_model_outputs(
+                emb=emb, probs=probs, split=split.value, epoch=epoch, ids=ids
+            )
+
+
+# TODO: need format for logging
+def _log_text_ner_data(
+    num_records=NUM_RECORDS,
+    num_logs=NUM_LOGS,
+    unique_ids=True,
+    num_emb=20,
+    meta=None,
+) -> None:
+    """
+    Logs mock text NER data to disk
+    """
+    meta = meta or {}
+    # Log train/test data
+    for split in [Split.test, Split.training]:
+        newsgroups_train = fetch_20newsgroups(
+            subset="train" if split == Split.training else split.value,
+            remove=("headers", "footers", "quotes"),
+        )
+        assert num_records * num_logs <= len(
+            newsgroups_train.data
+        ), f"num_records*num_logs must be less than {len(newsgroups_train.data)} "
+        dataset = pd.DataFrame()
+        dataset["text"] = newsgroups_train.data
+        dataset["label"] = newsgroups_train.target
+        dataset = dataset[: num_records * num_logs]
+
+        labels = dataset["label"]
+        dataquality.set_labels_for_run([str(i) for i in range(len(set(labels)))])
+    dataquality.log_input_data(
+        text=dataset["text"], labels=labels, split=split.value, meta=meta
+    )
+
+    for split in [Split.training, Split.test]:
+        for ln in tqdm(range(num_logs)):
+            emb = [[random() for _ in range(num_emb)] for _ in range(num_records)]
+            probs = np.random.rand(num_records, len(set(labels)))
             epoch = 0
 
             # Need unique ids

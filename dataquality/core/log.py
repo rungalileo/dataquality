@@ -68,6 +68,16 @@ def set_tasks_for_run(tasks: List[str]) -> None:
     get_data_logger().logger_config.tasks = tasks
 
 
+def set_tagging_schema(tagging_schema: str) -> None:
+    """Sets the tagging schema for NER models
+
+    Only valid for text_ner task_types. Others will throw an exception
+    """
+    if config.task_type != TaskType.text_ner:
+        raise GalileoException("You can only set tagging schema for NER models.")
+    get_data_logger().logger_config.tagging_schema = tagging_schema
+
+
 def get_model_logger(task_type: TaskType = None) -> Type[BaseGalileoModelLogger]:
     task_type = _get_task_type(task_type)
     return BaseGalileoModelLogger.get_logger(task_type)

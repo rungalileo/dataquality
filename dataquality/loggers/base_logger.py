@@ -51,6 +51,12 @@ class BaseLoggerAttributes(str, Enum):
     epoch = "epoch"
     data_error_potential = "data_error_potential"
     aum = "aum"
+    text_tokenized = "text_tokenized"
+    gold_spans = "gold_spans"
+    pred_emb = "pred_emb"
+    gold_emb = "gold_emb"
+    pred_spans = "pred_spans"
+    dep_scores = "dep_scores"
 
     @staticmethod
     def get_valid() -> List[str]:

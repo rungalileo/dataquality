@@ -1,7 +1,6 @@
 import os
 import warnings
 from abc import abstractmethod
-from collections import Counter
 from glob import glob
 from typing import Any, Dict, List, Optional, Union
 from uuid import uuid4
@@ -18,7 +17,12 @@ from dataquality.loggers.base_logger import BaseGalileoLogger, BaseLoggerAttribu
 from dataquality.schemas.split import Split
 from dataquality.utils import tqdm
 from dataquality.utils.thread_pool import ThreadPoolManager
-from dataquality.utils.vaex import _join_in_out_frames, _validate_unique_ids
+from dataquality.utils.vaex import (
+    _join_in_out_frames,
+    _validate_unique_ids,
+    get_dup_ids,
+    valid_ids,
+)
 
 DATA_FOLDERS = ["emb", "prob", "data"]
 
@@ -53,9 +57,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             # Validate there are no duplicated IDs
             for split in df["split"].unique():
                 split_df = df[df["split"] == split]
-                if len(split_df) != split_df["id"].unique():
-                    counter: Counter = Counter(split_df["id"].tolist())
-                    dups = {k: v for k, v in counter.items() if v > 1}
+                if not valid_ids(split_df):
+                    dups = get_dup_ids(split_df)
                     combined_data.close()
                     os.rename(new_name, file_path)  # Revert name, we aren't logging
                     raise GalileoException(

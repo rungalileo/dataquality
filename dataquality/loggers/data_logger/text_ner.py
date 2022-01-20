@@ -11,15 +11,6 @@ from dataquality.schemas.split import Split
 
 
 @unique
-class GalileoNERTaggingSchemas(str, Enum):
-    IOB2 = "IOB2"
-    BIO = "BIO"
-    IOB = "IOB"
-    BILOU = "BILOU"
-    BILOES = "BILOES"
-
-
-@unique
 class GalileoDataLoggerAttributes(str, Enum):
     text = "text"
     text_tokenized = "text_tokenized"
@@ -46,7 +37,8 @@ class TextNERDataLogger(BaseGalileoDataLogger):
     * gold_spans: Gold spans for the text_tokenized. The list of spans in a sample with
     their start and end indexes, and the label. This matches the text_tokenized format
     Indexes start at 0 and are [inclusive, exclusive) for [start, end) respectively.
-    List[List[dict]]
+    List[List[dict]].
+    NOTE: Max 5 spans per text sample. More than 5 will throw an error
     * ids: Optional unique indexes for each record. If not provided, will default to
     the index of the record. Optional[List[int]]
     * split: The split of training/test/validation
@@ -154,6 +146,16 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         :return: None
         """
         super().validate()
+
+        assert self.logger_config.labels, (
+            "You must set your labels before logging input data. "
+            "See dataquality.set_labels_for_run"
+        )
+
+        assert self.logger_config.tagging_schema, (
+            "You must set your tagging schema before logging input data. "
+            "See dataquality.set_tagging_schema"
+        )
 
         text_tokenized_len = len(self.text_tokenized)
         text_len = len(self.text)

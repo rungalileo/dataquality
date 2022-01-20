@@ -1,6 +1,5 @@
 import os
 import threading
-from collections import Counter
 from glob import glob
 from typing import List
 from uuid import uuid4
@@ -91,10 +90,25 @@ def _validate_unique_ids(df: DataFrame) -> None:
     """
     if df["id"].nunique() != len(df):
         epoch, split = df[["epoch", "split"]][0]
-        all_ids: List[int] = df["id"].tolist()
-        dup_ids = [i for i, count in Counter(all_ids).items() if count > 1]
+        dups = get_dup_ids(df)
         raise GalileoException(
             "It seems as though you do not have unique ids in this "
             f"split/epoch. Did you provide your own IDs?\n"
-            f"split:{split}, epoch:{epoch}, dup ids:{dup_ids}"
+            f"split:{split}, epoch:{epoch}, dup ids and counts:{dups}"
         )
+
+
+def valid_ids(df: DataFrame) -> bool:
+    """Returns whether or not a dataframe has unique IDs"""
+    try:
+        _validate_unique_ids(df)
+        return True
+    except GalileoException:
+        return False
+
+
+def get_dup_ids(df: DataFrame) -> List:
+    """Gets the list of duplicate IDs in a dataframe, if any"""
+    df_copy = df.copy()
+    dup_df = df_copy.groupby(by="id", agg="count")
+    return dup_df[dup_df["count"] > 1].to_records()
