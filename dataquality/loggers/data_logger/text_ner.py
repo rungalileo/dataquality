@@ -127,6 +127,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         self.gold_spans = gold_spans if gold_spans is not None else []
         self.ids = ids if ids is not None else []
         self.split = split
+        self.text_split: List[List[str]] = []
 
     @staticmethod
     def get_valid_attributes() -> List[str]:
@@ -195,6 +196,8 @@ class TextNERDataLogger(BaseGalileoDataLogger):
                     span["start"] <= span["end"]
                 ), f"end index must be >= start index, but got {span}"
 
+        self.text_split = [i.split(" ") for i in self.text]
+
         if self.ids:
             assert id_len == text_len, (
                 f"Ids exists but are not the same length as text and labels. "
@@ -208,7 +211,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
     def _get_input_dict(self) -> Dict[str, Any]:
         return dict(
             id=self.ids,
-            text=self.text,
+            text=json.dumps(self.text_split),
             text_tokenized=json.dumps(self.text_tokenized),
             split=self.split,
             data_schema_version=__data_schema_version__,
