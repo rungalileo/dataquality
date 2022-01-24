@@ -1,8 +1,8 @@
 import os
-from typing import Any, Dict, List, Tuple, Union, Optional
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-from pydantic.types import UUID4
 import requests
+from pydantic.types import UUID4
 
 from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
@@ -318,7 +318,15 @@ class ApiClient:
             )
         return slices[0]
 
-    def export_run(self, project_name: str, run_name: str, split: str, file_name: str, slice_name: Optional[str] = None, _include_emb: Optional[bool]=False) -> None:
+    def export_run(
+        self,
+        project_name: str,
+        run_name: str,
+        split: str,
+        file_name: str,
+        slice_name: Optional[str] = None,
+        _include_emb: Optional[bool] = False,
+    ) -> None:
         """Export a project/run to disk as a csv file
 
         :param project_name: The project name
@@ -335,14 +343,16 @@ class ApiClient:
             project_id=str(project),
             run_id=str(run),
             split=split,
-            include_emb=_include_emb
+            include_emb=_include_emb,
         )
         if slice_name:
             slice_ = self.get_slice_by_name(project_name, slice_name)
             body["proc_params"] = slice_["logic"]
 
         url = f"{config.api_url}/{Route.proc}/export"
-        with requests.post(url, json=body, stream=True, headers=headers(config.token)) as r:
+        with requests.post(
+            url, json=body, stream=True, headers=headers(config.token)
+        ) as r:
             r.raise_for_status()
             with open(file_name, "wb") as f:
                 for chunk in r.iter_content(chunk_size=8192):
