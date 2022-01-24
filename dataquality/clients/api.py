@@ -1,10 +1,13 @@
-from typing import Any, Dict, List, Tuple, Union
+import os
+from typing import Any, Dict, List, Tuple, Union, Optional
 
 from pydantic.types import UUID4
+import requests
 
 from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
 from dataquality.schemas import ProcName, RequestType, Route
+from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.auth import headers
 
@@ -300,6 +303,52 @@ class ApiClient:
             f"available soon at {res['link']}"
         )
         return res
+
+    def get_slice_by_name(self, project_name: str, slice_name: str) -> Dict:
+        """Get a slice by name"""
+        proj = self.get_project_by_name(project_name)
+        url = (
+            f"{config.api_url}/{Route.projects}/{proj['id']}/{Route.slices}?"
+            f"slice_name={slice_name}"
+        )
+        slices = self.make_request(RequestType.GET, url=url)
+        if not slices:
+            raise GalileoException(
+                f"No slice found for project {project_name} with name {slice_name}"
+            )
+        return slices[0]
+
+    def export_run(self, project_name: str, run_name: str, split: str, file_name: str, slice_name: Optional[str] = None, _include_emb: Optional[bool]=False) -> None:
+        """Export a project/run to disk as a csv file
+
+        :param project_name: The project name
+        :param run_name: The run name
+        :param split: The split to export on
+        :param file_name: The file name. Must end in .csv
+        :param slice_name: The optional slice name to export. If selected, this data
+        from this slice will be exported only.
+        """
+        project, run = self._get_project_run_id(project_name, run_name)
+        assert os.path.splitext(file_name)[-1] == ".csv", "File must end in .csv"
+        assert split in list(Split), f"split must be one of {list(Split)}"
+        body = dict(
+            project_id=str(project),
+            run_id=str(run),
+            split=split,
+            include_emb=_include_emb
+        )
+        if slice_name:
+            slice_ = self.get_slice_by_name(project_name, slice_name)
+            body["proc_params"] = slice_["logic"]
+
+        url = f"{config.api_url}/{Route.proc}/export"
+        with requests.post(url, json=body, stream=True, headers=headers(config.token)) as r:
+            r.raise_for_status()
+            with open(file_name, "wb") as f:
+                for chunk in r.iter_content(chunk_size=8192):
+                    f.write(chunk)
+
+        print(f"Your export has been written to {file_name}")
 
 
 api_client = ApiClient()
