@@ -1,9 +1,8 @@
 from enum import Enum, unique
-from typing import List, Optional
+from typing import Dict, List, Tuple
 
 import numpy as np
 from pydantic import validator
-from vaex.dataframe import DataFrame
 
 from dataquality.loggers.logger_config.base_logger_config import BaseLoggerConfig
 
@@ -22,7 +21,7 @@ class TaggingSchema(str, Enum):
 class TextNERLoggerConfig(BaseLoggerConfig):
     max_spans: int = MAX_SPANS
     num_emb: int = 0
-    input_data: Optional[DataFrame]
+    gold_spans: Dict[int, List[Tuple[int, int, str]]] = {}
 
     # max_gold_spans: Dict[str, int] = {
     #     Split.training.value: 0,

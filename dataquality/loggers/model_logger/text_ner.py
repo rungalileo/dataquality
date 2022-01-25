@@ -71,6 +71,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             "The president is Joe Biden",
             "Joe Biden addressed the United States on Monday"
         ]
+        TODO: Change format
         probs = [
             [
                 [prob(joe), prob(bi), prob(##den)]  # Correct span
@@ -80,15 +81,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 [prob(monday)]  # Incorrect span, but the prediction
             ]
         ]
-        pred_spans = [
-            [
-                {"start":4, "end":7, "label":"person"}  # [joe], [bi, ##den]
-            ],
-            [
-                {"start":0, "end":3, "label":"person"},    # [joe], [bi, ##den]
-                {"start":11, "end":12, "label":"person"}  # [monday] (bad prediction)
-            ]
-        ]
+        TODO: Change format
         pred_emb = [
             [
                 [emb(joe), emb(bi), emb(##den)]  # Correct span
@@ -98,6 +91,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 [emb(monday)]  # Incorrect span, but the prediction
             ]
         ]
+        TODO: Change format
         gold_emb = [
             [
                 [emb(joe), emb(bi), emb(##den)]  # True span
@@ -120,10 +114,11 @@ class TextNERModelLogger(BaseGalileoModelLogger):
 
     def __init__(
         self,
-        gold_emb: List[List[np.ndarray]] = None,
-        pred_emb: List[List[np.ndarray]] = None,
-        pred_spans: List[List[dict]] = None,
-        probs: List[List[List[np.ndarray]]] = None,
+        # gold_emb: List[List[np.ndarray]] = None,
+        # pred_emb: List[List[np.ndarray]] = None,
+        emb: List[np.ndarray] = None,
+        # pred_spans: List[List[dict]] = None,
+        probs: List[np.ndarray] = None,
         ids: Union[List, np.ndarray] = None,
         split: Optional[str] = None,
         epoch: Optional[int] = None,
@@ -131,14 +126,21 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         super().__init__()
         # Need to compare to None because they may be np arrays which cannot be
         # evaluated with bool directly
-        self.gold_emb = gold_emb if gold_emb is not None else []
-        self.pred_emb = pred_emb if pred_emb is not None else []
-        self.pred_spans = pred_spans if pred_spans is not None else []
+        # self.gold_emb = gold_emb if gold_emb is not None else []
+        # self.pred_emb = pred_emb if pred_emb is not None else []
+        self.emb = emb if emb is not None else []
+        # self.pred_spans = pred_spans if pred_spans is not None else []
         self.probs = probs if probs is not None else []
         self.ids = ids if ids is not None else []
-        self.dep_scores: List[List[int]] = []
         self.split = split
         self.epoch = epoch
+
+        # Calculated internally
+        self.gold_emb: List[List[np.ndarray]] = []
+        self.pred_emb: List[List[np.ndarray]] = []
+        self.pred_spans: List[List[Dict]] = []
+        self.dep_scores_gold: List[List[float]] = []
+        self.dep_scores_pred: List[List[float]] = []
 
     @staticmethod
     def get_valid_attributes() -> List[str]:
@@ -165,9 +167,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             )
             self.logger_config.input_data = vaex.open(df_dir).copy()
 
-        gold_emb_len = len(self.gold_emb)
-        pred_emb_len = len(self.pred_emb)
-        pred_span_len = len(self.pred_spans)
+        emb_len = len(self.emb)
         prob_len = len(self.probs)
         id_len = len(self.ids)
 
@@ -175,59 +175,85 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         # self.probs = self._convert_tensor_ndarray(self.probs, "Prob")
         # self.ids = self._convert_tensor_ndarray(self.ids)
 
-        assert all([gold_emb_len, pred_emb_len, pred_span_len, prob_len, id_len]), (
-            f"All of emb, probs, and ids for your GalileoModelConfig must be set, but "
-            f"got gold_emb:{bool(gold_emb_len)}, pred_emb:{bool(pred_emb_len)}, "
-            f"pred_spans:{bool(pred_span_len)}  probs:{bool(prob_len)}, "
-            f"ids:{bool(id_len)}"
+        assert all([emb_len, prob_len, id_len]), (
+            f"All of emb, probs, and ids for your logger must be set, but "
+            f"got emb:{bool(emb_len)}, probs:{bool(prob_len)}, ids:{bool(id_len)}"
         )
 
-        assert gold_emb_len == pred_emb_len == pred_span_len == prob_len == id_len, (
-            f"All of emb, probs, and ids for your GalileoModelConfig must be the same "
-            f"length, but got (gold_emb, pred_emb, pred_span, probs, ids) -> "
-            f"({gold_emb_len}, {pred_emb_len}, {pred_span_len}, {prob_len}, {id_len})"
+        assert emb_len == prob_len == id_len, (
+            f"All of emb, probs, and ids for your logger must be the same "
+            f"length, but got (emb, probs, ids) -> ({emb_len}, {prob_len}, {id_len})"
         )
 
         # We need to average the embeddings for the tokens within a span
         # so each span has only 1 embedding vector
         avg_gold_emb: List[List[np.ndarray]] = []
         avg_pred_emb: List[List[np.ndarray]] = []
-        dep_scores: List[List[int]] = []
-        for gold_spans, pred_spans, prob_spans in zip(
-            self.gold_emb, self.pred_emb, self.probs
-        ):
-            err = (
-                f"Cannot have more than {self.logger_config.max_spans} spans in a "
-                "sample, but had {}"
-            )
-            assert len(gold_spans) < self.logger_config.max_spans, err.format(
-                len(gold_spans)
-            )
-            assert len(pred_spans) < self.logger_config.max_spans, err.format(
-                len(pred_spans)
-            )
-            assert len(prob_spans) < self.logger_config.max_spans, err.format(
-                len(prob_spans)
-            )
-            avg_gold_emb.append(
-                [np.mean(gold_span, axis=0) for gold_span in gold_spans]
-            )
-            avg_pred_emb.append(
-                [np.mean(pred_span, axis=0) for pred_span in pred_spans]
-            )
+        dep_scores: List[List[float]] = []
+        for sample_id, sample_emb, sample_prob in zip(self.ids, self.emb, self.probs):
+            # err = (
+            #     f"Cannot have more than {self.logger_config.max_spans} spans in a "
+            #     "sample, but had {}"
+            # )
+            # assert len(span_emb) < self.logger_config.max_spans, err.format(
+            #     len(span_emb)
+            # )
+            # assert len(pred_span_probs) < self.logger_config.max_spans, err.format(
+            #     len(pred_span_probs)
+            # )
+            # avg_gold_emb.append(
+            #     [np.mean(gold_span, axis=0) for gold_span in gold_span_emb]
+            # )
+            # avg_pred_emb.append(
+            #     [np.mean(pred_span, axis=0) for pred_span in pred_span_emb]
+            # )
+
             # TODO: Eagerly calculate the DEP score and discard the probs
+            sample_pred_spans = self._extract_pred_spans(sample_prob)
+            self.pred_spans.append(sample_pred_spans)
+            pred_dep = self._calculate_dep_scores(sample_prob, sample_pred_spans)
+            self.dep_scores_pred.append(pred_dep)
+            # TODO: Ben - get the gold span
+            gold_span_tup = self.logger_config.gold_spans[sample_id]
+            sample_gold_spans: List[Dict] = [
+                dict(start=start, end=end, label=label)
+                for start, end, label in gold_span_tup
+            ]
+            gold_dep = self._calculate_dep_scores(sample_prob, sample_gold_spans)
+            self.dep_scores_gold.append(gold_dep)
+
+            # TODO: Get gold and pred embeddings
+            gold_emb = self._extract_embeddings(sample_gold_spans, sample_emb)
+            self.gold_emb.append(gold_emb)
+            pred_emb = self._extract_embeddings(sample_pred_spans, sample_emb)
+            self.pred_emb.append(pred_emb)
+
             if not self.logger_config.observed_num_labels:
                 # TODO: get the observed num labels
                 pass
-
-        self.gold_emb = avg_gold_emb
-        self.pred_emb = avg_pred_emb
-        self.dep_scores = dep_scores
 
         # Get the embedding shape. Filter out nulls
         if not self.logger_config.num_emb:
             emb = next(filter(lambda emb: not np.isnan(emb[0]).all(), self.gold_emb))[0]
             self.logger_config.num_emb = emb.shape[0]
+
+    def _extract_embeddings(
+        self, spans: List[Dict], emb: np.ndarray
+    ) -> List[np.ndarray]:
+        """Get the embeddings for each span, on a per-sample basis"""
+
+    def _extract_pred_spans(self, pred_prob: np.ndarray) -> List[Dict]:
+        pred_spans: List[Dict]
+        self.logger_config.tagging_schema
+        self.logger_config.labels
+        # TODO: Nidhi extract pred spans
+
+    def _calculate_dep_scores(
+        self, pred_prob: np.ndarray, spans: List[Dict]
+    ) -> List[float]:
+        """Calculates dep scores for each span on a per-sample basis"""
+        self.logger_config.tagging_schema
+        self.logger_config.labels
 
     def write_model_output(self, model_output: DataFrame) -> None:
         location = (

@@ -56,6 +56,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             "The president is Joe Biden",
             "Joe Biden addressed the United States on Monday"
         ]
+        TODO: Update docs
         # Taken from the user's tokenizer (at the word level). 2 sentences, 2 elements
         # in the list. Each element is a list of tokens, a token is a list of strings
         text_tokenized: List[List[List[str]]] = [
@@ -104,7 +105,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
     def __init__(
         self,
         text: List[str] = None,
-        text_tokenized: List[List[List[str]]] = None,
+        text_token_indicies: List[List[Tuple[int, int]]] = None,
         gold_spans: List[List[Dict]] = None,
         ids: List[int] = None,
         split: str = None,
@@ -113,7 +114,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         """Create data logger.
 
         :param text: The raw text inputs for model training. List[str]
-        :param text_tokenized: The tokenized text per-word
+        :param text_token_indicies: The tokenized text per-word
         :param gold_spans: The model-level gold spans over the `text_tokenized`
         :param ids: Optional unique indexes for each record. If not provided, will
         default to the index of the record. Optional[List[Union[int,str]]]
@@ -123,11 +124,12 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         # Need to compare to None because they may be np arrays which cannot be
         # evaluated with bool directly
         self.text = text if text is not None else []
-        self.text_tokenized = text_tokenized if text_tokenized is not None else []
+        self.text_token_indicies = (
+            text_token_indicies if text_token_indicies is not None else []
+        )
         self.gold_spans = gold_spans if gold_spans is not None else []
         self.ids = ids if ids is not None else []
         self.split = split
-        self.text_split: List[List[str]] = []
 
     @staticmethod
     def get_valid_attributes() -> List[str]:
@@ -158,10 +160,18 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             "See dataquality.set_tagging_schema"
         )
 
-        text_tokenized_len = len(self.text_tokenized)
+        text_tokenized_len = len(self.text_token_indicies)
         text_len = len(self.text)
         gold_span_len = len(self.gold_spans)
         id_len = len(self.ids)
+
+        if self.ids:
+            assert id_len == text_len, (
+                f"Ids exists but are not the same length as text and labels. "
+                f"(ids, text) ({id_len}, {text_len})"
+            )
+        else:
+            self.ids = list(range(text_len))
 
         if self.split == Split.inference.value:
             assert not gold_span_len, "You cannot have labels in your inference split!"
@@ -177,7 +187,10 @@ class TextNERDataLogger(BaseGalileoDataLogger):
                 f"{text_tokenized_len})"
             )
 
-        for sample_spans in self.gold_spans:
+        new_gold_spans: List[List[Dict]] = []
+        for sample_id, sample_spans, sample_indicies in zip(
+            self.ids, self.gold_spans, self.text_token_indicies
+        ):
             assert len(sample_spans) <= self.logger_config.max_spans, (
                 f"Galileo does not support more than {self.logger_config.max_spans} "
                 f"spans in a sample input."
@@ -196,23 +209,28 @@ class TextNERDataLogger(BaseGalileoDataLogger):
                     span["start"] <= span["end"]
                 ), f"end index must be >= start index, but got {span}"
 
-        self.text_split = [i.split(" ") for i in self.text]
+            updated_spans = self._extract_gold_spans(sample_spans, sample_indicies)
+            new_gold_spans.append(updated_spans)
 
-        if self.ids:
-            assert id_len == text_len, (
-                f"Ids exists but are not the same length as text and labels. "
-                f"(ids, text) ({id_len}, {text_len})"
-            )
-        else:
-            self.ids = list(range(text_len))
+            self.logger_config.gold_spans[sample_id] = [
+                (span["start"], span["end"], span["label"]) for span in updated_spans
+            ]
+
+        self.gold_spans = new_gold_spans
 
         self.validate_metadata(batch_size=text_len)
+
+    def _extract_gold_spans(
+        self, gold_spans: List[Dict], token_indicies: List[Tuple[int, int]]
+    ) -> List[Dict]:
+        # TODO: Nidhi
+        pass
 
     def _get_input_dict(self) -> Dict[str, Any]:
         return dict(
             id=self.ids,
-            text=json.dumps(self.text_split),
-            text_tokenized=json.dumps(self.text_tokenized),
+            text=self.text,
+            text_token_indicies=json.dumps(self.text_token_indicies),
             split=self.split,
             data_schema_version=__data_schema_version__,
             gold_spans=json.dumps(self.gold_spans)
