@@ -223,8 +223,27 @@ class TextNERDataLogger(BaseGalileoDataLogger):
     def _extract_gold_spans(
         self, gold_spans: List[Dict], token_indicies: List[Tuple[int, int]]
     ) -> List[Dict]:
-        # TODO: Nidhi
-        pass
+        """
+        gold_spans = [{"start_idx": 21, "end_idx": 32, "label": "nothing"}]
+        token_indicies = [(0, 4),  (5, 7), (8, 11), (12, 16), (17, 19), (21, 24), (25, 28), (29, 32)]
+        new_gold_spans =  [{'start_idx': 5, 'end_idx': 8, 'label': 'nothing'}]
+        """
+        new_gold_spans: List[Dict] = []
+        for span in gold_spans:
+            start_idx = span["start_idx"]
+            end_idx = span["end_idx"]
+            new_start_idx, new_end_idx = None, None
+            for token_idx, tokens in enumerate(token_indicies):
+                token_start_idx, token_end_idx = tokens[0], tokens[1]
+                if start_idx == token_start_idx:
+                    new_start_idx = token_idx
+                if end_idx == token_end_idx:
+                    new_end_idx = token_idx+1
+            if new_start_idx and new_end_idx: # Handle edge case of where sentence > allowed_max_length
+                new_gold_spans.append({"start_idx": new_start_idx, "end_idx": new_end_idx, "label": span["label"]})
+
+        return new_gold_spans
+
 
     def _get_input_dict(self) -> Dict[str, Any]:
         return dict(
