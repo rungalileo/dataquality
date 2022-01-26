@@ -253,12 +253,11 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         argmax_indices: List[int] = pred_prob.argmax(axis=1).tolist()
         pred_sequence: List[str] = [self.logger_config.labels[x] for x in argmax_indices]
         if self.logger_config.tagging_schema == "BIO":
-            pred_spans = _extract_pred_spans_bio(pred_sequence)
+            pred_spans = self._extract_pred_spans_bio(pred_sequence)
         elif self.logger_config.tagging_schema == "BILOU":
-            pred_spans = _extract_pred_spans_bilou(pred_sequence)
+            pred_spans = self._extract_pred_spans_bilou(pred_sequence)
         return pred_spans
 
-    # TODO: Nidhi extract pred spans
     def _extract_pred_spans_bio(self, pred_sequence) -> List[Dict]:
         """
         pred_sequence: ['I-PER', 'B-PER', 'B-LOC', 'B-PER', 'B-PER', 'B-PER', 'B-PER', 'B-PER', 'B-PER',
@@ -278,13 +277,14 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         pred_spans = []
         total_b_count = 0
         start_idx = None
-        for idx, token_label in enumerate(pred_sequence):
-            if token_label.split("-")[0] == "B":
+        for idx, curr_token_label in enumerate(pred_sequence):
+            next_token_label = pred_sequence[idx + 1] if idx < len(pred_sequence) - 1 else None
+            if curr_token_label.split("-")[0] == "B":
                 total_b_count += 1
-            if token_label.split("-")[0] == "B" and idx == len(pred_sequence) - 1:
+            if curr_token_label.split("-")[0] == "B" and idx == len(pred_sequence) - 1:
                 # B-* at end of sentence
                 start_idx = idx
-                label_type = token_label.split("-")[1]
+                label_type = curr_token_label.split("-")[1]
                 end_idx = idx+1
                 pred_spans.append(
                     {
@@ -294,35 +294,36 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                     }
                 )
                 start_idx, end_idx, label_type = None, None, None
-            elif token_label.split("-")[0] == "B" and (
-                    (pred_sequence[idx + 1].split("-")[-1] != token_label.split("-")[-1])
-                    or (pred_sequence[idx + 1].split("-")[0] == "B")
+
+            elif curr_token_label.split("-")[0] == "B" and (
+                    (next_token_label.split("-")[-1] != curr_token_label.split("-")[-1])
+                    or (next_token_label.split("-")[0] == "B")
             ):
-                # B-* singelton in the middle of sentence
+                # B-* singleton in the middle of sentence
                 start_idx = idx
                 end_idx = idx+1
                 pred_spans.append(
                     {
                         "start_idx": start_idx,
                         "end_idx": end_idx,
-                        "label": token_label.split("-")[1],
+                        "label": curr_token_label.split("-")[1],
                     }
                 )
                 start_idx, end_idx, label_type = None, None, None
-            elif token_label.split("-")[0] == "B":
+            elif curr_token_label.split("-")[0] == "B":
                 # non singleton B, with next being I-PER
                 start_idx = idx
-                label_type = token_label.split("-")[1]
+                label_type = curr_token_label.split("-")[1]
             elif (
-                    (token_label.split("-")[0] == "I")
+                    (curr_token_label.split("-")[0] == "I")
                     and (start_idx is not None)
-                    and (label_type == token_label.split("-")[-1])
+                    and (label_type == curr_token_label.split("-")[-1])
             ):
                 # past B_PER
                 # current I-PER
 
                 if (idx != len(pred_sequence) - 1) and (
-                        pred_sequence[idx + 1] == pred_sequence[idx]
+                        next_token_label == curr_token_label
                 ): # next is I-PER
                     continue
                 else:  # next is not I-PER
@@ -331,11 +332,11 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                         {
                             "start_idx": start_idx,
                             "end_idx": end_idx,
-                            "label": token_label.split("-")[1],
+                            "label": curr_token_label.split("-")[1],
                         }
                     )
                     start_idx, end_idx, label_type = None, None, None
-            elif token_label.split("-")[0] == "I" and (start_idx is not None):
+            elif curr_token_label.split("-")[0] == "I" and (start_idx is not None):
                 # past B-PER
                 # current I-LOC
                 start_idx, end_idx, label_type = None, None, None
@@ -344,7 +345,15 @@ class TextNERModelLogger(BaseGalileoModelLogger):
 
 
     def _extract_pred_spans_bilou(self, pred_sequence):
-        pass
+        # convert BILOU into BIO and extract the spans
+        # L becomes I
+        # U becomes B
+        for idx, label in enumerate(pred_sequence):
+            if pred_sequence[idx].split("-")[0] == "L":
+                pred_sequence[idx] = pred_sequence[idx].replace("L", "I", 1)
+            elif pred_sequence[idx].split("-")[0] == "U":
+                pred_sequence[idx] = pred_sequence[idx].replace("U", "B", 1)
+        return self._extract_pred_spans_bio(pred_sequence)
 
     def _construct_gold_sequence(self):
         pass
