@@ -208,20 +208,17 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             #     [np.mean(pred_span, axis=0) for pred_span in pred_span_emb]
             # )
 
-            # TODO: Nidhi Eagerly calculate the DEP score and discard the probs
             sample_pred_spans = self._extract_pred_spans(sample_prob)
             self.pred_spans.append(sample_pred_spans)
-            pred_dep = self._calculate_dep_scores(sample_prob, sample_pred_spans)
-            self.dep_scores_pred.append(pred_dep)
             # TODO: Ben - get the gold span
             gold_span_tup = self.logger_config.gold_spans[sample_id]
             sample_gold_spans: List[Dict] = [
                 dict(start=start, end=end, label=label)
                 for start, end, label in gold_span_tup
             ]
-            gold_dep = self._calculate_dep_scores(sample_prob, sample_gold_spans)
+            gold_dep, pred_dep = self._calculate_dep_scores(sample_prob, sample_gold_spans, sample_pred_spans)
+            self.dep_scores_pred.append(pred_dep)
             self.dep_scores_gold.append(gold_dep)
-
             gold_emb = self._extract_embeddings(sample_gold_spans, sample_emb)
             self.gold_emb.append(gold_emb)
             pred_emb = self._extract_embeddings(sample_pred_spans, sample_emb)
@@ -343,7 +340,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         assert len(pred_spans) == total_b_count
         return pred_spans
 
-
     def _extract_pred_spans_bilou(self, pred_sequence):
         # convert BILOU into BIO and extract the spans
         # L becomes I
@@ -355,18 +351,92 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 pred_sequence[idx] = pred_sequence[idx].replace("U", "B", 1)
         return self._extract_pred_spans_bio(pred_sequence)
 
-    def _construct_gold_sequence(self):
-        pass
+    def _extract_pred_spans_bioes(self, pred_sequence):
+        # convert BIOES into BIO and extract the spans
+        # E becomes I
+        # S becomes B
+        for idx, label in enumerate(pred_sequence):
+            if pred_sequence[idx].split("-")[0] == "E":
+                pred_sequence[idx] = pred_sequence[idx].replace("E", "I", 1)
+            elif pred_sequence[idx].split("-")[0] == "S":
+                pred_sequence[idx] = pred_sequence[idx].replace("S", "B", 1)
+        return self._extract_pred_spans_bio(pred_sequence)
+
+    def _construct_gold_sequence(self, len_sequence: int, gold_spans: List[Dict]):
+        """
+        Using gold spans and tagging schema, construct the underlying gold sequence
+        e.g. gold_spans = [{start=5, end=8, label="nothing"}]
+        gold_sequence = [O, O, O, O, O, B-nothing, I-nothing, I-nothing, O, O] for BIO
+        gold_sequence = [O, O, O, O, O, B-nothing, I-nothing, L-nothing, O, O] for BILOU
+        """
+        gold_sequence = ["O"]*len_sequence
+        if self.logger_config.tagging_schema == "BIO":
+            for span in gold_spans:
+                start_idx = span["start_idx"]
+                end_idx = span["end_idx"]
+                label = span["label"]
+                gold_sequence[start_idx:end_idx] = [f"I-{label}"]*(end_idx-start_idx)
+                gold_sequence[start_idx] = f"B-{label}"
+            return gold_sequence
+        elif self.logger_config.tagging_schema == "BILOU":
+            for span in gold_spans:
+                start_idx = span["start_idx"]
+                end_idx = span["end_idx"]
+                label = span["label"]
+                if end_idx-start_idx==1:
+                    gold_sequence[start_idx] = f"U-{label}"
+                else:
+                    gold_sequence[start_idx:end_idx] = [f"I-{label}"]*(end_idx-start_idx)
+                    gold_sequence[start_idx] = f"B-{label}"
+                    gold_sequence[end_idx-1] = f"L-{label}"
+            return gold_sequence
+        elif self.logger_config.tagging_schema == "BIOES":
+            for span in gold_spans:
+                start_idx = span["start_idx"]
+                end_idx = span["end_idx"]
+                label = span["label"]
+                if end_idx-start_idx==1:
+                    gold_sequence[start_idx] = f"S-{label}"
+                else:
+                    gold_sequence[start_idx:end_idx] = [f"I-{label}"]*(end_idx-start_idx)
+                    gold_sequence[start_idx] = f"B-{label}"
+                    gold_sequence[end_idx-1] = f"E-{label}"
+            return gold_sequence
+
+    def _calculate_dep_score_across_spans(self, spans: List[Dict], dep_scores: List[float]) -> List[float]:
+        dep_score_per_span = []
+        for span in spans:
+            start_idx = span["start_idx"]
+            end_idx = span["end_idx"]
+            dep_score_per_span.append(max(dep_scores[start_idx:end_idx]))
+        return dep_score_per_span
 
     def _calculate_dep_scores(
-        self, pred_prob: np.ndarray, spans: List[Dict]
-    ) -> List[float]:
+        self, pred_prob: np.ndarray, gold_spans: List[Dict], pred_spans: List[Dict]
+    ) -> Union[List[float], List[float]]:
         """Calculates dep scores for each span on a per-sample basis"""
-        self.logger_config.tagging_schema
-        self.logger_config.labels
-        argmax_indices: List[int] = pred_prob.argmax(axis=1).tolist()
-        pred_sequence: List[str] = [self.logger_config.labels[x] for x in argmax_indices]
-        _construct_gold_sequence(pred_prob)
+        label2idx = {l: i for i, l in enumerate(self.logger_config.labels)}
+        argmax_indices = pred_prob.argmax(axis=1).tolist() # List[int]
+        pred_sequence = [self.logger_config.labels[x] for x in argmax_indices]  # List[str]
+        gold_sequence = self._construct_gold_sequence(len(pred_sequence), gold_spans)
+
+        # Compute dep scores of all tokens in the sentence
+        dep_scores_tokens = []
+        for idx, token in enumerate(gold_sequence):
+            g_label_idx = label2idx[token]  # index of ground truth
+            token_prob_vector = pred_prob[idx]
+            if token_prob_vector.argsort()[-1] == g_label_idx:  # index of second part in aum
+                second_idx = token_prob_vector.argsort()[-2]
+            else:
+                second_idx = token_prob_vector.argsort()[-1]
+            aum = token_prob_vector[g_label_idx] - token_prob_vector[second_idx]
+            dep = (1 - aum) / 2  # normalize aum to dep
+            dep_scores_tokens.append(dep)
+
+        # Compute dep scores of all spans (max of dep score of tokens in a span)
+        gold_dep = self._calculate_dep_score_across_spans(gold_spans, dep_scores_tokens)
+        pred_dep = self._calculate_dep_score_across_spans(pred_spans, dep_scores_tokens)
+        return gold_dep, pred_dep
 
     def write_model_output(self, model_output: DataFrame) -> None:
         location = (
