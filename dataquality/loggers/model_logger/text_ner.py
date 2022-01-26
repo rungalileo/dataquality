@@ -208,7 +208,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             #     [np.mean(pred_span, axis=0) for pred_span in pred_span_emb]
             # )
 
-            # TODO: Eagerly calculate the DEP score and discard the probs
+            # TODO: Nidhi Eagerly calculate the DEP score and discard the probs
             sample_pred_spans = self._extract_pred_spans(sample_prob)
             self.pred_spans.append(sample_pred_spans)
             pred_dep = self._calculate_dep_scores(sample_prob, sample_pred_spans)
@@ -222,7 +222,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             gold_dep = self._calculate_dep_scores(sample_prob, sample_gold_spans)
             self.dep_scores_gold.append(gold_dep)
 
-            # TODO: Get gold and pred embeddings
             gold_emb = self._extract_embeddings(sample_gold_spans, sample_emb)
             self.gold_emb.append(gold_emb)
             pred_emb = self._extract_embeddings(sample_pred_spans, sample_emb)
@@ -241,12 +240,114 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         self, spans: List[Dict], emb: np.ndarray
     ) -> List[np.ndarray]:
         """Get the embeddings for each span, on a per-sample basis"""
+        embeddings = []
+        for span in spans:
+            start_idx = span["start_idx"]
+            end_idx = span["end_idx"]
+            span_embeddings = emb[start_idx:end_idx, :]
+            avg_span_embedding = span_embeddings.mean(axis=0)
+            embeddings.append(avg_span_embedding)
+        return embeddings
 
     def _extract_pred_spans(self, pred_prob: np.ndarray) -> List[Dict]:
-        pred_spans: List[Dict]
-        self.logger_config.tagging_schema
-        self.logger_config.labels
-        # TODO: Nidhi extract pred spans
+        argmax_indices: List[int] = pred_prob.argmax(axis=1).tolist()
+        pred_sequence: List[str] = [self.logger_config.labels[x] for x in argmax_indices]
+        if self.logger_config.tagging_schema == "BIO":
+            pred_spans = _extract_pred_spans_bio(pred_sequence)
+        elif self.logger_config.tagging_schema == "BILOU":
+            pred_spans = _extract_pred_spans_bilou(pred_sequence)
+        return pred_spans
+
+    # TODO: Nidhi extract pred spans
+    def _extract_pred_spans_bio(self, pred_sequence) -> List[Dict]:
+        """
+        pred_sequence: ['I-PER', 'B-PER', 'B-LOC', 'B-PER', 'B-PER', 'B-PER', 'B-PER', 'B-PER', 'B-PER',
+        'I-PER', 'B-PER', 'B-PER', 'B-PER', 'B-PER', 'B-PER', 'B-PER', 'I-LOC', 'I-PER',
+        'I-LOC', 'I-PER', 'B-PER', 'B-PER', 'B-PER', 'B-PER', 'B-ORG', 'O', 'B-PER', 'I-LOC', 'B-PER', 'I-ORG']
+        pred_spans: [{'start_idx': 1, 'end_idx': 2, 'label': 'PER'},
+        {'start_idx': 2, 'end_idx': 3, 'label': 'LOC'},
+        {'start_idx': 3, 'end_idx': 4, 'label': 'PER'},
+        {'start_idx': 4, 'end_idx': 5, 'label': 'PER'},
+        {'start_idx': 5, 'end_idx': 6, 'label': 'PER'},
+        {'start_idx': 6, 'end_idx': 7, 'label': 'PER'},
+        {'start_idx': 7, 'end_idx': 8, 'label': 'PER'},
+        {'start_idx': 8, 'end_idx': 10, 'label': 'PER'},
+        {'start_idx': 10, 'end_idx': 11, 'label': 'PER'},
+        ....]
+        """
+        pred_spans = []
+        total_b_count = 0
+        start_idx = None
+        for idx, token_label in enumerate(pred_sequence):
+            if token_label.split("-")[0] == "B":
+                total_b_count += 1
+            if token_label.split("-")[0] == "B" and idx == len(pred_sequence) - 1:
+                # B-* at end of sentence
+                start_idx = idx
+                label_type = token_label.split("-")[1]
+                end_idx = idx+1
+                pred_spans.append(
+                    {
+                        "start_idx": start_idx,
+                        "end_idx": end_idx,
+                        "label": label_type,
+                    }
+                )
+                start_idx, end_idx, label_type = None, None, None
+            elif token_label.split("-")[0] == "B" and (
+                    (pred_sequence[idx + 1].split("-")[-1] != token_label.split("-")[-1])
+                    or (pred_sequence[idx + 1].split("-")[0] == "B")
+            ):
+                # B-* singelton in the middle of sentence
+                start_idx = idx
+                end_idx = idx+1
+                pred_spans.append(
+                    {
+                        "start_idx": start_idx,
+                        "end_idx": end_idx,
+                        "label": token_label.split("-")[1],
+                    }
+                )
+                start_idx, end_idx, label_type = None, None, None
+            elif token_label.split("-")[0] == "B":
+                # non singleton B, with next being I-PER
+                start_idx = idx
+                label_type = token_label.split("-")[1]
+            elif (
+                    (token_label.split("-")[0] == "I")
+                    and (start_idx is not None)
+                    and (label_type == token_label.split("-")[-1])
+            ):
+                # past B_PER
+                # current I-PER
+
+                if (idx != len(pred_sequence) - 1) and (
+                        pred_sequence[idx + 1] == pred_sequence[idx]
+                ): # next is I-PER
+                    continue
+                else:  # next is not I-PER
+                    end_idx = idx+1
+                    pred_spans.append(
+                        {
+                            "start_idx": start_idx,
+                            "end_idx": end_idx,
+                            "label": token_label.split("-")[1],
+                        }
+                    )
+                    start_idx, end_idx, label_type = None, None, None
+            elif token_label.split("-")[0] == "I" and (start_idx is not None):
+                # past B-PER
+                # current I-LOC
+                start_idx, end_idx, label_type = None, None, None
+        assert len(pred_spans) == total_b_count
+        return pred_spans
+
+
+    def _extract_pred_spans_bilou(self, pred_sequence):
+        pass
+
+    def _construct_gold_sequence(self):
+        pass
 
     def _calculate_dep_scores(
         self, pred_prob: np.ndarray, spans: List[Dict]
@@ -254,6 +355,9 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         """Calculates dep scores for each span on a per-sample basis"""
         self.logger_config.tagging_schema
         self.logger_config.labels
+        argmax_indices: List[int] = pred_prob.argmax(axis=1).tolist()
+        pred_sequence: List[str] = [self.logger_config.labels[x] for x in argmax_indices]
+        _construct_gold_sequence(pred_prob)
 
     def write_model_output(self, model_output: DataFrame) -> None:
         location = (
