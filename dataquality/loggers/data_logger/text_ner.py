@@ -56,7 +56,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             "The president is Joe Biden",
             "Joe Biden addressed the United States on Monday"
         ]
-        TODO: Update docs
+        TODO: Update docs for text_token_indicies
         # Taken from the user's tokenizer (at the word level). 2 sentences, 2 elements
         # in the list. Each element is a list of tokens, a token is a list of strings
         text_tokenized: List[List[List[str]]] = [
@@ -114,7 +114,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         """Create data logger.
 
         :param text: The raw text inputs for model training. List[str]
-        :param text_token_indicies: The tokenized text per-word
+        :param text_token_indicies: FIXME: Definition here
         :param gold_spans: The model-level gold spans over the `text_tokenized`
         :param ids: Optional unique indexes for each record. If not provided, will
         default to the index of the record. Optional[List[Union[int,str]]]
@@ -138,6 +138,14 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         :return: List[str]
         """
         return GalileoDataLoggerAttributes.get_valid()
+
+    def log(self) -> None:
+        # This will handle validation and logging the sentence level data
+        # (see `_get_input_dict()` below)
+        super().log()
+        # Now we need to handle the span-level dataframe
+
+
 
     def validate(self) -> None:
         """
@@ -195,10 +203,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
                 f"Galileo does not support more than {self.logger_config.max_spans} "
                 f"spans in a sample input."
             )
-            # cur_max = self.logger_config.max_gold_spans[self.split]
-            # self.logger_config.max_gold_spans[self.split] = max(
-            #     cur_max, len(sample_spans)
-            # )
+
             for span in sample_spans:
                 assert isinstance(span, dict), "individual spans must be dictionaries"
                 assert "start" in span and "end" in span and "label" in span, (
@@ -212,7 +217,8 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             updated_spans = self._extract_gold_spans(sample_spans, sample_indicies)
             new_gold_spans.append(updated_spans)
 
-            self.logger_config.gold_spans[sample_id] = [
+            span_key = self.logger_config.get_span_key(str(self.split), sample_id)
+            self.logger_config.gold_spans[span_key] = [
                 (span["start"], span["end"], span["label"]) for span in updated_spans
             ]
 
@@ -238,24 +244,48 @@ class TextNERDataLogger(BaseGalileoDataLogger):
                 if start_idx == token_start_idx:
                     new_start_idx = token_idx
                 if end_idx == token_end_idx:
-                    new_end_idx = token_idx+1
-            if new_start_idx and new_end_idx: # Handle edge case of where sentence > allowed_max_length
-                new_gold_spans.append({"start_idx": new_start_idx, "end_idx": new_end_idx, "label": span["label"]})
+                    new_end_idx = token_idx + 1
+            if (
+                new_start_idx and new_end_idx
+            ):  # Handle edge case of where sentence > allowed_max_length
+                new_gold_spans.append(
+                    {
+                        "start_idx": new_start_idx,
+                        "end_idx": new_end_idx,
+                        "label": span["label"],
+                    }
+                )
 
         return new_gold_spans
 
+    def _get_span_input_dict(self) -> Dict[str, Any]:
+        """Extracts the span-level data for logging"""
+
 
     def _get_input_dict(self) -> Dict[str, Any]:
+        """NER is a special case where we need to log 2 different input data files
+
+        The first is at the sentence level (id, split, text, **meta)
+        The second is at the span level. This is because each sentence will have
+        an arbitrary number of spans so we wont be able to create a structured
+        dataframe (column numbers wont align).
+
+        So the span-level dataframe is a row per span, with a 'sentence_id' linking
+        back to the sentence.
+
+        This function will be used for the sentence level, as that enables the parent's
+        `log()` function to behave exactly as expected.
+        """
         return dict(
             id=self.ids,
-            text=self.text,
-            text_token_indicies=json.dumps(self.text_token_indicies),
             split=self.split,
-            data_schema_version=__data_schema_version__,
-            gold_spans=json.dumps(self.gold_spans)
-            if self.split != Split.inference.value
-            else None,
+            text=self.text,
             **self.meta,
+            # text_token_indicies=json.dumps(self.text_token_indicies),
+            # data_schema_version=__data_schema_version__,
+            # gold_spans=json.dumps(self.gold_spans)
+            # if self.split != Split.inference.value
+            # else None,
         )
 
     @classmethod

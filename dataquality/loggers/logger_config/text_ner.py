@@ -12,16 +12,17 @@ MAX_SPANS = 5
 @unique
 class TaggingSchema(str, Enum):
     BIO = "BIO"
-    IOB2 = "IOB2"
-    IOB = "IOB"
     BILOU = "BILOU"
-    BILOES = "BILOES"
+    BIOES = "BIOES"
+    # IOB2 = "IOB2"
+    # IOB = "IOB"
+    # BILOES = "BILOES"
 
 
 class TextNERLoggerConfig(BaseLoggerConfig):
     max_spans: int = MAX_SPANS
     num_emb: int = 0
-    gold_spans: Dict[int, List[Tuple[int, int, str]]] = {}
+    gold_spans: Dict[str, List[Tuple[int, int, str]]] = {}
 
     # max_gold_spans: Dict[str, int] = {
     #     Split.training.value: 0,
@@ -39,6 +40,9 @@ class TextNERLoggerConfig(BaseLoggerConfig):
     class Config:
         validate_assignment = True
         arbitrary_types_allowed = True
+
+    def get_span_key(self, split: str, sample_id: int) -> str:
+        return f"{split}_{sample_id}"
 
     @validator("labels", always=True, pre=True, allow_reuse=True)
     def clean_labels(cls, labels: List[str]) -> List[str]:

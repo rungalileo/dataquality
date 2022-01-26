@@ -1,7 +1,7 @@
 import json
 from collections import defaultdict
 from enum import Enum, unique
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 from uuid import uuid4
 
 import numpy as np
@@ -10,9 +10,10 @@ from vaex.dataframe import DataFrame
 
 from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
-from dataquality.loggers import BaseGalileoLogger
-from dataquality.loggers.data_logger import BaseGalileoDataLogger
-from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
+from dataquality.loggers.logger_config.text_ner import (
+    TaggingSchema,
+    text_ner_logger_config,
+)
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.schemas import __data_schema_version__
 from dataquality.utils.vaex import _save_hdf5_file, _try_concat_df
@@ -158,15 +159,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         """
         super().validate()
 
-        # Add the input data dataframe to the logger config so we can use it to eagerly
-        # calculate DEP score
-        if not self.logger_config.input_data:
-            df_dir = (
-                f"{BaseGalileoLogger.LOG_FILE_DIR}/{config.current_project_id}/"
-                f"{config.current_run_id}/{BaseGalileoDataLogger.INPUT_DATA_NAME}"
-            )
-            self.logger_config.input_data = vaex.open(df_dir).copy()
-
         emb_len = len(self.emb)
         prob_len = len(self.probs)
         id_len = len(self.ids)
@@ -191,32 +183,20 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         avg_pred_emb: List[List[np.ndarray]] = []
         dep_scores: List[List[float]] = []
         for sample_id, sample_emb, sample_prob in zip(self.ids, self.emb, self.probs):
-            # err = (
-            #     f"Cannot have more than {self.logger_config.max_spans} spans in a "
-            #     "sample, but had {}"
-            # )
-            # assert len(span_emb) < self.logger_config.max_spans, err.format(
-            #     len(span_emb)
-            # )
-            # assert len(pred_span_probs) < self.logger_config.max_spans, err.format(
-            #     len(pred_span_probs)
-            # )
-            # avg_gold_emb.append(
-            #     [np.mean(gold_span, axis=0) for gold_span in gold_span_emb]
-            # )
-            # avg_pred_emb.append(
-            #     [np.mean(pred_span, axis=0) for pred_span in pred_span_emb]
-            # )
-
             sample_pred_spans = self._extract_pred_spans(sample_prob)
             self.pred_spans.append(sample_pred_spans)
-            # TODO: Ben - get the gold span
-            gold_span_tup = self.logger_config.gold_spans[sample_id]
+
+            span_key = self.logger_config.get_span_key(str(self.split), sample_id)
+            # TODO: Ben - Confirm we'll only need each span once. Can we pop?
+            gold_span_tup = self.logger_config.gold_spans.pop(span_key)
             sample_gold_spans: List[Dict] = [
                 dict(start=start, end=end, label=label)
                 for start, end, label in gold_span_tup
             ]
-            gold_dep, pred_dep = self._calculate_dep_scores(sample_prob, sample_gold_spans, sample_pred_spans)
+
+            gold_dep, pred_dep = self._calculate_dep_scores(
+                sample_prob, sample_gold_spans, sample_pred_spans
+            )
             self.dep_scores_pred.append(pred_dep)
             self.dep_scores_gold.append(gold_dep)
             gold_emb = self._extract_embeddings(sample_gold_spans, sample_emb)
@@ -247,15 +227,19 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         return embeddings
 
     def _extract_pred_spans(self, pred_prob: np.ndarray) -> List[Dict]:
-        argmax_indices: List[int] = pred_prob.argmax(axis=1).tolist()
-        pred_sequence: List[str] = [self.logger_config.labels[x] for x in argmax_indices]
-        if self.logger_config.tagging_schema == "BIO":
+        argmax_indices: List[int] = pred_prob.argmax(axis=1)
+        pred_sequence: List[str] = [
+            self.logger_config.labels[x] for x in argmax_indices
+        ]
+        if self.logger_config.tagging_schema == TaggingSchema.BIO:
             pred_spans = self._extract_pred_spans_bio(pred_sequence)
-        elif self.logger_config.tagging_schema == "BILOU":
+        elif self.logger_config.tagging_schema == TaggingSchema.BILOU:
             pred_spans = self._extract_pred_spans_bilou(pred_sequence)
+        else:  # BIOES
+            pred_spans = self._extract_pred_spans_bioes(pred_sequence)
         return pred_spans
 
-    def _extract_pred_spans_bio(self, pred_sequence) -> List[Dict]:
+    def _extract_pred_spans_bio(self, pred_sequence: List[str]) -> List[Dict]:
         """
         pred_sequence: ['I-PER', 'B-PER', 'B-LOC', 'B-PER', 'B-PER', 'B-PER', 'B-PER', 'B-PER', 'B-PER',
         'I-PER', 'B-PER', 'B-PER', 'B-PER', 'B-PER', 'B-PER', 'B-PER', 'I-LOC', 'I-PER',
@@ -275,14 +259,16 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         total_b_count = 0
         start_idx = None
         for idx, curr_token_label in enumerate(pred_sequence):
-            next_token_label = pred_sequence[idx + 1] if idx < len(pred_sequence) - 1 else None
+            next_token_label = (
+                pred_sequence[idx + 1] if idx < len(pred_sequence) - 1 else None
+            )
             if curr_token_label.split("-")[0] == "B":
                 total_b_count += 1
             if curr_token_label.split("-")[0] == "B" and idx == len(pred_sequence) - 1:
                 # B-* at end of sentence
                 start_idx = idx
                 label_type = curr_token_label.split("-")[1]
-                end_idx = idx+1
+                end_idx = idx + 1
                 pred_spans.append(
                     {
                         "start_idx": start_idx,
@@ -290,15 +276,15 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                         "label": label_type,
                     }
                 )
-                start_idx, end_idx, label_type = None, None, None
+                start_idx = end_idx = label_type = None
 
             elif curr_token_label.split("-")[0] == "B" and (
-                    (next_token_label.split("-")[-1] != curr_token_label.split("-")[-1])
-                    or (next_token_label.split("-")[0] == "B")
+                (next_token_label.split("-")[-1] != curr_token_label.split("-")[-1])
+                or (next_token_label.split("-")[0] == "B")
             ):
                 # B-* singleton in the middle of sentence
                 start_idx = idx
-                end_idx = idx+1
+                end_idx = idx + 1
                 pred_spans.append(
                     {
                         "start_idx": start_idx,
@@ -306,25 +292,25 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                         "label": curr_token_label.split("-")[1],
                     }
                 )
-                start_idx, end_idx, label_type = None, None, None
+                start_idx = end_idx = label_type = None
             elif curr_token_label.split("-")[0] == "B":
                 # non singleton B, with next being I-PER
                 start_idx = idx
                 label_type = curr_token_label.split("-")[1]
             elif (
-                    (curr_token_label.split("-")[0] == "I")
-                    and (start_idx is not None)
-                    and (label_type == curr_token_label.split("-")[-1])
+                (curr_token_label.split("-")[0] == "I")
+                and (start_idx is not None)
+                and (label_type == curr_token_label.split("-")[-1])
             ):
                 # past B_PER
                 # current I-PER
 
                 if (idx != len(pred_sequence) - 1) and (
-                        next_token_label == curr_token_label
-                ): # next is I-PER
+                    next_token_label == curr_token_label
+                ):  # next is I-PER
                     continue
                 else:  # next is not I-PER
-                    end_idx = idx+1
+                    end_idx = idx + 1
                     pred_spans.append(
                         {
                             "start_idx": start_idx,
@@ -340,10 +326,13 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         assert len(pred_spans) == total_b_count
         return pred_spans
 
-    def _extract_pred_spans_bilou(self, pred_sequence):
-        # convert BILOU into BIO and extract the spans
-        # L becomes I
-        # U becomes B
+    def _extract_pred_spans_bilou(self, pred_sequence: List[str]) -> List[Dict]:
+        """
+        convert BILOU into BIO and extract the spans
+
+        L becomes I
+        U becomes B
+        """
         for idx, label in enumerate(pred_sequence):
             if pred_sequence[idx].split("-")[0] == "L":
                 pred_sequence[idx] = pred_sequence[idx].replace("L", "I", 1)
@@ -351,10 +340,12 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 pred_sequence[idx] = pred_sequence[idx].replace("U", "B", 1)
         return self._extract_pred_spans_bio(pred_sequence)
 
-    def _extract_pred_spans_bioes(self, pred_sequence):
-        # convert BIOES into BIO and extract the spans
-        # E becomes I
-        # S becomes B
+    def _extract_pred_spans_bioes(self, pred_sequence: List[str]) -> List[Dict]:
+        """convert BIOES into BIO and extract the spans
+
+        E becomes I
+        S becomes B
+        """
         for idx, label in enumerate(pred_sequence):
             if pred_sequence[idx].split("-")[0] == "E":
                 pred_sequence[idx] = pred_sequence[idx].replace("E", "I", 1)
@@ -362,48 +353,56 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 pred_sequence[idx] = pred_sequence[idx].replace("S", "B", 1)
         return self._extract_pred_spans_bio(pred_sequence)
 
-    def _construct_gold_sequence(self, len_sequence: int, gold_spans: List[Dict]):
+    def _construct_gold_sequence(
+        self, len_sequence: int, gold_spans: List[Dict]
+    ) -> List[str]:
         """
         Using gold spans and tagging schema, construct the underlying gold sequence
         e.g. gold_spans = [{start=5, end=8, label="nothing"}]
         gold_sequence = [O, O, O, O, O, B-nothing, I-nothing, I-nothing, O, O] for BIO
         gold_sequence = [O, O, O, O, O, B-nothing, I-nothing, L-nothing, O, O] for BILOU
         """
-        gold_sequence = ["O"]*len_sequence
-        if self.logger_config.tagging_schema == "BIO":
+        gold_sequence = ["O"] * len_sequence
+        if self.logger_config.tagging_schema == TaggingSchema.BIO:
             for span in gold_spans:
                 start_idx = span["start_idx"]
                 end_idx = span["end_idx"]
                 label = span["label"]
-                gold_sequence[start_idx:end_idx] = [f"I-{label}"]*(end_idx-start_idx)
+                gold_sequence[start_idx:end_idx] = [f"I-{label}"] * (
+                    end_idx - start_idx
+                )
                 gold_sequence[start_idx] = f"B-{label}"
-            return gold_sequence
-        elif self.logger_config.tagging_schema == "BILOU":
+        elif self.logger_config.tagging_schema == TaggingSchema.BILOU:
             for span in gold_spans:
                 start_idx = span["start_idx"]
                 end_idx = span["end_idx"]
                 label = span["label"]
-                if end_idx-start_idx==1:
+                if end_idx - start_idx == 1:
                     gold_sequence[start_idx] = f"U-{label}"
                 else:
-                    gold_sequence[start_idx:end_idx] = [f"I-{label}"]*(end_idx-start_idx)
+                    gold_sequence[start_idx:end_idx] = [f"I-{label}"] * (
+                        end_idx - start_idx
+                    )
                     gold_sequence[start_idx] = f"B-{label}"
-                    gold_sequence[end_idx-1] = f"L-{label}"
-            return gold_sequence
-        elif self.logger_config.tagging_schema == "BIOES":
+                    gold_sequence[end_idx - 1] = f"L-{label}"
+        elif self.logger_config.tagging_schema == TaggingSchema.BIOES:
             for span in gold_spans:
                 start_idx = span["start_idx"]
                 end_idx = span["end_idx"]
                 label = span["label"]
-                if end_idx-start_idx==1:
+                if end_idx - start_idx == 1:
                     gold_sequence[start_idx] = f"S-{label}"
                 else:
-                    gold_sequence[start_idx:end_idx] = [f"I-{label}"]*(end_idx-start_idx)
+                    gold_sequence[start_idx:end_idx] = [f"I-{label}"] * (
+                        end_idx - start_idx
+                    )
                     gold_sequence[start_idx] = f"B-{label}"
-                    gold_sequence[end_idx-1] = f"E-{label}"
-            return gold_sequence
+                    gold_sequence[end_idx - 1] = f"E-{label}"
+        return gold_sequence
 
-    def _calculate_dep_score_across_spans(self, spans: List[Dict], dep_scores: List[float]) -> List[float]:
+    def _calculate_dep_score_across_spans(
+        self, spans: List[Dict], dep_scores: List[float]
+    ) -> List[float]:
         dep_score_per_span = []
         for span in spans:
             start_idx = span["start_idx"]
@@ -413,11 +412,13 @@ class TextNERModelLogger(BaseGalileoModelLogger):
 
     def _calculate_dep_scores(
         self, pred_prob: np.ndarray, gold_spans: List[Dict], pred_spans: List[Dict]
-    ) -> Union[List[float], List[float]]:
+    ) -> Tuple[List[float], List[float]]:
         """Calculates dep scores for each span on a per-sample basis"""
         label2idx = {l: i for i, l in enumerate(self.logger_config.labels)}
-        argmax_indices = pred_prob.argmax(axis=1).tolist() # List[int]
-        pred_sequence = [self.logger_config.labels[x] for x in argmax_indices]  # List[str]
+        argmax_indices = pred_prob.argmax(axis=1).tolist()  # List[int]
+        pred_sequence = [
+            self.logger_config.labels[x] for x in argmax_indices
+        ]  # List[str]
         gold_sequence = self._construct_gold_sequence(len(pred_sequence), gold_spans)
 
         # Compute dep scores of all tokens in the sentence
@@ -425,7 +426,9 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         for idx, token in enumerate(gold_sequence):
             g_label_idx = label2idx[token]  # index of ground truth
             token_prob_vector = pred_prob[idx]
-            if token_prob_vector.argsort()[-1] == g_label_idx:  # index of second part in aum
+            if (
+                token_prob_vector.argsort()[-1] == g_label_idx
+            ):  # index of second part in aum
                 second_idx = token_prob_vector.argsort()[-2]
             else:
                 second_idx = token_prob_vector.argsort()[-1]
