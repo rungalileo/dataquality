@@ -251,6 +251,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         pred_spans = []
         total_b_count = 0
         idx = 0
+        # Use a while loop so we can skip rows already scanned in the inner loop
         while idx < len(pred_sequence):
             token = pred_sequence[idx]
             next_idx = idx + 1
