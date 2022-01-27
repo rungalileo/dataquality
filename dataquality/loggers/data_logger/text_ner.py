@@ -2,6 +2,7 @@ import json
 from enum import Enum, unique
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+import vaex
 from vaex.dataframe import DataFrame
 
 from dataquality.loggers.data_logger.base_data_logger import BaseGalileoDataLogger
@@ -13,7 +14,7 @@ from dataquality.schemas.split import Split
 @unique
 class GalileoDataLoggerAttributes(str, Enum):
     text = "text"
-    text_tokenized = "text_tokenized"
+    text_token_indices = "text_token_indices"
     gold_spans = "gold_spans"
     ids = "ids"
     # mixin restriction on str (due to "str".split(...))
@@ -56,22 +57,8 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             "The president is Joe Biden",
             "Joe Biden addressed the United States on Monday"
         ]
-        TODO: Update docs for text_token_indicies
-        # Taken from the user's tokenizer (at the word level). 2 sentences, 2 elements
-        # in the list. Each element is a list of tokens, a token is a list of strings
-        text_tokenized: List[List[List[str]]] = [
-            [
-               # span indexes
-               # 0        1       2            3       4        5     6          7
-                ["the"], ["pres", "##ident"], ["is"], ["joe"], ["bi", "##den"], ["."]
-            ],
-            [
-               # 0        1     2          3          4         5
-                ["joe"], ["bi", "##den"], ["address", "##ed"], ["the"],
-               # 6        7        8        9        10      11          12
-                ["unite", "##d"], ["state", "##s"], ["on"], ["monday"], ["."]
-            ]
-        ]
+        TODO: Nidhi update docs for text_token_indices
+
         # Gold spans, user created. The start and end index of a true span, with the
         # label in question. Each sentence may have 1 or more labels, so we hold a list
         # of spans per sentence. The start and end index reference the unnested list
@@ -105,7 +92,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
     def __init__(
         self,
         text: List[str] = None,
-        text_token_indicies: List[List[Tuple[int, int]]] = None,
+        text_token_indices: List[List[Tuple[int, int]]] = None,
         gold_spans: List[List[Dict]] = None,
         ids: List[int] = None,
         split: str = None,
@@ -114,7 +101,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         """Create data logger.
 
         :param text: The raw text inputs for model training. List[str]
-        :param text_token_indicies: FIXME: Definition here
+        :param text_token_indices: TODO: Nidhi add definition here
         :param gold_spans: The model-level gold spans over the `text_tokenized`
         :param ids: Optional unique indexes for each record. If not provided, will
         default to the index of the record. Optional[List[Union[int,str]]]
@@ -124,8 +111,8 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         # Need to compare to None because they may be np arrays which cannot be
         # evaluated with bool directly
         self.text = text if text is not None else []
-        self.text_token_indicies = (
-            text_token_indicies if text_token_indicies is not None else []
+        self.text_token_indices = (
+            text_token_indices if text_token_indices is not None else []
         )
         self.gold_spans = gold_spans if gold_spans is not None else []
         self.ids = ids if ids is not None else []
@@ -138,14 +125,6 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         :return: List[str]
         """
         return GalileoDataLoggerAttributes.get_valid()
-
-    def log(self) -> None:
-        # This will handle validation and logging the sentence level data
-        # (see `_get_input_dict()` below)
-        super().log()
-        # Now we need to handle the span-level dataframe
-
-
 
     def validate(self) -> None:
         """
@@ -168,7 +147,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             "See dataquality.set_tagging_schema"
         )
 
-        text_tokenized_len = len(self.text_token_indicies)
+        text_tokenized_len = len(self.text_token_indices)
         text_len = len(self.text)
         gold_span_len = len(self.gold_spans)
         id_len = len(self.ids)
@@ -195,9 +174,8 @@ class TextNERDataLogger(BaseGalileoDataLogger):
                 f"{text_tokenized_len})"
             )
 
-        new_gold_spans: List[List[Dict]] = []
         for sample_id, sample_spans, sample_indicies in zip(
-            self.ids, self.gold_spans, self.text_token_indicies
+            self.ids, self.gold_spans, self.text_token_indices
         ):
             assert len(sample_spans) <= self.logger_config.max_spans, (
                 f"Galileo does not support more than {self.logger_config.max_spans} "
@@ -215,14 +193,11 @@ class TextNERDataLogger(BaseGalileoDataLogger):
                 ), f"end index must be >= start index, but got {span}"
 
             updated_spans = self._extract_gold_spans(sample_spans, sample_indicies)
-            new_gold_spans.append(updated_spans)
 
             span_key = self.logger_config.get_span_key(str(self.split), sample_id)
             self.logger_config.gold_spans[span_key] = [
                 (span["start"], span["end"], span["label"]) for span in updated_spans
             ]
-
-        self.gold_spans = new_gold_spans
 
         self.validate_metadata(batch_size=text_len)
 
@@ -230,37 +205,37 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         self, gold_spans: List[Dict], token_indicies: List[Tuple[int, int]]
     ) -> List[Dict]:
         """
-        gold_spans = [{"start_idx": 21, "end_idx": 32, "label": "nothing"}]
-        token_indicies = [(0, 4),  (5, 7), (8, 11), (12, 16), (17, 19), (21, 24), (25, 28), (29, 32)]
-        new_gold_spans =  [{'start_idx': 5, 'end_idx': 8, 'label': 'nothing'}]
+        TODO: Nidhi add description of logic
+
+        gold_spans = [{"start": 21, "end": 32, "label": "nothing"}]
+        token_indicies = [
+            (0, 4),  (5, 7), (8, 11), (12, 16), (17, 19), (21, 24), (25, 28), (29, 32)
+        ]
+        new_gold_spans =  [{'start': 5, 'end': 8, 'label': 'nothing'}]
         """
         new_gold_spans: List[Dict] = []
         for span in gold_spans:
-            start_idx = span["start_idx"]
-            end_idx = span["end_idx"]
-            new_start_idx, new_end_idx = None, None
+            start = span["start"]
+            end = span["end"]
+            new_start, new_end = None, None
             for token_idx, tokens in enumerate(token_indicies):
-                token_start_idx, token_end_idx = tokens[0], tokens[1]
-                if start_idx == token_start_idx:
-                    new_start_idx = token_idx
-                if end_idx == token_end_idx:
-                    new_end_idx = token_idx + 1
+                token_start, token_end = tokens[0], tokens[1]
+                if start == token_start:
+                    new_start = token_idx
+                if end == token_end:
+                    new_end = token_idx + 1
             if (
-                new_start_idx and new_end_idx
+                new_start and new_end
             ):  # Handle edge case of where sentence > allowed_max_length
                 new_gold_spans.append(
                     {
-                        "start_idx": new_start_idx,
-                        "end_idx": new_end_idx,
+                        "start": new_start,
+                        "end": new_end,
                         "label": span["label"],
                     }
                 )
 
         return new_gold_spans
-
-    def _get_span_input_dict(self) -> Dict[str, Any]:
-        """Extracts the span-level data for logging"""
-
 
     def _get_input_dict(self) -> Dict[str, Any]:
         """NER is a special case where we need to log 2 different input data files
@@ -280,43 +255,59 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             id=self.ids,
             split=self.split,
             text=self.text,
+            text_token_indices=[json.dumps(i) for i in self.text_token_indices],
+            data_schema_version=__data_schema_version__,
             **self.meta,
-            # text_token_indicies=json.dumps(self.text_token_indicies),
-            # data_schema_version=__data_schema_version__,
-            # gold_spans=json.dumps(self.gold_spans)
-            # if self.split != Split.inference.value
-            # else None,
         )
 
     @classmethod
-    def split_dataframe(cls, df: DataFrame) -> Tuple[DataFrame, DataFrame, DataFrame]:
-        """Splits the singular dataframe into its 3 components
+    def process_in_out_frames(
+        cls, in_frame: DataFrame, out_frame: DataFrame
+    ) -> Tuple[DataFrame, DataFrame, DataFrame]:
+        """Processes input and output dataframes from logging
 
-        Gets the probability df, the embedding df, and the "data" df containing
-        all other columns
+        NER is a different case where the input data is logged at the sample level,
+        but output data is logged at the span level, so we need to process it
+        differently
+
+        We don't have span IDs so we don't need to validate uniqueness
+        We don't join the input and output frames
+        Splits the dataframes into prob, emb, and input data for uploading to minio
+        """
+
+        prob, emb, _ = cls.split_dataframe(out_frame)
+        return prob, emb, in_frame
+
+    @classmethod
+    def split_dataframe(cls, df: DataFrame) -> Tuple[DataFrame, DataFrame, DataFrame]:
+        """Splits the dataframe into logical grouping for minio storage
+
+        NER is a different case, where we store the text samples as "data" and
+        all of the span level data is split into only "emb" and "prob". This function
+        will only return 2 modified dataframes, where the third is expected to be the
+        input data logged by the user
         """
         df_copy = df.copy()
+        df_copy["id"] = vaex.vrange(0, len(df_copy))
         # Separate out embeddings and probabilities into their own files
-        dep_cols = [f"dep_{i}" for i in range(cls.logger_config.max_spans)]
-        prob = df_copy[["id"] + dep_cols]
-        gold_emb = [f"gold_emb_{i}" for i in range(cls.logger_config.max_spans)]
-        pred_emb = [f"pred_emb_{i}" for i in range(cls.logger_config.max_spans)]
-        emb = df_copy[["id"] + gold_emb + pred_emb]
-        ignore_cols = ["emb", "prob", "gold", "split_id"]
-        other_cols = [i for i in df_copy.get_column_names() if i not in ignore_cols]
-        data_df = df_copy[other_cols]
-        return prob, emb, data_df
+        prob_cols = [
+            "id",
+            "sample_id",
+            "split",
+            "epoch",
+            "is_gold",
+            "span_start",
+            "span_end",
+            "label",
+            "data_error_potential",
+        ]
+        prob = df_copy[prob_cols]
+        emb = df_copy[["id", "emb"]]
+        return prob, emb, df_copy
 
     @classmethod
     def validate_labels(cls) -> None:
         assert cls.logger_config.labels, (
             "You must set your config labels before calling finish. "
             "See `dataquality.set_labels_for_run`"
-        )
-
-        assert len(cls.logger_config.labels) == cls.logger_config.observed_num_labels, (
-            f"You set your labels to be {cls.logger_config.labels} "
-            f"({len(cls.logger_config.labels)} labels) but based on training, your "
-            f"model is expecting {cls.logger_config.observed_num_labels} labels. "
-            f"Use dataquality.set_labels_for_run to update your config labels."
         )

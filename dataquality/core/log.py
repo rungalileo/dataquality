@@ -12,7 +12,7 @@ def log_input_data(**kwargs: Any) -> None:
     """Logs input data for model training/test/validation.
 
     The expected arguments come from the task_type's data
-    logger: See print(dataquality.get_model_logger().__doc__) for details
+    logger: See dataquality.get_model_logger().doc() for details
     """
     assert config.task_type, "You must call dataquality.init before logging data"
     data_logger = get_data_logger()(**kwargs)

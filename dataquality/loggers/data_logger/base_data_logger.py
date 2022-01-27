@@ -2,7 +2,7 @@ import os
 import warnings
 from abc import abstractmethod
 from glob import glob
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 from uuid import uuid4
 
 import numpy as np
@@ -95,10 +95,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                 epoch = int(epoch_dir.split("/")[-1])
 
                 out_frame = vaex.open(f"{epoch_dir}/*")
-                _validate_unique_ids(out_frame)
-                in_out = _join_in_out_frames(in_frame, out_frame)
-
-                prob, emb, data_df = cls.split_dataframe(in_out)
+                prob, emb, data_df = cls.process_in_out_frames(in_frame, out_frame)
 
                 for data_folder, df_obj in tqdm(
                     zip(DATA_FOLDERS, [emb, prob, data_df]), total=3, desc=split
@@ -107,6 +104,22 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                         f"{proj_run}/{split}/{epoch}/{data_folder}/{data_folder}.hdf5"
                     )
                     object_store.create_project_run_object_from_df(df_obj, minio_file)
+
+    @classmethod
+    def process_in_out_frames(
+        cls, in_frame: DataFrame, out_frame: DataFrame
+    ) -> Tuple[DataFrame, DataFrame, DataFrame]:
+        """Processes input and output dataframes from logging
+
+        Validates uniqueness of IDs in the dataframes
+        Joins inputs and outputs
+        Splits the dataframes into prob, emb, and data for uploading to minio
+        """
+        _validate_unique_ids(out_frame)
+        in_out = _join_in_out_frames(in_frame, out_frame)
+
+        prob, emb, data_df = cls.split_dataframe(in_out)
+        return prob, emb, data_df
 
     @classmethod
     @abstractmethod
