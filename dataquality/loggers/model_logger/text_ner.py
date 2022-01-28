@@ -1,37 +1,32 @@
 from collections import defaultdict
 from enum import Enum, unique
 from typing import Any, Dict, List, Optional, Tuple, Union
-from uuid import uuid4
 
 import numpy as np
-import vaex
-from vaex.dataframe import DataFrame
 
-from dataquality.core._config import config
-from dataquality.exceptions import GalileoException
 from dataquality.loggers.logger_config.text_ner import (
     TaggingSchema,
     text_ner_logger_config,
 )
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.schemas import __data_schema_version__
-from dataquality.utils.vaex import _save_hdf5_file, _try_concat_df
 
 
 @unique
 class GalileoModelLoggerAttributes(str, Enum):
     gold_emb = "gold_emb"
-    pred_emb = "pred_emb"
+    gold_spans = "gold_spans"
+    gold_dep = "gold_dep"
     emb = "emb"
+    pred_emb = "pred_emb"
     pred_spans = "pred_spans"
+    pred_dep = "pred_dep"
     probs = "probs"
     ids = "ids"
     # mixin restriction on str (due to "str".split(...))
     split = "split"  # type: ignore
     epoch = "epoch"
     dep_scores = "dep_scores"
-    dep_scores_gold = "dep_scores_gold"
-    dep_scores_pred = "dep_scores_pred"
 
     @staticmethod
     def get_valid() -> List[str]:
@@ -68,7 +63,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             "The president is Joe Biden",
             "Joe Biden addressed the United States on Monday"
         ]
-        TODO: Change format for prob
+        TODO: Nidhi change format for prob
         probs = [
             [
                 [prob(joe), prob(bi), prob(##den)]  # Correct span
@@ -86,7 +81,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         ids = [0, 1]  # Must match the data input IDs
         split = "training"
         dataquality.log_model_outputs(
-            gold_emb, pred_emb, pred_spans, probs, ids, split, epoch
+            emb, probs, ids, split, epoch
         )
     """
 
@@ -389,27 +384,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         gold_dep = self._calculate_dep_score_across_spans(gold_spans, dep_scores_tokens)
         pred_dep = self._calculate_dep_score_across_spans(pred_spans, dep_scores_tokens)
         return gold_dep, pred_dep
-
-    def write_model_output(self, model_output: DataFrame) -> None:
-        location = (
-            f"{self.LOG_FILE_DIR}/{config.current_project_id}"
-            f"/{config.current_run_id}"
-        )
-
-        epoch, split = model_output[["epoch", "split"]][0]
-        path = f"{location}/{split}/{epoch}"
-        object_name = f"{str(uuid4()).replace('-', '')[:12]}.hdf5"
-        _save_hdf5_file(path, object_name, model_output)
-        _try_concat_df(path)
-
-    def _log(self) -> None:
-        """Threaded logger target implemented by child"""
-        try:
-            self.validate()
-        except AssertionError as e:
-            raise GalileoException(f"The provided GalileoModelConfig is invalid. {e}")
-        data = self._get_data_dict()
-        self.write_model_output(model_output=vaex.from_dict(data))
 
     def _get_data_dict(self) -> Dict[str, Any]:
         """Format row data for storage with vaex/hdf5

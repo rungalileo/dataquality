@@ -1,12 +1,17 @@
 from abc import abstractmethod
 from typing import Any, Dict, Optional
+from uuid import uuid4
 
+import vaex
 from vaex.dataframe import DataFrame
 
+from dataquality import config
+from dataquality.exceptions import GalileoException
 from dataquality.loggers.base_logger import BaseGalileoLogger
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
+from dataquality.utils.vaex import _save_hdf5_file, _try_concat_df
 
 
 class BaseGalileoModelLogger(BaseGalileoLogger):
@@ -14,9 +19,18 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         super().__init__()
         self.epoch: Optional[int] = None
 
-    @abstractmethod
     def _log(self) -> None:
-        """The target log function implemented by the child class"""
+        """Threaded logger target implemented by child"""
+        try:
+            self.validate()
+        except AssertionError as e:
+            raise GalileoException(f"The provided logged data is invalid. {e}")
+        data = self._get_data_dict()
+        self.write_model_output(model_output=vaex.from_dict(data))
+
+    @abstractmethod
+    def _get_data_dict(self) -> Dict[str, Any]:
+        """Returns the formatted data for hdf5 storage"""
 
     def _add_threaded_log(self) -> None:
         try:
@@ -31,9 +45,17 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         """The top level log function that try/excepts it's child"""
         ThreadPoolManager.add_thread(target=self._add_threaded_log)
 
-    @abstractmethod
     def write_model_output(self, model_output: DataFrame) -> None:
-        ...
+        location = (
+            f"{self.LOG_FILE_DIR}/{config.current_project_id}"
+            f"/{config.current_run_id}"
+        )
+
+        epoch, split = model_output[["epoch", "split"]][0]
+        path = f"{location}/{split}/{epoch}"
+        object_name = f"{str(uuid4()).replace('-', '')[:12]}.hdf5"
+        _save_hdf5_file(path, object_name, model_output)
+        _try_concat_df(path)
 
     @abstractmethod
     def validate(self) -> None:

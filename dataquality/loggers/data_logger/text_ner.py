@@ -53,6 +53,12 @@ class TextNERDataLogger(BaseGalileoDataLogger):
     ex:
     .. code-block:: python
 
+        labels = ["B-PER", "I-PER", "B-LOC", "I-LOC", "O"]
+        dataquality.set_labels_for_run(labels = labels)
+
+        # One of (IOB2, BIO, IOB, BILOU, BILOES)
+        dataquality.set_tagging_schema(tagging_schema: str = "BIO")
+
         text_inputs: List[str] = [
             "The president is Joe Biden",
             "Joe Biden addressed the United States on Monday"
@@ -76,14 +82,8 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         split = "training"
 
         dataquality.log_input_data(
-            text_inputs, text_tokenized, gold_spans, ids, split
+            text_inputs, text_token_indices, gold_spans, ids, split
         )
-
-    labels = ["B-PER", "I-PER", "B-LOC", "I-LOC", "O"]
-    dataquality.set_labels_for_run(labels_list = labels)
-
-    # One of (IOB2, BIO, IOB, BILOU, BILOES)
-    dataquality.set_tagging_schema(tagging_schema: str = "BIO")
     """
 
     __logger_name__ = "text_ner"

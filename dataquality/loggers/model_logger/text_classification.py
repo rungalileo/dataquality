@@ -1,20 +1,17 @@
 from collections import defaultdict
 from enum import Enum, unique
 from typing import Any, Dict, List, Optional, Union
-from uuid import uuid4
 
 import numpy as np
 import vaex
 from vaex.dataframe import DataFrame
 
-from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.logger_config.text_classification import (
     text_classification_logger_config,
 )
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.schemas import __data_schema_version__
-from dataquality.utils.vaex import _save_hdf5_file, _try_concat_df
 
 
 @unique
@@ -101,17 +98,8 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         )
 
     def write_model_output(self, model_output: DataFrame) -> None:
-        location = (
-            f"{self.LOG_FILE_DIR}/{config.current_project_id}"
-            f"/{config.current_run_id}"
-        )
-
         self._set_num_labels(model_output)
-        epoch, split = model_output[["epoch", "split"]][0]
-        path = f"{location}/{split}/{epoch}"
-        object_name = f"{str(uuid4()).replace('-', '')[:12]}.hdf5"
-        _save_hdf5_file(path, object_name, model_output)
-        _try_concat_df(path)
+        super().write_model_output(model_output)
 
     def _log(self) -> None:
         """Threaded logger target implemented by child"""
