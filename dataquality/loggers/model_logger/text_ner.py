@@ -421,21 +421,39 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 "data_schema_version": __data_schema_version__,
             }
 
+            # We want to dedup gold and prediction spans, as many will match on
+            # index. When the index matches, the embeddings and dep score will too
+            pred_span_inds = [(i["start"], i["end"]) for i in pred_spans]
             # Loop through the gold spans
             for gold_span, gold_emb, gold_dep in zip(gold_spans, gold_embs, gold_deps):
                 record["is_gold"] = True
                 record["span_start"] = gold_span["start"]
                 record["span_end"] = gold_span["end"]
-                record["label"] = gold_span["label"]
+                record["gold"] = gold_span["label"]
                 record["emb"] = gold_emb
                 record["data_error_potential"] = gold_dep
 
-            # Loop through the gold spans
+                gold_span_ind = (gold_span["start"], gold_span["end"])
+                if gold_span_ind in pred_span_inds:
+                    ind = pred_span_inds.index(gold_span_ind)
+                    ps = pred_spans.pop(ind)
+                    record["is_pred"] = True
+                    record["pred"] = ps["label"]
+                    # Remove element from preds so it's not logged twice
+                    pred_embs.pop(ind)
+                    pred_deps.pop(ind)
+                else:
+                    record["is_pred"] = False
+                    record["pred"] = None
+
+            # Loop through the pred spans
             for pred_span, pred_emb, pred_dep in zip(pred_spans, pred_embs, pred_deps):
                 record["is_gold"] = False
+                record["is_pred"] = True
                 record["span_start"] = pred_span["start"]
                 record["span_end"] = pred_span["end"]
-                record["label"] = pred_span["label"]
+                record["pred"] = pred_span["label"]
+                record["gold"] = None
                 record["emb"] = pred_emb
                 record["data_error_potential"] = pred_dep
 
