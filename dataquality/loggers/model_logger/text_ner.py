@@ -410,11 +410,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             self.pred_dep,
         ):
 
-            data["sample_id"].append(sample_id)
-            data["epoch"].append(self.epoch)
-            data["split"].append(self.split)
-            data["data_schema_version"].append(__data_schema_version__)
-
             # We want to dedup gold and prediction spans, as many will match on
             # index. When the index matches, the embeddings and dep score will too,
             # so we only log the span once and flag it as both gold and pred
@@ -422,6 +417,12 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             pred_spans_check = set(pred_span_inds)
             # Loop through the gold spans
             for gold_span, gold_emb, gold_dep in zip(gold_spans, gold_embs, gold_deps):
+                # FIXME: Make better
+                data["sample_id"].append(sample_id)
+                data["epoch"].append(self.epoch)
+                data["split"].append(self.split)
+                data["data_schema_version"].append(__data_schema_version__)
+
                 data["is_gold"].append(True)
                 data["span_start"].append(gold_span["start"])
                 data["span_end"].append(gold_span["end"])
@@ -458,6 +459,12 @@ class TextNERModelLogger(BaseGalileoModelLogger):
 
             # Loop through the remaining pred spans
             for pred_span, pred_emb, pred_dep in zip(pred_spans, pred_embs, pred_deps):
+                # FIXME: Make better
+                data["sample_id"].append(sample_id)
+                data["epoch"].append(self.epoch)
+                data["split"].append(self.split)
+                data["data_schema_version"].append(__data_schema_version__)
+
                 data["is_gold"].append(False)
                 data["is_pred"].append(True)
                 data["span_start"].append(pred_span["start"])
