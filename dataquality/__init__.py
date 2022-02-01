@@ -16,6 +16,7 @@ from dataquality.core.log import (
     log_input_data,
     log_model_outputs,
     set_labels_for_run,
+    set_tagging_schema,
     set_tasks_for_run,
 )
 
@@ -49,6 +50,7 @@ __all__ = [
     "get_data_logger",
     "get_model_logger",
     "set_tasks_for_run",
+    "set_tagging_schema",
 ]
 
 resource.setrlimit(resource.RLIMIT_NOFILE, (65535, 65535))
