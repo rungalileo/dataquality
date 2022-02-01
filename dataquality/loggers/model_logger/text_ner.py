@@ -191,9 +191,9 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         """
         embeddings = []
         for span in spans:
-            start_idx = span["start_idx"]
-            end_idx = span["end_idx"]
-            span_embeddings = emb[start_idx:end_idx, :]
+            start = span["start"]
+            end = span["end"]
+            span_embeddings = emb[start:end, :]
             avg_span_embedding = span_embeddings.mean(axis=0)
             embeddings.append(avg_span_embedding)
         return embeddings
@@ -233,15 +233,15 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         ]
         self._extract_pred_spans_bio(pred_sequence)
         >> [
-            {'start_idx': 1, 'end_idx': 2, 'label': 'PER'},
-            {'start_idx': 2, 'end_idx': 3, 'label': 'LOC'},
-            {'start_idx': 3, 'end_idx': 4, 'label': 'PER'},
-            {'start_idx': 4, 'end_idx': 5, 'label': 'PER'},
-            {'start_idx': 5, 'end_idx': 6, 'label': 'PER'},
-            {'start_idx': 6, 'end_idx': 7, 'label': 'PER'},
-            {'start_idx': 7, 'end_idx': 8, 'label': 'PER'},
-            {'start_idx': 8, 'end_idx': 10, 'label': 'PER'},
-            {'start_idx': 10, 'end_idx': 11, 'label': 'PER'},
+            {'start': 1, 'end': 2, 'label': 'PER'},
+            {'start': 2, 'end': 3, 'label': 'LOC'},
+            {'start': 3, 'end': 4, 'label': 'PER'},
+            {'start': 4, 'end': 5, 'label': 'PER'},
+            {'start': 5, 'end': 6, 'label': 'PER'},
+            {'start': 6, 'end': 7, 'label': 'PER'},
+            {'start': 7, 'end': 8, 'label': 'PER'},
+            {'start': 8, 'end': 10, 'label': 'PER'},
+            {'start': 10, 'end': 11, 'label': 'PER'},
         ]
         """
         pred_spans = []
@@ -313,32 +313,26 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         """
         gold_sequence = ["O"] * len_sequence
         for span in gold_spans:
-            start_idx = span["start_idx"]
-            end_idx = span["end_idx"]
+            start = span["start"]
+            end = span["end"]
             label = span["label"]
             if self.logger_config.tagging_schema == TaggingSchema.BIO:
-                gold_sequence[start_idx:end_idx] = [f"I-{label}"] * (
-                    end_idx - start_idx
-                )
-                gold_sequence[start_idx] = f"B-{label}"
+                gold_sequence[start:end] = [f"I-{label}"] * (end - start)
+                gold_sequence[start] = f"B-{label}"
             elif self.logger_config.tagging_schema == TaggingSchema.BILOU:
-                if end_idx - start_idx == 1:
-                    gold_sequence[start_idx] = f"U-{label}"
+                if end - start == 1:
+                    gold_sequence[start] = f"U-{label}"
                 else:
-                    gold_sequence[start_idx:end_idx] = [f"I-{label}"] * (
-                        end_idx - start_idx
-                    )
-                    gold_sequence[start_idx] = f"B-{label}"
-                    gold_sequence[end_idx - 1] = f"L-{label}"
+                    gold_sequence[start:end] = [f"I-{label}"] * (end - start)
+                    gold_sequence[start] = f"B-{label}"
+                    gold_sequence[end - 1] = f"L-{label}"
             elif self.logger_config.tagging_schema == TaggingSchema.BIOES:
-                if end_idx - start_idx == 1:
-                    gold_sequence[start_idx] = f"S-{label}"
+                if end - start == 1:
+                    gold_sequence[start] = f"S-{label}"
                 else:
-                    gold_sequence[start_idx:end_idx] = [f"I-{label}"] * (
-                        end_idx - start_idx
-                    )
-                    gold_sequence[start_idx] = f"B-{label}"
-                    gold_sequence[end_idx - 1] = f"E-{label}"
+                    gold_sequence[start:end] = [f"I-{label}"] * (end - start)
+                    gold_sequence[start] = f"B-{label}"
+                    gold_sequence[end - 1] = f"E-{label}"
         return gold_sequence
 
     def _calculate_dep_score_across_spans(
@@ -347,9 +341,9 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         """TODO: Nidhi add description of logic"""
         dep_score_per_span = []
         for span in spans:
-            start_idx = span["start_idx"]
-            end_idx = span["end_idx"]
-            dep_score_per_span.append(max(dep_scores[start_idx:end_idx]))
+            start = span["start"]
+            end = span["end"]
+            dep_score_per_span.append(max(dep_scores[start:end]))
         return dep_score_per_span
 
     def _calculate_dep_scores(

@@ -177,11 +177,6 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         for sample_id, sample_spans, sample_indicies in zip(
             self.ids, self.gold_spans, self.text_token_indices
         ):
-            assert len(sample_spans) <= self.logger_config.max_spans, (
-                f"Galileo does not support more than {self.logger_config.max_spans} "
-                f"spans in a sample input."
-            )
-
             for span in sample_spans:
                 assert isinstance(span, dict), "individual spans must be dictionaries"
                 assert "start" in span and "end" in span and "label" in span, (
