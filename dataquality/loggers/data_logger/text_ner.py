@@ -31,10 +31,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
     Class for logging input data/metadata of Text NER models to Galileo.
 
     * text: The raw text inputs for model training. List[str]
-    * text_tokenized: Tokenized text _as the model sees it_. This tokenization
-    should match the input that is fed to the model, created by the user-specific
-    tokenizer. This requires tokenizing each individual word instead of the entire
-    sentence at once. List[List[List[str]]]
+    * text_token_indices: TODO: Nidhi
     * gold_spans: Gold spans for the text_tokenized. The list of spans in a sample with
     their start and end indexes, and the label. This matches the text_tokenized format
     Indexes start at 0 and are [inclusive, exclusive) for [start, end) respectively.
