@@ -10,6 +10,7 @@ from dataquality.loggers.logger_config.text_ner import (
 )
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.schemas import __data_schema_version__
+from dataquality.schemas.ner_errors import NERErrorType
 
 
 @unique
@@ -398,7 +399,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
 
         # Loop through samples
         for (
-            record_id,
+            sample_id,
             gold_spans,
             gold_embs,
             gold_deps,
@@ -414,52 +415,93 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             self.pred_emb,
             self.pred_dep,
         ):
-            record = {
-                "sample_id": record_id,
-                "epoch": self.epoch,
-                "split": self.split,
-                "data_schema_version": __data_schema_version__,
-            }
+
+            data["sample_id"].append(sample_id)
+            data["epoch"].append(self.epoch)
+            data["split"].append(self.split)
+            data["data_schema_version"].append(__data_schema_version__)
 
             # We want to dedup gold and prediction spans, as many will match on
-            # index. When the index matches, the embeddings and dep score will too
+            # index. When the index matches, the embeddings and dep score will too,
+            # so we only log the span once and flag it as both gold and pred
             pred_span_inds = [(i["start"], i["end"]) for i in pred_spans]
+            pred_spans_check = set(pred_span_inds)
             # Loop through the gold spans
             for gold_span, gold_emb, gold_dep in zip(gold_spans, gold_embs, gold_deps):
-                record["is_gold"] = True
-                record["span_start"] = gold_span["start"]
-                record["span_end"] = gold_span["end"]
-                record["gold"] = gold_span["label"]
-                record["emb"] = gold_emb
-                record["data_error_potential"] = gold_dep
+                data["is_gold"].append(True)
+                data["span_start"].append(gold_span["start"])
+                data["span_end"].append(gold_span["end"])
+                data["gold"].append(gold_span["label"])
+                data["emb"].append(gold_emb)
+                data["data_error_potential"].append(gold_dep)
 
                 gold_span_ind = (gold_span["start"], gold_span["end"])
-                if gold_span_ind in pred_span_inds:
+                if gold_span_ind in pred_spans_check:
+                    # Remove element from preds so it's not logged twice
                     ind = pred_span_inds.index(gold_span_ind)
                     ps = pred_spans.pop(ind)
-                    record["is_pred"] = True
-                    record["pred"] = ps["label"]
-                    # Remove element from preds so it's not logged twice
                     pred_embs.pop(ind)
                     pred_deps.pop(ind)
+
+                    data["is_pred"].append(True)
+                    data["pred"].append(ps["label"])
+
+                    # If indices match and tag doesn't, error_type is wrong_tag
+                    error_type = (
+                        NERErrorType.wrong_tag.value
+                        if gold_span["label"] != ps["label"]
+                        else "None"
+                    )
+                    data["galileo_error_type"].append(error_type)
+
                 else:
-                    record["is_pred"] = False
-                    record["pred"] = None
+                    data["is_pred"].append(False)
+                    data["pred"].append(None)
+                    error_type = self._get_span_error_type(
+                        pred_span_inds, gold_span_ind
+                    ).value
+                    data["galileo_error_type"].append(error_type)
 
-            # Loop through the pred spans
+            # Loop through the remaining pred spans
             for pred_span, pred_emb, pred_dep in zip(pred_spans, pred_embs, pred_deps):
-                record["is_gold"] = False
-                record["is_pred"] = True
-                record["span_start"] = pred_span["start"]
-                record["span_end"] = pred_span["end"]
-                record["pred"] = pred_span["label"]
-                record["gold"] = None
-                record["emb"] = pred_emb
-                record["data_error_potential"] = pred_dep
+                data["is_gold"].append(False)
+                data["is_pred"].append(True)
+                data["span_start"].append(pred_span["start"])
+                data["span_end"].append(pred_span["end"])
+                data["pred"].append(pred_span["label"])
+                data["gold"].append(None)
+                data["emb"].append(pred_emb)
+                data["data_error_potential"].append(pred_dep)
+                # Pred only spans don't have an error type
+                data["galileo_error_type"].append(NERErrorType.none.value)
 
-            for k in record.keys():
-                data[k].append(record[k])
         return data
+
+    def _get_span_error_type(
+        self, pred_spans: List[Tuple[int, int]], gold_span: Tuple[int, int]
+    ) -> NERErrorType:
+        """Determines the proper span error
+
+        When indices don't match, the error is either span_shift or missed_label
+        * span_shift: overlapping span start/end indices
+        * missed_label: no overlap between span start/end indices
+
+        In this function, we only look at spans that don't have pred/gold alignment,
+        so the error can only be span_shift or missed_label.
+        """
+        gold_start, gold_end = gold_span
+        # We start by assuming missed_label (because it's the worst case)
+        # and update if we see overlap
+        error_type = NERErrorType.missed_label
+        for pred_span in pred_spans:
+            pred_start, pred_end = pred_span
+            if (
+                gold_start <= pred_start <= gold_end
+                or pred_start <= gold_start <= pred_end
+            ):
+                error_type = NERErrorType.span_shift
+                break
+        return error_type
 
     def __setattr__(self, key: Any, value: Any) -> None:
         if key not in self.get_valid_attributes():
