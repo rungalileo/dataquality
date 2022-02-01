@@ -56,7 +56,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         # One of (IOB2, BIO, IOB, BILOU, BILOES)
         dataquality.set_tagging_schema(tagging_schema: str = "BIO")
 
-        text_inputs: List[str] = [
+        text: List[str] = [
             "The president is Joe Biden",
             "Joe Biden addressed the United States on Monday"
         ]
@@ -79,7 +79,8 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         split = "training"
 
         dataquality.log_input_data(
-            text_inputs, text_token_indices, gold_spans, ids, split
+            text=text, text_token_indices=text_token_indices,
+            gold_spans=gold_spans, ids=ids, split=split
         )
     """
 

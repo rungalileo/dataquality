@@ -82,7 +82,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         ids = [0, 1]  # Must match the data input IDs
         split = "training"
         dataquality.log_model_outputs(
-            emb, probs, ids, split, epoch
+            emb=emb, probs=probs, ids=ids, split=split, epoch=epoch
         )
     """
 
