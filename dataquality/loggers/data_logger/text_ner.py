@@ -265,13 +265,6 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             **self.meta,
         )
         df = vaex.from_dict(inp)
-        print("HERE", df.dtypes)
-        print("TEST")
-        print(df[["id"]])
-        print(df[["split"]])
-        print(df[["text"]])
-        print(df[["text_token_indices"]])
-        print(df[["data_schema_version"]])
         return df
 
     @classmethod
