@@ -42,6 +42,15 @@ Install dependencies
 ./scripts/install.sh
 ```
 
+## Development
+Developing with Flit is simple. Symlink this repo to your venv so you can make changes
+and test them without reinstalling the package.
+
+Run the following from the root of dataquality:
+```sh
+flit install -s
+```
+
 ## Formatting
 
 ```sh
