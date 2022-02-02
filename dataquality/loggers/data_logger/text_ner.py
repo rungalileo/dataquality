@@ -1,7 +1,7 @@
-import json
 from enum import Enum, unique
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+import pyarrow as pa
 import vaex
 from vaex.dataframe import DataFrame
 
@@ -15,6 +15,7 @@ from dataquality.schemas.split import Split
 class GalileoDataLoggerAttributes(str, Enum):
     text = "text"
     text_token_indices = "text_token_indices"
+    text_token_indices_flat = "text_token_indices_flat"
     gold_spans = "gold_spans"
     ids = "ids"
     # mixin restriction on str (due to "str".split(...))
@@ -115,6 +116,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         self.gold_spans = gold_spans if gold_spans is not None else []
         self.ids = ids if ids is not None else []
         self.split = split
+        self.text_token_indices_flat: List[List[int]] = []
 
     @staticmethod
     def get_valid_attributes() -> List[str]:
@@ -172,7 +174,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
                 f"{text_tokenized_len})"
             )
 
-        for sample_id, sample_spans, sample_indicies in zip(
+        for sample_id, sample_spans, sample_indices in zip(
             self.ids, self.gold_spans, self.text_token_indices
         ):
             for span in sample_spans:
@@ -185,12 +187,19 @@ class TextNERDataLogger(BaseGalileoDataLogger):
                     span["start"] <= span["end"]
                 ), f"end index must be >= start index, but got {span}"
 
-            updated_spans = self._extract_gold_spans(sample_spans, sample_indicies)
+            updated_spans = self._extract_gold_spans(sample_spans, sample_indices)
 
             span_key = self.logger_config.get_span_key(str(self.split), sample_id)
             self.logger_config.gold_spans[span_key] = [
                 (span["start"], span["end"], span["label"]) for span in updated_spans
             ]
+            # Flatten the List[Tuple[int,int]] to List[int]
+            # https://github.com/python/mypy/issues/6040
+            flattened_indices = list(sum(sample_indices, ()))  # type: ignore
+            self.text_token_indices_flat.append(flattened_indices)
+
+        # Free up the memory, we don't need it anymore
+        del self.text_token_indices
 
         self.validate_metadata(batch_size=text_len)
 
@@ -248,7 +257,8 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             id=self.ids,
             split=self.split,
             text=self.text,
-            text_token_indices=[json.dumps(i) for i in self.text_token_indices],
+            # TODO: Ben figure out how to store this as ints (all have diff len!)
+            text_token_indices=pa.array(self.text_token_indices_flat),
             data_schema_version=__data_schema_version__,
             **self.meta,
         )
@@ -289,9 +299,11 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             "split",
             "epoch",
             "is_gold",
+            "is_pred",
             "span_start",
             "span_end",
-            "label",
+            "gold",
+            "pred",
             "data_error_potential",
         ]
         prob = df_copy[prob_cols]
