@@ -6,6 +6,7 @@ import torch
 import dataquality
 from dataquality.core.integrations.lightning import DataQualityCallback
 from dataquality.core.integrations.torch import log_input_data, watch
+from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.test_dataquality import validate_uploaded_data
 from tests.utils.data_utils import validate_cleanup_data
@@ -16,7 +17,7 @@ from tests.utils.lightning_model import (
     torch_model,
 )
 
-dataquality.config.task_type = "text_classification"
+dataquality.config.task_type = TaskType.text_classification
 
 
 def test_lightning_autolog(cleanup_after_use: Callable) -> None:

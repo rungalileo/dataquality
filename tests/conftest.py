@@ -14,8 +14,8 @@ from dataquality.schemas.task_type import TaskType
 config.current_project_id = uuid4()
 config.current_run_id = uuid4()
 
-DEFAULT_API_URL = os.environ["GALILEO_API_URL"]
-DEFAULT_MINIO_URL = os.environ["GALILEO_MINIO_URL"]
+DEFAULT_API_URL = "http://localhost:8000"
+DEFAULT_MINIO_URL = "127.0.0.1:9000"
 
 LOCATION = (
     f"{BaseGalileoLogger.LOG_FILE_DIR}/{config.current_project_id}"
