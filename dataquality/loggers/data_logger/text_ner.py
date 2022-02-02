@@ -85,6 +85,8 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         )
     """
 
+    DATA_FOLDER_EXTENSION = {"emb": "hdf5", "prob": "hdf5", "data": "arrow"}
+
     __logger_name__ = "text_ner"
     logger_config = text_ner_logger_config
 
@@ -257,7 +259,6 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             id=self.ids,
             split=self.split,
             text=self.text,
-            # TODO: Ben figure out how to store this as ints (all have diff len!)
             text_token_indices=pa.array(self.text_token_indices_flat),
             data_schema_version=__data_schema_version__,
             **self.meta,

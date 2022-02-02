@@ -32,6 +32,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     MAX_STR_LEN = 50  # Max characters in a string metadata attribute
     INPUT_DATA_NAME = "input_data.arrow"
 
+    DATA_FOLDER_EXTENSION = {data_folder: "hdf5" for data_folder in DATA_FOLDERS}
+
     def __init__(
         self, meta: Optional[Dict[str, List[Union[str, float, int]]]] = None
     ) -> None:
@@ -100,8 +102,9 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                 for data_folder, df_obj in tqdm(
                     zip(DATA_FOLDERS, [emb, prob, data_df]), total=3, desc=split
                 ):
+                    ext = cls.DATA_FOLDER_EXTENSION[data_folder]
                     minio_file = (
-                        f"{proj_run}/{split}/{epoch}/{data_folder}/{data_folder}.hdf5"
+                        f"{proj_run}/{split}/{epoch}/{data_folder}/{data_folder}.{ext}"
                     )
                     object_store.create_project_run_object_from_df(df_obj, minio_file)
 
