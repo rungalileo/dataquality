@@ -1,5 +1,5 @@
 from enum import Enum, unique
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import pyarrow as pa
 import vaex
@@ -241,7 +241,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
 
         return new_gold_spans
 
-    def _get_input_dict(self) -> Dict[str, Any]:
+    def _get_input_df(self) -> DataFrame:
         """NER is a special case where we need to log 2 different input data files
 
         The first is at the sentence level (id, split, text, **meta)
@@ -255,14 +255,16 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         This function will be used for the sentence level, as that enables the parent's
         `log()` function to behave exactly as expected.
         """
-        return dict(
-            id=self.ids,
-            split=self.split,
+        df_len = len(self.text)
+        inp = dict(
+            id=[self.ids] * df_len,
+            split=[self.split] * df_len,
             text=self.text,
             text_token_indices=pa.array(self.text_token_indices_flat),
-            data_schema_version=__data_schema_version__,
+            data_schema_version=[__data_schema_version__] * df_len,
             **self.meta,
         )
+        return vaex.from_dict(inp)
 
     @classmethod
     def process_in_out_frames(

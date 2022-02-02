@@ -6,7 +6,6 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from uuid import uuid4
 
 import numpy as np
-import pandas as pd
 import vaex
 from vaex.dataframe import DataFrame
 
@@ -48,8 +47,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         )
         if not os.path.exists(write_input_dir):
             os.makedirs(write_input_dir)
-        inp = self._get_input_dict()
-        df = vaex.from_pandas(pd.DataFrame(inp))
+        df = self._get_input_df()
         file_path = f"{write_input_dir}/{BaseGalileoDataLogger.INPUT_DATA_NAME}"
         if os.path.isfile(file_path):
             new_name = f"{write_input_dir}/{str(uuid4()).replace('-', '')[:12]}.arrow"
@@ -203,5 +201,5 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         ...
 
     @abstractmethod
-    def _get_input_dict(self) -> Dict[str, Any]:
+    def _get_input_df(self) -> DataFrame:
         ...

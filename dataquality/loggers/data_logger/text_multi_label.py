@@ -1,8 +1,9 @@
 import warnings
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
+import vaex
 from vaex.dataframe import DataFrame
 
 from dataquality.core._config import config
@@ -78,7 +79,7 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
                 f"but saw {len(input_labels)} for input record {ind}."
             )
 
-    def _get_input_dict(self) -> Dict[str, Any]:
+    def _get_input_df(self) -> DataFrame:
         inp = dict(
             id=self.ids,
             text=self.text,
@@ -90,7 +91,7 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
             gold_array = np.array(self.labels)
             for task_num in range(self.logger_config.observed_num_tasks):
                 inp[f"gold_{task_num}"] = gold_array[:, task_num]
-        return inp
+        return vaex.from_pandas(pd.DataFrame(inp))
 
     @classmethod
     def split_dataframe(cls, df: DataFrame) -> Tuple[DataFrame, DataFrame, DataFrame]:

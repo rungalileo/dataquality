@@ -1,6 +1,8 @@
 from enum import Enum, unique
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
+import pandas as pd
+import vaex
 from vaex.dataframe import DataFrame
 
 from dataquality.loggers.data_logger.base_data_logger import BaseGalileoDataLogger
@@ -115,8 +117,8 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
 
         self.validate_metadata(batch_size=text_len)
 
-    def _get_input_dict(self) -> Dict[str, Any]:
-        return dict(
+    def _get_input_df(self) -> DataFrame:
+        inp = dict(
             id=self.ids,
             text=self.text,
             split=self.split,
@@ -124,6 +126,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
             gold=self.labels if self.split != Split.inference.value else None,
             **self.meta,
         )
+        return vaex.from_pandas(pd.DataFrame(inp))
 
     @classmethod
     def split_dataframe(cls, df: DataFrame) -> Tuple[DataFrame, DataFrame, DataFrame]:
