@@ -154,7 +154,10 @@ class TextNERModelLogger(BaseGalileoModelLogger):
 
             span_key = self.logger_config.get_span_key(str(self.split), sample_id)
 
-            gold_span_tup = self.logger_config.gold_spans.pop(span_key)
+            if span_key in self.logger_config.gold_spans:
+                gold_span_tup = self.logger_config.gold_spans.pop(span_key)
+            else:
+                gold_span_tup = []
             sample_gold_spans: List[Dict] = [
                 dict(start=start, end=end, label=label)
                 for start, end, label in gold_span_tup
@@ -445,7 +448,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                     error_type = (
                         NERErrorType.wrong_tag.value
                         if gold_span["label"] != ps["label"]
-                        else "None"
+                        else NERErrorType.none.value
                     )
                     data["galileo_error_type"].append(error_type)
 
