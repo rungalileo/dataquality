@@ -14,7 +14,9 @@ def log_input_data(**kwargs: Any) -> None:
     The expected arguments come from the task_type's data
     logger: See dataquality.get_model_logger().doc() for details
     """
-    assert all([config.task_type, config.current_project_id, config.current_run_id]), "You must call dataquality.init before logging data"
+    assert all(
+        [config.task_type, config.current_project_id, config.current_run_id]
+    ), "You must call dataquality.init before logging data"
     data_logger = get_data_logger()(**kwargs)
     data_logger.log()
 
@@ -33,7 +35,9 @@ def log_model_outputs(**kwargs: Any) -> None:
     The expected arguments come from the task_type's model
     logger: See print(dataquality.get_model_logger().__doc__) for details
     """
-    assert all([config.task_type, config.current_project_id, config.current_run_id]), "You must call dataquality.init before logging data"
+    assert all(
+        [config.task_type, config.current_project_id, config.current_run_id]
+    ), "You must call dataquality.init before logging data"
     model_logger = get_model_logger()(**kwargs)
     model_logger.log()
 

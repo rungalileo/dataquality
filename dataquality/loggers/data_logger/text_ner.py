@@ -295,7 +295,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         input data logged by the user
         """
         df_copy = df.copy()
-        df_copy["id"] = vaex.vrange(0, len(df_copy))
+        df_copy["id"] = vaex.vrange(0, len(df_copy), dtype="int64")
         # Separate out embeddings and probabilities into their own files
         prob_cols = [
             "id",
