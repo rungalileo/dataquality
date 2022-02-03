@@ -1,3 +1,4 @@
+import os
 from tempfile import NamedTemporaryFile
 from typing import Any, Dict
 
@@ -42,7 +43,8 @@ class ObjectStore:
         self, df: DataFrame, object_name: str
     ) -> None:
         """Uploads a Vaex dataframe to Minio at the specified object_name location"""
-        with NamedTemporaryFile(suffix=".hdf5") as f:
+        ext = os.path.splitext(object_name)[-1]
+        with NamedTemporaryFile(suffix=ext) as f:
             df.export(f.name, progress="vaex")
             self.create_project_run_object(
                 object_name=object_name,
