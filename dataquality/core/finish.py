@@ -1,11 +1,13 @@
 from typing import Any, Dict, Optional
 
 import dataquality
-from dataquality.clients import api_client
+from dataquality.clients.api import ApiClient
 from dataquality.core._config import config
 from dataquality.schemas import ProcName, RequestType, Route
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.version import _version_check
+
+api_client = ApiClient()
 
 
 def finish() -> Optional[Dict[str, Any]]:

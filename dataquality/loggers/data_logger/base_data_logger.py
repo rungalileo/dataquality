@@ -8,7 +8,7 @@ import numpy as np
 import vaex
 from vaex.dataframe import DataFrame
 
-from dataquality.clients import object_store
+from dataquality.clients.objectstore import ObjectStore
 from dataquality.core._config import config
 from dataquality.loggers.base_logger import BaseGalileoLogger, BaseLoggerAttributes
 from dataquality.schemas.split import Split
@@ -48,6 +48,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         print("☁️ Uploading Data")
         proj_run = f"{config.current_project_id}/{config.current_run_id}"
         location = f"{cls.LOG_FILE_DIR}/{proj_run}"
+        object_store = ObjectStore()
 
         in_frame = vaex.open(
             f"{location}/{BaseGalileoDataLogger.INPUT_DATA_NAME}"
@@ -72,7 +73,9 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                     minio_file = (
                         f"{proj_run}/{split}/{epoch}/{data_folder}/{data_folder}.hdf5"
                     )
-                    object_store.create_project_run_object_from_df(df_obj, minio_file)
+                    object_store.create_project_run_object_from_df(
+                        df=df_obj, object_name=minio_file
+                    )
 
     @classmethod
     @abstractmethod
