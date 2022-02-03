@@ -395,23 +395,15 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         data = defaultdict(list)
 
         # Loop through samples
-        for (
-            sample_id,
-            gold_spans,
-            gold_embs,
-            gold_deps,
-            pred_spans,
-            pred_embs,
-            pred_deps,
-        ) in zip(
-            self.ids,
-            self.gold_spans,
-            self.gold_emb,
-            self.gold_dep,
-            self.pred_spans,
-            self.pred_emb,
-            self.pred_dep,
-        ):
+        num_samples = len(self.ids)
+        for idx in range(num_samples):
+            sample_id = self.ids[idx]
+            gold_spans = self.gold_spans[idx]
+            gold_embs = self.gold_emb[idx]
+            gold_deps = self.gold_dep[idx]
+            pred_spans = self.pred_spans[idx]
+            pred_embs = self.pred_emb[idx]
+            pred_deps = self.pred_dep[idx]
 
             # We want to dedup gold and prediction spans, as many will match on
             # index. When the index matches, the embeddings and dep score will too,
@@ -440,6 +432,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                     ps = pred_spans.pop(ind)
                     pred_embs.pop(ind)
                     pred_deps.pop(ind)
+                    pred_span_inds.pop(ind)
 
                     data["is_pred"].append(True)
                     data["pred"].append(ps["label"])
