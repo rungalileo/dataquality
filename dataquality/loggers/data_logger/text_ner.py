@@ -309,6 +309,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             "gold",
             "pred",
             "data_error_potential",
+            "galileo_error_type"
         ]
         prob = df_copy[prob_cols]
         emb = df_copy[["id", "emb"]]
