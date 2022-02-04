@@ -196,7 +196,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
                 (span["start"], span["end"], span["label"]) for span in updated_spans
             ]
             # Flatten the List[Tuple[int,int]] to List[int]
-            # https://github.com/python/mypy/issues/6040
+            # https://github.com/python/mypy/issues/6040 (mypy ignore)
             flattened_indices = list(sum(sample_indices, ()))  # type: ignore
             self.text_token_indices_flat.append(flattened_indices)
 
