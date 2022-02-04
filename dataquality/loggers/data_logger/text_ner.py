@@ -321,3 +321,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             "You must set your config labels before calling finish. "
             "See `dataquality.set_labels_for_run`"
         )
+
+    @classmethod
+    def set_tagging_schema(cls, tagging_schema: str) -> None:
+        cls.logger_config.tagging_schema = tagging_schema

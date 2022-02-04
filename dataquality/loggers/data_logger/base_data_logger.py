@@ -203,3 +203,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     @abstractmethod
     def _get_input_df(self) -> DataFrame:
         ...
+
+    @classmethod
+    def set_tagging_schema(cls, tagging_schema: str) -> None:
+        """Sets the tagging schema, if applicable. Must be implemented by child"""
+        raise GalileoException(f"Cannot set tagging schema for {cls.__logger_name__}")
