@@ -43,7 +43,7 @@ def download_dataset_from_aws(dataset_folder_path: Union[Path, str]) -> None:
 
 def load_dataset_split(dataset: str, split: str) -> pd.DataFrame:
     dataset = pd.read_csv(dataset + f"_{split}.csv")
-    print(dataset.info(memory_usage="deep"))
+    print(dataset.info(memory_usage="deep"))  # type: ignore
     return dataset
 
 

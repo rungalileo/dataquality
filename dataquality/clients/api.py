@@ -359,6 +359,3 @@ class ApiClient:
                     f.write(chunk)
 
         print(f"Your export has been written to {file_name}")
-
-
-api_client = ApiClient()

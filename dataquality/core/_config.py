@@ -1,7 +1,6 @@
 import json
 import os
 from enum import Enum, unique
-from getpass import getpass
 from typing import Dict, List, Optional
 
 from pydantic import BaseModel
@@ -14,16 +13,16 @@ from dataquality.schemas.task_type import TaskType
 class GalileoConfigVars(str, Enum):
     API_URL = "GALILEO_API_URL"
     MINIO_URL = "GALILEO_MINIO_URL"
-    MINIO_ACCESS_KEY = "GALILEO_MINIO_ACCESS_KEY"
-    MINIO_SECRET_KEY = "GALILEO_MINIO_SECRET_KEY"
+    MINIO_ACCESS_KEY = "MINIO_ACCESS_KEY"
+    MINIO_SECRET_KEY = "MINIO_SECRET_KEY"
 
     @staticmethod
     def get_valid_attributes() -> List[str]:
         return list(map(lambda x: x.value, GalileoConfigVars))
 
     @staticmethod
-    def get_config_mapping() -> Dict[str, str]:
-        return {i.name.lower(): os.environ[i.value] for i in GalileoConfigVars}
+    def get_config_mapping() -> Dict[str, Optional[str]]:
+        return {i.name.lower(): os.environ.get(i.value) for i in GalileoConfigVars}
 
     @staticmethod
     def get_available_config_attrs() -> Dict[str, str]:
@@ -34,8 +33,8 @@ class GalileoConfigVars(str, Enum):
         }
 
     @staticmethod
-    def vars_available() -> bool:
-        return all(os.getenv(i) for i in GalileoConfigVars.get_valid_attributes())
+    def auto_init_vars_available() -> bool:
+        return all(os.getenv(i) for i in ["GALILEO_API_URL", "GALILEO_MINIO_URL"])
 
 
 class _Config:
@@ -79,8 +78,6 @@ class AuthMethod(str, Enum):
 class Config(BaseModel):
     api_url: str
     minio_url: str
-    minio_access_key: str
-    minio_secret_key: str
     minio_region: str = "us-east-1"
     auth_method: AuthMethod = AuthMethod.email
     token: Optional[str] = None
@@ -112,6 +109,19 @@ class Config(BaseModel):
         return v
 
 
+def set_platform_urls(console_url_str: str) -> None:
+    if console_url_str == "localhost":
+        os.environ[GalileoConfigVars.API_URL] = "http://localhost:8088"
+        os.environ[GalileoConfigVars.MINIO_URL] = "http://localhost:9000"
+    else:
+        os.environ[GalileoConfigVars.API_URL] = console_url_str.replace(
+            "console.", "api."
+        )
+        os.environ[GalileoConfigVars.MINIO_URL] = console_url_str.replace(
+            "console.", "data."
+        )
+
+
 def set_config() -> Config:
     if os.path.exists(_Config.DEFAULT_GALILEO_CONFIG_FILE):
         with open(_Config.DEFAULT_GALILEO_CONFIG_FILE) as f:
@@ -121,28 +131,18 @@ def set_config() -> Config:
         config_vars.update(**new_config_attrs)
         config = Config(**config_vars)
 
-    elif GalileoConfigVars.vars_available():
+    elif GalileoConfigVars.auto_init_vars_available():
         galileo_vars = GalileoConfigVars.get_config_mapping()
         config = Config(**galileo_vars)
 
     else:
-        print("Welcome to Galileo! To get started, we need some information:")
+        print("Welcome to Galileo!")
         print(
-            "(To skip this prompt in the future, set the following environment "
-            f"variables: {GalileoConfigVars.get_valid_attributes()})"
+            "To skip this prompt in the future, set the following environment "
+            "variables: GALILEO_API_URL GALILEO_MINIO_URL"
         )
         console_url = input("🔭 Enter the url of your Galileo console\n")
-        api_url = console_url.replace("console.", "api.")
-        minio_url = console_url.replace("console.", "data.")
-
-        os.environ[GalileoConfigVars.API_URL] = api_url
-        os.environ[GalileoConfigVars.MINIO_URL] = minio_url
-        os.environ[GalileoConfigVars.MINIO_ACCESS_KEY] = input(
-            "🔑 Enter the access key of your Galileo Minio server\n"
-        )
-        os.environ[GalileoConfigVars.MINIO_SECRET_KEY] = getpass(
-            "🤫 Enter the secret key of your Galileo Minio server\n"
-        )
+        set_platform_urls(console_url_str=console_url)
         galileo_vars = GalileoConfigVars.get_config_mapping()
         config = Config(**galileo_vars)
     return config

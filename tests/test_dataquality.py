@@ -158,7 +158,6 @@ def test_config_no_vars(monkeypatch):
 
     reload(dataquality.core._config)
     assert dataquality.core._config.config.api_url == "http://test"
-    assert dataquality.core._config.config.minio_secret_key == "test_pass"
     assert dataquality.core._config.config.minio_region == "us-east-1"
 
     os.environ["GALILEO_API_URL"] = x
