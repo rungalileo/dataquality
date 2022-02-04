@@ -1,6 +1,6 @@
 import os
 import shutil
-from typing import Any
+from typing import Any, Generator
 from uuid import uuid4
 
 import pytest
@@ -24,7 +24,7 @@ SUBDIRS = ["data", "emb", "prob"]
 
 
 @pytest.fixture(scope="function")
-def cleanup_after_use():
+def cleanup_after_use() -> Generator:
     try:
         if not os.path.isdir(TEST_PATH):
             for split in SPLITS:

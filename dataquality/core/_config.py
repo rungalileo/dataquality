@@ -33,8 +33,8 @@ class GalileoConfigVars(str, Enum):
         }
 
     @staticmethod
-    def vars_available() -> bool:
-        return all(os.getenv(i) for i in GalileoConfigVars.get_valid_attributes())
+    def auto_init_vars_available() -> bool:
+        return all(os.getenv(i) for i in ["GALILEO_API_URL", "GALILEO_MINIO_URL"])
 
 
 class _Config:
