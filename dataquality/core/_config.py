@@ -131,7 +131,7 @@ def set_config() -> Config:
         config_vars.update(**new_config_attrs)
         config = Config(**config_vars)
 
-    elif GalileoConfigVars.vars_available():
+    elif GalileoConfigVars.auto_init_vars_available():
         galileo_vars = GalileoConfigVars.get_config_mapping()
         config = Config(**galileo_vars)
 
