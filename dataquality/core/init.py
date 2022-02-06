@@ -67,9 +67,7 @@ def init(
     does exist, it will be set.
     """
     if not config.token:
-        raise GalileoException(
-            "You must log in before calling init. Call dataquality.login()"
-        )
+        dataquality.login()
     _init = _Init()
     BaseGalileoLogger.validate_task(task_type)
     task_type = TaskType[task_type]
