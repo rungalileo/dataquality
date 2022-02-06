@@ -122,7 +122,7 @@ def init(
                 config.current_run_id = run["id"]
                 warnings.warn(
                     f"Run: {project_name}/{run_name} already exists! "
-                    "The existing run will get overwritten!"
+                    "The existing run will get overwritten on call to finish()!"
                 )
                 print(f"🛰 Connected to project, {project_name}, and run, {run_name}.")
             else:
