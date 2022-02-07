@@ -155,7 +155,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             span_key = self.logger_config.get_span_key(str(self.split), sample_id)
 
             if span_key in self.logger_config.gold_spans:
-                gold_span_tup = self.logger_config.gold_spans.pop(span_key)
+                gold_span_tup = self.logger_config.gold_spans.get(span_key)
             else:
                 gold_span_tup = []
             sample_gold_spans: List[Dict] = [
