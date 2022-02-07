@@ -89,7 +89,7 @@ def _get_task_type(task_type: TaskType = None) -> TaskType:
 
 
 def docs() -> None:
-    """Print the documentation for your specific data logging format and model logging format.
+    """Print the documentation for your specific input and output logging format
 
     Based on your task_type, this will print the appropriate documentation
     """
