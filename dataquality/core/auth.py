@@ -37,6 +37,7 @@ class _Auth:
                 "password": password,
                 "auth_method": self.auth_method,
             },
+            headers={"X-Galileo-Request-Source": "dataquality_python_client"},
         )
         if res.status_code != 200:
             print(res.json())
