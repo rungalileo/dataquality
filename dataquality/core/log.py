@@ -12,7 +12,7 @@ def log_input_data(**kwargs: Any) -> None:
     """Logs input data for model training/test/validation.
 
     The expected arguments come from the task_type's data
-    logger: See print(dataquality.get_model_logger().__doc__) for details
+    logger: See dataquality.get_model_logger().doc() for details
     """
     assert config.task_type, "You must call dataquality.init before logging data"
     data_logger = get_data_logger()(**kwargs)
@@ -31,7 +31,7 @@ def log_model_outputs(**kwargs: Any) -> None:
     """Logs model outputs for model during training/test/validation.
 
     The expected arguments come from the task_type's model
-    logger: See print(dataquality.get_model_logger().__doc__) for details
+    logger: See dataquality.get_model_logger().doc() for details
     """
     assert config.task_type, "You must call dataquality.init before logging data"
     model_logger = get_model_logger()(**kwargs)
@@ -86,3 +86,12 @@ def _get_task_type(task_type: TaskType = None) -> TaskType:
             "dataqualtiy.init and provide one"
         )
     return task
+
+
+def docs() -> None:
+    """Print the documentation for your specific data logging format and model logging format.
+
+    Based on your task_type, this will print the appropriate documentation
+    """
+    get_data_logger().doc()
+    get_model_logger().doc()
