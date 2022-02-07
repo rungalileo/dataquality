@@ -279,11 +279,15 @@ class TextNERDataLogger(BaseGalileoDataLogger):
 
         We don't have span IDs so we don't need to validate uniqueness
         We don't join the input and output frames
+        We do need to split take only the rows from in_frame from this split
         Splits the dataframes into prob, emb, and input data for uploading to minio
         """
 
         prob, emb, _ = cls.split_dataframe(out_frame)
-        return prob, emb, in_frame
+        # Take only the sentence rows that are in the split of this model output
+        cur_split = out_frame["split"].unique()[0]
+        in_frame_split = in_frame[in_frame["split"] == cur_split]
+        return prob, emb, in_frame_split
 
     @classmethod
     def split_dataframe(cls, df: DataFrame) -> Tuple[DataFrame, DataFrame, DataFrame]:
