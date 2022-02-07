@@ -51,7 +51,7 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         * A list of tensorflow tensors
         * A list of pytorch tensors
     * ids: Indexes of each input field: List[int]. These IDs must align with the input
-    IDs for each s./ample input. This will be used to join them together for analysis
+    IDs for each sample input. This will be used to join them together for analysis
     by Galileo.
     """
 
