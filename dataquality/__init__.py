@@ -1,6 +1,6 @@
 "dataquality"
 
-__version__ = "0.0.4"
+__version__ = "v0.0.5"
 
 import resource
 
@@ -27,8 +27,6 @@ def configure() -> None:
     Available environment variables to update:
     * GALILEO_API_URL
     * GALILEO_MINIO_URL
-    * GALILEO_MINIO_ACCESS_KEY
-    * GALILEO_MINIO_SECRET_KEY
     """
     updated_config = dataquality.core._config.set_config()
     for k, v in updated_config.dict().items():
