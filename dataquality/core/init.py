@@ -6,6 +6,7 @@ from pydantic.types import UUID4
 
 from dataquality.clients.api import ApiClient
 from dataquality.core._config import config
+from dataquality.core.auth import login
 from dataquality.exceptions import GalileoException
 from dataquality.loggers import BaseGalileoLogger
 from dataquality.schemas.task_type import TaskType
@@ -67,9 +68,7 @@ def init(
     does exist, it will be set.
     """
     if not config.token:
-        raise GalileoException(
-            "You must log in before calling init. Call dataquality.login()"
-        )
+        login()
     _init = _Init()
     BaseGalileoLogger.validate_task(task_type)
     task_type = TaskType[task_type]

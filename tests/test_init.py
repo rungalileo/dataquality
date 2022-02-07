@@ -2,6 +2,7 @@ import os
 from unittest import mock
 
 import pytest
+import requests
 
 import dataquality
 from dataquality import config
@@ -103,9 +104,10 @@ def test_init_only_run(*args) -> None:
 @mock.patch("requests.get", side_effect=mocked_get_project_run)
 def test_init_no_login(*args) -> None:
     config.token = None
-    with pytest.raises(GalileoException):
+    # Should try to call login and fail
+    with pytest.raises(requests.exceptions.ConnectionError):
         dataquality.init(task_type="text_classification")
-    with pytest.raises(GalileoException):
+    with pytest.raises(requests.exceptions.ConnectionError):
         dataquality.init(task_type="text_classification", project_name=EXISTING_PROJECT)
 
 
