@@ -36,22 +36,22 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
     """
     Class for logging model output data of Text Classification models to Galileo.
 
-    * emb: List[Union[List, np.ndarray, torch.Tensor, tf.Tensor]]. The Embeddings per text sample input.
-    Only one embedding vector is allowed per input.
+    * emb: List[Union[List, np.ndarray, torch.Tensor, tf.Tensor]]. The Embeddings per
+    text sample input. Only one embedding vector is allowed per input sample.
     the `emb` parameter can be formatted either as:
         * A list of List[float]
         * A list of numpy arrays
         * A list of tensorflow tensors
         * A list of pytorch tensors
-    * prob: List[Union[List, np.ndarray, torch.Tensor, tf.Tensor]] probabilities from forward passes
-    during model training/evaluation.
+    * prob: List[Union[List, np.ndarray, torch.Tensor, tf.Tensor]] probabilities from
+    forward passes during model training/evaluation.
     the `prob` parameter can be formatted either as:
         * A list of List[float]
         * A list of numpy arrays
         * A list of tensorflow tensors
         * A list of pytorch tensors
     * ids: Indexes of each input field: List[int]. These IDs must align with the input
-    IDs for each sample input. This will be used to join them together for analysis
+    IDs for each s./ample input. This will be used to join them together for analysis
     by Galileo.
     """
 
