@@ -66,10 +66,12 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                         f"previously logged data for split {split}. "
                         f"Duplicated IDs: {dups}"
                     )
-            combined_data.export(file_path, progress="vaex")
+            with vaex.progress.tree("vaex", title="Appending input data"):
+                combined_data.export(file_path)
             os.remove(new_name)
         else:
-            df.export(file_path, progress="vaex")
+            with vaex.progress.tree("vaex", title="Exporting input data"):
+                df.export(file_path)
         df.close()
 
     @classmethod

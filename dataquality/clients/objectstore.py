@@ -1,6 +1,7 @@
 import os
 from tempfile import NamedTemporaryFile
 
+import vaex
 from minio import Minio
 from vaex.dataframe import DataFrame
 
@@ -44,7 +45,8 @@ class ObjectStore:
         """Uploads a Vaex dataframe to Minio at the specified object_name location"""
         ext = os.path.splitext(object_name)[-1]
         with NamedTemporaryFile(suffix=ext) as f:
-            df.export(f.name, progress="vaex")
+            with vaex.progress.tree("vaex", title="Writing data for upload"):
+                df.export(f.name)
             self.create_project_run_object(
                 object_name=object_name,
                 file_path=f.name,

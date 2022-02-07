@@ -10,6 +10,7 @@ from dataquality.core.auth import login
 from dataquality.core.finish import finish
 from dataquality.core.init import init
 from dataquality.core.log import (
+    docs,
     get_data_logger,
     get_model_logger,
     log_batch_input_data,
@@ -49,6 +50,7 @@ __all__ = [
     "get_model_logger",
     "set_tasks_for_run",
     "set_tagging_schema",
+    "docs",
 ]
 
 resource.setrlimit(resource.RLIMIT_NOFILE, (65535, 65535))
