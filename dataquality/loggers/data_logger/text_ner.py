@@ -321,10 +321,30 @@ class TextNERDataLogger(BaseGalileoDataLogger):
 
     @classmethod
     def validate_labels(cls) -> None:
+        """Validates and cleans labels
+
+        For NER, labels will come with their tags and internal values, such as:
+        ['[PAD]', '[CLS]', '[SEP]', 'O', 'B-ACTOR', 'I-ACTOR', 'B-YEAR', 'B-TITLE',
+        'B-GENRE', 'I-GENRE', 'B-DIRECTOR', 'I-DIRECTOR', 'B-SONG', 'I-SONG', 'B-PLOT',
+        'I-PLOT', 'B-REVIEW', 'B-CHARACTER', 'I-CHARACTER', 'B-RATING',
+        'B-RATINGS_AVERAGE', 'I-RATINGS_AVERAGE', 'I-TITLE', 'I-RATING', 'B-TRAILER',
+        'I-TRAILER', 'I-REVIEW', 'I-YEAR']
+
+        But we want only the true tag values (preserving order):
+        ['ACTOR', 'YEAR', 'TITLE', 'GENRE', 'DIRECTOR', 'SONG', 'PLOT', 'REVIEW',
+        'CHARACTER', 'RATING', 'RATINGS_AVERAGE', 'TRAILER']
+        """
         assert cls.logger_config.labels, (
             "You must set your config labels before calling finish. "
             "See `dataquality.set_labels_for_run`"
         )
+        clean_labels = [
+            i.split("-")[1]
+            for i in cls.logger_config.labels
+            if i and (i.startswith("B") or i.startswith("I"))
+        ]
+        clean_labels = list(dict.fromkeys(clean_labels))  # Remove dups, keep order
+        cls.logger_config.labels = clean_labels
 
     @classmethod
     def set_tagging_schema(cls, tagging_schema: str) -> None:
