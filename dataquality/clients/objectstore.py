@@ -1,7 +1,7 @@
 import os
 from tempfile import NamedTemporaryFile
-from typing import Any, Dict
 
+import vaex
 from minio import Minio
 from vaex.dataframe import DataFrame
 
@@ -19,8 +19,8 @@ class ObjectStore:
             local_urls = ["127.0.0.1:9000", "localhost:9000"]
             return Minio(
                 config.minio_url,
-                access_key=config.minio_access_key,
-                secret_key=config.minio_secret_key,
+                access_key=config.current_user,
+                secret_key=config.token,
                 secure=False if config.minio_url in local_urls else True,
             )
         except Exception as e:
@@ -45,20 +45,9 @@ class ObjectStore:
         """Uploads a Vaex dataframe to Minio at the specified object_name location"""
         ext = os.path.splitext(object_name)[-1]
         with NamedTemporaryFile(suffix=ext) as f:
-            df.export(f.name, progress="vaex")
+            with vaex.progress.tree("vaex", title="Writing data for upload"):
+                df.export(f.name)
             self.create_project_run_object(
                 object_name=object_name,
                 file_path=f.name,
             )
-
-    def get_fs_options(self) -> Dict[str, Any]:
-        return dict(
-            endpoint_override=config.minio_url,
-            scheme="https" if config.minio_url.startswith("https") else "http",
-            access_key=config.minio_access_key,
-            secret_key=config.minio_secret_key,
-            region=config.minio_region,
-        )
-
-
-object_store = ObjectStore()

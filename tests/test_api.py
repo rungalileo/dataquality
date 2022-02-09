@@ -4,7 +4,7 @@ from uuid import uuid4
 import pytest
 
 from dataquality import config
-from dataquality.clients import api_client
+from dataquality.clients.api import ApiClient
 from dataquality.exceptions import GalileoException
 from tests.utils.mock_request import (
     EXISTING_PROJECT,
@@ -15,6 +15,8 @@ from tests.utils.mock_request import (
     mocked_missing_project_name,
     mocked_missing_run,
 )
+
+api_client = ApiClient()
 
 
 @mock.patch("requests.get", side_effect=mocked_get_project_run)

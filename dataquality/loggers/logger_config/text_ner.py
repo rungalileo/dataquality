@@ -20,12 +20,13 @@ class TaggingSchema(str, Enum):
 class TextNERLoggerConfig(BaseLoggerConfig):
     num_emb: int = 0
     gold_spans: Dict[str, List[Tuple[int, int, str]]] = {}
+    sample_length: Dict[str, int] = {}
 
     class Config:
         validate_assignment = True
         arbitrary_types_allowed = True
 
-    def get_span_key(self, split: str, sample_id: int) -> str:
+    def get_sample_key(self, split: str, sample_id: int) -> str:
         return f"{split}_{sample_id}"
 
     @validator("labels", always=True, pre=True, allow_reuse=True)

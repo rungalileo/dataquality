@@ -9,7 +9,7 @@ import numpy as np
 import vaex
 from vaex.dataframe import DataFrame
 
-from dataquality.clients import object_store
+from dataquality.clients.objectstore import ObjectStore
 from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.base_logger import BaseGalileoLogger, BaseLoggerAttributes
@@ -66,10 +66,12 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                         f"previously logged data for split {split}. "
                         f"Duplicated IDs: {dups}"
                     )
-            combined_data.export(file_path, progress="vaex")
+            with vaex.progress.tree("vaex", title="Appending input data"):
+                combined_data.export(file_path)
             os.remove(new_name)
         else:
-            df.export(file_path, progress="vaex")
+            with vaex.progress.tree("vaex", title="Exporting input data"):
+                df.export(file_path)
         df.close()
 
     @classmethod
@@ -82,6 +84,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         print("☁️ Uploading Data")
         proj_run = f"{config.current_project_id}/{config.current_run_id}"
         location = f"{cls.LOG_FILE_DIR}/{proj_run}"
+        object_store = ObjectStore()
 
         in_frame = vaex.open(
             f"{location}/{BaseGalileoDataLogger.INPUT_DATA_NAME}"
@@ -104,7 +107,9 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                     minio_file = (
                         f"{proj_run}/{split}/{epoch}/{data_folder}/{data_folder}.{ext}"
                     )
-                    object_store.create_project_run_object_from_df(df_obj, minio_file)
+                    object_store.create_project_run_object_from_df(
+                        df=df_obj, object_name=minio_file
+                    )
 
     @classmethod
     def process_in_out_frames(
@@ -203,3 +208,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     @abstractmethod
     def _get_input_df(self) -> DataFrame:
         ...
+
+    @classmethod
+    def set_tagging_schema(cls, tagging_schema: str) -> None:
+        """Sets the tagging schema, if applicable. Must be implemented by child"""
+        raise GalileoException(f"Cannot set tagging schema for {cls.__logger_name__}")

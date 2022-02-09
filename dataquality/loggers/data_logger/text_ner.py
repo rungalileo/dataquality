@@ -191,12 +191,15 @@ class TextNERDataLogger(BaseGalileoDataLogger):
 
             updated_spans = self._extract_gold_spans(sample_spans, sample_indices)
 
-            span_key = self.logger_config.get_span_key(str(self.split), sample_id)
-            self.logger_config.gold_spans[span_key] = [
+            sample_key = self.logger_config.get_sample_key(str(self.split), sample_id)
+            self.logger_config.gold_spans[sample_key] = [
                 (span["start"], span["end"], span["label"]) for span in updated_spans
             ]
+            # Unpadded length of the sample. Used to extract true predicted spans
+            # which are padded by the model
+            self.logger_config.sample_length[sample_key] = len(sample_indices)
             # Flatten the List[Tuple[int,int]] to List[int]
-            # https://github.com/python/mypy/issues/6040
+            # https://github.com/python/mypy/issues/6040 (mypy ignore)
             flattened_indices = list(sum(sample_indices, ()))  # type: ignore
             self.text_token_indices_flat.append(flattened_indices)
 
@@ -279,11 +282,15 @@ class TextNERDataLogger(BaseGalileoDataLogger):
 
         We don't have span IDs so we don't need to validate uniqueness
         We don't join the input and output frames
+        We do need to split take only the rows from in_frame from this split
         Splits the dataframes into prob, emb, and input data for uploading to minio
         """
 
         prob, emb, _ = cls.split_dataframe(out_frame)
-        return prob, emb, in_frame
+        # Take only the sentence rows that are in the split of this model output
+        cur_split = out_frame["split"].unique()[0]
+        in_frame_split = in_frame[in_frame["split"] == cur_split]
+        return prob, emb, in_frame_split
 
     @classmethod
     def split_dataframe(cls, df: DataFrame) -> Tuple[DataFrame, DataFrame, DataFrame]:
@@ -309,6 +316,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             "gold",
             "pred",
             "data_error_potential",
+            "galileo_error_type",
         ]
         prob = df_copy[prob_cols]
         emb = df_copy[["id", "emb"]]
@@ -316,7 +324,31 @@ class TextNERDataLogger(BaseGalileoDataLogger):
 
     @classmethod
     def validate_labels(cls) -> None:
+        """Validates and cleans labels
+
+        For NER, labels will come with their tags and internal values, such as:
+        ['[PAD]', '[CLS]', '[SEP]', 'O', 'B-ACTOR', 'I-ACTOR', 'B-YEAR', 'B-TITLE',
+        'B-GENRE', 'I-GENRE', 'B-DIRECTOR', 'I-DIRECTOR', 'B-SONG', 'I-SONG', 'B-PLOT',
+        'I-PLOT', 'B-REVIEW', 'B-CHARACTER', 'I-CHARACTER', 'B-RATING',
+        'B-RATINGS_AVERAGE', 'I-RATINGS_AVERAGE', 'I-TITLE', 'I-RATING', 'B-TRAILER',
+        'I-TRAILER', 'I-REVIEW', 'I-YEAR']
+
+        But we want only the true tag values (preserving order):
+        ['ACTOR', 'YEAR', 'TITLE', 'GENRE', 'DIRECTOR', 'SONG', 'PLOT', 'REVIEW',
+        'CHARACTER', 'RATING', 'RATINGS_AVERAGE', 'TRAILER']
+        """
         assert cls.logger_config.labels, (
             "You must set your config labels before calling finish. "
             "See `dataquality.set_labels_for_run`"
         )
+        clean_labels = [
+            i.split("-")[1]
+            for i in cls.logger_config.labels
+            if i and (i.startswith("B") or i.startswith("I"))
+        ]
+        clean_labels = list(dict.fromkeys(clean_labels))  # Remove dups, keep order
+        cls.logger_config.labels = clean_labels
+
+    @classmethod
+    def set_tagging_schema(cls, tagging_schema: str) -> None:
+        cls.logger_config.tagging_schema = tagging_schema

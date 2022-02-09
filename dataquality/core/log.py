@@ -33,7 +33,7 @@ def log_model_outputs(**kwargs: Any) -> None:
     """Logs model outputs for model during training/test/validation.
 
     The expected arguments come from the task_type's model
-    logger: See print(dataquality.get_model_logger().__doc__) for details
+    logger: See dataquality.get_model_logger().doc() for details
     """
     assert all(
         [config.task_type, config.current_project_id, config.current_run_id]
@@ -77,9 +77,7 @@ def set_tagging_schema(tagging_schema: str) -> None:
 
     Only valid for text_ner task_types. Others will throw an exception
     """
-    if config.task_type != TaskType.text_ner:
-        raise GalileoException("You can only set tagging schema for NER models.")
-    get_data_logger().logger_config.tagging_schema = tagging_schema
+    get_data_logger().set_tagging_schema(tagging_schema)
 
 
 def get_model_logger(task_type: TaskType = None) -> Type[BaseGalileoModelLogger]:
@@ -100,3 +98,12 @@ def _get_task_type(task_type: TaskType = None) -> TaskType:
             "dataqualtiy.init and provide one"
         )
     return task
+
+
+def docs() -> None:
+    """Print the documentation for your specific input and output logging format
+
+    Based on your task_type, this will print the appropriate documentation
+    """
+    get_data_logger().doc()
+    get_model_logger().doc()

@@ -4,12 +4,13 @@ from typing import Callable, Dict
 
 import requests
 
-from dataquality.clients import api_client
-from dataquality.core._config import AuthMethod, Config, config
+from dataquality.clients.api import ApiClient
+from dataquality.core._config import AuthMethod, Config, GalileoConfigVars, config
 from dataquality.exceptions import GalileoException
 from dataquality.schemas import RequestType, Route
 
 GALILEO_AUTH_METHOD = "GALILEO_AUTH_METHOD"
+api_client = ApiClient()
 
 
 class _Auth:
@@ -43,6 +44,8 @@ class _Auth:
 
         access_token = res.json().get("access_token")
         config.token = access_token
+        os.environ[GalileoConfigVars.MINIO_ACCESS_KEY] = username
+        os.environ[GalileoConfigVars.MINIO_SECRET_KEY] = access_token
         config.update_file_config()
 
     def email_token_present_and_valid(self, config: Config) -> bool:

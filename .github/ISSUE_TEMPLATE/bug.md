@@ -1,6 +1,6 @@
 ---
-name: Bug report
-about: Create a report
+name: 🐛 Bug Report
+about: Create a bug report
 title: "[BUG]"
 labels: bug
 assignees: ''
@@ -9,7 +9,7 @@ assignees: ''
 
 ### Describe the bug
 
-Write here a clear and concise description of what the bug is.
+Write a clear and concise description of the bug.
 
 ### To Reproduce
 
@@ -52,9 +52,9 @@ If applicable, add screenshots to help explain your problem.
 ### Environment
 
 * OS: [e.g. Linux / Windows / macOS]
-* api version [e.g. 0.3.0]
-* python version (`python --version`)
+* python_project_template version [e.g. 0.1.0]
+* python version [e.g. the output of `python --version`]
 
 ### Additional context
 
-Add any other context about the problem here.
+Add as much context about the problem you like.

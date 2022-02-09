@@ -3,6 +3,7 @@ from enum import Enum, unique
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
+from numpy import ndarray
 
 from dataquality.loggers.logger_config.text_ner import (
     TaggingSchema,
@@ -148,27 +149,39 @@ class TextNERModelLogger(BaseGalileoModelLogger):
 
         # We need to average the embeddings for the tokens within a span
         # so each span has only 1 embedding vector
+        logged_sample_ids = []
         for sample_id, sample_emb, sample_prob in zip(self.ids, self.emb, self.probs):
+            # To extract metadata about the sample we are looking at
+            span_key = self.logger_config.get_sample_key(str(self.split), sample_id)
+
+            # TODO: Nidhi, you can pass this into your functions
+            sample_token_len = self.logger_config.sample_length[span_key]
+
+            # Get prediction spans
             sample_pred_spans = self._extract_pred_spans(sample_prob)
-            self.pred_spans.append(sample_pred_spans)
-
-            span_key = self.logger_config.get_span_key(str(self.split), sample_id)
-
-            gold_span_tup = self.logger_config.gold_spans.pop(span_key)
+            print(f"Sample {sample_id} has {len(sample_pred_spans)} pred spans")
+            # Get gold (ground truth) spans
+            gold_span_tup = self.logger_config.gold_spans.get(span_key, [])
             sample_gold_spans: List[Dict] = [
                 dict(start=start, end=end, label=label)
                 for start, end, label in gold_span_tup
             ]
-            self.gold_spans.append(sample_gold_spans)
+            # If there were no golds and no preds for a sample, don't log this output
+            if not sample_pred_spans and not sample_gold_spans:
+                continue
 
             gold_dep, pred_dep = self._calculate_dep_scores(
                 sample_prob, sample_gold_spans, sample_pred_spans
             )
+            gold_emb = self._extract_embeddings(sample_gold_spans, sample_emb)
+            pred_emb = self._extract_embeddings(sample_pred_spans, sample_emb)
+
+            logged_sample_ids.append(sample_id)
+            self.pred_spans.append(sample_pred_spans)
+            self.gold_spans.append(sample_gold_spans)
             self.pred_dep.append(pred_dep)
             self.gold_dep.append(gold_dep)
-            gold_emb = self._extract_embeddings(sample_gold_spans, sample_emb)
             self.gold_emb.append(gold_emb)
-            pred_emb = self._extract_embeddings(sample_pred_spans, sample_emb)
             self.pred_emb.append(pred_emb)
 
             if not self.logger_config.observed_num_labels:
@@ -176,6 +189,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 #  the input data? It doesnt need to be here, anywhere in the code
                 pass
 
+        self.ids = logged_sample_ids
         # Get the embedding shape. Filter out nulls
         if not self.logger_config.num_emb:
             emb = next(filter(lambda emb: not np.isnan(emb[0]).all(), self.gold_emb))[0]
@@ -359,10 +373,10 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         Extract DEP score for each span using max of these token-level scores
         """
         label2idx = {l: i for i, l in enumerate(self.logger_config.labels)}
-        argmax_indices = pred_prob.argmax(axis=1).tolist()  # List[int]
-        pred_sequence = [
+        argmax_indices: List[int] = pred_prob.argmax(axis=1).tolist()
+        pred_sequence: List[str] = [
             self.logger_config.labels[x] for x in argmax_indices
-        ]  # List[str]
+        ]
         gold_sequence = self._construct_gold_sequence(len(pred_sequence), gold_spans)
 
         # Compute dep scores of all tokens in the sentence
@@ -370,12 +384,13 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         for idx, token in enumerate(gold_sequence):
             g_label_idx = label2idx[token]  # index of ground truth
             token_prob_vector = pred_prob[idx]
-            if (
-                token_prob_vector.argsort()[-1] == g_label_idx
-            ):  # index of second part in aum
-                second_idx = token_prob_vector.argsort()[-2]
+            ordered_prob_vector = token_prob_vector.argsort()
+            # We want the index of the highest probability that IS NOT the true label
+            if ordered_prob_vector[-1] == g_label_idx:
+                # Take the second highest probability because the highest was the label
+                second_idx = ordered_prob_vector[-2]
             else:
-                second_idx = token_prob_vector.argsort()[-1]
+                second_idx = ordered_prob_vector[-1]
             aum = token_prob_vector[g_label_idx] - token_prob_vector[second_idx]
             dep = (1 - aum) / 2  # normalize aum to dep
             dep_scores_tokens.append(dep)
@@ -394,26 +409,32 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         (one of pred_span, pred_emb, pred_dep per span) and once for gold span
         information (one of gold_span, gold_emb, gold_dep per span)
         """
-        data = defaultdict(list)
+
+        def _construct_span_row(
+                d: defaultdict, id: int, start: int, end: int, dep: float, emb: ndarray
+        ) -> defaultdict:
+            d["sample_id"].append(id)
+            d["epoch"].append(self.epoch)
+            d["split"].append(self.split)
+            d["data_schema_version"].append(__data_schema_version__)
+            d["span_start"].append(start)
+            d["span_end"].append(end)
+            d["data_error_potential"].append(dep)
+            d["emb"].append(emb)
+            return d
+
+        data: defaultdict = defaultdict(list)
 
         # Loop through samples
-        for (
-            sample_id,
-            gold_spans,
-            gold_embs,
-            gold_deps,
-            pred_spans,
-            pred_embs,
-            pred_deps,
-        ) in zip(
-            self.ids,
-            self.gold_spans,
-            self.gold_emb,
-            self.gold_dep,
-            self.pred_spans,
-            self.pred_emb,
-            self.pred_dep,
-        ):
+        num_samples = len(self.ids)
+        for idx in range(num_samples):
+            sample_id = self.ids[idx]
+            gold_spans = self.gold_spans[idx]
+            gold_embs = self.gold_emb[idx]
+            gold_deps = self.gold_dep[idx]
+            pred_spans = self.pred_spans[idx]
+            pred_embs = self.pred_emb[idx]
+            pred_deps = self.pred_dep[idx]
 
             # We want to dedup gold and prediction spans, as many will match on
             # index. When the index matches, the embeddings and dep score will too,
@@ -422,26 +443,20 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             pred_spans_check = set(pred_span_inds)
             # Loop through the gold spans
             for gold_span, gold_emb, gold_dep in zip(gold_spans, gold_embs, gold_deps):
-                # FIXME: Make better
-                data["sample_id"].append(sample_id)
-                data["epoch"].append(self.epoch)
-                data["split"].append(self.split)
-                data["data_schema_version"].append(__data_schema_version__)
-
+                span_ind = (gold_span["start"], gold_span["end"])
+                data = _construct_span_row(
+                    data, sample_id, span_ind[0], span_ind[1], gold_dep, gold_emb
+                )
                 data["is_gold"].append(True)
-                data["span_start"].append(gold_span["start"])
-                data["span_end"].append(gold_span["end"])
                 data["gold"].append(gold_span["label"])
-                data["emb"].append(gold_emb)
-                data["data_error_potential"].append(gold_dep)
 
-                gold_span_ind = (gold_span["start"], gold_span["end"])
-                if gold_span_ind in pred_spans_check:
+                if span_ind in pred_spans_check:
                     # Remove element from preds so it's not logged twice
-                    ind = pred_span_inds.index(gold_span_ind)
+                    ind = pred_span_inds.index(span_ind)
                     ps = pred_spans.pop(ind)
                     pred_embs.pop(ind)
                     pred_deps.pop(ind)
+                    pred_span_inds.pop(ind)
 
                     data["is_pred"].append(True)
                     data["pred"].append(ps["label"])
@@ -450,7 +465,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                     error_type = (
                         NERErrorType.wrong_tag.value
                         if gold_span["label"] != ps["label"]
-                        else "None"
+                        else NERErrorType.none.value
                     )
                     data["galileo_error_type"].append(error_type)
 
@@ -458,26 +473,20 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                     data["is_pred"].append(False)
                     data["pred"].append(None)
                     error_type = self._get_span_error_type(
-                        pred_span_inds, gold_span_ind
+                        pred_span_inds, span_ind
                     ).value
                     data["galileo_error_type"].append(error_type)
 
             # Loop through the remaining pred spans
             for pred_span, pred_emb, pred_dep in zip(pred_spans, pred_embs, pred_deps):
-                # FIXME: Make better
-                data["sample_id"].append(sample_id)
-                data["epoch"].append(self.epoch)
-                data["split"].append(self.split)
-                data["data_schema_version"].append(__data_schema_version__)
-
+                start, end = pred_span["start"], pred_span["end"]
+                data = _construct_span_row(
+                    data, sample_id, start, end, pred_dep, pred_emb
+                )
                 data["is_gold"].append(False)
                 data["is_pred"].append(True)
-                data["span_start"].append(pred_span["start"])
-                data["span_end"].append(pred_span["end"])
                 data["pred"].append(pred_span["label"])
                 data["gold"].append(None)
-                data["emb"].append(pred_emb)
-                data["data_error_potential"].append(pred_dep)
                 # Pred only spans don't have an error type
                 data["galileo_error_type"].append(NERErrorType.none.value)
 

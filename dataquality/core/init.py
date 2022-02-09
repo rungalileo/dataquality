@@ -4,12 +4,15 @@ from typing import Dict, Optional
 
 from pydantic.types import UUID4
 
-from dataquality.clients import api_client
+from dataquality.clients.api import ApiClient
 from dataquality.core._config import config
+from dataquality.core.auth import login
 from dataquality.exceptions import GalileoException
 from dataquality.loggers import BaseGalileoLogger
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.name import random_name
+
+api_client = ApiClient()
 
 
 class _Init:
@@ -65,9 +68,7 @@ def init(
     does exist, it will be set.
     """
     if not config.token:
-        raise GalileoException(
-            "You must log in before calling init. Call dataquality.login()"
-        )
+        login()
     _init = _Init()
     BaseGalileoLogger.validate_task(task_type)
     task_type = TaskType[task_type]
@@ -119,9 +120,8 @@ def init(
                 config.current_project_id = project["id"]
                 config.current_run_id = run["id"]
                 warnings.warn(
-                    f"Project run {project_name}/{run_name} already exists. "
-                    "Logging and calling finish will overwrite all data in "
-                    "the server"
+                    f"Run: {project_name}/{run_name} already exists! "
+                    "The existing run will get overwritten on call to finish()!"
                 )
                 print(f"🛰 Connected to project, {project_name}, and run, {run_name}.")
             else:
