@@ -191,10 +191,13 @@ class TextNERDataLogger(BaseGalileoDataLogger):
 
             updated_spans = self._extract_gold_spans(sample_spans, sample_indices)
 
-            span_key = self.logger_config.get_span_key(str(self.split), sample_id)
-            self.logger_config.gold_spans[span_key] = [
+            sample_key = self.logger_config.get_sample_key(str(self.split), sample_id)
+            self.logger_config.gold_spans[sample_key] = [
                 (span["start"], span["end"], span["label"]) for span in updated_spans
             ]
+            # Unpadded length of the sample. Used to extract true predicted spans
+            # which are padded by the model
+            self.logger_config.sample_length[sample_key] = len(sample_indices)
             # Flatten the List[Tuple[int,int]] to List[int]
             # https://github.com/python/mypy/issues/6040 (mypy ignore)
             flattened_indices = list(sum(sample_indices, ()))  # type: ignore

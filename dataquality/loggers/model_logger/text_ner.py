@@ -151,11 +151,16 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         # so each span has only 1 embedding vector
         logged_sample_ids = []
         for sample_id, sample_emb, sample_prob in zip(self.ids, self.emb, self.probs):
+            # To extract metadata about the sample we are looking at
+            span_key = self.logger_config.get_sample_key(str(self.split), sample_id)
+
+            # TODO: Nidhi, you can pass this into your functions
+            sample_token_len = self.logger_config.sample_length[span_key]
+
             # Get prediction spans
             sample_pred_spans = self._extract_pred_spans(sample_prob)
             print(f"Sample {sample_id} has {len(sample_pred_spans)} pred spans")
             # Get gold (ground truth) spans
-            span_key = self.logger_config.get_span_key(str(self.split), sample_id)
             gold_span_tup = self.logger_config.gold_spans.get(span_key, [])
             sample_gold_spans: List[Dict] = [
                 dict(start=start, end=end, label=label)
@@ -413,7 +418,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             d["emb"].append(emb)
             return d
 
-        data = defaultdict(list)
+        data: defaultdict = defaultdict(list)
 
         # Loop through samples
         num_samples = len(self.ids)
