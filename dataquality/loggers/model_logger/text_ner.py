@@ -200,8 +200,12 @@ class TextNERModelLogger(BaseGalileoModelLogger):
 
     def _extract_pred_spans(self, pred_prob: np.ndarray) -> List[Dict]:
         """
-        TODO: Nidhi add description of logic
+        Extract prediction labels from probabilities, and generate pred spans
+        If the schema is non-BIO, we just first convert them into BIO and then extract spans
         """
+        # TODO: Nidhi Bug fix, only should extract spans till the PAD token is not encountered
+        # use length of the tokens stored to strip the pads
+        # If Pad, drop the spans post that
         argmax_indices: List[int] = pred_prob.argmax(axis=1)
         pred_sequence: List[str] = [
             self.logger_config.labels[x] for x in argmax_indices
@@ -351,7 +355,8 @@ class TextNERModelLogger(BaseGalileoModelLogger):
     ) -> Tuple[List[float], List[float]]:
         """Calculates dep scores for each span on a per-sample basis
 
-        TODO: Nidhi add description of logic
+        Compute DEP score for each token using gold and predicted sequences.
+        Extract DEP score for each span using max of these token-level scores
         """
         label2idx = {l: i for i, l in enumerate(self.logger_config.labels)}
         argmax_indices = pred_prob.argmax(axis=1).tolist()  # List[int]
