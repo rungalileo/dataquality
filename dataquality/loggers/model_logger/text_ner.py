@@ -156,9 +156,8 @@ class TextNERModelLogger(BaseGalileoModelLogger):
 
             # TODO: Nidhi, you can pass this into your functions
             sample_token_len = self.logger_config.sample_length[span_key]
-
             # Get prediction spans
-            sample_pred_spans = self._extract_pred_spans(sample_prob)
+            sample_pred_spans = self._extract_pred_spans(sample_prob, sample_token_len)
             print(f"Sample {sample_id} has {len(sample_pred_spans)} pred spans")
             # Get gold (ground truth) spans
             gold_span_tup = self.logger_config.gold_spans.get(span_key, [])
@@ -212,18 +211,17 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             embeddings.append(avg_span_embedding)
         return embeddings
 
-    def _extract_pred_spans(self, pred_prob: np.ndarray) -> List[Dict]:
+    def _extract_pred_spans(self, pred_prob: np.ndarray, sample_len: int) -> List[Dict]:
         """
         Extract prediction labels from probabilities, and generate pred spans
         If the schema is non-BIO, we just first convert them into BIO and then extract spans
         """
-        # TODO: Nidhi Bug fix, only should extract spans till the PAD token is not encountered
         # use length of the tokens stored to strip the pads
-        # If Pad, drop the spans post that
+        # Drop the spans post first PAD
         argmax_indices: List[int] = pred_prob.argmax(axis=1)
         pred_sequence: List[str] = [
             self.logger_config.labels[x] for x in argmax_indices
-        ]
+        ][0:sample_len]
         if self.logger_config.tagging_schema == TaggingSchema.BIO:
             pred_spans = self._extract_pred_spans_bio(pred_sequence)
         elif self.logger_config.tagging_schema == TaggingSchema.BILOU:
