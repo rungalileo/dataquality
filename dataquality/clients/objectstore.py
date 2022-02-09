@@ -14,7 +14,6 @@ class ObjectStore:
         self.minio_client = self._minio_client()
 
     def _minio_client(self) -> Minio:
-        print("HERE", config.current_user, config.token)
         try:
             local_urls = ["127.0.0.1:9000", "localhost:9000"]
             return Minio(
