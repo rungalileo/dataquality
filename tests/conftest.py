@@ -52,3 +52,12 @@ def patch_object_upload(self: Any, df: DataFrame, object_name: str) -> None:
 
 # Patch the upload so we don't write to S3/minio
 objectstore.ObjectStore.create_project_run_object_from_df = patch_object_upload
+
+
+@pytest.fixture(scope="module")
+def manage_token():
+    try:
+        config.token = "some-token"
+        yield
+    finally:
+        config.token = "some-token"
