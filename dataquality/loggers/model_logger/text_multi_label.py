@@ -44,7 +44,7 @@ class TextMultiLabelModelLogger(TextClassificationModelLogger):
         emb: Union[List, np.ndarray] = None,
         probs: Union[List[List[List]], np.ndarray] = None,
         ids: Union[List, np.ndarray] = None,
-        split: Optional[str] = None,
+        split: str = "",
         epoch: Optional[int] = None,
     ) -> None:
         super().__init__()

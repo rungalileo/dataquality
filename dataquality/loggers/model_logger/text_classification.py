@@ -15,7 +15,7 @@ from dataquality.loggers.logger_config.text_classification import (
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.split import Split
-from dataquality.utils.vaex import _save_hdf5_file, _try_concat_df
+from dataquality.utils.vaex import _save_hdf5_file
 
 
 @unique
@@ -63,7 +63,7 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         emb: Union[List, np.ndarray] = None,
         probs: Union[List, np.ndarray] = None,
         ids: Union[List, np.ndarray] = None,
-        split: Optional[str] = None,
+        split: str = "",
         epoch: Optional[int] = None,
     ) -> None:
         super().__init__()
@@ -72,7 +72,7 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         self.emb = emb if emb is not None else []
         self.probs = probs if probs is not None else []
         self.ids = ids if ids is not None else []
-        self.split = split
+        self.split: str = split
         self.epoch = epoch
 
     @staticmethod
@@ -114,22 +114,23 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
             f"All of emb, probs, and ids for your GalileoModelConfig must be the same "
             f"length, but got (emb, probs, ids) -> ({emb_len},{prob_len}, {id_len})"
         )
-        if self.split:
-            # User may manually pass in 'train' instead of 'training'
-            # but we want it to conform
-            self.split = Split.training.value if self.split == "train" else self.split
-            assert (
-                isinstance(self.split, str)
-                and self.split in Split.get_valid_attributes()
-            ), (
-                f"Split should be one of {Split.get_valid_attributes()} "
-                f"but got {self.split}"
-            )
+
+        # User may manually pass in 'train' instead of 'training'
+        # but we want it to conform
+        self.split = Split.training.value if self.split == "train" else self.split
+        assert (
+            isinstance(self.split, str) and self.split in Split.get_valid_attributes()
+        ), (
+            f"Split should be one of {Split.get_valid_attributes()} "
+            f"but got {self.split}"
+        )
 
         if self.epoch:
             assert isinstance(self.epoch, int), (
                 f"If set, epoch must be int but was " f"{type(self.epoch)}"
             )
+            if self.epoch > self.logger_config.last_epoch:
+                self.logger_config.last_epoch = self.epoch
 
     def write_model_output(self, model_output: DataFrame) -> None:
         location = (
@@ -142,7 +143,7 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         path = f"{location}/{split}/{epoch}"
         object_name = f"{str(uuid4()).replace('-', '')[:12]}.hdf5"
         _save_hdf5_file(path, object_name, model_output)
-        _try_concat_df(path)
+        # _try_concat_df(path)
 
     def _log(self) -> None:
         """Threaded logger target implemented by child"""
@@ -161,7 +162,7 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
             record = {
                 "id": record_id,
                 "epoch": self.epoch,
-                "split": self.split,
+                "split": Split[self.split].value,
                 "emb": emb,
                 "prob": p,
                 "pred": int(np.argmax(prob)),

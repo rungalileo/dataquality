@@ -15,6 +15,8 @@ from tests.utils.lightning_model import (
 )
 
 dataquality.config.task_type = "text_classification"
+dataquality.config.current_user = "user@rungalileo.io"
+dataquality.config.token = "some-token"
 
 
 def test_lightning_autolog(cleanup_after_use) -> None:
