@@ -158,7 +158,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             sample_token_len = self.logger_config.sample_length[span_key]
             # Get prediction spans
             sample_pred_spans = self._extract_pred_spans(sample_prob, sample_token_len)
-            print(f"Sample {sample_id} has {len(sample_pred_spans)} pred spans")
+            #print(f"Sample {sample_id} has {len(sample_pred_spans)} pred spans")
             # Get gold (ground truth) spans
             gold_span_tup = self.logger_config.gold_spans.get(span_key, [])
             sample_gold_spans: List[Dict] = [
