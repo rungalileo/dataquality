@@ -1,5 +1,5 @@
 import warnings
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -91,18 +91,10 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
         return inp
 
     @classmethod
-    def split_dataframe(cls, df: DataFrame) -> Tuple[DataFrame, DataFrame, DataFrame]:
-        """Overrides parent split because the multi-label case has different columns"""
-        df_copy = df.copy()
-        # Separate out embeddings and probabilities into their own files
+    def _get_prob_cols(cls) -> List[str]:
         prob_cols = [f"prob_{i}" for i in range(cls.logger_config.observed_num_tasks)]
         gold_cols = [f"gold_{i}" for i in range(cls.logger_config.observed_num_tasks)]
-        prob = df_copy[["id"] + prob_cols + gold_cols]
-        emb = df_copy[["id", "emb"]]
-        ignore_cols = ["emb", "split_id"] + prob_cols + gold_cols
-        other_cols = [i for i in df_copy.get_column_names() if i not in ignore_cols]
-        data_df = df_copy[other_cols]
-        return prob, emb, data_df
+        return ["id"] + prob_cols + gold_cols
 
     @classmethod
     def validate_labels(cls) -> None:
