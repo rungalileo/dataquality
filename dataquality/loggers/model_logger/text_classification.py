@@ -143,7 +143,6 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         path = f"{location}/{split}/{epoch}"
         object_name = f"{str(uuid4()).replace('-', '')[:12]}.hdf5"
         _save_hdf5_file(path, object_name, model_output)
-        # _try_concat_df(path)
 
     def _log(self) -> None:
         """Threaded logger target implemented by child"""
