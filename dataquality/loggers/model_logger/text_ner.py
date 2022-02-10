@@ -445,7 +445,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 data = _construct_span_row(
                     data, sample_id, span_ind[0], span_ind[1], gold_dep, gold_emb
                 )
-                data["is_gold"].append(int(True))
+                data["is_gold"].append(True)
                 data["gold"].append(gold_span["label"])
 
                 if span_ind in pred_spans_check:
@@ -456,7 +456,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                     pred_deps.pop(ind)
                     pred_span_inds.pop(ind)
 
-                    data["is_pred"].append(int(True))
+                    data["is_pred"].append(True)
                     data["pred"].append(ps["label"])
 
                     # If indices match and tag doesn't, error_type is wrong_tag
@@ -468,7 +468,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                     data["galileo_error_type"].append(error_type)
 
                 else:
-                    data["is_pred"].append(int(False))
+                    data["is_pred"].append(False)
                     data["pred"].append(-1)
                     error_type = self._get_span_error_type(
                         pred_span_inds, span_ind
@@ -481,7 +481,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 data = _construct_span_row(
                     data, sample_id, start, end, pred_dep, pred_emb
                 )
-                data["is_gold"].append(int(False))
+                data["is_gold"].append(False)
                 data["is_pred"].append(True)
                 data["pred"].append(pred_span["label"])
                 data["gold"].append(-1)
