@@ -1,9 +1,10 @@
 import os
 import threading
 from collections import Counter
-from typing import List
+from typing import Dict, List
 
 import h5py
+import numpy as np
 import vaex
 from vaex.arrow.convert import arrow_string_array_from_buffers as convert_bytes
 from vaex.dataframe import DataFrame
@@ -15,15 +16,27 @@ from dataquality.utils.hdf5_store import HDF5_STORE, HDF5Store
 lock = threading.Lock()
 
 
-def _save_hdf5_file(location: str, file_name: str, file: DataFrame) -> None:
+def _save_hdf5_file(location: str, file_name: str, data: Dict) -> None:
     """
-    Helper function to save a vaex dataframe as an hdf5 file.
+    Helper function to save a dictionary as an hdf5 file
     """
     if not os.path.isdir(location):
         with lock:
             os.makedirs(location, exist_ok=True)
     file_path = f"{location}/{file_name}"
-    file.export_hdf5(file_path)
+    with h5py.File(file_path, "w") as f:
+        for col in data:
+            group = f.create_group(f"/table/columns/{col}")
+            col_data = np.array(data[col])
+            if not np.issubdtype(col_data.dtype, np.number):  # String columns
+                dtype = h5py.string_dtype()
+                col_data = col_data.astype(dtype)
+            else:
+                dtype = col_data.dtype
+            shape = col_data.shape
+            group.create_dataset(
+                "data", data=col_data, dtype=dtype, shape=shape, chunks=shape
+            )
 
 
 def _join_in_out_frames(in_df: DataFrame, out_df: DataFrame) -> DataFrame:
@@ -101,7 +114,7 @@ def concat_hdf5_files(location: str, prob_only: bool) -> List[str]:
         else:
             shape = ()
         dtype = df[col].dtype.numpy
-        if dtype == object:
+        if not np.issubdtype(dtype, np.number):
             dtype = h5py.string_dtype(encoding="utf-8")
             str_cols.append(col)
         stores[col] = HDF5Store(f"{location}/{HDF5_STORE}", group, shape, dtype=dtype)

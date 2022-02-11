@@ -1,12 +1,14 @@
 from abc import abstractmethod
 from typing import Any, Dict, Optional
+from uuid import uuid4
 
-from vaex.dataframe import DataFrame
-
+from dataquality import config
+from dataquality.exceptions import GalileoException
 from dataquality.loggers.base_logger import BaseGalileoLogger
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
+from dataquality.utils.vaex import _save_hdf5_file
 
 
 class BaseGalileoModelLogger(BaseGalileoLogger):
@@ -18,9 +20,14 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
     def validate(self) -> None:
         ...
 
-    @abstractmethod
     def _log(self) -> None:
-        """The target log function implemented by the child class"""
+        """Threaded logger target"""
+        try:
+            self.validate()
+        except AssertionError as e:
+            raise GalileoException(f"The provided logged data is invalid. {e}")
+        data = self._get_data_dict()
+        self.write_model_output(data)
 
     def _add_threaded_log(self) -> None:
         try:
@@ -35,9 +42,16 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         """The top level log function that try/excepts it's child"""
         ThreadPoolManager.add_thread(target=self._add_threaded_log)
 
-    @abstractmethod
-    def write_model_output(self, model_output: DataFrame) -> None:
-        ...
+    def write_model_output(self, data: Dict) -> None:
+        """Creates an hdf5 file from the data dict"""
+        location = (
+            f"{self.LOG_FILE_DIR}/{config.current_project_id}"
+            f"/{config.current_run_id}"
+        )
+        epoch, split = data["epoch"][0], data["split"][0]
+        path = f"{location}/{split}/{epoch}"
+        object_name = f"{str(uuid4()).replace('-', '')[:12]}.hdf5"
+        _save_hdf5_file(path, object_name, data)
 
     @classmethod
     def upload(cls) -> None:
@@ -58,3 +72,7 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
             if isinstance(member_class, BaseGalileoModelLogger):
                 return attr
         raise AttributeError("No GalileoModelConfig attribute found!")
+
+    @abstractmethod
+    def _get_data_dict(self) -> Dict:
+        """Constructs a dictionary of arrays from logged model output data"""
