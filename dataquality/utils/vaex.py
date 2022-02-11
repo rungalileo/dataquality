@@ -26,15 +26,17 @@ def _save_hdf5_file(location: str, file_name: str, data: Dict) -> None:
     file_path = f"{location}/{file_name}"
     with h5py.File(file_path, "w") as f:
         for col in data:
-            g = f.create_group(f"/table/columns/{col}")
-            d = np.array(data[col])
-            if not np.issubdtype(d.dtype, np.number):  # String columns
+            group = f.create_group(f"/table/columns/{col}")
+            col_data = np.array(data[col])
+            if not np.issubdtype(col_data.dtype, np.number):  # String columns
                 dtype = h5py.string_dtype()
-                d = d.astype(dtype)
+                col_data = col_data.astype(dtype)
             else:
-                dtype = d.dtype
-            shape = d.shape
-            g.create_dataset("data", data=d, dtype=dtype, shape=shape, chunks=shape)
+                dtype = col_data.dtype
+            shape = col_data.shape
+            group.create_dataset(
+                "data", data=col_data, dtype=dtype, shape=shape, chunks=shape
+            )
 
 
 def _join_in_out_frames(in_df: DataFrame, out_df: DataFrame) -> DataFrame:
