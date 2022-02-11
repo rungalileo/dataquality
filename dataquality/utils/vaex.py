@@ -25,9 +25,9 @@ def _save_hdf5_file(location: str, file_name: str, data: Dict) -> None:
             os.makedirs(location, exist_ok=True)
     file_path = f"{location}/{file_name}"
     with h5py.File(file_path, "w") as f:
-        for k in data:
-            g = f.create_group(f"/table/columns/{k}")
-            d = np.array(data[k])
+        for col in data:
+            g = f.create_group(f"/table/columns/{col}")
+            d = np.array(data[col])
             if not np.issubdtype(d.dtype, np.number):  # String columns
                 dtype = h5py.string_dtype()
                 d = d.astype(dtype)

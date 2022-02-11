@@ -73,5 +73,6 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
                 return attr
         raise AttributeError("No GalileoModelConfig attribute found!")
 
+    @abstractmethod
     def _get_data_dict(self) -> Dict:
         """Constructs a dictionary of arrays from logged model output data"""
