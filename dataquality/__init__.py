@@ -1,6 +1,6 @@
 "dataquality"
 
-__version__ = "v0.0.5"
+__version__ = "v0.0.6"
 
 import resource
 
@@ -53,4 +53,7 @@ __all__ = [
     "docs",
 ]
 
-resource.setrlimit(resource.RLIMIT_NOFILE, (65535, 65535))
+try:
+    resource.setrlimit(resource.RLIMIT_NOFILE, (65535, 65535))
+except ValueError:  # The users limit is higher than our max, which is OK
+    pass

@@ -129,7 +129,9 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         return vaex.from_pandas(pd.DataFrame(inp))
 
     @classmethod
-    def split_dataframe(cls, df: DataFrame) -> Tuple[DataFrame, DataFrame, DataFrame]:
+    def split_dataframe(
+        cls, df: DataFrame, prob_only: bool
+    ) -> Tuple[DataFrame, DataFrame, DataFrame]:
         """Splits the singular dataframe into its 3 components
 
         Gets the probability df, the embedding df, and the "data" df containing
@@ -137,12 +139,25 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         """
         df_copy = df.copy()
         # Separate out embeddings and probabilities into their own files
-        prob = df_copy[["id", "prob", "gold"]]
-        emb = df_copy[["id", "emb"]]
-        ignore_cols = ["emb", "prob", "gold", "split_id"]
-        other_cols = [i for i in df_copy.get_column_names() if i not in ignore_cols]
+        prob_cols = cls._get_prob_cols()
+        prob = df_copy[prob_cols]
+
+        if prob_only:  # In this case, we don't care about the other columns
+            emb_cols = ["id"]
+            other_cols = ["id"]
+        else:
+            emb_cols = ["id", "emb"]
+            ignore_cols = ["emb", "split_id"] + prob_cols
+            other_cols = [i for i in df_copy.get_column_names() if i not in ignore_cols]
+            other_cols += ["id"]
+
+        emb = df_copy[emb_cols]
         data_df = df_copy[other_cols]
         return prob, emb, data_df
+
+    @classmethod
+    def _get_prob_cols(cls) -> List[str]:
+        return ["id", "prob", "gold"]
 
     @classmethod
     def validate_labels(cls) -> None:

@@ -272,7 +272,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
 
     @classmethod
     def process_in_out_frames(
-        cls, in_frame: DataFrame, out_frame: DataFrame
+        cls, in_frame: DataFrame, out_frame: DataFrame, prob_only: bool
     ) -> Tuple[DataFrame, DataFrame, DataFrame]:
         """Processes input and output dataframes from logging
 
@@ -286,14 +286,16 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         Splits the dataframes into prob, emb, and input data for uploading to minio
         """
 
-        prob, emb, _ = cls.split_dataframe(out_frame)
+        prob, emb, _ = cls.split_dataframe(out_frame, prob_only)
         # Take only the sentence rows that are in the split of this model output
         cur_split = out_frame["split"].unique()[0]
         in_frame_split = in_frame[in_frame["split"] == cur_split]
         return prob, emb, in_frame_split
 
     @classmethod
-    def split_dataframe(cls, df: DataFrame) -> Tuple[DataFrame, DataFrame, DataFrame]:
+    def split_dataframe(
+        cls, df: DataFrame, prob_only: bool
+    ) -> Tuple[DataFrame, DataFrame, DataFrame]:
         """Splits the dataframe into logical grouping for minio storage
 
         NER is a different case, where we store the text samples as "data" and
@@ -319,7 +321,8 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             "galileo_error_type",
         ]
         prob = df_copy[prob_cols]
-        emb = df_copy[["id", "emb"]]
+        emb_cols = [["id"]] if prob_only else [["id", "emb"]]
+        emb = df_copy[emb_cols]
         return prob, emb, df_copy
 
     @classmethod

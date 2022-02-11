@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from uuid import uuid4
 
 import numpy as np
+import pyarrow as pa
 import vaex
 from vaex.dataframe import DataFrame
 
@@ -15,10 +16,12 @@ from dataquality.exceptions import GalileoException
 from dataquality.loggers.base_logger import BaseGalileoLogger, BaseLoggerAttributes
 from dataquality.schemas.split import Split
 from dataquality.utils import tqdm
+from dataquality.utils.hdf5_store import HDF5_STORE
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import (
     _join_in_out_frames,
     _validate_unique_ids,
+    concat_hdf5_files,
     get_dup_ids,
     valid_ids,
 )
@@ -96,13 +99,33 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
             for epoch_dir in glob(f"{split_loc}/*"):
                 epoch = int(epoch_dir.split("/")[-1])
+                # For all epochs that aren't the last 2 (early stopping), we only want
+                # to upload the probabilities (for DEP calculation).
+                if epoch < cls.logger_config.last_epoch - 1:
+                    prob_only = True
+                else:
+                    prob_only = False
 
-                out_frame = vaex.open(f"{epoch_dir}/*")
-                prob, emb, data_df = cls.process_in_out_frames(in_frame, out_frame)
+                str_cols = concat_hdf5_files(epoch_dir, prob_only)
+                out_frame = vaex.open(f"{epoch_dir}/{HDF5_STORE}")
+                # Post concat, string columns come back as bytes and need conversion
+                for col in str_cols:
+                    out_frame[col] = out_frame[col].to_arrow().cast(pa.large_string())
+                if prob_only:
+                    out_frame["epoch"] = vaex.vconstant(epoch, length=len(out_frame))
+                    out_frame["split"] = vaex.vconstant(
+                        split, length=len(out_frame), dtype="str"
+                    )
+
+                prob, emb, data_df = cls.process_in_out_frames(
+                    in_frame, out_frame, prob_only
+                )
 
                 for data_folder, df_obj in tqdm(
                     zip(DATA_FOLDERS, [emb, prob, data_df]), total=3, desc=split
                 ):
+                    if prob_only and data_folder != "prob":
+                        continue
                     ext = cls.DATA_FOLDER_EXTENSION[data_folder]
                     minio_file = (
                         f"{proj_run}/{split}/{epoch}/{data_folder}/{data_folder}.{ext}"
@@ -113,7 +136,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
     @classmethod
     def process_in_out_frames(
-        cls, in_frame: DataFrame, out_frame: DataFrame
+        cls, in_frame: DataFrame, out_frame: DataFrame, prob_only: bool
     ) -> Tuple[DataFrame, DataFrame, DataFrame]:
         """Processes input and output dataframes from logging
 
@@ -124,7 +147,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         _validate_unique_ids(out_frame)
         in_out = _join_in_out_frames(in_frame, out_frame)
 
-        prob, emb, data_df = cls.split_dataframe(in_out)
+        prob, emb, data_df = cls.split_dataframe(in_out, prob_only)
         return prob, emb, data_df
 
     @classmethod
@@ -202,7 +225,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
     @classmethod
     @abstractmethod
-    def split_dataframe(cls, df: DataFrame) -> DataFrame:
+    def split_dataframe(cls, df: DataFrame, prob_only: bool) -> DataFrame:
         ...
 
     @abstractmethod

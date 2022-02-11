@@ -11,7 +11,7 @@ from dataquality.loggers.base_logger import BaseGalileoLogger
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
-from dataquality.utils.vaex import _save_hdf5_file, _try_concat_df
+from dataquality.utils.vaex import _save_hdf5_file
 
 
 class BaseGalileoModelLogger(BaseGalileoLogger):
@@ -55,7 +55,6 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         path = f"{location}/{split}/{epoch}"
         object_name = f"{str(uuid4()).replace('-', '')[:12]}.hdf5"
         _save_hdf5_file(path, object_name, model_output)
-        _try_concat_df(path)
 
     @abstractmethod
     def validate(self) -> None:

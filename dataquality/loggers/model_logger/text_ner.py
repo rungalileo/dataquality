@@ -158,7 +158,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             sample_token_len = self.logger_config.sample_length[span_key]
             # Get prediction spans
             sample_pred_spans = self._extract_pred_spans(sample_prob, sample_token_len)
-            #print(f"Sample {sample_id} has {len(sample_pred_spans)} pred spans")
+            # print(f"Sample {sample_id} has {len(sample_pred_spans)} pred spans")
             # Get gold (ground truth) spans
             gold_span_tup = self.logger_config.gold_spans.get(span_key, [])
             sample_gold_spans: List[Dict] = [
@@ -214,7 +214,8 @@ class TextNERModelLogger(BaseGalileoModelLogger):
     def _extract_pred_spans(self, pred_prob: np.ndarray, sample_len: int) -> List[Dict]:
         """
         Extract prediction labels from probabilities, and generate pred spans
-        If the schema is non-BIO, we just first convert them into BIO and then extract spans
+
+        If the schema is non-BIO, we just first convert them into BIO then extract spans
         """
         # use length of the tokens stored to strip the pads
         # Drop the spans post first PAD
@@ -409,7 +410,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         """
 
         def _construct_span_row(
-                d: defaultdict, id: int, start: int, end: int, dep: float, emb: ndarray
+            d: defaultdict, id: int, start: int, end: int, dep: float, emb: ndarray
         ) -> defaultdict:
             d["sample_id"].append(id)
             d["epoch"].append(self.epoch)

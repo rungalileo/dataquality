@@ -60,6 +60,7 @@ class BaseLoggerAttributes(str, Enum):
     text_token_indices = "text_token_indices"
     gold_dep = "gold_dep"
     pred_dep = "pred_dep"
+    text_token_indices_flat = "text_token_indices_flat"
 
     @staticmethod
     def get_valid() -> List[str]:
