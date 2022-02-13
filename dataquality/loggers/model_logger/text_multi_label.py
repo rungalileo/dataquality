@@ -2,7 +2,6 @@ from collections import defaultdict
 from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
-from vaex.dataframe import DataFrame
 
 from dataquality.loggers.logger_config.text_multi_label import (
     TextMultiLabelLoggerConfig,
@@ -107,10 +106,11 @@ class TextMultiLabelModelLogger(TextClassificationModelLogger):
 
         return data
 
-    def _set_num_labels(self, df: DataFrame) -> None:
+    def _set_num_labels(self, data: Dict) -> None:
         num_labels_per_task = []
         for task_num in range(self.logger_config.observed_num_tasks):
-            num_labels = len(df[:1][f"prob_{task_num}"].values[0])
+            len(data[f"prob_{task_num}"][0])
+            num_labels = len(data[f"prob_{task_num}"][0])
             num_labels_per_task.append(num_labels)
         self.logger_config.observed_num_labels = num_labels_per_task
 

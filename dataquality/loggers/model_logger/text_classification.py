@@ -3,7 +3,6 @@ from enum import Enum, unique
 from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
-from vaex.dataframe import DataFrame
 
 from dataquality.loggers.logger_config.text_classification import (
     text_classification_logger_config,
@@ -123,7 +122,7 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
             if self.epoch > self.logger_config.last_epoch:
                 self.logger_config.last_epoch = self.epoch
 
-    def write_model_output(self, model_output: DataFrame) -> None:
+    def write_model_output(self, model_output: Dict) -> None:
         self._set_num_labels(model_output)
         super().write_model_output(model_output)
 
@@ -145,8 +144,8 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
                 data[k].append(record[k])
         return data
 
-    def _set_num_labels(self, df: DataFrame) -> None:
-        self.logger_config.observed_num_labels = len(df[:1]["prob"].values[0])
+    def _set_num_labels(self, data: Dict) -> None:
+        self.logger_config.observed_num_labels = len(data["prob"][0])
 
     def __setattr__(self, key: Any, value: Any) -> None:
         if key not in self.get_valid_attributes():
