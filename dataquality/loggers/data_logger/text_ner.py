@@ -321,7 +321,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             "galileo_error_type",
         ]
         prob = df_copy[prob_cols]
-        emb_cols = [["id"]] if prob_only else [["id", "emb"]]
+        emb_cols = ["id"] if prob_only else ["id", "emb"]
         emb = df_copy[emb_cols]
         return prob, emb, df_copy
 
