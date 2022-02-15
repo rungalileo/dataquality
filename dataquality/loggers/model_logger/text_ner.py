@@ -470,7 +470,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
 
                 else:
                     data["is_pred"].append(False)
-                    data["pred"].append(-1)
+                    data["pred"].append("")
                     error_type = self._get_span_error_type(
                         pred_span_inds, span_ind
                     ).value
@@ -485,7 +485,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 data["is_gold"].append(False)
                 data["is_pred"].append(True)
                 data["pred"].append(pred_span["label"])
-                data["gold"].append(-1)
+                data["gold"].append("")
                 # Pred only spans don't have an error type
                 data["galileo_error_type"].append(NERErrorType.none.value)
 
