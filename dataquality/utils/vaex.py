@@ -156,6 +156,8 @@ def concat_hdf5_files(location: str, prob_only: bool) -> List[str]:
                     d = convert_bytes(data, indcs, None).to_numpy(zero_copy_only=False)
                 else:
                     d = col_data["data"][:]
+                if key in str_cols:
+                    d = d.astype(h5py.string_dtype(encoding="utf-8"))
                 stores[key].append(d)
         os.remove(fname)
     return str_cols
