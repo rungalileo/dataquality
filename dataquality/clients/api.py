@@ -341,7 +341,7 @@ class ApiClient:
         try:
             split = Split[split].value
         except KeyError:
-            f"split must be one of {list(Split)}"
+            f"split {split} must be one of {list(Split)}"
         body = dict(
             project_id=str(project),
             run_id=str(run),
