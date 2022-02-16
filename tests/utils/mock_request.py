@@ -12,7 +12,7 @@ TMP_CREATE_NEW_PROJ_RUN = None
 
 
 class MockResponse:
-    def __init__(self, json_data, status_code):
+    def __init__(self, json_data: Dict[str, Any], status_code: int):
         self.json_data = json_data
         self.status_code = status_code
         if status_code in (200, 204):
