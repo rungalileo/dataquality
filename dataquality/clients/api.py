@@ -23,7 +23,8 @@ class ApiClient:
 
     def get_current_user(self) -> Dict:
         if not config.token:
-            raise GalileoException("Current user is not set!")
+            raise GalileoException(
+                "Current user is not set! Please ensure GALILEO_USERNAME is set to the registered email")
 
         return self.make_request(
             RequestType.GET, url=f"{config.api_url}/{Route.current_user}"
