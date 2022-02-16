@@ -20,15 +20,11 @@ def mocked_login() -> None:
     config.token = "sometoken"
 
 
-class LoginInvoked(Exception):
-    pass
-
-
 @mock.patch("requests.post", side_effect=mocked_create_project_run)
 @mock.patch("requests.get", side_effect=mocked_get_project_run)
 @mock.patch.object(
     dataquality.core.init.ApiClient, "valid_current_user", return_value=True
-)  # noqa
+)
 def test_init(*args) -> None:
     """Base case: Tests creating a new project and run"""
     dataquality.init(task_type="text_classification")
@@ -40,7 +36,7 @@ def test_init(*args) -> None:
 @mock.patch("requests.get", side_effect=mocked_get_project_run)
 @mock.patch.object(
     dataquality.core.init.ApiClient, "valid_current_user", return_value=True
-)  # noqa
+)
 def test_init_existing_project(*args) -> None:
     """Tests calling init passing in an existing project"""
     config.current_project_id = config.current_run_id = None
@@ -53,7 +49,7 @@ def test_init_existing_project(*args) -> None:
 @mock.patch("requests.post", side_effect=mocked_create_project_run)
 @mock.patch.object(
     dataquality.core.init.ApiClient, "valid_current_user", return_value=True
-)  # noqa
+)
 def test_init_new_project(*args) -> None:
     """Tests calling init passing in a new project"""
     config.current_project_id = config.current_run_id = None
@@ -66,7 +62,7 @@ def test_init_new_project(*args) -> None:
 @mock.patch("requests.post", side_effect=mocked_create_project_run)
 @mock.patch.object(
     dataquality.core.init.ApiClient, "valid_current_user", return_value=True
-)  # noqa
+)
 def test_init_existing_project_new_run(*args) -> None:
     """Tests calling init with an existing project but a new run"""
     config.current_project_id = config.current_run_id = None
@@ -83,7 +79,7 @@ def test_init_existing_project_new_run(*args) -> None:
 @mock.patch("requests.post", side_effect=mocked_get_project_run)
 @mock.patch.object(
     dataquality.core.init.ApiClient, "valid_current_user", return_value=True
-)  # noqa
+)
 def test_init_existing_project_run(*args) -> None:
     """Tests calling init with an existing project and existing run"""
     config.current_project_id = config.current_run_id = None
@@ -100,7 +96,7 @@ def test_init_existing_project_run(*args) -> None:
 @mock.patch("requests.post", side_effect=mocked_create_project_run)
 @mock.patch.object(
     dataquality.core.init.ApiClient, "valid_current_user", return_value=True
-)  # noqa
+)
 def test_init_new_project_run(*args) -> None:
     """Tests calling init with a new project and new run"""
     config.current_project_id = config.current_run_id = None
@@ -114,7 +110,7 @@ def test_init_new_project_run(*args) -> None:
 @mock.patch("requests.get", side_effect=mocked_missing_project_run)
 @mock.patch.object(
     dataquality.core.init.ApiClient, "valid_current_user", return_value=True
-)  # noqa
+)
 def test_init_only_run(*args) -> None:
     """Tests calling init only passing in a run"""
     config.current_project_id = config.current_run_id = None
@@ -135,20 +131,11 @@ def test_init_no_token_succeeds(mock_login: mock.MagicMock, *args) -> None:
     assert config.current_project_id
 
 
-@mock.patch("dataquality.core.init.login", side_effect=LoginInvoked)
-def test_init_no_token_succeeds_option_2(mock_login: mock.MagicMock, *args) -> None:
-    config.token = None
-    with pytest.raises(LoginInvoked):
-        # When no token is passed in we should call login
-        dataquality.init(task_type="text_classification")
-        mock_login.assert_called_once()
-
-
 @mock.patch("requests.post", side_effect=mocked_create_project_run)
 @mock.patch("requests.get", side_effect=mocked_get_project_run)
 @mock.patch.object(
     dataquality.core.init.ApiClient, "get_current_user", side_effect=GalileoException
-)  # noqa
+)
 @mock.patch("dataquality.core.init.login", side_effect=mocked_login)
 def test_init_expired_token_succeeds(mock_login: mock.MagicMock, *args) -> None:
     config.token = "sometoken"
@@ -163,7 +150,7 @@ def test_init_expired_token_succeeds(mock_login: mock.MagicMock, *args) -> None:
 @mock.patch("requests.get", side_effect=mocked_get_project_run)
 @mock.patch.object(
     dataquality.core.init.ApiClient, "valid_current_user", return_value=False
-)  # noqa
+)
 @mock.patch("dataquality.core.init.login", side_effect=mocked_login)
 def test_init_invalid_current_user_succeeds(mock_login: mock.MagicMock, *args) -> None:
     # When current user validation fails we should call login
@@ -176,7 +163,7 @@ def test_init_invalid_current_user_succeeds(mock_login: mock.MagicMock, *args) -
 @mock.patch("requests.get", side_effect=mocked_get_project_run)
 @mock.patch.object(
     dataquality.core.init.ApiClient, "valid_current_user", return_value=True
-)  # noqa
+)
 def test_init_bad_task(*args) -> None:
     with pytest.raises(GalileoException):
         dataquality.init(task_type="not_text_classification")
@@ -186,7 +173,7 @@ def test_init_bad_task(*args) -> None:
 @mock.patch("requests.get", side_effect=mocked_get_project_run)
 @mock.patch.object(
     dataquality.core.init.ApiClient, "valid_current_user", return_value=True
-)  # noqa
+)
 def test_reconfigure(*args) -> None:
     dataquality.init(task_type="text_classification")
     assert config.current_run_id
