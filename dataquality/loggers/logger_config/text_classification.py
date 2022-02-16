@@ -15,13 +15,15 @@ class TextClassificationLoggerConfig(BaseLoggerConfig):
 
     @validator("labels", always=True, pre=True, allow_reuse=True)
     def clean_labels(cls, labels: List[str]) -> List[str]:
+        if not labels:
+            return labels
         if isinstance(labels, np.ndarray):
             labels = labels.tolist()
         if labels is not None:
             assert isinstance(labels, List), "Labels must be a list"
         if labels and len(labels) == 1:
             labels = [labels[0], f"NOT_{labels[0]}"]
-        return labels
+        return [str(i) for i in labels]
 
 
 text_classification_logger_config = TextClassificationLoggerConfig()
