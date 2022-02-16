@@ -338,7 +338,10 @@ class ApiClient:
         """
         project, run = self._get_project_run_id(project_name, run_name)
         assert os.path.splitext(file_name)[-1] == ".csv", "File must end in .csv"
-        assert split in list(Split), f"split must be one of {list(Split)}"
+        try:
+            split = Split[split].value
+        except KeyError:
+            f"split must be one of {list(Split)}"
         body = dict(
             project_id=str(project),
             run_id=str(run),
