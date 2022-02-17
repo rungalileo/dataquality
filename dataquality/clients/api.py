@@ -82,7 +82,7 @@ class ApiClient:
         """Gets all runs from a project by ID"""
         return self.make_request(
             RequestType.GET,
-            url=f"{config.api_url}/{Route.projects}/{project_id}/{Route.runs}/",
+            url=f"{config.api_url}/{Route.projects}/{project_id}/{Route.runs}",
         )
 
     def get_project_runs_by_name(self, project_name: str) -> List[Dict]:
@@ -90,7 +90,7 @@ class ApiClient:
         proj = self.get_project_by_name(project_name)
         return self.make_request(
             RequestType.GET,
-            url=f"{config.api_url}/{Route.projects}/{proj['id']}/{Route.runs}/",
+            url=f"{config.api_url}/{Route.projects}/{proj['id']}/{Route.runs}",
         )
 
     def get_project_run(self, project_id: UUID4, run_id: UUID4) -> Dict:
