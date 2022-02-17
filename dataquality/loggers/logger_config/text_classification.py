@@ -15,7 +15,7 @@ class TextClassificationLoggerConfig(BaseLoggerConfig):
 
     @validator("labels", always=True, pre=True, allow_reuse=True)
     def clean_labels(cls, labels: List[str]) -> List[str]:
-        if not labels:
+        if labels is None:
             return labels
         if isinstance(labels, np.ndarray):
             labels = labels.tolist()
