@@ -65,7 +65,6 @@ class Config(BaseModel):
 
     def update_file_config(self) -> None:
         config_json = self.dict()
-        # Mypy doesn't recognize slots
         config_json[ConfigData.minio_secret_key] = self._minio_secret_key
 
         with open(ConfigData.DEFAULT_GALILEO_CONFIG_FILE, "w+") as f:
@@ -104,7 +103,7 @@ def set_config() -> Config:
         with open(ConfigData.DEFAULT_GALILEO_CONFIG_FILE) as f:
             try:
                 config_vars: Dict[str, str] = json.load(f)
-            # If there's an issue reading the config file for any reason, quick and
+            # If there's an issue reading the config file for any reason, quit and
             # start fresh
             except Exception:
                 os.remove(ConfigData.DEFAULT_GALILEO_CONFIG_FILE)
