@@ -6,18 +6,16 @@ import pytest
 import dataquality
 from dataquality import config
 from dataquality.exceptions import GalileoException
+from tests.exceptions import LoginInvoked
 from tests.utils.mock_request import (
     EXISTING_PROJECT,
     EXISTING_RUN,
     mocked_create_project_run,
     mocked_get_project_run,
+    mocked_login,
     mocked_missing_project_run,
     mocked_missing_run,
 )
-
-
-def mocked_login() -> None:
-    config.token = "sometoken"
 
 
 @patch("requests.post", side_effect=mocked_create_project_run)
@@ -132,10 +130,19 @@ def test_init_only_run(
     assert not config.current_project_id
 
 
+@patch("dataquality.core.init.login", side_effect=LoginInvoked)
+def test_init_no_token_login(mock_login: MagicMock) -> None:
+    config.token = None
+    with pytest.raises(LoginInvoked):
+        # When no token is passed in we should call login
+        dataquality.init(task_type="text_classification")
+        mock_login.assert_called_once()
+
+
 @patch("requests.post", side_effect=mocked_create_project_run)
 @patch("requests.get", side_effect=mocked_get_project_run)
 @patch("dataquality.core.init.login", side_effect=mocked_login)
-def test_init_no_token_succeeds(
+def test_init_no_token_login_full(
     mock_login: MagicMock,
     mock_requests_get: MagicMock,
     mock_requests_post: MagicMock,
@@ -144,8 +151,23 @@ def test_init_no_token_succeeds(
     # When no token is passed in we should call login
     dataquality.init(task_type="text_classification")
     mock_login.assert_called_once()
+    # We also test the remaining init flow
     assert config.current_run_id
     assert config.current_project_id
+
+
+@patch.object(
+    dataquality.core.init.ApiClient, "get_current_user", side_effect=GalileoException
+)
+@patch("dataquality.core.init.login", side_effect=LoginInvoked)
+def test_init_expired_token_login(
+    mock_login: MagicMock, mock_current_user: MagicMock
+) -> None:
+    config.token = "sometoken"
+    # When a token is passed in but user auth fails we should call login
+    with pytest.raises(LoginInvoked):
+        dataquality.init(task_type="text_classification")
+        mock_login.assert_called_once()
 
 
 @patch("requests.post", side_effect=mocked_create_project_run)
@@ -154,28 +176,46 @@ def test_init_no_token_succeeds(
     dataquality.core.init.ApiClient, "get_current_user", side_effect=GalileoException
 )
 @patch("dataquality.core.init.login", side_effect=mocked_login)
-def test_init_expired_token_succeeds(mock_login: MagicMock, *args) -> None:
+def test_init_expired_token_login_full(
+    mock_login: MagicMock,
+    mock_current_user: MagicMock,
+    mock_requests_get: MagicMock,
+    mock_requests_post: MagicMock,
+) -> None:
     config.token = "sometoken"
     # When a token is passed in but user auth fails we should call login
     dataquality.init(task_type="text_classification")
     mock_login.assert_called_once()
+    # We also test the remaining init flow
     assert config.current_run_id
     assert config.current_project_id
+
+
+@patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=False)
+@patch("dataquality.core.init.login", side_effect=LoginInvoked)
+def test_init_invalid_user_login(
+    mock_login: MagicMock, mock_valid_user: MagicMock
+) -> None:
+    # When current user is not valid we should call login
+    with pytest.raises(LoginInvoked):
+        dataquality.init(task_type="text_classification")
+        mock_login.assert_called_once()
 
 
 @patch("requests.post", side_effect=mocked_create_project_run)
 @patch("requests.get", side_effect=mocked_get_project_run)
 @patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=False)
 @patch("dataquality.core.init.login", side_effect=mocked_login)
-def test_init_invalid_current_user_succeeds(
+def test_init_invalid_user_login_full(
     mock_login: MagicMock,
     mock_valid_user: MagicMock,
     mock_requests_get: MagicMock,
     mock_requests_post: MagicMock,
 ) -> None:
-    # When current user validation fails we should call login
+    # When current user is not valid we should call login
     dataquality.init(task_type="text_classification")
     mock_login.assert_called_once()
+    # We also test the remaining init flow
     assert config.current_run_id
     assert config.current_project_id
 

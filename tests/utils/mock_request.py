@@ -108,3 +108,7 @@ def mocked_delete_project_not_found(*args: Any, **kwargs: Dict[Any, Any]):
     if args[0].endswith("current_user"):
         return MockResponse({"id": "user"}, 200)
     return MockResponse({"project not found"}, 404)
+
+
+def mocked_login() -> None:
+    config.token = "sometoken"
