@@ -41,7 +41,13 @@ def mocked_healthcheck_request_new_api_version(*args: Any, **kwargs: Dict[str, A
 
 def mocked_login_requests(*args: Any, **kwargs: Dict[str, Any]):
     if args[0].endswith("login"):
-        return MockResponse({"access_token": "mock_token"}, 200)
+        return MockResponse(
+            {
+                "access_token": "mock_token",
+                "minio_user_secret_access_key": "mock_secret_key",
+            },
+            200,
+        )
 
     if args[0].endswith("current_user"):
         return MockResponse({"user": "user"}, 200)
