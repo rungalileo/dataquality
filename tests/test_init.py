@@ -229,17 +229,8 @@ def test_init_bad_task(
         dataquality.init(task_type="not_text_classification")
 
 
-@patch("requests.post", side_effect=mocked_create_project_run)
-@patch("requests.get", side_effect=mocked_get_project_run)
-@patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=True)
-def test_reconfigure(
-    mock_valid_user: MagicMock,
-    mock_requests_get: MagicMock,
-    mock_requests_post: MagicMock,
-) -> None:
-    dataquality.init(task_type="text_classification")
-    assert config.current_run_id
-    assert config.current_project_id
+@patch("dataquality.login")
+def test_reconfigure_sets_env_vars(mock_login: MagicMock) -> None:
     old_url = config.minio_url
     test_url = f"{old_url}_TEST"
     os.environ["GALILEO_MINIO_URL"] = test_url
@@ -249,8 +240,12 @@ def test_reconfigure(
     dataquality.configure()
     assert dataquality.config.minio_url == config.minio_url == old_url
 
+    assert mock_login.call_count == 2
 
-def test_reconfigure_resets_user_token() -> None:
+
+@patch("dataquality.login")
+def test_reconfigure_resets_user_token(mock_login: MagicMock) -> None:
     config.token = "sometoken"
     dataquality.configure()
     assert config.token is None
+    mock_login.assert_called_once()

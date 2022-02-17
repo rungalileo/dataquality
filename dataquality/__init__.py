@@ -34,6 +34,7 @@ def configure() -> None:
         config.__setattr__(k, v)
     config.token = None
     config.update_file_config()
+    login()
 
 
 __all__ = [
