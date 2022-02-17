@@ -248,3 +248,9 @@ def test_reconfigure(
     os.environ["GALILEO_MINIO_URL"] = old_url
     dataquality.configure()
     assert dataquality.config.minio_url == config.minio_url == old_url
+
+
+def test_reconfigure_resets_user_token() -> None:
+    config.token = "sometoken"
+    dataquality.configure()
+    assert config.token is None

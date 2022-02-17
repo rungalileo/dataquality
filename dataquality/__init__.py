@@ -23,6 +23,7 @@ from dataquality.core.log import (
 
 def configure() -> None:
     """Update your active config with new env variables.
+    Reset user token on configure.
 
     Available environment variables to update:
     * GALILEO_API_URL
@@ -31,6 +32,7 @@ def configure() -> None:
     updated_config = dataquality.core._config.set_config()
     for k, v in updated_config.dict().items():
         config.__setattr__(k, v)
+    config.token = None
     config.update_file_config()
 
 

@@ -5,6 +5,7 @@ import pytest
 
 import dataquality
 from dataquality.core.auth import GALILEO_AUTH_METHOD
+from dataquality.exceptions import GalileoException
 from tests.utils.mock_request import mocked_failed_login_requests, mocked_login_requests
 
 config = dataquality.config
@@ -27,6 +28,6 @@ def test_bad_login(mock_post) -> None:
     os.environ[GALILEO_AUTH_METHOD] = "email"
     os.environ["GALILEO_USERNAME"] = "user"
     os.environ["GALILEO_PASSWORD"] = "password"
-    with pytest.raises(Exception):
+    with pytest.raises(GalileoException):
         dataquality.login()
     config.token = tok
