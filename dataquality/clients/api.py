@@ -29,6 +29,13 @@ class ApiClient:
             RequestType.GET, url=f"{config.api_url}/{Route.current_user}"
         )
 
+    def valid_current_user(self) -> bool:
+        try:
+            self.get_current_user()
+            return True
+        except GalileoException:
+            return False
+
     def make_request(
         self,
         request: RequestType,

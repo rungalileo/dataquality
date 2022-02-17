@@ -6,8 +6,6 @@ import requests
 
 from dataquality.clients.api import ApiClient
 from dataquality.core._config import AuthMethod, Config, GalileoConfigVars, config
-from dataquality.exceptions import GalileoException
-from dataquality.schemas import RequestType, Route
 
 GALILEO_AUTH_METHOD = "GALILEO_AUTH_METHOD"
 api_client = ApiClient()
@@ -51,19 +49,7 @@ class _Auth:
         config.update_file_config()
 
     def email_token_present_and_valid(self, config: Config) -> bool:
-        return config.auth_method == "email" and self.valid_current_user(config)
-
-    def valid_current_user(self, config: Config) -> bool:
-        if config.token:
-            try:
-                api_client.make_request(
-                    RequestType.GET, url=f"{config.api_url}/{Route.current_user}"
-                )
-                return True
-            except GalileoException:
-                return False
-        else:
-            return False
+        return config.auth_method == "email" and api_client.valid_current_user()
 
 
 def login() -> None:
