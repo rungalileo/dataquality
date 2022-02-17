@@ -20,7 +20,7 @@ class ObjectStore:
             return Minio(
                 config.minio_url,
                 access_key=config.current_user,
-                secret_key=os.getenv(GalileoConfigVars.MINIO_SECRET_KEY),
+                secret_key=os.getenv(GalileoConfigVars.MINIO_SECRET_KEY.value),
                 secure=False if config.minio_url in local_urls else True,
             )
         except Exception as e:
