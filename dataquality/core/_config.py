@@ -1,5 +1,6 @@
 import json
 import os
+import warnings
 from enum import Enum, unique
 from typing import Dict, List, Optional
 
@@ -107,7 +108,11 @@ def set_config() -> Config:
                 config_vars: Dict[str, str] = json.load(f)
             # If there's an issue reading the config file for any reason, quit and
             # start fresh
-            except Exception:
+            except Exception as e:
+                warnings.warn(
+                    f"We had an issue reading your config file ({type(e)}). "
+                    f"Recreating your file from scratch."
+                )
                 os.remove(ConfigData.DEFAULT_GALILEO_CONFIG_FILE.value)
                 return set_config()
         # If the user updated any config vars via env, grab those updates
