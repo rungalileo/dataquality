@@ -99,6 +99,8 @@ def set_platform_urls(console_url_str: str) -> None:
 
 
 def set_config() -> Config:
+    if not os.path.isdir(ConfigData.DEFAULT_GALILEO_CONFIG_DIR):
+        os.makedirs(ConfigData.DEFAULT_GALILEO_CONFIG_DIR, exist_ok=True)
     if os.path.exists(ConfigData.DEFAULT_GALILEO_CONFIG_FILE):
         with open(ConfigData.DEFAULT_GALILEO_CONFIG_FILE) as f:
             try:
