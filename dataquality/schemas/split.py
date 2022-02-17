@@ -1,12 +1,13 @@
-from enum import Enum, unique
+from enum import Enum
 from typing import List
 
 
-@unique
 class Split(str, Enum):
     training = "training"
+    train = "training"
     validation = "validation"
     test = "test"
+    testing = "test"
     inference = "inference"
 
     @staticmethod
