@@ -113,12 +113,9 @@ def set_config() -> Config:
         # If the user updated any config vars via env, grab those updates
         new_config_attrs = GalileoConfigVars.get_available_config_attrs()
         config_vars.update(**new_config_attrs)
-        if ConfigData.minio_secret_key in config_vars:
-            minio_secret = config_vars.pop(ConfigData.minio_secret_key)
-        else:
-            minio_secret = ""
         config = Config(**config_vars)
-        config._minio_secret_key = minio_secret
+        # Need to set private pydantic fields explicitly
+        config._minio_secret_key = config_vars.get(ConfigData.minio_secret_key, "")
 
     elif GalileoConfigVars.auto_init_vars_available():
         galileo_vars = GalileoConfigVars.get_config_mapping()
