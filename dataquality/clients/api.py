@@ -341,7 +341,9 @@ class ApiClient:
         try:
             split = Split[split].value
         except KeyError:
-            f"split {split} must be one of {Split.get_valid_attributes()}"
+            raise GalileoException(
+                f"split {split} must be one of {Split.get_valid_attributes()}"
+            )
         body = dict(
             project_id=str(project),
             run_id=str(run),
