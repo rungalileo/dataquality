@@ -1,4 +1,5 @@
 from unittest import mock
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -20,7 +21,7 @@ def test_get_client_version() -> None:
 
 
 @mock.patch("requests.get", side_effect=mocked_healthcheck_request)
-def test_get_api_version(*args) -> None:
+def test_get_api_version(mock_get_api_version: MagicMock) -> None:
     assert version._get_api_version() == __version__
 
 
@@ -33,12 +34,12 @@ def test_parse_version_beta() -> None:
 
 
 @mock.patch("requests.get", side_effect=mocked_healthcheck_request_new_api_version)
-def test_version_check_fail(*args) -> None:
+def test_version_check_fail(mock_get_healthcheck: MagicMock) -> None:
     with pytest.raises(GalileoException):
         version._version_check()
 
 
 @mock.patch("requests.get", side_effect=mocked_healthcheck_request)
-def test_version_check_pass(*args) -> None:
+def test_version_check_pass(mock_get_healthcheck: MagicMock) -> None:
     version._version_check()
     assert True

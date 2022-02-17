@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Dict, List, Union
 from uuid import uuid4
 
 import dataquality
@@ -12,7 +12,7 @@ TMP_CREATE_NEW_PROJ_RUN = None
 
 
 class MockResponse:
-    def __init__(self, json_data: Dict[str, Any], status_code: int):
+    def __init__(self, json_data: Union[Dict, List], status_code: int) -> None:
         self.json_data = json_data
         self.status_code = status_code
         if status_code in (200, 204):
@@ -21,26 +21,27 @@ class MockResponse:
             self.ok = False
             self.text = json_data
 
-    def json(self):
+    def json(self) -> Union[Dict, List]:
         return self.json_data
 
 
-def mocked_healthcheck_request(*args: Any, **kwargs: Dict[str, Any]):
-    if args[0].endswith("healthcheck"):
+def mocked_healthcheck_request(request_url: str) -> MockResponse:
+    if request_url.endswith("healthcheck"):
         return MockResponse({"api_version": __version__}, 200)
 
-    return MockResponse(None, 200)
+    return MockResponse({}, 200)
 
 
-def mocked_healthcheck_request_new_api_version(*args: Any, **kwargs: Dict[str, Any]):
-    if args[0].endswith("healthcheck"):
+def mocked_healthcheck_request_new_api_version(request_url: str) -> MockResponse:
+    if request_url.endswith("healthcheck"):
         return MockResponse({"api_version": "100.0.0"}, 200)
+    return MockResponse({}, 200)
 
-    return MockResponse(None, 200)
 
-
-def mocked_login_requests(*args: Any, **kwargs: Dict[str, Any]):
-    if args[0].endswith("login"):
+def mocked_login_requests(
+    request_url: str, json: Dict, params: Dict, headers: Dict, data: Dict
+) -> MockResponse:
+    if request_url.endswith("login"):
         return MockResponse(
             {
                 "access_token": "mock_token",
@@ -48,22 +49,21 @@ def mocked_login_requests(*args: Any, **kwargs: Dict[str, Any]):
             },
             200,
         )
-
-    if args[0].endswith("current_user"):
+    if request_url.endswith("current_user"):
         return MockResponse({"user": "user"}, 200)
-
-    return MockResponse(None, 200)
-
-
-def mocked_failed_login_requests(*args: Any, **kwargs: Dict[str, Any]):
-    if args[0].endswith("login"):
-        return MockResponse("Invalid credentials", 404)
-
-    return MockResponse(None, 404)
+    return MockResponse({}, 200)
 
 
-def mocked_get_project_run(*args: Any, **kwargs: Dict[Any, Any]):
-    if args[0].endswith("current_user"):
+def mocked_failed_login_requests(request_url: str) -> MockResponse:
+    if request_url.endswith("login"):
+        return MockResponse({"detail": "Invalid credentials"}, 404)
+    return MockResponse({}, 404)
+
+
+def mocked_get_project_run(
+    request_url: str, json: Dict, params: Dict, headers: Dict, data: Dict
+) -> MockResponse:
+    if request_url.endswith("current_user"):
         return MockResponse({"id": "user"}, 200)
     res = [
         {"id": uuid4(), "name": EXISTING_PROJECT, "project_id": uuid4()},
@@ -73,18 +73,22 @@ def mocked_get_project_run(*args: Any, **kwargs: Dict[Any, Any]):
     return MockResponse(res, 200)
 
 
-def mocked_create_project_run(*args: Any, **kwargs: Dict[Any, Any]):
+def mocked_create_project_run(
+    request_url: str, json: Dict, params: Dict, headers: Dict, data: Dict
+) -> MockResponse:
     global TMP_CREATE_NEW_PROJ_RUN
-    TMP_CREATE_NEW_PROJ_RUN = kwargs["json"]["name"]
+    TMP_CREATE_NEW_PROJ_RUN = json["name"]
     res = {"id": uuid4(), "name": TMP_CREATE_NEW_PROJ_RUN}
     return MockResponse(res, 200)
 
 
-def mocked_missing_run(*args: Any, **kwargs: Dict[Any, Any]):
-    if args[0].endswith("current_user"):
+def mocked_missing_run(
+    request_url: str, json: Dict, params: Dict, headers: Dict, data: Dict
+) -> MockResponse:
+    if request_url.endswith("current_user"):
         return MockResponse({"id": "user"}, 200)
     # Run does not exist
-    if "run_name" in args[0]:
+    if "run_name" in request_url:
         return MockResponse([], 204)
     # Project does exist
     else:
@@ -92,28 +96,36 @@ def mocked_missing_run(*args: Any, **kwargs: Dict[Any, Any]):
         return MockResponse([res], 200)
 
 
-def mocked_missing_project_run(*args: Any, **kwargs: Dict[Any, Any]):
-    if args[0].endswith("current_user"):
+def mocked_missing_project_run(
+    request_url: str, json: Dict, params: Dict, headers: Dict, data: Dict
+) -> MockResponse:
+    if request_url.endswith("current_user"):
         return MockResponse({"id": "user"}, 200)
     return MockResponse([{"id": uuid4(), "name": TMP_CREATE_NEW_PROJ_RUN}], 200)
 
 
-def mocked_missing_project_name(*args: Any, **kwargs: Dict[Any, Any]):
-    if args[0].endswith("current_user"):
+def mocked_missing_project_name(
+    request_url: str, json: Dict, params: Dict, headers: Dict, data: Dict
+) -> MockResponse:
+    if request_url.endswith("current_user"):
         return MockResponse({"id": "user"}, 200)
     return MockResponse([], 200)
 
 
-def mocked_delete_project_run(*args: Any, **kwargs: Dict[Any, Any]):
-    if args[0].endswith("current_user"):
+def mocked_delete_project_run(
+    request_url: str, json: Dict, params: Dict, headers: Dict, data: Dict
+) -> MockResponse:
+    if request_url.endswith("current_user"):
         return MockResponse({"id": "user"}, 200)
     return MockResponse([{"id": uuid4(), "name": TMP_CREATE_NEW_PROJ_RUN}], 200)
 
 
-def mocked_delete_project_not_found(*args: Any, **kwargs: Dict[Any, Any]):
-    if args[0].endswith("current_user"):
+def mocked_delete_project_not_found(
+    request_url: str, json: Dict, params: Dict, headers: Dict, data: Dict
+) -> MockResponse:
+    if request_url.endswith("current_user"):
         return MockResponse({"id": "user"}, 200)
-    return MockResponse({"project not found"}, 404)
+    return MockResponse({"detail": "project not found"}, 404)
 
 
 def mocked_login() -> None:
