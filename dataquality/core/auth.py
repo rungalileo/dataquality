@@ -43,7 +43,7 @@ class _Auth:
 
         access_token = res.json().get("access_token")
         config.token = access_token
-        minio_secret_key = res.json().get("minio_user_secret_access_key")
+        minio_secret_key = res.json().get("minio_user_secret_access_key", "")
         os.environ[GalileoConfigVars.MINIO_ACCESS_KEY] = username
         os.environ[GalileoConfigVars.MINIO_SECRET_KEY] = minio_secret_key
         config.update_file_config()
