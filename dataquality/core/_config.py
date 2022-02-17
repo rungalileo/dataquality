@@ -35,7 +35,7 @@ class GalileoConfigVars(str, Enum):
         return all(os.getenv(i) for i in ["GALILEO_API_URL", "GALILEO_MINIO_URL"])
 
 
-class ConfigData:
+class ConfigData(str, Enum):
     DEFAULT_GALILEO_CONFIG_DIR = f"{os.getcwd()}/.galileo"
     DEFAULT_GALILEO_CONFIG_FILE = f"{DEFAULT_GALILEO_CONFIG_DIR}/config.json"
     minio_secret_key = "_minio_secret_key"
@@ -65,9 +65,9 @@ class Config(BaseModel):
 
     def update_file_config(self) -> None:
         config_json = self.dict()
-        config_json[ConfigData.minio_secret_key] = self._minio_secret_key
+        config_json[ConfigData.minio_secret_key.value] = self._minio_secret_key
 
-        with open(ConfigData.DEFAULT_GALILEO_CONFIG_FILE, "w+") as f:
+        with open(ConfigData.DEFAULT_GALILEO_CONFIG_FILE.value, "w+") as f:
             f.write(json.dumps(config_json, default=str))
 
     @validator("minio_url", pre=True, always=True, allow_reuse=True)
@@ -99,23 +99,25 @@ def set_platform_urls(console_url_str: str) -> None:
 
 
 def set_config() -> Config:
-    if not os.path.isdir(ConfigData.DEFAULT_GALILEO_CONFIG_DIR):
-        os.makedirs(ConfigData.DEFAULT_GALILEO_CONFIG_DIR, exist_ok=True)
-    if os.path.exists(ConfigData.DEFAULT_GALILEO_CONFIG_FILE):
-        with open(ConfigData.DEFAULT_GALILEO_CONFIG_FILE) as f:
+    if not os.path.isdir(ConfigData.DEFAULT_GALILEO_CONFIG_DIR.value):
+        os.makedirs(ConfigData.DEFAULT_GALILEO_CONFIG_DIR.value, exist_ok=True)
+    if os.path.exists(ConfigData.DEFAULT_GALILEO_CONFIG_FILE.value):
+        with open(ConfigData.DEFAULT_GALILEO_CONFIG_FILE.value) as f:
             try:
                 config_vars: Dict[str, str] = json.load(f)
             # If there's an issue reading the config file for any reason, quit and
             # start fresh
             except Exception:
-                os.remove(ConfigData.DEFAULT_GALILEO_CONFIG_FILE)
+                os.remove(ConfigData.DEFAULT_GALILEO_CONFIG_FILE.value)
                 return set_config()
         # If the user updated any config vars via env, grab those updates
         new_config_attrs = GalileoConfigVars.get_available_config_attrs()
         config_vars.update(**new_config_attrs)
         config = Config(**config_vars)
         # Need to set private pydantic fields explicitly
-        config._minio_secret_key = config_vars.get(ConfigData.minio_secret_key, "")
+        config._minio_secret_key = config_vars.get(
+            ConfigData.minio_secret_key.value, ""
+        )
 
     elif GalileoConfigVars.auto_init_vars_available():
         galileo_vars = GalileoConfigVars.get_config_mapping()
