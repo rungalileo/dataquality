@@ -29,6 +29,13 @@ class ApiClient:
             RequestType.GET, url=f"{config.api_url}/{Route.current_user}"
         )
 
+    def valid_current_user(self) -> bool:
+        try:
+            self.get_current_user()
+            return True
+        except GalileoException:
+            return False
+
     def make_request(
         self,
         request: RequestType,
@@ -80,7 +87,7 @@ class ApiClient:
         """Gets all runs from a project by ID"""
         return self.make_request(
             RequestType.GET,
-            url=f"{config.api_url}/{Route.projects}/{project_id}/{Route.runs}/",
+            url=f"{config.api_url}/{Route.projects}/{project_id}/{Route.runs}",
         )
 
     def get_project_runs_by_name(self, project_name: str) -> List[Dict]:
@@ -88,7 +95,7 @@ class ApiClient:
         proj = self.get_project_by_name(project_name)
         return self.make_request(
             RequestType.GET,
-            url=f"{config.api_url}/{Route.projects}/{proj['id']}/{Route.runs}/",
+            url=f"{config.api_url}/{Route.projects}/{proj['id']}/{Route.runs}",
         )
 
     def get_project_run(self, project_id: UUID4, run_id: UUID4) -> Dict:
@@ -338,7 +345,12 @@ class ApiClient:
         """
         project, run = self._get_project_run_id(project_name, run_name)
         assert os.path.splitext(file_name)[-1] == ".csv", "File must end in .csv"
-        assert split in list(Split), f"split must be one of {list(Split)}"
+        try:
+            split = Split[split].value
+        except KeyError:
+            raise GalileoException(
+                f"split {split} must be one of {Split.get_valid_attributes()}"
+            )
         body = dict(
             project_id=str(project),
             run_id=str(run),

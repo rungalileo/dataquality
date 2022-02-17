@@ -105,15 +105,15 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
             f"length, but got (emb, probs, ids) -> ({emb_len},{prob_len}, {id_len})"
         )
 
-        # User may manually pass in 'train' instead of 'training'
+        # User may manually pass in 'train' instead of 'training' / 'test' vs 'testing'
         # but we want it to conform
-        self.split = Split.training.value if self.split == "train" else self.split
-        assert (
-            isinstance(self.split, str) and self.split in Split.get_valid_attributes()
-        ), (
-            f"Split should be one of {Split.get_valid_attributes()} "
-            f"but got {self.split}"
-        )
+        try:
+            self.split = Split[self.split].value
+        except KeyError:
+            raise AssertionError(
+                f"Split should be one of {Split.get_valid_attributes()} "
+                f"but got {self.split}"
+            )
 
         if self.epoch:
             assert isinstance(self.epoch, int), (

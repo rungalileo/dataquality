@@ -1,6 +1,8 @@
+import dataquality
 from dataquality.loggers import BaseGalileoLogger
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
 from dataquality.loggers.model_logger import BaseGalileoModelLogger
+from dataquality.schemas.task_type import TaskType
 
 
 def test_attribute_subsets() -> None:
@@ -23,3 +25,15 @@ def test_attribute_subsets() -> None:
     assert all_attrs.issuperset(
         all_sub_attrs
     ), f"Missing attrs: {all_sub_attrs - all_attrs}"
+
+
+def test_int_labels() -> None:
+    dataquality.config.task_type = TaskType.text_classification
+    dataquality.set_labels_for_run(labels=[1, 2, 3, 4, 5])  # type: ignore
+    assert dataquality.get_data_logger().logger_config.labels == [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+    ]

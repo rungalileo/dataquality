@@ -67,7 +67,7 @@ def init(
     generated. If provided, and the project does not exist, it will be created. If it
     does exist, it will be set.
     """
-    if not config.token:
+    if not api_client.valid_current_user():
         login()
     _init = _Init()
     BaseGalileoLogger.validate_task(task_type)
