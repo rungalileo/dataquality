@@ -39,7 +39,11 @@ def mocked_healthcheck_request_new_api_version(request_url: str) -> MockResponse
 
 
 def mocked_login_requests(
-    request_url: str, json: Dict, params: Dict, headers: Dict, data: Dict
+    request_url: str,
+    json: Dict = {},
+    params: Dict = {},
+    headers: Dict = {},
+    data: Dict = {},
 ) -> MockResponse:
     if request_url.endswith("login"):
         return MockResponse(
@@ -54,7 +58,13 @@ def mocked_login_requests(
     return MockResponse({}, 200)
 
 
-def mocked_failed_login_requests(request_url: str) -> MockResponse:
+def mocked_failed_login_requests(
+    request_url: str,
+    json: Dict = {},
+    params: Dict = {},
+    headers: Dict = {},
+    data: Dict = {},
+) -> MockResponse:
     if request_url.endswith("login"):
         return MockResponse({"detail": "Invalid credentials"}, 404)
     return MockResponse({}, 404)
@@ -129,4 +139,4 @@ def mocked_delete_project_not_found(
 
 
 def mocked_login() -> None:
-    config.token = "sometoken"
+    config.token = "mock_token"

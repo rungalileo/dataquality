@@ -124,7 +124,6 @@ def set_platform_urls(console_url_str: str) -> None:
 
 def set_config() -> Config:
     if os.path.exists(_Config.DEFAULT_GALILEO_CONFIG_FILE):
-        print("A")
         with open(_Config.DEFAULT_GALILEO_CONFIG_FILE) as f:
             config_vars: Dict[str, str] = json.load(f)
         # If the user updated any config vars via env, grab those updates
@@ -133,12 +132,10 @@ def set_config() -> Config:
         config = Config(**config_vars)
 
     elif GalileoConfigVars.auto_init_vars_available():
-        print("B")
         galileo_vars = GalileoConfigVars.get_config_mapping()
         config = Config(**galileo_vars)
 
     else:
-        print("C")
         print("Welcome to Galileo!")
         print(
             "To skip this prompt in the future, set the following environment "

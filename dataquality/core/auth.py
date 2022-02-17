@@ -2,9 +2,10 @@ import getpass
 import os
 from typing import Callable, Dict
 
+import requests
+
 from dataquality.clients.api import ApiClient
 from dataquality.core._config import AuthMethod, Config, GalileoConfigVars, config
-from dataquality.schemas import RequestType
 
 GALILEO_AUTH_METHOD = "GALILEO_AUTH_METHOD"
 api_client = ApiClient()
@@ -27,16 +28,18 @@ class _Auth:
         if not username or not password:
             username = input("📧 Enter your email:")
             password = getpass.getpass("🤫 Enter your password:")
-        res = api_client.make_request(
-            RequestType.POST,
+        res = requests.post(
             f"{self.config.api_url}/login",
             data={
                 "username": username,
                 "password": password,
                 "auth_method": self.auth_method,
             },
-            header={"X-Galileo-Request-Source": "dataquality_python_client"},
+            headers={"X-Galileo-Request-Source": "dataquality_python_client"},
         )
+        if res.status_code != 200:
+            print(res.json())
+            return
 
         access_token = res.json().get("access_token")
         config.token = access_token
