@@ -1,0 +1,2 @@
+class LoginInvoked(Exception):
+    pass
