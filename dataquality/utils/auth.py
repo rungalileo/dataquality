@@ -1,7 +1,7 @@
 from typing import Dict, Optional
 
 
-def headers(token: Optional[str]) -> Dict:
+def headers(token: Optional[str]) -> Dict[str, str]:
     if not token:
         raise ValueError(
             "Missing token passed to headers utility! "

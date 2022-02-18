@@ -5,6 +5,7 @@ import pytest
 
 import dataquality
 from dataquality import config
+from dataquality.core.auth import GALILEO_AUTH_METHOD
 from dataquality.exceptions import GalileoException
 from tests.exceptions import LoginInvoked
 from tests.utils.mock_request import (
@@ -13,6 +14,7 @@ from tests.utils.mock_request import (
     mocked_create_project_run,
     mocked_get_project_run,
     mocked_login,
+    mocked_login_requests,
     mocked_missing_project_run,
     mocked_missing_run,
 )
@@ -27,6 +29,7 @@ def test_init(
     mock_requests_post: MagicMock,
 ) -> None:
     """Base case: Tests creating a new project and run"""
+    config.token = "sometoken"
     dataquality.init(task_type="text_classification")
     assert config.current_run_id
     assert config.current_project_id
@@ -41,6 +44,7 @@ def test_init_existing_project(
     mock_requests_post: MagicMock,
 ) -> None:
     """Tests calling init passing in an existing project"""
+    config.token = "sometoken"
     config.current_project_id = config.current_run_id = None
     dataquality.init(task_type="text_classification", project_name=EXISTING_PROJECT)
     assert config.current_run_id
@@ -56,6 +60,7 @@ def test_init_new_project(
     mock_requests_post: MagicMock,
 ) -> None:
     """Tests calling init passing in a new project"""
+    config.token = "sometoken"
     config.current_project_id = config.current_run_id = None
     dataquality.init(task_type="text_classification", project_name="new_proj")
     assert config.current_run_id
@@ -71,6 +76,7 @@ def test_init_existing_project_new_run(
     mock_requests_post: MagicMock,
 ) -> None:
     """Tests calling init with an existing project but a new run"""
+    config.token = "sometoken"
     config.current_project_id = config.current_run_id = None
     dataquality.init(
         task_type="text_classification",
@@ -90,6 +96,7 @@ def test_init_existing_project_run(
     mock_requests_post: MagicMock,
 ) -> None:
     """Tests calling init with an existing project and existing run"""
+    config.token = "sometoken"
     config.current_project_id = config.current_run_id = None
     dataquality.init(
         task_type="text_classification",
@@ -109,6 +116,7 @@ def test_init_new_project_run(
     mock_requests_post: MagicMock,
 ) -> None:
     """Tests calling init with a new project and new run"""
+    config.token = "sometoken"
     config.current_project_id = config.current_run_id = None
     dataquality.init(
         task_type="text_classification", project_name="new_proj", run_name="new_run"
@@ -124,6 +132,7 @@ def test_init_only_run(
     mock_requests_get: MagicMock,
 ) -> None:
     """Tests calling init only passing in a run"""
+    config.token = "sometoken"
     config.current_project_id = config.current_run_id = None
     dataquality.init(task_type="text_classification", run_name="a_run")
     assert not config.current_run_id
@@ -229,17 +238,8 @@ def test_init_bad_task(
         dataquality.init(task_type="not_text_classification")
 
 
-@patch("requests.post", side_effect=mocked_create_project_run)
-@patch("requests.get", side_effect=mocked_get_project_run)
-@patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=True)
-def test_reconfigure(
-    mock_valid_user: MagicMock,
-    mock_requests_get: MagicMock,
-    mock_requests_post: MagicMock,
-) -> None:
-    dataquality.init(task_type="text_classification")
-    assert config.current_run_id
-    assert config.current_project_id
+@patch("dataquality.login")
+def test_reconfigure_sets_env_vars(mock_login: MagicMock) -> None:
     old_url = config.minio_url
     test_url = f"{old_url}_TEST"
     os.environ["GALILEO_MINIO_URL"] = test_url
@@ -248,3 +248,27 @@ def test_reconfigure(
     os.environ["GALILEO_MINIO_URL"] = old_url
     dataquality.configure()
     assert dataquality.config.minio_url == config.minio_url == old_url
+
+    assert mock_login.call_count == 2
+
+
+@patch("requests.post", side_effect=mocked_login_requests)
+@patch("requests.get", side_effect=mocked_login_requests)
+def test_reconfigure_resets_user_token(
+    mock_get_request: MagicMock, mock_post_request: MagicMock
+) -> None:
+    config.token = old_token = "old_token"
+
+    os.environ[GALILEO_AUTH_METHOD] = "email"
+    os.environ["GALILEO_USERNAME"] = "user"
+    os.environ["GALILEO_PASSWORD"] = "password"
+    dataquality.configure()
+    assert all([config.token == "mock_token", config.token != old_token])
+
+
+@patch("dataquality.login", side_effect=mocked_login)
+def test_reconfigure_resets_user_token_login_mocked(mock_login: MagicMock) -> None:
+    config.token = old_token = "old_token"
+    dataquality.configure()
+    assert all([config.token == "mock_token", config.token != old_token])
+    mock_login.assert_called_once()
