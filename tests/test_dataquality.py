@@ -24,7 +24,7 @@ MAX_STR_LEN = BaseGalileoDataLogger.MAX_STR_LEN
 
 
 def test_threaded_logging_and_upload(
-    cleanup_after_use: Callable, set_config: Callable
+    cleanup_after_use: Callable, set_test_config: Callable
 ) -> None:
     """
     Tests that threaded calls to upload still yield non-missing datasets
@@ -47,11 +47,13 @@ def test_threaded_logging_and_upload(
         ThreadPoolManager.wait_for_threads()
 
 
-def test_multi_label_logging(cleanup_after_use: Callable, set_config: Callable) -> None:
+def test_multi_label_logging(
+    cleanup_after_use: Callable, set_test_config: Callable
+) -> None:
     """
     Tests that threaded calls to upload still yield non-missing datasets
     """
-    set_config(task_type=TaskType.text_multi_label)
+    set_test_config(task_type=TaskType.text_multi_label)
     num_records = 32
     num_logs = 200
     num_emb = 50
@@ -72,7 +74,9 @@ def test_multi_label_logging(cleanup_after_use: Callable, set_config: Callable) 
         ThreadPoolManager.wait_for_threads()
 
 
-def test_metadata_logging(cleanup_after_use: Callable, set_config: Callable) -> None:
+def test_metadata_logging(
+    cleanup_after_use: Callable, set_test_config: Callable
+) -> None:
     """
     Tests that logging metadata columns persist
     """
@@ -95,7 +99,7 @@ def test_metadata_logging(cleanup_after_use: Callable, set_config: Callable) -> 
 
 
 def test_metadata_logging_invalid(
-    cleanup_after_use: Callable, set_config: Callable
+    cleanup_after_use: Callable, set_test_config: Callable
 ) -> None:
     """
     Tests our metadata logging validation
@@ -132,7 +136,7 @@ def test_metadata_logging_invalid(
 
 
 def test_logging_duplicate_ids(
-    cleanup_after_use: Callable, set_config: Callable
+    cleanup_after_use: Callable, set_test_config: Callable
 ) -> None:
     """
     Tests that logging duplicate ids triggers a failure

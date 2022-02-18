@@ -23,7 +23,7 @@ api_client = ApiClient()
 @mock.patch("requests.get", side_effect=mocked_get_project_run)
 @mock.patch("requests.delete", side_effect=mocked_delete_project_run)
 def test_delete_project(
-    mock_delete_run: MagicMock, mock_get_run: MagicMock, set_config: Callable
+    mock_delete_run: MagicMock, mock_get_run: MagicMock, set_test_config: Callable
 ) -> None:
     """Base case: Tests creating a new project and run"""
     api_client.delete_project(uuid4())
@@ -34,7 +34,7 @@ def test_delete_project(
 def test_delete_project_not_found(
     mock_delete_run: MagicMock,
     mock_get_run: MagicMock,
-    set_config: Callable,
+    set_test_config: Callable,
 ) -> None:
     """Base case: Tests creating a new project and run"""
     with pytest.raises(GalileoException):
@@ -46,7 +46,7 @@ def test_delete_project_not_found(
 def test_delete_project_by_name(
     mock_delete_run: MagicMock,
     mock_get_run: MagicMock,
-    set_config: Callable,
+    set_test_config: Callable,
 ) -> None:
     """Base case: Tests creating a new project and run"""
     api_client.delete_project_by_name(EXISTING_PROJECT)
@@ -54,7 +54,7 @@ def test_delete_project_by_name(
 
 @mock.patch("requests.get", side_effect=mocked_missing_project_name)
 def test_delete_project_by_name_not_found(
-    mock_get_run: MagicMock, set_config: Callable
+    mock_get_run: MagicMock, set_test_config: Callable
 ) -> None:
     """Base case: Tests creating a new project and run"""
     with pytest.raises(GalileoException):
@@ -66,7 +66,7 @@ def test_delete_project_by_name_not_found(
 def test_delete_run(
     mock_delete_run: MagicMock,
     mock_get_run: MagicMock,
-    set_config: Callable,
+    set_test_config: Callable,
 ) -> None:
     """Base case: Tests creating a new project and run"""
     api_client.delete_run(uuid4(), uuid4())
@@ -77,7 +77,7 @@ def test_delete_run(
 def test_delete_run_missing_run(
     mock_delete_run: MagicMock,
     mock_get_run: MagicMock,
-    set_config: Callable,
+    set_test_config: Callable,
 ) -> None:
     """Base case: Tests creating a new project and run"""
     with pytest.raises(GalileoException):
@@ -89,7 +89,7 @@ def test_delete_run_missing_run(
 def test_delete_run_by_name(
     mock_delete_run: MagicMock,
     mock_get_run: MagicMock,
-    set_config: Callable,
+    set_test_config: Callable,
 ) -> None:
     """Base case: Tests creating a new project and run"""
     api_client.delete_run_by_name(EXISTING_PROJECT, EXISTING_RUN)
@@ -97,7 +97,7 @@ def test_delete_run_by_name(
 
 @mock.patch("requests.get", side_effect=mocked_missing_run)
 def test_delete_run_by_name_missing_run(
-    mock_get_run: MagicMock, set_config: Callable
+    mock_get_run: MagicMock, set_test_config: Callable
 ) -> None:
     """Base case: Tests creating a new project and run"""
     with pytest.raises(GalileoException):

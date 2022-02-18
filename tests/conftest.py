@@ -1,6 +1,6 @@
 import os
 import shutil
-from typing import Any, Callable, Generator, Optional
+from typing import Any, Callable, Dict, Generator
 from uuid import uuid4
 
 import pytest
@@ -37,21 +37,18 @@ def cleanup_after_use() -> Generator:
 
 
 @pytest.fixture()
-def set_config(
+def set_test_config(
     default_token: str = "sometoken",
     default_task_type: TaskType = TaskType.text_classification,
 ) -> Callable:
-    # Set default fixture token to "sometoken"
     config.token = default_token
     config.task_type = default_task_type
 
-    def curry(
-        token: Optional[str] = default_token,
-        task_type: Optional[TaskType] = default_task_type,
-    ) -> None:
-        # Override config token with custom value by currying
-        config.token = token
-        config.task_type = task_type
+    def curry(**kwargs: Dict[str, Any]) -> None:
+        # Override test config with custom value by currying
+        for k, v in kwargs.items():
+            if k in config.dict().keys():
+                config.__setattr__(k, v)
 
     return curry
 
