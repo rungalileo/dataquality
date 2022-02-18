@@ -37,26 +37,20 @@ def cleanup_after_use() -> Generator:
 
 
 @pytest.fixture()
-def set_config_token(default_token: str = "sometoken") -> Callable:
-    # Set default fixture token to "sometoken"
-    config.token = default_token
-
-    def curry(token: Optional[str] = None) -> None:
-        # Override config token with custom value by currying
-        config.token = token
-
-    return curry
-
-
-@pytest.fixture()
-def set_config_task_type(
+def set_config(
+    default_token: str = "sometoken",
     default_task_type: TaskType = TaskType.text_classification,
 ) -> Callable:
-    # Set default fixture token to "text_classification"
+    # Set default fixture token to "sometoken"
+    config.token = default_token
     config.task_type = default_task_type
 
-    def curry(task_type: TaskType) -> None:
-        # Override config task_type with custom value by currying
+    def curry(
+        token: Optional[str] = default_token,
+        task_type: Optional[TaskType] = default_task_type,
+    ) -> None:
+        # Override config token with custom value by currying
+        config.token = token
         config.task_type = task_type
 
     return curry

@@ -28,7 +28,7 @@ def test_init(
     mock_valid_user: MagicMock,
     mock_requests_get: MagicMock,
     mock_requests_post: MagicMock,
-    set_config_token: Callable,
+    set_config: Callable,
 ) -> None:
     """Base case: Tests creating a new project and run"""
     dataquality.init(task_type="text_classification")
@@ -43,7 +43,7 @@ def test_init_existing_project(
     mock_valid_user: MagicMock,
     mock_requests_get: MagicMock,
     mock_requests_post: MagicMock,
-    set_config_token: Callable,
+    set_config: Callable,
 ) -> None:
     """Tests calling init passing in an existing project"""
     config.current_project_id = config.current_run_id = None
@@ -59,7 +59,7 @@ def test_init_new_project(
     mock_valid_user: MagicMock,
     mock_requests_get: MagicMock,
     mock_requests_post: MagicMock,
-    set_config_token: Callable,
+    set_config: Callable,
 ) -> None:
     """Tests calling init passing in a new project"""
     config.current_project_id = config.current_run_id = None
@@ -75,7 +75,7 @@ def test_init_existing_project_new_run(
     mock_valid_user: MagicMock,
     mock_requests_get: MagicMock,
     mock_requests_post: MagicMock,
-    set_config_token: Callable,
+    set_config: Callable,
 ) -> None:
     """Tests calling init with an existing project but a new run"""
     config.current_project_id = config.current_run_id = None
@@ -95,7 +95,7 @@ def test_init_existing_project_run(
     mock_valid_user: MagicMock,
     mock_requests_get: MagicMock,
     mock_requests_post: MagicMock,
-    set_config_token: Callable,
+    set_config: Callable,
 ) -> None:
     """Tests calling init with an existing project and existing run"""
     config.current_project_id = config.current_run_id = None
@@ -115,7 +115,7 @@ def test_init_new_project_run(
     mock_valid_user: MagicMock,
     mock_requests_get: MagicMock,
     mock_requests_post: MagicMock,
-    set_config_token: Callable,
+    set_config: Callable,
 ) -> None:
     """Tests calling init with a new project and new run"""
     config.current_project_id = config.current_run_id = None
@@ -129,7 +129,7 @@ def test_init_new_project_run(
 @patch("requests.get", side_effect=mocked_missing_project_run)
 @patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=True)
 def test_init_only_run(
-    mock_valid_user: MagicMock, mock_requests_get: MagicMock, set_config_token: Callable
+    mock_valid_user: MagicMock, mock_requests_get: MagicMock, set_config: Callable
 ) -> None:
     """Tests calling init only passing in a run"""
     config.current_project_id = config.current_run_id = None
@@ -139,8 +139,8 @@ def test_init_only_run(
 
 
 @patch("dataquality.core.init.login", side_effect=LoginInvoked)
-def test_init_no_token_login(mock_login: MagicMock, set_config_token: Callable) -> None:
-    set_config_token(token=None)
+def test_init_no_token_login(mock_login: MagicMock, set_config: Callable) -> None:
+    set_config(token=None)
     with pytest.raises(LoginInvoked):
         # When no token is passed in we should call login
         dataquality.init(task_type="text_classification")
@@ -154,9 +154,9 @@ def test_init_no_token_login_full(
     mock_login: MagicMock,
     mock_requests_get: MagicMock,
     mock_requests_post: MagicMock,
-    set_config_token: Callable,
+    set_config: Callable,
 ) -> None:
-    set_config_token(token=None)
+    set_config(token=None)
     # When no token is passed in we should call login
     dataquality.init(task_type="text_classification")
     mock_login.assert_called_once()
@@ -170,7 +170,7 @@ def test_init_no_token_login_full(
 )
 @patch("dataquality.core.init.login", side_effect=LoginInvoked)
 def test_init_expired_token_login(
-    mock_login: MagicMock, mock_current_user: MagicMock, set_config_token: Callable
+    mock_login: MagicMock, mock_current_user: MagicMock, set_config: Callable
 ) -> None:
     # When a token is passed in but user auth fails we should call login
     with pytest.raises(LoginInvoked):
@@ -189,7 +189,7 @@ def test_init_expired_token_login_full(
     mock_current_user: MagicMock,
     mock_requests_get: MagicMock,
     mock_requests_post: MagicMock,
-    set_config_token: Callable,
+    set_config: Callable,
 ) -> None:
     # When a token is passed in but user auth fails we should call login
     dataquality.init(task_type="text_classification")
@@ -256,9 +256,9 @@ def test_reconfigure_sets_env_vars(mock_login: MagicMock) -> None:
 def test_reconfigure_resets_user_token(
     mock_get_request: MagicMock,
     mock_post_request: MagicMock,
-    set_config_token: Callable,
+    set_config: Callable,
 ) -> None:
-    set_config_token(token="old_token")
+    set_config(token="old_token")
 
     os.environ[GALILEO_AUTH_METHOD] = "email"
     os.environ["GALILEO_USERNAME"] = "user"
@@ -269,9 +269,9 @@ def test_reconfigure_resets_user_token(
 
 @patch("dataquality.login", side_effect=mocked_login)
 def test_reconfigure_resets_user_token_login_mocked(
-    mock_login: MagicMock, set_config_token: Callable
+    mock_login: MagicMock, set_config: Callable
 ) -> None:
-    set_config_token(token="old_token")
+    set_config(token="old_token")
     dataquality.configure()
     assert all([config.token == "mock_token", config.token != "old_token"])
     mock_login.assert_called_once()

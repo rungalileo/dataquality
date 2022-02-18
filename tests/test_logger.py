@@ -26,7 +26,7 @@ def test_attribute_subsets() -> None:
     assert all_attrs.issuperset(all_sub_attrs)
 
 
-def test_int_labels(set_config_task_type: Callable) -> None:
+def test_int_labels(set_config: Callable) -> None:
     dataquality.set_labels_for_run(labels=[1, 2, 3, 4, 5])  # type: ignore
     assert dataquality.get_data_logger().logger_config.labels == [
         "1",
