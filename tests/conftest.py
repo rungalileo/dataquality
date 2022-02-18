@@ -1,6 +1,6 @@
 import os
 import shutil
-from typing import Any, Generator
+from typing import Any, Callable, Generator, Optional
 from uuid import uuid4
 
 import pytest
@@ -33,6 +33,18 @@ def cleanup_after_use() -> Generator:
         yield
     finally:
         shutil.rmtree(LOCATION)
+
+
+@pytest.fixture()
+def set_config_token(default_token: str = "sometoken") -> Callable:
+    # Set default fixture token to "sometoken"
+    config.token = default_token
+
+    def curry(token: Optional[str] = None):
+        # Override config token with custom value by currying
+        config.token = token
+
+    return curry
 
 
 def patch_object_upload(self: Any, df: DataFrame, object_name: str) -> None:
