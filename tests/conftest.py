@@ -9,6 +9,7 @@ from vaex.dataframe import DataFrame
 from dataquality import config
 from dataquality.clients import objectstore
 from dataquality.loggers import BaseGalileoLogger
+from dataquality.schemas.task_type import TaskType
 
 config.current_project_id = uuid4()
 config.current_run_id = uuid4()
@@ -40,9 +41,23 @@ def set_config_token(default_token: str = "sometoken") -> Callable:
     # Set default fixture token to "sometoken"
     config.token = default_token
 
-    def curry(token: Optional[str] = None):
+    def curry(token: Optional[str] = None) -> None:
         # Override config token with custom value by currying
         config.token = token
+
+    return curry
+
+
+@pytest.fixture()
+def set_config_task_type(
+    default_task_type: TaskType = TaskType.text_classification,
+) -> Callable:
+    # Set default fixture token to "text_classification"
+    config.task_type = default_task_type
+
+    def curry(task_type: TaskType) -> None:
+        # Override config task_type with custom value by currying
+        config.task_type = task_type
 
     return curry
 

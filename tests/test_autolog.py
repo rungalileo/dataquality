@@ -1,3 +1,5 @@
+from typing import Callable
+
 import pytorch_lightning as pl
 import torch
 
@@ -17,7 +19,7 @@ from tests.utils.lightning_model import (
 dataquality.config.task_type = "text_classification"
 
 
-def test_lightning_autolog(cleanup_after_use) -> None:
+def test_lightning_autolog(cleanup_after_use: Callable) -> None:
     """
     Tests the lightning autolog config and that data is properly stored / logged
     """
@@ -42,7 +44,7 @@ def test_lightning_autolog(cleanup_after_use) -> None:
     validate_cleanup_data()
 
 
-def test_torch_autolog(cleanup_after_use) -> None:
+def test_torch_autolog(cleanup_after_use: Callable) -> None:
     """Tests our watch(model) functionality for pytorch"""
     train_dataloader = torch.utils.data.DataLoader(
         NewsgroupDataset("training"), batch_size=NUM_RECORDS, shuffle=True
