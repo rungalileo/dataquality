@@ -1,5 +1,6 @@
 import json
 import os
+import warnings
 from enum import Enum, unique
 from typing import Dict, List, Optional
 
@@ -13,8 +14,6 @@ from dataquality.schemas.task_type import TaskType
 class GalileoConfigVars(str, Enum):
     API_URL = "GALILEO_API_URL"
     MINIO_URL = "GALILEO_MINIO_URL"
-    MINIO_ACCESS_KEY = "MINIO_ACCESS_KEY"
-    MINIO_SECRET_KEY = "MINIO_SECRET_KEY"
 
     @staticmethod
     def get_valid_attributes() -> List[str]:
@@ -37,37 +36,10 @@ class GalileoConfigVars(str, Enum):
         return all(os.getenv(i) for i in ["GALILEO_API_URL", "GALILEO_MINIO_URL"])
 
 
-class _Config:
+class ConfigData(str, Enum):
     DEFAULT_GALILEO_CONFIG_DIR = f"{os.getcwd()}/.galileo"
     DEFAULT_GALILEO_CONFIG_FILE = f"{DEFAULT_GALILEO_CONFIG_DIR}/config.json"
-
-    def __init__(self) -> None:
-        self.config_file = self.DEFAULT_GALILEO_CONFIG_FILE
-        self._setup_config_dir()
-        self._setup_config_file()
-        self.config_dict = self._load_config_file()
-
-    def _setup_config_dir(self) -> None:
-        if not os.path.exists(self.config_file):
-            dirname = os.path.dirname(self.config_file)
-            if dirname and not os.path.exists(dirname):
-                os.makedirs(dirname)
-
-    def _setup_config_file(self) -> None:
-        if not os.path.exists(self.config_file):
-            with open(self.config_file, "w+") as f:
-                f.write("{}")
-
-    def _load_config_file(self) -> dict:
-        with open(self.config_file) as f:
-            return json.load(f)
-
-    def write_config(self, data: str) -> None:
-        with open(self.config_file, "w+") as f:
-            f.write(data)
-
-    def config(self) -> "Config":
-        return Config(**self.config_dict)
+    minio_secret_key = "_minio_secret_key"
 
 
 @unique
@@ -85,14 +57,19 @@ class Config(BaseModel):
     current_project_id: Optional[UUID4] = None
     current_run_id: Optional[UUID4] = None
     task_type: Optional[TaskType] = None
+    _minio_secret_key: str = ""
 
     class Config:
         validate_assignment = True
         arbitrary_types_allowed = True
+        underscore_attrs_are_private = True
 
     def update_file_config(self) -> None:
-        _config = _Config()
-        _config.write_config(self.json())
+        config_json = self.dict()
+        config_json[ConfigData.minio_secret_key.value] = self._minio_secret_key
+
+        with open(ConfigData.DEFAULT_GALILEO_CONFIG_FILE.value, "w+") as f:
+            f.write(json.dumps(config_json, default=str))
 
     @validator("minio_url", pre=True, always=True, allow_reuse=True)
     def remove_scheme(cls, v: str) -> str:
@@ -123,13 +100,29 @@ def set_platform_urls(console_url_str: str) -> None:
 
 
 def set_config() -> Config:
-    if os.path.exists(_Config.DEFAULT_GALILEO_CONFIG_FILE):
-        with open(_Config.DEFAULT_GALILEO_CONFIG_FILE) as f:
-            config_vars: Dict[str, str] = json.load(f)
+    if not os.path.isdir(ConfigData.DEFAULT_GALILEO_CONFIG_DIR.value):
+        os.makedirs(ConfigData.DEFAULT_GALILEO_CONFIG_DIR.value, exist_ok=True)
+    if os.path.exists(ConfigData.DEFAULT_GALILEO_CONFIG_FILE.value):
+        with open(ConfigData.DEFAULT_GALILEO_CONFIG_FILE.value) as f:
+            try:
+                config_vars: Dict[str, str] = json.load(f)
+            # If there's an issue reading the config file for any reason, quit and
+            # start fresh
+            except Exception as e:
+                warnings.warn(
+                    f"We had an issue reading your config file ({type(e)}). "
+                    f"Recreating your file from scratch."
+                )
+                os.remove(ConfigData.DEFAULT_GALILEO_CONFIG_FILE.value)
+                return set_config()
         # If the user updated any config vars via env, grab those updates
         new_config_attrs = GalileoConfigVars.get_available_config_attrs()
         config_vars.update(**new_config_attrs)
         config = Config(**config_vars)
+        # Need to set private pydantic fields explicitly
+        config._minio_secret_key = config_vars.get(
+            ConfigData.minio_secret_key.value, ""
+        )
 
     elif GalileoConfigVars.auto_init_vars_available():
         galileo_vars = GalileoConfigVars.get_config_mapping()
