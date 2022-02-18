@@ -46,7 +46,7 @@ def test_init_existing_project(
     set_test_config: Callable,
 ) -> None:
     """Tests calling init passing in an existing project"""
-    config.current_project_id = config.current_run_id = None
+    set_test_config(current_project_id=None, current_run_id=None)
     dataquality.init(task_type="text_classification", project_name=EXISTING_PROJECT)
     assert config.current_run_id
     assert config.current_project_id
@@ -62,7 +62,7 @@ def test_init_new_project(
     set_test_config: Callable,
 ) -> None:
     """Tests calling init passing in a new project"""
-    config.current_project_id = config.current_run_id = None
+    set_test_config(current_project_id=None, current_run_id=None)
     dataquality.init(task_type="text_classification", project_name="new_proj")
     assert config.current_run_id
     assert config.current_project_id
@@ -78,7 +78,7 @@ def test_init_existing_project_new_run(
     set_test_config: Callable,
 ) -> None:
     """Tests calling init with an existing project but a new run"""
-    config.current_project_id = config.current_run_id = None
+    set_test_config(current_project_id=None, current_run_id=None)
     dataquality.init(
         task_type="text_classification",
         project_name=EXISTING_PROJECT,
@@ -98,7 +98,7 @@ def test_init_existing_project_run(
     set_test_config: Callable,
 ) -> None:
     """Tests calling init with an existing project and existing run"""
-    config.current_project_id = config.current_run_id = None
+    set_test_config(current_project_id=None, current_run_id=None)
     dataquality.init(
         task_type="text_classification",
         project_name=EXISTING_PROJECT,
@@ -118,7 +118,7 @@ def test_init_new_project_run(
     set_test_config: Callable,
 ) -> None:
     """Tests calling init with a new project and new run"""
-    config.current_project_id = config.current_run_id = None
+    set_test_config(current_project_id=None, current_run_id=None)
     dataquality.init(
         task_type="text_classification", project_name="new_proj", run_name="new_run"
     )
@@ -132,7 +132,7 @@ def test_init_only_run(
     mock_valid_user: MagicMock, mock_requests_get: MagicMock, set_test_config: Callable
 ) -> None:
     """Tests calling init only passing in a run"""
-    config.current_project_id = config.current_run_id = None
+    set_test_config(current_project_id=None, current_run_id=None)
     dataquality.init(task_type="text_classification", run_name="a_run")
     assert not config.current_run_id
     assert not config.current_project_id
@@ -156,7 +156,7 @@ def test_init_no_token_login_full(
     mock_requests_post: MagicMock,
     set_test_config: Callable,
 ) -> None:
-    set_test_config(token=None)
+    set_test_config(token=None, current_project_id=None, current_run_id=None)
     # When no token is passed in we should call login
     dataquality.init(task_type="text_classification")
     mock_login.assert_called_once()
@@ -191,6 +191,7 @@ def test_init_expired_token_login_full(
     mock_requests_post: MagicMock,
     set_test_config: Callable,
 ) -> None:
+    set_test_config(current_project_id=None, current_run_id=None)
     # When a token is passed in but user auth fails we should call login
     dataquality.init(task_type="text_classification")
     mock_login.assert_called_once()
@@ -219,7 +220,9 @@ def test_init_invalid_user_login_full(
     mock_valid_user: MagicMock,
     mock_requests_get: MagicMock,
     mock_requests_post: MagicMock,
+    set_test_config: Callable,
 ) -> None:
+    set_test_config(current_project_id=None, current_run_id=None)
     # When current user is not valid we should call login
     dataquality.init(task_type="text_classification")
     mock_login.assert_called_once()
