@@ -1,5 +1,5 @@
 from tempfile import NamedTemporaryFile
-
+import os
 import vaex
 from minio import Minio
 from vaex.dataframe import DataFrame
