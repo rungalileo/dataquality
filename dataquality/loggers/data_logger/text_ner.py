@@ -225,14 +225,16 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             start = span["start"]
             end = span["end"]
             new_start, new_end = None, None
-            for token_idx, tokens in enumerate(token_indicies):
-                token_start, token_end = tokens[0], tokens[1]
+            for token_idx, token in enumerate(token_indicies):
+                token_start, token_end = token
                 if start == token_start:
                     new_start = token_idx
                 if end == token_end:
                     new_end = token_idx + 1
+                if new_start is not None and new_end is not None:
+                    break
             if (
-                new_start and new_end
+                new_start is not None and new_end is not None
             ):  # Handle edge case of where sentence > allowed_max_length
                 new_gold_spans.append(
                     {

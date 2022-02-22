@@ -1,3 +1,4 @@
+from dataquality.loggers.data_logger.text_ner import TextNERDataLogger
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
 
 model_logger = TextNERModelLogger()
@@ -32,3 +33,18 @@ def test_pred_span_extraction() -> None:
     assert model_logger._extract_pred_spans_bio(case_3_seq) == case_3_spans
     assert model_logger._extract_pred_spans_bio(case_4_seq) == case_4_spans
     assert model_logger._extract_pred_spans_bio(case_5_seq) == case_5_spans
+
+
+def test_gold_span_extraction() -> None:
+    logger = TextNERDataLogger()
+    gold_spans = [
+        {"start": 0, "end": 4, "label": "REVIEW"},
+        {"start": 12, "end": 23, "label": "YEAR"},
+    ]
+    token_indices = [(0, 4), (5, 11), (12, 14), (15, 18), (19, 23)]
+    new_spans = logger._extract_gold_spans(gold_spans, token_indices)
+    good_new_spans = [
+        {"start": 0, "end": 1, "label": "REVIEW"},
+        {"start": 2, "end": 5, "label": "YEAR"},
+    ]
+    assert new_spans == good_new_spans
