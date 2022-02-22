@@ -104,7 +104,13 @@ def _check_console_url() -> None:
     """
     console_url = os.getenv(GalileoConfigVars.CONSOLE_URL)
     if console_url:
-        set_platform_urls(console_url)
+        if "console." not in console_url:
+            warnings.warn(
+                f"It seems your GALILEO_CONSOLE_URL ({console_url}) is invalid. "
+                f"Your console URL should have 'console.' in the url. Ignoring"
+            )
+        else:
+            set_platform_urls(console_url)
 
 
 def set_config() -> Config:

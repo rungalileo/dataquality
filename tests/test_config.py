@@ -3,8 +3,15 @@ import os
 from dataquality.core._config import set_config
 
 
-def test_console_url() -> None:
+def test_console_url(set_test_config) -> None:
     os.environ["GALILEO_CONSOLE_URL"] = "https://console.mytest.rungalileo.io"
     cfg = set_config()
     assert cfg.api_url == "https://api.mytest.rungalileo.io"
     assert cfg.minio_url == "data.mytest.rungalileo.io"
+
+
+def test_bad_console_url(set_test_config) -> None:
+    """If console is not in the console url, dont use it"""
+    os.environ["GALILEO_CONSOLE_URL"] = "https://something.mytest2.rungalileo.io"
+    cfg = set_config()
+    assert cfg.api_url != "https://api.mytest2.rungalileo.io"
