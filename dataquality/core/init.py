@@ -40,14 +40,21 @@ class _Init:
         print(f"🏃‍♂️ Starting run {run_name}")
         return api_client.create_run(project_name, run_name, task_type)
 
-    def create_log_file_dir(self, project_id: UUID4, run_id: UUID4) -> None:
+    def create_log_file_dir(
+        self, project_id: UUID4, run_id: UUID4, overwrite_local: bool
+    ) -> None:
         write_output_dir = f"{BaseGalileoLogger.LOG_FILE_DIR}/{project_id}/{run_id}"
+        if overwrite_local and os.path.exists(write_output_dir):
+            os.rmdir(write_output_dir)
         if not os.path.exists(write_output_dir):
             os.makedirs(write_output_dir)
 
 
 def init(
-    task_type: str, project_name: Optional[str] = None, run_name: Optional[str] = None
+    task_type: str,
+    project_name: Optional[str] = None,
+    run_name: Optional[str] = None,
+    overwrite_local: bool = True,
 ) -> None:
     """
     Start a run
@@ -66,6 +73,9 @@ def init(
     :param run_name: The run name. If not passed in, a random one will be
     generated. If provided, and the project does not exist, it will be created. If it
     does exist, it will be set.
+    :param overwrite_local: If True, the current project/run log directory will be
+    cleared during this function. If logging over many sessions with checkpoints, you
+    may want to set this to False. Default True
     """
     if not api_client.valid_current_user():
         login()
@@ -154,4 +164,8 @@ def init(
         return
     config.update_file_config()
     if config.current_project_id and config.current_run_id:
-        _init.create_log_file_dir(config.current_project_id, config.current_run_id)
+        _init.create_log_file_dir(
+            config.current_project_id,
+            config.current_run_id,
+            overwrite_local=overwrite_local,
+        )
