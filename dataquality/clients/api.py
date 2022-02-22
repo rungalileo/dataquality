@@ -382,8 +382,8 @@ class ApiClient:
         """
         if (project_id and not run_id) or (run_id and not project_id):
             raise GalileoException(
-                f"You must either provide both the project and run IDs or neither "
-                f"(using the currently active project/run)"
+                "You must either provide both the project and run IDs or neither "
+                "(using the currently active project/run)"
             )
         if project_id and run_id:
             pid, rid = project_id, run_id
