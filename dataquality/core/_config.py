@@ -2,7 +2,7 @@ import json
 import os
 import warnings
 from enum import Enum, unique
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 from pydantic import BaseModel
 from pydantic.class_validators import validator
@@ -84,7 +84,7 @@ class Config(BaseModel):
 
 
 def set_platform_urls(console_url_str: str) -> None:
-    if "localhost" in console_url_str:
+    if "localhost" in console_url_str or "127.0.0.1" in console_url_str:
         os.environ[GalileoConfigVars.API_URL] = "http://localhost:8088"
         os.environ[GalileoConfigVars.MINIO_URL] = "http://localhost:9000"
     else:

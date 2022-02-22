@@ -1,4 +1,5 @@
 import os
+from time import sleep
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import requests
@@ -197,7 +198,7 @@ class ApiClient:
         self.delete_project(project["id"])
 
     def _get_project_run_id(
-        self, project_name: str = None, run_name: str = None
+        self, project_name: Optional[str] = None, run_name: Optional[str] = None
     ) -> Tuple[UUID4, UUID4]:
         """Helper function to get the project/run ids
 
@@ -373,10 +374,59 @@ class ApiClient:
         print(f"Your export has been written to {file_name}")
 
     def get_project_run_name(
-            self, project_id: Optional[UUID4] = None, run_id: Optional[UUID4] = None
-    ) -> Tuple[str,str]:
+        self, project_id: Optional[UUID4] = None, run_id: Optional[UUID4] = None
+    ) -> Tuple[str, str]:
         """Gets the project/run name given project/run IDs, or based on the config's
 
         Current project and run IDs
         """
+        if project_id and run_id:
+            pid, rid = project_id, run_id
+        elif config.current_project_id and config.current_run_id:
+            pid, rid = config.current_project_id, config.current_run_id
+        else:
+            raise GalileoException(
+                "You must either provide a project and run name or call "
+                "dataquality.init() to initialize a run"
+            )
+        pname = self.get_project(pid)["name"]
+        rname = self.get_project_run(pid, rid)["name"]
+        return pname, rname
 
+    def get_run_status(
+        self, project_name: Optional[str] = None, run_name: Optional[str] = None
+    ) -> Dict:
+        if "localhost" in config.api_url or "127.0.0.1" in config.api_url:
+            raise GalileoException(
+                "You cannot check run status when running the server locally"
+            )
+        pid, rid = self._get_project_run_id(
+            project_name=project_name, run_name=run_name
+        )
+        url = f"{config.api_url}/{Route.proc_pool}/status"
+        params = {"project_id": pid, "run_id": rid}
+        statuses = self.make_request(RequestType.GET, url, params=params)["statuses"]
+        status = sorted(statuses, key=lambda row: row["timestamp"], reverse=True)[0]
+        return status
+
+    def wait_for_run(
+        self, project_name: Optional[str] = None, run_name: Optional[str] = None
+    ) -> None:
+        print("Waiting for job to process...")
+        while True:
+            status = self.get_run_status(project_name=project_name, run_name=run_name)
+            if status.get("status") == "finished":
+                print(f"Done!. Job finished with status {status.get('status')}")
+                return
+            elif status.get("status") == "errored":
+                raise GalileoException(
+                    f"It seems your run failed to process with status "
+                    f"{status.get('status')}, error {status.get('message')}"
+                )
+            elif status.get("status") == "started":
+                sleep(2)
+            else:
+                raise GalileoException(
+                    f"It seems there was an issue with your job process. Received "
+                    f"an unexpected status {status}"
+                )
