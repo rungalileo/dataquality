@@ -371,3 +371,12 @@ class ApiClient:
                     f.write(chunk)
 
         print(f"Your export has been written to {file_name}")
+
+    def get_project_run_name(
+            self, project_id: Optional[UUID4] = None, run_id: Optional[UUID4] = None
+    ) -> Tuple[str,str]:
+        """Gets the project/run name given project/run IDs, or based on the config's
+
+        Current project and run IDs
+        """
+
