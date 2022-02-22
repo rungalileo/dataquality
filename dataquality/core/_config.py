@@ -2,7 +2,7 @@ import json
 import os
 import warnings
 from enum import Enum, unique
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 from pydantic import BaseModel
 from pydantic.class_validators import validator
@@ -14,10 +14,7 @@ from dataquality.schemas.task_type import TaskType
 class GalileoConfigVars(str, Enum):
     API_URL = "GALILEO_API_URL"
     MINIO_URL = "GALILEO_MINIO_URL"
-
-    @staticmethod
-    def get_valid_attributes() -> List[str]:
-        return list(map(lambda x: x.value, GalileoConfigVars))
+    CONSOLE_URL = "GALILEO_CONSOLE_URL"
 
     @staticmethod
     def get_config_mapping() -> Dict[str, Optional[str]]:
@@ -33,7 +30,7 @@ class GalileoConfigVars(str, Enum):
 
     @staticmethod
     def auto_init_vars_available() -> bool:
-        return all(os.getenv(i) for i in ["GALILEO_API_URL", "GALILEO_MINIO_URL"])
+        return bool(os.getenv("GALILEO_MINIO_URL") and os.getenv("GALILEO_API_URL"))
 
 
 class ConfigData(str, Enum):
@@ -87,7 +84,7 @@ class Config(BaseModel):
 
 
 def set_platform_urls(console_url_str: str) -> None:
-    if console_url_str == "localhost":
+    if "localhost" in console_url_str or "127.0.0.1" in console_url_str:
         os.environ[GalileoConfigVars.API_URL] = "http://localhost:8088"
         os.environ[GalileoConfigVars.MINIO_URL] = "http://localhost:9000"
     else:
@@ -99,7 +96,25 @@ def set_platform_urls(console_url_str: str) -> None:
         )
 
 
+def _check_console_url() -> None:
+    """Checks for user setting of GALILEO_CONSOLE_URL instead of
+
+    GALILEO_API_URL and GALILEO_MINIO_URL. If set, this will automatically set
+    platform urls (GALILEO_API_URL and GALILEO_MINIO_URL) for auto_init
+    """
+    console_url = os.getenv(GalileoConfigVars.CONSOLE_URL)
+    if console_url:
+        if "console." not in console_url:
+            warnings.warn(
+                f"It seems your GALILEO_CONSOLE_URL ({console_url}) is invalid. "
+                f"Your console URL should have 'console.' in the url. Ignoring"
+            )
+        else:
+            set_platform_urls(console_url)
+
+
 def set_config() -> Config:
+    _check_console_url()
     if not os.path.isdir(ConfigData.DEFAULT_GALILEO_CONFIG_DIR.value):
         os.makedirs(ConfigData.DEFAULT_GALILEO_CONFIG_DIR.value, exist_ok=True)
     if os.path.exists(ConfigData.DEFAULT_GALILEO_CONFIG_FILE.value):
@@ -132,7 +147,7 @@ def set_config() -> Config:
         print("Welcome to Galileo!")
         print(
             "To skip this prompt in the future, set the following environment "
-            "variables: GALILEO_API_URL GALILEO_MINIO_URL"
+            "variable: GALILEO_CONSOLE_URL"
         )
         console_url = input("🔭 Enter the url of your Galileo console\n")
         set_platform_urls(console_url_str=console_url)

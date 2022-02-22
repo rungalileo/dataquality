@@ -1,6 +1,7 @@
 import os
 from importlib import reload
 from random import random
+from typing import Callable
 
 import pytest
 
@@ -8,6 +9,7 @@ import dataquality
 import dataquality.core._config
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
+from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.utils.data_utils import (
     NUM_LOGS,
@@ -21,11 +23,12 @@ MAX_META_COLS = BaseGalileoDataLogger.MAX_META_COLS
 MAX_STR_LEN = BaseGalileoDataLogger.MAX_STR_LEN
 
 
-def test_threaded_logging_and_upload(cleanup_after_use) -> None:
+def test_threaded_logging_and_upload(
+    cleanup_after_use: Callable, set_test_config: Callable
+) -> None:
     """
     Tests that threaded calls to upload still yield non-missing datasets
     """
-    dataquality.config.task_type = "text_classification"
     num_records = 32
     num_logs = 200
     num_emb = 50
@@ -44,11 +47,13 @@ def test_threaded_logging_and_upload(cleanup_after_use) -> None:
         ThreadPoolManager.wait_for_threads()
 
 
-def test_multi_label_logging(cleanup_after_use) -> None:
+def test_multi_label_logging(
+    cleanup_after_use: Callable, set_test_config: Callable
+) -> None:
     """
     Tests that threaded calls to upload still yield non-missing datasets
     """
-    dataquality.config.task_type = "text_multi_label"
+    set_test_config(task_type=TaskType.text_multi_label)
     num_records = 32
     num_logs = 200
     num_emb = 50
@@ -69,11 +74,12 @@ def test_multi_label_logging(cleanup_after_use) -> None:
         ThreadPoolManager.wait_for_threads()
 
 
-def test_metadata_logging(cleanup_after_use) -> None:
+def test_metadata_logging(
+    cleanup_after_use: Callable, set_test_config: Callable
+) -> None:
     """
     Tests that logging metadata columns persist
     """
-    dataquality.config.task_type = "text_classification"
     meta_cols = ["test1", "meta2"]
     meta = {}
     for i in meta_cols:
@@ -92,11 +98,12 @@ def test_metadata_logging(cleanup_after_use) -> None:
         ThreadPoolManager.wait_for_threads()
 
 
-def test_metadata_logging_invalid(cleanup_after_use) -> None:
+def test_metadata_logging_invalid(
+    cleanup_after_use: Callable, set_test_config: Callable
+) -> None:
     """
     Tests our metadata logging validation
     """
-    dataquality.config.task_type = "text_classification"
     meta = {
         "test1": [random() for _ in range(NUM_RECORDS * NUM_LOGS)],
         "meta2": [random() for _ in range(NUM_RECORDS * NUM_LOGS)],
@@ -128,11 +135,12 @@ def test_metadata_logging_invalid(cleanup_after_use) -> None:
         ThreadPoolManager.wait_for_threads()
 
 
-def test_logging_duplicate_ids(cleanup_after_use) -> None:
+def test_logging_duplicate_ids(
+    cleanup_after_use: Callable, set_test_config: Callable
+) -> None:
     """
     Tests that logging duplicate ids triggers a failure
     """
-    dataquality.config.task_type = "text_classification"
     num_records = 50
     _log_text_data(num_records=num_records, unique_ids=False)
     try:
