@@ -1,6 +1,6 @@
 import os
 import shutil
-from typing import Any, Generator
+from typing import Any, Callable, Dict, Generator
 from uuid import uuid4
 
 import pytest
@@ -9,6 +9,7 @@ from vaex.dataframe import DataFrame
 from dataquality import config
 from dataquality.clients import objectstore
 from dataquality.loggers import BaseGalileoLogger
+from dataquality.schemas.task_type import TaskType
 
 config.current_project_id = uuid4()
 config.current_run_id = uuid4()
@@ -33,6 +34,23 @@ def cleanup_after_use() -> Generator:
         yield
     finally:
         shutil.rmtree(LOCATION)
+
+
+@pytest.fixture()
+def set_test_config(
+    default_token: str = "sometoken",
+    default_task_type: TaskType = TaskType.text_classification,
+) -> Callable:
+    config.token = default_token
+    config.task_type = default_task_type
+
+    def curry(**kwargs: Dict[str, Any]) -> None:
+        # Override test config with custom value by currying
+        for k, v in kwargs.items():
+            if k in config.dict():
+                config.__setattr__(k, v)
+
+    return curry
 
 
 def patch_object_upload(self: Any, df: DataFrame, object_name: str) -> None:
