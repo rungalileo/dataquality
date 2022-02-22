@@ -47,7 +47,7 @@ def set_test_config(
     def curry(**kwargs: Dict[str, Any]) -> None:
         # Override test config with custom value by currying
         for k, v in kwargs.items():
-            if k in config.dict().keys():
+            if k in config.dict():
                 config.__setattr__(k, v)
 
     return curry
