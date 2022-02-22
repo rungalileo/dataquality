@@ -1,4 +1,5 @@
 import os
+import shutil
 import warnings
 from typing import Dict, Optional
 
@@ -45,7 +46,7 @@ class _Init:
     ) -> None:
         write_output_dir = f"{BaseGalileoLogger.LOG_FILE_DIR}/{project_id}/{run_id}"
         if overwrite_local and os.path.exists(write_output_dir):
-            os.rmdir(write_output_dir)
+            shutil.rmtree(write_output_dir)
         if not os.path.exists(write_output_dir):
             os.makedirs(write_output_dir)
 
