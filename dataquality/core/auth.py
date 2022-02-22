@@ -5,24 +5,18 @@ from typing import Callable, Dict
 import requests
 
 from dataquality.clients.api import ApiClient
-from dataquality.core._config import AuthMethod, Config, GalileoConfigVars, config
-from dataquality.exceptions import GalileoException
-from dataquality.schemas import RequestType, Route
+from dataquality.core._config import AuthMethod, Config, config
 
 GALILEO_AUTH_METHOD = "GALILEO_AUTH_METHOD"
 api_client = ApiClient()
 
 
 class _Auth:
-    def __init__(self, config: Config, auth_method: AuthMethod):
-        self.auth_method = auth_method
-        self.config = config
-
     def auth_methods(self) -> Dict[AuthMethod, Callable]:
         return {AuthMethod.email: self.email_login}
 
     def email_login(self) -> None:
-        if self.email_token_present_and_valid(self.config):
+        if self.email_token_present_and_valid(config) and config._minio_secret_key:
             return
 
         username = os.getenv("GALILEO_USERNAME")
@@ -31,11 +25,11 @@ class _Auth:
             username = input("📧 Enter your email:")
             password = getpass.getpass("🤫 Enter your password:")
         res = requests.post(
-            f"{self.config.api_url}/login",
+            f"{config.api_url}/login",
             data={
                 "username": username,
                 "password": password,
-                "auth_method": self.auth_method,
+                "auth_method": config.auth_method,
             },
             headers={"X-Galileo-Request-Source": "dataquality_python_client"},
         )
@@ -45,24 +39,12 @@ class _Auth:
 
         access_token = res.json().get("access_token")
         config.token = access_token
-        os.environ[GalileoConfigVars.MINIO_ACCESS_KEY] = username
-        os.environ[GalileoConfigVars.MINIO_SECRET_KEY] = access_token
+        minio_secret_key = res.json().get("minio_user_secret_access_key", "")
+        config._minio_secret_key = minio_secret_key
         config.update_file_config()
 
     def email_token_present_and_valid(self, config: Config) -> bool:
-        return config.auth_method == "email" and self.valid_current_user(config)
-
-    def valid_current_user(self, config: Config) -> bool:
-        if config.token:
-            try:
-                api_client.make_request(
-                    RequestType.GET, url=f"{config.api_url}/{Route.current_user}"
-                )
-                return True
-            except GalileoException:
-                return False
-        else:
-            return False
+        return config.auth_method == "email" and api_client.valid_current_user()
 
 
 def login() -> None:
@@ -71,10 +53,14 @@ def login() -> None:
     # Try auto auth config
     auth_method = os.getenv(GALILEO_AUTH_METHOD) or config.auth_method
     if not auth_method or auth_method.lower() not in list(AuthMethod):
-        auth_method = input(
-            "🔐 How would you like to login? \n"
-            f"Enter one of the following: {auth_methods}\n"
-        )
+        # We currently only have 1 auth method, so no reason to ask the user
+        if len(list(AuthMethod)) == 1:
+            auth_method = list(AuthMethod)[0].value
+        else:
+            auth_method = input(
+                "🔐 How would you like to login? \n"
+                f"Enter one of the following: {auth_methods}\n"
+            )
         if auth_method.lower() not in list(AuthMethod):
             print(
                 "Invalid login request. You must input one of "
@@ -87,7 +73,7 @@ def login() -> None:
     else:
         print(f"👀 Found auth method {auth_method} set via env, skipping prompt.")
     config.auth_method = AuthMethod(auth_method)
-    _auth = _Auth(config=config, auth_method=config.auth_method)
+    _auth = _Auth()
     _auth.auth_methods()[config.auth_method]()
     current_user_email = api_client.get_current_user().get("email")
     if not current_user_email:

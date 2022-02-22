@@ -19,7 +19,7 @@ class ObjectStore:
             return Minio(
                 config.minio_url,
                 access_key=config.current_user,
-                secret_key=config.token,
+                secret_key=config._minio_secret_key,
                 secure=False if config.minio_url in local_urls else True,
             )
         except Exception as e:
