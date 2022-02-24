@@ -209,16 +209,14 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         self.validate_metadata(batch_size=text_len)
 
     def _extract_gold_spans(
-        self, gold_spans: List[Dict], token_indicies: List[Tuple[int, int]]
+            self, gold_spans: List[Dict], token_indicies: List[Tuple[int, int]]
     ) -> List[Dict]:
         """
-        TODO: Nidhi add description of logic
-
-        gold_spans = [{"start": 21, "end": 32, "label": "nothing"}]
-        token_indicies = [
-            (0, 4),  (5, 7), (8, 11), (12, 16), (17, 19), (21, 24), (25, 28), (29, 32)
-        ]
-        new_gold_spans =  [{'start': 5, 'end': 8, 'label': 'nothing'}]
+        This function converts gold spans that were character indexed into gold spans that are token indexed.
+        This is done to align with the predicted spans of the model, and compute DEP
+        gold_spans = [{'start': 17, 'end': 29, 'label': 'ACTOR'}]
+        token_indicies = [(0, 4), (5, 11), (12, 16), (17, 22), (17, 22), (23, 29), (23, 29)]
+        new_gold_spans =  [{'start': 3, 'end': 7, 'label': 'ACTOR'}]
         """
         new_gold_spans: List[Dict] = []
         for span in gold_spans:
@@ -227,14 +225,12 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             new_start, new_end = None, None
             for token_idx, token in enumerate(token_indicies):
                 token_start, token_end = token
-                if start == token_start:
+                if start == token_start and new_start is None:
                     new_start = token_idx
                 if end == token_end:
                     new_end = token_idx + 1
-                if new_start is not None and new_end is not None:
-                    break
             if (
-                new_start is not None and new_end is not None
+                    new_start is not None and new_end is not None
             ):  # Handle edge case of where sentence > allowed_max_length
                 new_gold_spans.append(
                     {
@@ -243,7 +239,6 @@ class TextNERDataLogger(BaseGalileoDataLogger):
                         "label": span["label"],
                     }
                 )
-
         return new_gold_spans
 
     def _get_input_df(self) -> DataFrame:
