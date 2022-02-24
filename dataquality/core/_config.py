@@ -88,8 +88,7 @@ def url_is_localhost(url: str) -> bool:
 
 
 def set_platform_urls(console_url_str: str) -> None:
-    localhost = url_is_localhost(console_url_str)
-    if localhost:
+    if url_is_localhost(console_url_str):
         os.environ[GalileoConfigVars.API_URL] = "http://localhost:8088"
         os.environ[GalileoConfigVars.MINIO_URL] = "http://localhost:9000"
     else:
