@@ -15,10 +15,7 @@ def test_console_url(set_test_config: Callable) -> None:
 
 @pytest.mark.parametrize(
     "console_url",
-    [
-        "http://localhost:3000",
-        "http://127.0.0.1:3000"
-    ],
+    ["http://localhost:3000", "http://127.0.0.1:3000"],
 )
 def test_console_url_local(set_test_config: Callable, console_url: str) -> None:
     os.environ["GALILEO_CONSOLE_URL"] = console_url
