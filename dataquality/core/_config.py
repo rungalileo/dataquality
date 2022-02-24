@@ -108,7 +108,7 @@ def _check_console_url() -> None:
     """
     console_url = os.getenv(GalileoConfigVars.CONSOLE_URL)
     if console_url:
-        if "console." not in console_url or url_is_localhost(console_url):
+        if "console." not in console_url or not url_is_localhost(console_url):
             warnings.warn(
                 f"It seems your GALILEO_CONSOLE_URL ({console_url}) is invalid. "
                 f"Your console URL should have 'console.' in the url. Ignoring"
