@@ -83,8 +83,13 @@ class Config(BaseModel):
         return v
 
 
+def url_is_localhost(url: str) -> bool:
+    return any(["localhost" in url, "127.0.0.1" in url])
+
+
 def set_platform_urls(console_url_str: str) -> None:
-    if "localhost" in console_url_str or "127.0.0.1" in console_url_str:
+    localhost = url_is_localhost(console_url_str)
+    if localhost:
         os.environ[GalileoConfigVars.API_URL] = "http://localhost:8088"
         os.environ[GalileoConfigVars.MINIO_URL] = "http://localhost:9000"
     else:
@@ -104,13 +109,13 @@ def _check_console_url() -> None:
     """
     console_url = os.getenv(GalileoConfigVars.CONSOLE_URL)
     if console_url:
-        if "console." not in console_url:
+        if "console." not in console_url or url_is_localhost(console_url):
             warnings.warn(
                 f"It seems your GALILEO_CONSOLE_URL ({console_url}) is invalid. "
                 f"Your console URL should have 'console.' in the url. Ignoring"
             )
         else:
-            set_platform_urls(console_url)
+            set_platform_urls(console_url_str=console_url)
 
 
 def set_config() -> Config:
