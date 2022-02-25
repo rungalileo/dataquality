@@ -403,7 +403,7 @@ class ApiClient:
 
     def get_run_status(
         self, project_name: Optional[str] = None, run_name: Optional[str] = None
-    ) -> Dict:
+    ) -> Dict[str, Any]:
         if url_is_localhost(config.api_url):
             raise GalileoException(
                 "You cannot check run status when running the server locally"
