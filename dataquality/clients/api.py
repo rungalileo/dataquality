@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import requests
 from pydantic.types import UUID4
 
-from dataquality.core._config import config
+from dataquality.core._config import config, url_is_localhost
 from dataquality.exceptions import GalileoException
 from dataquality.schemas import ProcName, RequestType, Route
 from dataquality.schemas.split import Split
@@ -403,8 +403,8 @@ class ApiClient:
 
     def get_run_status(
         self, project_name: Optional[str] = None, run_name: Optional[str] = None
-    ) -> Dict:
-        if "localhost" in config.api_url or "127.0.0.1" in config.api_url:
+    ) -> Dict[str, Any]:
+        if url_is_localhost(config.api_url):
             raise GalileoException(
                 "You cannot check run status when running the server locally"
             )
