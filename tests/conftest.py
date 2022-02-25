@@ -1,6 +1,6 @@
 import os
 import shutil
-from typing import Any, Callable, Dict, Generator
+from typing import Any, Callable, Dict, Generator, List
 from uuid import uuid4
 
 import pytest
@@ -61,7 +61,7 @@ def set_test_config(
 
 
 @pytest.fixture()
-def statuses_response() -> Callable:
+def statuses_response() -> Dict[str, List]:
     return {
         "statuses": [
             {"status": "started", "timestamp": "2022-02-20"},
