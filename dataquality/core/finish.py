@@ -44,3 +44,23 @@ def finish() -> Optional[Dict[str, Any]]:
         f"soon at {res['link']}"
     )
     return res
+
+
+def wait_for_run(
+    project_name: Optional[str] = None, run_name: Optional[str] = None
+) -> None:
+    """
+    Waits until a specific project run transitions from started to finished.
+    Defaults to the current run if project_name and run_name are empty
+    """
+    return api_client.wait_for_run(project_name=project_name, run_name=run_name)
+
+
+def get_run_status(
+    project_name: Optional[str] = None, run_name: Optional[str] = None
+) -> None:
+    """
+    Returns the status of a specified project run.
+    Defaults to the current run if project_name and run_name are empty
+    """
+    return api_client.get_run_status(project_name=project_name, run_name=run_name)

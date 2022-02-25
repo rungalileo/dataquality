@@ -60,6 +60,16 @@ def set_test_config(
     return curry
 
 
+@pytest.fixture()
+def statuses_response() -> Callable:
+    return {
+        "statuses": [
+            {"status": "started", "timestamp": "2022-02-20"},
+            {"status": "finished", "timestamp": "2022-02-24"},
+        ]
+    }
+
+
 def patch_object_upload(self: Any, df: DataFrame, object_name: str) -> None:
     """
     A patch for the object_store.create_project_run_object_from_df so we don't have to
