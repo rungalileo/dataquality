@@ -58,7 +58,7 @@ def wait_for_run(
 
 def get_run_status(
     project_name: Optional[str] = None, run_name: Optional[str] = None
-) -> None:
+) -> Dict:
     """
     Returns the status of a specified project run.
     Defaults to the current run if project_name and run_name are empty
