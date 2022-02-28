@@ -39,6 +39,21 @@ def test_init(
 @patch("requests.post", side_effect=mocked_create_project_run)
 @patch("requests.get", side_effect=mocked_get_project_run)
 @patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=True)
+def test_init_private(
+    mock_valid_user: MagicMock,
+    mock_requests_get: MagicMock,
+    mock_requests_post: MagicMock,
+    set_test_config: Callable,
+) -> None:
+    """Base case: Tests creating a new project and run"""
+    dataquality.init(task_type="text_classification", is_public=False)
+    assert config.current_run_id
+    assert config.current_project_id
+
+
+@patch("requests.post", side_effect=mocked_create_project_run)
+@patch("requests.get", side_effect=mocked_get_project_run)
+@patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=True)
 def test_init_existing_project(
     mock_valid_user: MagicMock,
     mock_requests_get: MagicMock,

@@ -118,9 +118,9 @@ class ApiClient:
         runs = self.make_request(RequestType.GET, url=url)
         return runs[0] if runs else {}
 
-    def create_project(self, project_name: str) -> Dict:
+    def create_project(self, project_name: str, is_public: bool = True) -> Dict:
         """Creates a project given a name and returns the project information"""
-        body = {"name": project_name}
+        body = {"name": project_name, "is_public": is_public}
         return self.make_request(
             RequestType.POST, url=f"{config.api_url}/{Route.projects}", body=body
         )
