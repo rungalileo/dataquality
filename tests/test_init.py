@@ -49,6 +49,8 @@ def test_init_private(
     dataquality.init(task_type="text_classification", is_public=False)
     assert config.current_run_id
     assert config.current_project_id
+    mock_create_project_call = mock_requests_post.call_args_list[0]
+    assert mock_create_project_call.assert_called_with(is_public=False)
 
 
 @patch("requests.post", side_effect=mocked_create_project_run)
