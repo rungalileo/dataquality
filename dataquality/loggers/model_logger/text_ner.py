@@ -294,8 +294,10 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         return pred_spans
 
     def _extract_pred_spans_bilou(self, pred_sequence: List[str]) -> List[Dict]:
-        """BILOU is a special case for BIO. The presense of I in a sequence does not mean a presence of a span until
-        an L is successfully predicted.
+        """BILOU is a special case for BIO.
+
+        The presense of I in a sequence does not mean a
+        presence of a span until an L is successfully predicted.
         """
         pred_spans = []
         total_b_count = 0
@@ -311,8 +313,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 total_b_count += 1
                 # hit a single token prediction , update and continue
                 token_val, token_label = token.split("-")
-                pred_spans.append(
-                    {"start": idx, "end": next_idx, "label": token_label})
+                pred_spans.append({"start": idx, "end": next_idx, "label": token_label})
                 idx += 1
                 continue
 
@@ -325,7 +326,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             # different label
             token_val, token_label = token.split("-")
 
-            for next_tok in pred_sequence[idx + 1:]:
+            for next_tok in pred_sequence[idx + 1 :]:
                 # next_tok == "I" and the label matches the current B label
                 if next_tok.startswith("I") and next_tok.split("-")[1] == token_label:
                     next_idx += 1
@@ -338,8 +339,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 else:
                     break
             if found_end:
-                pred_spans.append(
-                    {"start": idx, "end": next_idx, "label": token_label})
+                pred_spans.append({"start": idx, "end": next_idx, "label": token_label})
             idx = next_idx
             found_end = False
 
@@ -347,7 +347,9 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         return pred_spans
 
     def _extract_pred_spans_bioes(self, pred_sequence: List[str]) -> List[Dict]:
-        """BIOES is a special case for BIO. The presense of I in a sequence does not mean a presence of a span until
+        """BIOES is a special case for BIO.
+
+        The presense of I in a sequence does not mean a presence of a span until
         an E is successfully predicted.
         """
         pred_spans = []
@@ -364,8 +366,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 total_b_count += 1
                 # hit a single token prediction , update and continue
                 token_val, token_label = token.split("-")
-                pred_spans.append(
-                    {"start": idx, "end": next_idx, "label": token_label})
+                pred_spans.append({"start": idx, "end": next_idx, "label": token_label})
                 idx += 1
                 continue
 
@@ -378,7 +379,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             # different label
             token_val, token_label = token.split("-")
 
-            for next_tok in pred_sequence[idx + 1:]:
+            for next_tok in pred_sequence[idx + 1 :]:
                 # next_tok == "I" and the label matches the current B label
                 if next_tok.startswith("I") and next_tok.split("-")[1] == token_label:
                     next_idx += 1
@@ -391,8 +392,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 else:
                     break
             if found_end:
-                pred_spans.append(
-                    {"start": idx, "end": next_idx, "label": token_label})
+                pred_spans.append({"start": idx, "end": next_idx, "label": token_label})
             idx = next_idx
             found_end = False
 
@@ -436,8 +436,10 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         self, spans: List[Dict], dep_scores: List[float]
     ) -> List[float]:
         """Computes dep score for all spans in a sample
+
         spans: All spans in a given sample
-        dep_scores: DEP scores for every token in a sample, so len(dep_scores) is the number of tokens in a sentence
+        dep_scores: DEP scores for every token in a sample, so len(dep_scores) is
+            the number of tokens in a sentence
         """
         dep_score_per_span = []
         for span in spans:
@@ -448,14 +450,20 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         return dep_score_per_span
 
     def _calculate_dep_scores(
-        self, pred_prob: np.ndarray, gold_spans: List[Dict], pred_spans: List[Dict], sample_token_len: int
+        self,
+        pred_prob: np.ndarray,
+        gold_spans: List[Dict],
+        pred_spans: List[Dict],
+        sample_token_len: int,
     ) -> Tuple[List[float], List[float]]:
         """Calculates dep scores for every span in a sample
+
         Compute DEP score for each token using gold and predicted sequences.
         Extract DEP score for each span using max of these token-level scores
         gold_spans: gold spans for a sample
         pred_spans: predicted spans for a sample
-        pred_prob: seq_len x num_labels probability predictions for every token in a sample
+        pred_prob: seq_len x num_labels probability predictions for
+            every token in a sample
         """
         label2idx = {l: i for i, l in enumerate(self.logger_config.labels)}
         argmax_indices: List[int] = pred_prob.argmax(axis=1).tolist()
@@ -477,11 +485,14 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 second_idx = ordered_prob_vector[-1]
             aum = token_prob_vector[g_label_idx] - token_prob_vector[second_idx]
             dep = (1 - aum) / 2  # normalize aum to dep
-            assert 1.0 >= dep >= 0.0, f"DEP score is out of bounds"
+            assert 1.0 >= dep >= 0.0, "DEP score is out of bounds"
             dep_scores_tokens.append(dep)
-        assert sample_token_len == len(dep_scores_tokens), f"misalignment between total tokens and DEP scores"
+        assert sample_token_len == len(
+            dep_scores_tokens
+        ), "misalignment between total tokens and DEP scores"
 
-        # Compute dep score of each span, which is effectively max dep score across all tokens in a span
+        # Compute dep score of each span, which is effectively max dep score across
+        # all tokens in a span
         gold_dep = self._calculate_dep_score_across_spans(gold_spans, dep_scores_tokens)
         pred_dep = self._calculate_dep_score_across_spans(pred_spans, dep_scores_tokens)
         return gold_dep, pred_dep

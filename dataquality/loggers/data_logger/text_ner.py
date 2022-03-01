@@ -195,12 +195,18 @@ class TextNERDataLogger(BaseGalileoDataLogger):
                 max_end_idx = max(span["end"], max_end_idx)
                 max_start_idx = max(span["start"], max_start_idx)
 
-            assert (sample_indices[-1][0] <= max_start_idx), \
-                f"span start idx: {max_end_idx}, does not align with provided token boundaries {sample_indices}"
-            assert (sample_indices[-1][1] <= max_end_idx),\
-                f"span end idx: {max_end_idx}, does not align with provided token boundaries {sample_indices}"
-            assert max_end_idx <= len(sample_text), f"span end idx: {max_end_idx} " \
-                                                    f"overshoots text length of {len(sample_text)}"
+            assert sample_indices[-1][0] <= max_start_idx, (
+                f"span start idx: {max_end_idx}, does not align with provided token "
+                f"boundaries {sample_indices}"
+            )
+            assert sample_indices[-1][1] <= max_end_idx, (
+                f"span end idx: {max_end_idx}, does not align with provided token "
+                f"boundaries {sample_indices}"
+            )
+            assert max_end_idx <= len(sample_text), (
+                f"span end idx: {max_end_idx} "
+                f"overshoots text length of {len(sample_text)}"
+            )
             updated_spans = self._extract_gold_spans(sample_spans, sample_indices)
 
             sample_key = self.logger_config.get_sample_key(str(self.split), sample_id)
@@ -221,13 +227,16 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         self.validate_metadata(batch_size=text_len)
 
     def _extract_gold_spans(
-            self, gold_spans: List[Dict], token_indicies: List[Tuple[int, int]]
+        self, gold_spans: List[Dict], token_indicies: List[Tuple[int, int]]
     ) -> List[Dict]:
         """
-        This function converts gold spans that were character indexed into gold spans that are token indexed.
+        This function converts gold spans that were character indexed into gold spans
+            that are token indexed.
         This is done to align with the predicted spans of the model, and compute DEP
         gold_spans = [{'start': 17, 'end': 29, 'label': 'ACTOR'}]
-        token_indicies = [(0, 4), (5, 11), (12, 16), (17, 22), (17, 22), (23, 29), (23, 29)]
+        token_indicies = [
+            (0, 4), (5, 11), (12, 16), (17, 22), (17, 22), (23, 29), (23, 29)
+            ]
         new_gold_spans =  [{'start': 3, 'end': 7, 'label': 'ACTOR'}]
         """
         new_gold_spans: List[Dict] = []
@@ -242,7 +251,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
                 if end == token_end:
                     new_end = token_idx + 1
             if (
-                    new_start is not None and new_end is not None
+                new_start is not None and new_end is not None
             ):  # Handle edge case of where sentence > allowed_max_length
                 new_gold_spans.append(
                     {
@@ -251,9 +260,11 @@ class TextNERDataLogger(BaseGalileoDataLogger):
                         "label": span["label"],
                     }
                 )
-        assert (len(new_gold_spans) == len(gold_spans)), f"error in span alignment, " \
-                                                         f"cannot find all gold spans: " \
-                                                         f"{gold_spans} in token boundaries: {token_indicies}"
+        assert len(new_gold_spans) == len(gold_spans), (
+            f"error in span alignment, "
+            f"cannot find all gold spans: "
+            f"{gold_spans} in token boundaries: {token_indicies}"
+        )
         return new_gold_spans
 
     def _get_input_df(self) -> DataFrame:
