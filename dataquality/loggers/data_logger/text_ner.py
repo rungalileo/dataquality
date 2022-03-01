@@ -32,7 +32,8 @@ class TextNERDataLogger(BaseGalileoDataLogger):
     Class for logging input data/metadata of Text NER models to Galileo.
 
     * text: The raw text inputs for model training. List[str]
-    * text_token_indices: TODO: Nidhi
+    * text_token_indices: Token boundaries of text. List[Tuple(int, int)].
+    Used to convert the gold_spans into token level spans internally
     * gold_spans: Gold spans for the text_tokenized. The list of spans in a sample with
     their start and end indexes, and the label. This matches the text_tokenized format
     Indexes start at 0 and are [inclusive, exclusive) for [start, end) respectively.
@@ -102,8 +103,9 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         """Create data logger.
 
         :param text: The raw text inputs for model training. List[str]
-        :param text_token_indices: TODO: Nidhi add definition here
-        :param gold_spans: The model-level gold spans over the `text_tokenized`
+        :param text_token_indices: Token boundaries of text. List[Tuple(int, int)].
+        Used to convert the gold_spans into token level spans internally
+        :param gold_spans: The model-level gold spans over the char index of `text`
         :param ids: Optional unique indexes for each record. If not provided, will
         default to the index of the record. Optional[List[Union[int,str]]]
         :param split: The split for training/test/validation
@@ -176,19 +178,29 @@ class TextNERDataLogger(BaseGalileoDataLogger):
                 f"{text_tokenized_len})"
             )
 
-        for sample_id, sample_spans, sample_indices in zip(
-            self.ids, self.gold_spans, self.text_token_indices
+        for sample_id, sample_spans, sample_indices, sample_text in zip(
+            self.ids, self.gold_spans, self.text_token_indices, self.text
         ):
+            max_end_idx, max_start_idx = 0, 0
             for span in sample_spans:
+
                 assert isinstance(span, dict), "individual spans must be dictionaries"
                 assert "start" in span and "end" in span and "label" in span, (
                     "gold_spans must have a 'start', 'end', and 'label', but got "
                     f"{span.keys()}"
                 )
                 assert (
-                    span["start"] <= span["end"]
+                    span["start"] < span["end"]
                 ), f"end index must be >= start index, but got {span}"
+                max_end_idx = max(span["end"], max_end_idx)
+                max_start_idx = max(span["start"], max_start_idx)
 
+            assert (sample_indices[-1][0] <= max_start_idx), \
+                f"span start idx: {max_end_idx}, does not align with provided token boundaries {sample_indices}"
+            assert (sample_indices[-1][1] <= max_end_idx),\
+                f"span end idx: {max_end_idx}, does not align with provided token boundaries {sample_indices}"
+            assert max_end_idx <= len(sample_text), f"span end idx: {max_end_idx} " \
+                                                    f"overshoots text length of {len(sample_text)}"
             updated_spans = self._extract_gold_spans(sample_spans, sample_indices)
 
             sample_key = self.logger_config.get_sample_key(str(self.split), sample_id)
@@ -239,6 +251,9 @@ class TextNERDataLogger(BaseGalileoDataLogger):
                         "label": span["label"],
                     }
                 )
+        assert (len(new_gold_spans) == len(gold_spans)), f"error in span alignment, " \
+                                                         f"cannot find all gold spans: " \
+                                                         f"{gold_spans} in token boundaries: {token_indicies}"
         return new_gold_spans
 
     def _get_input_df(self) -> DataFrame:

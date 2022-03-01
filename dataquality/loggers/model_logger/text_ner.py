@@ -154,12 +154,12 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             # To extract metadata about the sample we are looking at
             span_key = self.logger_config.get_sample_key(str(self.split), sample_id)
 
-            # TODO: Nidhi, you can pass this into your functions
             sample_token_len = self.logger_config.sample_length[span_key]
             # Get prediction spans
             sample_pred_spans = self._extract_pred_spans(sample_prob, sample_token_len)
             # print(f"Sample {sample_id} has {len(sample_pred_spans)} pred spans")
             # Get gold (ground truth) spans
+
             gold_span_tup = self.logger_config.gold_spans.get(span_key, [])
             sample_gold_spans: List[Dict] = [
                 dict(start=start, end=end, label=label)
@@ -170,7 +170,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 continue
 
             gold_dep, pred_dep = self._calculate_dep_scores(
-                sample_prob, sample_gold_spans, sample_pred_spans
+                sample_prob, sample_gold_spans, sample_pred_spans, sample_token_len
             )
             gold_emb = self._extract_embeddings(sample_gold_spans, sample_emb)
             pred_emb = self._extract_embeddings(sample_pred_spans, sample_emb)
@@ -223,6 +223,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         pred_sequence: List[str] = [
             self.logger_config.labels[x] for x in argmax_indices
         ][0:sample_len]
+
         if self.logger_config.tagging_schema == TaggingSchema.BIO:
             pred_spans = self._extract_pred_spans_bio(pred_sequence)
         elif self.logger_config.tagging_schema == TaggingSchema.BILOU:
@@ -293,31 +294,110 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         return pred_spans
 
     def _extract_pred_spans_bilou(self, pred_sequence: List[str]) -> List[Dict]:
+        """BILOU is a special case for BIO. The presense of I in a sequence does not mean a presence of a span until
+        an L is successfully predicted.
         """
-        convert BILOU into BIO and extract the spans
+        pred_spans = []
+        total_b_count = 0
+        idx = 0
+        found_end = False  # Tracks if there was an end tag predicted for BIOES
 
-        L becomes I
-        U becomes B
-        """
-        for idx, label in enumerate(pred_sequence):
-            if pred_sequence[idx].split("-")[0] == "L":
-                pred_sequence[idx] = pred_sequence[idx].replace("L", "I", 1)
-            elif pred_sequence[idx].split("-")[0] == "U":
-                pred_sequence[idx] = pred_sequence[idx].replace("U", "B", 1)
-        return self._extract_pred_spans_bio(pred_sequence)
+        # Use a while loop so we can skip rows already scanned in the inner loop
+        while idx < len(pred_sequence):
+            token = pred_sequence[idx]
+            next_idx = idx + 1
+
+            if token.startswith("U"):
+                total_b_count += 1
+                # hit a single token prediction , update and continue
+                token_val, token_label = token.split("-")
+                pred_spans.append(
+                    {"start": idx, "end": next_idx, "label": token_label})
+                idx += 1
+                continue
+
+            if not token.startswith("B"):
+                idx += 1
+                continue
+
+            # We've hit a prediction. Continue until it's invalid
+            # Invalid means we hit a new B or O tag, or the next I tag has a
+            # different label
+            token_val, token_label = token.split("-")
+
+            for next_tok in pred_sequence[idx + 1:]:
+                # next_tok == "I" and the label matches the current B label
+                if next_tok.startswith("I") and next_tok.split("-")[1] == token_label:
+                    next_idx += 1
+                # next_tok == "E" and the label matches the current B label
+                elif next_tok.startswith("L") and next_tok.split("-")[1] == token_label:
+                    next_idx += 1
+                    found_end = True
+                    total_b_count += 1
+                    break
+                else:
+                    break
+            if found_end:
+                pred_spans.append(
+                    {"start": idx, "end": next_idx, "label": token_label})
+            idx = next_idx
+            found_end = False
+
+        assert total_b_count == len(pred_spans)
+        return pred_spans
 
     def _extract_pred_spans_bioes(self, pred_sequence: List[str]) -> List[Dict]:
-        """convert BIOES into BIO and extract the spans
-
-        E becomes I
-        S becomes B
+        """BIOES is a special case for BIO. The presense of I in a sequence does not mean a presence of a span until
+        an E is successfully predicted.
         """
-        for idx, label in enumerate(pred_sequence):
-            if pred_sequence[idx].split("-")[0] == "E":
-                pred_sequence[idx] = pred_sequence[idx].replace("E", "I", 1)
-            elif pred_sequence[idx].split("-")[0] == "S":
-                pred_sequence[idx] = pred_sequence[idx].replace("S", "B", 1)
-        return self._extract_pred_spans_bio(pred_sequence)
+        pred_spans = []
+        total_b_count = 0
+        idx = 0
+        found_end = False  # Tracks if there was an end tag predicted for BIOES
+
+        # Use a while loop so we can skip rows already scanned in the inner loop
+        while idx < len(pred_sequence):
+            token = pred_sequence[idx]
+            next_idx = idx + 1
+
+            if token.startswith("S"):
+                total_b_count += 1
+                # hit a single token prediction , update and continue
+                token_val, token_label = token.split("-")
+                pred_spans.append(
+                    {"start": idx, "end": next_idx, "label": token_label})
+                idx += 1
+                continue
+
+            if not token.startswith("B"):
+                idx += 1
+                continue
+
+            # We've hit a prediction. Continue until it's invalid
+            # Invalid means we hit a new B or O tag, or the next I tag has a
+            # different label
+            token_val, token_label = token.split("-")
+
+            for next_tok in pred_sequence[idx + 1:]:
+                # next_tok == "I" and the label matches the current B label
+                if next_tok.startswith("I") and next_tok.split("-")[1] == token_label:
+                    next_idx += 1
+                # next_tok == "E" and the label matches the current B label
+                elif next_tok.startswith("E") and next_tok.split("-")[1] == token_label:
+                    next_idx += 1
+                    found_end = True
+                    total_b_count += 1
+                    break
+                else:
+                    break
+            if found_end:
+                pred_spans.append(
+                    {"start": idx, "end": next_idx, "label": token_label})
+            idx = next_idx
+            found_end = False
+
+        assert total_b_count == len(pred_spans)
+        return pred_spans
 
     def _construct_gold_sequence(
         self, len_sequence: int, gold_spans: List[Dict]
@@ -355,30 +435,35 @@ class TextNERModelLogger(BaseGalileoModelLogger):
     def _calculate_dep_score_across_spans(
         self, spans: List[Dict], dep_scores: List[float]
     ) -> List[float]:
-        """TODO: Nidhi add description of logic"""
+        """Computes dep score for all spans in a sample
+        spans: All spans in a given sample
+        dep_scores: DEP scores for every token in a sample, so len(dep_scores) is the number of tokens in a sentence
+        """
         dep_score_per_span = []
         for span in spans:
             start = span["start"]
             end = span["end"]
             dep_score_per_span.append(max(dep_scores[start:end]))
+        assert len(dep_score_per_span) == len(spans)
         return dep_score_per_span
 
     def _calculate_dep_scores(
-        self, pred_prob: np.ndarray, gold_spans: List[Dict], pred_spans: List[Dict]
+        self, pred_prob: np.ndarray, gold_spans: List[Dict], pred_spans: List[Dict], sample_token_len: int
     ) -> Tuple[List[float], List[float]]:
-        """Calculates dep scores for each span on a per-sample basis
-
+        """Calculates dep scores for every span in a sample
         Compute DEP score for each token using gold and predicted sequences.
         Extract DEP score for each span using max of these token-level scores
+        gold_spans: gold spans for a sample
+        pred_spans: predicted spans for a sample
+        pred_prob: seq_len x num_labels probability predictions for every token in a sample
         """
         label2idx = {l: i for i, l in enumerate(self.logger_config.labels)}
         argmax_indices: List[int] = pred_prob.argmax(axis=1).tolist()
         pred_sequence: List[str] = [
             self.logger_config.labels[x] for x in argmax_indices
-        ]
+        ][0:sample_token_len]
         gold_sequence = self._construct_gold_sequence(len(pred_sequence), gold_spans)
-
-        # Compute dep scores of all tokens in the sentence
+        # Store dep scores for every token in the sample
         dep_scores_tokens = []
         for idx, token in enumerate(gold_sequence):
             g_label_idx = label2idx[token]  # index of ground truth
@@ -392,9 +477,11 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 second_idx = ordered_prob_vector[-1]
             aum = token_prob_vector[g_label_idx] - token_prob_vector[second_idx]
             dep = (1 - aum) / 2  # normalize aum to dep
+            assert 1.0 >= dep >= 0.0, f"DEP score is out of bounds"
             dep_scores_tokens.append(dep)
+        assert sample_token_len == len(dep_scores_tokens), f"misalignment between total tokens and DEP scores"
 
-        # Compute dep scores of all spans (max of dep score of tokens in a span)
+        # Compute dep score of each span, which is effectively max dep score across all tokens in a span
         gold_dep = self._calculate_dep_score_across_spans(gold_spans, dep_scores_tokens)
         pred_dep = self._calculate_dep_score_across_spans(pred_spans, dep_scores_tokens)
         return gold_dep, pred_dep
