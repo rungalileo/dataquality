@@ -143,19 +143,19 @@ def test_calculate_dep_score_across_spans() -> None:
     assert span_dep_score == model_logger._calculate_dep_score_across_spans(spans, dep_scores)
 
 
-"""def test_calculate_dep_scores() -> None:
+def test_calculate_dep_scores() -> None:
     model_logger.logger_config.tagging_schema = "BIO"
     pred_prob = np.array([[0.9, 0.05, 0.05, 0, 0, 0, 0],
                           [0.1, 0.7, 0.1, 0.1, 0, 0, 0],
                           [0, 0, 0, 0.1, 0.9, 0, 0],
                           [0.0, 0.4, 0.6, 0, 0, 0, 0],
-                          [0.2, 0.05, 0.05, 0, 0, 0.7, 0]], np.int32)
+                          [0.2, 0.05, 0.05, 0, 0, 0.7, 0]])
     model_logger.logger_config.labels = ["B-PER", "I-PER", "B-ORG", "I-ORG", "O", "B-MISC", "I-MISC"]
     sample_len = 5
     gold_spans = [{"start": 0, "end": 2, "label": "PER"},
                   {"start": 4, "end": 5, "label": "MISC"}]
     pred_spans = [{"start": 3, "end": 4, "label": "ORG"},
                   {"start": 4, "end": 5, "label": "MISC"}]
-    gold_dep, pred_dep = model_logger._calculate_dep_scores(pred_prob, gold_spans, pred_spans, sample_len)
-    print(gold_dep, pred_dep)
-    assert gold_dep == []"""
+    gold_dep, pred_dep  = model_logger._calculate_dep_scores(pred_prob, gold_spans, pred_spans, sample_len)
+    assert gold_dep == [0.2, 0.25]
+    assert pred_dep == [0.8, 0.25]
