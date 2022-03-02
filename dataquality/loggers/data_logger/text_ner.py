@@ -201,7 +201,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
                 max_start_idx = max(span["start"], max_start_idx)
 
             assert max_start_idx <= sample_indices[-1][0], (
-                f"span start idx: {max_end_idx}, does not align with provided token "
+                f"span start idx: {max_start_idx}, does not align with provided token "
                 f"boundaries {sample_indices}"
             )
             assert max_end_idx <= sample_indices[-1][1], (
