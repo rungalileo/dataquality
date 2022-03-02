@@ -278,7 +278,10 @@ class TextNERModelLogger(BaseGalileoModelLogger):
 
             for next_tok in pred_sequence[idx + 1 :]:
                 # next_tok == "I" and the label matches the current B label
-                if next_tok.startswith("I") and next_tok.split("-", maxsplit=1)[1] == token_label:
+                if (
+                    next_tok.startswith("I")
+                    and next_tok.split("-", maxsplit=1)[1] == token_label
+                ):
                     next_idx += 1
                 else:
                     break

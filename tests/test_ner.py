@@ -307,6 +307,15 @@ def test_ner_logging_bad_inputs(set_test_config: Callable) -> None:
 
 
 def test_ner_logging(cleanup_after_use: Callable, set_test_config: Callable) -> None:
+    """
+    To validate:
+    * dep scores are all 0 <= dep <= 1
+    * assert correct start and end index for extracted spans
+    * spans within gold cannot be nested
+    * spans within pred cannot be nested
+    * all spans should be either gold, pred, or both (never neither)
+    * 3 rows
+    """
     set_test_config(default_task_type=TaskType.text_ner)
     dataquality.config.task_type = TaskType.text_ner
     dataquality.set_tagging_schema("BIO")
@@ -352,37 +361,38 @@ def test_ner_logging(cleanup_after_use: Callable, set_test_config: Callable) -> 
         split=split,
     )
 
-    pred_prob = np.array([
+    pred_prob = np.array(
         [
-            [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
-            [0.68, 0.1, 0.1, 0.1, 0, 0, 0.02, 0, 0],
-            [0, 0.9, 0, 0.1, 0, 0, 0, 0, 0],
-            [0.0, 0.4, 0.6, 0, 0, 0, 0, 0, 0],
-            [0.0, 0, 0.05, 0, 0, 0, 0, 0, 0.95],
-            [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
-            [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
-            [0.0, 0.05, 0.05, 0, 0, 0, 0.9, 0, 0],
-        ],
-        [
-            [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
-            [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
-            [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
-            [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
-            [0.0, 0, 0.05, 0, 0.95, 0, 0, 0, 0.0],
-            [0.0, 0.05, 0.05, 0, 0, 0.9, 0, 0, 0.0],
-            [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
-            [0.0, 0.05, 0.05, 0, 0, 0, 0.9, 0, 0],
-        ],
-        [
-            [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
-            [0.0, 0.05, 0.05, 0, 0, 0, 0.9, 0, 0],
-            [0.2, 0.05, 0.05, 0, 0, 0, 0, 0.7, 0],
-            [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
-            [0.0, 0.05, 0.05, 0.9, 0, 0, 0, 0, 0],
-            [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
-            [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
-            [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
-        ],
+            [
+                [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
+                [0.68, 0.1, 0.1, 0.1, 0, 0, 0.02, 0, 0],
+                [0, 0.9, 0, 0.1, 0, 0, 0, 0, 0],
+                [0.0, 0.4, 0.6, 0, 0, 0, 0, 0, 0],
+                [0.0, 0, 0.05, 0, 0, 0, 0, 0, 0.95],
+                [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
+                [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
+                [0.0, 0.05, 0.05, 0, 0, 0, 0.9, 0, 0],
+            ],
+            [
+                [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
+                [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
+                [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
+                [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
+                [0.0, 0, 0.05, 0, 0.95, 0, 0, 0, 0.0],
+                [0.0, 0.05, 0.05, 0, 0, 0.9, 0, 0, 0.0],
+                [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
+                [0.0, 0.05, 0.05, 0, 0, 0, 0.9, 0, 0],
+            ],
+            [
+                [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
+                [0.0, 0.05, 0.05, 0, 0, 0, 0.9, 0, 0],
+                [0.2, 0.05, 0.05, 0, 0, 0, 0, 0.7, 0],
+                [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
+                [0.0, 0.05, 0.05, 0.9, 0, 0, 0, 0, 0],
+                [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
+                [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
+                [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
+            ],
         ]
     )
 
@@ -399,30 +409,27 @@ def test_ner_logging(cleanup_after_use: Callable, set_test_config: Callable) -> 
     c.validate_labels()
     c.upload()
 
-    """
-    To validate:
-    * dep scores are all 0 <= dep <= 1
-    * assert correct start and end index for extracted spans
-    * spans within gold cannot be nested
-    * spans within pred cannot be nested
-    * all spans should be either gold, pred, or both (never neither)
-    * 3 rows
-    """
     pred_spans = [
         [
             {"span_start": 1, "span_end": 3, "pred": "foo"},
             {"span_start": 3, "span_end": 4, "pred": "bar"},
             {"span_start": 7, "span_end": 8, "pred": "bar-foo"},
         ],
-        [{"span_start": 4, "span_end": 6, "pred": "foo-bar"},
-         {"span_start": 7, "span_end": 8, "pred": "bar-foo"}],
+        [
+            {"span_start": 4, "span_end": 6, "pred": "foo-bar"},
+            {"span_start": 7, "span_end": 8, "pred": "bar-foo"},
+        ],
         [{"span_start": 1, "span_end": 3, "pred": "bar-foo"}],
     ]
 
-    pred_spans_sequence = [
-        ["O", "B-foo", "I-foo", "B-bar", "O", "O", "O", "B-bar-foo"],
-        ["O", "O", "O", "O", "B-foo-bar", "I-foo-bar", "O", "I-bar-foo"],
-        ["O", "B-bar-foo", "I-bar-foo", "O", "I-bar", "O", "O", "O"],
+    gold_spans = [
+        [
+            {"span_start": 1, "span_end": 3, "gold": "foo"},
+            {"span_start": 3, "span_end": 4, "gold": "bar"},
+            {"span_start": 4, "span_end": 8, "gold": "bar-foo"},
+        ],
+        [{"span_start": 4, "span_end": 8, "gold": "foo-bar"}],
+        [],
     ]
 
     prob_path = f"{TEST_PATH}/{split}/prob/prob.hdf5"
@@ -435,6 +442,13 @@ def test_ner_logging(cleanup_after_use: Callable, set_test_config: Callable) -> 
         pred_df = prob_df[prob_df[f"(is_pred) & (sample_id=={i})"]]
         df_pred_spans = pred_df[["span_start", "span_end", "pred"]].to_records()
         assert sample_pred_spans == df_pred_spans
+
+        sample_gold_spans = gold_spans[i]
+        gold_df = prob_df[prob_df[f"(is_gold) & (sample_id=={i})"]]
+        df_gold_spans = gold_df[["span_start", "span_end", "gold"]].to_records()
+        print(sample_gold_spans)
+        print(df_gold_spans)
+        assert sample_gold_spans == df_gold_spans
 
     assert len(prob_df[prob_df["(~is_gold) & (~is_pred)"]]) == 0
 
