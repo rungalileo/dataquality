@@ -1,7 +1,15 @@
-import numpy as np
+from typing import Callable
 
+import numpy as np
+import pytest
+import vaex
+
+import dataquality
 from dataquality.loggers.data_logger.text_ner import TextNERDataLogger
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
+from dataquality.schemas.task_type import TaskType
+from dataquality.utils.thread_pool import ThreadPoolManager
+from tests.conftest import TEST_PATH
 
 model_logger = TextNERModelLogger()
 
@@ -235,3 +243,208 @@ def test_calculate_dep_scores() -> None:
     )
     assert gold_dep == [0.2, 0.25]
     assert pred_dep == [0.8, 0.25]
+
+
+def test_ner_logging_bad_inputs(set_test_config: Callable) -> None:
+    set_test_config(default_task_type=TaskType.text_ner)
+    dataquality.set_tagging_schema("BIO")
+
+    labels = [
+        "B-foo",
+        "I-foo",
+        "B-bar",
+        "I-bar",
+        "B-foo-bar",
+        "I-foo-bar",
+        "B-bar-foo",
+        "I-bar-foo",
+        "O",
+    ]
+    dataquality.set_labels_for_run(labels)
+
+    text_inputs = [
+        f"sample text for sentence {i}" for i in range(3)
+    ]  # (tokens) sample te xt for sent en ce
+    token_boundaries_all = [
+        [(0, 6), (7, 11), (7, 11), (12, 15), (16, 24), (16, 24), (16, 24), (25, 26)]
+        for _ in range(3)
+    ]
+    gold_spans = [
+        [
+            {"start": 7, "end": 11, "label": "foo"},
+            {"start": 12, "end": 15, "label": "bar"},
+            {"start": 16, "end": 27, "label": "bar-foo"},
+        ],
+        [{"start": 16, "end": 26, "label": "foo-bar"}],
+        [],
+    ]
+
+    ids = [1, 2, 3]
+    split = "training"
+
+    # Handle spans that don't align with token boundaries
+    with pytest.raises(AssertionError):
+        dataquality.log_input_data(
+            text=text_inputs,
+            text_token_indices=token_boundaries_all,
+            gold_spans=gold_spans,
+            ids=ids,
+            split=split,
+        )
+
+    # Handle labels that are in gold but missing in registered labels
+    # TODO: add test bad label
+    gold_spans = [
+        [
+            {"start": 7, "end": 11, "label": "foo"},
+            {"start": 12, "end": 15, "label": "bar"},
+            {"start": 16, "end": 26, "label": "bar-foo"},
+        ],
+        [{"start": 16, "end": 26, "label": "bad_label"}],
+        [],
+    ]
+
+
+def test_ner_logging(cleanup_after_use: Callable, set_test_config: Callable) -> None:
+    set_test_config(default_task_type=TaskType.text_ner)
+    dataquality.config.task_type = TaskType.text_ner
+    dataquality.set_tagging_schema("BIO")
+
+    labels = [
+        "B-foo",
+        "I-foo",
+        "B-bar",
+        "I-bar",
+        "B-foo-bar",
+        "I-foo-bar",
+        "B-bar-foo",
+        "I-bar-foo",
+        "O",
+    ]
+    dataquality.set_labels_for_run(labels)
+
+    text_inputs = [
+        f"sample text for sentence {i}" for i in range(3)
+    ]  # (tokens) sample te xt for sent en ce
+    token_boundaries_all = [
+        [(0, 6), (7, 11), (7, 11), (12, 15), (16, 24), (16, 24), (16, 24), (25, 26)]
+        for _ in range(3)
+    ]
+    gold_spans = [
+        [
+            {"start": 7, "end": 11, "label": "foo"},
+            {"start": 12, "end": 15, "label": "bar"},
+            {"start": 16, "end": 26, "label": "bar-foo"},
+        ],
+        [{"start": 16, "end": 26, "label": "foo-bar"}],
+        [],
+    ]
+
+    ids = [0, 1, 2]
+    split = "training"
+
+    dataquality.log_input_data(
+        text=text_inputs,
+        text_token_indices=token_boundaries_all,
+        gold_spans=gold_spans,
+        ids=ids,
+        split=split,
+    )
+
+    pred_prob = np.array([
+        [
+            [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
+            [0.68, 0.1, 0.1, 0.1, 0, 0, 0.02, 0, 0],
+            [0, 0.9, 0, 0.1, 0, 0, 0, 0, 0],
+            [0.0, 0.4, 0.6, 0, 0, 0, 0, 0, 0],
+            [0.0, 0, 0.05, 0, 0, 0, 0, 0, 0.95],
+            [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
+            [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
+            [0.0, 0.05, 0.05, 0, 0, 0, 0.9, 0, 0],
+        ],
+        [
+            [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
+            [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
+            [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
+            [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
+            [0.0, 0, 0.05, 0, 0.95, 0, 0, 0, 0.0],
+            [0.0, 0.05, 0.05, 0, 0, 0.9, 0, 0, 0.0],
+            [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
+            [0.0, 0.05, 0.05, 0, 0, 0, 0.9, 0, 0],
+        ],
+        [
+            [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
+            [0.0, 0.05, 0.05, 0, 0, 0, 0.9, 0, 0],
+            [0.2, 0.05, 0.05, 0, 0, 0, 0, 0.7, 0],
+            [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
+            [0.0, 0.05, 0.05, 0.9, 0, 0, 0, 0, 0],
+            [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
+            [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
+            [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
+        ],
+        ]
+    )
+
+    dataquality.log_model_outputs(
+        emb=np.random.rand(3, 8, 5),
+        probs=pred_prob,
+        ids=[0, 1, 2],
+        split="training",
+        epoch=0,
+    )
+
+    ThreadPoolManager.wait_for_threads()
+    c = dataquality.get_data_logger()
+    c.validate_labels()
+    c.upload()
+
+    """
+    To validate:
+    * dep scores are all 0 <= dep <= 1
+    * assert correct start and end index for extracted spans
+    * spans within gold cannot be nested
+    * spans within pred cannot be nested
+    * all spans should be either gold, pred, or both (never neither)
+    * 3 rows
+    """
+    pred_spans = [
+        [
+            {"span_start": 1, "span_end": 3, "pred": "foo"},
+            {"span_start": 3, "span_end": 4, "pred": "bar"},
+            {"span_start": 7, "span_end": 8, "pred": "bar-foo"},
+        ],
+        [{"span_start": 4, "span_end": 6, "pred": "foo-bar"}],
+        [{"span_start": 1, "span_end": 3, "pred": "bar-foo"}],
+    ]
+
+    pred_spans_sequence = [
+        ["O", "B-foo", "I-foo", "B-bar", "O", "O", "O", "B-bar-foo"],
+        ["O", "O", "O", "O", "B-foo-bar", "I-foo-bar", "O", "I-bar-foo"],
+        ["O", "B-bar-foo", "I-bar-foo", "O", "I-bar", "O", "O", "O"],
+    ]
+
+    prob_path = f"{TEST_PATH}/{split}/prob/prob.hdf5"
+    prob_df = vaex.open(prob_path)
+    print(prob_df)
+    for i in prob_df.data_error_potential.to_numpy():
+        assert 0 <= i <= 1
+
+    for i in range(3):
+        sample_pred_spans = pred_spans[i]
+        pred_df = prob_df[prob_df[f"(is_pred) & (sample_id=={i})"]]
+        df_pred_spans = pred_df[["span_start", "span_end", "pred"]].to_records()
+        print(sample_pred_spans)
+        print(df_pred_spans)
+        assert sample_pred_spans == df_pred_spans
+
+    assert len(prob_df[prob_df["(~is_gold) & (~is_pred)"]]) == 0
+
+    emb_path = f"{TEST_PATH}/{split}/prob/prob.hdf5"
+    emb_df = vaex.open(emb_path)
+
+    assert len(emb_df) == len(prob_df)
+
+    sample_path = f"{TEST_PATH}/{split}/data/data.arrow"
+    sample_df = vaex.open(sample_path)
+
+    assert len(sample_df) == 3
