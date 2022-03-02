@@ -12,6 +12,7 @@ from dataquality.loggers.logger_config.text_ner import (
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.ner_errors import NERErrorType
+from dataquality.schemas.split import Split
 
 
 @unique
@@ -147,15 +148,15 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         logged_sample_ids = []
         for sample_id, sample_emb, sample_prob in zip(self.ids, self.emb, self.probs):
             # To extract metadata about the sample we are looking at
-            span_key = self.logger_config.get_sample_key(str(self.split), sample_id)
+            sample_key = self.logger_config.get_sample_key(Split(self.split), sample_id)
 
-            sample_token_len = self.logger_config.sample_length[span_key]
+            sample_token_len = self.logger_config.sample_length[sample_key]
             # Get prediction spans
             sample_pred_spans = self._extract_pred_spans(sample_prob, sample_token_len)
             # print(f"Sample {sample_id} has {len(sample_pred_spans)} pred spans")
             # Get gold (ground truth) spans
 
-            gold_span_tup = self.logger_config.gold_spans.get(span_key, [])
+            gold_span_tup = self.logger_config.gold_spans.get(sample_key, [])
             sample_gold_spans: List[Dict] = [
                 dict(start=start, end=end, label=label)
                 for start, end, label in gold_span_tup
@@ -273,11 +274,11 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             # Invalid means we hit a new B or O tag, or the next I tag has a
             # different label
             total_b_count += 1
-            token_val, token_label = token.split("-")
+            token_val, token_label = token.split("-", maxsplit=1)
 
             for next_tok in pred_sequence[idx + 1 :]:
                 # next_tok == "I" and the label matches the current B label
-                if next_tok.startswith("I") and next_tok.split("-")[1] == token_label:
+                if next_tok.startswith("I") and next_tok.split("-", maxsplit=1)[1] == token_label:
                     next_idx += 1
                 else:
                     break
@@ -507,7 +508,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         ) -> defaultdict:
             d["sample_id"].append(id)
             d["epoch"].append(self.epoch)
-            d["split"].append(self.split)
+            d["split"].append(Split(self.split).value)
             d["data_schema_version"].append(__data_schema_version__)
             d["span_start"].append(start)
             d["span_end"].append(end)

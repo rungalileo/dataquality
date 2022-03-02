@@ -189,6 +189,9 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             max_end_idx, max_start_idx = 0, 0
             for span in sample_spans:
 
+                # TODO: We need to validate that the span's label is one of the
+                #  provided labels
+
                 assert isinstance(span, dict), "individual spans must be dictionaries"
                 assert "start" in span and "end" in span and "label" in span, (
                     "gold_spans must have a 'start', 'end', and 'label', but got "
@@ -210,11 +213,11 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             )
             assert max_end_idx <= len(sample_text), (
                 f"span end idx: {max_end_idx} "
-                f"overshoots text length of {len(sample_text)}"
+                f"overshoots text length of {len(sample_text)} {sample_text}"
             )
             updated_spans = self._extract_gold_spans(sample_spans, sample_indices)
 
-            sample_key = self.logger_config.get_sample_key(str(self.split), sample_id)
+            sample_key = self.logger_config.get_sample_key(Split(self.split), sample_id)
             self.logger_config.gold_spans[sample_key] = [
                 (span["start"], span["end"], span["label"]) for span in updated_spans
             ]
@@ -289,7 +292,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         df_len = len(self.text)
         inp = dict(
             id=self.ids,
-            split=[self.split] * df_len,
+            split=[Split(self.split).value] * df_len,
             text=self.text,
             text_token_indices=pa.array(self.text_token_indices_flat),
             data_schema_version=[__data_schema_version__] * df_len,
@@ -372,6 +375,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             "You must set your config labels before calling finish. "
             "See `dataquality.set_labels_for_run`"
         )
+        # TODO: Nidhi confirm this is good
         clean_labels = [
             i.split("-")[1]
             for i in cls.logger_config.labels
