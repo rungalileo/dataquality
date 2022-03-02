@@ -1,13 +1,13 @@
 "dataquality"
 
-__version__ = "v0.0.8"
+__version__ = "v0.0.10"
 
 import resource
 
 import dataquality.core._config
 from dataquality.core._config import config
 from dataquality.core.auth import login
-from dataquality.core.finish import finish
+from dataquality.core.finish import finish, get_run_status, wait_for_run
 from dataquality.core.init import init
 from dataquality.core.log import (
     docs,
@@ -54,6 +54,8 @@ __all__ = [
     "set_tasks_for_run",
     "set_tagging_schema",
     "docs",
+    "wait_for_run",
+    "get_run_status",
 ]
 
 try:

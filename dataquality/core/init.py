@@ -1,4 +1,5 @@
 import os
+import shutil
 import warnings
 from typing import Dict, Optional
 
@@ -24,10 +25,15 @@ class _Init:
     ) -> Dict:
         return api_client.get_project_run_by_name(project_name, run_name)
 
-    def _initialize_new_project(self, project_name: str) -> Dict:
-        print(f"✨ Initializing project {project_name}")
+    def _initialize_new_project(
+        self, project_name: str, is_public: bool = True
+    ) -> Dict:
+        visability = "public" if is_public else "private"
+        print(f"✨ Initializing {visability} project {project_name}")
         try:
-            return api_client.create_project(project_name=project_name)
+            return api_client.create_project(
+                project_name=project_name, is_public=is_public
+            )
         except GalileoException as e:
             if "A project with this name already exists" in str(e):
                 return api_client.get_project_by_name(project_name)
@@ -45,7 +51,7 @@ class _Init:
     ) -> None:
         write_output_dir = f"{BaseGalileoLogger.LOG_FILE_DIR}/{project_id}/{run_id}"
         if overwrite_local and os.path.exists(write_output_dir):
-            os.rmdir(write_output_dir)
+            shutil.rmtree(write_output_dir)
         if not os.path.exists(write_output_dir):
             os.makedirs(write_output_dir)
 
@@ -54,6 +60,7 @@ def init(
     task_type: str,
     project_name: Optional[str] = None,
     run_name: Optional[str] = None,
+    is_public: bool = True,
     overwrite_local: bool = True,
 ) -> None:
     """
@@ -73,6 +80,7 @@ def init(
     :param run_name: The run name. If not passed in, a random one will be
     generated. If provided, and the project does not exist, it will be created. If it
     does exist, it will be set.
+    :param is_public: Boolean value that sets the project's visibility. Default True.
     :param overwrite_local: If True, the current project/run log directory will be
     cleared during this function. If logging over many sessions with checkpoints, you
     may want to set this to False. Default True
@@ -86,7 +94,9 @@ def init(
     if not project_name and not run_name:
         # no project and no run id, start a new project and start a new run
         project_name, run_name = random_name(), random_name()
-        project_response = _init._initialize_new_project(project_name=project_name)
+        project_response = _init._initialize_new_project(
+            project_name=project_name, is_public=is_public
+        )
         run_response = _init._initialize_run_for_project(
             project_name=project_name, run_name=run_name, task_type=task_type
         )
@@ -111,7 +121,9 @@ def init(
         else:
             print(f"💭 Project {project_name} was not found.")
             run_name = random_name()
-            project_response = _init._initialize_new_project(project_name=project_name)
+            project_response = _init._initialize_new_project(
+                project_name=project_name, is_public=is_public
+            )
             run_response = _init._initialize_run_for_project(
                 project_name=project_name, run_name=run_name, task_type=task_type
             )
@@ -148,7 +160,9 @@ def init(
         else:
             # User gave us a new project name and new run name to create, so create it
             print(f"💭 Project {project_name} was not found.")
-            project_response = _init._initialize_new_project(project_name=project_name)
+            project_response = _init._initialize_new_project(
+                project_name=project_name, is_public=is_public
+            )
             run_response = _init._initialize_run_for_project(
                 project_name=project_name, run_name=run_name, task_type=task_type
             )

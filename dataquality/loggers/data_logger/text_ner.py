@@ -34,9 +34,9 @@ class TextNERDataLogger(BaseGalileoDataLogger):
     * text: The raw text inputs for model training. List[str]
 
     * text_token_indices: Token boundaries of text. List[List[Tuple(int, int)]].
-    Used to convert the gold_spans into token level spans internally. For each sample, the
-    boundary of a token will contain the start and end character index of word in the `text`
-    to which the said token belongs.
+    Used to convert the gold_spans into token level spans internally. For each sample,
+    the boundary of a token will contain the start and end character index of word in
+    the `text` to which the said token belongs.
 
     * gold_spans: Gold spans for the text at character level indices.
     The list of spans in a sample with their start and end indexes, and the label.
@@ -232,14 +232,14 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         self.validate_metadata(batch_size=text_len)
 
     def _extract_gold_spans(
-        self, gold_spans: List[Dict], token_indicies: List[Tuple[int, int]]
+        self, gold_spans: List[Dict], token_indices: List[Tuple[int, int]]
     ) -> List[Dict]:
         """
         This function converts gold spans that were character indexed into gold spans
             that are token indexed.
         This is done to align with the predicted spans of the model, and compute DEP
         gold_spans = [{'start': 17, 'end': 29, 'label': 'ACTOR'}]
-        token_indicies = [
+        token_indices = [
             (0, 4), (5, 11), (12, 16), (17, 22), (17, 22), (23, 29), (23, 29)
             ]
         new_gold_spans =  [{'start': 3, 'end': 7, 'label': 'ACTOR'}]
@@ -249,7 +249,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             start = span["start"]
             end = span["end"]
             new_start, new_end = None, None
-            for token_idx, token in enumerate(token_indicies):
+            for token_idx, token in enumerate(token_indices):
                 token_start, token_end = token
                 if start == token_start and new_start is None:
                     new_start = token_idx
@@ -268,7 +268,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         assert len(new_gold_spans) == len(gold_spans), (
             f"error in span alignment, "
             f"cannot find all gold spans: "
-            f"{gold_spans} in token boundaries: {token_indicies}"
+            f"{gold_spans} in token boundaries: {token_indices}"
         )
         return new_gold_spans
 
