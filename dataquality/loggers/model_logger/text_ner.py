@@ -39,46 +39,39 @@ class TextNERModelLogger(BaseGalileoModelLogger):
     """
     Class for logging model output data of Text NER models to Galileo.
 
-    * emb: List[np.ndarray]. TODO: Nidhi updated definition
-    The Embeddings of the true span
-    tokens for the text_tokenized. This is per token of a span. For each gold (true)
-    span in a text sample, there may be 1 or more tokens. Each token will have an
-    embedding vector.
-    * Probabilities: List[np.ndarray]. TODO: Nidhi updated definition
-    The prediction probabilities of each
-    spans' tokens. For each span in a sentence, there will be 1 or more tokens. The
-    model will have a probability vector for each token.
-    NOTE: The probabilities will match the pred embeddings but may not match
-    the gold embeddings (the model may predict the wrong span)
-    NOTE: Max 5 spans per text sample. More than 5 will throw an error
-    * ids: Indexes of each input field: List[int]. These IDs must align with the input
+    * emb: List[np.ndarray]: Each np.ndarray represents all embeddings of a given sample.
+    These embeddings are from the tokenized text, and will align with the tokens in
+    the sample. If you have 12 samples in the dataset, with each sample of 20 tokens in length,
+    and an embedding vector of size 768, len(emb) will be 12, and np.ndarray.shape is (20, 768).
+
+    * Probabilities: List[np.ndarray]: The NER prediction probabilities from the model for each token.
+    These embeddings are from the tokenized text, and will align with the tokens in
+    the sample. If you have 12 samples in the dataset, with each sample of 20 tokens in length,
+    and observed_num_labels as 40, len(probs) will be 12, and np.ndarray.shape is (20, 40).
+
+    * ids: List[int]: These IDs must align with the input
     IDs for each sample input. This will be used to join them together for analysis
     by Galileo.
+
     * split: The model training/test/validation split for the samples being logged
 
     ex: (see the data input example in the DataLogger for NER
     `dataquality.get_data_logger().doc()`
     .. code-block:: python
 
-        # Logged with `dataquality.log_input_data`
-        text_inputs: List[str] = [
-            "The president is Joe Biden",
-            "Joe Biden addressed the United States on Monday"
-        ]
-        TODO: Nidhi change format for prob
-        probs = [
-            [
-                [prob(joe), prob(bi), prob(##den)]  # Correct span
-            ],
-            [
-                [prob(joe), prob(bi), prob(##den)],  # Correct span
-                [prob(monday)]  # Incorrect span, but the prediction
-            ]
-        ]
-        TODO: Nidhi example for emb
-        emb = [
+        # Logged with `dataquality.log_model_outputs`
+        probs =
+            [np.array([prob(the), prob(president), prob(is), prob(joe),
+            prob(bi), prob(##den), prob(<pad>), prob(<pad>), prob(<pad>)]),
+            np.array([prob(joe), prob(bi), prob(##den), prob(addressed),
+            prob(the), prob(united), prob(states), prob(on), prob(monday)])]
 
-        ]
+        embs =
+            [np.array([embs(the), embs(president), embs(is), embs(joe),
+            embs(bi), embs(##den), embs(<pad>), embs(<pad>), embs(<pad>)]),
+            np.array([embs(joe), embs(bi), embs(##den), embs(addressed),
+            embs(the), embs(united), embs(states), embs(on), embs(monday)])]
+
         epoch = 0
         ids = [0, 1]  # Must match the data input IDs
         split = "training"

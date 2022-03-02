@@ -32,19 +32,26 @@ class TextNERDataLogger(BaseGalileoDataLogger):
     Class for logging input data/metadata of Text NER models to Galileo.
 
     * text: The raw text inputs for model training. List[str]
-    * text_token_indices: Token boundaries of text. List[Tuple(int, int)].
-    Used to convert the gold_spans into token level spans internally
-    * gold_spans: Gold spans for the text_tokenized. The list of spans in a sample with
-    their start and end indexes, and the label. This matches the text_tokenized format
+
+    * text_token_indices: Token boundaries of text. List[List[Tuple(int, int)]].
+    Used to convert the gold_spans into token level spans internally. For each sample, the
+    boundary of a token will contain the start and end character index of word in the `text`
+    to which the said token belongs.
+
+    * gold_spans: Gold spans for the text at character level indices.
+    The list of spans in a sample with their start and end indexes, and the label.
     Indexes start at 0 and are [inclusive, exclusive) for [start, end) respectively.
     List[List[dict]].
-    NOTE: Max 5 spans per text sample. More than 5 will throw an error
+
     * ids: Optional unique indexes for each record. If not provided, will default to
     the index of the record. Optional[List[int]]
+
     * split: The split of training/test/validation
+
     * meta: Dict[str, List]. Any metadata information you want to log at a per sample
     (text input) level. This could be a string (len <= 50), a float or an int.
     Each sample can have up to 50 meta fields.
+
     # number of samples in the list must be the same length as the number of text
     # samples logged
     Format {"sample_importance": [0.2, 0.5, 0.99, ...]}
@@ -62,21 +69,19 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             "The president is Joe Biden",
             "Joe Biden addressed the United States on Monday"
         ]
-        TODO: Nidhi update docs for text_token_indices
 
-        # Gold spans, user created. The start and end index of a true span, with the
-        # label in question. Each sentence may have 1 or more labels, so we hold a list
-        # of spans per sentence. The start and end index reference the unnested list
-        # of text_tokenized.
         gold_spans: List[List[dict]] = [
             [
-                {"start":4, "end":7, "label":"person"}  # [joe], [bi, ##den]
+                {"start":17, "end":27, "label":"person"}  # "Joe Biden"
             ],
             [
-                {"start":0, "end":3, "label":"person"},    # [joe], [bi, ##den]
-                {"start":6, "end":10, "label":"location"}  # [unite, ##d], [state, ##s]
+                {"start":0, "end":10, "label":"person"},    # "Joe Biden"
+                {"start":30, "end":41, "label":"location"}  # "United States"
             ]
         ]
+
+        text_token_indices: [[(0, 3), (4, 13), (14, 16), (17, 20), (21, 27), (21, 27)],
+                [...]]
         ids: List[int] = [0, 1]
         split = "training"
 
