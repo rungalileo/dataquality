@@ -39,15 +39,17 @@ class TextNERModelLogger(BaseGalileoModelLogger):
     """
     Class for logging model output data of Text NER models to Galileo.
 
-    * emb: List[np.ndarray]: Each np.ndarray represents all embeddings of a given sample.
-    These embeddings are from the tokenized text, and will align with the tokens in
-    the sample. If you have 12 samples in the dataset, with each sample of 20 tokens in length,
-    and an embedding vector of size 768, len(emb) will be 12, and np.ndarray.shape is (20, 768).
+    * emb: List[np.ndarray]: Each np.ndarray represents all embeddings of a given
+    sample. These embeddings are from the tokenized text, and will align with the tokens
+    in the sample. If you have 12 samples in the dataset, with each sample of 20 tokens
+    in length, and an embedding vector of size 768, len(emb) will be 12, and
+    np.ndarray.shape is (20, 768).
 
-    * Probabilities: List[np.ndarray]: The NER prediction probabilities from the model for each token.
-    These embeddings are from the tokenized text, and will align with the tokens in
-    the sample. If you have 12 samples in the dataset, with each sample of 20 tokens in length,
-    and observed_num_labels as 40, len(probs) will be 12, and np.ndarray.shape is (20, 40).
+    * Probabilities: List[np.ndarray]: The NER prediction probabilities from the model
+    for each token. These embeddings are from the tokenized text, and will align with
+    the tokens in the sample. If you have 12 samples in the dataset, with each sample
+    of 20 tokens in length, and observed_num_labels as 40, len(probs) will be 12,
+    and np.ndarray.shape is (20, 40).
 
     * ids: List[int]: These IDs must align with the input
     IDs for each sample input. This will be used to join them together for analysis
