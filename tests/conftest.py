@@ -1,6 +1,6 @@
 import os
 import shutil
-from typing import Any, Callable, Dict, Generator
+from typing import Any, Callable, Dict, Generator, List
 from uuid import uuid4
 
 import pytest
@@ -58,6 +58,16 @@ def set_test_config(
                 config.__setattr__(k, v)
 
     return curry
+
+
+@pytest.fixture()
+def statuses_response() -> Dict[str, List]:
+    return {
+        "statuses": [
+            {"status": "started", "timestamp": "2022-02-20"},
+            {"status": "finished", "timestamp": "2022-02-24"},
+        ]
+    }
 
 
 def patch_object_upload(self: Any, df: DataFrame, object_name: str) -> None:
