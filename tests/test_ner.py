@@ -247,6 +247,7 @@ def test_calculate_dep_scores() -> None:
 
 def test_ner_logging_bad_inputs(set_test_config: Callable) -> None:
     set_test_config(default_task_type=TaskType.text_ner)
+    dataquality.config.task_type = TaskType.text_ner
     dataquality.set_tagging_schema("BIO")
 
     labels = [
@@ -413,7 +414,8 @@ def test_ner_logging(cleanup_after_use: Callable, set_test_config: Callable) -> 
             {"span_start": 3, "span_end": 4, "pred": "bar"},
             {"span_start": 7, "span_end": 8, "pred": "bar-foo"},
         ],
-        [{"span_start": 4, "span_end": 6, "pred": "foo-bar"}],
+        [{"span_start": 4, "span_end": 6, "pred": "foo-bar"},
+         {"span_start": 7, "span_end": 8, "pred": "bar-foo"}],
         [{"span_start": 1, "span_end": 3, "pred": "bar-foo"}],
     ]
 
@@ -425,7 +427,6 @@ def test_ner_logging(cleanup_after_use: Callable, set_test_config: Callable) -> 
 
     prob_path = f"{TEST_PATH}/{split}/prob/prob.hdf5"
     prob_df = vaex.open(prob_path)
-    print(prob_df)
     for i in prob_df.data_error_potential.to_numpy():
         assert 0 <= i <= 1
 
@@ -433,8 +434,6 @@ def test_ner_logging(cleanup_after_use: Callable, set_test_config: Callable) -> 
         sample_pred_spans = pred_spans[i]
         pred_df = prob_df[prob_df[f"(is_pred) & (sample_id=={i})"]]
         df_pred_spans = pred_df[["span_start", "span_end", "pred"]].to_records()
-        print(sample_pred_spans)
-        print(df_pred_spans)
         assert sample_pred_spans == df_pred_spans
 
     assert len(prob_df[prob_df["(~is_gold) & (~is_pred)"]]) == 0
