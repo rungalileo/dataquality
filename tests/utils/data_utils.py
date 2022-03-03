@@ -5,6 +5,7 @@ from typing import List, Optional
 import numpy as np
 import pandas as pd
 import vaex
+from vaex.dataframe import DataFrameLocal
 from sklearn.datasets import fetch_20newsgroups
 from tqdm import tqdm
 
@@ -17,6 +18,28 @@ NUM_LOGS = 30
 MULTI_LABEL_NUM_TASKS = 10
 
 
+def load_data(split: str) -> (DataFrameLocal, DataFrameLocal, DataFrameLocal):
+    """Loads post-logging locally created files.
+
+    Returns: data, emb, and prob vaex dataframes
+    """
+    split_output_data = {}
+    for subdir in SUBDIRS:
+        file_path = f"{TEST_PATH}/{split}/{subdir}/{subdir}.{'arrow' if subdir=='data' else 'hdf5'}"
+        # Ensure files were cleaned up
+        data = vaex.open(file_path)
+        prob_cols = data.get_column_names(regex="prob*")
+        for c in data.get_column_names():
+            if c in prob_cols + ["emb"]:
+                assert not np.isnan(data[c].values).any()
+            else:
+                vals = data[c].values
+                assert all([i is not None and i != "nan" for i in vals])
+        split_output_data[subdir] = data
+
+    return split_output_data["data"], split_output_data["emb"], split_output_data["prob"]
+
+
 def validate_uploaded_data(
     expected_num_records: int = None,
     meta_cols: Optional[List] = None,
@@ -27,25 +50,9 @@ def validate_uploaded_data(
     """
     expected_num_records = expected_num_records or NUM_RECORDS * NUM_LOGS
     meta_cols = meta_cols or {}
-    for split in SPLITS:
-        # Output data
-        split_output_data = {}
-        for subdir in SUBDIRS:
-            file_path = f"{TEST_PATH}/{split}/{subdir}/{subdir}.hdf5"
-            # Ensure files were cleaned up
-            data = vaex.open(file_path)
-            prob_cols = data.get_column_names(regex="prob*")
-            for c in data.get_column_names():
-                if c in prob_cols + ["emb"]:
-                    assert not np.isnan(data[c].values).any()
-                else:
-                    vals = data[c].values
-                    assert all([i is not None and i != "nan" for i in vals])
-            split_output_data[subdir] = data
 
-        data = split_output_data["data"]
-        emb = split_output_data["emb"]
-        prob = split_output_data["prob"]
+    for split in SPLITS:
+        data, emb, prob = load_data(split=split)
 
         for c in meta_cols:
             assert c in data.get_column_names()
