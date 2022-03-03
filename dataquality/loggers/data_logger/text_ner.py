@@ -183,13 +183,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
                 f"{text_tokenized_len})"
             )
 
-        clean_labels = [
-            i.split("-", maxsplit=1)[1]
-            for i in self.logger_config.labels
-            if i and (i.startswith("B") or i.startswith("I") or i.startswith("L") or
-                      i.startswith("E") or i.startswith("S") or i.startswith("U"))
-        ]
-        clean_labels = dict.fromkeys(clean_labels)
+        clean_labels = self._clean_labels()
 
         for sample_id, sample_spans, sample_indices, sample_text in zip(
             self.ids, self.gold_spans, self.text_token_indices, self.text
@@ -197,8 +191,10 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             max_end_idx, max_start_idx = 0, 0
             for span in sample_spans:
 
-                assert span["label"] in clean_labels, f"{span['label']} is " \
-                                                      f"absent in the provided labels {clean_labels}"
+                assert span["label"] in clean_labels, (
+                    f"{span['label']} is "
+                    f"absent in the provided labels {clean_labels}"
+                )
 
                 assert isinstance(span, dict), "individual spans must be dictionaries"
                 assert "start" in span and "end" in span and "label" in span, (
@@ -379,19 +375,29 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         ['ACTOR', 'YEAR', 'TITLE', 'GENRE', 'DIRECTOR', 'SONG', 'PLOT', 'REVIEW',
         'CHARACTER', 'RATING', 'RATINGS_AVERAGE', 'TRAILER']
         """
+        cls.logger_config.labels = cls._clean_labels()
+
+    @classmethod
+    def _clean_labels(cls) -> List[str]:
         assert cls.logger_config.labels, (
             "You must set your config labels before calling finish. "
             "See `dataquality.set_labels_for_run`"
         )
-
         clean_labels = [
             i.split("-", maxsplit=1)[1]
             for i in cls.logger_config.labels
-            if i and (i.startswith("B") or i.startswith("I") or i.startswith("L") or
-                      i.startswith("E") or i.startswith("S") or i.startswith("U"))
+            if i
+            and (
+                i.startswith("B")
+                or i.startswith("I")
+                or i.startswith("L")
+                or i.startswith("E")
+                or i.startswith("S")
+                or i.startswith("U")
+            )
         ]
         clean_labels = list(dict.fromkeys(clean_labels))  # Remove dups, keep order
-        cls.logger_config.labels = clean_labels
+        return clean_labels
 
     @classmethod
     def set_tagging_schema(cls, tagging_schema: str) -> None:
