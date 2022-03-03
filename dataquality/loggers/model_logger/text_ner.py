@@ -581,8 +581,8 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 data["is_pred"].append(True)
                 data["pred"].append(pred_span["label"])
                 data["gold"].append("")
-                # Pred only spans don't have an error type
-                data["galileo_error_type"].append(NERErrorType.none.value)
+                # Pred only spans are known as "ghost" spans (hallucinated)
+                data["galileo_error_type"].append(NERErrorType.ghost_span.value)
 
         return data
 
