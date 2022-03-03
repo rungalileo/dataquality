@@ -246,8 +246,7 @@ def test_calculate_dep_scores() -> None:
 
 
 def test_ner_logging_bad_inputs(set_test_config: Callable) -> None:
-    set_test_config(default_task_type=TaskType.text_ner)
-    dataquality.config.task_type = TaskType.text_ner
+    set_test_config(task_type=TaskType.text_ner)
     dataquality.set_tagging_schema("BIO")
 
     labels = [
@@ -316,8 +315,7 @@ def test_ner_logging(cleanup_after_use: Callable, set_test_config: Callable) -> 
     * all spans should be either gold, pred, or both (never neither)
     * 3 rows
     """
-    set_test_config(default_task_type=TaskType.text_ner)
-    dataquality.config.task_type = TaskType.text_ner
+    set_test_config(task_type=TaskType.text_ner)
     dataquality.set_tagging_schema("BIO")
 
     labels = [

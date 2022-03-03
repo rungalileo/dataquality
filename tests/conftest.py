@@ -48,7 +48,6 @@ def set_test_config(
 ) -> Callable:
     config.token = default_token
     config.task_type = default_task_type
-    print(config.task_type)
     config.api_url = default_api_url
     config.minio_url = default_minio_url
 
