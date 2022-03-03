@@ -293,7 +293,6 @@ def test_ner_logging_bad_inputs(set_test_config: Callable) -> None:
         )
 
     # Handle labels that are in gold but missing in registered labels
-    # TODO: add test bad label
     gold_spans = [
         [
             {"start": 7, "end": 11, "label": "foo"},
@@ -303,6 +302,15 @@ def test_ner_logging_bad_inputs(set_test_config: Callable) -> None:
         [{"start": 16, "end": 26, "label": "bad_label"}],
         [],
     ]
+    # Handle spans that don't align with token boundaries
+    with pytest.raises(AssertionError):
+        dataquality.log_input_data(
+            text=text_inputs,
+            text_token_indices=token_boundaries_all,
+            gold_spans=gold_spans,
+            ids=ids,
+            split=split,
+        )
 
 
 def test_ner_logging(cleanup_after_use: Callable, set_test_config: Callable) -> None:
@@ -444,8 +452,6 @@ def test_ner_logging(cleanup_after_use: Callable, set_test_config: Callable) -> 
         sample_gold_spans = gold_spans[i]
         gold_df = prob_df[prob_df[f"(is_gold) & (sample_id=={i})"]]
         df_gold_spans = gold_df[["span_start", "span_end", "gold"]].to_records()
-        print(sample_gold_spans)
-        print(df_gold_spans)
         assert sample_gold_spans == df_gold_spans
 
     assert len(prob_df[prob_df["(~is_gold) & (~is_pred)"]]) == 0
