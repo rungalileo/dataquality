@@ -43,9 +43,9 @@ class TextNERLoggerConfig(BaseLoggerConfig):
     def validate_tagging_schema(cls, tagging_schema: str) -> str:
         tagging_schema = tagging_schema.upper()
         if tagging_schema not in list(TaggingSchema):
-            raise ValueError(  # Ignore here because mypy can't find member_names_ attr
+            raise ValueError(
                 f"Tagging schema {tagging_schema} invalid, must be one of "
-                f"{TaggingSchema.member_names_}"  # type: ignore
+                f"{[i.name for i in TaggingSchema]}"
             )
         return tagging_schema
 
