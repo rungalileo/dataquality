@@ -144,48 +144,54 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         # so each span has only 1 embedding vector
         logged_sample_ids = []
         for sample_id, sample_emb, sample_prob in zip(self.ids, self.emb, self.probs):
-            # To extract metadata about the sample we are looking at
-            sample_key = self.logger_config.get_sample_key(Split(self.split), sample_id)
-
-            # Unpadded length of the sample. Used to extract true predicted spans
-            # which are padded by the model
-            sample_token_len = self.logger_config.sample_length[sample_key]
-            # Get prediction spans
-            sample_pred_spans = self._extract_pred_spans(sample_prob, sample_token_len)
-            # Get gold (ground truth) spans
-            gold_span_tup = self.logger_config.gold_spans.get(sample_key, [])
-            sample_gold_spans: List[Dict] = [
-                dict(start=start, end=end, label=label)
-                for start, end, label in gold_span_tup
-            ]
-            # If there were no golds and no preds for a sample, don't log this output
-            if not sample_pred_spans and not sample_gold_spans:
-                continue
-
-            gold_dep, pred_dep = self._calculate_dep_scores(
-                sample_prob, sample_gold_spans, sample_pred_spans, sample_token_len
-            )
-            gold_emb = self._extract_span_embeddings(sample_gold_spans, sample_emb)
-            pred_emb = self._extract_span_embeddings(sample_pred_spans, sample_emb)
-
-            logged_sample_ids.append(sample_id)
-            self.pred_spans.append(sample_pred_spans)
-            self.gold_spans.append(sample_gold_spans)
-            self.pred_dep.append(pred_dep)
-            self.gold_dep.append(gold_dep)
-            self.gold_emb.append(gold_emb)
-            self.pred_emb.append(pred_emb)
-
-            if not self.logger_config.observed_num_labels:
-                # TODO: Nidhi - is it possible to get the observed num labels from
-                #  the input data? It doesnt need to be here, anywhere in the code
-                pass
+            if self._process_sample(sample_id, sample_emb, sample_prob):
+                logged_sample_ids.append(sample_id)
 
         self.ids = logged_sample_ids
         # Get the embedding shape. Filter out nulls
         if not self.logger_config.num_emb:
             emb = next(filter(lambda emb: not np.isnan(emb[0]).all(), self.gold_emb))[0]
             self.logger_config.num_emb = emb.shape[0]
+
+    def _process_sample(
+        self, sample_id: int, sample_emb: np.ndarray, sample_prob: np.ndarray
+    ) -> bool:
+        """Processes a sample. Returns whether or not the sample should be logged
+
+        A sample should be logged only if there was at least 1 prediction span or 1
+        gold span
+        """
+        # To extract metadata about the sample we are looking at
+        sample_key = self.logger_config.get_sample_key(Split(self.split), sample_id)
+
+        # Unpadded length of the sample. Used to extract true predicted spans
+        # which are padded by the model
+        sample_token_len = self.logger_config.sample_length[sample_key]
+        # Get prediction spans
+        sample_pred_spans = self._extract_pred_spans(sample_prob, sample_token_len)
+        # Get gold (ground truth) spans
+        gold_span_tup = self.logger_config.gold_spans.get(sample_key, [])
+        sample_gold_spans: List[Dict] = [
+            dict(start=start, end=end, label=label)
+            for start, end, label in gold_span_tup
+        ]
+        # If there were no golds and no preds for a sample, don't log this sample
+        if not sample_pred_spans and not sample_gold_spans:
+            return False
+
+        gold_dep, pred_dep = self._calculate_dep_scores(
+            sample_prob, sample_gold_spans, sample_pred_spans, sample_token_len
+        )
+        gold_emb = self._extract_span_embeddings(sample_gold_spans, sample_emb)
+        pred_emb = self._extract_span_embeddings(sample_pred_spans, sample_emb)
+
+        self.pred_spans.append(sample_pred_spans)
+        self.gold_spans.append(sample_gold_spans)
+        self.pred_dep.append(pred_dep)
+        self.gold_dep.append(gold_dep)
+        self.gold_emb.append(gold_emb)
+        self.pred_emb.append(pred_emb)
+        return True
 
     def _extract_span_embeddings(
         self, spans: List[Dict], emb: np.ndarray
