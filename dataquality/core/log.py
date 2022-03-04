@@ -5,6 +5,7 @@ from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
 from dataquality.loggers.model_logger import BaseGalileoModelLogger
+from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.task_type import TaskType
 
 
@@ -72,7 +73,7 @@ def set_tasks_for_run(tasks: List[str]) -> None:
     get_data_logger().logger_config.tasks = tasks
 
 
-def set_tagging_schema(tagging_schema: str) -> None:
+def set_tagging_schema(tagging_schema: TaggingSchema) -> None:
     """Sets the tagging schema for NER models
 
     Only valid for text_ner task_types. Others will throw an exception

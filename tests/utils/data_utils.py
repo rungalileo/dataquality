@@ -79,7 +79,7 @@ def validate_cleanup_data():
         assert not os.path.isdir(f"{LOCATION}/{split}")
 
 
-def _log_text_data(
+def _log_text_classification_data(
     num_records=NUM_RECORDS,
     num_logs=NUM_LOGS,
     unique_ids=True,

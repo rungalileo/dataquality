@@ -2,7 +2,7 @@ import os
 import warnings
 from abc import abstractmethod
 from glob import glob
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Union
 from uuid import uuid4
 
 import numpy as np
@@ -14,6 +14,8 @@ from dataquality.clients.objectstore import ObjectStore
 from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.base_logger import BaseGalileoLogger, BaseLoggerAttributes
+from dataquality.schemas.dataframe import BaseLoggerInOutFrames
+from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
 from dataquality.utils import tqdm
 from dataquality.utils.hdf5_store import HDF5_STORE
@@ -117,9 +119,12 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                         split, length=len(out_frame), dtype="str"
                     )
 
-                prob, emb, data_df = cls.process_in_out_frames(
+                in_out_frames = cls.process_in_out_frames(
                     in_frame, out_frame, prob_only
                 )
+                prob = in_out_frames.prob
+                emb = in_out_frames.emb
+                data_df = in_out_frames.data
 
                 for data_folder, df_obj in tqdm(
                     zip(DATA_FOLDERS, [emb, prob, data_df]), total=3, desc=split
@@ -137,7 +142,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     @classmethod
     def process_in_out_frames(
         cls, in_frame: DataFrame, out_frame: DataFrame, prob_only: bool
-    ) -> Tuple[DataFrame, DataFrame, DataFrame]:
+    ) -> BaseLoggerInOutFrames:
         """Processes input and output dataframes from logging
 
         Validates uniqueness of IDs in the dataframes
@@ -148,7 +153,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         in_out = _join_in_out_frames(in_frame, out_frame)
 
         prob, emb, data_df = cls.split_dataframe(in_out, prob_only)
-        return prob, emb, data_df
+        return BaseLoggerInOutFrames(prob=prob, emb=emb, data=data_df)
 
     @classmethod
     @abstractmethod
@@ -233,6 +238,6 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         ...
 
     @classmethod
-    def set_tagging_schema(cls, tagging_schema: str) -> None:
+    def set_tagging_schema(cls, tagging_schema: TaggingSchema) -> None:
         """Sets the tagging schema, if applicable. Must be implemented by child"""
         raise GalileoException(f"Cannot set tagging schema for {cls.__logger_name__}")

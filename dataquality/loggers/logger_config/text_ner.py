@@ -1,20 +1,9 @@
-from enum import Enum, unique
 from typing import Dict, List, Tuple
 
 import numpy as np
 from pydantic import validator
 
 from dataquality.loggers.logger_config.base_logger_config import BaseLoggerConfig
-
-
-@unique
-class TaggingSchema(str, Enum):
-    BIO = "BIO"
-    BILOU = "BILOU"
-    BIOES = "BIOES"
-    # IOB2 = "IOB2"
-    # IOB = "IOB"
-    # BILOES = "BILOES"
 
 
 class TextNERLoggerConfig(BaseLoggerConfig):
@@ -38,16 +27,6 @@ class TextNERLoggerConfig(BaseLoggerConfig):
         if labels and len(labels) == 1:
             labels = [labels[0], f"NOT_{labels[0]}"]
         return labels
-
-    @validator("tagging_schema", allow_reuse=True)
-    def validate_tagging_schema(cls, tagging_schema: str) -> str:
-        tagging_schema = tagging_schema.upper()
-        if tagging_schema not in list(TaggingSchema):
-            raise ValueError(
-                f"Tagging schema {tagging_schema} invalid, must be one of "
-                f"{[i.name for i in TaggingSchema]}"
-            )
-        return tagging_schema
 
 
 text_ner_logger_config = TextNERLoggerConfig()
