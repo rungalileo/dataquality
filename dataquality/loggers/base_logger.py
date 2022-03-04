@@ -13,6 +13,7 @@ from dataquality.loggers.logger_config.base_logger_config import (
     BaseLoggerConfig,
     base_logger_config,
 )
+from dataquality.schemas.split import Split, conform_split
 from dataquality.schemas.task_type import TaskType
 
 try:
@@ -50,6 +51,16 @@ class BaseLoggerAttributes(str, Enum):
     epoch = "epoch"
     data_error_potential = "data_error_potential"
     aum = "aum"
+    text_tokenized = "text_tokenized"
+    gold_spans = "gold_spans"
+    pred_emb = "pred_emb"
+    gold_emb = "gold_emb"
+    pred_spans = "pred_spans"
+    dep_scores = "dep_scores"
+    text_token_indices = "text_token_indices"
+    gold_dep = "gold_dep"
+    pred_dep = "pred_dep"
+    text_token_indices_flat = "text_token_indices_flat"
 
     @staticmethod
     def get_valid() -> List[str]:
@@ -74,7 +85,8 @@ class BaseGalileoLogger:
 
     @abstractmethod
     def validate(self) -> None:
-        ...
+        assert self.split, "You didn't log a split!"
+        self.split = self.validate_split(self.split)
 
     def is_valid(self) -> bool:
         try:
@@ -165,3 +177,7 @@ class BaseGalileoLogger:
     @classmethod
     def doc(cls) -> None:
         print(cls.__doc__)
+
+    @classmethod
+    def validate_split(cls, split: Union[str, Split]) -> str:
+        return conform_split(split).value

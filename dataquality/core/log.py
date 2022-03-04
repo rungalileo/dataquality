@@ -5,6 +5,7 @@ from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
 from dataquality.loggers.model_logger import BaseGalileoModelLogger
+from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.task_type import TaskType
 
 
@@ -14,7 +15,9 @@ def log_input_data(**kwargs: Any) -> None:
     The expected arguments come from the task_type's data
     logger: See dataquality.get_model_logger().doc() for details
     """
-    assert config.task_type, "You must call dataquality.init before logging data"
+    assert all(
+        [config.task_type, config.current_project_id, config.current_run_id]
+    ), "You must call dataquality.init before logging data"
     data_logger = get_data_logger()(**kwargs)
     data_logger.log()
 
@@ -33,7 +36,9 @@ def log_model_outputs(**kwargs: Any) -> None:
     The expected arguments come from the task_type's model
     logger: See dataquality.get_model_logger().doc() for details
     """
-    assert config.task_type, "You must call dataquality.init before logging data"
+    assert all(
+        [config.task_type, config.current_project_id, config.current_run_id]
+    ), "You must call dataquality.init before logging data"
     model_logger = get_model_logger()(**kwargs)
     model_logger.log()
 
@@ -66,6 +71,14 @@ def set_tasks_for_run(tasks: List[str]) -> None:
     if config.task_type != TaskType.text_multi_label:
         raise GalileoException("You can only set task names for multi-label use cases.")
     get_data_logger().logger_config.tasks = tasks
+
+
+def set_tagging_schema(tagging_schema: TaggingSchema) -> None:
+    """Sets the tagging schema for NER models
+
+    Only valid for text_ner task_types. Others will throw an exception
+    """
+    get_data_logger().set_tagging_schema(tagging_schema)
 
 
 def get_model_logger(task_type: TaskType = None) -> Type[BaseGalileoModelLogger]:

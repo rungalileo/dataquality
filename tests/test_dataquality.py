@@ -14,7 +14,7 @@ from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.utils.data_utils import (
     NUM_LOGS,
     NUM_RECORDS,
-    _log_data,
+    _log_text_classification_data,
     validate_cleanup_data,
     validate_uploaded_data,
 )
@@ -32,7 +32,9 @@ def test_threaded_logging_and_upload(
     num_records = 32
     num_logs = 200
     num_emb = 50
-    _log_data(num_records=num_records, num_logs=num_logs, num_emb=num_emb)
+    _log_text_classification_data(
+        num_records=num_records, num_logs=num_logs, num_emb=num_emb
+    )
     try:
         # Equivalent to the users `finish` call, but we don't want to clean up files yet
         ThreadPoolManager.wait_for_threads()
@@ -57,7 +59,7 @@ def test_multi_label_logging(
     num_records = 32
     num_logs = 200
     num_emb = 50
-    _log_data(
+    _log_text_classification_data(
         num_records=num_records, num_logs=num_logs, num_emb=num_emb, multi_label=True
     )
     try:
@@ -84,7 +86,7 @@ def test_metadata_logging(
     meta = {}
     for i in meta_cols:
         meta[i] = [random() for _ in range(NUM_RECORDS * NUM_LOGS)]
-    _log_data(meta=meta)
+    _log_text_classification_data(meta=meta)
     try:
         # Equivalent to the users `finish` call, but we don't want to clean up files yet
         ThreadPoolManager.wait_for_threads()
@@ -120,7 +122,7 @@ def test_metadata_logging_invalid(
     for i in range(MAX_META_COLS):
         meta[f"attr_{i}"] = [random() for _ in range(NUM_RECORDS * NUM_LOGS)]
 
-    _log_data(meta=meta)
+    _log_text_classification_data(meta=meta)
     valid_meta_cols = ["test1", "meta2"]
     valid_meta_cols += [f"attr_{i}" for i in range(44)]
     try:
@@ -142,7 +144,7 @@ def test_logging_duplicate_ids(
     Tests that logging duplicate ids triggers a failure
     """
     num_records = 50
-    _log_data(num_records=num_records, unique_ids=False)
+    _log_text_classification_data(num_records=num_records, unique_ids=False)
     try:
         # Equivalent to the users `finish` call, but we don't want to clean up files yet
         ThreadPoolManager.wait_for_threads()

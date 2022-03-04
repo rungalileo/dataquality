@@ -79,7 +79,7 @@ def validate_cleanup_data():
         assert not os.path.isdir(f"{LOCATION}/{split}")
 
 
-def _log_data(
+def _log_text_classification_data(
     num_records=NUM_RECORDS,
     num_logs=NUM_LOGS,
     unique_ids=True,
@@ -88,7 +88,7 @@ def _log_data(
     multi_label=False,
 ) -> None:
     """
-    Logs some mock data to disk
+    Logs mock data for text classification/multi-label to disk
     """
     meta = meta or {}
     # Log train/test data

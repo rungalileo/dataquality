@@ -8,6 +8,7 @@ class TaskType(str, Enum):
 
     text_classification = "text_classification"
     text_multi_label = "text_multi_label"
+    text_ner = "text_ner"
 
     @staticmethod
     def get_valid_tasks() -> List[str]:

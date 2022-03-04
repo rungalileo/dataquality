@@ -16,10 +16,6 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         super().__init__()
         self.epoch: Optional[int] = None
 
-    @abstractmethod
-    def validate(self) -> None:
-        ...
-
     def _log(self) -> None:
         """Threaded logger target"""
         try:
@@ -53,6 +49,14 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         object_name = f"{str(uuid4()).replace('-', '')[:12]}.hdf5"
         _save_hdf5_file(path, object_name, data)
 
+    @abstractmethod
+    def validate(self) -> None:
+        super().validate()
+        assert self.epoch is not None, "You didn't log an epoch!"
+        assert isinstance(
+            self.epoch, int
+        ), f"epoch must be int but was {type(self.epoch)}"
+
     @classmethod
     def upload(cls) -> None:
         """The upload function is implemented in the sister DataConfig class"""
@@ -61,8 +65,8 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
     @staticmethod
     def get_model_logger_attr(cls: object) -> str:
         """
-        Returns the attribute that corresponds to the GalileoModelConfig class.
-        This assumes only 1 GalileoModelConfig object exists in the class
+        Returns the attribute that corresponds to the GalileoModelLogger class.
+        This assumes only 1 GalileoModelLogger object exists in the class
 
         :param cls: The class
         :return: The attribute name
@@ -71,7 +75,7 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
             member_class = getattr(cls, attr)
             if isinstance(member_class, BaseGalileoModelLogger):
                 return attr
-        raise AttributeError("No GalileoModelConfig attribute found!")
+        raise AttributeError("No model logger attribute found!")
 
     @abstractmethod
     def _get_data_dict(self) -> Dict:

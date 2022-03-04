@@ -1,8 +1,9 @@
 import warnings
-from typing import Any, Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
+import vaex
 from vaex.dataframe import DataFrame
 
 from dataquality.core._config import config
@@ -29,6 +30,7 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
     List[List[str]]
     * ids: Optional unique indexes for each record. If not provided, will default to
     the index of the record. Optional[List[int]]
+    * split: The split for training/test/validation
     """
 
     __logger_name__ = "text_multi_label"
@@ -51,6 +53,7 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
         List[List[str]]
         :param ids: Optional unique indexes for each record. If not provided, will
         default to the index of the record. Optional[List[Union[int,str]]]
+        :param split: The split for training/test/validation
         """
         super().__init__(text=text, ids=ids, split=split, meta=meta)
         if labels is not None:
@@ -76,7 +79,7 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
                 f"but saw {len(input_labels)} for input record {ind}."
             )
 
-    def _get_input_dict(self) -> Dict[str, Any]:
+    def _get_input_df(self) -> DataFrame:
         inp = dict(
             id=self.ids,
             text=self.text,
@@ -88,7 +91,7 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
             gold_array = np.array(self.labels)
             for task_num in range(self.logger_config.observed_num_tasks):
                 inp[f"gold_{task_num}"] = gold_array[:, task_num]
-        return inp
+        return vaex.from_pandas(pd.DataFrame(inp))
 
     @classmethod
     def _get_prob_cols(cls) -> List[str]:

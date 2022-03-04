@@ -1,6 +1,5 @@
 import os
 import threading
-from collections import Counter
 from typing import Dict, List
 
 import h5py
@@ -28,7 +27,11 @@ def _save_hdf5_file(location: str, file_name: str, data: Dict) -> None:
         for col in data:
             group = f.create_group(f"/table/columns/{col}")
             col_data = np.array(data[col])
-            if not np.issubdtype(col_data.dtype, np.number):  # String columns
+            # String columns
+            ctype = col_data.dtype
+            if not np.issubdtype(ctype, np.number) and not np.issubdtype(
+                ctype, np.bool_
+            ):
                 dtype = h5py.string_dtype()
                 col_data = col_data.astype(dtype)
             else:
@@ -72,13 +75,28 @@ def _validate_unique_ids(df: DataFrame) -> None:
     """
     if df["id"].nunique() != len(df):
         epoch, split = df[["epoch", "split"]][0]
-        all_ids: List[int] = df["id"].tolist()
-        dup_ids = [i for i, count in Counter(all_ids).items() if count > 1]
+        dups = get_dup_ids(df)
         raise GalileoException(
             "It seems as though you do not have unique ids in this "
             f"split/epoch. Did you provide your own IDs?\n"
-            f"split:{split}, epoch:{epoch}, dup ids:{dup_ids}"
+            f"split:{split}, epoch:{epoch}, dup ids and counts:{dups}"
         )
+
+
+def valid_ids(df: DataFrame) -> bool:
+    """Returns whether or not a dataframe has unique IDs"""
+    try:
+        _validate_unique_ids(df)
+        return True
+    except GalileoException:
+        return False
+
+
+def get_dup_ids(df: DataFrame) -> List:
+    """Gets the list of duplicate IDs in a dataframe, if any"""
+    df_copy = df.copy()
+    dup_df = df_copy.groupby(by="id", agg="count")
+    return dup_df[dup_df["count"] > 1].to_records()
 
 
 def concat_hdf5_files(location: str, prob_only: bool) -> List[str]:
@@ -104,6 +122,8 @@ def concat_hdf5_files(location: str, prob_only: bool) -> List[str]:
         cols = ["id"]
         cols += [c for c in df.get_column_names() if c.startswith("prob")]
         cols += [c for c in df.get_column_names() if c.startswith("gold")]
+        cols += [c for c in df.get_column_names() if c.endswith("_gold")]
+        cols += [c for c in df.get_column_names() if c.endswith("_pred")]
     else:
         cols = df.get_column_names()
     for col in cols:
@@ -114,7 +134,7 @@ def concat_hdf5_files(location: str, prob_only: bool) -> List[str]:
         else:
             shape = ()
         dtype = df[col].dtype.numpy
-        if not np.issubdtype(dtype, np.number):
+        if not np.issubdtype(dtype, np.number) and not np.issubdtype(dtype, np.bool_):
             dtype = h5py.string_dtype(encoding="utf-8")
             str_cols.append(col)
         stores[col] = HDF5Store(f"{location}/{HDF5_STORE}", group, shape, dtype=dtype)
@@ -136,6 +156,8 @@ def concat_hdf5_files(location: str, prob_only: bool) -> List[str]:
                     d = convert_bytes(data, indcs, None).to_numpy(zero_copy_only=False)
                 else:
                     d = col_data["data"][:]
+                if key in str_cols:
+                    d = d.astype(h5py.string_dtype(encoding="utf-8"))
                 stores[key].append(d)
         os.remove(fname)
     return str_cols

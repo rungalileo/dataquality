@@ -5,6 +5,7 @@ from minio import Minio
 from vaex.dataframe import DataFrame
 
 from dataquality.core._config import config
+from dataquality.utils.file import get_file_extension
 
 
 class ObjectStore:
@@ -42,7 +43,8 @@ class ObjectStore:
         self, df: DataFrame, object_name: str
     ) -> None:
         """Uploads a Vaex dataframe to Minio at the specified object_name location"""
-        with NamedTemporaryFile(suffix=".hdf5") as f:
+        ext = get_file_extension(object_name)
+        with NamedTemporaryFile(suffix=ext) as f:
             with vaex.progress.tree("vaex", title="Writing data for upload"):
                 df.export(f.name)
             self.create_project_run_object(
