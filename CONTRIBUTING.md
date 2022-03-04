@@ -51,6 +51,9 @@ Run the following from the root of dataquality:
 flit install -s
 ```
 
+You can specify which python environment to install into using the `--python` flag
+(useful for developing/testing from external venvs)
+
 ## Formatting
 
 ```sh

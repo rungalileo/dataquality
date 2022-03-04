@@ -8,6 +8,9 @@ from vaex.dataframe import DataFrame
 from dataquality.loggers.data_logger.base_data_logger import BaseGalileoDataLogger
 from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
 from dataquality.schemas import __data_schema_version__
+from dataquality.schemas.dataframe import BaseLoggerInOutFrames
+from dataquality.schemas.ner import NERColumns as NERCols
+from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
 
 
@@ -109,7 +112,8 @@ class TextNERDataLogger(BaseGalileoDataLogger):
 
         :param text: The raw text inputs for model training. List[str]
         :param text_token_indices: Token boundaries of text. List[Tuple(int, int)].
-        Used to convert the gold_spans into token level spans internally
+        Used to convert the gold_spans into token level spans internally.
+        t[0] indicates the start index of the span and t[1] is the end index (exclusive)
         :param gold_spans: The model-level gold spans over the char index of `text`
         :param ids: Optional unique indexes for each record. If not provided, will
         default to the index of the record. Optional[List[Union[int,str]]]
@@ -183,42 +187,11 @@ class TextNERDataLogger(BaseGalileoDataLogger):
                 f"{text_tokenized_len})"
             )
 
-        clean_labels = self._clean_labels()
-
         for sample_id, sample_spans, sample_indices, sample_text in zip(
             self.ids, self.gold_spans, self.text_token_indices, self.text
         ):
-            max_end_idx, max_start_idx = 0, 0
-            for span in sample_spans:
+            self._validate_sample_spans(sample_spans, sample_indices, sample_text)
 
-                assert span["label"] in clean_labels, (
-                    f"{span['label']} is "
-                    f"absent in the provided labels {clean_labels}"
-                )
-
-                assert isinstance(span, dict), "individual spans must be dictionaries"
-                assert "start" in span and "end" in span and "label" in span, (
-                    "gold_spans must have a 'start', 'end', and 'label', but got "
-                    f"{span.keys()}"
-                )
-                assert (
-                    span["start"] < span["end"]
-                ), f"end index must be >= start index, but got {span}"
-                max_end_idx = max(span["end"], max_end_idx)
-                max_start_idx = max(span["start"], max_start_idx)
-
-            assert max_start_idx <= sample_indices[-1][0], (
-                f"span start idx: {max_start_idx}, does not align with provided token "
-                f"boundaries {sample_indices}"
-            )
-            assert max_end_idx <= sample_indices[-1][1], (
-                f"span end idx: {max_end_idx}, does not align with provided token "
-                f"boundaries {sample_indices}"
-            )
-            assert max_end_idx <= len(sample_text), (
-                f"span end idx: {max_end_idx} "
-                f"overshoots text length of {len(sample_text)} {sample_text}"
-            )
             updated_spans = self._extract_gold_spans(sample_spans, sample_indices)
 
             sample_key = self.logger_config.get_sample_key(Split(self.split), sample_id)
@@ -237,6 +210,44 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         del self.text_token_indices
 
         self.validate_metadata(batch_size=text_len)
+
+    def _validate_sample_spans(
+        self,
+        sample_spans: List[Dict],
+        sample_indices: List[Tuple[int, int]],
+        sample_text: str,
+    ) -> None:
+        """Validates spans of a sample"""
+        clean_labels = self._clean_labels()
+        max_end_idx, max_start_idx = 0, 0
+        for span in sample_spans:
+            assert span["label"] in clean_labels, (
+                f"{span['label']} is " f"absent in the provided labels {clean_labels}"
+            )
+
+            assert isinstance(span, dict), "individual spans must be dictionaries"
+            assert "start" in span and "end" in span and "label" in span, (
+                "gold_spans must have a 'start', 'end', and 'label', but got "
+                f"{span.keys()}"
+            )
+            assert (
+                span["start"] < span["end"]
+            ), f"end index must be >= start index, but got {span}"
+            max_end_idx = max(span["end"], max_end_idx)
+            max_start_idx = max(span["start"], max_start_idx)
+
+        assert max_start_idx <= sample_indices[-1][0], (
+            f"span start idx: {max_start_idx}, does not align with provided token "
+            f"boundaries {sample_indices}"
+        )
+        assert max_end_idx <= sample_indices[-1][1], (
+            f"span end idx: {max_end_idx}, does not align with provided token "
+            f"boundaries {sample_indices}"
+        )
+        assert max_end_idx <= len(sample_text), (
+            f"span end idx: {max_end_idx} "
+            f"overshoots text length of {len(sample_text)} {sample_text}"
+        )
 
     def _extract_gold_spans(
         self, gold_spans: List[Dict], token_indices: List[Tuple[int, int]]
@@ -308,7 +319,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
     @classmethod
     def process_in_out_frames(
         cls, in_frame: DataFrame, out_frame: DataFrame, prob_only: bool
-    ) -> Tuple[DataFrame, DataFrame, DataFrame]:
+    ) -> BaseLoggerInOutFrames:
         """Processes input and output dataframes from logging
 
         NER is a different case where the input data is logged at the sample level,
@@ -325,7 +336,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         # Take only the sentence rows that are in the split of this model output
         cur_split = out_frame["split"].unique()[0]
         in_frame_split = in_frame[in_frame["split"] == cur_split]
-        return prob, emb, in_frame_split
+        return BaseLoggerInOutFrames(prob=prob, emb=emb, data=in_frame_split)
 
     @classmethod
     def split_dataframe(
@@ -342,21 +353,23 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         df_copy["id"] = vaex.vrange(0, len(df_copy), dtype="int64")
         # Separate out embeddings and probabilities into their own files
         prob_cols = [
-            "id",
-            "sample_id",
-            "split",
-            "epoch",
-            "is_gold",
-            "is_pred",
-            "span_start",
-            "span_end",
-            "gold",
-            "pred",
-            "data_error_potential",
-            "galileo_error_type",
+            NERCols.id.value,
+            NERCols.sample_id.value,
+            NERCols.split.value,
+            NERCols.epoch.value,
+            NERCols.is_gold.value,
+            NERCols.is_pred.value,
+            NERCols.span_start.value,
+            NERCols.span_end.value,
+            NERCols.gold.value,
+            NERCols.pred.value,
+            NERCols.data_error_potential.value,
+            NERCols.galileo_error_type.value,
         ]
         prob = df_copy[prob_cols]
-        emb_cols = ["id"] if prob_only else ["id", "emb"]
+        emb_cols = (
+            [NERCols.id.value] if prob_only else [NERCols.id.value, NERCols.emb.value]
+        )
         emb = df_copy[emb_cols]
         return prob, emb, df_copy
 
@@ -386,19 +399,29 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         clean_labels = [
             i.split("-", maxsplit=1)[1]
             for i in cls.logger_config.labels
-            if i
-            and (
-                i.startswith("B")
-                or i.startswith("I")
-                or i.startswith("L")
-                or i.startswith("E")
-                or i.startswith("S")
-                or i.startswith("U")
-            )
+            if i and cls.is_valid_span_label(i)
         ]
         clean_labels = list(dict.fromkeys(clean_labels))  # Remove dups, keep order
         return clean_labels
 
     @classmethod
-    def set_tagging_schema(cls, tagging_schema: str) -> None:
+    def is_valid_span_label(cls, label: str) -> bool:
+        """Denotes if a span label is valid based on our allowed tagging schemas
+
+        B = Before the sequence
+        I = In the sequence
+        L/E = Last/Ending character of the sequence
+        S/U = Single/Unit element of a sequence
+        """
+        return (
+            label.startswith("B")
+            or label.startswith("I")
+            or label.startswith("L")
+            or label.startswith("E")
+            or label.startswith("S")
+            or label.startswith("U")
+        )
+
+    @classmethod
+    def set_tagging_schema(cls, tagging_schema: TaggingSchema) -> None:
         cls.logger_config.tagging_schema = tagging_schema

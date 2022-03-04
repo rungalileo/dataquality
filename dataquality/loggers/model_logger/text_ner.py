@@ -1,17 +1,14 @@
 from collections import defaultdict
 from enum import Enum, unique
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, DefaultDict, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 from numpy import ndarray
 
-from dataquality.loggers.logger_config.text_ner import (
-    TaggingSchema,
-    text_ner_logger_config,
-)
+from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.schemas import __data_schema_version__
-from dataquality.schemas.ner_errors import NERErrorType
+from dataquality.schemas.ner import NERErrorType, TaggingSchema
 from dataquality.schemas.split import Split
 
 
@@ -150,6 +147,8 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             # To extract metadata about the sample we are looking at
             sample_key = self.logger_config.get_sample_key(Split(self.split), sample_id)
 
+            # Unpadded length of the sample. Used to extract true predicted spans
+            # which are padded by the model
             sample_token_len = self.logger_config.sample_length[sample_key]
             # Get prediction spans
             sample_pred_spans = self._extract_pred_spans(sample_prob, sample_token_len)
@@ -166,8 +165,8 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             gold_dep, pred_dep = self._calculate_dep_scores(
                 sample_prob, sample_gold_spans, sample_pred_spans, sample_token_len
             )
-            gold_emb = self._extract_embeddings(sample_gold_spans, sample_emb)
-            pred_emb = self._extract_embeddings(sample_pred_spans, sample_emb)
+            gold_emb = self._extract_span_embeddings(sample_gold_spans, sample_emb)
+            pred_emb = self._extract_span_embeddings(sample_pred_spans, sample_emb)
 
             logged_sample_ids.append(sample_id)
             self.pred_spans.append(sample_pred_spans)
@@ -188,7 +187,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             emb = next(filter(lambda emb: not np.isnan(emb[0]).all(), self.gold_emb))[0]
             self.logger_config.num_emb = emb.shape[0]
 
-    def _extract_embeddings(
+    def _extract_span_embeddings(
         self, spans: List[Dict], emb: np.ndarray
     ) -> List[np.ndarray]:
         """Get the embeddings for each span, on a per-sample basis
@@ -272,13 +271,13 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             # Invalid means we hit a new B or O tag, or the next I tag has a
             # different label
             total_b_count += 1
-            token_val, token_label = token.split("-", maxsplit=1)
+            token_val, token_label = self._split_token(token)
 
             for next_tok in pred_sequence[idx + 1 :]:
                 # next_tok == "I" and the label matches the current B label
                 if (
                     next_tok.startswith("I")
-                    and next_tok.split("-", maxsplit=1)[1] == token_label
+                    and self._split_token(next_tok)[1] == token_label
                 ):
                     next_idx += 1
                 else:
@@ -306,29 +305,28 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             token = pred_sequence[idx]
             next_idx = idx + 1
 
-            if token.startswith("U"):
+            if self._is_single_token(token):
                 total_b_count += 1
-                # hit a single token prediction , update and continue
-                token_val, token_label = token.split("-")
+                # hit a single token prediction, update and continue
+                token_val, token_label = self._split_token(token)
                 pred_spans.append({"start": idx, "end": next_idx, "label": token_label})
                 idx += 1
                 continue
 
-            if not token.startswith("B"):
+            if not self._is_before_token(token):
                 idx += 1
                 continue
 
             # We've hit a prediction. Continue until it's invalid
             # Invalid means we hit a new B or O tag, or the next I tag has a
             # different label
-            token_val, token_label = token.split("-")
+            token_val, token_label = self._split_token(token)
 
             for next_tok in pred_sequence[idx + 1 :]:
-                # next_tok == "I" and the label matches the current B label
-                if next_tok.startswith("I") and next_tok.split("-")[1] == token_label:
+                if self._is_in_token(next_tok, token_label):
                     next_idx += 1
-                # next_tok == "E" and the label matches the current B label
-                elif next_tok.startswith("L") and next_tok.split("-")[1] == token_label:
+                # next_tok == "L" and the label matches the current B label
+                elif self._is_end_token(next_tok, token_label):
                     next_idx += 1
                     found_end = True
                     total_b_count += 1
@@ -359,29 +357,29 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             token = pred_sequence[idx]
             next_idx = idx + 1
 
-            if token.startswith("S"):
+            if self._is_single_token(token):
                 total_b_count += 1
                 # hit a single token prediction , update and continue
-                token_val, token_label = token.split("-")
+                token_val, token_label = self._split_token(token)
                 pred_spans.append({"start": idx, "end": next_idx, "label": token_label})
                 idx += 1
                 continue
 
-            if not token.startswith("B"):
+            if not self._is_before_token(token):
                 idx += 1
                 continue
 
             # We've hit a prediction. Continue until it's invalid
             # Invalid means we hit a new B or O tag, or the next I tag has a
             # different label
-            token_val, token_label = token.split("-")
+            token_val, token_label = self._split_token(token)
 
             for next_tok in pred_sequence[idx + 1 :]:
                 # next_tok == "I" and the label matches the current B label
-                if next_tok.startswith("I") and next_tok.split("-")[1] == token_label:
+                if self._is_in_token(next_tok, token_label):
                     next_idx += 1
                 # next_tok == "E" and the label matches the current B label
-                elif next_tok.startswith("E") and next_tok.split("-")[1] == token_label:
+                elif self._is_end_token(next_tok, token_label):
                     next_idx += 1
                     found_end = True
                     total_b_count += 1
@@ -395,6 +393,33 @@ class TextNERModelLogger(BaseGalileoModelLogger):
 
         assert total_b_count == len(pred_spans)
         return pred_spans
+
+    def _is_single_token(self, tok: str) -> bool:
+        return tok.startswith("U") or tok.startswith("S")
+
+    def _is_before_token(self, tok: str) -> bool:
+        return tok.startswith("B")
+
+    def _is_in_token(self, tok: str, label: str) -> bool:
+        """We are inside a token if the token is an I tag and the label matches"""
+        # next_tok == "I" and the label matches the current B label
+        return tok.startswith("I") and self._split_token(tok)[1] == label
+
+    def _is_end_token(self, tok: str, label: str) -> bool:
+        """We are at the end of a token if L/E tag and the label matches"""
+        return (tok.startswith("E") or tok.startswith("L")) and self._split_token(tok)[
+            1
+        ] == label
+
+    def _split_token(self, tok: str) -> Tuple[str, str]:
+        """Split the token value and label
+
+        A token starts with a tag and has a label sepearated by "-"
+        ie B-DOG or E-SOME_VAL or I-my-label
+        but we only want to split on the first "-" incase the label itself has a "-"
+        """
+        tok_tag, tok_label = tok.split("-", maxsplit=1)
+        return tok_tag, tok_label
 
     def _construct_gold_sequence(
         self, len_sequence: int, gold_spans: List[Dict]
@@ -457,10 +482,13 @@ class TextNERModelLogger(BaseGalileoModelLogger):
 
         Compute DEP score for each token using gold and predicted sequences.
         Extract DEP score for each span using max of these token-level scores
-        gold_spans: gold spans for a sample
-        pred_spans: predicted spans for a sample
-        pred_prob: seq_len x num_labels probability predictions for
+        :param gold_spans: gold spans for a sample
+        :param pred_spans: predicted spans for a sample
+        :param pred_prob: seq_len x num_labels probability predictions for
             every token in a sample
+        :param sample_token_len:  Unpadded length of the sample. Used to extract true
+            predicted spans which are padded by the model
+        :return: The DEP score per-token for both the gold spans and pred spans
         """
         label2idx = {l: i for i, l in enumerate(self.logger_config.labels)}
         argmax_indices: List[int] = pred_prob.argmax(axis=1).tolist()
@@ -503,20 +531,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         (one of pred_span, pred_emb, pred_dep per span) and once for gold span
         information (one of gold_span, gold_emb, gold_dep per span)
         """
-
-        def _construct_span_row(
-            d: defaultdict, id: int, start: int, end: int, dep: float, emb: ndarray
-        ) -> defaultdict:
-            d["sample_id"].append(id)
-            d["epoch"].append(self.epoch)
-            d["split"].append(Split(self.split).value)
-            d["data_schema_version"].append(__data_schema_version__)
-            d["span_start"].append(start)
-            d["span_end"].append(end)
-            d["data_error_potential"].append(dep)
-            d["emb"].append(emb)
-            return d
-
         data: defaultdict = defaultdict(list)
 
         # Loop through samples
@@ -536,14 +550,12 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             pred_span_inds = [(i["start"], i["end"]) for i in pred_spans]
             pred_spans_check = set(pred_span_inds)
             # Loop through the gold spans
-            for gold_span, gold_emb, gold_dep in zip(gold_spans, gold_embs, gold_deps):
-                span_ind = (gold_span["start"], gold_span["end"])
-                data = _construct_span_row(
-                    data, sample_id, span_ind[0], span_ind[1], gold_dep, gold_emb
+            for gold_span, gold_dep, gold_emb in zip(gold_spans, gold_deps, gold_embs):
+                data = self._construct_gold_span_row(
+                    data, sample_id, gold_span, gold_emb, gold_dep
                 )
-                data["is_gold"].append(True)
-                data["gold"].append(gold_span["label"])
 
+                span_ind = (gold_span["start"], gold_span["end"])
                 if span_ind in pred_spans_check:
                     # Remove element from preds so it's not logged twice
                     ind = pred_span_inds.index(span_ind)
@@ -573,18 +585,58 @@ class TextNERModelLogger(BaseGalileoModelLogger):
 
             # Loop through the remaining pred spans
             for pred_span, pred_emb, pred_dep in zip(pred_spans, pred_embs, pred_deps):
-                start, end = pred_span["start"], pred_span["end"]
-                data = _construct_span_row(
-                    data, sample_id, start, end, pred_dep, pred_emb
+                data = self._construct_pred_span_row(
+                    data, sample_id, pred_span, pred_emb, pred_dep
                 )
-                data["is_gold"].append(False)
-                data["is_pred"].append(True)
-                data["pred"].append(pred_span["label"])
-                data["gold"].append("")
-                # Pred only spans don't have an error type
-                data["galileo_error_type"].append(NERErrorType.none.value)
 
         return data
+
+    def _construct_gold_span_row(
+        self,
+        data: DefaultDict,
+        sample_id: int,
+        gold_span: Dict,
+        gold_emb: np.ndarray,
+        gold_dep: float,
+    ) -> DefaultDict:
+        span_ind = (gold_span["start"], gold_span["end"])
+        data = self._construct_span_row(
+            data, sample_id, span_ind[0], span_ind[1], gold_dep, gold_emb
+        )
+        data["is_gold"].append(True)
+        data["gold"].append(gold_span["label"])
+        return data
+
+    def _construct_pred_span_row(
+        self,
+        data: DefaultDict,
+        sample_id: int,
+        pred_span: Dict,
+        pred_emb: np.ndarray,
+        pred_dep: float,
+    ) -> DefaultDict:
+        start, end = pred_span["start"], pred_span["end"]
+        data = self._construct_span_row(data, sample_id, start, end, pred_dep, pred_emb)
+        data["is_gold"].append(False)
+        data["is_pred"].append(True)
+        data["pred"].append(pred_span["label"])
+        data["gold"].append("")
+        # Pred only spans don't have an error type
+        data["galileo_error_type"].append(NERErrorType.none.value)
+        return data
+
+    def _construct_span_row(
+        self, d: DefaultDict, id: int, start: int, end: int, dep: float, emb: ndarray
+    ) -> DefaultDict:
+        d["sample_id"].append(id)
+        d["epoch"].append(self.epoch)
+        d["split"].append(Split(self.split).value)
+        d["data_schema_version"].append(__data_schema_version__)
+        d["span_start"].append(start)
+        d["span_end"].append(end)
+        d["data_error_potential"].append(dep)
+        d["emb"].append(emb)
+        return d
 
     def _get_span_error_type(
         self, pred_spans: List[Tuple[int, int]], gold_span: Tuple[int, int]

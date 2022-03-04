@@ -1,4 +1,3 @@
-import os
 from tempfile import NamedTemporaryFile
 
 import vaex
@@ -6,6 +5,7 @@ from minio import Minio
 from vaex.dataframe import DataFrame
 
 from dataquality.core._config import config
+from dataquality.utils.file import get_file_extension
 
 
 class ObjectStore:
@@ -43,7 +43,7 @@ class ObjectStore:
         self, df: DataFrame, object_name: str
     ) -> None:
         """Uploads a Vaex dataframe to Minio at the specified object_name location"""
-        ext = os.path.splitext(object_name)[-1]
+        ext = get_file_extension(object_name)
         with NamedTemporaryFile(suffix=ext) as f:
             with vaex.progress.tree("vaex", title="Writing data for upload"):
                 df.export(f.name)
