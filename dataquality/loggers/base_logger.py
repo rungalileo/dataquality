@@ -90,8 +90,8 @@ class BaseGalileoLogger:
                 self.split = self.logger_config.cur_split
             else:
                 raise GalileoException(
-                    "You didn't log a split and did not set a split. You can set your "
-                    "split by calling `dataquality.set_split(cur_split)`"
+                    "You didn't log a split and did not set a split. Use "
+                    "`dataquality.set_split` to set the split"
                 )
         self.split = self.validate_split(self.split)
 
