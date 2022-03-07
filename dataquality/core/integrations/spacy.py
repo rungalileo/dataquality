@@ -1,4 +1,4 @@
-from typing import Callable, Generator, List, Tuple, Union
+from typing import Callable, Generator, List, Tuple, Union, Any
 
 import numpy as np
 from scipy.special import softmax
@@ -21,6 +21,18 @@ from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
 from dataquality.schemas.ner import TaggingSchema
 
 
+def validate_obj(an_object: Any, check_type: Any, has_attr: str):
+    if not isinstance(an_object, check_type):
+        raise GalileoException(
+            f"Expected a {check_type}. Received {str(type(an_object))}"
+        )
+
+    if not hasattr(an_object, has_attr):
+        raise GalileoException(
+            f"Your {check_type} must have a {has_attr} attribute"
+        )
+
+
 class SpacyPatchState:
     """A state class to keep track of state without polluting the namespace"""
 
@@ -38,18 +50,7 @@ class GalileoEntityRecognizer(CallableObjectProxy):
 
     def __init__(self, ner: EntityRecognizer):
         super(GalileoEntityRecognizer, self).__init__(ner)
-
-        # TODO: is this necessary if we do typing above
-        if not isinstance(ner, EntityRecognizer):
-            raise GalileoException(
-                f"Expected an EntityRecognizer component. Received {str(type(ner))}"
-            )
-
-        if not hasattr(ner, "model"):
-            raise GalileoException(
-                "Your ner EntityRecognizer must have a Thinc model attribute under "
-                "model"
-            )
+        validate_obj(ner, check_type=EntityRecognizer, has_attr="model")
 
         patch_transition_based_parser_forward(ner.model)
 
@@ -394,15 +395,7 @@ def patch_parser_step_forward(parser_step_model: ParserStepModel) -> ParserStepM
 
 def patch_transition_based_parser_forward(transition_based_parser_model: Model) -> None:
     """A basic way to patch the _func forward method of the TransitionBasedParser"""
-
-    if not isinstance(transition_based_parser_model, Model):
-        parser_type = str(type(transition_based_parser_model))
-        raise GalileoException(f"Expected a Thinc model. Received {parser_type}")
-    if not hasattr(transition_based_parser_model, "_func"):
-        raise GalileoException(
-            "Expected your TransitionBasedParser Thinc model to have a "
-            "forward function at _func"
-        )
+    validate_obj(transition_based_parser_model, check_type=Model, has_attr="_func")
 
     # If the name changes in future Spacy versions we should assume the model also
     # changed and investigate if our integration still works.
