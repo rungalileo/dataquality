@@ -145,6 +145,5 @@ def _log_text_classification_data(
                 ids = list(range(num_records))
 
             dataquality.set_epoch(epoch)
-            dataquality.log_model_outputs(
-                emb=emb, probs=probs, split=split.value, ids=ids
-            )
+            dataquality.set_split(split)
+            dataquality.log_model_outputs(emb=emb, probs=probs, ids=ids)
