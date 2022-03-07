@@ -52,10 +52,14 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
     @abstractmethod
     def validate(self) -> None:
         super().validate()
-        assert self.epoch is not None, "You didn't log an epoch!"
-        assert isinstance(
-            self.epoch, int
-        ), f"epoch must be int but was {type(self.epoch)}"
+        if self.epoch is None:
+            if self.logger_config.cur_epoch is not None:
+                self.epoch = self.logger_config.cur_epoch
+            else:
+                raise GalileoException(
+                    "You must either log an epoch or set it before logging. You can "
+                    "set the epoch by calling `dataquality.set_epoch(cur_epoch)`"
+                )
 
     @classmethod
     def upload(cls) -> None:

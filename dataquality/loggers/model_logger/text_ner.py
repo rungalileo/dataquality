@@ -97,7 +97,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         self.emb = emb if emb is not None else []
         # self.pred_spans = pred_spans if pred_spans is not None else []
         self.probs = probs if probs is not None else []
-        self.ids = ids if ids is not None else []
+        self.ids: Union[List, np.ndarray] = ids if ids is not None else []
         self.split = split
         self.epoch = epoch
 

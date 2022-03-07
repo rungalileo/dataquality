@@ -83,6 +83,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         * If ids exist, it must be the same length as text/labels
         :return: None
         """
+        super().validate()
 
         label_len = len(self.labels)
         text_len = len(self.text)
@@ -92,8 +93,6 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         self.labels = list(self._convert_tensor_ndarray(self.labels, attr="Labels"))
         self.ids = list(self._convert_tensor_ndarray(self.ids))
 
-        assert self.split, "Your logged data has no split!"
-        self.split = self.validate_split(self.split)
         if self.split == Split.inference.value:
             assert not label_len, "You cannot have labels in your inference split!"
         else:
