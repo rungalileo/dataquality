@@ -128,7 +128,7 @@ class GalileoEntityRecognizer(CallableObjectProxy):
 
 
 @Language.factory("galileo_ner")
-def create_galileo_ner(nlp: EntityRecognizer, name: str) -> GalileoEntityRecognizer:
+def create_galileo_ner(nlp: Language, name: str) -> GalileoEntityRecognizer:
     return GalileoEntityRecognizer(nlp.get_pipe("ner"))
 
 
@@ -171,14 +171,14 @@ def log_input_examples(examples: List[Example], split: str) -> None:
     )
 
 
-def watch(nlp: EntityRecognizer) -> None:
+def watch(nlp: Language) -> None:
     """Stores the nlp object before calling watch on the ner component within it
 
     We need access to the nlp object so that during training we can capture the
     model's predictions over the raw text by running nlp("user's text") and looking
     at the results
 
-    :param ner: The spacy ner EntityRecognizer component.
+    :param nlp: The spacy nlp Language component.
     :return: None
     """
     assert (
@@ -271,7 +271,7 @@ def galileo_parser_step_forward(
     )
     logits = scores[..., 1:]  # Throw out the -U token
 
-    assert logits.shape == (len(X), parser_step_model.get_dim("nO") - 1)
+    assert logits.shape == (len(X), parser_step_model.nO - 1)  # type: ignore
     # Logits are returned for all docs, one token at a time. So as we continue
     # to call parser_step_forward some docs will have finished and not have
     # any remaining tokens to make predictions on. We assume that the
