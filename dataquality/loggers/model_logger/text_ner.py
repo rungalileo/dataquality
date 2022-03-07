@@ -97,7 +97,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         self.emb = emb if emb is not None else []
         # self.pred_spans = pred_spans if pred_spans is not None else []
         self.probs = probs if probs is not None else []
-        self.ids = ids if ids is not None else []
+        self.ids: List[np.ndarray] = ids if ids is not None else []
         self.split = split
         self.epoch = epoch
 
@@ -149,9 +149,9 @@ class TextNERModelLogger(BaseGalileoModelLogger):
 
         self.ids = logged_sample_ids
         # Get the embedding shape. Filter out nulls
-        # if not self.logger_config.num_emb:
-        #     emb = next(filter(lambda emb: not np.isnan(emb[0]).all(), self.gold_emb))[0]
-        #     self.logger_config.num_emb = emb.shape[0]
+        if not self.logger_config.num_emb:
+            emb = next(filter(lambda emb: not np.isnan(emb[0]).all(), self.gold_emb))[0]
+            self.logger_config.num_emb = emb.shape[0]
 
     def _process_sample(
         self, sample_id: int, sample_emb: np.ndarray, sample_prob: np.ndarray

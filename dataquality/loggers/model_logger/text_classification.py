@@ -64,9 +64,9 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         super().__init__()
         # Need to compare to None because they may be np arrays which cannot be
         # evaluated with bool directly
-        self.emb = emb if emb is not None else []
-        self.probs = probs if probs is not None else []
-        self.ids = ids if ids is not None else []
+        self.emb: Union[List, np.ndarray] = emb if emb is not None else []
+        self.probs: Union[List, np.ndarray] = probs if probs is not None else []
+        self.ids: Union[List, np.ndarray] = ids if ids is not None else []
         self.split: str = split
         self.epoch = epoch
 

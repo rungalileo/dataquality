@@ -1,4 +1,5 @@
 import os
+
 # TODO: Why should I not need these again?
 from spacy.pipeline.ner import EntityRecognizer
 
@@ -10,33 +11,37 @@ os.environ["GALILEO_AUTH_METHOD"] = "email"
 os.environ["GALILEO_USERNAME"] = "adminy_guy@rungalileo.io"
 os.environ["GALILEO_PASSWORD"] = "Admin123@"
 
-import dataquality
-from dataquality.core.integrations.spacy import watch, log_input_examples, \
-    GalileoEntityRecognizer, unwatch
-from dataquality.schemas.task_type import TaskType
+from typing import Dict, List, Tuple
+
+import numpy as np
 import spacy
-import random
-from tqdm import tqdm
+import vaex
+from spacy.language import Language
 from spacy.training import Example
 from spacy.util import minibatch
-from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
-from tests.conftest import LOCATION, SPLITS, SUBDIRS, TEST_PATH
-from spacy.language import Language
-from typing import List, Tuple, Dict
-from thinc.model import Model
-from spacy.tokens import Doc
-import numpy as np
-from tests.utils.data_utils import validate_uploaded_data
-import vaex
+from tqdm import tqdm
 from vaex.dataframe import DataFrameLocal
-from typing import Callable
-from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
+
+import dataquality
+from dataquality.core.integrations.spacy import (
+    GalileoEntityRecognizer,
+    log_input_examples,
+    watch,
+)
+from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
+from dataquality.schemas.task_type import TaskType
+from tests.conftest import LOCATION, SUBDIRS, TEST_PATH
 
 spacy.util.fix_random_seed()
 
 dataquality.config.task_type = TaskType.text_ner
 
-def _train_model(training_data: List[Tuple[str, Dict]], test_data: List[Tuple[str, Dict]], nlp: Language):
+
+def _train_model(
+    training_data: List[Tuple[str, Dict]],
+    test_data: List[Tuple[str, Dict]],
+    nlp: Language,
+):
     n_iter = 5
     minibatch_size = 3
     ner = nlp.get_pipe("ner")
@@ -45,7 +50,7 @@ def _train_model(training_data: List[Tuple[str, Dict]], test_data: List[Tuple[st
     training_examples = []
     for text, annotations in training_data:
         # 1) Setting the correct num labels
-        for ent in annotations.get('entities'):
+        for ent in annotations.get("entities"):
             ner.add_label(ent[2])
 
         # 2) For us, generating the docs/examples so we can log the tokenized outputs
@@ -59,7 +64,7 @@ def _train_model(training_data: List[Tuple[str, Dict]], test_data: List[Tuple[st
     log_input_examples(training_examples, "training")
 
     training_losses = []
-    with nlp.disable_pipes(*[pipe for pipe in nlp.pipe_names if pipe != 'ner']):
+    with nlp.disable_pipes(*[pipe for pipe in nlp.pipe_names if pipe != "ner"]):
         for itn in range(n_iter):
             batches = minibatch(training_examples, minibatch_size)
 
@@ -68,10 +73,7 @@ def _train_model(training_data: List[Tuple[str, Dict]], test_data: List[Tuple[st
             text_ner_logger_config.user_data["split"] = "training"
 
             for batch in tqdm(batches):
-                training_loss = nlp.update(
-                    batch,
-                    drop=0.5,
-                    sgd=optimizer)
+                training_loss = nlp.update(batch, drop=0.5, sgd=optimizer)
 
                 training_losses.append(training_loss["ner"])
 
@@ -84,45 +86,63 @@ def _train_model(training_data: List[Tuple[str, Dict]], test_data: List[Tuple[st
 
     return training_losses
 
+
 def test_spacy(cleanup_after_use) -> None:
-    nlp = spacy.blank('en')
-    nlp.add_pipe('ner', last=True)
+    nlp = spacy.blank("en")
+    nlp.add_pipe("ner", last=True)
 
     training_data = [
         (
-            'what is SEMRUSH PRO? Can you run complex queries ? Can you identify active usage ?',
+            "what is SEMRUSH PRO? Can you run complex queries ? Can you identify active usage ?",
             {
-                'entities': [(21, 32, 'Questions About the Product'),
-                             (51, 67, 'Questions About the Product')]
-            }),
-
-        ('Thank you for your subscription renewal', {
-            'entities': [(19, 39, 'Renew')]
-        }),
+                "entities": [
+                    (21, 32, "Questions About the Product"),
+                    (51, 67, "Questions About the Product"),
+                ]
+            },
+        ),
+        ("Thank you for your subscription renewal", {"entities": [(19, 39, "Renew")]}),
         (
-            'you can upgrade your account for an old price,while you can upgrade your account for $399.95/month',
+            "you can upgrade your account for an old price,while you can upgrade your account for $399.95/month",
+            {"entities": [(8, 28, "Potential Upsell"), (60, 80, "Potential Upsell")]},
+        ),
+        (
+            "I like EMSI ordered the pro package",
+            {"entities": [(12, 23, "Product Usage")]},
+        ),
+        (
+            "Here you go, your account is created",
             {
-                'entities': [(8, 28, 'Potential Upsell'), (60, 80, 'Potential Upsell')]
-            }),
-        ('I like EMSI ordered the pro package', {
-            'entities': [(12, 23, 'Product Usage')]
-        }),
-        ('Here you go, your account is created', {
-            'entities': [(0, 11, 'Action item accomplished'),
-                         (29, 36, 'Action item accomplished')]
-        })
+                "entities": [
+                    (0, 11, "Action item accomplished"),
+                    (29, 36, "Action item accomplished"),
+                ]
+            },
+        ),
     ]
 
     test_data = [
-        ('Thank you for your subscription renewal', {
-            'entities': [(32, 39, 'Renew')]
-        }),
+        ("Thank you for your subscription renewal", {"entities": [(32, 39, "Renew")]}),
     ]
 
     training_losses = _train_model(training_data, test_data, nlp)
 
     # loss values gotten from running the script with Galileo Logging turned off
-    assert np.allclose(training_losses, [25.500003337860107, 14.20009732246399, 41.103223502635956, 13.864217460155487, 39.7820560336113, 13.508131921291351, 37.757276713848114, 12.961382985115051, 35.641219317913055, 11.587133049964905])
+    assert np.allclose(
+        training_losses,
+        [
+            25.500003337860107,
+            14.20009732246399,
+            41.103223502635956,
+            13.864217460155487,
+            39.7820560336113,
+            13.508131921291351,
+            37.757276713848114,
+            12.961382985115051,
+            35.641219317913055,
+            11.587133049964905,
+        ],
+    )
 
     logger = dataquality.get_data_logger(dataquality.config.task_type)
     logger.upload()
@@ -132,45 +152,50 @@ def test_spacy(cleanup_after_use) -> None:
 
     data, emb, prob = load_ner_data_from_local("training")
 
-    #TODO Some assertions
+    # TODO Some assertions
 
-def load_ner_data_from_local(split: str) -> (
-    DataFrameLocal, DataFrameLocal, DataFrameLocal):
-        """Loads post-logging locally created files.
 
-        Returns: data, emb, and prob vaex dataframes
-        """
-        split_output_data = {}
-        for subdir in SUBDIRS:
-            file_path = (
-                f"{TEST_PATH}/{split}/{subdir}/{subdir}."
-                f"{'arrow' if subdir == 'data' else 'hdf5'}"
-            )
-            # Ensure files were cleaned up
-            data = vaex.open(file_path)
-            prob_cols = data.get_column_names(regex="prob*")
-            for c in data.get_column_names():
-                if c in prob_cols + ["emb"]:
-                    assert not np.isnan(data[c].values).any()
-                else:
-                    vals = data[c].values
-                    assert all([i is not None and i != "nan" for i in vals])
-            split_output_data[subdir] = data
+def load_ner_data_from_local(
+    split: str,
+) -> (DataFrameLocal, DataFrameLocal, DataFrameLocal):
+    """Loads post-logging locally created files.
 
-        return (
-            split_output_data["data"],
-            split_output_data["emb"],
-            split_output_data["prob"],
+    Returns: data, emb, and prob vaex dataframes
+    """
+    split_output_data = {}
+    for subdir in SUBDIRS:
+        file_path = (
+            f"{TEST_PATH}/{split}/{subdir}/{subdir}."
+            f"{'arrow' if subdir == 'data' else 'hdf5'}"
         )
+        # Ensure files were cleaned up
+        data = vaex.open(file_path)
+        prob_cols = data.get_column_names(regex="prob*")
+        for c in data.get_column_names():
+            if c in prob_cols + ["emb"]:
+                assert not np.isnan(data[c].values).any()
+            else:
+                vals = data[c].values
+                assert all([i is not None and i != "nan" for i in vals])
+        split_output_data[subdir] = data
+
+    return (
+        split_output_data["data"],
+        split_output_data["emb"],
+        split_output_data["prob"],
+    )
 
 
-from dataquality.core.integrations.spacy import SpacyPatchState
 from unittest.mock import Mock
-from dataquality.core.integrations.spacy import galileo_transition_based_parser_forward
+
+from dataquality.core.integrations.spacy import (
+    SpacyPatchState,
+    galileo_transition_based_parser_forward,
+)
 
 
 def test_galileo_transition_based_parser_forward():
-    nlp = spacy.blank('en')
+    nlp = spacy.blank("en")
 
     text_samples = ["Some text", "Some other text", "Some more text"]
 
@@ -187,23 +212,38 @@ def test_galileo_transition_based_parser_forward():
         mock_parser_step_model = Mock()
         mock_parser_step_model._func = lambda x: print("parser_step_model forward fn")
         mock_parser_step_model.tokvecs = fake_embeddings
-        return mock_parser_step_model, lambda x: print("transition_based_parser backprop fn")
+        return mock_parser_step_model, lambda x: print(
+            "transition_based_parser backprop fn"
+        )
 
-    SpacyPatchState.orig_transition_based_parser_forward = mock_transition_based_parser_forward
+    SpacyPatchState.orig_transition_based_parser_forward = (
+        mock_transition_based_parser_forward
+    )
 
     text_ner_logger_config.user_data["epoch"] = 0
     text_ner_logger_config.user_data["split"] = "training"
 
-    galileo_transition_based_parser_forward(mock_transition_based_parser_model, docs, is_train=True)
+    galileo_transition_based_parser_forward(
+        mock_transition_based_parser_model, docs, is_train=True
+    )
 
     assert SpacyPatchState.model_logger.ids == [0, 1, 2]
     assert SpacyPatchState.model_logger.epoch == 0
     assert SpacyPatchState.model_logger.split == "training"
     assert SpacyPatchState.model_logger.probs == [[], [], []]
     assert len(SpacyPatchState.model_logger.emb) == 3
-    assert all([embedding.shape == (len(docs[i]), 64) for i, embedding in enumerate(SpacyPatchState.model_logger.emb)])
+    assert all(
+        [
+            embedding.shape == (len(docs[i]), 64)
+            for i, embedding in enumerate(SpacyPatchState.model_logger.emb)
+        ]
+    )
 
-    assert text_ner_logger_config.user_data["_spacy_state_for_pred"] == [None, None, None]
+    assert text_ner_logger_config.user_data["_spacy_state_for_pred"] == [
+        None,
+        None,
+        None,
+    ]
 
 
 def test_galileo_parser_step_forward():
@@ -212,32 +252,37 @@ def test_galileo_parser_step_forward():
 
 
 def test_log_input_examples():
-    nlp = spacy.blank('en')
+    nlp = spacy.blank("en")
     nlp.add_pipe("ner")
 
     training_data = [
         (
-            'what is SEMRUSH PRO? Can you run complex queries ? Can you identify active usage ?',
+            "what is SEMRUSH PRO? Can you run complex queries ? Can you identify active usage ?",
             {
-                'entities': [(21, 32, 'Questions About the Product'),
-                             (51, 67, 'Questions About the Product')]
-            }),
-
-        ('Thank you for your subscription renewal', {
-            'entities': [(19, 39, 'Renew')]
-        }),
+                "entities": [
+                    (21, 32, "Questions About the Product"),
+                    (51, 67, "Questions About the Product"),
+                ]
+            },
+        ),
+        ("Thank you for your subscription renewal", {"entities": [(19, 39, "Renew")]}),
         (
-            'you can upgrade your account for an old price,while you can upgrade your account for $399.95/month',
+            "you can upgrade your account for an old price,while you can upgrade your account for $399.95/month",
+            {"entities": [(8, 28, "Potential Upsell"), (60, 80, "Potential Upsell")]},
+        ),
+        (
+            "I like EMSI ordered the pro package",
+            {"entities": [(12, 23, "Product Usage")]},
+        ),
+        (
+            "Here you go, your account is created",
             {
-                'entities': [(8, 28, 'Potential Upsell'), (60, 80, 'Potential Upsell')]
-            }),
-        ('I like EMSI ordered the pro package', {
-            'entities': [(12, 23, 'Product Usage')]
-        }),
-        ('Here you go, your account is created', {
-            'entities': [(0, 11, 'Action item accomplished'),
-                         (29, 36, 'Action item accomplished')]
-        })
+                "entities": [
+                    (0, 11, "Action item accomplished"),
+                    (29, 36, "Action item accomplished"),
+                ]
+            },
+        ),
     ]
 
     training_examples = []
@@ -251,17 +296,29 @@ def test_log_input_examples():
     log_input_examples(training_examples, "training")
 
     # assert that we added ids to the examples for later joining with model outputs
-    assert all([examples.predicted.user_data["id"] == i for i, examples in enumerate(training_examples)])
+    assert all(
+        [
+            examples.predicted.user_data["id"] == i
+            for i, examples in enumerate(training_examples)
+        ]
+    )
 
     logged_data = vaex.open(f"{LOCATION}/input_data.arrow")
 
     assert logged_data["id"].tolist() == [0, 1, 2, 3, 4]
     assert logged_data["split"].tolist() == ["training"] * len(training_examples)
-    assert all([text == training_data[i][0] for i, text in enumerate(logged_data["text"].tolist())])
+    assert all(
+        [
+            text == training_data[i][0]
+            for i, text in enumerate(logged_data["text"].tolist())
+        ]
+    )
 
     # Checks for logged gold spans matching converts from token to char idxs
     logged_token_indices = logged_data["text_token_indices"].tolist()
-    for i, (split_plus_id, ents) in enumerate(dataquality.get_model_logger().logger_config.gold_spans.items()):
+    for i, (split_plus_id, ents) in enumerate(
+        dataquality.get_model_logger().logger_config.gold_spans.items()
+    ):
         assert len(logged_token_indices[i]) % 2 == 0
         ents_as_char_idxs = []
         for ent in ents:
@@ -273,32 +330,37 @@ def test_log_input_examples():
 
 
 def test_watch():
-    nlp = spacy.blank('en')
-    ner = nlp.add_pipe("ner")
+    nlp = spacy.blank("en")
+    nlp.add_pipe("ner")
 
     training_data = [
         (
-            'what is SEMRUSH PRO? Can you run complex queries ? Can you identify active usage ?',
+            "what is SEMRUSH PRO? Can you run complex queries ? Can you identify active usage ?",
             {
-                'entities': [(21, 32, 'Questions About the Product'),
-                             (51, 67, 'Questions About the Product')]
-            }),
-
-        ('Thank you for your subscription renewal', {
-            'entities': [(19, 39, 'Renew')]
-        }),
+                "entities": [
+                    (21, 32, "Questions About the Product"),
+                    (51, 67, "Questions About the Product"),
+                ]
+            },
+        ),
+        ("Thank you for your subscription renewal", {"entities": [(19, 39, "Renew")]}),
         (
-            'you can upgrade your account for an old price,while you can upgrade your account for $399.95/month',
+            "you can upgrade your account for an old price,while you can upgrade your account for $399.95/month",
+            {"entities": [(8, 28, "Potential Upsell"), (60, 80, "Potential Upsell")]},
+        ),
+        (
+            "I like EMSI ordered the pro package",
+            {"entities": [(12, 23, "Product Usage")]},
+        ),
+        (
+            "Here you go, your account is created",
             {
-                'entities': [(8, 28, 'Potential Upsell'), (60, 80, 'Potential Upsell')]
-            }),
-        ('I like EMSI ordered the pro package', {
-            'entities': [(12, 23, 'Product Usage')]
-        }),
-        ('Here you go, your account is created', {
-            'entities': [(0, 11, 'Action item accomplished'),
-                         (29, 36, 'Action item accomplished')]
-        })
+                "entities": [
+                    (0, 11, "Action item accomplished"),
+                    (29, 36, "Action item accomplished"),
+                ]
+            },
+        ),
     ]
 
     training_examples = []
@@ -311,27 +373,27 @@ def test_watch():
 
     assert text_ner_logger_config.user_data["nlp"] == nlp
     assert dataquality.get_data_logger().logger_config.labels == [
-        'B-Questions About the Product',
-        'B-Potential Upsell',
-        'B-Action item accomplished',
-        'B-Renew',
-        'B-Product Usage',
-        'I-Questions About the Product',
-        'I-Potential Upsell',
-        'I-Action item accomplished',
-        'I-Renew',
-        'I-Product Usage',
-        'L-Questions About the Product',
-        'L-Potential Upsell',
-        'L-Action item accomplished',
-        'L-Renew',
-        'L-Product Usage',
-        'U-Questions About the Product',
-        'U-Potential Upsell',
-        'U-Action item accomplished',
-        'U-Renew',
-        'U-Product Usage',
-        'O'
+        "B-Questions About the Product",
+        "B-Potential Upsell",
+        "B-Action item accomplished",
+        "B-Renew",
+        "B-Product Usage",
+        "I-Questions About the Product",
+        "I-Potential Upsell",
+        "I-Action item accomplished",
+        "I-Renew",
+        "I-Product Usage",
+        "L-Questions About the Product",
+        "L-Potential Upsell",
+        "L-Action item accomplished",
+        "L-Renew",
+        "L-Product Usage",
+        "U-Questions About the Product",
+        "U-Potential Upsell",
+        "U-Action item accomplished",
+        "U-Renew",
+        "U-Product Usage",
+        "O",
     ]
     assert dataquality.get_data_logger().logger_config.tagging_schema == "BILOU"
 
@@ -428,4 +490,3 @@ def test_watch():
 #         # I would guess it returns d_input
 #
 #
-

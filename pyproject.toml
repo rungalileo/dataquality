@@ -24,7 +24,8 @@ requires = [
     "resource==0.2.1",
     "tqdm==4.62.3",
     "blake3==0.2.1",
-    "spacy==3.2.1"
+    "spacy==3.2.1",
+    "wrapt==1.13.3"
 ]
 
 [tool.flit.metadata.urls]
