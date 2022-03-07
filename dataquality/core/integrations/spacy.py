@@ -187,7 +187,7 @@ def watch(nlp: EntityRecognizer) -> None:
 
     ner = nlp.get_pipe("ner")
 
-    if not "O" in ner.move_names:
+    if "O" not in ner.move_names:
         raise GalileoException(
             "Missing the 'O' tag in the model's moves, are you sure you have"
             "already called 'nlp.begin_training()'?"
@@ -271,7 +271,7 @@ def galileo_parser_step_forward(
     )
     logits = scores[..., 1:]  # Throw out the -U token
 
-    assert logits.shape == (len(X), parser_step_model.nO - 1)
+    assert logits.shape == (len(X), parser_step_model.get_dim("nO") - 1)
     # Logits are returned for all docs, one token at a time. So as we continue
     # to call parser_step_forward some docs will have finished and not have
     # any remaining tokens to make predictions on. We assume that the
@@ -400,8 +400,8 @@ def patch_transition_based_parser_forward(transition_based_parser_model: Model) 
         raise GalileoException(f"Expected a Thinc model. Received {parser_type}")
     if not hasattr(transition_based_parser_model, "_func"):
         raise GalileoException(
-            f"Expected your TransitionBasedParser Thinc model to have a "
-            f"forward function at _func"
+            "Expected your TransitionBasedParser Thinc model to have a "
+            "forward function at _func"
         )
 
     # If the name changes in future Spacy versions we should assume the model also

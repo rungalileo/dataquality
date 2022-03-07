@@ -31,7 +31,7 @@ def validate_uploaded_data(
         # Output data
         split_output_data = {}
         for subdir in SUBDIRS:
-            file_path = f"{TEST_PATH}/{split}/{subdir}/{subdir}.{'arrow' if subdir=='data' else 'hdf5'}"
+            file_path = f"{TEST_PATH}/{split}/{subdir}/{subdir}.hdf5"
             # Ensure files were cleaned up
             data = vaex.open(file_path)
             prob_cols = data.get_column_names(regex="prob*")

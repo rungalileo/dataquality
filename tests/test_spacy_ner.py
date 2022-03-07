@@ -1,22 +1,11 @@
-import os
-
-# TODO: Why should I not need these again?
-from spacy.pipeline.ner import EntityRecognizer
-
-os.environ["GALILEO_API_URL"] = "https://api.dev.rungalileo.io"
-os.environ["GALILEO_MINIO_URL"] = "data.dev.rungalileo.io"
-os.environ["GALILEO_MINIO_ACCESS_KEY"] = "minioadmin"
-os.environ["GALILEO_MINIO_SECRET_KEY"] = "minioadmin"
-os.environ["GALILEO_AUTH_METHOD"] = "email"
-os.environ["GALILEO_USERNAME"] = "adminy_guy@rungalileo.io"
-os.environ["GALILEO_PASSWORD"] = "Admin123@"
-
 from typing import Dict, List, Tuple
+from unittest.mock import Mock
 
 import numpy as np
 import spacy
 import vaex
 from spacy.language import Language
+from spacy.pipeline.ner import EntityRecognizer
 from spacy.training import Example
 from spacy.util import minibatch
 from tqdm import tqdm
@@ -25,6 +14,8 @@ from vaex.dataframe import DataFrameLocal
 import dataquality
 from dataquality.core.integrations.spacy import (
     GalileoEntityRecognizer,
+    SpacyPatchState,
+    galileo_transition_based_parser_forward,
     log_input_examples,
     watch,
 )
@@ -93,7 +84,8 @@ def test_spacy(cleanup_after_use) -> None:
 
     training_data = [
         (
-            "what is SEMRUSH PRO? Can you run complex queries ? Can you identify active usage ?",
+            "what is SEMRUSH PRO? Can you run complex queries ? Can you identify "
+            "active usage ?",
             {
                 "entities": [
                     (21, 32, "Questions About the Product"),
@@ -103,7 +95,8 @@ def test_spacy(cleanup_after_use) -> None:
         ),
         ("Thank you for your subscription renewal", {"entities": [(19, 39, "Renew")]}),
         (
-            "you can upgrade your account for an old price,while you can upgrade your account for $399.95/month",
+            "you can upgrade your account for an old price,while you can upgrade your "
+            "account for $399.95/month",
             {"entities": [(8, 28, "Potential Upsell"), (60, 80, "Potential Upsell")]},
         ),
         (
@@ -186,14 +179,6 @@ def load_ner_data_from_local(
     )
 
 
-from unittest.mock import Mock
-
-from dataquality.core.integrations.spacy import (
-    SpacyPatchState,
-    galileo_transition_based_parser_forward,
-)
-
-
 def test_galileo_transition_based_parser_forward():
     nlp = spacy.blank("en")
 
@@ -257,7 +242,8 @@ def test_log_input_examples():
 
     training_data = [
         (
-            "what is SEMRUSH PRO? Can you run complex queries ? Can you identify active usage ?",
+            "what is SEMRUSH PRO? Can you run complex queries ? Can you identify "
+            "active usage ?",
             {
                 "entities": [
                     (21, 32, "Questions About the Product"),
@@ -267,7 +253,8 @@ def test_log_input_examples():
         ),
         ("Thank you for your subscription renewal", {"entities": [(19, 39, "Renew")]}),
         (
-            "you can upgrade your account for an old price,while you can upgrade your account for $399.95/month",
+            "you can upgrade your account for an old price,while you can upgrade your "
+            "account for $399.95/month",
             {"entities": [(8, 28, "Potential Upsell"), (60, 80, "Potential Upsell")]},
         ),
         (
@@ -335,7 +322,8 @@ def test_watch():
 
     training_data = [
         (
-            "what is SEMRUSH PRO? Can you run complex queries ? Can you identify active usage ?",
+            "what is SEMRUSH PRO? Can you run complex queries ? Can you identify "
+            "active usage ?",
             {
                 "entities": [
                     (21, 32, "Questions About the Product"),
@@ -345,7 +333,8 @@ def test_watch():
         ),
         ("Thank you for your subscription renewal", {"entities": [(19, 39, "Renew")]}),
         (
-            "you can upgrade your account for an old price,while you can upgrade your account for $399.95/month",
+            "you can upgrade your account for an old price,while you can upgrade your "
+            "account for $399.95/month",
             {"entities": [(8, 28, "Potential Upsell"), (60, 80, "Potential Upsell")]},
         ),
         (
@@ -401,14 +390,16 @@ def test_watch():
     assert isinstance(nlp.get_pipe("ner"), GalileoEntityRecognizer)
 
 
-# TODO: After this bug is resolved unwatch will be possible: https://github.com/explosion/spaCy/issues/10429
+# TODO: After this bug is resolved unwatch will be possible:
+#  https://github.com/explosion/spaCy/issues/10429
 # def test_unwatch():
 #     nlp = spacy.blank('en')
 #     original_ner = nlp.add_pipe("ner")
 #
 #     training_data = [
 #         (
-#             'what is SEMRUSH PRO? Can you run complex queries ? Can you identify active usage ?',
+#             'what is SEMRUSH PRO? Can you run complex queries ? Can you identify '
+#             'active usage ?',
 #             {
 #                 'entities': [(21, 32, 'Questions About the Product'),
 #                              (51, 67, 'Questions About the Product')]
@@ -418,9 +409,11 @@ def test_watch():
 #             'entities': [(19, 39, 'Renew')]
 #         }),
 #         (
-#             'you can upgrade your account for an old price,while you can upgrade your account for $399.95/month',
+#             'you can upgrade your account for an old price,while you can upgrade '
+#             'your account for $399.95/month',
 #             {
-#                 'entities': [(8, 28, 'Potential Upsell'), (60, 80, 'Potential Upsell')]
+#                 'entities': [(8, 28, 'Potential Upsell'),
+#                 (60, 80, 'Potential Upsell')]
 #             }),
 #         ('I like EMSI ordered the pro package', {
 #             'entities': [(12, 23, 'Product Usage')]
