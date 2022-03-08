@@ -48,6 +48,7 @@ class BaseLoggerAttributes(str, Enum):
     gold = "gold"
     emb = "emb"
     probs = "probs"
+    logits = "logits"
     epoch = "epoch"
     data_error_potential = "data_error_potential"
     aum = "aum"

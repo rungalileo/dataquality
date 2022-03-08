@@ -98,7 +98,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         else:
             assert label_len and text_len, (
                 f"Both text and labels for your logger must be set, but got"
-                f" text:{bool(text_len)}, labels:{bool(text_len)}"
+                f" text:{bool(text_len)}, labels:{bool(label_len)}"
             )
 
             assert text_len == label_len, (
