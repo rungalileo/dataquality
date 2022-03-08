@@ -602,7 +602,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             # Loop through the remaining pred spans
             for pred_span, pred_emb, pred_dep in zip(pred_spans, pred_embs, pred_deps):
                 data = self._construct_pred_span_row(
-                    data, sample_id, pred_span, pred_emb, pred_dep
+                    data, sample_id, pred_span, pred_emb, pred_dep, gold_spans
                 )
         return data
 
@@ -629,6 +629,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         pred_span: Dict,
         pred_emb: np.ndarray,
         pred_dep: float,
+        gold_spans: List[Dict],
     ) -> DefaultDict:
         start, end = pred_span["start"], pred_span["end"]
         data = self._construct_span_row(data, sample_id, start, end, pred_dep, pred_emb)
@@ -636,9 +637,33 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         data["is_pred"].append(True)
         data["pred"].append(pred_span["label"])
         data["gold"].append("")
-        # Pred only spans are known as "ghost" spans (hallucinated)
-        data["galileo_error_type"].append(NERErrorType.ghost_span.value)
+        # Pred only spans are known as "ghost" spans (hallucinated) or no error
+        err = (
+            NERErrorType.ghost_span.value
+            if self._is_ghost_span(pred_span, gold_spans)
+            else NERErrorType.none.value
+        )
+        data["galileo_error_type"].append(err)
         return data
+
+    def _is_ghost_span(self, pred_span: Dict, gold_spans: List[Dict]) -> bool:
+        """Returns if the span is a ghost span
+
+        A ghost span is a prediction span that has no overlap with any gold span.
+        A ghost span is a pred_span where either:
+        1. pred_end <= gold_start
+        or
+        2. pred_start >= gold_end
+
+        For all gold spans
+        """
+        for gold_span in gold_spans:
+            pred_start, pred_end = pred_span["start"], pred_span["end"]
+            gold_start, gold_end = gold_span["start"], gold_span["end"]
+            is_ghost = pred_start >= gold_end or pred_end <= gold_start
+            if not is_ghost:  # If we ever hit not ghost, we can fail fast
+                return False
+        return True
 
     def _construct_span_row(
         self, d: DefaultDict, id: int, start: int, end: int, dep: float, emb: ndarray

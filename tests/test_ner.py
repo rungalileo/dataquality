@@ -491,3 +491,22 @@ def test_ner_logging(cleanup_after_use: Callable, set_test_config: Callable) -> 
     prob_df = vaex.open(prob_path)
     for i in prob_df.data_error_potential.to_numpy():
         assert 0 <= i <= 1
+
+
+def test_ghost_spans() -> None:
+    gold_spans = [
+        {"start": 7, "end": 11, "label": "foo"},  # span shift
+        {"start": 12, "end": 15, "label": "bar"},  # wrong tag
+        {"start": 16, "end": 26, "label": "bar-foo"},  # missed span
+        {"start": 28, "end": 31, "label": "bar-foo"},  # span shift
+    ]
+    pred_spans = [
+        {"start": 7, "end": 12, "label": "foo"},
+        {"start": 12, "end": 15, "label": "bar-bar"},
+        {"start": 27, "end": 30, "label": "foo"},
+        {"start": 31, "end": 38, "label": "foo-foo"},  # ghost span
+    ]
+    results = [False, False, False, True]
+    logger = TextNERModelLogger()
+    for res, pred_span in zip(results, pred_spans):
+        assert logger._is_ghost_span(pred_span, gold_spans) == res
