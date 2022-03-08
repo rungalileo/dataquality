@@ -124,7 +124,7 @@ class TextMultiLabelModelLogger(TextClassificationModelLogger):
             )
         super().__setattr__(key, value)
 
-    def convert_logits_to_probs(self, logits: np.ndarray) -> np.ndarray:
+    def convert_logits_to_probs(self, logits: Union[List, np.ndarray]) -> np.ndarray:
         """Converts logits to probs via softmax per sample"""
         # axis ensures that in a matrix of probs with dims num_samples x num_classes
         # we take the softmax for each sample

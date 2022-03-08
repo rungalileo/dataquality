@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Union
 from uuid import uuid4
 
 import numpy as np
@@ -88,8 +88,10 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
     def _get_data_dict(self) -> Dict:
         """Constructs a dictionary of arrays from logged model output data"""
 
-    def convert_logits_to_probs(self, logits: np.ndarray) -> np.ndarray:
+    def convert_logits_to_probs(
+        self, logits: Union[List[np.ndarray], np.ndarray]
+    ) -> np.ndarray:
         """Converts logits to probs via softmax"""
         # axis ensures that in a matrix of probs with dims num_samples x num_classes
         # we take the softmax for each sample
-        return softmax(logits, axis=-1)
+        return softmax(np.array(logits), axis=-1)
