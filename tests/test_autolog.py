@@ -6,6 +6,7 @@ import torch
 import dataquality
 from dataquality.core.integrations.lightning import DataQualityCallback
 from dataquality.core.integrations.torch import log_input_data, watch
+from dataquality.schemas.split import Split
 from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.test_dataquality import validate_uploaded_data
 from tests.utils.data_utils import validate_cleanup_data
@@ -65,8 +66,10 @@ def test_torch_autolog(cleanup_after_use: Callable) -> None:
     watch(torch_model)
 
     for epoch in range(2):
+        dataquality.set_epoch(epoch)
+        dataquality.set_split(Split.training)
         torch_model.train()
-        for data in train_dataloader:
+        for idx, data in enumerate(train_dataloader):
             x_idxs, x, attention_mask, y = data
             x = x.to(device)
             attention_mask = attention_mask.to(device)
@@ -75,19 +78,16 @@ def test_torch_autolog(cleanup_after_use: Callable) -> None:
             # zero the parameter gradients
             optimizer.zero_grad()
             # forward + backward + optimize
-            _ = torch_model(
-                x, attention_mask, x_idxs=x_idxs, epoch=epoch, split="training"
-            )
+            _ = torch_model(x, attention_mask, x_idxs=x_idxs)
 
         with torch.no_grad():
+            dataquality.set_split(Split.testing)
             for data in test_dataloader:
                 x_idxs, x, attention_mask, y = data
 
                 x = x.to(device)
                 attention_mask = attention_mask.to(device)
-                _ = torch_model(
-                    x, attention_mask, epoch=epoch, split="test", x_idxs=x_idxs
-                )
+                _ = torch_model(x, attention_mask, x_idxs=x_idxs)
 
     ThreadPoolManager.wait_for_threads()
     # Mock call to finish

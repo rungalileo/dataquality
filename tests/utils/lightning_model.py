@@ -81,14 +81,14 @@ class TorchDistilBERTTorch(pl.LightningModule):
         )
         self.feature_extractor = AutoModel.from_pretrained("distilbert-base-uncased")
 
-    def forward(self, x, attention_mask, x_idxs, epoch, split):
+    def forward(self, x, attention_mask, x_idxs):
         # Fake model building for less memory usage
         logits = [[random() for _ in range(5)] for _ in range(NUM_RECORDS)]
         emb = [[random() for _ in range(10)] for _ in range(NUM_RECORDS)]
 
         # Logging with Galileo!
         self.glogger = dataquality.get_model_logger()(
-            emb=emb, logits=logits, ids=x_idxs, split=split, epoch=epoch
+            emb=emb, logits=logits, ids=x_idxs
         )
 
         return 0
@@ -102,7 +102,7 @@ class LightningDistilBERT(pl.LightningModule):
         )
         self.feature_extractor = AutoModel.from_pretrained("distilbert-base-uncased")
 
-    def forward(self, x, attention_mask, x_idxs, epoch, split):
+    def forward(self, x, attention_mask, x_idxs):
         # Fake model building for less memory usage
         logits = [[random() for _ in range(5)] for _ in range(NUM_RECORDS)]
         emb = [[random() for _ in range(10)] for _ in range(NUM_RECORDS)]
@@ -121,8 +121,6 @@ class LightningDistilBERT(pl.LightningModule):
             x=x,
             attention_mask=attention_mask,
             x_idxs=x_idxs,
-            epoch=self.current_epoch,
-            split="training",
         )
 
     def validation_step(self, batch, batch_idx):
@@ -132,8 +130,6 @@ class LightningDistilBERT(pl.LightningModule):
             x=x,
             attention_mask=attention_mask,
             x_idxs=x_idxs,
-            epoch=self.current_epoch,
-            split="validation",
         )
 
     def test_step(self, batch, batch_idx):
@@ -143,8 +139,6 @@ class LightningDistilBERT(pl.LightningModule):
             x=x,
             attention_mask=attention_mask,
             x_idxs=x_idxs,
-            epoch=self.current_epoch,
-            split="test",
         )
 
     def configure_optimizers(self):

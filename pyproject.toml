@@ -24,7 +24,7 @@ requires = [
     "resource==0.2.1",
     "tqdm==4.62.3",
     "blake3==0.2.1",
-    "scipy==1.8.0"
+    "scipy>=1.7.0"
 ]
 
 [tool.flit.metadata.urls]

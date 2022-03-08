@@ -63,22 +63,25 @@ def watch(model: Module) -> None:
             return res
         model_logger: BaseGalileoModelLogger = getattr(cls, logger_attr)
 
-        if model_logger.epoch is None:  # Compare to None because 0 will be False
+        # Compare to None because 0 will be False
+        if model_logger.epoch is None and model_logger.logger_config.cur_epoch is None:
             warnings.warn(
                 "epoch must be set in your GalileoModelLogger for pytorch models to "
                 "enable autologging to Galileo. If you are using Pytorch Lightning, "
                 "consider using the DataQualityCallback in your trainer instead. "
+                "You can also set the epoch using `dataquality.set_epoch`"
                 "Logging will be skipped."
             )
             return res
 
-        if not model_logger.split:
+        if not model_logger.split and not model_logger.logger_config.cur_split:
             if not model.training:
                 warnings.warn(
                     "either split must be set in your GalileoModelLogger or your model "
                     "must be in 'training' mode (calling `model.train()`) for pytorch "
                     "models to enable autologging to Galileo. If you are using "
                     "Lightning consider using the DataQualityCallback in your trainer "
+                    "You can also set the split using `dataquality.set_split`"
                     "instead."
                 )
                 return res
