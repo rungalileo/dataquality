@@ -89,9 +89,9 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         """Constructs a dictionary of arrays from logged model output data"""
 
     def convert_logits_to_probs(
-        self, logits: Union[List[np.ndarray], np.ndarray]
+        self, sample_logits: Union[List[np.ndarray], np.ndarray]
     ) -> np.ndarray:
         """Converts logits to probs via softmax"""
         # axis ensures that in a matrix of probs with dims num_samples x num_classes
         # we take the softmax for each sample
-        return softmax(np.array(logits), axis=-1)
+        return softmax(np.array(sample_logits), axis=-1)

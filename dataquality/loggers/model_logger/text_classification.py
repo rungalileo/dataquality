@@ -32,16 +32,20 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
     """
     Class for logging model output data of Text Classification models to Galileo.
 
-    * emb: List[Union[List, np.ndarray, torch.Tensor, tf.Tensor]]. The Embeddings per
+    * emb: Union[List, np.ndarray, torch.Tensor, tf.Tensor]. The Embeddings per
     text sample input. Only one embedding vector is allowed per input sample.
     the `emb` parameter can be formatted either as:
+        * np.ndarray
+        * torch.tensor / tf.tensor
         * A list of List[float]
         * A list of numpy arrays
         * A list of tensorflow tensors
         * A list of pytorch tensors
-    * logits: List[Union[List, np.ndarray, torch.Tensor, tf.Tensor]] outputs from
+    * logits: Union[List, np.ndarray, torch.Tensor, tf.Tensor] outputs from
      forward pass. If provided, probs will be converted automatically and DO NOT need
      to be provided. Can be formatted either as:
+        * np.ndarray
+        * torch.tensor / tf.tensor
         * A list of List[float]
         * A list of numpy arrays
         * A list of tensorflow tensors

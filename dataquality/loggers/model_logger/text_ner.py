@@ -687,11 +687,13 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             )
         super().__setattr__(key, value)
 
-    def convert_logits_to_probs(self, logits: Union[List, np.ndarray]) -> np.ndarray:
+    def convert_logits_to_probs(
+        self, sample_logits: Union[List, np.ndarray]
+    ) -> np.ndarray:
         """Converts logits to probs via softmax per sample"""
         # axis ensures that in a matrix of probs with dims num_samples x num_classes
         # we take the softmax for each sample
-        task_probs = []
-        for task_logits in logits:
-            task_probs.append(super().convert_logits_to_probs(task_logits))
-        return np.array(task_probs, dtype=object)
+        token_probs = []
+        for token_logits in sample_logits:
+            token_probs.append(super().convert_logits_to_probs(token_logits))
+        return np.array(token_probs, dtype=object)
