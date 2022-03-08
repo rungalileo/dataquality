@@ -1,6 +1,9 @@
 from abc import abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Union
 from uuid import uuid4
+
+import numpy as np
+from scipy.special import softmax
 
 from dataquality import config
 from dataquality.exceptions import GalileoException
@@ -84,3 +87,11 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
     @abstractmethod
     def _get_data_dict(self) -> Dict:
         """Constructs a dictionary of arrays from logged model output data"""
+
+    def convert_logits_to_probs(
+        self, sample_logits: Union[List[np.ndarray], np.ndarray]
+    ) -> np.ndarray:
+        """Converts logits to probs via softmax"""
+        # axis ensures that in a matrix of probs with dims num_samples x num_classes
+        # we take the softmax for each sample
+        return softmax(np.array(sample_logits), axis=-1)
