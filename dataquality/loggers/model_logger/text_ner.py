@@ -649,8 +649,9 @@ class TextNERModelLogger(BaseGalileoModelLogger):
     def _is_ghost_span(self, pred_span: Dict, gold_spans: List[Dict]) -> bool:
         """Returns if the span is a ghost span
 
+        A ghost span is a prediction span that has no overlap with any ghost span.
         A ghost span is a pred_span where either:
-        1. pred_start < gold_start and pred_end <= gold_start
+        1. pred_end <= gold_start
         or
         2. pred_start >= gold_end
 
@@ -659,9 +660,8 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         for gold_span in gold_spans:
             pred_start, pred_end = pred_span["start"], pred_span["end"]
             gold_start, gold_end = gold_span["start"], gold_span["end"]
-            ghost_cond1 = pred_start < gold_start and pred_end <= gold_start
-            ghost_cond2 = pred_start >= gold_end
-            if not (ghost_cond1 or ghost_cond2):
+            is_ghost = pred_start >= gold_end or pred_end <= gold_start
+            if not is_ghost:  # If we ever hit not ghost, we can fail fast
                 return False
         return True
 
