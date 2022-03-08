@@ -45,6 +45,7 @@ class NewsgroupDataset(torch.utils.data.Dataset):
         self.dataset["text"] = newsgroups.data
         self.dataset["label"] = newsgroups.target
         self.dataset = self.dataset[:NUM_RECORDS]
+        self.glogger = dataquality.get_data_logger()()
 
         # Shuffle some percentage of the training dataset
         # to force create mislabeled samples
@@ -54,9 +55,8 @@ class NewsgroupDataset(torch.utils.data.Dataset):
         #
         # 🔭 Logging Inputs with Galileo!
         #
-        self.gconfig = dataquality.get_data_logger()(
-            text=self.dataset["text"], labels=self.dataset["label"]
-        )
+        self.glogger.text = self.dataset["text"]
+        self.glogger.labels = self.dataset["label"]
 
         tokenizer = DistilBertTokenizerFast.from_pretrained("distilbert-base-uncased")
         self.encodings = tokenizer(
@@ -83,12 +83,12 @@ class TorchDistilBERTTorch(pl.LightningModule):
 
     def forward(self, x, attention_mask, x_idxs, epoch, split):
         # Fake model building for less memory usage
-        probs = [[random() for _ in range(5)] for _ in range(NUM_RECORDS)]
+        logits = [[random() for _ in range(5)] for _ in range(NUM_RECORDS)]
         emb = [[random() for _ in range(10)] for _ in range(NUM_RECORDS)]
 
         # Logging with Galileo!
-        self.g_model_config = dataquality.get_model_logger()(
-            emb=emb, probs=probs, ids=x_idxs, split=split, epoch=epoch
+        self.glogger = dataquality.get_model_logger()(
+            emb=emb, logits=logits, ids=x_idxs, split=split, epoch=epoch
         )
 
         return 0
@@ -104,12 +104,12 @@ class LightningDistilBERT(pl.LightningModule):
 
     def forward(self, x, attention_mask, x_idxs, epoch, split):
         # Fake model building for less memory usage
-        probs = [[random() for _ in range(5)] for _ in range(NUM_RECORDS)]
+        logits = [[random() for _ in range(5)] for _ in range(NUM_RECORDS)]
         emb = [[random() for _ in range(10)] for _ in range(NUM_RECORDS)]
 
         # Logging with Galileo!
-        self.g_model_config = dataquality.get_model_logger()(
-            emb=emb, probs=probs, ids=x_idxs
+        self.glogger = dataquality.get_model_logger()(
+            emb=emb, logits=logits, ids=x_idxs
         )
 
         return 0

@@ -7,6 +7,7 @@ import vaex
 import dataquality
 from dataquality.loggers.data_logger.text_ner import TextNERDataLogger
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
+from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.conftest import TEST_PATH
@@ -325,6 +326,7 @@ def test_ner_logging(cleanup_after_use: Callable, set_test_config: Callable) -> 
     """
     set_test_config(task_type=TaskType.text_ner)
     dataquality.set_tagging_schema("BIO")
+    dataquality.set_split(Split.training)
 
     labels = [
         "B-foo",
@@ -364,7 +366,6 @@ def test_ner_logging(cleanup_after_use: Callable, set_test_config: Callable) -> 
         text_token_indices=token_boundaries_all,
         gold_spans=gold_spans,
         ids=ids,
-        split=split,
     )
 
     pred_prob = np.array(
@@ -402,12 +403,11 @@ def test_ner_logging(cleanup_after_use: Callable, set_test_config: Callable) -> 
         ]
     )
 
+    dataquality.set_epoch(0)
     dataquality.log_model_outputs(
         emb=np.random.rand(3, 8, 5),
         probs=pred_prob,
         ids=[0, 1, 2],
-        split="training",
-        epoch=0,
     )
 
     ThreadPoolManager.wait_for_threads()
@@ -428,7 +428,7 @@ def test_ner_logging(cleanup_after_use: Callable, set_test_config: Callable) -> 
         [{"span_start": 1, "span_end": 3, "pred": "bar-foo"}],
     ]
 
-    gold_spans = [
+    gold_spans_correct = [
         [
             {"span_start": 1, "span_end": 3, "gold": "foo"},
             {"span_start": 3, "span_end": 4, "gold": "bar"},
@@ -449,7 +449,7 @@ def test_ner_logging(cleanup_after_use: Callable, set_test_config: Callable) -> 
         df_pred_spans = pred_df[["span_start", "span_end", "pred"]].to_records()
         assert sample_pred_spans == df_pred_spans
 
-        sample_gold_spans = gold_spans[i]
+        sample_gold_spans = gold_spans_correct[i]
         gold_df = prob_df[prob_df[f"(is_gold) & (sample_id=={i})"]]
         df_gold_spans = gold_df[["span_start", "span_end", "gold"]].to_records()
         assert sample_gold_spans == df_gold_spans
@@ -465,3 +465,29 @@ def test_ner_logging(cleanup_after_use: Callable, set_test_config: Callable) -> 
     sample_df = vaex.open(sample_path)
 
     assert len(sample_df) == 3
+
+    # Test with logits
+    c._cleanup()
+    dataquality.set_labels_for_run(labels)
+    dataquality.log_input_data(
+        text=text_inputs,
+        text_token_indices=token_boundaries_all,
+        gold_spans=gold_spans,
+        ids=ids,
+        split=split,
+    )
+    dataquality.log_model_outputs(
+        emb=np.random.rand(3, 8, 5),
+        logits=pred_prob,
+        ids=[0, 1, 2],
+        split="training",
+        epoch=0,
+    )
+    ThreadPoolManager.wait_for_threads()
+    c = dataquality.get_data_logger()
+    c.validate_labels()
+    c.upload()
+    prob_path = f"{TEST_PATH}/{split}/prob/prob.hdf5"
+    prob_df = vaex.open(prob_path)
+    for i in prob_df.data_error_potential.to_numpy():
+        assert 0 <= i <= 1

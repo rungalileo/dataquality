@@ -23,6 +23,7 @@ class GalileoModelLoggerAttributes(str, Enum):
     pred_spans = "pred_spans"
     pred_dep = "pred_dep"
     probs = "probs"
+    logits = "logits"
     ids = "ids"
     # mixin restriction on str (due to "str".split(...))
     split = "split"  # type: ignore
@@ -130,9 +131,9 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         """
         super().validate()
 
-        if self.logits is not None:
+        if len(self.logits):
             self.probs = self.convert_logits_to_probs(self.logits)
-        elif self.probs is not None:
+        elif not len(self.probs):
             warnings.warn("Usage of probs is deprecated, use logits instead")
 
         emb_len = len(self.emb)
