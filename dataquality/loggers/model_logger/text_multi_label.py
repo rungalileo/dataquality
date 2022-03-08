@@ -133,7 +133,7 @@ class TextMultiLabelModelLogger(TextClassificationModelLogger):
             task_probs = []
             for task_logits in sample_logits:
                 task_probs.append(
-                    super().convert_logits_to_probs(task_logits.astype(np.float))
+                    super().convert_logits_to_probs(task_logits.astype(np.float_))
                 )
             probs.append(task_probs)
         return np.array(probs, dtype=object)
