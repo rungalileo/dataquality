@@ -23,7 +23,8 @@ requires = [
     "diskcache==5.2.1",
     "resource==0.2.1",
     "tqdm==4.62.3",
-    "blake3==0.2.1"
+    "blake3==0.2.1",
+    "scipy==1.8.0"
 ]
 
 [tool.flit.metadata.urls]

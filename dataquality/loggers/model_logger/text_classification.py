@@ -1,3 +1,4 @@
+import warnings
 from collections import defaultdict
 from enum import Enum, unique
 from typing import Any, Dict, List, Optional, Union
@@ -37,13 +38,14 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         * A list of numpy arrays
         * A list of tensorflow tensors
         * A list of pytorch tensors
-    * prob: List[Union[List, np.ndarray, torch.Tensor, tf.Tensor]] probabilities from
-    forward passes during model training/evaluation.
-    the `prob` parameter can be formatted either as:
+    * logits: List[Union[List, np.ndarray, torch.Tensor, tf.Tensor]] outputs from
+     forward pass. If provided, probs will be converted automatically and DO NOT need
+     to be provided. Can be formatted either as:
         * A list of List[float]
         * A list of numpy arrays
         * A list of tensorflow tensors
         * A list of pytorch tensors
+    * prob: Deprecated - the probabilities for each output sample (use logits instead)
     * ids: Indexes of each input field: List[int]. These IDs must align with the input
     IDs for each sample input. This will be used to join them together for analysis
     by Galileo.
@@ -57,6 +59,7 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         self,
         emb: Union[List, np.ndarray] = None,
         probs: Union[List, np.ndarray] = None,
+        logits: Union[List, np.ndarray] = None,
         ids: Union[List, np.ndarray] = None,
         split: str = "",
         epoch: Optional[int] = None,
@@ -65,6 +68,7 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         # Need to compare to None because they may be np arrays which cannot be
         # evaluated with bool directly
         self.emb: Union[List, np.ndarray] = emb if emb is not None else []
+        self.logits: Union[List, np.ndarray] = logits if logits is not None else []
         self.probs: Union[List, np.ndarray] = probs if probs is not None else []
         self.ids: Union[List, np.ndarray] = ids if ids is not None else []
         self.split: str = split
@@ -85,12 +89,20 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         :return:
         """
         super().validate()
+
+        if self.logits is not None:
+            self.logits = self._convert_tensor_ndarray(self.logits, "Prob")
+            self.probs = self.convert_logits_to_probs(self.logits)
+            del self.logits
+        elif self.probs is not None:
+            warnings.warn("Usage of probs is deprecated, use logits instead")
+            self.probs = self._convert_tensor_ndarray(self.probs, "Prob")
+
         emb_len = len(self.emb)
         prob_len = len(self.probs)
         id_len = len(self.ids)
 
         self.emb = self._convert_tensor_ndarray(self.emb, "Embedding")
-        self.probs = self._convert_tensor_ndarray(self.probs, "Prob")
         self.ids = self._convert_tensor_ndarray(self.ids)
 
         assert self.emb.ndim == 2, "Only one embedding vector is allowed per input."

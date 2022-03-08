@@ -17,17 +17,17 @@ class TextMultiLabelModelLogger(TextClassificationModelLogger):
     """
     Class for logging model outputs of Multi Label Text classification models to Galileo
 
-    * Embeddings: List[List[Union[int,float]]]. The Embeddings per text sample input.
+    * emb: (Embeddings) List[List[Union[int,float]]]. Embeddings per text sample input.
     Only one embedding vector is allowed per input (len(emb) == len(text)
     and emb.shape==2)
-    * Probabilities from forward passes during model training/evaluation.
-    List[List[List[float]]]. For each text input, a list of lists of floats is expected.
+    * logits: Output from forward pass during model training/evalutation.
+    List[List[List[float]]] or List[np.ndarray].
+    For each text input, a list of lists of floats is expected (one list/array per task)
     The number of inner lists must be the number of tasks (matching the labels logged).
     The order of the inner lists is assumed to match the order of the inner list of
     labels when logging input data (matching the tasks provided by the call to
     dataquality.set_tasks_for_run()).
-    The order of the floats is expected to match the order of the labels for that task
-    provided by the call to dataquality.set_labels_for_run().
+    * probs: (Probabilities) deprecated, use logits instead.
     * ids: Indexes of each input field: List[int]. These IDs must align with the input
     IDs for each sample input. This will be used to join them together for analysis
     by Galileo.
@@ -41,7 +41,8 @@ class TextMultiLabelModelLogger(TextClassificationModelLogger):
     def __init__(
         self,
         emb: Union[List, np.ndarray] = None,
-        probs: Union[List[List[List]], np.ndarray] = None,
+        probs: Union[List[List[List]], List[np.ndarray]] = None,
+        logits: Union[List[List[List]], List[np.ndarray]] = None,
         ids: Union[List, np.ndarray] = None,
         split: str = "",
         epoch: Optional[int] = None,
@@ -51,6 +52,7 @@ class TextMultiLabelModelLogger(TextClassificationModelLogger):
         # evaluated with bool directly
         self.emb = emb if emb is not None else []
         self.probs = probs if probs is not None else []
+        self.logits = logits if logits is not None else []
         self.ids = ids if ids is not None else []
         self.split = split
         self.epoch = epoch
@@ -121,3 +123,12 @@ class TextMultiLabelModelLogger(TextClassificationModelLogger):
                 f"Only {self.get_valid_attributes()}"
             )
         super().__setattr__(key, value)
+
+    def convert_logits_to_probs(self, logits: np.ndarray) -> np.ndarray:
+        """Converts logits to probs via softmax per sample"""
+        # axis ensures that in a matrix of probs with dims num_samples x num_classes
+        # we take the softmax for each sample
+        task_probs = []
+        for task_logits in logits:
+            task_probs.append(super().convert_logits_to_probs(task_logits))
+        return np.array(task_probs, dtype=object)
