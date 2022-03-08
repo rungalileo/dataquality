@@ -95,7 +95,7 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
             self.logits = self._convert_tensor_ndarray(self.logits, "Prob")
             self.probs = self.convert_logits_to_probs(self.logits)
             del self.logits
-        elif not len(self.probs):
+        elif len(self.probs):
             warnings.warn("Usage of probs is deprecated, use logits instead")
             self.probs = self._convert_tensor_ndarray(self.probs, "Prob")
 

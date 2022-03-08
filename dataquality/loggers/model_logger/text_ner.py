@@ -135,7 +135,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             self.probs = self.convert_logits_to_probs(
                 np.array(self.logits, dtype=object)
             ).tolist()
-        elif not len(self.probs):
+        elif len(self.probs):
             warnings.warn("Usage of probs is deprecated, use logits instead")
 
         emb_len = len(self.emb)
