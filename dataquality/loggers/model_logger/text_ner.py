@@ -97,7 +97,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         self.emb = emb if emb is not None else []
         # self.pred_spans = pred_spans if pred_spans is not None else []
         self.probs = probs if probs is not None else []
-        self.ids: List[np.ndarray] = ids if ids is not None else []
+        self.ids: Union[List, np.ndarray] = ids if ids is not None else []
         self.split = split
         self.epoch = epoch
 
@@ -594,7 +594,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 data = self._construct_pred_span_row(
                     data, sample_id, pred_span, pred_emb, pred_dep
                 )
-
         return data
 
     def _construct_gold_span_row(
@@ -627,8 +626,8 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         data["is_pred"].append(True)
         data["pred"].append(pred_span["label"])
         data["gold"].append("")
-        # Pred only spans don't have an error type
-        data["galileo_error_type"].append(NERErrorType.none.value)
+        # Pred only spans are known as "ghost" spans (hallucinated)
+        data["galileo_error_type"].append(NERErrorType.ghost_span.value)
         return data
 
     def _construct_span_row(

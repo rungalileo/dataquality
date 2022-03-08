@@ -21,7 +21,7 @@ from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
 from dataquality.schemas.ner import TaggingSchema
 
 
-def validate_obj(an_object: Any, check_type: Any, has_attr: str):
+def validate_obj(an_object: Any, check_type: Any, has_attr: str) -> None:
     if not isinstance(an_object, check_type):
         raise GalileoException(
             f"Expected a {check_type}. Received {str(type(an_object))}"
