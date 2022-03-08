@@ -46,7 +46,7 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         * A list of numpy arrays
         * A list of tensorflow tensors
         * A list of pytorch tensors
-    * prob: Deprecated - the probabilities for each output sample (use logits instead)
+    * probs: Deprecated - the probabilities for each output sample (use logits instead)
     * ids: Indexes of each input field: List[int]. These IDs must align with the input
     IDs for each sample input. This will be used to join them together for analysis
     by Galileo.
