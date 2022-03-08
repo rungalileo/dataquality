@@ -6,6 +6,7 @@ from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
 from dataquality.loggers.model_logger import BaseGalileoModelLogger
 from dataquality.schemas.ner import TaggingSchema
+from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 
 
@@ -108,3 +109,19 @@ def docs() -> None:
     """
     get_data_logger().doc()
     get_model_logger().doc()
+
+
+def set_epoch(epoch: int) -> None:
+    """Set the current epoch.
+
+    When set, logging model outputs will use this if not logged explicitly
+    """
+    get_data_logger().logger_config.cur_epoch = epoch
+
+
+def set_split(split: Split) -> None:
+    """Set the current split.
+
+    When set, logging data inputs/model outputs will use this if not logged explicitly
+    """
+    get_data_logger().logger_config.cur_split = split

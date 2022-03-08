@@ -16,7 +16,9 @@ from dataquality.core.log import (
     log_batch_input_data,
     log_input_data,
     log_model_outputs,
+    set_epoch,
     set_labels_for_run,
+    set_split,
     set_tagging_schema,
     set_tasks_for_run,
 )
@@ -27,8 +29,7 @@ def configure() -> None:
     Reset user token on configure and prompt new login.
 
     Available environment variables to update:
-    * GALILEO_API_URL
-    * GALILEO_MINIO_URL
+    * GALILEO_CONSOLE_URL
     """
     updated_config = dataquality.core._config.set_config()
     for k, v in updated_config.dict().items():
@@ -56,6 +57,8 @@ __all__ = [
     "docs",
     "wait_for_run",
     "get_run_status",
+    "set_epoch",
+    "set_split",
 ]
 
 try:
