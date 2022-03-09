@@ -219,8 +219,8 @@ def test_galileo_transition_based_parser_forward():
     #     mock_transition_based_parser_forward
     # )
 
-    text_ner_logger_config.user_data["epoch"] = 0
-    text_ner_logger_config.user_data["split"] = "training"
+    dataquality.set_epoch(0)
+    dataquality.set_split("training")
 
     # TODO: Need to replace with a different call for this test to work
     # galileo_transition_based_parser_forward(
