@@ -109,12 +109,10 @@ def _train_model(
     training_losses = []
     # with nlp.disable_pipes(*[pipe for pipe in nlp.pipe_names if pipe != "ner"]):
     for itn in range(num_epochs):
+        dataquality.set_epoch(itn)
         batches = minibatch(training_examples, minibatch_size)
 
-        # TODO: could happen more cleanly
-        text_ner_logger_config.user_data["epoch"] = itn
-        text_ner_logger_config.user_data["split"] = "training"
-
+        dataquality.set_split("training")
         for batch in tqdm(batches):
             training_loss = nlp.update(batch, drop=0.5, sgd=optimizer)
             training_losses.append(training_loss["ner"])

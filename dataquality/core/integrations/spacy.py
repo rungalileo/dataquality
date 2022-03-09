@@ -306,10 +306,6 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
             )
 
         model_logger.ids = [doc.user_data["id"] for doc in X]
-        # TODO: Replace these with the other way of getting epoch, split, or just rely on user to set them
-        model_logger.epoch = text_ner_logger_config.user_data["epoch"]
-        model_logger.split = text_ner_logger_config.user_data["split"]
-
         model_logger.probs = [[] for _ in range(len(X))]
         model_logger.emb = [[] for _ in range(len(X))]
 
@@ -374,7 +370,6 @@ class GalileoParserStepModel(ThincModelWrapper):
             ]
         ):
             # Do the final transition to be able to use spacy to get predictions
-            ner = text_ner_logger_config.user_data["nlp"].get_pipe("ner")
             docs_copy = [
                 state.doc.copy()
                 for state in model_logger.user_helper_data["_spacy_state_for_pred"]
