@@ -210,7 +210,7 @@ def _convert_spacy_ner_logits_to_probs(logits: np.ndarray, pred: int) -> List[fl
 
     Not all logits outputted by the spacy model are valid probabilities, for this reason
     spacy will ignore potential actions even if they might've had the largest prob mass.
-    To accoutn for this, we first sort the logits for each token and then zero out
+    To account for this, we first sort the logits for each token and then zero out
     all logits larger than the predicted logit (as these must've been ignored by spacy
     or else they would've become the prediction). Finally we take the softmax to convert
     them to probabilities.
