@@ -1,16 +1,16 @@
-from typing import Callable, Generator, List, Tuple, Union, Any
+from typing import Any, Callable, Generator, List, Tuple, Union
 
 import numpy as np
+import thinc
 from scipy.special import softmax
 from spacy.language import Language
-from spacy.ml.parser_model import ParserStepModel
+from spacy.ml.parser_model import ParserStepModel, precompute_hiddens
 from spacy.pipeline._parser_internals.stateclass import StateClass
 from spacy.pipeline.ner import EntityRecognizer
 from spacy.tokens import Doc
 from spacy.training import Example, offsets_to_biluo_tags
 from spacy.util import minibatch
 from thinc.api import set_dropout_rate
-from thinc.model import Model
 from wrapt import CallableObjectProxy
 
 import dataquality
@@ -28,17 +28,7 @@ def validate_obj(an_object: Any, check_type: Any, has_attr: str) -> None:
         )
 
     if not hasattr(an_object, has_attr):
-        raise GalileoException(
-            f"Your {check_type} must have a {has_attr} attribute"
-        )
-
-
-class SpacyPatchState:
-    """A state class to keep track of state without polluting the namespace"""
-
-    model_logger: TextNERModelLogger
-    orig_parser_step_forward: Callable
-    orig_transition_based_parser_forward: Callable
+        raise GalileoException(f"Your {check_type} must have a {has_attr} attribute")
 
 
 class GalileoEntityRecognizer(CallableObjectProxy):
@@ -52,7 +42,8 @@ class GalileoEntityRecognizer(CallableObjectProxy):
         super(GalileoEntityRecognizer, self).__init__(ner)
         validate_obj(ner, check_type=EntityRecognizer, has_attr="model")
 
-        patch_transition_based_parser_forward(ner.model)
+        # patch_transition_based_parser_forward(ner.model)
+        ner.model = GalileoTransitionBasedParserModel(ner.model)
 
     def greedy_parse(self, docs: List[Doc], drop: float = 0.0) -> List:
         """Python-land implementation of the greedy_parse method in the ner component
@@ -243,7 +234,9 @@ def _convert_spacy_ner_logits_to_probs(logits: np.ndarray, pred: int) -> List[fl
     return probs.tolist()
 
 
-def _convert_spacy_ents_for_doc_to_predictions(docs: List[Doc]) -> List[List[int]]:
+def _convert_spacy_ents_for_doc_to_predictions(
+    docs: List[Doc], labels: List[str]
+) -> List[List[int]]:
     """Converts spacy's representation of ner spans to their per token predictions.
 
     Uses some spacy utility code to convert from start/end/label representation to the
@@ -256,178 +249,180 @@ def _convert_spacy_ents_for_doc_to_predictions(docs: List[Doc]) -> List[List[int
         pred_output = offsets_to_biluo_tags(
             doc, [(ent.start_char, ent.end_char, ent.label_) for ent in doc.ents]
         )
-        pred_output_ind = [
-            SpacyPatchState.model_logger.logger_config.labels.index(tok_pred)
-            for tok_pred in pred_output
-        ]
+        pred_output_ind = [labels.index(tok_pred) for tok_pred in pred_output]
         prediction_indices.append(pred_output_ind)
     return prediction_indices
 
 
-def galileo_parser_step_forward(
-    parser_step_model: Model, X: List[StateClass], is_train: bool
-) -> Tuple[np.ndarray, Callable]:
+class ThincModelWrapper(CallableObjectProxy):
+    """A Thinc Model obj wrapper using the wrapt library.
 
-    embeddings, _ = parser_step_model.state2vec(parser_step_model.get_token_ids(X), is_train)
+    wrapt primer: https://wrapt.readthedocs.io/en/latest/wrappers.html
+    Wrapping an obj allows us to manipulate/watch its behavior. Compared to
+    overwriting some of its functions, using an obj wrapper allows us to also
+    maintain some state in between wrapped function calls. This also gives us a
+    method of extending cython def classes to make them watchable. For example
+    with the spacy EntityRecognizer we can wrap the class and create our own forward
+    pass that calls methods we are able to log probabilities from. Successfully
+    wrapping an obj relies on the ability to overwrite the ref to that obj with
+    the wrapped obj, so if the obj references is immutable the better approach
+    would be to overwrite the obj's behavior directly.
+    wrapped object are accessible via 'self.__wrapped'
 
-    scores, backprop_fn = SpacyPatchState.orig_parser_step_forward(
-        parser_step_model, X, is_train
-    )
-    logits = scores[..., 1:]  # Throw out the -U token
+    This Thinc Model wrapper patches the 'self._func' method (the forward pass).
+    """
 
-    assert logits.shape == (len(X), parser_step_model.nO - 1)  # type: ignore
-    # Logits are returned for all docs, one token at a time. So as we continue
-    # to call parser_step_forward some docs will have finished and not have
-    # any remaining tokens to make predictions on. We assume that the
-    # outputted scores match in order to the inputted X: List[StateClass]
-    # eg. X == [StateClass_0, StateClass_1] then scores == [2, 22]
-    model_logger = SpacyPatchState.model_logger  # for readability
-    model_logger_idxs = []
+    def __init__(self, model: thinc.model.Model):
+        super(ThincModelWrapper, self).__init__(model)
+        validate_obj(model, check_type=thinc.model.Model, has_attr="_func")
 
-    for i, state in enumerate(X):
-        # In case the order of X is different than the original X of docs
-        # Assumes passed in data has the "id" user_data appended, which we
-        # automatically append with our log_training call.
-        model_logger_idx = model_logger.ids.index(state.doc.user_data["id"])
-        model_logger_idxs.append(model_logger_idx)
+        self._self_orig_forward = model._func
+        model._func = self._self_forward
 
-        text_ner_logger_config.user_data["_spacy_state_for_pred"][
-            model_logger_idx
-        ] = state.copy()
+    def _self_forward(self, model: thinc.model.Model, X: Any, is_train: bool):
+        """Overwrite this to patch the Thinc model's forward func"""
+        pass
 
-        model_logger.probs[model_logger_idx].append(logits[i])
-        model_logger.emb[model_logger_idx].append(embeddings[i])
 
-    ner = text_ner_logger_config.user_data["nlp"].get_pipe("ner")
-    ner.transition_states(
-        [
-            text_ner_logger_config.user_data["_spacy_state_for_pred"][idx]
-            for idx in model_logger_idxs
-        ],
-        scores,
-    )
+class GalileoTransitionBasedParserModel(ThincModelWrapper):
+    def __init__(self, model: thinc.model.Model):
+        super(GalileoTransitionBasedParserModel, self).__init__(model)
 
-    # if we are at the end of the batch
-    if all(
-        [
-            # len(model_logger.probs[i]) == len(model_logger.emb[i]) # TODO: either add back in or remove entirely
-            len(model_logger.probs[i]) == text_ner_logger_config.user_data["sample_lengths"][i]
-            for i in range(len(model_logger.ids))
-        ]
-    ):
-        # Do the final transition to be able to use spacy to get predictions
+        assert model.name == "parser_model"
+
+    def _self_forward(
+        self, model: thinc.model.Model, X: Any, is_train: bool
+    ) -> Tuple[ParserStepModel, Callable]:
+        parser_step_model, backprop_fn = self._self_orig_forward(
+            model, X, is_train=is_train
+        )
+
+        model_logger = TextNERModelLogger()
+
+        if not all(["id" in doc.user_data for doc in X]):
+            raise GalileoException(
+                "One of your model's docs is missing a galileo generated "
+                "id. Did you first log your docs/examples with us?"
+            )
+
+        model_logger.ids = [doc.user_data["id"] for doc in X]
+        model_logger.epoch = text_ner_logger_config.user_data["epoch"]
+        model_logger.split = text_ner_logger_config.user_data["split"]
+        model_logger.probs = [[] for _ in range(len(X))]
+        model_logger.emb = [[] for _ in range(len(X))]
+
+        text_ner_logger_config.user_data["_spacy_state_for_pred"] = [None] * len(X)
+        text_ner_logger_config.user_data["sample_lengths"] = [len(doc) for doc in X]
+
+        return GalileoParserStepModel(parser_step_model, model_logger), backprop_fn
+
+
+class GalileoParserStepModel(ThincModelWrapper):
+    def __init__(self, model: thinc.model.Model, model_logger: TextNERModelLogger):
+        super(GalileoParserStepModel, self).__init__(model)
+        assert model.name == "parser_step_model"
+
+        self._self_model_logger = model_logger
+        model.state2vec = GalileoState2Vec(model.state2vec, self._self_model_logger)
+
+    def _self_forward(
+        self, parser_step_model: ParserStepModel, X: List[StateClass], is_train: bool
+    ) -> Tuple[np.ndarray, Callable]:
+        parser_step_model.state2vec._self_X = X
+        scores, backprop_fn = self._self_orig_forward(parser_step_model, X, is_train)
+        logits = scores[..., 1:]  # Throw out the -U token
+
+        assert logits.shape == (len(X), parser_step_model.nO - 1)  # type: ignore
+        # Logits are returned for all docs, one token at a time. So as we continue
+        # to call parser_step_forward some docs will have finished and not have
+        # any remaining tokens to make predictions on. We assume that the
+        # outputted scores match in order to the inputted X: List[StateClass]
+        # eg. X == [StateClass_0, StateClass_1] then scores == [2, 22]
+        model_logger = self._self_model_logger  # for readability
+        model_logger_idxs = []
+
+        for i, state in enumerate(X):
+            # In case the order of X is different than the original X of docs
+            # Assumes passed in data has the "id" user_data appended, which we
+            # automatically append with our log_training call.
+            model_logger_idx = model_logger.ids.index(state.doc.user_data["id"])
+            model_logger_idxs.append(model_logger_idx)
+
+            text_ner_logger_config.user_data["_spacy_state_for_pred"][
+                model_logger_idx
+            ] = state.copy()
+
+            model_logger.probs[model_logger_idx].append(logits[i])
+
         ner = text_ner_logger_config.user_data["nlp"].get_pipe("ner")
-        docs_copy = [
-            state.doc.copy()
-            for state in text_ner_logger_config.user_data["_spacy_state_for_pred"]
-        ]
-
-        ner.set_annotations(
-            docs_copy, text_ner_logger_config.user_data["_spacy_state_for_pred"]
+        ner.transition_states(
+            [
+                text_ner_logger_config.user_data["_spacy_state_for_pred"][idx]
+                for idx in model_logger_idxs
+            ],
+            scores,
         )
 
-        predictions_for_docs = _convert_spacy_ents_for_doc_to_predictions(docs_copy)
-        probabilities_for_docs: List[List] = [
-            [] for _ in range(len(predictions_for_docs))
-        ]
+        # if we are at the end of the batch
+        if all(
+            [
+                len(model_logger.probs[i])
+                == text_ner_logger_config.user_data["sample_lengths"][i]
+                for i in range(len(model_logger.ids))
+            ]
+        ):
+            # Do the final transition to be able to use spacy to get predictions
+            ner = text_ner_logger_config.user_data["nlp"].get_pipe("ner")
+            docs_copy = [
+                state.doc.copy()
+                for state in text_ner_logger_config.user_data["_spacy_state_for_pred"]
+            ]
 
-        for doc_idx, logits_for_doc in enumerate(model_logger.probs):
-            for token_idx, token_logits in enumerate(logits_for_doc):
-                probs = _convert_spacy_ner_logits_to_probs(
-                    token_logits, predictions_for_docs[doc_idx][token_idx]
-                )
-                probabilities_for_docs[doc_idx].append(probs)
+            ner.set_annotations(
+                docs_copy, text_ner_logger_config.user_data["_spacy_state_for_pred"]
+            )
 
-        for i in range(len(probabilities_for_docs)):
-            probabilities_for_docs[i] = np.array(probabilities_for_docs[i])
-            model_logger.emb[i] = np.array(model_logger.emb[i])
-        model_logger.probs = probabilities_for_docs
+            predictions_for_docs = _convert_spacy_ents_for_doc_to_predictions(
+                docs_copy, model_logger.logger_config.labels
+            )
+            probabilities_for_docs: List[List] = [
+                [] for _ in range(len(predictions_for_docs))
+            ]
 
-        # if model_logger.epoch == 90:
-        #     import umap.plot
-        #     mapper = umap.UMAP().fit(model_logger.emb[0])
-        #     p = umap.plot.interactive(mapper)
-        #     umap.plot.show(p)
-        #     print("showing")
+            for doc_idx, logits_for_doc in enumerate(model_logger.probs):
+                for token_idx, token_logits in enumerate(logits_for_doc):
+                    probs = _convert_spacy_ner_logits_to_probs(
+                        token_logits, predictions_for_docs[doc_idx][token_idx]
+                    )
+                    probabilities_for_docs[doc_idx].append(probs)
 
-        model_logger.log()
+            for i in range(len(probabilities_for_docs)):
+                probabilities_for_docs[i] = np.array(probabilities_for_docs[i])
+                model_logger.emb[i] = np.array(model_logger.emb[i])
+            model_logger.probs = probabilities_for_docs
+            model_logger.log()
 
-    return scores, backprop_fn
-
-
-def galileo_transition_based_parser_forward(
-    transition_based_parser_model: Model, X: List[Doc], is_train: bool
-) -> Tuple[ParserStepModel, Callable]:
-    (
-        parser_step_model,
-        backprop_fn,
-    ) = SpacyPatchState.orig_transition_based_parser_forward(
-        transition_based_parser_model, X, is_train
-    )
-
-    model_logger = SpacyPatchState.model_logger = TextNERModelLogger()
-
-    if not all(["id" in doc.user_data for doc in X]):
-        raise GalileoException(
-            "One of your model's docs is missing a galileo generated "
-            "id. Did you first log your docs/examples with us?"
-        )
-
-    model_logger.ids = [doc.user_data["id"] for doc in X]
-    model_logger.epoch = text_ner_logger_config.user_data["epoch"]
-    model_logger.split = text_ner_logger_config.user_data["split"]
-    model_logger.probs = [[] for _ in range(len(X))]
-
-    text_ner_logger_config.user_data["_spacy_state_for_pred"] = [None] * len(X)
-
-    assert parser_step_model.tokvecs.shape == (sum([len(doc) for doc in X]), 64)
-    # Embeddings for all docs are concatenated together, so
-    # need to split a [46, 64] matrix into [[8, 64], [17, 64], [21, 64]]
-    # given that len(doc_0) == 8, len(doc_1) == 17, len(doc_2) == 21
-    # Crucially, we assume the order of tokvecs == order of X
-    # This is also called a "ragged" array?
-
-    # TODO: remove or replace old emb code with this
-    model_logger.emb = [[] for _ in range(len(X))]
-    text_ner_logger_config.user_data["sample_lengths"] = [len(doc) for doc in X]
-    # these are embeddings per token that we are visualizing in umap
-    # if model_logger.epoch == 90:
-    #     import umap.plot
-    #     mapper = umap.UMAP().fit(parser_step_model.tokvecs)
-    #     p = umap.plot.interactive(mapper)
-    #     umap.plot.show(p)
-    #     print("showing")
+        return scores, backprop_fn
 
 
-    # tokens_already_seen = 0
-    # for doc in X:
-    #     model_logger.emb.append(
-    #         parser_step_model.tokvecs[
-    #             tokens_already_seen : tokens_already_seen + len(doc)
-    #         ]
-    #     )
+class GalileoState2Vec(CallableObjectProxy):
+    def __init__(self, model: precompute_hiddens, model_logger: TextNERModelLogger):
+        super(GalileoState2Vec, self).__init__(model)
+        validate_obj(model, precompute_hiddens, "__call__")
 
-    return patch_parser_step_forward(parser_step_model), backprop_fn
+        self._self_model_logger = model_logger
+        self._self_X = None
 
+    def __call__(self, *args, **kwargs):
+        """Overwrites forward to capture embeddings and add to model_logger"""
+        embeddings, embeddings_bp = self.__wrapped__(*args, **kwargs)
 
-def patch_parser_step_forward(parser_step_model: ParserStepModel) -> ParserStepModel:
-    """A basic way to patch the _func forward method of ParserStepModel model"""
-    SpacyPatchState.orig_parser_step_forward = parser_step_model._func
-    parser_step_model._func = galileo_parser_step_forward
-    return parser_step_model
+        # _self.X needs to be set externally to communicate where these embs belong
+        # in the model wrapper. Maybe this would be better in some more global state
+        for i, state in enumerate(self._self_X):
+            model_logger_idx = self._self_model_logger.ids.index(
+                state.doc.user_data["id"]
+            )
+            self._self_model_logger.emb[model_logger_idx].append(embeddings[i])
 
-
-def patch_transition_based_parser_forward(transition_based_parser_model: Model) -> None:
-    """A basic way to patch the _func forward method of the TransitionBasedParser"""
-    validate_obj(transition_based_parser_model, check_type=Model, has_attr="_func")
-
-    # If the name changes in future Spacy versions we should assume the model also
-    # changed and investigate if our integration still works.
-    assert transition_based_parser_model.name == "parser_model"
-
-    SpacyPatchState.orig_transition_based_parser_forward = (
-        transition_based_parser_model._func
-    )
-    # https://github.com/python/mypy/issues/2427
-    galileo_transition = galileo_transition_based_parser_forward
-    transition_based_parser_model._func = galileo_transition  # type: ignore
+        return embeddings, embeddings_bp
