@@ -267,6 +267,9 @@ def _convert_spacy_ents_for_doc_to_predictions(docs: List[Doc]) -> List[List[int
 def galileo_parser_step_forward(
     parser_step_model: Model, X: List[StateClass], is_train: bool
 ) -> Tuple[np.ndarray, Callable]:
+
+    embeddings, _ = parser_step_model.state2vec(parser_step_model.get_token_ids(X), is_train)
+
     scores, backprop_fn = SpacyPatchState.orig_parser_step_forward(
         parser_step_model, X, is_train
     )
@@ -292,10 +295,8 @@ def galileo_parser_step_forward(
             model_logger_idx
         ] = state.copy()
 
-        # Math is easier on a sample_logits level
-        sample_logits = logits[i]
-
-        model_logger.probs[model_logger_idx].append(sample_logits)
+        model_logger.probs[model_logger_idx].append(logits[i])
+        model_logger.emb[model_logger_idx].append(embeddings[i])
 
     ner = text_ner_logger_config.user_data["nlp"].get_pipe("ner")
     ner.transition_states(
@@ -306,10 +307,11 @@ def galileo_parser_step_forward(
         scores,
     )
 
-    # if we have are at the end of the batch
+    # if we are at the end of the batch
     if all(
         [
-            len(model_logger.probs[i]) == len(model_logger.emb[i])
+            # len(model_logger.probs[i]) == len(model_logger.emb[i]) # TODO: either add back in or remove entirely
+            len(model_logger.probs[i]) == text_ner_logger_config.user_data["sample_lengths"][i]
             for i in range(len(model_logger.ids))
         ]
     ):
@@ -338,7 +340,16 @@ def galileo_parser_step_forward(
 
         for i in range(len(probabilities_for_docs)):
             probabilities_for_docs[i] = np.array(probabilities_for_docs[i])
+            model_logger.emb[i] = np.array(model_logger.emb[i])
         model_logger.probs = probabilities_for_docs
+
+        # if model_logger.epoch == 90:
+        #     import umap.plot
+        #     mapper = umap.UMAP().fit(model_logger.emb[0])
+        #     p = umap.plot.interactive(mapper)
+        #     umap.plot.show(p)
+        #     print("showing")
+
         model_logger.log()
 
     return scores, backprop_fn
@@ -375,13 +386,26 @@ def galileo_transition_based_parser_forward(
     # given that len(doc_0) == 8, len(doc_1) == 17, len(doc_2) == 21
     # Crucially, we assume the order of tokvecs == order of X
     # This is also called a "ragged" array?
-    tokens_already_seen = 0
-    for doc in X:
-        model_logger.emb.append(
-            parser_step_model.tokvecs[
-                tokens_already_seen : tokens_already_seen + len(doc)
-            ]
-        )
+
+    # TODO: remove or replace old emb code with this
+    model_logger.emb = [[] for _ in range(len(X))]
+    text_ner_logger_config.user_data["sample_lengths"] = [len(doc) for doc in X]
+    # these are embeddings per token that we are visualizing in umap
+    # if model_logger.epoch == 90:
+    #     import umap.plot
+    #     mapper = umap.UMAP().fit(parser_step_model.tokvecs)
+    #     p = umap.plot.interactive(mapper)
+    #     umap.plot.show(p)
+    #     print("showing")
+
+
+    # tokens_already_seen = 0
+    # for doc in X:
+    #     model_logger.emb.append(
+    #         parser_step_model.tokvecs[
+    #             tokens_already_seen : tokens_already_seen + len(doc)
+    #         ]
+    #     )
 
     return patch_parser_step_forward(parser_step_model), backprop_fn
 
