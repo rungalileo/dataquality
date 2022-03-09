@@ -306,13 +306,15 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
             )
 
         model_logger.ids = [doc.user_data["id"] for doc in X]
+        # TODO: Replace these with the other way of getting epoch, split, or just rely on user to set them
         model_logger.epoch = text_ner_logger_config.user_data["epoch"]
         model_logger.split = text_ner_logger_config.user_data["split"]
+
         model_logger.probs = [[] for _ in range(len(X))]
         model_logger.emb = [[] for _ in range(len(X))]
 
-        text_ner_logger_config.user_data["_spacy_state_for_pred"] = [None] * len(X)
-        text_ner_logger_config.user_data["sample_lengths"] = [len(doc) for doc in X]
+        model_logger.user_helper_data["_spacy_state_for_pred"] = [None] * len(X)
+        model_logger.user_helper_data["sample_lengths"] = [len(doc) for doc in X]
 
         return GalileoParserStepModel(parser_step_model, model_logger), backprop_fn
 
@@ -348,7 +350,7 @@ class GalileoParserStepModel(ThincModelWrapper):
             model_logger_idx = model_logger.ids.index(state.doc.user_data["id"])
             model_logger_idxs.append(model_logger_idx)
 
-            text_ner_logger_config.user_data["_spacy_state_for_pred"][
+            model_logger.user_helper_data["_spacy_state_for_pred"][
                 model_logger_idx
             ] = state.copy()
 
@@ -357,7 +359,7 @@ class GalileoParserStepModel(ThincModelWrapper):
         ner = text_ner_logger_config.user_data["nlp"].get_pipe("ner")
         ner.transition_states(
             [
-                text_ner_logger_config.user_data["_spacy_state_for_pred"][idx]
+                model_logger.user_helper_data["_spacy_state_for_pred"][idx]
                 for idx in model_logger_idxs
             ],
             scores,
@@ -367,7 +369,7 @@ class GalileoParserStepModel(ThincModelWrapper):
         if all(
             [
                 len(model_logger.probs[i])
-                == text_ner_logger_config.user_data["sample_lengths"][i]
+                == model_logger.user_helper_data["sample_lengths"][i]
                 for i in range(len(model_logger.ids))
             ]
         ):
@@ -375,11 +377,11 @@ class GalileoParserStepModel(ThincModelWrapper):
             ner = text_ner_logger_config.user_data["nlp"].get_pipe("ner")
             docs_copy = [
                 state.doc.copy()
-                for state in text_ner_logger_config.user_data["_spacy_state_for_pred"]
+                for state in model_logger.user_helper_data["_spacy_state_for_pred"]
             ]
 
             ner.set_annotations(
-                docs_copy, text_ner_logger_config.user_data["_spacy_state_for_pred"]
+                docs_copy, model_logger.user_helper_data["_spacy_state_for_pred"]
             )
 
             predictions_for_docs = _convert_spacy_ents_for_doc_to_predictions(
