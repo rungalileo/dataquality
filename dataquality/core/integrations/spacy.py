@@ -280,10 +280,10 @@ class ThincModelWrapper(CallableObjectProxy):
         validate_obj(model, check_type=thinc.model.Model, has_attr="_func")
 
         self._self_orig_forward = model._func
-        model._func = self._self_forward
+        model._func = self._self__func
 
-    def _self_forward(self, model: thinc.model.Model, X: Any, is_train: bool):
-        """Overwrite this to patch the Thinc model's forward func"""
+    def _self__func(self, model: thinc.model.Model, X: Any, is_train: bool):
+        """Overwrite this to patch the Thinc model's forward fn"""
         pass
 
 
@@ -299,7 +299,7 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
                                    f"that the spacy architecture has changed and is no "
                                    f"longer compatible with this Galileo integration.")
 
-    def _self_forward(
+    def _self__func(
         self, model: thinc.model.Model, X: Any, is_train: bool
     ) -> Tuple[ParserStepModel, Callable]:
         parser_step_model, backprop_fn = self._self_orig_forward(
@@ -341,7 +341,7 @@ class GalileoParserStepModel(ThincModelWrapper):
         self._self_model_logger = model_logger
         model.state2vec = GalileoState2Vec(model.state2vec, self._self_model_logger)
 
-    def _self_forward(
+    def _self__func(
         self, parser_step_model: ParserStepModel, X: List[StateClass], is_train: bool
     ) -> Tuple[np.ndarray, Callable]:
         parser_step_model.state2vec._self_X = X
