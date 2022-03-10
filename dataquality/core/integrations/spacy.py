@@ -2,13 +2,13 @@ from typing import Any, Callable, Generator, List, Tuple, Union
 
 import numpy as np
 import thinc
-from scipy.special import softmax
 from spacy.language import Language
-from spacy.ml.parser_model import ParserStepModel, precompute_hiddens as State2Vec
+from spacy.ml.parser_model import ParserStepModel
+from spacy.ml.parser_model import precompute_hiddens as State2Vec
 from spacy.pipeline._parser_internals.stateclass import StateClass
 from spacy.pipeline.ner import EntityRecognizer
 from spacy.tokens import Doc
-from spacy.training import Example, offsets_to_biluo_tags
+from spacy.training import Example
 from spacy.util import minibatch
 from thinc.api import set_dropout_rate
 from wrapt import CallableObjectProxy
@@ -19,7 +19,105 @@ from dataquality.exceptions import GalileoException
 from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
 from dataquality.schemas.ner import TaggingSchema
-from dataquality.utils.spacy_integration import validate_obj
+from dataquality.utils.spacy_integration import (
+    _convert_spacy_ents_for_doc_to_predictions,
+    _convert_spacy_ner_logits_to_probs,
+    validate_obj,
+)
+
+
+def log_input_examples(examples: List[Example], split: str) -> None:
+    """Logs a list of Spacy Examples using the dataquality client"""
+    if not dataquality.get_data_logger().logger_config.labels:
+        raise GalileoException(
+            "Galileo does not have any logged labels. Did you forget "
+            "to call watch(nlp) before log_input_examples(...)?"
+        )
+    text = []
+    text_token_indices = []
+    gold_spans = []
+    ids = []
+    for i, example in enumerate(examples):
+        # For the most part reference has all the information we want to log
+        data = example.reference
+        # but predicted is the Doc that will be passed along to the spacy models, and
+        # crucially holds the "id" user_data we attach
+        text.append(data.text)
+        text_token_indices.append(
+            [(token.idx, token.idx + len(token)) for token in data]
+        )
+        gold_spans.append(
+            [
+                {"start": ent.start_char, "end": ent.end_char, "label": ent.label_}
+                for ent in data.ents
+            ]
+        )
+        # We add ids to the doc.user_data to be along for the ride through spacy
+        # The predicted doc is the one that the model will see
+        example.predicted.user_data["id"] = i
+        ids.append(i)
+    dataquality.log_input_data(
+        text=text,
+        text_token_indices=text_token_indices,
+        gold_spans=gold_spans,
+        ids=ids,
+        split=split,
+    )
+
+
+def watch(nlp: Language) -> None:
+    """Stores the nlp object before calling watch on the ner component within it
+
+    We need access to the nlp object so that during training we can capture the
+    model's predictions over the raw text by running nlp("user's text") and looking
+    at the results
+
+    :param nlp: The spacy nlp Language component.
+    :return: None
+    """
+    if not (config.current_project_id and config.current_run_id):
+        raise GalileoException(
+            "You must initialize dataquality first! "
+            "Use dataquality.init(project_name='my_cool_project', "
+            "run_name='my_awesome_run', task_type='text_ner')"
+        )
+    # TODO: Replace with the following in the future
+    # if not (config.current_project_id and config.current_run_id):
+    #     dataquality.init(task_type=TaskType.text_ner)
+    #     warnings.warn("No run initialized with dataquality.init(...). "
+    #                   "Creating one with the project name `{}` and run_name `{}`")
+    ner = nlp.get_pipe("ner")
+
+    if "O" not in ner.move_names:
+        raise GalileoException(
+            "Missing the 'O' tag in the model's moves, are you sure you have"
+            "already called 'nlp.begin_training()' or "
+            "`nlp.initialize(training_examples)`?"
+        )
+
+    text_ner_logger_config.user_data["nlp"] = nlp
+    dataquality.set_labels_for_run(ner.move_names)
+    dataquality.set_tagging_schema(TaggingSchema.BILOU)
+
+    nlp.add_pipe("galileo_ner")
+    nlp.remove_pipe("ner")
+    nlp.rename_pipe("galileo_ner", "ner")
+
+
+def unwatch(nlp: Language) -> None:
+    """Returns spacy nlp Language component to its original unpatched state"""
+    # the following code may work after the following spacy bug is addressed
+    # https://github.com/explosion/spaCy/issues/10429
+    # for now we pass
+    # old_moves = nlp.get_pipe("ner").move_names
+    # old_model = nlp.get_pipe("ner").model
+    # nlp.remove_pipe("ner")
+    # nlp.add_pipe("ner", config={"moves": old_moves, "model": model})
+    raise GalileoException(
+        "Not implemented yet sorry! Coming soon. In the meantime, "
+        "you will have to create a new nlp pipeline."
+    )
+
 
 class GalileoEntityRecognizer(CallableObjectProxy):
     """An EntityRecognizer proxy using the wrapt library.
@@ -34,9 +132,11 @@ class GalileoEntityRecognizer(CallableObjectProxy):
 
         # Assert we are working with the 'ner' component and not 'beam_ner'
         if self.cfg["beam_width"] != 1:
-            raise GalileoException(f"Your EntityRecognizer's beam width is set to "
-                                   f"{self.cfg['beam_width']}. Galileo currently "
-                                   f"expects a beam width of 1 (the 'ner' default).")
+            raise GalileoException(
+                f"Your EntityRecognizer's beam width is set to "
+                f"{self.cfg['beam_width']}. Galileo currently "
+                f"expects a beam width of 1 (the 'ner' default)."
+            )
 
         # patch_transition_based_parser_forward(ner.model)
         ner.model = GalileoTransitionBasedParserModel(ner.model)
@@ -119,144 +219,6 @@ def create_galileo_ner(nlp: Language, name: str) -> GalileoEntityRecognizer:
     return GalileoEntityRecognizer(nlp.get_pipe("ner"))
 
 
-def log_input_examples(examples: List[Example], split: str) -> None:
-    """Logs a list of Spacy Examples using the dataquality client"""
-    if not dataquality.get_data_logger().logger_config.labels:
-        raise GalileoException(
-            "Galileo does not have any logged labels. Did you forget "
-            "to call watch(nlp) before log_input_examples(...)?"
-        )
-    text = []
-    text_token_indices = []
-    gold_spans = []
-    ids = []
-    for i, example in enumerate(examples):
-        # For the most part reference has all the information we want to log
-        data = example.reference
-        # but predicted is the Doc that will be passed along to the spacy models, and
-        # crucially holds the "id" user_data we attach
-        text.append(data.text)
-        text_token_indices.append(
-            [(token.idx, token.idx + len(token)) for token in data]
-        )
-        gold_spans.append(
-            [
-                {"start": ent.start_char, "end": ent.end_char, "label": ent.label_}
-                for ent in data.ents
-            ]
-        )
-        # We add ids to the doc.user_data to be along for the ride through spacy
-        # The predicted doc is the one that the model will see
-        example.predicted.user_data["id"] = i
-        ids.append(i)
-    dataquality.log_input_data(
-        text=text,
-        text_token_indices=text_token_indices,
-        gold_spans=gold_spans,
-        ids=ids,
-        split=split,
-    )
-
-
-def watch(nlp: Language) -> None:
-    """Stores the nlp object before calling watch on the ner component within it
-
-    We need access to the nlp object so that during training we can capture the
-    model's predictions over the raw text by running nlp("user's text") and looking
-    at the results
-
-    :param nlp: The spacy nlp Language component.
-    :return: None
-    """
-    assert (
-        config.current_project_id and config.current_run_id
-    ), "You must initialize dataquality first! Use dataquality.login()"
-
-    ner = nlp.get_pipe("ner")
-
-    if "O" not in ner.move_names:
-        raise GalileoException(
-            "Missing the 'O' tag in the model's moves, are you sure you have"
-            "already called 'nlp.begin_training()'?"
-        )
-
-    text_ner_logger_config.user_data["nlp"] = nlp
-    dataquality.set_labels_for_run(ner.move_names)
-    dataquality.set_tagging_schema(TaggingSchema.BILOU)
-
-    nlp.add_pipe("galileo_ner")
-    nlp.remove_pipe("ner")
-    nlp.rename_pipe("galileo_ner", "ner")
-
-
-def unwatch(nlp: Language) -> None:
-    """Returns spacy nlp Language component to its original unpatched state"""
-    # the following code may work after the following spacy bug is addressed
-    # https://github.com/explosion/spaCy/issues/10429
-    # for now we pass
-    # old_moves = nlp.get_pipe("ner").move_names
-    # old_model = nlp.get_pipe("ner").model
-    # nlp.remove_pipe("ner")
-    # nlp.add_pipe("ner", config={"moves": old_moves, "model": model})
-    raise GalileoException("Not implemented yet sorry! Coming soon. In the meantime, "
-                           "you will have to create a new nlp pipeline.")
-
-
-def _convert_spacy_ner_logits_to_probs(logits: np.ndarray, pred: int) -> np.ndarray:
-    """Converts ParserStepModel per token logits to probabilities.
-
-    Not all logits outputted by the spacy model are valid probabilities, for this reason
-    spacy will ignore potential actions even if they might've had the largest prob mass.
-    To account for this, we first sort the logits for each token and then zero out
-    all logits larger than the predicted logit (as these must've been ignored by spacy
-    or else they would've become the prediction). Finally we take the softmax to convert
-    them to probabilities.
-
-    :param logits: ParserStepModel logits for a single token, minus the -U tag logit
-    shape of [num_classes]
-    :param pred: the idx of the spacy's valid prediction from the logits
-    :return: np array of probabilities. shape of [num_classes]
-    """
-    assert len(logits.shape) == 1
-
-    # Sort in descending order
-    argsorted_sample_logits = np.flip(np.argsort(logits))
-
-    # Get all logit indices where pred_logit > logit
-    # These are 'valid' because spacy ignored all logits > pred_logit
-    # as it they were determined to not be possible given the current state.
-    valid_logit_indices = argsorted_sample_logits[
-        np.where(argsorted_sample_logits == pred)[0][0] :
-    ]
-
-    valid_probs = softmax(logits[valid_logit_indices])
-
-    # non valid_logit_indices should be set to 0
-    probs = np.zeros(logits.shape)
-    probs[valid_logit_indices] = valid_probs
-
-    return probs
-
-
-def _convert_spacy_ents_for_doc_to_predictions(
-    docs: List[Doc], labels: List[str]
-) -> List[List[int]]:
-    """Converts spacy's representation of ner spans to their per token predictions.
-
-    Uses some spacy utility code to convert from start/end/label representation to the
-    BILUO per token corresponding tagging scheme.
-
-    """
-    prediction_indices = []
-    for doc in docs:
-        pred_output = offsets_to_biluo_tags(
-            doc, [(ent.start_char, ent.end_char, ent.label_) for ent in doc.ents]
-        )
-        pred_output_ind = [labels.index(tok_pred) for tok_pred in pred_output]
-        prediction_indices.append(pred_output_ind)
-    return prediction_indices
-
-
 class ThincModelWrapper(CallableObjectProxy):
     """A Thinc Model obj wrapper using the wrapt library.
 
@@ -293,11 +255,13 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
     def __init__(self, model: thinc.model.Model):
         super(GalileoTransitionBasedParserModel, self).__init__(model)
         if not model.name == GalileoTransitionBasedParserModel.expected_model_name:
-            raise GalileoException("Expected the TransitionBasedParser Thinc Model "
-                                   f"to be called {GalileoTransitionBasedParserModel.expected_model_name}. "
-                                   f"Instead received {model.name}. This may indicate "
-                                   f"that the spacy architecture has changed and is no "
-                                   f"longer compatible with this Galileo integration.")
+            raise GalileoException(
+                "Expected the TransitionBasedParser Thinc Model to "
+                f"be called {GalileoTransitionBasedParserModel.expected_model_name}. "
+                f"Instead received {model.name}. This may indicate "
+                f"that the spacy architecture has changed and is no "
+                f"longer compatible with this Galileo integration."
+            )
 
     def _self__func(
         self, model: thinc.model.Model, X: Any, is_train: bool
@@ -312,9 +276,10 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
             raise GalileoException(
                 "One of your model's docs is missing a galileo generated "
                 "id. Did you first log your docs/examples with us using "
-                "`training_examples = dataquality.core.integrations.spacy.log_input_examples(training_examples, "
-                f"split=training)` for example. Make sure to then continue by using "
-                f"those Galileo returned training_examples."
+                "`training_examples = dataquality.core.integrations.spacy."
+                "log_input_examples(training_examples, split=training)` "
+                "for example. Make sure to then continue by using "
+                "those Galileo returned training_examples."
             )
 
         model_logger.ids = [doc.user_data["id"] for doc in X]
@@ -332,11 +297,13 @@ class GalileoParserStepModel(ThincModelWrapper):
 
     def __init__(self, model: thinc.model.Model, model_logger: TextNERModelLogger):
         super(GalileoParserStepModel, self).__init__(model)
-        raise GalileoException("Expected the ParserStepModel Thinc Model "
-                             f"to be called {GalileoParserStepModel.expected_model_name}. "
-                             f"Instead received {model.name}. This may indicate "
-                             f"that the spacy architecture has changed and is no "
-                             f"longer compatible with this Galileo integration.")
+        raise GalileoException(
+            "Expected the ParserStepModel Thinc Model "
+            f"to be called {GalileoParserStepModel.expected_model_name}. "
+            f"Instead received {model.name}. This may indicate "
+            f"that the spacy architecture has changed and is no "
+            f"longer compatible with this Galileo integration."
+        )
 
         self._self_model_logger = model_logger
         model.state2vec = GalileoState2Vec(model.state2vec, self._self_model_logger)

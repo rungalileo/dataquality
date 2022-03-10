@@ -87,16 +87,10 @@ def _train_model(
     nlp = spacy.blank("en")
     nlp.add_pipe("ner", last=True)
     minibatch_size = 3
-    ner = nlp.get_pipe("ner")
 
     # Spacy pre-processing
     training_examples = []
     for text, annotations in training_data:
-        # 1) Setting the correct num labels
-        for ent in annotations.get("entities"):
-            ner.add_label(ent[2])
-
-        # 2) For us, generating the docs/examples so we can log the tokenized outputs
         doc = nlp.make_doc(text)
         training_examples.append(Example.from_dict(doc, annotations))
 
@@ -118,7 +112,7 @@ def _train_model(
             training_losses.append(training_loss["ner"])
         print(training_loss["ner"])
 
-    # TODO: need to support the following line
+    # TODO: need to support the following line for inference
     # nlp('Thank you for your subscription renewal')
 
     # Evaluation Loop
