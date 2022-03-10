@@ -4,7 +4,7 @@ import numpy as np
 import thinc
 from scipy.special import softmax
 from spacy.language import Language
-from spacy.ml.parser_model import ParserStepModel, precompute_hiddens
+from spacy.ml.parser_model import ParserStepModel, precompute_hiddens as State2Vec
 from spacy.pipeline._parser_internals.stateclass import StateClass
 from spacy.pipeline.ner import EntityRecognizer
 from spacy.tokens import Doc
@@ -19,17 +19,7 @@ from dataquality.exceptions import GalileoException
 from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
 from dataquality.schemas.ner import TaggingSchema
-
-
-def validate_obj(an_object: Any, check_type: Any, has_attr: str) -> None:
-    if not isinstance(an_object, check_type):
-        raise GalileoException(
-            f"Expected a {check_type}. Received {str(type(an_object))}"
-        )
-
-    if not hasattr(an_object, has_attr):
-        raise GalileoException(f"Your {check_type} must have a {has_attr} attribute")
-
+from dataquality.utils.spacy_integration import validate_obj
 
 class GalileoEntityRecognizer(CallableObjectProxy):
     """An EntityRecognizer proxy using the wrapt library.
@@ -42,6 +32,12 @@ class GalileoEntityRecognizer(CallableObjectProxy):
         super(GalileoEntityRecognizer, self).__init__(ner)
         validate_obj(ner, check_type=EntityRecognizer, has_attr="model")
 
+        # Assert we are working with the 'ner' component and not 'beam_ner'
+        if self.cfg["beam_width"] != 1:
+            raise GalileoException(f"Your EntityRecognizer's beam width is set to "
+                                   f"{self.cfg['beam_width']}. Galileo currently "
+                                   f"expects a beam width of 1 (the 'ner' default).")
+
         # patch_transition_based_parser_forward(ner.model)
         ner.model = GalileoTransitionBasedParserModel(ner.model)
 
@@ -50,7 +46,10 @@ class GalileoEntityRecognizer(CallableObjectProxy):
 
         Transcribes the greedy_parse method in Parser to python. This allows us to call
         the Thinc model's forward function, which we patch, rather than the ridiculous
-        C-math copy of it.
+        C-math copy of it. See spacy.ml.parser_model.predict_states for the C-math fn
+        that gets called eventually to do the predictions by the EntitiyRecognizer's
+        greedy_parse method
+        https://github.com/explosion/spaCy/blob/ed561cf428494c2b7a6790cd4b91b5326102b59d/spacy/ml/parser_model.pyx#L93
         """
         self._ensure_labels_are_added(docs)
         set_dropout_rate(self.model, drop)
@@ -58,7 +57,7 @@ class GalileoEntityRecognizer(CallableObjectProxy):
         step_model = self.model.predict(docs)
 
         states = list(batch)
-        non_final_states = [state for state in states]
+        non_final_states = states.copy()
         while non_final_states:
             scores = step_model.predict(non_final_states)
             self.transition_states(non_final_states, scores)  # updates non_final_states
@@ -71,12 +70,9 @@ class GalileoEntityRecognizer(CallableObjectProxy):
         """Copied from the EntityRecognizer's predict, but calls our greedy_parse"""
         if isinstance(docs, Doc):
             docs = [docs]
-        if not any(len(doc) for doc in docs):
+        if not any(filter(lambda doc: len(doc), docs)):
             result = self.moves.init_batch(docs)
             return result
-
-        # Assert we are working with the 'ner' component and not 'beam_ner'
-        assert self.cfg["beam_width"] == 1
 
         # Galileo's version of greedy_parse (ner's method that handles prediction)
         return self.greedy_parse(docs, drop=0.0)
@@ -88,7 +84,6 @@ class GalileoEntityRecognizer(CallableObjectProxy):
         superclass, but notice that in calling predict from this scope it calls the
         GalileoEntityRecognizer defined above predict method.
         """
-        error_handler = self.get_error_handler()
         for batch in minibatch(docs, size=batch_size):
             batch_in_order = list(batch)
             try:
@@ -99,7 +94,7 @@ class GalileoEntityRecognizer(CallableObjectProxy):
                     self.set_annotations(subbatch, parse_states)
                 yield from batch_in_order
             except Exception as e:
-                error_handler(self.name, self, batch_in_order, e)
+                self.get_error_handler()(self.name, self, batch_in_order, e)
 
     def __call__(self, doc: Doc) -> Doc:
         """Copy of TrainablePipe's __call__
@@ -203,9 +198,11 @@ def unwatch(nlp: Language) -> None:
     # old_model = nlp.get_pipe("ner").model
     # nlp.remove_pipe("ner")
     # nlp.add_pipe("ner", config={"moves": old_moves, "model": model})
+    raise GalileoException("Not implemented yet sorry! Coming soon. In the meantime, "
+                           "you will have to create a new nlp pipeline.")
 
 
-def _convert_spacy_ner_logits_to_probs(logits: np.ndarray, pred: int) -> List[float]:
+def _convert_spacy_ner_logits_to_probs(logits: np.ndarray, pred: int) -> np.ndarray:
     """Converts ParserStepModel per token logits to probabilities.
 
     Not all logits outputted by the spacy model are valid probabilities, for this reason
@@ -214,7 +211,14 @@ def _convert_spacy_ner_logits_to_probs(logits: np.ndarray, pred: int) -> List[fl
     all logits larger than the predicted logit (as these must've been ignored by spacy
     or else they would've become the prediction). Finally we take the softmax to convert
     them to probabilities.
+
+    :param logits: ParserStepModel logits for a single token, minus the -U tag logit
+    shape of [num_classes]
+    :param pred: the idx of the spacy's valid prediction from the logits
+    :return: np array of probabilities. shape of [num_classes]
     """
+    assert len(logits.shape) == 1
+
     # Sort in descending order
     argsorted_sample_logits = np.flip(np.argsort(logits))
 
@@ -231,7 +235,7 @@ def _convert_spacy_ner_logits_to_probs(logits: np.ndarray, pred: int) -> List[fl
     probs = np.zeros(logits.shape)
     probs[valid_logit_indices] = valid_probs
 
-    return probs.tolist()
+    return probs
 
 
 def _convert_spacy_ents_for_doc_to_predictions(
@@ -245,7 +249,6 @@ def _convert_spacy_ents_for_doc_to_predictions(
     """
     prediction_indices = []
     for doc in docs:
-        # perhaps there are utility functions to help do this step
         pred_output = offsets_to_biluo_tags(
             doc, [(ent.start_char, ent.end_char, ent.label_) for ent in doc.ents]
         )
@@ -285,10 +288,16 @@ class ThincModelWrapper(CallableObjectProxy):
 
 
 class GalileoTransitionBasedParserModel(ThincModelWrapper):
+    expected_model_name: str = "parser_model"
+
     def __init__(self, model: thinc.model.Model):
         super(GalileoTransitionBasedParserModel, self).__init__(model)
-
-        assert model.name == "parser_model"
+        if not model.name == GalileoTransitionBasedParserModel.expected_model_name:
+            raise GalileoException("Expected the TransitionBasedParser Thinc Model "
+                                   f"to be called {GalileoTransitionBasedParserModel.expected_model_name}. "
+                                   f"Instead received {model.name}. This may indicate "
+                                   f"that the spacy architecture has changed and is no "
+                                   f"longer compatible with this Galileo integration.")
 
     def _self_forward(
         self, model: thinc.model.Model, X: Any, is_train: bool
@@ -302,7 +311,10 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
         if not all(["id" in doc.user_data for doc in X]):
             raise GalileoException(
                 "One of your model's docs is missing a galileo generated "
-                "id. Did you first log your docs/examples with us?"
+                "id. Did you first log your docs/examples with us using "
+                "`training_examples = dataquality.core.integrations.spacy.log_input_examples(training_examples, "
+                f"split=training)` for example. Make sure to then continue by using "
+                f"those Galileo returned training_examples."
             )
 
         model_logger.ids = [doc.user_data["id"] for doc in X]
@@ -316,9 +328,15 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
 
 
 class GalileoParserStepModel(ThincModelWrapper):
+    expected_model_name: str = "parser_step_model"
+
     def __init__(self, model: thinc.model.Model, model_logger: TextNERModelLogger):
         super(GalileoParserStepModel, self).__init__(model)
-        assert model.name == "parser_step_model"
+        raise GalileoException("Expected the ParserStepModel Thinc Model "
+                             f"to be called {GalileoParserStepModel.expected_model_name}. "
+                             f"Instead received {model.name}. This may indicate "
+                             f"that the spacy architecture has changed and is no "
+                             f"longer compatible with this Galileo integration.")
 
         self._self_model_logger = model_logger
         model.state2vec = GalileoState2Vec(model.state2vec, self._self_model_logger)
@@ -403,9 +421,9 @@ class GalileoParserStepModel(ThincModelWrapper):
 
 
 class GalileoState2Vec(CallableObjectProxy):
-    def __init__(self, model: precompute_hiddens, model_logger: TextNERModelLogger):
+    def __init__(self, model: State2Vec, model_logger: TextNERModelLogger):
         super(GalileoState2Vec, self).__init__(model)
-        validate_obj(model, precompute_hiddens, "__call__")
+        validate_obj(model, State2Vec, "__call__")
 
         self._self_model_logger = model_logger
         self._self_X = None
