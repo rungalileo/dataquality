@@ -8,10 +8,10 @@ import spacy
 from vaex.dataframe import DataFrame
 
 os.environ["GALILEO_CONSOLE_URL"] = "http://localhost:3000"
-from dataquality import config # noqa
-from dataquality.clients import objectstore # noqa
-from dataquality.loggers import BaseGalileoLogger # noqa
-from dataquality.schemas.task_type import TaskType # noqa
+from dataquality import config  # noqa
+from dataquality.clients import objectstore  # noqa
+from dataquality.loggers import BaseGalileoLogger  # noqa
+from dataquality.schemas.task_type import TaskType  # noqa
 
 DEFAULT_API_URL = "http://localhost:8088"
 DEFAULT_MINIO_URL = "127.0.0.1:9000"
