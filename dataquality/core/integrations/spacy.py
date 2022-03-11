@@ -104,19 +104,11 @@ def watch(nlp: Language) -> None:
     nlp.rename_pipe("galileo_ner", "ner")
 
 
+
 def unwatch(nlp: Language) -> None:
     """Returns spacy nlp Language component to its original unpatched state"""
-    # the following code may work after the following spacy bug is addressed
-    # https://github.com/explosion/spaCy/issues/10429
-    # for now we pass
-    # old_moves = nlp.get_pipe("ner").move_names
-    # old_model = nlp.get_pipe("ner").model
-    # nlp.remove_pipe("ner")
-    # nlp.add_pipe("ner", config={"moves": old_moves, "model": model})
-    raise GalileoException(
-        "Not implemented yet sorry! Coming soon. In the meantime, "
-        "you will have to create a new nlp pipeline."
-    )
+    raise GalileoException("Coming soon! Discussing here: "
+                           "https://github.com/explosion/spaCy/discussions/10443")
 
 
 class GalileoEntityRecognizer(CallableObjectProxy):
@@ -244,7 +236,7 @@ class ThincModelWrapper(CallableObjectProxy):
         self._self_orig_forward = model._func
         model._func = self._self__func
 
-    def _self__func(self, model: thinc.model.Model, X: Any, is_train: bool):
+    def _self__func(self, model: thinc.model.Model, X: Any, is_train: bool) -> Tuple[Any, Any]:
         """Overwrite this to patch the Thinc model's forward fn"""
         pass
 
@@ -287,7 +279,7 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
         model_logger.emb = [[] for _ in range(len(X))]
 
         model_logger.user_helper_data["_spacy_state_for_pred"] = [None] * len(X)
-        model_logger.user_helper_data["sample_lengths"] = [len(doc) for doc in X]
+        model_logger.user_helper_data["expected_lengths"] = [len(doc) for doc in X]
 
         return GalileoParserStepModel(parser_step_model, model_logger), backprop_fn
 
@@ -295,15 +287,16 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
 class GalileoParserStepModel(ThincModelWrapper):
     expected_model_name: str = "parser_step_model"
 
-    def __init__(self, model: thinc.model.Model, model_logger: TextNERModelLogger):
+    def __init__(self, model: ParserStepModel, model_logger: TextNERModelLogger):
         super(GalileoParserStepModel, self).__init__(model)
-        raise GalileoException(
-            "Expected the ParserStepModel Thinc Model "
-            f"to be called {GalileoParserStepModel.expected_model_name}. "
-            f"Instead received {model.name}. This may indicate "
-            f"that the spacy architecture has changed and is no "
-            f"longer compatible with this Galileo integration."
-        )
+        if not model.name == GalileoParserStepModel.expected_model_name:
+            raise GalileoException(
+                "Expected the ParserStepModel Thinc Model "
+                f"to be called {GalileoParserStepModel.expected_model_name}. "
+                f"Instead received {model.name}. This may indicate "
+                f"that the spacy architecture has changed and is no "
+                f"longer compatible with this Galileo integration."
+            )
 
         self._self_model_logger = model_logger
         model.state2vec = GalileoState2Vec(model.state2vec, self._self_model_logger)
@@ -349,8 +342,8 @@ class GalileoParserStepModel(ThincModelWrapper):
         # if we are at the end of the batch
         if all(
             [
-                len(model_logger.probs[i])
-                == model_logger.user_helper_data["sample_lengths"][i]
+                len(model_logger.probs[i]) ==
+                model_logger.user_helper_data["expected_lengths"][i]
                 for i in range(len(model_logger.ids))
             ]
         ):
