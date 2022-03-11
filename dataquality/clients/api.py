@@ -7,7 +7,7 @@ from pydantic.types import UUID4
 
 from dataquality.core._config import config, url_is_localhost
 from dataquality.exceptions import GalileoException
-from dataquality.schemas import ProcName, RequestType, Route
+from dataquality.schemas import RequestType, Route
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.auth import headers
@@ -243,7 +243,7 @@ class ApiClient:
             project_name=project_name, run_name=run_name
         )
 
-        url = f"{config.api_url}/{Route.proc}/{project}/{run}/labels"
+        url = f"{config.api_url}/{Route.content_path(project, run)}/labels"
         if task:
             url += f"?task={task}"
         res = self.make_request(RequestType.GET, url=url)
@@ -262,15 +262,15 @@ class ApiClient:
         project, run = self._get_project_run_id(
             project_name=project_name, run_name=run_name
         )
-        url = f"{config.api_url}/{Route.proc}/{project}/{run}/tasks"
+        url = f"{config.api_url}/{Route.content_path(project, run)}/tasks"
         res = self.make_request(RequestType.GET, url=url)
         return res["tasks"]
 
     def reprocess_run(self, project_name: str = None, run_name: str = None) -> Dict:
-        """Reprocesses a project/run that has already been finished
+        """Reinitiate a project/run that has already been finished
 
         If a project and run name have been provided, that project/run will be
-        reprocessed, otherwise the currently initialized project/run.
+        reinitiated, otherwise we trigger the currently initialized project/run.
 
         This will clear out the current state in the server, and will recalculate
         * DEP score
@@ -302,15 +302,14 @@ class ApiClient:
         body = dict(
             project_id=str(project),
             run_id=str(run),
-            proc_name=ProcName.default.value,
             labels=labels,
             tasks=tasks or None,
         )
         res = self.make_request(
-            RequestType.POST, url=f"{config.api_url}/{Route.proc_pool}", body=body
+            RequestType.POST, url=f"{config.api_url}/{Route.jobs}", body=body
         )
         print(
-            f"Job {res['proc_name']} successfully resubmitted. New results will be "
+            f"Job {res['job_name']} successfully resubmitted. New results will be "
             f"available soon at {res['link']}"
         )
         return res
@@ -319,7 +318,7 @@ class ApiClient:
         """Get a slice by name"""
         proj = self.get_project_by_name(project_name)
         url = (
-            f"{config.api_url}/{Route.projects}/{proj['id']}/{Route.slices}?"
+            f"{config.api_url}/{Route.content_path(proj['id'])}/{Route.slices}?"
             f"slice_name={slice_name}"
         )
         slices = self.make_request(RequestType.GET, url=url)
@@ -356,16 +355,13 @@ class ApiClient:
                 f"split {split} must be one of {Split.get_valid_attributes()}"
             )
         body = dict(
-            project_id=str(project),
-            run_id=str(run),
-            split=split,
             include_emb=_include_emb,
         )
         if slice_name:
             slice_ = self.get_slice_by_name(project_name, slice_name)
-            body["proc_params"] = slice_["logic"]
+            body["filter_params"] = slice_["logic"]
 
-        url = f"{config.api_url}/{Route.proc}/export"
+        url = f"{config.api_url}/{Route.content_path(project, run, split)}/export"
         with requests.post(
             url, json=body, stream=True, headers=headers(config.token)
         ) as r:
@@ -411,7 +407,7 @@ class ApiClient:
         pid, rid = self._get_project_run_id(
             project_name=project_name, run_name=run_name
         )
-        url = f"{config.api_url}/{Route.proc_pool}/status"
+        url = f"{config.api_url}/{Route.content_path(pid, rid)}/{Route.jobs}/status"
         params = {"project_id": pid, "run_id": rid}
         statuses = self.make_request(RequestType.GET, url, params=params)["statuses"]
         status = sorted(statuses, key=lambda row: row["timestamp"], reverse=True)[0]
@@ -420,7 +416,7 @@ class ApiClient:
     def wait_for_run(
         self, project_name: Optional[str] = None, run_name: Optional[str] = None
     ) -> None:
-        print("Waiting for job to process...")
+        print("Waiting for job...")
         while True:
             status = self.get_run_status(project_name=project_name, run_name=run_name)
             if status.get("status") == "finished":
@@ -428,13 +424,13 @@ class ApiClient:
                 return
             elif status.get("status") == "errored":
                 raise GalileoException(
-                    f"It seems your run failed to process with status "
+                    f"It seems your run failed with status "
                     f"{status.get('status')}, error {status.get('message')}"
                 )
             elif status.get("status") == "started":
                 sleep(2)
             else:
                 raise GalileoException(
-                    f"It seems there was an issue with your job process. Received "
+                    f"It seems there was an issue with your job. Received "
                     f"an unexpected status {status}"
                 )
