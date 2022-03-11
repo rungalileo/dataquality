@@ -246,7 +246,7 @@ def test_calculate_dep_scores() -> None:
     assert pred_dep == [0.8, 0.25]
 
 
-def test_ner_logging_bad_inputs(set_test_config: Callable) -> None:
+def test_ner_logging_bad_inputs(set_test_config: Callable, cleanup_after_use) -> None:
     set_test_config(task_type=TaskType.text_ner)
     dataquality.set_tagging_schema("BIO")
 
@@ -438,7 +438,7 @@ def test_ner_logging(cleanup_after_use: Callable, set_test_config: Callable) -> 
         [],
     ]
 
-    prob_path = f"{TEST_PATH}/{split}/prob/prob.hdf5"
+    prob_path = f"{TEST_PATH}/{split}/0/prob/prob.hdf5"
     prob_df = vaex.open(prob_path)
     for i in prob_df.data_error_potential.to_numpy():
         assert 0 <= i <= 1
@@ -456,12 +456,12 @@ def test_ner_logging(cleanup_after_use: Callable, set_test_config: Callable) -> 
 
     assert len(prob_df[prob_df["(~is_gold) & (~is_pred)"]]) == 0
 
-    emb_path = f"{TEST_PATH}/{split}/prob/prob.hdf5"
+    emb_path = f"{TEST_PATH}/{split}/0/emb/emb.hdf5"
     emb_df = vaex.open(emb_path)
 
     assert len(emb_df) == len(prob_df)
 
-    sample_path = f"{TEST_PATH}/{split}/data/data.arrow"
+    sample_path = f"{TEST_PATH}/{split}/0/data/data.arrow"
     sample_df = vaex.open(sample_path)
 
     assert len(sample_df) == 3
@@ -487,7 +487,7 @@ def test_ner_logging(cleanup_after_use: Callable, set_test_config: Callable) -> 
     c = dataquality.get_data_logger()
     c.validate_labels()
     c.upload()
-    prob_path = f"{TEST_PATH}/{split}/prob/prob.hdf5"
+    prob_path = f"{TEST_PATH}/{split}/0/prob/prob.hdf5"
     prob_df = vaex.open(prob_path)
     for i in prob_df.data_error_potential.to_numpy():
         assert 0 <= i <= 1

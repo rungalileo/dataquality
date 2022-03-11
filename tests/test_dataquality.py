@@ -1,5 +1,3 @@
-import os
-from importlib import reload
 from random import random
 from typing import Callable
 
@@ -30,7 +28,7 @@ def test_threaded_logging_and_upload(
     Tests that threaded calls to upload still yield non-missing datasets
     """
     num_records = 32
-    num_logs = 200
+    num_logs = 20
     num_emb = 50
     _log_text_classification_data(
         num_records=num_records, num_logs=num_logs, num_emb=num_emb
@@ -57,7 +55,7 @@ def test_multi_label_logging(
     """
     set_test_config(task_type=TaskType.text_multi_label)
     num_records = 32
-    num_logs = 200
+    num_logs = 20
     num_emb = 50
     _log_text_classification_data(
         num_records=num_records, num_logs=num_logs, num_emb=num_emb, multi_label=True
@@ -154,20 +152,3 @@ def test_logging_duplicate_ids(
     finally:
         # Mock finish() call without calling the API
         ThreadPoolManager.wait_for_threads()
-
-
-def test_config_no_vars(monkeypatch):
-    """Should throw a nice error if we don't set our env vars"""
-    x = os.getenv("GALILEO_API_URL")
-    os.environ["GALILEO_API_URL"] = ""
-    if os.path.isfile(".galileo/config.json"):
-        os.remove(".galileo/config.json")
-
-    monkeypatch.setattr("builtins.input", lambda inp: "" if "region" in inp else "test")
-    monkeypatch.setattr("getpass.getpass", lambda _: "test_pass")
-
-    reload(dataquality.core._config)
-    assert dataquality.core._config.config.api_url == "http://test"
-    assert dataquality.core._config.config.minio_region == "us-east-1"
-
-    os.environ["GALILEO_API_URL"] = x

@@ -29,6 +29,7 @@ class GalileoModelLoggerAttributes(str, Enum):
     split = "split"  # type: ignore
     epoch = "epoch"
     dep_scores = "dep_scores"
+    user_helper_data = "user_helper_data"
 
     @staticmethod
     def get_valid() -> List[str]:
@@ -114,6 +115,9 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         self.pred_emb: List[List[np.ndarray]] = []
         self.pred_spans: List[List[Dict]] = []
         self.pred_dep: List[List[float]] = []
+
+        # Used for helper data, does not get logged
+        self.user_helper_data: Dict[str, Any] = {}
 
     @staticmethod
     def get_valid_attributes() -> List[str]:
@@ -228,7 +232,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         """
         # use length of the tokens stored to strip the pads
         # Drop the spans post first PAD
-        argmax_indices: List[int] = pred_prob.argmax(axis=1)
+        argmax_indices: List[int] = np.array(pred_prob).argmax(axis=1)
         pred_sequence: List[str] = [
             self.logger_config.labels[x] for x in argmax_indices
         ][0:sample_len]
@@ -506,6 +510,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             predicted spans which are padded by the model
         :return: The DEP score per-token for both the gold spans and pred spans
         """
+        pred_prob = np.array(pred_prob)
         label2idx = {l: i for i, l in enumerate(self.logger_config.labels)}
         argmax_indices: List[int] = pred_prob.argmax(axis=1).tolist()
         pred_sequence: List[str] = [
