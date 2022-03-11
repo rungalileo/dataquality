@@ -15,5 +15,9 @@ class BaseLoggerConfig(BaseModel):
     cur_epoch: Optional[int]
     cur_split: Optional[Split]
 
+    def reset(self) -> None:
+        """Reset all class vars"""
+        self.__init__()
+
 
 base_logger_config = BaseLoggerConfig()
