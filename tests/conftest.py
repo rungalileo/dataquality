@@ -4,8 +4,10 @@ from typing import Any, Callable, Dict, Generator, List
 from uuid import uuid4
 
 import pytest
+import spacy
 from vaex.dataframe import DataFrame
 
+os.environ["GALILEO_CONSOLE_URL"] = "http://localhost:3000"
 from dataquality import config
 from dataquality.clients import objectstore
 from dataquality.loggers import BaseGalileoLogger
@@ -14,7 +16,7 @@ from dataquality.schemas.task_type import TaskType
 config.current_project_id = uuid4()
 config.current_run_id = uuid4()
 
-DEFAULT_API_URL = "http://localhost:8000"
+DEFAULT_API_URL = "http://localhost:8088"
 DEFAULT_MINIO_URL = "127.0.0.1:9000"
 
 LOCATION = (
@@ -25,6 +27,8 @@ TEST_STORE_DIR = "TEST_STORE"
 TEST_PATH = f"{LOCATION}/{TEST_STORE_DIR}"
 SPLITS = ["training", "test"]
 SUBDIRS = ["data", "emb", "prob"]
+
+spacy.util.fix_random_seed()
 
 
 @pytest.fixture(scope="function")
@@ -77,7 +81,7 @@ def patch_object_upload(self: Any, df: DataFrame, object_name: str) -> None:
     """
     # separate folder per split (test, train, val) and data type (emb, prob, data)
     split, epoch, data_type, file_name = object_name.split("/")[-4:]
-    export_path = f"{TEST_PATH}/{split}/{data_type}"
+    export_path = f"{TEST_PATH}/{split}/{epoch}/{data_type}"
     export_loc = f"{export_path}/{file_name}"
 
     if not os.path.isdir(export_path):
