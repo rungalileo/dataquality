@@ -59,6 +59,10 @@ def validate_uploaded_data(
             == sorted(emb["id"].unique())
             == sorted(prob["id"].unique())
         )
+        # Since we log logits, the probs should all sum to 1
+        for col in prob.get_column_names(regex="prob*"):
+            probs = prob[col].values
+            assert np.allclose(1, np.sum(probs, axis=-1))
         if multi_label:
             for c in prob.get_column_names():
                 assert c == "id" or c.startswith("prob_") or c.startswith("gold_")
@@ -128,14 +132,14 @@ def _log_text_classification_data(
         for ln in tqdm(range(num_logs)):
             emb = [[random() for _ in range(num_emb)] for _ in range(num_records)]
             if multi_label:
-                probs = []
+                logits = []
                 for i in range(num_records):
-                    probs_per_task = []
+                    logits_per_task = []
                     for num_labels in num_labels_in_task:
-                        probs_per_task.append(np.random.rand(num_labels))
-                    probs.append(probs_per_task)
+                        logits_per_task.append(np.random.rand(num_labels))
+                    logits.append(logits_per_task)
             else:
-                probs = np.random.rand(num_records, len(set(labels)))
+                logits = np.random.rand(num_records, len(set(labels)))
             epoch = 0
 
             # Need unique ids
@@ -147,4 +151,4 @@ def _log_text_classification_data(
 
             dataquality.set_epoch(epoch)
             dataquality.set_split(split)
-            dataquality.log_model_outputs(emb=emb, probs=probs, ids=ids)
+            dataquality.log_model_outputs(emb=emb, logits=logits, ids=ids)

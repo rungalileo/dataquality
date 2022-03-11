@@ -241,7 +241,6 @@ class ThincModelWrapper(CallableObjectProxy):
         self, model: thinc.model.Model, X: Any, is_train: bool
     ) -> Tuple[Any, Any]:
         """Overwrite this to patch the Thinc model's forward fn"""
-        pass
 
 
 class GalileoTransitionBasedParserModel(ThincModelWrapper):

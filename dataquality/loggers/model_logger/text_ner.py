@@ -1,3 +1,4 @@
+import warnings
 from collections import defaultdict
 from enum import Enum, unique
 from typing import Any, DefaultDict, Dict, List, Optional, Tuple, Union
@@ -22,6 +23,7 @@ class GalileoModelLoggerAttributes(str, Enum):
     pred_spans = "pred_spans"
     pred_dep = "pred_dep"
     probs = "probs"
+    logits = "logits"
     ids = "ids"
     # mixin restriction on str (due to "str".split(...))
     split = "split"  # type: ignore
@@ -44,11 +46,13 @@ class TextNERModelLogger(BaseGalileoModelLogger):
     in length, and an embedding vector of size 768, len(emb) will be 12, and
     np.ndarray.shape is (20, 768).
 
-    * Probabilities: List[np.ndarray]: The NER prediction probabilities from the model
-    for each token. These embeddings are from the tokenized text, and will align with
+    * logits: List[np.ndarray]: The NER prediction logits from the model
+    for each token. These outputs are from the tokenized text, and will align with
     the tokens in the sample. If you have 12 samples in the dataset, with each sample
     of 20 tokens in length, and observed_num_labels as 40, len(probs) will be 12,
     and np.ndarray.shape is (20, 40).
+
+    * probs: Probabilities: List[np.ndarray]: deprecated, use logits
 
     * ids: List[int]: These IDs must align with the input
     IDs for each sample input. This will be used to join them together for analysis
@@ -61,11 +65,11 @@ class TextNERModelLogger(BaseGalileoModelLogger):
     .. code-block:: python
 
         # Logged with `dataquality.log_model_outputs`
-        probs =
-            [np.array([prob(the), prob(president), prob(is), prob(joe),
-            prob(bi), prob(##den), prob(<pad>), prob(<pad>), prob(<pad>)]),
-            np.array([prob(joe), prob(bi), prob(##den), prob(addressed),
-            prob(the), prob(united), prob(states), prob(on), prob(monday)])]
+        logits =
+            [np.array([model(the), model(president), model(is), model(joe),
+            model(bi), model(##den), model(<pad>), model(<pad>), model(<pad>)]),
+            np.array([model(joe), model(bi), model(##den), model(addressed),
+            model(the), model(united), model(states), model(on), model(monday)])]
 
         embs =
             [np.array([embs(the), embs(president), embs(is), embs(joe),
@@ -77,7 +81,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         ids = [0, 1]  # Must match the data input IDs
         split = "training"
         dataquality.log_model_outputs(
-            emb=emb, probs=probs, ids=ids, split=split, epoch=epoch
+            emb=emb, logits=logits, ids=ids, split=split, epoch=epoch
         )
     """
 
@@ -88,6 +92,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         self,
         emb: List[np.ndarray] = None,
         probs: List[np.ndarray] = None,
+        logits: List[np.ndarray] = None,
         ids: Union[List, np.ndarray] = None,
         split: Optional[str] = None,
         epoch: Optional[int] = None,
@@ -96,8 +101,8 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         # Need to compare to None because they may be np arrays which cannot be
         # evaluated with bool directly
         self.emb = emb if emb is not None else []
-        # self.pred_spans = pred_spans if pred_spans is not None else []
         self.probs = probs if probs is not None else []
+        self.logits = logits if logits is not None else []
         self.ids: Union[List, np.ndarray] = ids if ids is not None else []
         self.split = split
         self.epoch = epoch
@@ -129,6 +134,11 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         :return:
         """
         super().validate()
+
+        if len(self.logits):
+            self.probs = self.convert_logits_to_probs(self.logits).tolist()
+        elif len(self.probs):
+            warnings.warn("Usage of probs is deprecated, use logits instead")
 
         emb_len = len(self.emb)
         prob_len = len(self.probs)
@@ -596,7 +606,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             # Loop through the remaining pred spans
             for pred_span, pred_emb, pred_dep in zip(pred_spans, pred_embs, pred_deps):
                 data = self._construct_pred_span_row(
-                    data, sample_id, pred_span, pred_emb, pred_dep
+                    data, sample_id, pred_span, pred_emb, pred_dep, gold_spans
                 )
         return data
 
@@ -623,6 +633,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         pred_span: Dict,
         pred_emb: np.ndarray,
         pred_dep: float,
+        gold_spans: List[Dict],
     ) -> DefaultDict:
         start, end = pred_span["start"], pred_span["end"]
         data = self._construct_span_row(data, sample_id, start, end, pred_dep, pred_emb)
@@ -630,9 +641,33 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         data["is_pred"].append(True)
         data["pred"].append(pred_span["label"])
         data["gold"].append("")
-        # Pred only spans are known as "ghost" spans (hallucinated)
-        data["galileo_error_type"].append(NERErrorType.ghost_span.value)
+        # Pred only spans are known as "ghost" spans (hallucinated) or no error
+        err = (
+            NERErrorType.ghost_span.value
+            if self._is_ghost_span(pred_span, gold_spans)
+            else NERErrorType.none.value
+        )
+        data["galileo_error_type"].append(err)
         return data
+
+    def _is_ghost_span(self, pred_span: Dict, gold_spans: List[Dict]) -> bool:
+        """Returns if the span is a ghost span
+
+        A ghost span is a prediction span that has no overlap with any gold span.
+        A ghost span is a pred_span where either:
+        1. pred_end <= gold_start
+        or
+        2. pred_start >= gold_end
+
+        For all gold spans
+        """
+        for gold_span in gold_spans:
+            pred_start, pred_end = pred_span["start"], pred_span["end"]
+            gold_start, gold_end = gold_span["start"], gold_span["end"]
+            is_ghost = pred_start >= gold_end or pred_end <= gold_start
+            if not is_ghost:  # If we ever hit not ghost, we can fail fast
+                return False
+        return True
 
     def _construct_span_row(
         self, d: DefaultDict, id: int, start: int, end: int, dep: float, emb: ndarray
@@ -680,3 +715,14 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 f"Only {self.get_valid_attributes()}"
             )
         super().__setattr__(key, value)
+
+    def convert_logits_to_probs(
+        self, sample_logits: Union[List, np.ndarray]
+    ) -> np.ndarray:
+        """Converts logits to probs via softmax per sample"""
+        # axis ensures that in a matrix of probs with dims num_samples x num_classes
+        # we take the softmax for each sample
+        token_probs = []
+        for token_logits in sample_logits:
+            token_probs.append(super().convert_logits_to_probs(token_logits))
+        return np.array(token_probs, dtype=object)
