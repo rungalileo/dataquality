@@ -120,7 +120,7 @@ class GalileoEntityRecognizer(CallableObjectProxy):
     """
 
     def __init__(self, ner: EntityRecognizer):
-        super(GalileoEntityRecognizer, self).__init__(ner)
+        super().__init__(ner)
         validate_obj(ner, check_type=EntityRecognizer, has_attr="model")
 
         # Assert we are working with the 'ner' component and not 'beam_ner'
@@ -233,7 +233,7 @@ class ThincModelWrapper(CallableObjectProxy):
     """
 
     def __init__(self, model: thinc.model.Model):
-        super(ThincModelWrapper, self).__init__(model)
+        super().__init__(model)
         validate_obj(model, check_type=thinc.model.Model, has_attr="_func")
 
         self._self_orig_forward = model._func
@@ -250,7 +250,7 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
     expected_model_name: str = "parser_model"
 
     def __init__(self, model: thinc.model.Model):
-        super(GalileoTransitionBasedParserModel, self).__init__(model)
+        super().__init__(model)
         if not model.name == GalileoTransitionBasedParserModel.expected_model_name:
             raise GalileoException(
                 "Expected the TransitionBasedParser Thinc Model to "
@@ -295,7 +295,7 @@ class GalileoParserStepModel(ThincModelWrapper):
     expected_model_name: str = "parser_step_model"
 
     def __init__(self, model: ParserStepModel, model_logger: TextNERModelLogger):
-        super(GalileoParserStepModel, self).__init__(model)
+        super().__init__(model)
         if not model.name == GalileoParserStepModel.expected_model_name:
             raise GalileoException(
                 "Expected the ParserStepModel Thinc Model "
@@ -393,7 +393,7 @@ class GalileoParserStepModel(ThincModelWrapper):
 
 class GalileoState2Vec(CallableObjectProxy):
     def __init__(self, model: State2Vec, model_logger: TextNERModelLogger):
-        super(GalileoState2Vec, self).__init__(model)
+        super().__init__(model)
         validate_obj(model, State2Vec, "__call__")
 
         self._self_model_logger = model_logger

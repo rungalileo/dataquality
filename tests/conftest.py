@@ -7,21 +7,17 @@ import pytest
 import spacy
 from vaex.dataframe import DataFrame
 
-os.environ["GALILEO_CONSOLE_URL"] = "http://localhost:3000"
-from dataquality import config  # noqa
-from dataquality.clients import objectstore  # noqa
-from dataquality.loggers import BaseGalileoLogger  # noqa
-from dataquality.schemas.task_type import TaskType  # noqa
+from dataquality import config
+from dataquality.clients import objectstore
+from dataquality.loggers import BaseGalileoLogger
+from dataquality.schemas.task_type import TaskType
 
 DEFAULT_API_URL = "http://localhost:8088"
 DEFAULT_MINIO_URL = "127.0.0.1:9000"
 DEFAULT_PROJECT_ID = UUID("399057bc-b276-4027-a5cf-48893ac45388")
 DEFAULT_RUN_ID = UUID("399057bc-b276-4027-a5cf-48893ac45388")
 
-LOCATION = (
-    f"{BaseGalileoLogger.LOG_FILE_DIR}/{config.current_project_id}"
-    f"/{config.current_run_id}"
-)
+LOCATION = f"{BaseGalileoLogger.LOG_FILE_DIR}/{DEFAULT_PROJECT_ID}" f"/{DEFAULT_RUN_ID}"
 TEST_STORE_DIR = "TEST_STORE"
 TEST_PATH = f"{LOCATION}/{TEST_STORE_DIR}"
 SPLITS = ["training", "test"]
@@ -51,13 +47,13 @@ def set_test_config(
     default_api_url: str = DEFAULT_API_URL,
     default_minio_url: str = DEFAULT_MINIO_URL,
 ) -> Callable:
-    print("RUNNING")
     config.token = default_token
     config.task_type = default_task_type
     config.api_url = default_api_url
     config.minio_url = default_minio_url
     config.current_run_id = DEFAULT_RUN_ID
     config.current_project_id = DEFAULT_PROJECT_ID
+    print(config)
 
     def curry(**kwargs: Dict[str, Any]) -> None:
         # Override test config with custom value by currying

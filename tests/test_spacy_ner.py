@@ -19,20 +19,21 @@ from dataquality.schemas.task_type import TaskType
 from tests.conftest import LOCATION
 from tests.utils.spacy_integration import load_ner_data_from_local, train_model
 from tests.utils.spacy_integration_constants import (
+    NER_CLASS_LABELS,
+    NER_TEST_DATA,
+    NER_TRAINING_DATA,
     TestSpacyNerConstants,
-    class_labels,
-    test_data,
-    training_data,
 )
 
 
 def test_log_input_examples(set_test_config, cleanup_after_use):
     set_test_config(task_type=TaskType.text_ner)
+    text_ner_logger_config.gold_spans = {}
     nlp = spacy.blank("en")
     nlp.add_pipe("ner")
 
     training_examples = []
-    for text, annotations in training_data:
+    for text, annotations in NER_TRAINING_DATA:
         doc = nlp.make_doc(text)
         training_examples.append(Example.from_dict(doc, annotations))
 
@@ -55,7 +56,7 @@ def test_log_input_examples(set_test_config, cleanup_after_use):
     assert logged_data["split"].tolist() == ["training"] * len(training_examples)
     assert all(
         [
-            text == training_data[i][0]
+            text == NER_TRAINING_DATA[i][0]
             for i, text in enumerate(logged_data["text"].tolist())
         ]
     )
@@ -71,7 +72,7 @@ def test_log_input_examples(set_test_config, cleanup_after_use):
             end_char_idx = logged_token_indices[i][2 * ent[1] - 1]
             ents_as_char_idxs.append((start_char_idx, end_char_idx, ent[2]))
 
-        assert training_data[i][1]["entities"] == ents_as_char_idxs
+        assert NER_TRAINING_DATA[i][1]["entities"] == ents_as_char_idxs
 
 
 def test_watch(set_test_config, cleanup_after_use):
@@ -80,7 +81,7 @@ def test_watch(set_test_config, cleanup_after_use):
     nlp.add_pipe("ner")
 
     training_examples = []
-    for text, annotations in training_data:
+    for text, annotations in NER_TRAINING_DATA:
         doc = nlp.make_doc(text)
         training_examples.append(Example.from_dict(doc, annotations))
 
@@ -88,7 +89,7 @@ def test_watch(set_test_config, cleanup_after_use):
     watch(nlp)
 
     assert text_ner_logger_config.user_data["nlp"] == nlp
-    assert dataquality.get_data_logger().logger_config.labels == class_labels
+    assert dataquality.get_data_logger().logger_config.labels == NER_CLASS_LABELS
     assert dataquality.get_data_logger().logger_config.tagging_schema == "BILOU"
 
     assert isinstance(nlp.get_pipe("ner"), EntityRecognizer)
@@ -104,7 +105,7 @@ def test_unwatch(set_test_config):
     original_ner = nlp.add_pipe("ner")
 
     training_examples = []
-    for text, annotations in training_data:
+    for text, annotations in NER_TRAINING_DATA:
         doc = nlp.make_doc(text)
         training_examples.append(Example.from_dict(doc, annotations))
 
@@ -126,14 +127,18 @@ def test_embeddings_get_updated(cleanup_after_use, set_test_config):
     and would make our user's embeddings seem meaningless
     """
     set_test_config(task_type=TaskType.text_ner)
-    train_model(training_data=training_data, test_data=training_data, num_epochs=2)
+    train_model(
+        training_data=NER_TRAINING_DATA, test_data=NER_TRAINING_DATA, num_epochs=2
+    )
 
     _, embs, _ = load_ner_data_from_local("training", epoch=1)
     embs = embs["emb"].to_numpy()
 
     dataquality.get_data_logger()._cleanup()
 
-    train_model(training_data=training_data, test_data=training_data, num_epochs=1)
+    train_model(
+        training_data=NER_TRAINING_DATA, test_data=NER_TRAINING_DATA, num_epochs=1
+    )
 
     _, embs_2, _ = load_ner_data_from_local("training", epoch=0)
     embs_2 = embs_2["emb"].to_numpy()
@@ -144,15 +149,18 @@ def test_embeddings_get_updated(cleanup_after_use, set_test_config):
 
 def test_spacy_ner(cleanup_after_use, set_test_config) -> None:
     """An end to end test of functionality"""
+    spacy.util.fix_random_seed()
     set_test_config(task_type=TaskType.text_ner)
     num_epochs = 2
-    training_losses = train_model(training_data, test_data, num_epochs=num_epochs)
-
-    training_losses = np.array(training_losses).astype(np.float16)
-    res = np.array(
-        [25.50000334, 14.20009732, 41.1032235, 13.86421746], dtype=np.float16
+    training_losses = train_model(
+        NER_TRAINING_DATA, NER_TEST_DATA, num_epochs=num_epochs
     )
-    assert np.allclose(training_losses, res)
+
+    training_losses = np.array(training_losses).astype(np.float32)
+    res = np.array(
+        [25.50000334, 14.20009732, 41.1032235, 13.86421746], dtype=np.float32
+    )
+    assert np.allclose(training_losses, res, atol=1e-07)
 
     data, embs, probs = load_ner_data_from_local("training", epoch=num_epochs - 1)
 

@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-training_data = [
+NER_TRAINING_DATA = [
     (
         "what is SEMRUSH PRO? Can you run complex queries ? Can you identify "
         "active usage ?",
@@ -34,11 +34,11 @@ training_data = [
 ]
 
 
-test_data = [
+NER_TEST_DATA = [
     ("Thank you for your subscription renewal", {"entities": [(32, 39, "Renew")]}),
 ]
 
-class_labels = [
+NER_CLASS_LABELS = [
     "B-Questions About the Product",
     "B-Potential Upsell",
     "B-Action item accomplished",
@@ -71,7 +71,7 @@ class TestSpacyNerConstants:
         data={
             "id": range(5),
             "split": ["training"] * 5,
-            "text": [data_sample[0] for data_sample in training_data],
+            "text": [data_sample[0] for data_sample in NER_TRAINING_DATA],
             "text_token_indices": [
                 np.array(
                     [
