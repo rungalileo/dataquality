@@ -104,11 +104,12 @@ def watch(nlp: Language) -> None:
     nlp.rename_pipe("galileo_ner", "ner")
 
 
-
 def unwatch(nlp: Language) -> None:
     """Returns spacy nlp Language component to its original unpatched state"""
-    raise GalileoException("Coming soon! Discussing here: "
-                           "https://github.com/explosion/spaCy/discussions/10443")
+    raise GalileoException(
+        "Coming soon! Discussing here: "
+        "https://github.com/explosion/spaCy/discussions/10443"
+    )
 
 
 class GalileoEntityRecognizer(CallableObjectProxy):
@@ -236,7 +237,9 @@ class ThincModelWrapper(CallableObjectProxy):
         self._self_orig_forward = model._func
         model._func = self._self__func
 
-    def _self__func(self, model: thinc.model.Model, X: Any, is_train: bool) -> Tuple[Any, Any]:
+    def _self__func(
+        self, model: thinc.model.Model, X: Any, is_train: bool
+    ) -> Tuple[Any, Any]:
         """Overwrite this to patch the Thinc model's forward fn"""
         pass
 
@@ -342,8 +345,8 @@ class GalileoParserStepModel(ThincModelWrapper):
         # if we are at the end of the batch
         if all(
             [
-                len(model_logger.probs[i]) ==
-                model_logger.user_helper_data["expected_lengths"][i]
+                len(model_logger.probs[i])
+                == model_logger.user_helper_data["expected_lengths"][i]
                 for i in range(len(model_logger.ids))
             ]
         ):

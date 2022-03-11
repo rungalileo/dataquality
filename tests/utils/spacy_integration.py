@@ -2,6 +2,7 @@ import hashlib
 from typing import Dict, List, Tuple
 
 import numpy as np
+import pandas as pd
 import spacy
 import vaex
 from spacy.language import Doc
@@ -10,7 +11,6 @@ from spacy.util import minibatch
 from thinc.model import Model
 from tqdm import tqdm
 from vaex.dataframe import DataFrameLocal
-import pandas as pd
 
 import dataquality
 from dataquality.core.integrations.spacy import log_input_examples, watch
@@ -61,7 +61,6 @@ def train_model(
     # Evaluation Loop
     # TODO: Should change this with an actual evaluation loop
 
-
     logger = dataquality.get_data_logger(dataquality.config.task_type)
     logger.upload()
 
@@ -69,7 +68,8 @@ def train_model(
 
 
 def load_ner_data_from_local(
-    split: str, epoch: int,
+    split: str,
+    epoch: int,
 ) -> (pd.DataFrame, DataFrameLocal, pd.DataFrame):
     """Loads post-logging locally created files.
 
@@ -94,7 +94,7 @@ def load_ner_data_from_local(
 
     return (
         split_output_data["data"].to_pandas_df(),
-        split_output_data["emb"], # can't convert nested arrays to pandas df
+        split_output_data["emb"],  # can't convert nested arrays to pandas df
         split_output_data["prob"].to_pandas_df(),
     )
 
