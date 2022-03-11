@@ -88,7 +88,7 @@ def watch(nlp: Language) -> None:
     #                   "Creating one with the project name `{}` and run_name `{}`")
     ner = nlp.get_pipe("ner")
 
-    if "O" not in ner.move_names:
+    if "O" not in ner.move_names:  # type: ignore
         raise GalileoException(
             "Missing the 'O' tag in the model's moves, are you sure you have"
             "already called 'nlp.begin_training()' or "
@@ -96,7 +96,7 @@ def watch(nlp: Language) -> None:
         )
 
     text_ner_logger_config.user_data["nlp"] = nlp
-    dataquality.set_labels_for_run(ner.move_names)
+    dataquality.set_labels_for_run(ner.move_names)  # type: ignore
     dataquality.set_tagging_schema(TaggingSchema.BILOU)
 
     nlp.add_pipe("galileo_ner")
@@ -163,7 +163,9 @@ class GalileoEntityRecognizer(CallableObjectProxy):
         """Copied from the EntityRecognizer's predict, but calls our greedy_parse"""
         if isinstance(docs, Doc):
             docs = [docs]
-        if not any(filter(lambda doc: len(doc), docs)):
+        # Ignore mypy because Doc implements __len__ but Spacy doesn't realize
+        # https://github.com/explosion/spaCy/blob/master/spacy/tokens/doc.pyx#L489
+        if not any(filter(lambda doc: len(doc), docs)):  # type: ignore
             result = self.moves.init_batch(docs)
             return result
 
@@ -204,7 +206,7 @@ class GalileoEntityRecognizer(CallableObjectProxy):
             self.set_annotations([doc], scores)
             return doc
         except Exception as e:
-            error_handler(self.name, self, [doc], e)
+            return error_handler(self.name, self, [doc], e)
 
 
 @Language.factory("galileo_ner")
@@ -235,7 +237,8 @@ class ThincModelWrapper(CallableObjectProxy):
         validate_obj(model, check_type=thinc.model.Model, has_attr="_func")
 
         self._self_orig_forward = model._func
-        model._func = self._self__func
+        # https://github.com/python/mypy/issues/2427
+        model._func = self._self__func  # type: ignore
 
     def _self__func(
         self, model: thinc.model.Model, X: Any, is_train: bool
@@ -277,8 +280,10 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
             )
 
         model_logger.ids = [doc.user_data["id"] for doc in X]
-        model_logger.probs = [[] for _ in range(len(X))]
-        model_logger.emb = [[] for _ in range(len(X))]
+        # These start as lists to append values, but are then converted to numpy
+        # arrays before logging. So we ignore mypy
+        model_logger.probs = [[] for _ in range(len(X))]  # type: ignore
+        model_logger.emb = [[] for _ in range(len(X))]  # type: ignore
 
         model_logger.user_helper_data["_spacy_state_for_pred"] = [None] * len(X)
         model_logger.user_helper_data["expected_lengths"] = [len(doc) for doc in X]
@@ -323,14 +328,15 @@ class GalileoParserStepModel(ThincModelWrapper):
             # In case the order of X is different than the original X of docs
             # Assumes passed in data has the "id" user_data appended, which we
             # automatically append with our log_training call.
-            model_logger_idx = model_logger.ids.index(state.doc.user_data["id"])
+            model_logger_idx = list(model_logger.ids).index(state.doc.user_data["id"])
             model_logger_idxs.append(model_logger_idx)
 
             model_logger.user_helper_data["_spacy_state_for_pred"][
                 model_logger_idx
             ] = state.copy()
 
-            model_logger.probs[model_logger_idx].append(logits[i])
+            # Because this is still a list (see L283) we can append
+            model_logger.probs[model_logger_idx].append(logits[i])  # type: ignore
 
         ner = text_ner_logger_config.user_data["nlp"].get_pipe("ner")
         ner.transition_states(
@@ -365,6 +371,9 @@ class GalileoParserStepModel(ThincModelWrapper):
             probabilities_for_docs: List[List] = [
                 [] for _ in range(len(predictions_for_docs))
             ]
+            doc_probs_ndarray: List[np.ndarray] = [
+                np.empty((0, 0)) for _ in range(len(predictions_for_docs))
+            ]
 
             for doc_idx, logits_for_doc in enumerate(model_logger.probs):
                 for token_idx, token_logits in enumerate(logits_for_doc):
@@ -374,9 +383,9 @@ class GalileoParserStepModel(ThincModelWrapper):
                     probabilities_for_docs[doc_idx].append(probs)
 
             for i in range(len(probabilities_for_docs)):
-                probabilities_for_docs[i] = np.array(probabilities_for_docs[i])
+                doc_probs_ndarray[i] = np.array(probabilities_for_docs[i])
                 model_logger.emb[i] = np.array(model_logger.emb[i])
-            model_logger.probs = probabilities_for_docs
+            model_logger.probs = doc_probs_ndarray
             model_logger.log()
 
         return scores, backprop_fn
@@ -388,18 +397,22 @@ class GalileoState2Vec(CallableObjectProxy):
         validate_obj(model, State2Vec, "__call__")
 
         self._self_model_logger = model_logger
-        self._self_X = None
+        self._self_X: List[StateClass] = []
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args: Any, **kwargs: Any) -> Tuple[np.ndarray, np.ndarray]:
         """Overwrites forward to capture embeddings and add to model_logger"""
         embeddings, embeddings_bp = self.__wrapped__(*args, **kwargs)
 
         # _self.X needs to be set externally to communicate where these embs belong
         # in the model wrapper. Maybe this would be better in some more global state
         for i, state in enumerate(self._self_X):
-            model_logger_idx = self._self_model_logger.ids.index(
+            model_logger_idx = list(self._self_model_logger.ids).index(
                 state.doc.user_data["id"]
             )
-            self._self_model_logger.emb[model_logger_idx].append(embeddings[i])
+            # At this point, we are treating embeddings as a list before converting
+            # to a numpy array for logging
+            self._self_model_logger.emb[model_logger_idx].append(  # type: ignore
+                embeddings[i]
+            )
 
         return embeddings, embeddings_bp

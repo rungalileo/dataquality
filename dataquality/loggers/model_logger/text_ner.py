@@ -232,7 +232,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         """
         # use length of the tokens stored to strip the pads
         # Drop the spans post first PAD
-        argmax_indices: List[int] = pred_prob.argmax(axis=1)
+        argmax_indices: List[int] = np.array(pred_prob).argmax(axis=1)
         pred_sequence: List[str] = [
             self.logger_config.labels[x] for x in argmax_indices
         ][0:sample_len]
@@ -510,6 +510,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             predicted spans which are padded by the model
         :return: The DEP score per-token for both the gold spans and pred spans
         """
+        pred_prob = np.array(pred_prob)
         label2idx = {l: i for i, l in enumerate(self.logger_config.labels)}
         argmax_indices: List[int] = pred_prob.argmax(axis=1).tolist()
         pred_sequence: List[str] = [

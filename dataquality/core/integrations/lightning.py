@@ -27,7 +27,13 @@ class DataQualityCallback(Callback):
     """
 
     def __init__(self) -> None:
-        self.checkpoint_data = {"epoch_start": False, "epoch": 0}
+        self.checkpoint_data = {
+            "epoch_start": False,
+            "epoch": 0,
+            "train_log": False,
+            "val_log": False,
+            "test_log": False,
+        }
 
     def on_load_checkpoint(
         self,
@@ -118,6 +124,7 @@ class DataQualityCallback(Callback):
             return
 
     def on_init_start(self, trainer: "pl.Trainer") -> None:
+        self.checkpoint_data["epoch"] = 0
         assert (
             config.current_project_id and config.current_run_id
         ), "You must initialize dataquality before invoking a callback!"
@@ -125,17 +132,23 @@ class DataQualityCallback(Callback):
     def on_train_start(
         self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
     ) -> None:
-        self._log_input_data(Split.training, trainer.train_dataloader)
+        if not self.checkpoint_data["train_log"]:
+            self._log_input_data(Split.training, trainer.train_dataloader)
+            self.checkpoint_data["train_log"] = True
 
     def on_test_start(
         self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
     ) -> None:
-        self._log_input_data(Split.test, trainer.test_dataloaders)
+        if not self.checkpoint_data["test_log"]:
+            self._log_input_data(Split.test, trainer.test_dataloaders)
+            self.checkpoint_data["test_log"] = True
 
     def on_validation_start(
         self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
     ) -> None:
-        self._log_input_data(Split.validation, trainer.val_dataloaders)
+        if not self.checkpoint_data["val_log"]:
+            self._log_input_data(Split.validation, trainer.val_dataloaders)
+            self.checkpoint_data["val_log"] = True
 
     def on_predict_start(
         self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"

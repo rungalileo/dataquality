@@ -14,7 +14,7 @@ from tests.conftest import LOCATION, SPLITS, SUBDIRS, TEST_PATH
 
 NUM_RECORDS = 50
 NUM_LOGS = 30
-MULTI_LABEL_NUM_TASKS = 10
+MULTI_LABEL_NUM_TASKS = 4
 
 
 def validate_uploaded_data(
@@ -32,9 +32,14 @@ def validate_uploaded_data(
         split_output_data = {}
         for subdir in SUBDIRS:
             # epoch = 0 for general testing
-            file_path = f"{TEST_PATH}/{split}/0/{subdir}/{subdir}.hdf5"
-            # Ensure files were cleaned up
-            data = vaex.open(file_path)
+            try:
+                file_path = f"{TEST_PATH}/{split}/0/{subdir}/{subdir}.hdf5"
+                data = vaex.open(file_path)
+            except FileNotFoundError:
+                # Handle autolog test
+                file_path = f"{TEST_PATH}/{split}/1/{subdir}/{subdir}.hdf5"
+                data = vaex.open(file_path)
+
             prob_cols = data.get_column_names(regex="prob*")
             for c in data.get_column_names():
                 if c in prob_cols + ["emb"]:

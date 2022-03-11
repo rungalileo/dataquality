@@ -26,7 +26,7 @@ from tests.utils.spacy_integration_constants import (
 )
 
 
-def test_log_input_examples(set_test_config):
+def test_log_input_examples(set_test_config, cleanup_after_use):
     set_test_config(task_type=TaskType.text_ner)
     nlp = spacy.blank("en")
     nlp.add_pipe("ner")
@@ -75,7 +75,7 @@ def test_log_input_examples(set_test_config):
         assert training_data[i][1]["entities"] == ents_as_char_idxs
 
 
-def test_watch(set_test_config):
+def test_watch(set_test_config, cleanup_after_use):
     set_test_config(task_type=TaskType.text_ner)
     nlp = spacy.blank("en")
     nlp.add_pipe("ner")
@@ -99,7 +99,7 @@ def test_watch(set_test_config):
 @pytest.mark.skip(
     reason="Implementation hinges on more info from spacy or a bug fix, " "see unwatch"
 )
-def test_unwatch(set_test_config):
+def test_unwatch(set_test_config, cleanup_after_use):
     set_test_config(task_type=TaskType.text_ner)
     nlp = spacy.blank("en")
     original_ner = nlp.add_pipe("ner")
@@ -129,14 +129,14 @@ def test_embeddings_get_updated(cleanup_after_use, set_test_config):
     set_test_config(task_type=TaskType.text_ner)
     train_model(training_data=training_data, test_data=training_data, num_epochs=2)
 
-    _, embs, _ = load_ner_data_from_local("training")
+    _, embs, _ = load_ner_data_from_local("training", epoch=1)
     embs = embs["emb"].to_numpy()
 
     dataquality.get_data_logger()._cleanup()
 
     train_model(training_data=training_data, test_data=training_data, num_epochs=1)
 
-    _, embs_2, _ = load_ner_data_from_local("training")
+    _, embs_2, _ = load_ner_data_from_local("training", epoch=0)
     embs_2 = embs_2["emb"].to_numpy()
 
     assert embs.shape == embs_2.shape
@@ -149,9 +149,11 @@ def test_spacy_ner(cleanup_after_use, set_test_config) -> None:
     num_epochs = 2
     training_losses = train_model(training_data, test_data, num_epochs=num_epochs)
 
-    assert np.allclose(
-        training_losses, [25.50000334, 14.20009732, 41.1032235, 13.86421746]
+    training_losses = np.array(training_losses).astype(np.float16)
+    res = np.array(
+        [25.50000334, 14.20009732, 41.1032235, 13.86421746], dtype=np.float16
     )
+    assert np.allclose(training_losses, res)
 
     data, embs, probs = load_ner_data_from_local("training", epoch=num_epochs - 1)
 
@@ -170,11 +172,17 @@ def test_spacy_ner(cleanup_after_use, set_test_config) -> None:
         probs.sort_values(by=["sample_id", "span_start"]).drop("id", axis=1).round(4)
     )
     assert len(probs) == 8
-    assert probs.equals(TestSpacyNerConstants.gt_probs)
+
+    gt_probs = TestSpacyNerConstants.gt_probs
+    for c in probs.columns:
+        if np.issubdtype(probs[c].dtype, np.number):
+            assert np.allclose(probs[c].values, gt_probs[c].values)
+        else:
+            assert (probs[c].values == gt_probs[c].values).all()
 
 
 @pytest.mark.skip(reason="SpacyPatchState no longer exists")
-def test_galileo_transition_based_parser_forward(set_test_config):
+def test_galileo_transition_based_parser_forward(set_test_config, cleanup_after_use):
     set_test_config(task_type=TaskType.text_ner)
     nlp = spacy.blank("en")
 
