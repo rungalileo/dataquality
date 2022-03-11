@@ -59,7 +59,6 @@ def test_log_input_examples(set_test_config, cleanup_after_use):
             for i, text in enumerate(logged_data["text"].tolist())
         ]
     )
-
     # Checks for logged gold spans matching converts from token to char idxs
     logged_token_indices = logged_data["text_token_indices"].tolist()
     for i, (split_plus_id, ents) in enumerate(
@@ -99,7 +98,7 @@ def test_watch(set_test_config, cleanup_after_use):
 @pytest.mark.skip(
     reason="Implementation hinges on more info from spacy or a bug fix, " "see unwatch"
 )
-def test_unwatch(set_test_config, cleanup_after_use):
+def test_unwatch(set_test_config):
     set_test_config(task_type=TaskType.text_ner)
     nlp = spacy.blank("en")
     original_ner = nlp.add_pipe("ner")
