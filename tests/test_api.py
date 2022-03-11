@@ -146,9 +146,7 @@ def test_get_run_status_project_default_current_run(
     status = api_client.get_run_status()
     assert status["status"] == "finished"
     mock_make_request.assert_called_once_with(
-        "get",
-        "https://api.fake.com/proc/pool/status",
-        params={"project_id": project_id, "run_id": run_id},
+        "get", f"https://api.fake.com/projects/{project_id}/runs/{run_id}/jobs/status"
     )
 
 
@@ -179,9 +177,7 @@ def test_get_run_status_project_specified_run(
     assert config_project_id != project_id
     assert config_run_id != run_id
     mock_make_request.assert_called_once_with(
-        "get",
-        "https://api.fake.com/proc/pool/status",
-        params={"project_id": project_id, "run_id": run_id},
+        "get", f"https://api.fake.com/projects/{project_id}/runs/{run_id}/jobs/status"
     )
 
 

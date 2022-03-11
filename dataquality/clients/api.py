@@ -408,8 +408,7 @@ class ApiClient:
             project_name=project_name, run_name=run_name
         )
         url = f"{config.api_url}/{Route.content_path(pid, rid)}/{Route.jobs}/status"
-        params = {"project_id": pid, "run_id": rid}
-        statuses = self.make_request(RequestType.GET, url, params=params)["statuses"]
+        statuses = self.make_request(RequestType.GET, url)["statuses"]
         status = sorted(statuses, key=lambda row: row["timestamp"], reverse=True)[0]
         return status
 
