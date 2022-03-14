@@ -8,7 +8,7 @@ from pydantic.types import UUID4
 from dataquality.core._config import config, url_is_localhost
 from dataquality.exceptions import GalileoException
 from dataquality.schemas import RequestType, Route
-from dataquality.schemas.split import Split
+from dataquality.schemas.split import conform_split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.auth import headers
 
@@ -328,6 +328,28 @@ class ApiClient:
             )
         return slices[0]
 
+    def get_metadata_columns(
+        self, project_name: str, run_name: str, split: str
+    ) -> Dict:
+        """Lists the available metadata columns for a run/split
+
+        Structure of data is:
+        [{
+            "name": str
+            "is_categorical": bool
+            "unique_values": Optional[List]
+            "max": Optional[float]
+            "min": Optional[float]
+        },...]
+        :param project_name:
+        :param run_name:
+        :param split:
+        """
+        project, run = self._get_project_run_id(project_name, run_name)
+        split = conform_split(split)
+        url = f"{config.api_url}/{Route.content_path(project, run, split)}/meta/columns"
+        return self.make_request(RequestType.GET, url)
+
     def export_run(
         self,
         project_name: str,
@@ -335,6 +357,7 @@ class ApiClient:
         split: str,
         file_name: str,
         slice_name: Optional[str] = None,
+        include_metadata: bool = True,
         _include_emb: Optional[bool] = False,
     ) -> None:
         """Export a project/run to disk as a csv file
@@ -344,22 +367,23 @@ class ApiClient:
         :param split: The split to export on
         :param file_name: The file name. Must end in .csv
         :param slice_name: The optional slice name to export. If selected, this data
+        :param include_metadata: If true, include all logged metadata columns in the
+        exported CSV file. Default True
         from this slice will be exported only.
         """
         project, run = self._get_project_run_id(project_name, run_name)
         assert os.path.splitext(file_name)[-1] == ".csv", "File must end in .csv"
-        try:
-            split = Split[split].value
-        except KeyError:
-            raise GalileoException(
-                f"split {split} must be one of {Split.get_valid_attributes()}"
-            )
-        body = dict(
+        split = conform_split(split)
+        body: Dict[str, Any] = dict(
             include_emb=_include_emb,
         )
         if slice_name:
             slice_ = self.get_slice_by_name(project_name, slice_name)
             body["filter_params"] = slice_["logic"]
+
+        if include_metadata:
+            meta_cols = self.get_metadata_columns(project_name, run_name, split)
+            body["meta_cols"] = [i["name"] for i in meta_cols["meta"]]
 
         url = f"{config.api_url}/{Route.content_path(project, run, split)}/export"
         with requests.post(
@@ -409,8 +433,8 @@ class ApiClient:
         )
         url = f"{config.api_url}/{Route.content_path(pid, rid)}/{Route.jobs}/status"
         statuses = self.make_request(RequestType.GET, url)["statuses"]
-        status = sorted(statuses, key=lambda row: row["timestamp"], reverse=True)[0]
-        return status
+        status = sorted(statuses, key=lambda row: row["timestamp"], reverse=True)
+        return status[0] if status else []
 
     def wait_for_run(
         self, project_name: Optional[str] = None, run_name: Optional[str] = None
