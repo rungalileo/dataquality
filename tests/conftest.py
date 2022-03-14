@@ -1,9 +1,10 @@
 import os
 import shutil
 from typing import Any, Callable, Dict, Generator, List
-from uuid import uuid4
+from uuid import UUID
 
 import pytest
+import spacy
 from vaex.dataframe import DataFrame
 
 from dataquality import config
@@ -11,32 +12,32 @@ from dataquality.clients import objectstore
 from dataquality.loggers import BaseGalileoLogger
 from dataquality.schemas.task_type import TaskType
 
-config.current_project_id = uuid4()
-config.current_run_id = uuid4()
+DEFAULT_API_URL = "http://localhost:8088"
+DEFAULT_MINIO_URL = "127.0.0.1:9000"
+DEFAULT_PROJECT_ID = UUID("399057bc-b276-4027-a5cf-48893ac45388")
+DEFAULT_RUN_ID = UUID("399057bc-b276-4027-a5cf-48893ac45388")
 
-DEFAULT_API_URL = os.environ["GALILEO_API_URL"]
-DEFAULT_MINIO_URL = os.environ["GALILEO_MINIO_URL"]
-
-LOCATION = (
-    f"{BaseGalileoLogger.LOG_FILE_DIR}/{config.current_project_id}"
-    f"/{config.current_run_id}"
-)
+LOCATION = f"{BaseGalileoLogger.LOG_FILE_DIR}/{DEFAULT_PROJECT_ID}" f"/{DEFAULT_RUN_ID}"
 TEST_STORE_DIR = "TEST_STORE"
 TEST_PATH = f"{LOCATION}/{TEST_STORE_DIR}"
 SPLITS = ["training", "test"]
 SUBDIRS = ["data", "emb", "prob"]
 
+spacy.util.fix_random_seed()
+
 
 @pytest.fixture(scope="function")
 def cleanup_after_use() -> Generator:
     try:
+        if os.path.isdir(BaseGalileoLogger.LOG_FILE_DIR):
+            shutil.rmtree(BaseGalileoLogger.LOG_FILE_DIR)
         if not os.path.isdir(TEST_PATH):
             for split in SPLITS:
                 for subdir in SUBDIRS:
                     os.makedirs(f"{TEST_PATH}/{split}/{subdir}")
         yield
     finally:
-        shutil.rmtree(LOCATION)
+        shutil.rmtree(BaseGalileoLogger.LOG_FILE_DIR)
 
 
 @pytest.fixture()
@@ -50,6 +51,9 @@ def set_test_config(
     config.task_type = default_task_type
     config.api_url = default_api_url
     config.minio_url = default_minio_url
+    config.current_run_id = DEFAULT_RUN_ID
+    config.current_project_id = DEFAULT_PROJECT_ID
+    print(config)
 
     def curry(**kwargs: Dict[str, Any]) -> None:
         # Override test config with custom value by currying
@@ -77,7 +81,7 @@ def patch_object_upload(self: Any, df: DataFrame, object_name: str) -> None:
     """
     # separate folder per split (test, train, val) and data type (emb, prob, data)
     split, epoch, data_type, file_name = object_name.split("/")[-4:]
-    export_path = f"{TEST_PATH}/{split}/{data_type}"
+    export_path = f"{TEST_PATH}/{split}/{epoch}/{data_type}"
     export_loc = f"{export_path}/{file_name}"
 
     if not os.path.isdir(export_path):

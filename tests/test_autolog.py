@@ -17,10 +17,10 @@ from tests.utils.lightning_model import (
     torch_model,
 )
 
-dataquality.config.task_type = "text_classification"
 
-
-def test_lightning_autolog(cleanup_after_use: Callable) -> None:
+def test_lightning_autolog(
+    cleanup_after_use: Callable, set_test_config: Callable
+) -> None:
     """
     Tests the lightning autolog config and that data is properly stored / logged
     """
@@ -34,8 +34,8 @@ def test_lightning_autolog(cleanup_after_use: Callable) -> None:
         max_epochs=1, num_sanity_val_steps=0, callbacks=[(DataQualityCallback())]
     )
 
-    trainer.fit(model, train_dataloader)
-    trainer.test(model, test_dataloader)
+    trainer.fit(model, train_dataloader)  # Will get logged as epoch 0
+    trainer.test(model, test_dataloader)  # Will get logged as epoch 0
     ThreadPoolManager.wait_for_threads()
     # Mock call to finish
     logger = dataquality.get_data_logger()
@@ -45,7 +45,7 @@ def test_lightning_autolog(cleanup_after_use: Callable) -> None:
     validate_cleanup_data()
 
 
-def test_torch_autolog(cleanup_after_use: Callable) -> None:
+def test_torch_autolog(cleanup_after_use: Callable, set_test_config: Callable) -> None:
     """Tests our watch(model) functionality for pytorch"""
     train_dataloader = torch.utils.data.DataLoader(
         NewsgroupDataset("training"), batch_size=NUM_RECORDS, shuffle=True

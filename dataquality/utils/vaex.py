@@ -48,6 +48,9 @@ def _join_in_out_frames(in_df: DataFrame, out_df: DataFrame) -> DataFrame:
     out_frame = out_df.copy()
     in_frame["split_id"] = in_frame["split"] + in_frame["id"].astype("string")
     out_frame["split_id"] = out_frame["split"] + out_frame["id"].astype("string")
+    print(sorted(in_frame.id.tolist()))
+    print()
+    print(sorted(out_frame.id.tolist()))
     in_out = out_frame.join(
         in_frame, on="split_id", how="inner", lsuffix="_L", rsuffix="_R"
     ).copy()
@@ -78,7 +81,8 @@ def _validate_unique_ids(df: DataFrame) -> None:
         dups = get_dup_ids(df)
         raise GalileoException(
             "It seems as though you do not have unique ids in this "
-            f"split/epoch. Did you provide your own IDs?\n"
+            f"split/epoch. Did you provide your own IDs? Or did you log for the same "
+            f"Split multiple times? Check where you are logging {split} data\n"
             f"split:{split}, epoch:{epoch}, dup ids and counts:{dups}"
         )
 
