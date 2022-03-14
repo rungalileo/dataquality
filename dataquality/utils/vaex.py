@@ -9,6 +9,7 @@ from vaex.arrow.convert import arrow_string_array_from_buffers as convert_bytes
 from vaex.dataframe import DataFrame
 
 from dataquality.exceptions import GalileoException
+from dataquality.loggers.base_logger import BaseLoggerAttributes
 from dataquality.utils import tqdm
 from dataquality.utils.hdf5_store import HDF5_STORE, HDF5Store
 
@@ -165,6 +166,8 @@ def concat_hdf5_files(location: str, prob_only: bool) -> List[str]:
 def drop_empty_columns(df: DataFrame) -> DataFrame:
     """Drops any columns that have no values"""
     cols = df.get_column_names()
+    # Don't need to check the default columns, they've already been validated
+    cols = [c for c in cols if c not in list(BaseLoggerAttributes)]
     col_counts = df.count(cols)
     empty_cols = [col for col, col_count in zip(cols, col_counts) if col_count == 0]
-    return df.drop(*empty_cols)
+    return df.drop(*empty_cols) if empty_cols else df
