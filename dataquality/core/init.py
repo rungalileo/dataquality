@@ -5,6 +5,7 @@ from typing import Dict, Optional
 
 from pydantic.types import UUID4
 
+import dataquality
 from dataquality.clients.api import ApiClient
 from dataquality.core._config import config
 from dataquality.core.auth import login
@@ -183,3 +184,5 @@ def init(
             config.current_run_id,
             overwrite_local=overwrite_local,
         )
+    # Reset all config variables
+    dataquality.get_data_logger().logger_config.reset()
