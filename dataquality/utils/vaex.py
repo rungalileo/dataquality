@@ -46,13 +46,8 @@ def _join_in_out_frames(in_df: DataFrame, out_df: DataFrame) -> DataFrame:
     """Helper function to join our input and output frames"""
     in_frame = in_df.copy()
     out_frame = out_df.copy()
-    in_frame["split_id"] = in_frame["split"] + in_frame["id"].astype("string")
-    out_frame["split_id"] = out_frame["split"] + out_frame["id"].astype("string")
-    print(sorted(in_frame.id.tolist()))
-    print()
-    print(sorted(out_frame.id.tolist()))
     in_out = out_frame.join(
-        in_frame, on="split_id", how="inner", lsuffix="_L", rsuffix="_R"
+        in_frame, on="id", how="inner", lsuffix="_L", rsuffix="_R"
     ).copy()
     if len(in_out) != len(out_frame):
         num_missing = len(out_frame) - len(in_out)
@@ -165,3 +160,11 @@ def concat_hdf5_files(location: str, prob_only: bool) -> List[str]:
                 stores[key].append(d)
         os.remove(fname)
     return str_cols
+
+
+def drop_empty_columns(df: DataFrame) -> DataFrame:
+    """Drops any columns that have no values"""
+    cols = df.get_column_names()
+    col_counts = df.count(cols)
+    empty_cols = [col for col, col_count in zip(cols, col_counts) if col_count == 0]
+    return df.drop(*empty_cols)

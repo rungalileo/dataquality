@@ -333,10 +333,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         """
 
         prob, emb, _ = cls.split_dataframe(out_frame, prob_only)
-        # Take only the sentence rows that are in the split of this model output
-        cur_split = out_frame["split"].unique()[0]
-        in_frame_split = in_frame[in_frame["split"] == cur_split]
-        return BaseLoggerInOutFrames(prob=prob, emb=emb, data=in_frame_split)
+        return BaseLoggerInOutFrames(prob=prob, emb=emb, data=in_frame)
 
     @classmethod
     def split_dataframe(
