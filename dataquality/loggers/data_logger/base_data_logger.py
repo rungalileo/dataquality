@@ -24,6 +24,7 @@ from dataquality.utils.vaex import (
     _join_in_out_frames,
     _validate_unique_ids,
     concat_hdf5_files,
+    drop_empty_columns,
     get_dup_ids,
     valid_ids,
 )
@@ -99,6 +100,10 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             if not os.path.exists(split_loc):
                 continue
 
+            in_frame_split = in_frame[in_frame["split"] == split].copy()
+            # Drop any columns for this split that are empty
+            # (ex: metadata logged for a different split)
+            in_frame_split = drop_empty_columns(in_frame_split)
             for epoch_dir in glob(f"{split_loc}/*"):
                 epoch = int(epoch_dir.split("/")[-1])
                 # For all epochs that aren't the last 2 (early stopping), we only want
@@ -120,7 +125,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                     )
 
                 in_out_frames = cls.process_in_out_frames(
-                    in_frame, out_frame, prob_only
+                    in_frame_split, out_frame, prob_only
                 )
                 prob = in_out_frames.prob
                 emb = in_out_frames.emb

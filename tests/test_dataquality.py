@@ -1,7 +1,9 @@
 from random import random
 from typing import Callable
 
+import numpy as np
 import pytest
+import vaex
 
 import dataquality
 import dataquality.core._config
@@ -9,6 +11,7 @@ from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
+from tests.conftest import TEST_PATH
 from tests.utils.data_utils import (
     NUM_LOGS,
     NUM_RECORDS,
@@ -88,7 +91,7 @@ def test_metadata_logging(
     try:
         # Equivalent to the users `finish` call, but we don't want to clean up files yet
         ThreadPoolManager.wait_for_threads()
-        c = dataquality.get_data_logger("text_classification")
+        c = dataquality.get_data_logger()
         c.upload()
         validate_uploaded_data(meta_cols=meta_cols)
         c._cleanup()
@@ -96,6 +99,50 @@ def test_metadata_logging(
     finally:
         # Mock finish() call without calling the API
         ThreadPoolManager.wait_for_threads()
+
+
+def test_metadata_logging_different_splits(
+    cleanup_after_use: Callable, set_test_config: Callable
+) -> None:
+    """
+    Tests that logging metadata columns only attach to the splits we log them for
+    """
+    dataquality.set_labels_for_run(["APPLE", "ORANGE"])
+    input_data = {
+        "text": ["sentence_1", "sentence_2"],
+        "labels": ["APPLE", "ORANGE"],
+        "split": "training",
+        "meta": {"train_meta_1": [1, 2]},
+        "ids": [1, 2],
+    }
+    dataquality.log_input_data(**input_data)
+    input_data["split"] = "test"
+    input_data["meta"] = {"test_meta_1": ["foo", "bar"]}
+    dataquality.log_input_data(**input_data)
+
+    output_data = {
+        "emb": np.random.rand(2, 100),
+        "logits": np.random.rand(2, 5),
+        "ids": [1, 2],
+        "split": "training",
+        "epoch": 0,
+    }
+    dataquality.log_model_outputs(**output_data)
+    output_data["split"] = "test"
+    dataquality.log_model_outputs(**output_data)
+    dataquality.get_data_logger().upload()
+
+    train_data = vaex.open(f"{TEST_PATH}/training/0/data/data.hdf5")
+    test_data = vaex.open(f"{TEST_PATH}/test/0/data/data.hdf5")
+
+    assert "train_meta_1" in train_data.get_column_names()
+    assert "train_meta_1" not in test_data.get_column_names()
+
+    assert "test_meta_1" in test_data.get_column_names()
+    assert "test_meta_1" not in train_data.get_column_names()
+
+    assert sorted(train_data["train_meta_1"].tolist()) == [1, 2]
+    assert sorted(test_data["test_meta_1"].tolist()) == ["bar", "foo"]
 
 
 def test_metadata_logging_invalid(
