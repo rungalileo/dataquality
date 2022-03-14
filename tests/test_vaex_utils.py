@@ -4,9 +4,9 @@ from dataquality.utils.vaex import drop_empty_columns
 
 
 def test_drop_empty_cols() -> None:
-    df1 = vaex.example()[["x", "y", "z"]]
+    df1 = vaex.from_arrays(x=[1, 2, 3], y=[4, 5, 6], z=[7, 8, 9])
     df1["split"] = vaex.vconstant("training", length=len(df1))
-    df2 = vaex.example()[["vx", "vy", "x", "y"]]
+    df2 = vaex.from_arrays(x=[1, 2, 3], y=[4, 5, 6], xz=[7, 8, 9])
     df2["split"] = vaex.vconstant("test", length=len(df2))
 
     in_frame = vaex.concat([df2, df1])
