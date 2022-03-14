@@ -374,7 +374,7 @@ class ApiClient:
         project, run = self._get_project_run_id(project_name, run_name)
         assert os.path.splitext(file_name)[-1] == ".csv", "File must end in .csv"
         split = conform_split(split)
-        body = dict(
+        body: Dict[str, Any] = dict(
             include_emb=_include_emb,
         )
         if slice_name:
