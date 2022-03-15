@@ -270,7 +270,7 @@ class ApiClient:
         self,
         project_name: str = None,
         run_name: str = None,
-        labels: Optioanl[List[str]] = None,
+        labels: Union[List, List[List]] = None,
     ) -> Dict:
         """Reinitiate a project/run that has already been finished
 
@@ -295,7 +295,7 @@ class ApiClient:
         if config.task_type == TaskType.text_multi_label:
             tasks = self.get_tasks_for_run(project_name, run_name)
             if not labels:
-                labels: Union[List[str], List[List[str]]] = [
+                labels = [
                     self.get_labels_for_run(project_name, run_name, t) for t in tasks
                 ]
         else:
