@@ -266,7 +266,12 @@ class ApiClient:
         res = self.make_request(RequestType.GET, url=url)
         return res["tasks"]
 
-    def reprocess_run(self, project_name: str = None, run_name: str = None) -> Dict:
+    def reprocess_run(
+        self,
+        project_name: str = None,
+        run_name: str = None,
+        labels: Optioanl[List[str]] = None,
+    ) -> Dict:
         """Reinitiate a project/run that has already been finished
 
         If a project and run name have been provided, that project/run will be
@@ -276,6 +281,11 @@ class ApiClient:
         * DEP score
         * UMAP Embeddings for visualization
         * Smart features
+
+        :param project_name: If not set, will use the currently active project
+        :param run_name: If not set, will use the currently active run
+        :param labels: If set, will reprocess the run with these labels. If not set,
+        labels will be used from the previously processed run
         """
         project, run = self._get_project_run_id(project_name, run_name)
         project_name = project_name or self.get_project(project)["name"]
@@ -284,20 +294,28 @@ class ApiClient:
         # Multi-label has tasks and List[List] for labels
         if config.task_type == TaskType.text_multi_label:
             tasks = self.get_tasks_for_run(project_name, run_name)
-            labels: Union[List[str], List[List[str]]] = [
-                self.get_labels_for_run(project_name, run_name, t) for t in tasks
-            ]
+            if not labels:
+                labels: Union[List[str], List[List[str]]] = [
+                    self.get_labels_for_run(project_name, run_name, t) for t in tasks
+                ]
         else:
             tasks = []
-            try:
-                labels = self.get_labels_for_run(project_name, run_name)
-            except GalileoException as e:
-                if "No data found" in str(e):
-                    e = GalileoException(
-                        f"It seems no data is available for run "
-                        f"{project_name}/{run_name}"
-                    )
-                raise e from None
+            if not labels:
+                try:
+                    labels = self.get_labels_for_run(project_name, run_name)
+                except GalileoException as e:
+                    if "No data found" in str(e):
+                        e = GalileoException(
+                            f"It seems no data is available for run "
+                            f"{project_name}/{run_name}"
+                        )
+                    raise e from None
+                # There were no labels available for this run
+                except KeyError:
+                    raise GalileoException(
+                        "It seems we cannot find the labels for this run. Please pass "
+                        "your labels into this function and call again."
+                    ) from None
 
         body = dict(
             project_id=str(project),
