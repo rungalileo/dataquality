@@ -272,11 +272,10 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
         if not all(["id" in doc.user_data for doc in X]):
             raise GalileoException(
                 "One of your model's docs is missing a galileo generated "
-                "id. Did you first log your docs/examples with us using "
-                "`training_examples = dataquality.core.integrations.spacy."
-                "log_input_examples(training_examples, split=training)` "
-                "for example. Make sure to then continue by using "
-                "those Galileo returned training_examples."
+                "id. Did you first log your docs/examples with us using, "
+                "for example, "
+                "`log_input_examples(training_examples, split=training)`?"
+                "Make sure to then continue using 'training_examples'"
             )
 
         model_logger.ids = [doc.user_data["id"] for doc in X]
