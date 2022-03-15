@@ -285,7 +285,8 @@ class ApiClient:
         :param project_name: If not set, will use the currently active project
         :param run_name: If not set, will use the currently active run
         :param labels: If set, will reprocess the run with these labels. If not set,
-        labels will be used from the previously processed run
+        labels will be used from the previously processed run. These must match the
+        labels that were originally logged
         """
         project, run = self._get_project_run_id(project_name, run_name)
         project_name = project_name or self.get_project(project)["name"]
