@@ -100,10 +100,12 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             if not os.path.exists(split_loc):
                 continue
 
-            in_frame_split = in_frame[in_frame["split"] == split].copy()
+            in_frame_split = in_frame[in_frame["split"].str.equals(split)].copy()
             # Drop any columns for this split that are empty
             # (ex: metadata logged for a different split)
             in_frame_split = drop_empty_columns(in_frame_split)
+            # Remove the mask, work with only the filtered rows
+            in_frame_split = in_frame_split.extract()
             for epoch_dir in glob(f"{split_loc}/*"):
                 epoch = int(epoch_dir.split("/")[-1])
                 # For all epochs that aren't the last 2 (early stopping), we only want
