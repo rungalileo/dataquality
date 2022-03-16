@@ -333,8 +333,7 @@ class GalileoParserStepModel(ThincModelWrapper):
                 model_logger_idx
             ] = state.copy()
 
-            # Because this is still a list (see L283) we can append
-            model_logger.log_helper_data["probs"][model_logger_idx].append(logits[i])  # type: ignore
+            model_logger.log_helper_data["probs"][model_logger_idx].append(logits[i])
 
         ner = text_ner_logger_config.user_data["nlp"].get_pipe("ner")
         ner.transition_states(
@@ -409,7 +408,7 @@ class GalileoState2Vec(CallableObjectProxy):
             )
             # At this point, we are treating embeddings as a list before converting
             # to a numpy array for logging
-            self._self_model_logger.log_helper_data["emb"][model_logger_idx].append(  # type: ignore
+            self._self_model_logger.log_helper_data["emb"][model_logger_idx].append(
                 embeddings[i]
             )
 
