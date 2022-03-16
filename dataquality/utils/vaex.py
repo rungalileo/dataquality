@@ -46,6 +46,10 @@ def _save_hdf5_file(location: str, file_name: str, data: Dict) -> None:
 def _join_in_out_frames(in_df: DataFrame, out_df: DataFrame) -> DataFrame:
     """Helper function to join our input and output frames"""
     in_frame = in_df.copy()
+    # There is an odd vaex bug where sometimes we lose the continuity of this dataframe
+    # it's hard to reproduce, only shows up on linux, and hasn't been pinpointed yet
+    # but materializing the join-key column fixes the issue
+    in_frame["id"] = in_frame["id"].values
     out_frame = out_df.copy()
     in_out = out_frame.join(
         in_frame, on="id", how="inner", lsuffix="_L", rsuffix="_R"
