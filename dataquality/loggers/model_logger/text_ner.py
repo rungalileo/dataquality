@@ -29,7 +29,7 @@ class GalileoModelLoggerAttributes(str, Enum):
     split = "split"  # type: ignore
     epoch = "epoch"
     dep_scores = "dep_scores"
-    user_helper_data = "user_helper_data"
+    log_helper_data = "log_helper_data"
 
     @staticmethod
     def get_valid() -> List[str]:
@@ -117,7 +117,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         self.pred_dep: List[List[float]] = []
 
         # Used for helper data, does not get logged
-        self.user_helper_data: Dict[str, Any] = {}
+        self.log_helper_data: Dict[str, Any] = {}
 
     @staticmethod
     def get_valid_attributes() -> List[str]:

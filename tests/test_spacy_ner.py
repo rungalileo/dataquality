@@ -160,7 +160,7 @@ def test_spacy_ner(cleanup_after_use, set_test_config) -> None:
     res = np.array(
         [25.50000334, 14.20009732, 41.1032235, 13.86421746], dtype=np.float32
     )
-    assert np.allclose(training_losses, res, atol=1e-07)
+    assert np.allclose(training_losses, res, atol=1e-01)
 
     data, embs, probs = load_ner_data_from_local("training", epoch=num_epochs - 1)
 
@@ -183,7 +183,7 @@ def test_spacy_ner(cleanup_after_use, set_test_config) -> None:
     gt_probs = TestSpacyNerConstants.gt_probs
     for c in probs.columns:
         if np.issubdtype(probs[c].dtype, np.number):
-            assert np.allclose(probs[c].values, gt_probs[c].values)
+            assert np.allclose(probs[c].values, gt_probs[c].values, atol=1e-3)
         else:
             assert (probs[c].values == gt_probs[c].values).all()
 

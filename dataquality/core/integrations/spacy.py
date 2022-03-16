@@ -20,8 +20,8 @@ from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.utils.spacy_integration import (
-    _convert_spacy_ents_for_doc_to_predictions,
-    _convert_spacy_ner_logits_to_probs,
+    convert_spacy_ents_for_doc_to_predictions,
+    convert_spacy_ner_logits_to_valid_logits,
     validate_obj,
 )
 
@@ -272,21 +272,19 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
         if not all(["id" in doc.user_data for doc in X]):
             raise GalileoException(
                 "One of your model's docs is missing a galileo generated "
-                "id. Did you first log your docs/examples with us using "
-                "`training_examples = dataquality.core.integrations.spacy."
-                "log_input_examples(training_examples, split=training)` "
-                "for example. Make sure to then continue by using "
-                "those Galileo returned training_examples."
+                "id. Did you first log your docs/examples with us using, "
+                "for example, "
+                "`log_input_examples(training_examples, split=training)`?"
+                "Make sure to then continue using 'training_examples'"
             )
 
         model_logger.ids = [doc.user_data["id"] for doc in X]
         # These start as lists to append values, but are then converted to numpy
         # arrays before logging. So we ignore mypy
-        model_logger.probs = [[] for _ in range(len(X))]  # type: ignore
-        model_logger.emb = [[] for _ in range(len(X))]  # type: ignore
-
-        model_logger.user_helper_data["_spacy_state_for_pred"] = [None] * len(X)
-        model_logger.user_helper_data["expected_lengths"] = [len(doc) for doc in X]
+        model_logger.log_helper_data["logits"] = [[] for _ in range(len(X))]
+        model_logger.log_helper_data["emb"] = [[] for _ in range(len(X))]
+        model_logger.log_helper_data["_spacy_state_for_pred"] = [None] * len(X)
+        model_logger.log_helper_data["expected_lengths"] = [len(doc) for doc in X]
 
         return GalileoParserStepModel(parser_step_model, model_logger), backprop_fn
 
@@ -331,17 +329,16 @@ class GalileoParserStepModel(ThincModelWrapper):
             model_logger_idx = list(model_logger.ids).index(state.doc.user_data["id"])
             model_logger_idxs.append(model_logger_idx)
 
-            model_logger.user_helper_data["_spacy_state_for_pred"][
+            model_logger.log_helper_data["_spacy_state_for_pred"][
                 model_logger_idx
             ] = state.copy()
 
-            # Because this is still a list (see L283) we can append
-            model_logger.probs[model_logger_idx].append(logits[i])  # type: ignore
+            model_logger.log_helper_data["logits"][model_logger_idx].append(logits[i])
 
         ner = text_ner_logger_config.user_data["nlp"].get_pipe("ner")
         ner.transition_states(
             [
-                model_logger.user_helper_data["_spacy_state_for_pred"][idx]
+                model_logger.log_helper_data["_spacy_state_for_pred"][idx]
                 for idx in model_logger_idxs
             ],
             scores,
@@ -350,42 +347,46 @@ class GalileoParserStepModel(ThincModelWrapper):
         # if we are at the end of the batch
         if all(
             [
-                len(model_logger.probs[i])
-                == model_logger.user_helper_data["expected_lengths"][i]
+                len(model_logger.log_helper_data["logits"][i])
+                == model_logger.log_helper_data["expected_lengths"][i]
                 for i in range(len(model_logger.ids))
             ]
         ):
             # Do the final transition to be able to use spacy to get predictions
             docs_copy = [
                 state.doc.copy()
-                for state in model_logger.user_helper_data["_spacy_state_for_pred"]
+                for state in model_logger.log_helper_data["_spacy_state_for_pred"]
             ]
 
             ner.set_annotations(
-                docs_copy, model_logger.user_helper_data["_spacy_state_for_pred"]
+                docs_copy, model_logger.log_helper_data["_spacy_state_for_pred"]
             )
 
-            predictions_for_docs = _convert_spacy_ents_for_doc_to_predictions(
+            predictions_for_docs = convert_spacy_ents_for_doc_to_predictions(
                 docs_copy, model_logger.logger_config.labels
             )
-            probabilities_for_docs: List[List] = [
+            valid_logits_for_docs: List[List] = [
                 [] for _ in range(len(predictions_for_docs))
             ]
             doc_probs_ndarray: List[np.ndarray] = [
                 np.empty((0, 0)) for _ in range(len(predictions_for_docs))
             ]
 
-            for doc_idx, logits_for_doc in enumerate(model_logger.probs):
+            for doc_idx, logits_for_doc in enumerate(
+                model_logger.log_helper_data["logits"]
+            ):
                 for token_idx, token_logits in enumerate(logits_for_doc):
-                    probs = _convert_spacy_ner_logits_to_probs(
+                    valid_logits = convert_spacy_ner_logits_to_valid_logits(
                         token_logits, predictions_for_docs[doc_idx][token_idx]
                     )
-                    probabilities_for_docs[doc_idx].append(probs)
+                    valid_logits_for_docs[doc_idx].append(valid_logits)
 
-            for i in range(len(probabilities_for_docs)):
-                doc_probs_ndarray[i] = np.array(probabilities_for_docs[i])
-                model_logger.emb[i] = np.array(model_logger.emb[i])
-            model_logger.probs = doc_probs_ndarray
+            for i in range(len(valid_logits_for_docs)):
+                doc_probs_ndarray[i] = np.array(valid_logits_for_docs[i])
+                model_logger.emb.append(
+                    np.array(model_logger.log_helper_data["emb"][i])
+                )
+            model_logger.logits = doc_probs_ndarray
             model_logger.log()
 
         return scores, backprop_fn
@@ -411,7 +412,7 @@ class GalileoState2Vec(CallableObjectProxy):
             )
             # At this point, we are treating embeddings as a list before converting
             # to a numpy array for logging
-            self._self_model_logger.emb[model_logger_idx].append(  # type: ignore
+            self._self_model_logger.log_helper_data["emb"][model_logger_idx].append(
                 embeddings[i]
             )
 
