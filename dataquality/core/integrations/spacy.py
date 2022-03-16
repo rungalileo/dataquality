@@ -284,8 +284,8 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
         model_logger.probs = [[] for _ in range(len(X))]  # type: ignore
         model_logger.emb = [[] for _ in range(len(X))]  # type: ignore
 
-        model_logger.user_helper_data["_spacy_state_for_pred"] = [None] * len(X)
-        model_logger.user_helper_data["expected_lengths"] = [len(doc) for doc in X]
+        model_logger.log_helper_data["_spacy_state_for_pred"] = [None] * len(X)
+        model_logger.log_helper_data["expected_lengths"] = [len(doc) for doc in X]
 
         return GalileoParserStepModel(parser_step_model, model_logger), backprop_fn
 
@@ -330,7 +330,7 @@ class GalileoParserStepModel(ThincModelWrapper):
             model_logger_idx = list(model_logger.ids).index(state.doc.user_data["id"])
             model_logger_idxs.append(model_logger_idx)
 
-            model_logger.user_helper_data["_spacy_state_for_pred"][
+            model_logger.log_helper_data["_spacy_state_for_pred"][
                 model_logger_idx
             ] = state.copy()
 
@@ -340,7 +340,7 @@ class GalileoParserStepModel(ThincModelWrapper):
         ner = text_ner_logger_config.user_data["nlp"].get_pipe("ner")
         ner.transition_states(
             [
-                model_logger.user_helper_data["_spacy_state_for_pred"][idx]
+                model_logger.log_helper_data["_spacy_state_for_pred"][idx]
                 for idx in model_logger_idxs
             ],
             scores,
@@ -350,18 +350,18 @@ class GalileoParserStepModel(ThincModelWrapper):
         if all(
             [
                 len(model_logger.probs[i])
-                == model_logger.user_helper_data["expected_lengths"][i]
+                == model_logger.log_helper_data["expected_lengths"][i]
                 for i in range(len(model_logger.ids))
             ]
         ):
             # Do the final transition to be able to use spacy to get predictions
             docs_copy = [
                 state.doc.copy()
-                for state in model_logger.user_helper_data["_spacy_state_for_pred"]
+                for state in model_logger.log_helper_data["_spacy_state_for_pred"]
             ]
 
             ner.set_annotations(
-                docs_copy, model_logger.user_helper_data["_spacy_state_for_pred"]
+                docs_copy, model_logger.log_helper_data["_spacy_state_for_pred"]
             )
 
             predictions_for_docs = _convert_spacy_ents_for_doc_to_predictions(
