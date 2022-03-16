@@ -281,9 +281,8 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
         model_logger.ids = [doc.user_data["id"] for doc in X]
         # These start as lists to append values, but are then converted to numpy
         # arrays before logging. So we ignore mypy
-        model_logger.probs = [[] for _ in range(len(X))]  # type: ignore
-        model_logger.emb = [[] for _ in range(len(X))]  # type: ignore
-
+        model_logger.log_helper_data["probs"] = [[] for _ in range(len(X))]
+        model_logger.log_helper_data["emb"] = [[] for _ in range(len(X))]
         model_logger.log_helper_data["_spacy_state_for_pred"] = [None] * len(X)
         model_logger.log_helper_data["expected_lengths"] = [len(doc) for doc in X]
 
@@ -335,7 +334,7 @@ class GalileoParserStepModel(ThincModelWrapper):
             ] = state.copy()
 
             # Because this is still a list (see L283) we can append
-            model_logger.probs[model_logger_idx].append(logits[i])  # type: ignore
+            model_logger.log_helper_data["probs"][model_logger_idx].append(logits[i])  # type: ignore
 
         ner = text_ner_logger_config.user_data["nlp"].get_pipe("ner")
         ner.transition_states(
@@ -349,7 +348,7 @@ class GalileoParserStepModel(ThincModelWrapper):
         # if we are at the end of the batch
         if all(
             [
-                len(model_logger.probs[i])
+                len(model_logger.log_helper_data["probs"][i])
                 == model_logger.log_helper_data["expected_lengths"][i]
                 for i in range(len(model_logger.ids))
             ]
@@ -374,7 +373,7 @@ class GalileoParserStepModel(ThincModelWrapper):
                 np.empty((0, 0)) for _ in range(len(predictions_for_docs))
             ]
 
-            for doc_idx, logits_for_doc in enumerate(model_logger.probs):
+            for doc_idx, logits_for_doc in enumerate(model_logger.log_helper_data["probs"]):
                 for token_idx, token_logits in enumerate(logits_for_doc):
                     probs = _convert_spacy_ner_logits_to_probs(
                         token_logits, predictions_for_docs[doc_idx][token_idx]
@@ -383,7 +382,7 @@ class GalileoParserStepModel(ThincModelWrapper):
 
             for i in range(len(probabilities_for_docs)):
                 doc_probs_ndarray[i] = np.array(probabilities_for_docs[i])
-                model_logger.emb[i] = np.array(model_logger.emb[i])
+                model_logger.emb.append(np.array(model_logger.log_helper_data["emb"][i]))
             model_logger.probs = doc_probs_ndarray
             model_logger.log()
 
@@ -410,7 +409,7 @@ class GalileoState2Vec(CallableObjectProxy):
             )
             # At this point, we are treating embeddings as a list before converting
             # to a numpy array for logging
-            self._self_model_logger.emb[model_logger_idx].append(  # type: ignore
+            self._self_model_logger.log_helper_data["emb"][model_logger_idx].append(  # type: ignore
                 embeddings[i]
             )
 
