@@ -314,8 +314,9 @@ class ApiClient:
                 # There were no labels available for this run
                 except KeyError:
                     raise GalileoException(
-                        "It seems we cannot find the labels for this run. Please pass "
-                        "your labels into this function and call again."
+                        "It seems we cannot find the labels for this run. Please call "
+                        "api_client.reprocess_run again, passing in your labels to the "
+                        "'labels' keyword"
                     ) from None
 
         body = dict(
