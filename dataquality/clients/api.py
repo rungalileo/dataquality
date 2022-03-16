@@ -299,6 +299,7 @@ class ApiClient:
                     )
                 raise e from None
 
+        t: List[int] = "hello"
         body = dict(
             project_id=str(project),
             run_id=str(run),
