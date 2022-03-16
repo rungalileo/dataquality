@@ -20,8 +20,8 @@ from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.utils.spacy_integration import (
-    _convert_spacy_ents_for_doc_to_predictions,
-    _convert_spacy_ner_logits_to_probs,
+    convert_spacy_ents_for_doc_to_predictions,
+    convert_spacy_ner_logits_to_valid_logits,
     validate_obj,
 )
 
@@ -281,7 +281,7 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
         model_logger.ids = [doc.user_data["id"] for doc in X]
         # These start as lists to append values, but are then converted to numpy
         # arrays before logging. So we ignore mypy
-        model_logger.log_helper_data["probs"] = [[] for _ in range(len(X))]
+        model_logger.log_helper_data["logits"] = [[] for _ in range(len(X))]
         model_logger.log_helper_data["emb"] = [[] for _ in range(len(X))]
         model_logger.log_helper_data["_spacy_state_for_pred"] = [None] * len(X)
         model_logger.log_helper_data["expected_lengths"] = [len(doc) for doc in X]
@@ -333,7 +333,7 @@ class GalileoParserStepModel(ThincModelWrapper):
                 model_logger_idx
             ] = state.copy()
 
-            model_logger.log_helper_data["probs"][model_logger_idx].append(logits[i])
+            model_logger.log_helper_data["logits"][model_logger_idx].append(logits[i])
 
         ner = text_ner_logger_config.user_data["nlp"].get_pipe("ner")
         ner.transition_states(
@@ -347,7 +347,7 @@ class GalileoParserStepModel(ThincModelWrapper):
         # if we are at the end of the batch
         if all(
             [
-                len(model_logger.log_helper_data["probs"][i])
+                len(model_logger.log_helper_data["logits"][i])
                 == model_logger.log_helper_data["expected_lengths"][i]
                 for i in range(len(model_logger.ids))
             ]
@@ -362,27 +362,31 @@ class GalileoParserStepModel(ThincModelWrapper):
                 docs_copy, model_logger.log_helper_data["_spacy_state_for_pred"]
             )
 
-            predictions_for_docs = _convert_spacy_ents_for_doc_to_predictions(
+            predictions_for_docs = convert_spacy_ents_for_doc_to_predictions(
                 docs_copy, model_logger.logger_config.labels
             )
-            probabilities_for_docs: List[List] = [
+            valid_logits_for_docs: List[List] = [
                 [] for _ in range(len(predictions_for_docs))
             ]
             doc_probs_ndarray: List[np.ndarray] = [
                 np.empty((0, 0)) for _ in range(len(predictions_for_docs))
             ]
 
-            for doc_idx, logits_for_doc in enumerate(model_logger.log_helper_data["probs"]):
+            for doc_idx, logits_for_doc in enumerate(
+                model_logger.log_helper_data["logits"]
+            ):
                 for token_idx, token_logits in enumerate(logits_for_doc):
-                    probs = _convert_spacy_ner_logits_to_probs(
+                    valid_logits = convert_spacy_ner_logits_to_valid_logits(
                         token_logits, predictions_for_docs[doc_idx][token_idx]
                     )
-                    probabilities_for_docs[doc_idx].append(probs)
+                    valid_logits_for_docs[doc_idx].append(valid_logits)
 
-            for i in range(len(probabilities_for_docs)):
-                doc_probs_ndarray[i] = np.array(probabilities_for_docs[i])
-                model_logger.emb.append(np.array(model_logger.log_helper_data["emb"][i]))
-            model_logger.probs = doc_probs_ndarray
+            for i in range(len(valid_logits_for_docs)):
+                doc_probs_ndarray[i] = np.array(valid_logits_for_docs[i])
+                model_logger.emb.append(
+                    np.array(model_logger.log_helper_data["emb"][i])
+                )
+            model_logger.logits = doc_probs_ndarray
             model_logger.log()
 
         return scores, backprop_fn
