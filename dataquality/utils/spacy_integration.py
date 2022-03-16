@@ -1,7 +1,6 @@
 from typing import Any, List
 
 import numpy as np
-from scipy.special import softmax
 from spacy.tokens import Doc
 from spacy.training import offsets_to_biluo_tags
 
@@ -18,20 +17,21 @@ def validate_obj(an_object: Any, check_type: Any, has_attr: str) -> None:
         raise GalileoException(f"Your {check_type} must have a {has_attr} attribute")
 
 
-def _convert_spacy_ner_logits_to_probs(logits: np.ndarray, pred: int) -> np.ndarray:
-    """Converts ParserStepModel per token logits to probabilities.
+def convert_spacy_ner_logits_to_valid_logits(
+    logits: np.ndarray, pred: int
+) -> np.ndarray:
+    """Converts ParserStepModel per token logits to their matching valid logits.
 
-    Not all logits outputted by the spacy model are valid probabilities, for this reason
+    Not all logits outputted by the spacy model are valid logits, for this reason
     spacy will ignore potential actions even if they might've had the largest prob mass.
     To account for this, we first sort the logits for each token and then zero out
     all logits larger than the predicted logit (as these must've been ignored by spacy
-    or else they would've become the prediction). Finally we take the softmax to convert
-    them to probabilities.
+    or else they would've become the prediction).
 
     :param logits: ParserStepModel logits for a single token, minus the -U tag logit
     shape of [num_classes]
     :param pred: the idx of the spacy's valid prediction from the logits
-    :return: np array of probabilities. shape of [num_classes]
+    :return: np array of logits. shape of [num_classes]
     """
     assert len(logits.shape) == 1
 
@@ -45,16 +45,14 @@ def _convert_spacy_ner_logits_to_probs(logits: np.ndarray, pred: int) -> np.ndar
         np.where(argsorted_sample_logits == pred)[0][0] :
     ]
 
-    valid_probs = softmax(logits[valid_logit_indices])
-
     # non valid_logit_indices should be set to 0
-    probs = np.zeros(logits.shape)
-    probs[valid_logit_indices] = valid_probs
+    zero_out_mask = np.ones(logits.shape, bool)
+    zero_out_mask[valid_logit_indices] = False
+    logits[zero_out_mask] = 0
+    return logits
 
-    return probs
 
-
-def _convert_spacy_ents_for_doc_to_predictions(
+def convert_spacy_ents_for_doc_to_predictions(
     docs: List[Doc], labels: List[str]
 ) -> List[List[int]]:
     """Converts spacy's representation of ner spans to their per token predictions.
