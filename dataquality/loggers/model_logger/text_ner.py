@@ -30,6 +30,7 @@ class GalileoModelLoggerAttributes(str, Enum):
     epoch = "epoch"
     dep_scores = "dep_scores"
     log_helper_data = "log_helper_data"
+    inference_name = "inference_name"
 
     @staticmethod
     def get_valid() -> List[str]:
