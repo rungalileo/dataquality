@@ -54,6 +54,15 @@ flit install -s
 You can specify which python environment to install into using the `--python` flag
 (useful for developing/testing from external venvs)
 
+### Debugging
+If you're looking to debug some code in dataquality, for example with `pdb` in jupyter,
+you can do that easily:
+1. Install and symlink `dataquality` as shown above
+2. Use **the same** python env to start your jupyter session
+   1. Now, your jupyter session will be symlinked to dataquality
+   2. **Note:** You still need to restart the kernel after code changes
+3. Set your `pdb` trace in your code, restart your kernel, and run. You'll see the `ipdb` session
+
 ## Formatting
 
 ```sh
