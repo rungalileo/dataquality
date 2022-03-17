@@ -62,12 +62,9 @@ class BaseLoggerAttributes(str, Enum):
     gold_dep = "gold_dep"
     pred_dep = "pred_dep"
     text_token_indices_flat = "text_token_indices_flat"
-<<<<<<< Updated upstream
     log_helper_data = "log_helper_data"
-=======
     user_helper_data = "user_helper_data"
     inference_name = "inference_name"
->>>>>>> Stashed changes
 
     @staticmethod
     def get_valid() -> List[str]:
@@ -112,14 +109,16 @@ class BaseGalileoLogger:
     @classmethod
     def clear_run(cls) -> bool:
         """Clear minio data if new training, test, or validation data is logged.
-        
+
         If just inference data is logged then append data rather than overwriting
         """
-        return any([
-            cls.logger_config.training_logged,
-            cls.logger_config.test_logged,
-            cls.logger_config.validation_logged
-        ])
+        return any(
+            [
+                cls.logger_config.training_logged,
+                cls.logger_config.test_logged,
+                cls.logger_config.validation_logged,
+            ]
+        )
 
     @abstractmethod
     def log(self) -> None:

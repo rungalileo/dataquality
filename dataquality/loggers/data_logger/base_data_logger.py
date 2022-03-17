@@ -111,8 +111,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                 prob_only = False
                 if split != Split.inference:
                     epoch = int(epoch_or_inference_name)
-                    # For all epochs that aren't the last 2 (early stopping), we only want
-                    # to upload the probabilities (for DEP calculation).
+                    # For all epochs that aren't the last 2 (early stopping), we only
+                    # want to upload the probabilities (for DEP calculation).
                     prob_only = bool(epoch < cls.logger_config.last_epoch - 1)
 
                 str_cols = concat_hdf5_files(dir_name, prob_only)
@@ -140,7 +140,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                         continue
                     ext = cls.DATA_FOLDER_EXTENSION[data_folder]
                     minio_file = (
-                        f"{proj_run}/{split}/{epoch_or_inference_name}/{data_folder}/{data_folder}.{ext}"
+                        f"{proj_run}/{split}/{epoch_or_inference_name}/"
+                        f"{data_folder}/{data_folder}.{ext}"
                     )
                     object_store.create_project_run_object_from_df(
                         df=df_obj, object_name=minio_file

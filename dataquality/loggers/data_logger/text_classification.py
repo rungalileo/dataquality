@@ -50,7 +50,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         ids: List[int] = None,
         split: str = None,
         meta: Optional[Dict[str, List[Union[str, float, int]]]] = None,
-        inference_name: str = None
+        inference_name: str = None,
     ) -> None:
         """Create data logger.
 
@@ -69,7 +69,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         self.ids = ids if ids is not None else []
         self.split = split
         self.inference_name = inference_name
-        
+
         if self.split:
             setattr(self.logger_config, f"{self.split}_logged", True)
 
