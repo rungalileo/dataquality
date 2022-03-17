@@ -49,6 +49,7 @@ def _join_in_out_frames(in_df: DataFrame, out_df: DataFrame) -> DataFrame:
     # There is an odd vaex bug where sometimes we lose the continuity of this dataframe
     # it's hard to reproduce, only shows up on linux, and hasn't been pinpointed yet
     # but materializing the join-key column fixes the issue
+    # https://github.com/vaexio/vaex/issues/1972
     in_frame["id"] = in_frame["id"].values
     out_frame = out_df.copy()
     in_out = out_frame.join(
