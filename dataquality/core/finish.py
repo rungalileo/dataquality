@@ -21,13 +21,15 @@ def finish() -> Optional[Dict[str, Any]]:
     data_logger.validate_labels()
 
     _version_check()
-    # Clear the data in minio before uploading new data
-    # If this is a run that already existed, we want to fully overwrite the old data
-    api_client.reset_run(config.current_project_id, config.current_run_id)
+
+    if data_logger.clear_run():
+        # Clear the data in minio before uploading new data
+        # If this is a run that already existed, we want to fully overwrite the old data
+        api_client.reset_run(config.current_project_id, config.current_run_id)
 
     data_logger.upload()
     data_logger._cleanup()
-    config.update_file_config()
+    config.update_file_config()  # TODO: why do we need this
 
     body = dict(
         project_id=str(config.current_project_id),
@@ -35,6 +37,7 @@ def finish() -> Optional[Dict[str, Any]]:
         labels=data_logger.logger_config.labels,
         tasks=data_logger.logger_config.tasks,
     )
+    # TODO: maybe add a job_name
     res = api_client.make_request(
         RequestType.POST, url=f"{config.api_url}/{Route.jobs}", body=body
     )

@@ -28,6 +28,9 @@ def _save_hdf5_file(location: str, file_name: str, data: Dict) -> None:
         for col in data:
             group = f.create_group(f"/table/columns/{col}")
             col_data = np.array(data[col])
+            if None in col_data:
+                col_data = col_data.astype(np.float)
+
             # String columns
             ctype = col_data.dtype
             if not np.issubdtype(ctype, np.number) and not np.issubdtype(
@@ -37,6 +40,7 @@ def _save_hdf5_file(location: str, file_name: str, data: Dict) -> None:
                 col_data = col_data.astype(dtype)
             else:
                 dtype = col_data.dtype
+
             shape = col_data.shape
             group.create_dataset(
                 "data", data=col_data, dtype=dtype, shape=shape, chunks=shape

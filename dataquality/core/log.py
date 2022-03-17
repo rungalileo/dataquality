@@ -1,5 +1,5 @@
 import warnings
-from typing import Any, List, Type, Union
+from typing import Any, List, Optional, Type, Union
 
 from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
@@ -119,9 +119,13 @@ def set_epoch(epoch: int) -> None:
     get_data_logger().logger_config.cur_epoch = epoch
 
 
-def set_split(split: Split) -> None:
+def set_split(split: Split, inference_name: Optional[str] = None) -> None:
     """Set the current split.
 
     When set, logging data inputs/model outputs will use this if not logged explicitly
+    Valid for inference split only, optionally pass in an inference_name
     """
     get_data_logger().logger_config.cur_split = split
+    setattr(get_data_logger().logger_config, f"{split}_logged", True)
+    if split == Split.inference:
+        get_data_logger().logger_config.cur_inference_name = inference_name

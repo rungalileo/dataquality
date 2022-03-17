@@ -106,17 +106,17 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             in_frame_split = drop_empty_columns(in_frame_split)
             # Remove the mask, work with only the filtered rows
             in_frame_split = in_frame_split.extract()
-            for epoch_dir in glob(f"{split_loc}/*"):
-                epoch = int(epoch_dir.split("/")[-1])
-                # For all epochs that aren't the last 2 (early stopping), we only want
-                # to upload the probabilities (for DEP calculation).
-                if epoch < cls.logger_config.last_epoch - 1:
-                    prob_only = True
-                else:
-                    prob_only = False
+            for dir_name in glob(f"{split_loc}/*"):
+                epoch_or_inference_name = dir_name.split("/")[-1]
+                prob_only = False
+                if split != Split.inference:
+                    epoch = int(epoch_or_inference_name)
+                    # For all epochs that aren't the last 2 (early stopping), we only want
+                    # to upload the probabilities (for DEP calculation).
+                    prob_only = bool(epoch < cls.logger_config.last_epoch - 1)
 
-                str_cols = concat_hdf5_files(epoch_dir, prob_only)
-                out_frame = vaex.open(f"{epoch_dir}/{HDF5_STORE}")
+                str_cols = concat_hdf5_files(dir_name, prob_only)
+                out_frame = vaex.open(f"{dir_name}/{HDF5_STORE}")
                 # Post concat, string columns come back as bytes and need conversion
                 for col in str_cols:
                     out_frame[col] = out_frame[col].to_arrow().cast(pa.large_string())
@@ -140,7 +140,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                         continue
                     ext = cls.DATA_FOLDER_EXTENSION[data_folder]
                     minio_file = (
-                        f"{proj_run}/{split}/{epoch}/{data_folder}/{data_folder}.{ext}"
+                        f"{proj_run}/{split}/{epoch_or_inference_name}/{data_folder}/{data_folder}.{ext}"
                     )
                     object_store.create_project_run_object_from_df(
                         df=df_obj, object_name=minio_file
