@@ -4,6 +4,7 @@ import dataquality
 from dataquality.clients.api import ApiClient
 from dataquality.core._config import config
 from dataquality.schemas import RequestType, Route
+from dataquality.schemas.job import JobName
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.version import _version_check
 
@@ -36,7 +37,11 @@ def finish() -> Optional[Dict[str, Any]]:
         labels=data_logger.logger_config.labels,
         tasks=data_logger.logger_config.tasks,
     )
-    # TODO: maybe add a job_name
+    if data_logger.logger_config.inference_logged:
+        body.update(
+            job_name=JobName.inference,
+            pre_inference_logged=data_logger.clear_run(),
+        )
     res = api_client.make_request(
         RequestType.POST, url=f"{config.api_url}/{Route.jobs}", body=body
     )
