@@ -29,7 +29,6 @@ def finish() -> Optional[Dict[str, Any]]:
 
     data_logger.upload()
     data_logger._cleanup()
-    config.update_file_config()  # TODO: why do we need this
 
     body = dict(
         project_id=str(config.current_project_id),

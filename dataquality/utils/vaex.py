@@ -29,6 +29,7 @@ def _save_hdf5_file(location: str, file_name: str, data: Dict) -> None:
             group = f.create_group(f"/table/columns/{col}")
             col_data = np.array(data[col])
             if None in col_data:
+                # h5py expects np.nan instead of None
                 col_data = col_data.astype(np.float_)
 
             # String columns

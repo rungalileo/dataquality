@@ -63,7 +63,6 @@ class BaseLoggerAttributes(str, Enum):
     pred_dep = "pred_dep"
     text_token_indices_flat = "text_token_indices_flat"
     log_helper_data = "log_helper_data"
-    user_helper_data = "user_helper_data"
     inference_name = "inference_name"
 
     @staticmethod
