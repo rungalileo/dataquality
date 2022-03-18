@@ -162,10 +162,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 logged_sample_ids.append(sample_id)
 
         self.ids = logged_sample_ids
-        # Get the embedding shape. Filter out nulls
-        if not self.logger_config.num_emb:
-            emb = next(filter(lambda emb: not np.isnan(emb[0]).all(), self.gold_emb))[0]
-            self.logger_config.num_emb = emb.shape[0]
 
     def _process_sample(
         self, sample_id: int, sample_emb: np.ndarray, sample_prob: np.ndarray
