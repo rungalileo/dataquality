@@ -23,6 +23,7 @@ from dataquality.utils.spacy_integration import (
     convert_spacy_ents_for_doc_to_predictions,
     convert_spacy_ner_logits_to_valid_logits,
     validate_obj,
+    validate_spacy_version,
 )
 
 
@@ -75,6 +76,7 @@ def watch(nlp: Language) -> None:
     :param nlp: The spacy nlp Language component.
     :return: None
     """
+    validate_spacy_version()
     if not (config.current_project_id and config.current_run_id):
         raise GalileoException(
             "You must initialize dataquality first! "
