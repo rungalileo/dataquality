@@ -1,5 +1,5 @@
 from typing import Any, Callable, Generator, List, Tuple, Union
-
+import warnings
 import numpy as np
 import thinc
 from spacy.language import Language
@@ -328,7 +328,14 @@ class GalileoParserStepModel(ThincModelWrapper):
             # In case the order of X is different than the original X of docs
             # Assumes passed in data has the "id" user_data appended, which we
             # automatically append with our log_training call.
-            model_logger_idx = list(model_logger.ids).index(state.doc.user_data["id"])
+
+            log_ids = list(model_logger.ids)
+            user_sample_id = state.doc.user_data["id"]
+            if user_sample_id not in log_ids:
+                warnings.warn("Provided sample id is missing, will skip model logging")
+                continue
+
+            model_logger_idx = log_ids.index(user_sample_id)
             model_logger_idxs.append(model_logger_idx)
 
             model_logger.log_helper_data["_spacy_state_for_pred"][
