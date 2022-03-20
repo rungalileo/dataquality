@@ -12,7 +12,7 @@ from dataquality.core.integrations.spacy import (
     GalileoEntityRecognizer,
     log_input_examples,
     unwatch,
-    watch,
+    watch, GalileoTransitionBasedParserModel,
 )
 from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
@@ -104,18 +104,14 @@ def test_long_sample(cleanup_after_use, set_test_config):
     nlp = spacy.blank("en")
     ner = nlp.add_pipe("ner")
 
-    long_example = Example.from_dict(nlp.make_doc(LONG_SAMPLE), {})
+    long_example = Example.from_dict(nlp.make_doc(LONG_SAMPLE), {"entities": []})
     optimizer = nlp.initialize(lambda: [long_example])
 
     def new_log(*args, **kwargs):
         print("breaking here")
 
-    patched_model_logger = dataquality.get_model_logger(TaskType.text_ner)
-    patched_model_logger.log = new_log
-
-    def _patch_logger(**kwargs):
-        return patched_model_logger
-    dataquality.get_model_logger = _patch_logger
+    old_log = TextNERModelLogger.log
+    TextNERModelLogger.log = new_log
 
     watch(nlp)
     log_input_examples([long_example], split="training")
@@ -124,7 +120,7 @@ def test_long_sample(cleanup_after_use, set_test_config):
     dataquality.set_split("training")
     nlp.update([long_example], drop=0.5, sgd=optimizer, losses={})
 
-    # TODO: unpatch the class
+    TextNERModelLogger.log = old_log
 
 @pytest.mark.skip(
     reason="Implementation hinges on more info from spacy or a bug fix, " "see unwatch"

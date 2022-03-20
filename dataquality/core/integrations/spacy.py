@@ -19,6 +19,7 @@ from dataquality.exceptions import GalileoException
 from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
 from dataquality.schemas.ner import TaggingSchema
+from dataquality.schemas.task_type import TaskType
 from dataquality.utils.spacy_integration import (
     convert_spacy_ents_for_doc_to_predictions,
     convert_spacy_ner_logits_to_valid_logits,
@@ -124,7 +125,10 @@ class GalileoEntityRecognizer(CallableObjectProxy):
     def __init__(self, ner: EntityRecognizer):
         super().__init__(ner)
         validate_obj(ner, check_type=EntityRecognizer, has_attr="model")
-
+        if isinstance(ner, GalileoEntityRecognizer):
+            raise GalileoException("Seems like your ner component has already "
+                                   "been watched. Make sure to call `watch` "
+                                   "on a fresh `nlp` spacy Language.")
         # Assert we are working with the 'ner' component and not 'beam_ner'
         if self.cfg["beam_width"] != 1:
             raise GalileoException(
@@ -261,6 +265,8 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
                 f"that the spacy architecture has changed and is no "
                 f"longer compatible with this Galileo integration."
             )
+        assert isinstance(model, thinc.model.Model)
+        assert not isinstance(model, GalileoTransitionBasedParserModel)
 
     def _self__func(
         self, model: thinc.model.Model, X: Any, is_train: bool
@@ -269,7 +275,7 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
             model, X, is_train=is_train
         )
 
-        model_logger = TextNERModelLogger()
+        model_logger = dataquality.get_model_logger(TaskType.text_ner)
 
         if not all(["id" in doc.user_data for doc in X]):
             raise GalileoException(
@@ -281,13 +287,13 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
             )
 
         model_logger.ids = [doc.user_data["id"] for doc in X]
+        assert model_logger.ids
         # These start as lists to append values, but are then converted to numpy
         # arrays before logging. So we ignore mypy
         model_logger.log_helper_data["logits"] = [[] for _ in range(len(X))]
         model_logger.log_helper_data["emb"] = [[] for _ in range(len(X))]
         model_logger.log_helper_data["_spacy_state_for_pred"] = [None] * len(X)
         model_logger.log_helper_data["expected_lengths"] = [len(doc) for doc in X]
-
         return GalileoParserStepModel(parser_step_model, model_logger), backprop_fn
 
 
@@ -304,7 +310,9 @@ class GalileoParserStepModel(ThincModelWrapper):
                 f"that the spacy architecture has changed and is no "
                 f"longer compatible with this Galileo integration."
             )
-
+        assert isinstance(model, ParserStepModel)
+        assert not isinstance(model, GalileoParserStepModel)
+        assert len(model_logger.ids) != 0
         self._self_model_logger = model_logger
         model.state2vec = GalileoState2Vec(model.state2vec, self._self_model_logger)
 
@@ -322,6 +330,7 @@ class GalileoParserStepModel(ThincModelWrapper):
         # outputted scores match in order to the inputted X: List[StateClass]
         # eg. X == [StateClass_0, StateClass_1] then scores == [2, 22]
         model_logger = self._self_model_logger  # for readability
+        assert len(self._self_model_logger.ids) != 0
         model_logger_idxs = []
 
         for i, state in enumerate(X):
@@ -406,11 +415,15 @@ class GalileoState2Vec(CallableObjectProxy):
         super().__init__(model)
         validate_obj(model, State2Vec, "__call__")
 
+        assert isinstance(model, State2Vec)
+        assert not isinstance(model, GalileoState2Vec)
+        assert len(model_logger.ids) != 0
         self._self_model_logger = model_logger
         self._self_X: List[StateClass] = []
 
     def __call__(self, *args: Any, **kwargs: Any) -> Tuple[np.ndarray, np.ndarray]:
         """Overwrites forward to capture embeddings and add to model_logger"""
+        assert len(self._self_model_logger.ids) != 0
         embeddings, embeddings_bp = self.__wrapped__(*args, **kwargs)
 
         # _self.X needs to be set externally to communicate where these embs belong
