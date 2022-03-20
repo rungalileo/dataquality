@@ -108,7 +108,9 @@ def test_long_sample(cleanup_after_use, set_test_config):
     optimizer = nlp.initialize(lambda: [long_example])
 
     def new_log(*args, **kwargs):
-        print("breaking here")
+        # TODO: test for a single long sample with and without ents, ents in different chunks, multiple long samples with the above
+        # TODO: also need to test the nlp.evaluate works as well still with long samples.
+        print("need to test for right outputs")
 
     old_log = TextNERModelLogger.log
     TextNERModelLogger.log = new_log
@@ -121,6 +123,7 @@ def test_long_sample(cleanup_after_use, set_test_config):
     nlp.update([long_example], drop=0.5, sgd=optimizer, losses={})
 
     TextNERModelLogger.log = old_log
+
 
 @pytest.mark.skip(
     reason="Implementation hinges on more info from spacy or a bug fix, " "see unwatch"
