@@ -15,6 +15,7 @@ from dataquality.core.integrations.spacy import (
     watch,
 )
 from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
+from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
 from dataquality.schemas.task_type import TaskType
 from tests.conftest import LOCATION
 from tests.utils.spacy_integration import load_ner_data_from_local, train_model
@@ -22,6 +23,7 @@ from tests.utils.spacy_integration_constants import (
     NER_CLASS_LABELS,
     NER_TEST_DATA,
     NER_TRAINING_DATA,
+    LONG_SAMPLE,
     TestSpacyNerConstants,
 )
 
@@ -95,6 +97,34 @@ def test_watch(set_test_config, cleanup_after_use):
     assert isinstance(nlp.get_pipe("ner"), EntityRecognizer)
     assert isinstance(nlp.get_pipe("ner"), GalileoEntityRecognizer)
 
+
+def test_long_sample(cleanup_after_use, set_test_config):
+    """Tests logging a long sample during training"""
+    set_test_config(task_type=TaskType.text_ner)
+    nlp = spacy.blank("en")
+    ner = nlp.add_pipe("ner")
+
+    long_example = Example.from_dict(nlp.make_doc(LONG_SAMPLE), {})
+    optimizer = nlp.initialize(lambda: [long_example])
+
+    def new_log(*args, **kwargs):
+        print("breaking here")
+
+    patched_model_logger = dataquality.get_model_logger(TaskType.text_ner)
+    patched_model_logger.log = new_log
+
+    def _patch_logger(**kwargs):
+        return patched_model_logger
+    dataquality.get_model_logger = _patch_logger
+
+    watch(nlp)
+    log_input_examples([long_example], split="training")
+
+    dataquality.set_epoch(0)
+    dataquality.set_split("training")
+    nlp.update([long_example], drop=0.5, sgd=optimizer, losses={})
+
+    # TODO: unpatch the class
 
 @pytest.mark.skip(
     reason="Implementation hinges on more info from spacy or a bug fix, " "see unwatch"
