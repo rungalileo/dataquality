@@ -416,9 +416,13 @@ class GalileoState2Vec(CallableObjectProxy):
         # _self.X needs to be set externally to communicate where these embs belong
         # in the model wrapper. Maybe this would be better in some more global state
         for i, state in enumerate(self._self_X):
-            model_logger_idx = list(self._self_model_logger.ids).index(
-                state.doc.user_data["id"]
-            )
+            log_ids = list(self._self_model_logger.ids)
+            user_sample_id = state.doc.user_data["id"]
+            if user_sample_id not in log_ids:
+                warnings.warn("Provided sample id is missing, will skip model logging")
+                continue
+
+            model_logger_idx = log_ids.index(user_sample_id)
             # At this point, we are treating embeddings as a list before converting
             # to a numpy array for logging
             self._self_model_logger.log_helper_data["emb"][model_logger_idx].append(
