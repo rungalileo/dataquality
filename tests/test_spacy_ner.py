@@ -1,3 +1,4 @@
+from typing import Tuple, Dict, List, Callable
 from unittest.mock import Mock
 
 import numpy as np
@@ -25,7 +26,7 @@ from tests.utils.spacy_integration_constants import (
     NER_CLASS_LABELS,
     NER_TEST_DATA,
     NER_TRAINING_DATA,
-    TestSpacyNerConstants,
+    TestSpacyNerConstants, LONG_TRAIN_DATA, LONG_SHORT_DATA,
 )
 
 
@@ -254,39 +255,31 @@ def test_galileo_parser_step_forward():
 
 
 @pytest.mark.parametrize(
-    "only_long, only_short,sample_config,full_len",
+    "samples, cut_size, exp_num_logged",
     [
-        (False, False, 2_000, True),  # no samples skipped
-        (False, False, 100, False),  # only long samples skipped (2)
-        (True, False, 100, False),  # all samples (only long) skipped
-        (True, False, 2_000, True),  # no samples skipped (only long)
-        (False, True, 100, False),  # no samples skipped (no long samples)
+        (LONG_SHORT_DATA, 2_000, len(LONG_SHORT_DATA)),  # all samples, no skips
+        (LONG_SHORT_DATA, 100, len(LONG_SHORT_DATA)-2),  # all samples, long skipped
+        (LONG_TRAIN_DATA + LONG_TRAIN_DATA, 100, 0),  # only long, all skipped
+        (LONG_TRAIN_DATA + LONG_TRAIN_DATA, 2_000, 2),  # only long, no skips
+        (NER_TRAINING_DATA, 100, len(NER_TRAINING_DATA)),  # no long samples, no skips
+        (NER_TRAINING_DATA, 2_000, len(NER_TRAINING_DATA)),  # no long samples, no skips
     ],
 )
-def test_long_sample(only_long, only_short, sample_config, full_len, cleanup_after_use, set_test_config):
+def test_long_sample(
+        samples: List[Tuple[str, Dict]], cut_size: int, exp_num_logged: int, cleanup_after_use: Callable, set_test_config: Callable
+):
     """Tests logging a long sample during training"""
     set_test_config(task_type=TaskType.text_ner)
     default_config = {
-        "update_with_oracle_cut_size": sample_config,
+        "update_with_oracle_cut_size": cut_size,
     }
     nlp = spacy.blank("en")
     nlp.add_pipe("ner", config=default_config)
 
-    long_example = Example.from_dict(
-        nlp.make_doc(LONG_SAMPLE), LONG_SAMPLES_ENTITIES_DICT
-    )
-    short_examples = [
+    all_examples = [
         Example.from_dict(nlp.make_doc(sample_text), sample_entity)
-        for sample_text, sample_entity in NER_TRAINING_DATA
+        for sample_text, sample_entity in samples
     ]
-    le = [long_example]
-    if only_long:
-        all_examples = le + le
-    elif only_short:
-        all_examples = short_examples
-    else:
-        # le should be skipped when we have the default config cut_size.
-        all_examples = short_examples[:2] + le + short_examples[2:] + le
     optimizer = nlp.initialize(lambda: all_examples)
 
     old_log = TextNERModelLogger.log
@@ -295,17 +288,9 @@ def test_long_sample(only_long, only_short, sample_config, full_len, cleanup_aft
     def new_log(*args, **kwargs):
         logger: TextNERModelLogger = args[0]
         # Long sample should be skipped
-        if only_long and full_len:
-            test_len = 2
-        elif only_long and not full_len:
-            test_len = 0
-        elif only_short:
-            test_len = len(all_examples)
-        else:
-            test_len = len(all_examples) if full_len else len(all_examples) - 2
-        assert len(logger.ids) == test_len
-        assert len(logger.logits) == test_len
-        assert len(logger.emb) == test_len
+        assert len(logger.ids) == exp_num_logged
+        assert len(logger.logits) == exp_num_logged
+        assert len(logger.emb) == exp_num_logged
 
     TextNERModelLogger.log = new_log
 
