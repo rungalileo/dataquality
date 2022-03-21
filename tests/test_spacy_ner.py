@@ -15,10 +15,13 @@ from dataquality.core.integrations.spacy import (
     watch,
 )
 from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
+from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
 from dataquality.schemas.task_type import TaskType
 from tests.conftest import LOCATION
 from tests.utils.spacy_integration import load_ner_data_from_local, train_model
 from tests.utils.spacy_integration_constants import (
+    LONG_SAMPLE,
+    LONG_SAMPLES_ENTITIES_DICT,
     NER_CLASS_LABELS,
     NER_TEST_DATA,
     NER_TRAINING_DATA,
@@ -248,3 +251,57 @@ def test_galileo_transition_based_parser_forward(set_test_config, cleanup_after_
 @pytest.mark.skip(reason="Still need to implement the mock ParserStepModel")
 def test_galileo_parser_step_forward():
     pass
+
+
+@pytest.mark.parametrize(
+    "sample_config,full_len",
+    [
+        (2_000, True),
+        (100, False),
+    ],
+)
+def test_long_sample(sample_config, full_len, cleanup_after_use, set_test_config):
+    """Tests logging a long sample during training"""
+    set_test_config(task_type=TaskType.text_ner)
+    default_config = {
+        "update_with_oracle_cut_size": sample_config,
+    }
+    nlp = spacy.blank("en")
+    nlp.add_pipe("ner", config=default_config)
+
+    long_example = Example.from_dict(
+        nlp.make_doc(LONG_SAMPLE), LONG_SAMPLES_ENTITIES_DICT
+    )
+    short_examples = [
+        Example.from_dict(nlp.make_doc(sample_text), sample_entity)
+        for sample_text, sample_entity in NER_TRAINING_DATA
+    ]
+    le = [long_example]
+    # le should be skipped when we have the default config cut_size.
+    all_examples = short_examples[:2] + le + short_examples[2:] + le
+    optimizer = nlp.initialize(lambda: all_examples)
+
+    old_log = TextNERModelLogger.log
+    epoch = 0
+
+    def new_log(*args, **kwargs):
+        logger: TextNERModelLogger = args[0]
+        # Long sample should be skipped
+        test_len = len(all_examples) if full_len else len(all_examples) - 2
+        assert len(logger.ids) == test_len
+        assert len(logger.logits) == test_len
+        assert len(logger.emb) == test_len
+
+    TextNERModelLogger.log = new_log
+
+    watch(nlp)
+    log_input_examples(all_examples, split="training")
+
+    dataquality.set_split("training")
+    for _ in range(2):
+        dataquality.set_epoch(epoch)
+        losses = {}
+        nlp.update(all_examples, drop=0.5, sgd=optimizer, losses=losses)
+        epoch += 1
+
+    TextNERModelLogger.log = old_log

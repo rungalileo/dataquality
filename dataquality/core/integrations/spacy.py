@@ -142,7 +142,9 @@ class GalileoEntityRecognizer(CallableObjectProxy):
                 f"expects a beam width of 1 (the 'ner' default)."
             )
 
-        # patch_transition_based_parser_forward(ner.model)
+        self.cfg["update_with_oracle_cut_size"] = max(
+            300, self.cfg["update_with_oracle_cut_size"]
+        )
         ner.model = GalileoTransitionBasedParserModel(ner.model)
 
     def greedy_parse(self, docs: List[Doc], drop: float = 0.0) -> List:
@@ -287,19 +289,34 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
                 "One of your model's docs is missing a galileo generated "
                 "id. Did you first log your docs/examples with us using, "
                 "for example, "
-                "`log_input_examples(training_examples, split='training')`?"
+                "`log_input_examples(training_examples, split='training')`? "
                 "Make sure to then continue using 'training_examples'"
             )
 
         model_logger.ids = [doc.user_data["id"] for doc in X]
         assert model_logger.ids
-        # These start as lists to append values, but are then converted to numpy
-        # arrays before logging. So we ignore mypy
 
-        model_logger.log_helper_data["logits"] = [[] for _ in range(len(X))]
-        model_logger.log_helper_data["emb"] = [[] for _ in range(len(X))]
+        model_logger.log_helper_data["skip_id_idx"] = []
+        ner = text_ner_logger_config.user_data["nlp"].get_pipe("ner")
+        cutoff_len = ner.cfg["update_with_oracle_cut_size"] // 2
+        skipped_text = []
+        for doc_idx, doc in enumerate(X):
+            if len(doc) >= cutoff_len:
+                model_logger.log_helper_data["skip_id_idx"].append(doc_idx)
+                skipped_text.append(doc.text[:30])
+        if skipped_text:
+            samples = "\n".join([f"\t{s}..." for s in skipped_text])
+            warnings.warn(
+                f"Some samples are longer than the SpaCy "
+                f"update_with_oracle_cut_size ({cutoff_len*2}). Galileo cannot "
+                f"process these samples and will skip logging for it. You can "
+                f"update the cut size by setting it in your ner component. "
+                f"https://spacy.io/api/entityrecognizer\nSamples:\n{samples}"
+            )
+        model_logger.log_helper_data["logits"] = [[] for _ in X]
+        model_logger.log_helper_data["emb"] = [[] for _ in X]
         model_logger.log_helper_data["_spacy_state_for_pred"] = [None] * len(X)
-        model_logger.log_helper_data["expected_lengths"] = [len(doc) for doc in X]
+        model_logger.log_helper_data["expected_lengths"] = [0 for _ in X]
         return GalileoParserStepModel(parser_step_model, model_logger), backprop_fn
 
 
@@ -358,6 +375,9 @@ class GalileoParserStepModel(ThincModelWrapper):
             ] = state.copy()
 
             model_logger.log_helper_data["logits"][model_logger_idx].append(logits[i])
+            model_logger.log_helper_data["expected_lengths"][model_logger_idx] = len(
+                state.doc
+            )
 
         ner = text_ner_logger_config.user_data["nlp"].get_pipe("ner")
         ner.transition_states(
@@ -376,12 +396,21 @@ class GalileoParserStepModel(ThincModelWrapper):
                 for i in range(len(model_logger.ids))
             ]
         ):
-            # Do the final transition to be able to use spacy to get predictions
-            docs_copy = [
-                state.doc.copy()
-                for state in model_logger.log_helper_data["_spacy_state_for_pred"]
-            ]
+            model_logger.ids = list(model_logger.ids)
+            docs_copy = []
+            for i, state in enumerate(
+                model_logger.log_helper_data["_spacy_state_for_pred"]
+            ):
+                if state is None:
+                    del model_logger.log_helper_data["_spacy_state_for_pred"][i]
+                    del model_logger.log_helper_data["expected_lengths"][i]
+                    del model_logger.log_helper_data["emb"][i]
+                    del model_logger.log_helper_data["logits"][i]
+                    del model_logger.ids[i]
+                else:
+                    docs_copy.append(state.doc.copy())
 
+            # Do the final transition to be able to use spacy to get predictions
             ner.set_annotations(
                 docs_copy, model_logger.log_helper_data["_spacy_state_for_pred"]
             )
@@ -411,6 +440,12 @@ class GalileoParserStepModel(ThincModelWrapper):
                     np.array(model_logger.log_helper_data["emb"][i])
                 )
             model_logger.logits = doc_probs_ndarray
+            model_logger.ids = list(model_logger.ids)
+            for id_idx in model_logger.log_helper_data["skip_id_idx"]:
+                del model_logger.ids[id_idx]
+                del model_logger.emb[id_idx]
+                del model_logger.logits[id_idx]
+
             model_logger.log()
 
         return scores, backprop_fn
@@ -429,7 +464,6 @@ class GalileoState2Vec(CallableObjectProxy):
 
     def __call__(self, *args: Any, **kwargs: Any) -> Tuple[np.ndarray, np.ndarray]:
         """Overwrites forward to capture embeddings and add to model_logger"""
-        assert len(self._self_model_logger.ids) != 0
         embeddings, embeddings_bp = self.__wrapped__(*args, **kwargs)
 
         # _self.X needs to be set externally to communicate where these embs belong
