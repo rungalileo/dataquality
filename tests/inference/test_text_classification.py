@@ -17,4 +17,4 @@ def test_set_split_inference(cleanup_after_use: Callable) -> None:
 
 def test_set_split_inference_missing_inference_name() -> None:
     with pytest.raises(AssertionError):
-        dataquality.set_split("inference", "all-customers")
+        dataquality.set_split("inference")
