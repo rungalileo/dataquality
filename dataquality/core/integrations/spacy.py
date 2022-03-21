@@ -59,7 +59,7 @@ def log_input_examples(examples: List[Example], split: Split) -> None:
         )
         # We add ids to the doc.user_data to be along for the ride through spacy
         # The predicted doc is the one that the model will see
-        example.predicted.user_data["gid"] = i
+        example.predicted.user_data["id"] = i
         ids.append(i)
     dataquality.log_input_data(
         text=text,
@@ -284,7 +284,7 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
 
         model_logger = TextNERModelLogger()
 
-        if not all(["gid" in doc.user_data for doc in X]):
+        if not all(["id" in doc.user_data for doc in X]):
             raise GalileoException(
                 "One of your model's docs is missing a galileo generated "
                 "id. Did you first log your docs/examples with us using, "
@@ -293,7 +293,7 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
                 "Make sure to then continue using 'training_examples'"
             )
 
-        model_logger.ids = [doc.user_data["gid"] for doc in X]
+        model_logger.ids = [doc.user_data["id"] for doc in X]
         assert model_logger.ids
 
         model_logger.log_helper_data["skip_id_idx"] = []
@@ -362,7 +362,7 @@ class GalileoParserStepModel(ThincModelWrapper):
             # Assumes passed in data has the "id" user_data appended, which we
             # automatically append with our log_training call.
             log_ids = list(model_logger.ids)
-            user_sample_id = state.doc.user_data["gid"]
+            user_sample_id = state.doc.user_data["id"]
             if user_sample_id not in log_ids:
                 warnings.warn("Provided sample id is missing, will skip model logging")
                 continue
@@ -438,9 +438,9 @@ class GalileoParserStepModel(ThincModelWrapper):
 
             # Traverse in reverse order so deleting doesnt affect the indexes
             for id_idx in reversed(model_logger.log_helper_data["skip_id_idx"]):
+                del model_logger.ids[id_idx]
                 del model_logger.emb[id_idx]
                 del model_logger.logits[id_idx]
-                del model_logger.ids[id_idx]
 
             model_logger.log_helper_data["batch_logged"] = True
             model_logger.log()
@@ -467,7 +467,7 @@ class GalileoState2Vec(CallableObjectProxy):
         # in the model wrapper. Maybe this would be better in some more global state
         for i, state in enumerate(self._self_X):
             log_ids = list(self._self_model_logger.ids)
-            user_sample_id = state.doc.user_data["gid"]
+            user_sample_id = state.doc.user_data["id"]
             if user_sample_id not in log_ids:
                 warnings.warn("Provided sample id is missing, will skip model logging")
                 continue
