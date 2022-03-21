@@ -765,9 +765,5 @@ Hi {{NAME-5651}},
 > If you'd like me to stop sending you emails, please click here ( %unsubscribe_url% )
 """
 
-LONG_SAMPLES_ENTITIES_DICT = {
-    "entities": [
-        (1661, 1677, "Product Training"),
-        (1787, 1815, "Action item not completed"),
-    ]
-}
+LONG_SAMPLES_ENTITIES_DICT = {"entities": [(0, 4, 'From header')]}
+

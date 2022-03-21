@@ -26,6 +26,7 @@ from tests.utils.spacy_integration_constants import (
     NER_TEST_DATA,
     NER_TRAINING_DATA,
     TestSpacyNerConstants,
+    LONG_SAMPLES_ENTITIES_DICT,
 )
 
 
@@ -105,14 +106,17 @@ def test_long_sample(cleanup_after_use, set_test_config):
     nlp = spacy.blank("en")
     nlp.add_pipe("ner")
 
-    long_example = Example.from_dict(nlp.make_doc(LONG_SAMPLE), {"entities": []})
+    long_example = Example.from_dict(nlp.make_doc(LONG_SAMPLE), LONG_SAMPLES_ENTITIES_DICT)
     optimizer = nlp.initialize(lambda: [long_example])
 
+    old_log = TextNERModelLogger.log
+    epoch = 0
+
     def new_log(*args, **kwargs):
-        # TODO: test for a single long sample with and without ents, ents in different
-        #  chunks, multiple long samples with the above.
-        #  Also need to test the nlp.evaluate works as well still with long samples.
-        print("need to test for right outputs")
+        print("logging")
+        if epoch == 16:
+            print("breaking")
+        old_log(*args, **kwargs)
 
     old_log = TextNERModelLogger.log
     TextNERModelLogger.log = new_log
@@ -120,9 +124,14 @@ def test_long_sample(cleanup_after_use, set_test_config):
     watch(nlp)
     log_input_examples([long_example], split="training")
 
-    dataquality.set_epoch(0)
-    dataquality.set_split(Split.training)
-    nlp.update([long_example], drop=0.5, sgd=optimizer, losses={})
+    dataquality.set_split("training")
+    for _ in range(17):
+        dataquality.set_epoch(epoch)
+        losses = {}
+        nlp.update([long_example], drop=0.5, sgd=optimizer, losses=losses)
+        print(losses)
+        print(epoch)
+        epoch += 1
 
     TextNERModelLogger.log = old_log
 

@@ -142,7 +142,7 @@ class GalileoEntityRecognizer(CallableObjectProxy):
                 f"expects a beam width of 1 (the 'ner' default)."
             )
 
-        # patch_transition_based_parser_forward(ner.model)
+        # self.cfg["update_with_oracle_cut_size"] = 300 # TODO: remove once we have better long sample support
         ner.model = GalileoTransitionBasedParserModel(ner.model)
 
     def greedy_parse(self, docs: List[Doc], drop: float = 0.0) -> List:
@@ -403,7 +403,6 @@ class GalileoParserStepModel(ThincModelWrapper):
             model_logger_idx = log_ids.index(sample_id)
             model_logger_idxs.append(model_logger_idx)
 
-            # TODO: get spacy_state_range_idx
             for j, chunk_range in enumerate(
                 model_logger.log_helper_data["_spacy_state_for_pred_ranges"][
                     model_logger_idx
@@ -429,18 +428,32 @@ class GalileoParserStepModel(ThincModelWrapper):
                 token_idx_for_sample
             ] = logits[i]
 
-        # if we are at the end of the batch, i.e. all logits are filled
-        if all(
-            [
-                all(
-                    [
-                        logits_for_token is not None
-                        for logits_for_token in logits_for_sample
-                    ]
-                )
-                for logits_for_sample in model_logger.log_helper_data["logits"]
-            ]
-        ):
+        print([state._b_i for state in X])
+        print([(chunk_range[0], chunk_range[1]) for chunk_range in model_logger.log_helper_data["_spacy_state_for_pred_ranges"][0]])
+        print([tracking_state.is_final() for tracking_state in model_logger.log_helper_data["_spacy_state_for_pred"][0]])
+        # Spacy overlaps the beg idx of a chunk with the end idx of another
+        # chunk. This essentially means we have to in some way move the goalposts
+        for chunk_ranges_for_sample in model_logger.log_helper_data["_spacy_state_for_pred_ranges"]:
+            for chunk_range in chunk_ranges_for_sample:
+                chunk_range[0] += 1
+                chunk_range[
+                    1] += 1
+
+        if X[0]._b_i == 175:
+            print("breaking")
+        # TODO: need to replace this assert with something else because it is incorrect
+        if all([all([spacy_state_for_chunk.is_final() for spacy_state_for_chunk in spacy_states_for_sample]) for spacy_states_for_sample in model_logger.log_helper_data["_spacy_state_for_pred"]]):
+            assert all(
+                [
+                    all(
+                        [
+                            logits_for_token is not None
+                            for logits_for_token in logits_for_sample
+                        ]
+                    )
+                    for logits_for_sample in model_logger.log_helper_data["logits"]
+                ]
+            )
             assert all(
                 [
                     all([emb_for_token is not None for emb_for_token in emb_for_sample])
@@ -471,7 +484,7 @@ class GalileoParserStepModel(ThincModelWrapper):
             predictions_for_docs = convert_spacy_ents_for_doc_to_predictions(
                 docs_copy, model_logger.logger_config.labels
             )
-
+            print(predictions_for_docs)
             valid_logits_for_docs: List[List] = [
                 [] for _ in range(len(predictions_for_docs))
             ]
