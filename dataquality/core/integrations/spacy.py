@@ -293,17 +293,13 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
 
         model_logger.ids = [doc.user_data["id"] for doc in X]
         assert model_logger.ids
-        # We expect each id to be unique, because it seems like spacy splits long
-        # samples later, for the parser step (TODO: how is that possible?)
-        assert len(set(model_logger.ids)) == len(model_logger.ids)
         # These start as lists to append values, but are then converted to numpy
         # arrays before logging. So we ignore mypy
-        model_logger.log_helper_data["logits"] = [
-            [None for _ in range(len(doc))] for doc in X
-        ]
-        model_logger.log_helper_data["embs"] = [
-            [None for _ in range(len(doc))] for doc in X
-        ]
+
+        model_logger.log_helper_data["logits"] = [[] for _ in range(len(X))]
+        model_logger.log_helper_data["emb"] = [[] for _ in range(len(X))]
+        model_logger.log_helper_data["_spacy_state_for_pred"] = [None] * len(X)
+        model_logger.log_helper_data["expected_lengths"] = [len(doc) for doc in X]
         return GalileoParserStepModel(parser_step_model, model_logger), backprop_fn
 
 
@@ -329,51 +325,6 @@ class GalileoParserStepModel(ThincModelWrapper):
     def _self__func(
         self, parser_step_model: ParserStepModel, X: List[StateClass], is_train: bool
     ) -> Tuple[np.ndarray, Callable]:
-        """
-        here's the deal. Inputs have to be tied to the bigger picture by both their
-        id and their stateclass.queue[0], since the id might not be unique
-        """
-        model_logger = self._self_model_logger  # for readability
-        # initialize the tracking spacy states once
-        if "_spacy_state_for_pred" not in model_logger.log_helper_data:
-            model_logger.log_helper_data["_spacy_state_for_pred"] = [
-                [] for _ in model_logger.ids
-            ]
-            model_logger.log_helper_data["_spacy_state_for_pred_ranges"] = [
-                [] for _ in model_logger.ids
-            ]
-
-            for state in X:
-                log_ids = list(model_logger.ids)
-                sample_id = state.doc.user_data["id"]
-                if sample_id not in log_ids:
-                    warnings.warn(
-                        "Provided sample id is missing, will skip model logging"
-                    )
-                    continue
-                model_logger_idx = log_ids.index(sample_id)
-                model_logger.log_helper_data["_spacy_state_for_pred"][
-                    model_logger_idx
-                ].append(None)
-
-                # spacy queue has its length go to the end often
-                # ranges is [start_idx, end_idx)
-                if (
-                    len(
-                        model_logger.log_helper_data["_spacy_state_for_pred_ranges"][
-                            model_logger_idx
-                        ]
-                    )
-                    > 0
-                ):
-                    model_logger.log_helper_data["_spacy_state_for_pred_ranges"][
-                        model_logger_idx
-                    ][-1][1] = state.queue[0]
-
-                model_logger.log_helper_data["_spacy_state_for_pred_ranges"][
-                    model_logger_idx
-                ].append([state.queue[0], state.queue[-1] + 1])
-
         parser_step_model.state2vec._self_X = X
         scores, backprop_fn = self._self_orig_forward(parser_step_model, X, is_train)
         logits = scores[..., 1:]  # Throw out the -U token
@@ -384,94 +335,60 @@ class GalileoParserStepModel(ThincModelWrapper):
         # any remaining tokens to make predictions on. We assume that the
         # outputted scores match in order to the inputted X: List[StateClass]
         # eg. X == [StateClass_0, StateClass_1] then scores == [2, 22]
+        model_logger = self._self_model_logger  # for readability
         assert len(self._self_model_logger.ids) != 0
         model_logger_idxs = []
 
-        ner = text_ner_logger_config.user_data["nlp"].get_pipe("ner")
         for i, state in enumerate(X):
             # In case the order of X is different than the original X of docs
             # Assumes passed in data has the "id" user_data appended, which we
             # automatically append with our log_training call.
 
             log_ids = list(model_logger.ids)
-            sample_id = state.doc.user_data["id"]
-            if sample_id not in log_ids:
+            user_sample_id = state.doc.user_data["id"]
+            if user_sample_id not in log_ids:
                 warnings.warn("Provided sample id is missing, will skip model logging")
                 continue
-            token_idx_for_sample = state.queue[0]
 
-            model_logger_idx = log_ids.index(sample_id)
+            model_logger_idx = log_ids.index(user_sample_id)
             model_logger_idxs.append(model_logger_idx)
 
-            # TODO: get spacy_state_range_idx
-            for j, chunk_range in enumerate(
-                model_logger.log_helper_data["_spacy_state_for_pred_ranges"][
-                    model_logger_idx
-                ]
-            ):
-                if chunk_range[0] <= token_idx_for_sample < chunk_range[1]:
-                    model_logger.log_helper_data["_spacy_state_for_pred"][
-                        model_logger_idx
-                    ][j] = state.copy()
+            model_logger.log_helper_data["_spacy_state_for_pred"][
+                model_logger_idx
+            ] = state.copy()
 
-                    # TODO: could probably speed this up by only doing this at the
-                    #  end of a state
-                    ner.transition_states(
-                        [
-                            model_logger.log_helper_data["_spacy_state_for_pred"][
-                                model_logger_idx
-                            ][j]
-                        ],
-                        scores[i : i + 1, :],  # transition states expects a 2d np array
-                    )
+            model_logger.log_helper_data["logits"][model_logger_idx].append(logits[i])
 
-            model_logger.log_helper_data["logits"][model_logger_idx][
-                token_idx_for_sample
-            ] = logits[i]
+        ner = text_ner_logger_config.user_data["nlp"].get_pipe("ner")
+        ner.transition_states(
+            [
+                model_logger.log_helper_data["_spacy_state_for_pred"][idx]
+                for idx in model_logger_idxs
+            ],
+            scores,
+        )
 
-        # if we are at the end of the batch, i.e. all logits are filled
+        # if we are at the end of the batch
         if all(
             [
-                all(
-                    [
-                        logits_for_token is not None
-                        for logits_for_token in logits_for_sample
-                    ]
-                )
-                for logits_for_sample in model_logger.log_helper_data["logits"]
+                len(model_logger.log_helper_data["logits"][i])
+                == model_logger.log_helper_data["expected_lengths"][i]
+                for i in range(len(model_logger.ids))
             ]
         ):
-            assert all(
-                [
-                    all([emb_for_token is not None for emb_for_token in emb_for_sample])
-                    for emb_for_sample in model_logger.log_helper_data["embs"]
-                ]
-            )
-
-            # Do the final transition so spacy can get predictions per chunk
-            # TODO: If our states are copies, why do we need to copy doc?
+            # Do the final transition to be able to use spacy to get predictions
             docs_copy = [
-                states_for_sample[0].doc.copy()
-                for states_for_sample in model_logger.log_helper_data[
-                    "_spacy_state_for_pred"
-                ]
+                state.doc.copy()
+                for state in model_logger.log_helper_data["_spacy_state_for_pred"]
             ]
 
-            # now we have a copy of the doc for each sample
-            # TODO: this could be super buggy, need to write a unit test that this works
-            for i, states_for_sample in enumerate(
-                model_logger.log_helper_data["_spacy_state_for_pred"]
-            ):
-                # TODO: states_for_sample is a list of states that are per chunk
-                ner.set_annotations(
-                    [docs_copy[i]],
-                    states_for_sample,
-                )
+            ner.set_annotations(
+                docs_copy, model_logger.log_helper_data["_spacy_state_for_pred"]
+            )
 
             predictions_for_docs = convert_spacy_ents_for_doc_to_predictions(
                 docs_copy, model_logger.logger_config.labels
             )
-
             valid_logits_for_docs: List[List] = [
                 [] for _ in range(len(predictions_for_docs))
             ]
@@ -491,10 +408,11 @@ class GalileoParserStepModel(ThincModelWrapper):
             for i in range(len(valid_logits_for_docs)):
                 doc_probs_ndarray[i] = np.array(valid_logits_for_docs[i])
                 model_logger.emb.append(
-                    np.array(model_logger.log_helper_data["embs"][i])
+                    np.array(model_logger.log_helper_data["emb"][i])
                 )
             model_logger.logits = doc_probs_ndarray
             model_logger.log()
+
         return scores, backprop_fn
 
 
@@ -526,9 +444,9 @@ class GalileoState2Vec(CallableObjectProxy):
             model_logger_idx = log_ids.index(user_sample_id)
             # At this point, we are treating embeddings as a list before converting
             # to a numpy array for logging
-            token_idx_for_sample = state.queue[0]
-            self._self_model_logger.log_helper_data["embs"][model_logger_idx][
-                token_idx_for_sample
-            ] = embeddings[i]
+
+            self._self_model_logger.log_helper_data["emb"][model_logger_idx].append(
+                embeddings[i]
+            )
 
         return embeddings, embeddings_bp
