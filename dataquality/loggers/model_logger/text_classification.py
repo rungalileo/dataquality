@@ -80,9 +80,6 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         self.split: str = split
         self.epoch = epoch
 
-        if self.split:
-            setattr(self.logger_config, f"{self.split}_logged", True)
-
     @staticmethod
     def get_valid_attributes() -> List[str]:
         """

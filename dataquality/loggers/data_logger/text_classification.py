@@ -69,9 +69,6 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         self.split = split
         self.inference_name = inference_name
 
-        if self.split:
-            setattr(self.logger_config, f"{self.split}_logged", True)
-
     @staticmethod
     def get_valid_attributes() -> List[str]:
         """
