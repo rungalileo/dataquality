@@ -1,3 +1,4 @@
+from typing import Callable, Dict, List, Tuple
 from unittest.mock import Mock
 
 import numpy as np
@@ -15,10 +16,14 @@ from dataquality.core.integrations.spacy import (
     watch,
 )
 from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
+from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
 from dataquality.schemas.task_type import TaskType
+from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.conftest import LOCATION
 from tests.utils.spacy_integration import load_ner_data_from_local, train_model
 from tests.utils.spacy_integration_constants import (
+    LONG_SHORT_DATA,
+    LONG_TRAIN_DATA,
     NER_CLASS_LABELS,
     NER_TEST_DATA,
     NER_TRAINING_DATA,
@@ -248,3 +253,61 @@ def test_galileo_transition_based_parser_forward(set_test_config, cleanup_after_
 @pytest.mark.skip(reason="Still need to implement the mock ParserStepModel")
 def test_galileo_parser_step_forward():
     pass
+
+
+@pytest.mark.parametrize(
+    "samples, cut_size, exp_num_logged",
+    [
+        (LONG_SHORT_DATA, 2_000, len(LONG_SHORT_DATA)),  # all samples, no skips
+        # (LONG_SHORT_DATA, 100, len(LONG_SHORT_DATA) - 2),  # all samples, long skipped
+        # (LONG_TRAIN_DATA + LONG_TRAIN_DATA, 100, 0),  # only long, all skipped
+        (LONG_TRAIN_DATA + LONG_TRAIN_DATA, 2_000, 2),  # only long, no skips
+        (NER_TRAINING_DATA, 100, len(NER_TRAINING_DATA)),  # no long samples, no skips
+        (NER_TRAINING_DATA, 2_000, len(NER_TRAINING_DATA)),  # no long samples, no skips
+    ],
+)
+def test_long_sample(
+    samples: List[Tuple[str, Dict]],
+    cut_size: int,
+    exp_num_logged: int,
+    cleanup_after_use: Callable,
+    set_test_config: Callable,
+):
+    """Tests logging a long sample during training"""
+    TextNERModelLogger.logger_config.reset()
+    set_test_config(task_type=TaskType.text_ner)
+    default_config = {
+        "update_with_oracle_cut_size": cut_size,
+    }
+    nlp = spacy.blank("en")
+    nlp.add_pipe("ner", config=default_config)
+
+    all_examples = [
+        Example.from_dict(nlp.make_doc(sample_text), sample_entity)
+        for sample_text, sample_entity in samples
+    ]
+    optimizer = nlp.initialize(lambda: all_examples)
+
+    old_log = TextNERModelLogger.log
+
+    def new_log(*args, **kwargs):
+        logger: TextNERModelLogger = args[0]
+        # Long sample should be skipped
+        assert len(logger.ids) == exp_num_logged
+        assert len(logger.logits) == exp_num_logged
+        assert len(logger.emb) == exp_num_logged
+
+    TextNERModelLogger.log = new_log
+
+    watch(nlp)
+    log_input_examples(all_examples, split="training")
+
+    dataquality.set_split("training")
+    for epoch in range(2):
+        dataquality.set_epoch(epoch)
+        losses = {}
+        nlp.update(all_examples, drop=0.5, sgd=optimizer, losses=losses)
+
+    TextNERModelLogger.log = old_log
+    ThreadPoolManager.wait_for_threads()
+    del nlp

@@ -158,10 +158,15 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         # so each span has only 1 embedding vector
         logged_sample_ids = []
         for sample_id, sample_emb, sample_prob in zip(self.ids, self.emb, self.probs):
+            # This will return True if there was a prediction or gold span
             if self._process_sample(sample_id, sample_emb, sample_prob):
                 logged_sample_ids.append(sample_id)
 
         self.ids = logged_sample_ids
+        assert self.ids, (
+            "No samples in this batch had any gold or prediction spans. Logging will "
+            "be skipped"
+        )
 
     def _process_sample(
         self, sample_id: int, sample_emb: np.ndarray, sample_prob: np.ndarray

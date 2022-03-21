@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import List
 
 import numpy as np
 import spacy
@@ -8,7 +8,7 @@ from spacy.training import offsets_to_biluo_tags
 from dataquality.exceptions import GalileoException
 
 
-def validate_obj(an_object: Any, check_type: Any, has_attr: str) -> None:
+def validate_obj(an_object: object, check_type: type, has_attr: str) -> None:
     if not isinstance(an_object, check_type):
         raise GalileoException(
             f"Expected a {check_type}. Received {str(type(an_object))}"

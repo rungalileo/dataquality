@@ -731,3 +731,49 @@ class TestSpacyNerConstants:
             "galileo_error_type": ["missed_label"] * _num_gold_spans,
         }
     )
+
+
+LONG_SAMPLE = """
+From: {{NAME-506}} {{NAME-507}}
+To: "{{NAME-5651}} {{NAME-8722}}" <{{EMAIL-8723}}>
+
+Hi again {{NAME-5651}},
+
+Circling back to my below message. Do you have time to get introduced?
+
+I believe {{NAME-514}}'s diversity data could be helpful in setting the right expectations and increasing representation at AWS.
+--
+
+{{NAME-506}} {{NAME-507}} | {{NAME-514}} | {{NAME-515}} {{NAME-162}} {{NAME-130}} | {{PHONE-516}}
+
+If you'd like me to stop sending you emails, please click here ( %unsubscribe_url% )
+
+On {{NAME-712}}, {{NAME-194}} 8, 2020 at 3:31 pm, {{NAME-506}} {{NAME-507}} wrote:
+Hi {{NAME-5651}},
+>
+> I know we don't know each other personally, but hoping to get introduced as I noticed you lead {{NAME-301}} for AWS.
+>
+> Diversity has been a big topic for many of the companies that we've spoken to lately. We help teams like yours get a view of external talent demographics, so that they can more effectively benchmark internal {{NAME-301}} initiatives.
+>
+> {{NAME-402}} like the attached for {{NAME-1083}} {{NAME-2972}} in {{NAME-574}}...
+>
+> Is this relevant to you?
+> --
+>
+> {{NAME-506}} {{NAME-507}} | {{NAME-514}} | {{NAME-515}} {{NAME-162}} {{NAME-130}} | {{PHONE-516}}
+>
+> If you'd like me to stop sending you emails, please click here ( %unsubscribe_url% )
+"""
+
+LONG_SAMPLES_ENTITIES_DICT = {
+    "entities": [
+        (1661, 1677, "Product Training"),
+        (1787, 1815, "Action item not completed"),
+    ]
+}
+
+LONG_TRAIN_DATA = [(LONG_SAMPLE, LONG_SAMPLES_ENTITIES_DICT)]
+
+LONG_SHORT_DATA = (
+    NER_TRAINING_DATA[:2] + LONG_TRAIN_DATA + NER_TRAINING_DATA[2:] + LONG_TRAIN_DATA
+)

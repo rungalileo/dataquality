@@ -1,3 +1,4 @@
+import warnings
 from typing import Any, Callable, Generator, List, Tuple, Union
 
 import numpy as np
@@ -19,6 +20,7 @@ from dataquality.exceptions import GalileoException
 from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
 from dataquality.schemas.ner import TaggingSchema
+from dataquality.schemas.split import Split, conform_split
 from dataquality.utils.spacy_integration import (
     convert_spacy_ents_for_doc_to_predictions,
     convert_spacy_ner_logits_to_valid_logits,
@@ -27,8 +29,9 @@ from dataquality.utils.spacy_integration import (
 )
 
 
-def log_input_examples(examples: List[Example], split: str) -> None:
+def log_input_examples(examples: List[Example], split: Split) -> None:
     """Logs a list of Spacy Examples using the dataquality client"""
+    split = conform_split(split)
     if not dataquality.get_data_logger().logger_config.labels:
         raise GalileoException(
             "Galileo does not have any logged labels. Did you forget "
@@ -39,6 +42,7 @@ def log_input_examples(examples: List[Example], split: str) -> None:
     gold_spans = []
     ids = []
     for i, example in enumerate(examples):
+        validate_obj(example, Example, "reference")
         # For the most part reference has all the information we want to log
         data = example.reference
         # but predicted is the Doc that will be passed along to the spacy models, and
@@ -124,7 +128,12 @@ class GalileoEntityRecognizer(CallableObjectProxy):
     def __init__(self, ner: EntityRecognizer):
         super().__init__(ner)
         validate_obj(ner, check_type=EntityRecognizer, has_attr="model")
-
+        if isinstance(ner, GalileoEntityRecognizer):
+            raise GalileoException(
+                "Seems like your ner component has already "
+                "been watched. Make sure to call `watch` "
+                "on a fresh `nlp` spacy Language."
+            )
         # Assert we are working with the 'ner' component and not 'beam_ner'
         if self.cfg["beam_width"] != 1:
             raise GalileoException(
@@ -133,7 +142,9 @@ class GalileoEntityRecognizer(CallableObjectProxy):
                 f"expects a beam width of 1 (the 'ner' default)."
             )
 
-        # patch_transition_based_parser_forward(ner.model)
+        self.cfg["update_with_oracle_cut_size"] = max(
+            300, self.cfg["update_with_oracle_cut_size"]
+        )
         ner.model = GalileoTransitionBasedParserModel(ner.model)
 
     def greedy_parse(self, docs: List[Doc], drop: float = 0.0) -> List:
@@ -261,6 +272,8 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
                 f"that the spacy architecture has changed and is no "
                 f"longer compatible with this Galileo integration."
             )
+        assert isinstance(model, thinc.model.Model)
+        assert not isinstance(model, GalileoTransitionBasedParserModel)
 
     def _self__func(
         self, model: thinc.model.Model, X: Any, is_train: bool
@@ -276,18 +289,34 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
                 "One of your model's docs is missing a galileo generated "
                 "id. Did you first log your docs/examples with us using, "
                 "for example, "
-                "`log_input_examples(training_examples, split=training)`?"
+                "`log_input_examples(training_examples, split='training')`? "
                 "Make sure to then continue using 'training_examples'"
             )
 
         model_logger.ids = [doc.user_data["id"] for doc in X]
-        # These start as lists to append values, but are then converted to numpy
-        # arrays before logging. So we ignore mypy
-        model_logger.log_helper_data["logits"] = [[] for _ in range(len(X))]
-        model_logger.log_helper_data["emb"] = [[] for _ in range(len(X))]
-        model_logger.log_helper_data["_spacy_state_for_pred"] = [None] * len(X)
-        model_logger.log_helper_data["expected_lengths"] = [len(doc) for doc in X]
+        assert model_logger.ids
 
+        model_logger.log_helper_data["skip_id_idx"] = []
+        ner = text_ner_logger_config.user_data["nlp"].get_pipe("ner")
+        cutoff_len = ner.cfg["update_with_oracle_cut_size"] // 2
+        skipped_text = []
+        for doc_idx, doc in enumerate(X):
+            if len(doc) >= cutoff_len:
+                model_logger.log_helper_data["skip_id_idx"].append(doc_idx)
+                skipped_text.append(doc.text[:30])
+        if skipped_text:
+            samples = "\n".join([f"\t{s}..." for s in skipped_text])
+            raise GalileoException(
+                f"Some samples are longer than the SpaCy "
+                f"update_with_oracle_cut_size ({cutoff_len*2}). Galileo cannot "
+                f"process these samples and will skip logging for it. You can "
+                f"update the cut size by setting it in your ner component. "
+                f"https://spacy.io/api/entityrecognizer\nSamples:\n{samples}"
+            )
+        model_logger.log_helper_data["logits"] = [[] for _ in X]
+        model_logger.log_helper_data["emb"] = [[] for _ in X]
+        model_logger.log_helper_data["_spacy_state_for_pred"] = [None] * len(X)
+        model_logger.log_helper_data["expected_lengths"] = [0 for _ in X]
         return GalileoParserStepModel(parser_step_model, model_logger), backprop_fn
 
 
@@ -304,7 +333,9 @@ class GalileoParserStepModel(ThincModelWrapper):
                 f"that the spacy architecture has changed and is no "
                 f"longer compatible with this Galileo integration."
             )
-
+        assert isinstance(model, ParserStepModel)
+        assert not isinstance(model, GalileoParserStepModel)
+        assert len(model_logger.ids) != 0
         self._self_model_logger = model_logger
         model.state2vec = GalileoState2Vec(model.state2vec, self._self_model_logger)
 
@@ -324,11 +355,19 @@ class GalileoParserStepModel(ThincModelWrapper):
         model_logger = self._self_model_logger  # for readability
         model_logger_idxs = []
 
+        states_to_transition = []
         for i, state in enumerate(X):
             # In case the order of X is different than the original X of docs
             # Assumes passed in data has the "id" user_data appended, which we
             # automatically append with our log_training call.
-            model_logger_idx = list(model_logger.ids).index(state.doc.user_data["id"])
+            log_ids = list(model_logger.ids)
+            user_sample_id = state.doc.user_data["id"]
+            if user_sample_id not in log_ids:
+                warnings.warn("Provided sample id is missing, will skip model logging")
+                continue
+
+            states_to_transition.append(i)
+            model_logger_idx = log_ids.index(user_sample_id)
             model_logger_idxs.append(model_logger_idx)
 
             model_logger.log_helper_data["_spacy_state_for_pred"][
@@ -336,15 +375,20 @@ class GalileoParserStepModel(ThincModelWrapper):
             ] = state.copy()
 
             model_logger.log_helper_data["logits"][model_logger_idx].append(logits[i])
+            model_logger.log_helper_data["expected_lengths"][model_logger_idx] = len(
+                state.doc
+            )
 
         ner = text_ner_logger_config.user_data["nlp"].get_pipe("ner")
-        ner.transition_states(
-            [
-                model_logger.log_helper_data["_spacy_state_for_pred"][idx]
-                for idx in model_logger_idxs
-            ],
-            scores,
-        )
+
+        transition_states = [
+            model_logger.log_helper_data["_spacy_state_for_pred"][idx]
+            for idx in model_logger_idxs
+        ]
+        transition_scores = np.array([scores[idx] for idx in states_to_transition])
+
+        if len(transition_states):
+            ner.transition_states(transition_states, transition_scores)
 
         # if we are at the end of the batch
         if all(
@@ -354,12 +398,27 @@ class GalileoParserStepModel(ThincModelWrapper):
                 for i in range(len(model_logger.ids))
             ]
         ):
-            # Do the final transition to be able to use spacy to get predictions
-            docs_copy = [
-                state.doc.copy()
-                for state in model_logger.log_helper_data["_spacy_state_for_pred"]
-            ]
 
+            missing_idx = []
+            docs_copy = []
+            for i, state in enumerate(
+                model_logger.log_helper_data["_spacy_state_for_pred"]
+            ):
+                # State would be None in cases where the sample ID is lost by SpaCy
+                if state is None:
+                    missing_idx.append(i)
+                else:
+                    docs_copy.append(state.doc.copy())
+
+            model_logger.ids = list(model_logger.ids)
+            for idx in reversed(missing_idx):
+                del model_logger.log_helper_data["_spacy_state_for_pred"][idx]
+                del model_logger.log_helper_data["expected_lengths"][idx]
+                del model_logger.log_helper_data["emb"][idx]
+                del model_logger.log_helper_data["logits"][idx]
+                del model_logger.ids[idx]
+
+            # Do the final transition to be able to use spacy to get predictions
             ner.set_annotations(
                 docs_copy, model_logger.log_helper_data["_spacy_state_for_pred"]
             )
@@ -389,6 +448,13 @@ class GalileoParserStepModel(ThincModelWrapper):
                     np.array(model_logger.log_helper_data["emb"][i])
                 )
             model_logger.logits = doc_probs_ndarray
+            model_logger.ids = list(model_logger.ids)
+            # Traverse in reverse order so deleting doesnt affect the indexes
+            for id_idx in reversed(model_logger.log_helper_data["skip_id_idx"]):
+                del model_logger.ids[id_idx]
+                del model_logger.emb[id_idx]
+                del model_logger.logits[id_idx]
+
             model_logger.log()
 
         return scores, backprop_fn
@@ -399,6 +465,9 @@ class GalileoState2Vec(CallableObjectProxy):
         super().__init__(model)
         validate_obj(model, State2Vec, "__call__")
 
+        assert isinstance(model, State2Vec)
+        assert not isinstance(model, GalileoState2Vec)
+        assert len(model_logger.ids) != 0
         self._self_model_logger = model_logger
         self._self_X: List[StateClass] = []
 
@@ -409,11 +478,16 @@ class GalileoState2Vec(CallableObjectProxy):
         # _self.X needs to be set externally to communicate where these embs belong
         # in the model wrapper. Maybe this would be better in some more global state
         for i, state in enumerate(self._self_X):
-            model_logger_idx = list(self._self_model_logger.ids).index(
-                state.doc.user_data["id"]
-            )
+            log_ids = list(self._self_model_logger.ids)
+            user_sample_id = state.doc.user_data["id"]
+            if user_sample_id not in log_ids:
+                warnings.warn("Provided sample id is missing, will skip model logging")
+                continue
+
+            model_logger_idx = log_ids.index(user_sample_id)
             # At this point, we are treating embeddings as a list before converting
             # to a numpy array for logging
+
             self._self_model_logger.log_helper_data["emb"][model_logger_idx].append(
                 embeddings[i]
             )
