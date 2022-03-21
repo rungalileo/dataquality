@@ -254,13 +254,16 @@ def test_galileo_parser_step_forward():
 
 
 @pytest.mark.parametrize(
-    "sample_config,full_len",
+    "only_long, only_short,sample_config,full_len",
     [
-        (2_000, True),
-        (100, False),
+        (False, False, 2_000, True),  # no samples skipped
+        (False, False, 100, False),  # only long samples skipped (2)
+        (True, False, 100, False),  # all samples (only long) skipped
+        (True, False, 2_000, True),  # no samples skipped (only long)
+        (False, True, 100, False),  # no samples skipped (no long samples)
     ],
 )
-def test_long_sample(sample_config, full_len, cleanup_after_use, set_test_config):
+def test_long_sample(only_long, only_short, sample_config, full_len, cleanup_after_use, set_test_config):
     """Tests logging a long sample during training"""
     set_test_config(task_type=TaskType.text_ner)
     default_config = {
@@ -277,8 +280,13 @@ def test_long_sample(sample_config, full_len, cleanup_after_use, set_test_config
         for sample_text, sample_entity in NER_TRAINING_DATA
     ]
     le = [long_example]
-    # le should be skipped when we have the default config cut_size.
-    all_examples = short_examples[:2] + le + short_examples[2:] + le
+    if only_long:
+        all_examples = le + le
+    elif only_short:
+        all_examples = short_examples
+    else:
+        # le should be skipped when we have the default config cut_size.
+        all_examples = short_examples[:2] + le + short_examples[2:] + le
     optimizer = nlp.initialize(lambda: all_examples)
 
     old_log = TextNERModelLogger.log
@@ -287,7 +295,14 @@ def test_long_sample(sample_config, full_len, cleanup_after_use, set_test_config
     def new_log(*args, **kwargs):
         logger: TextNERModelLogger = args[0]
         # Long sample should be skipped
-        test_len = len(all_examples) if full_len else len(all_examples) - 2
+        if only_long and full_len:
+            test_len = 2
+        elif only_long and not full_len:
+            test_len = 0
+        elif only_short:
+            test_len = len(all_examples)
+        else:
+            test_len = len(all_examples) if full_len else len(all_examples) - 2
         assert len(logger.ids) == test_len
         assert len(logger.logits) == test_len
         assert len(logger.emb) == test_len
