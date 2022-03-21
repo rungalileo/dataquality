@@ -108,10 +108,11 @@ class BaseGalileoLogger:
         return True
 
     @classmethod
-    def non_inference_logged(cls) -> bool:  # TODO
-        """Clear minio data if new training, test, or validation data is logged.
+    def non_inference_logged(cls) -> bool:
+        """Return true if training, test, or validation data is logged
 
-        If just inference data is logged then append data rather than overwriting
+        If just inference data is logged then append data rather than overwriting.
+        This flag is also used by the api to know which processing jobs to run.
         """
         return any(
             [
