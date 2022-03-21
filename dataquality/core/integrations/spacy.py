@@ -390,7 +390,7 @@ class GalileoParserStepModel(ThincModelWrapper):
         ])
 
         if len(transition_states):
-            ner.transition_states(transition_states,transition_scores)
+            ner.transition_states(transition_states, transition_scores)
 
         # if we are at the end of the batch
         if all(

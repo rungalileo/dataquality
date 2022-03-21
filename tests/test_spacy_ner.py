@@ -289,7 +289,6 @@ def test_long_sample(
     optimizer = nlp.initialize(lambda: all_examples)
 
     old_log = TextNERModelLogger.log
-    epoch = 0
 
     def new_log(*args, **kwargs):
         logger: TextNERModelLogger = args[0]
@@ -304,13 +303,11 @@ def test_long_sample(
     log_input_examples(all_examples, split="training")
 
     dataquality.set_split("training")
-    for _ in range(2):
+    for epoch in range(2):
         dataquality.set_epoch(epoch)
         losses = {}
-        print('setting log')
         nlp.update(all_examples, drop=0.5, sgd=optimizer, losses=losses)
-        print('done with log')
-        epoch += 1
 
     TextNERModelLogger.log = old_log
     ThreadPoolManager.wait_for_threads()
+    del nlp
