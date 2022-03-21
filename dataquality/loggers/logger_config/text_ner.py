@@ -7,7 +7,6 @@ from dataquality.loggers.logger_config.base_logger_config import BaseLoggerConfi
 
 
 class TextNERLoggerConfig(BaseLoggerConfig):
-    num_emb: int = 0
     gold_spans: Dict[str, List[Tuple[int, int, str]]] = {}
     sample_length: Dict[str, int] = {}
     user_data: Dict[str, Any] = {}
