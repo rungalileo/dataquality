@@ -23,7 +23,7 @@ def finish() -> Optional[Dict[str, Any]]:
 
     _version_check()
 
-    if data_logger.clear_run():
+    if data_logger.non_inference_logged():
         # Clear the data in minio before uploading new data
         # If this is a run that already existed, we want to fully overwrite the old data
         api_client.reset_run(config.current_project_id, config.current_run_id)
@@ -40,7 +40,7 @@ def finish() -> Optional[Dict[str, Any]]:
     if data_logger.logger_config.inference_logged:
         body.update(
             job_name=JobName.inference,
-            pre_inference_logged=data_logger.clear_run(),
+            non_inference_logged=data_logger.non_inference_logged(),
         )
     res = api_client.make_request(
         RequestType.POST, url=f"{config.api_url}/{Route.jobs}", body=body

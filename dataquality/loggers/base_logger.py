@@ -97,6 +97,8 @@ class BaseGalileoLogger:
                     "`dataquality.set_split` to set the split"
                 )
         self.split = self.validate_split(self.split)
+        # Set this config variable in validation, right before logging split data
+        setattr(self.logger_config, f"{self.split}_logged", True)
 
     def is_valid(self) -> bool:
         try:
@@ -106,7 +108,7 @@ class BaseGalileoLogger:
         return True
 
     @classmethod
-    def clear_run(cls) -> bool:
+    def non_inference_logged(cls) -> bool:  # TODO
         """Clear minio data if new training, test, or validation data is logged.
 
         If just inference data is logged then append data rather than overwriting

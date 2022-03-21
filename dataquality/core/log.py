@@ -123,9 +123,12 @@ def set_split(split: Split, inference_name: Optional[str] = None) -> None:
     """Set the current split.
 
     When set, logging data inputs/model outputs will use this if not logged explicitly
-    Valid for inference split only, optionally pass in an inference_name
+    When setting split to inference, inference_name must be included
     """
     get_data_logger().logger_config.cur_split = split
     setattr(get_data_logger().logger_config, f"{split}_logged", True)
     if split == Split.inference:
+        assert (
+            inference_name
+        ), "Please specify inference_name when setting split to inference"
         get_data_logger().logger_config.cur_inference_name = inference_name

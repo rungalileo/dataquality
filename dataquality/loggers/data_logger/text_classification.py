@@ -1,4 +1,3 @@
-from datetime import datetime
 from enum import Enum, unique
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -102,7 +101,11 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
 
         if self.split == Split.inference.value:
             assert not label_len, "You cannot have labels in your inference split!"
-            self.inference_name = self.inference_name or str(datetime.utcnow())
+            assert self.inference_name, (
+                "Inference name must be set when logging an inference split. Use"
+                "set_split('inference', inference_name) to set inference name"
+            )
+
         else:
             assert label_len and text_len, (
                 f"Both text and labels for your logger must be set, but got"
