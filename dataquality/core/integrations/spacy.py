@@ -401,6 +401,7 @@ class GalileoParserStepModel(ThincModelWrapper):
             for i, state in enumerate(
                 model_logger.log_helper_data["_spacy_state_for_pred"]
             ):
+                # State would be None in cases where the sample ID is lost by SpaCy
                 if state is None:
                     del model_logger.log_helper_data["_spacy_state_for_pred"][i]
                     del model_logger.log_helper_data["expected_lengths"][i]
