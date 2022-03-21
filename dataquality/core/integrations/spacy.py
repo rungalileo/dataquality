@@ -381,7 +381,7 @@ class GalileoParserStepModel(ThincModelWrapper):
 
         ner = text_ner_logger_config.user_data["nlp"].get_pipe("ner")
 
-        trans_states = [
+        transition_states = [
             model_logger.log_helper_data["_spacy_state_for_pred"][idx]
             for idx in model_logger_idxs
         ]
@@ -389,12 +389,8 @@ class GalileoParserStepModel(ThincModelWrapper):
             scores[idx] for idx in states_to_transition
         ])
 
-        if len(trans_states)!= len(transition_scores):
-            print("Issue in sizes", len(trans_states), len(transition_scores))
-        ner.transition_states(
-            trans_states,
-            transition_scores,
-        )
+        if len(transition_states):
+            ner.transition_states(transition_states,transition_scores)
 
         # if we are at the end of the batch
         if all(
