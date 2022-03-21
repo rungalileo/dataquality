@@ -306,7 +306,7 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
                 skipped_text.append(doc.text[:30])
         if skipped_text:
             samples = "\n".join([f"\t{s}..." for s in skipped_text])
-            warnings.warn(
+            raise GalileoException(
                 f"Some samples are longer than the SpaCy "
                 f"update_with_oracle_cut_size ({cutoff_len*2}). Galileo cannot "
                 f"process these samples and will skip logging for it. You can "
