@@ -396,20 +396,25 @@ class GalileoParserStepModel(ThincModelWrapper):
                 for i in range(len(model_logger.ids))
             ]
         ):
-            model_logger.ids = list(model_logger.ids)
+
+            missing_idx = []
             docs_copy = []
             for i, state in enumerate(
                 model_logger.log_helper_data["_spacy_state_for_pred"]
             ):
                 # State would be None in cases where the sample ID is lost by SpaCy
                 if state is None:
-                    del model_logger.log_helper_data["_spacy_state_for_pred"][i]
-                    del model_logger.log_helper_data["expected_lengths"][i]
-                    del model_logger.log_helper_data["emb"][i]
-                    del model_logger.log_helper_data["logits"][i]
-                    del model_logger.ids[i]
+                    missing_idx.append(i)
                 else:
                     docs_copy.append(state.doc.copy())
+
+            model_logger.ids = list(model_logger.ids)
+            for idx in reversed(missing_idx):
+                del model_logger.log_helper_data["_spacy_state_for_pred"][idx]
+                del model_logger.log_helper_data["expected_lengths"][idx]
+                del model_logger.log_helper_data["emb"][idx]
+                del model_logger.log_helper_data["logits"][idx]
+                del model_logger.ids[idx]
 
             # Do the final transition to be able to use spacy to get predictions
             ner.set_annotations(
@@ -442,7 +447,8 @@ class GalileoParserStepModel(ThincModelWrapper):
                 )
             model_logger.logits = doc_probs_ndarray
             model_logger.ids = list(model_logger.ids)
-            for id_idx in model_logger.log_helper_data["skip_id_idx"]:
+            # Traverse in reverse order so deleting doesnt affect the indexes
+            for id_idx in reversed(model_logger.log_helper_data["skip_id_idx"]):
                 del model_logger.ids[id_idx]
                 del model_logger.emb[id_idx]
                 del model_logger.logits[id_idx]

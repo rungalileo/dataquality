@@ -1,4 +1,4 @@
-from typing import Tuple, Dict, List, Callable
+from typing import Callable, Dict, List, Tuple
 from unittest.mock import Mock
 
 import numpy as np
@@ -21,12 +21,12 @@ from dataquality.schemas.task_type import TaskType
 from tests.conftest import LOCATION
 from tests.utils.spacy_integration import load_ner_data_from_local, train_model
 from tests.utils.spacy_integration_constants import (
-    LONG_SAMPLE,
-    LONG_SAMPLES_ENTITIES_DICT,
+    LONG_SHORT_DATA,
+    LONG_TRAIN_DATA,
     NER_CLASS_LABELS,
     NER_TEST_DATA,
     NER_TRAINING_DATA,
-    TestSpacyNerConstants, LONG_TRAIN_DATA, LONG_SHORT_DATA,
+    TestSpacyNerConstants,
 )
 
 
@@ -258,7 +258,7 @@ def test_galileo_parser_step_forward():
     "samples, cut_size, exp_num_logged",
     [
         (LONG_SHORT_DATA, 2_000, len(LONG_SHORT_DATA)),  # all samples, no skips
-        (LONG_SHORT_DATA, 100, len(LONG_SHORT_DATA)-2),  # all samples, long skipped
+        (LONG_SHORT_DATA, 100, len(LONG_SHORT_DATA) - 2),  # all samples, long skipped
         (LONG_TRAIN_DATA + LONG_TRAIN_DATA, 100, 0),  # only long, all skipped
         (LONG_TRAIN_DATA + LONG_TRAIN_DATA, 2_000, 2),  # only long, no skips
         (NER_TRAINING_DATA, 100, len(NER_TRAINING_DATA)),  # no long samples, no skips
@@ -266,7 +266,11 @@ def test_galileo_parser_step_forward():
     ],
 )
 def test_long_sample(
-        samples: List[Tuple[str, Dict]], cut_size: int, exp_num_logged: int, cleanup_after_use: Callable, set_test_config: Callable
+    samples: List[Tuple[str, Dict]],
+    cut_size: int,
+    exp_num_logged: int,
+    cleanup_after_use: Callable,
+    set_test_config: Callable,
 ):
     """Tests logging a long sample during training"""
     set_test_config(task_type=TaskType.text_ner)
