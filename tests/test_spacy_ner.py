@@ -12,18 +12,19 @@ from dataquality.core.integrations.spacy import (
     GalileoEntityRecognizer,
     log_input_examples,
     unwatch,
-    watch, GalileoTransitionBasedParserModel,
+    watch,
 )
 from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
+from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from tests.conftest import LOCATION
 from tests.utils.spacy_integration import load_ner_data_from_local, train_model
 from tests.utils.spacy_integration_constants import (
+    LONG_SAMPLE,
     NER_CLASS_LABELS,
     NER_TEST_DATA,
     NER_TRAINING_DATA,
-    LONG_SAMPLE,
     TestSpacyNerConstants,
 )
 
@@ -102,14 +103,15 @@ def test_long_sample(cleanup_after_use, set_test_config):
     """Tests logging a long sample during training"""
     set_test_config(task_type=TaskType.text_ner)
     nlp = spacy.blank("en")
-    ner = nlp.add_pipe("ner")
+    nlp.add_pipe("ner")
 
     long_example = Example.from_dict(nlp.make_doc(LONG_SAMPLE), {"entities": []})
     optimizer = nlp.initialize(lambda: [long_example])
 
     def new_log(*args, **kwargs):
-        # TODO: test for a single long sample with and without ents, ents in different chunks, multiple long samples with the above
-        # TODO: also need to test the nlp.evaluate works as well still with long samples.
+        # TODO: test for a single long sample with and without ents, ents in different
+        #  chunks, multiple long samples with the above.
+        #  Also need to test the nlp.evaluate works as well still with long samples.
         print("need to test for right outputs")
 
     old_log = TextNERModelLogger.log
@@ -119,7 +121,7 @@ def test_long_sample(cleanup_after_use, set_test_config):
     log_input_examples([long_example], split="training")
 
     dataquality.set_epoch(0)
-    dataquality.set_split("training")
+    dataquality.set_split(Split.training)
     nlp.update([long_example], drop=0.5, sgd=optimizer, losses={})
 
     TextNERModelLogger.log = old_log

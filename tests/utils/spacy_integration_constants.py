@@ -732,6 +732,7 @@ class TestSpacyNerConstants:
         }
     )
 
+
 LONG_SAMPLE = """
 From: {{NAME-506}} {{NAME-507}}
 To: "{{NAME-5651}} {{NAME-8722}}" <{{EMAIL-8723}}>
@@ -764,4 +765,9 @@ Hi {{NAME-5651}},
 > If you'd like me to stop sending you emails, please click here ( %unsubscribe_url% )
 """
 
-LONG_SAMPLES_ENTITIES_DICT = {"entities": [(1661, 1677, 'Product Training'), (1787, 1815, 'Action item not completed')]}
+LONG_SAMPLES_ENTITIES_DICT = {
+    "entities": [
+        (1661, 1677, "Product Training"),
+        (1787, 1815, "Action item not completed"),
+    ]
+}

@@ -3,3 +3,5 @@ max-line-length = 88
 extend-ignore = E203,D10,D415
 docstring-convention = google
 exclude = tests/qa
+per-file-ignores =
+    tests/utils/spacy_integration_constants.py: E501
