@@ -59,7 +59,7 @@ def log_input_examples(examples: List[Example], split: Split) -> None:
         )
         # We add ids to the doc.user_data to be along for the ride through spacy
         # The predicted doc is the one that the model will see
-        example.predicted.user_data["id"] = i
+        example.predicted.user_data["gid"] = i
         ids.append(i)
     dataquality.log_input_data(
         text=text,
@@ -284,7 +284,7 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
 
         model_logger = TextNERModelLogger()
 
-        if not all(["id" in doc.user_data for doc in X]):
+        if not all(["gid" in doc.user_data for doc in X]):
             raise GalileoException(
                 "One of your model's docs is missing a galileo generated "
                 "id. Did you first log your docs/examples with us using, "
@@ -293,7 +293,7 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
                 "Make sure to then continue using 'training_examples'"
             )
 
-        model_logger.ids = [doc.user_data["id"] for doc in X]
+        model_logger.ids = [doc.user_data["gid"] for doc in X]
         assert model_logger.ids
 
         model_logger.log_helper_data["skip_id_idx"] = []
@@ -313,6 +313,7 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
                 f"update the cut size by setting it in your ner component. "
                 f"https://spacy.io/api/entityrecognizer\nSamples:\n{samples}"
             )
+        model_logger.log_helper_data["batch_logged"] = False
         model_logger.log_helper_data["logits"] = [[] for _ in X]
         model_logger.log_helper_data["emb"] = [[] for _ in X]
         model_logger.log_helper_data["_spacy_state_for_pred"] = [None] * len(X)
@@ -361,7 +362,7 @@ class GalileoParserStepModel(ThincModelWrapper):
             # Assumes passed in data has the "id" user_data appended, which we
             # automatically append with our log_training call.
             log_ids = list(model_logger.ids)
-            user_sample_id = state.doc.user_data["id"]
+            user_sample_id = state.doc.user_data["gid"]
             if user_sample_id not in log_ids:
                 warnings.warn("Provided sample id is missing, will skip model logging")
                 continue
@@ -385,15 +386,13 @@ class GalileoParserStepModel(ThincModelWrapper):
             model_logger.log_helper_data["_spacy_state_for_pred"][idx]
             for idx in model_logger_idxs
         ]
-        transition_scores = np.array([
-            scores[idx] for idx in states_to_transition
-        ])
+        transition_scores = np.array([scores[idx] for idx in states_to_transition])
 
         if len(transition_states):
             ner.transition_states(transition_states, transition_scores)
 
         # if we are at the end of the batch
-        if all(
+        if not model_logger.log_helper_data["batch_logged"] and all(
             [
                 len(model_logger.log_helper_data["logits"][i])
                 == model_logger.log_helper_data["expected_lengths"][i]
@@ -401,24 +400,8 @@ class GalileoParserStepModel(ThincModelWrapper):
             ]
         ):
 
-            missing_idx = []
-            docs_copy = []
-            for i, state in enumerate(
-                model_logger.log_helper_data["_spacy_state_for_pred"]
-            ):
-                # State would be None in cases where the sample ID is lost by SpaCy
-                if state is None:
-                    missing_idx.append(i)
-                else:
-                    docs_copy.append(state.doc.copy())
-
-            model_logger.ids = list(model_logger.ids)
-            for idx in reversed(missing_idx):
-                del model_logger.log_helper_data["_spacy_state_for_pred"][idx]
-                del model_logger.log_helper_data["expected_lengths"][idx]
-                del model_logger.log_helper_data["emb"][idx]
-                del model_logger.log_helper_data["logits"][idx]
-                del model_logger.ids[idx]
+            _pres_states = model_logger.log_helper_data["_spacy_state_for_pred"]
+            docs_copy = [state.doc.copy() for state in _pres_states]
 
             # Do the final transition to be able to use spacy to get predictions
             ner.set_annotations(
@@ -450,13 +433,16 @@ class GalileoParserStepModel(ThincModelWrapper):
                     np.array(model_logger.log_helper_data["emb"][i])
                 )
             model_logger.logits = doc_probs_ndarray
+
             model_logger.ids = list(model_logger.ids)
+
             # Traverse in reverse order so deleting doesnt affect the indexes
             for id_idx in reversed(model_logger.log_helper_data["skip_id_idx"]):
-                del model_logger.ids[id_idx]
                 del model_logger.emb[id_idx]
                 del model_logger.logits[id_idx]
+                del model_logger.ids[id_idx]
 
+            model_logger.log_helper_data["batch_logged"] = True
             model_logger.log()
 
         return scores, backprop_fn
@@ -481,7 +467,7 @@ class GalileoState2Vec(CallableObjectProxy):
         # in the model wrapper. Maybe this would be better in some more global state
         for i, state in enumerate(self._self_X):
             log_ids = list(self._self_model_logger.ids)
-            user_sample_id = state.doc.user_data["id"]
+            user_sample_id = state.doc.user_data["gid"]
             if user_sample_id not in log_ids:
                 warnings.warn("Provided sample id is missing, will skip model logging")
                 continue
