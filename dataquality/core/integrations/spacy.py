@@ -380,12 +380,21 @@ class GalileoParserStepModel(ThincModelWrapper):
             )
 
         ner = text_ner_logger_config.user_data["nlp"].get_pipe("ner")
-        ner.transition_states(
-            [
+
+        print(model_logger_idxs)
+        print(scores.shape)
+        docs = [
                 model_logger.log_helper_data["_spacy_state_for_pred"][idx]
                 for idx in model_logger_idxs
-            ],
-            scores,
+            ]
+        transition_scores = np.array([
+            scores[idx] for idx in model_logger_idxs
+        ])
+
+        print("docs", len(docs), "scores", len(transition_scores), transition_scores.shape)
+        ner.transition_states(
+            docs,
+            transition_scores,
         )
 
         # if we are at the end of the batch
@@ -453,8 +462,11 @@ class GalileoParserStepModel(ThincModelWrapper):
                 del model_logger.emb[id_idx]
                 del model_logger.logits[id_idx]
 
+            print("LOGGING IN SPACY")
             model_logger.log()
+            print("DONE LOGGING IN SPACY")
 
+        print('returning scores and backprop')
         return scores, backprop_fn
 
 

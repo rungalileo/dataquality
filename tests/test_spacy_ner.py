@@ -18,6 +18,7 @@ from dataquality.core.integrations.spacy import (
 from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
 from dataquality.schemas.task_type import TaskType
+from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.conftest import LOCATION
 from tests.utils.spacy_integration import load_ner_data_from_local, train_model
 from tests.utils.spacy_integration_constants import (
@@ -273,6 +274,7 @@ def test_long_sample(
     set_test_config: Callable,
 ):
     """Tests logging a long sample during training"""
+    TextNERModelLogger.logger_config.reset()
     set_test_config(task_type=TaskType.text_ner)
     default_config = {
         "update_with_oracle_cut_size": cut_size,
@@ -305,7 +307,10 @@ def test_long_sample(
     for _ in range(2):
         dataquality.set_epoch(epoch)
         losses = {}
+        print('setting log')
         nlp.update(all_examples, drop=0.5, sgd=optimizer, losses=losses)
+        print('done with log')
         epoch += 1
 
     TextNERModelLogger.log = old_log
+    ThreadPoolManager.wait_for_threads()
