@@ -354,8 +354,71 @@ class GalileoParserStepModel(ThincModelWrapper):
         # outputted scores match in order to the inputted X: List[StateClass]
         # eg. X == [StateClass_0, StateClass_1] then scores == [2, 22]
         model_logger = self._self_model_logger  # for readability
-        model_logger_idxs = []
+        if not model_logger.log_helper_data["batch_logged"]:
+            self.galileo_transition_states(scores, X, logits)
 
+            # if we are at the end of the batch
+            helper_logits = model_logger.log_helper_data["logits"]
+            helper_lens = model_logger.log_helper_data["expected_lengths"]
+            samples = len(model_logger.ids)
+            if all([len(helper_logits[i]) == helper_lens[i] for i in range(samples)]):
+                model_logger.log_helper_data["batch_logged"] = True
+                self.log_model_outputs()
+
+        return scores, backprop_fn
+
+    def log_model_outputs(self) -> None:
+        """Logs the outputs for this batch"""
+        model_logger = self._self_model_logger
+        ner = text_ner_logger_config.user_data["nlp"].get_pipe("ner")
+        _pres_states = model_logger.log_helper_data["_spacy_state_for_pred"]
+        docs_copy = [state.doc.copy() for state in _pres_states]
+
+        # Do the final transition to be able to use spacy to get predictions
+        ner.set_annotations(
+            docs_copy, model_logger.log_helper_data["_spacy_state_for_pred"]
+        )
+
+        predictions_for_docs = convert_spacy_ents_for_doc_to_predictions(
+            docs_copy, model_logger.logger_config.labels
+        )
+        valid_logits_for_docs: List[List] = [
+            [] for _ in range(len(predictions_for_docs))
+        ]
+        doc_probs_ndarray: List[np.ndarray] = [
+            np.empty((0, 0)) for _ in range(len(predictions_for_docs))
+        ]
+
+        for doc_idx, logits_for_doc in enumerate(
+            model_logger.log_helper_data["logits"]
+        ):
+            for token_idx, token_logits in enumerate(logits_for_doc):
+                valid_logits = convert_spacy_ner_logits_to_valid_logits(
+                    token_logits, predictions_for_docs[doc_idx][token_idx]
+                )
+                valid_logits_for_docs[doc_idx].append(valid_logits)
+
+        for i in range(len(valid_logits_for_docs)):
+            doc_probs_ndarray[i] = np.array(valid_logits_for_docs[i])
+            model_logger.emb.append(np.array(model_logger.log_helper_data["emb"][i]))
+        model_logger.logits = doc_probs_ndarray
+
+        model_logger.ids = list(model_logger.ids)
+
+        # Traverse in reverse order so deleting doesnt affect the indexes
+        for id_idx in reversed(model_logger.log_helper_data["skip_id_idx"]):
+            del model_logger.ids[id_idx]
+            del model_logger.emb[id_idx]
+            del model_logger.logits[id_idx]
+
+        model_logger.log()
+
+    def galileo_transition_states(
+        self, scores: np.ndarray, X: List[StateClass], logits: np.ndarray
+    ) -> None:
+        """Handles state transition"""
+        model_logger = self._self_model_logger
+        model_logger_idxs = []
         states_to_transition = []
         for i, state in enumerate(X):
             # In case the order of X is different than the original X of docs
@@ -390,62 +453,6 @@ class GalileoParserStepModel(ThincModelWrapper):
 
         if len(transition_states):
             ner.transition_states(transition_states, transition_scores)
-
-        # if we are at the end of the batch
-        if not model_logger.log_helper_data["batch_logged"] and all(
-            [
-                len(model_logger.log_helper_data["logits"][i])
-                == model_logger.log_helper_data["expected_lengths"][i]
-                for i in range(len(model_logger.ids))
-            ]
-        ):
-
-            _pres_states = model_logger.log_helper_data["_spacy_state_for_pred"]
-            docs_copy = [state.doc.copy() for state in _pres_states]
-
-            # Do the final transition to be able to use spacy to get predictions
-            ner.set_annotations(
-                docs_copy, model_logger.log_helper_data["_spacy_state_for_pred"]
-            )
-
-            predictions_for_docs = convert_spacy_ents_for_doc_to_predictions(
-                docs_copy, model_logger.logger_config.labels
-            )
-            valid_logits_for_docs: List[List] = [
-                [] for _ in range(len(predictions_for_docs))
-            ]
-            doc_probs_ndarray: List[np.ndarray] = [
-                np.empty((0, 0)) for _ in range(len(predictions_for_docs))
-            ]
-
-            for doc_idx, logits_for_doc in enumerate(
-                model_logger.log_helper_data["logits"]
-            ):
-                for token_idx, token_logits in enumerate(logits_for_doc):
-                    valid_logits = convert_spacy_ner_logits_to_valid_logits(
-                        token_logits, predictions_for_docs[doc_idx][token_idx]
-                    )
-                    valid_logits_for_docs[doc_idx].append(valid_logits)
-
-            for i in range(len(valid_logits_for_docs)):
-                doc_probs_ndarray[i] = np.array(valid_logits_for_docs[i])
-                model_logger.emb.append(
-                    np.array(model_logger.log_helper_data["emb"][i])
-                )
-            model_logger.logits = doc_probs_ndarray
-
-            model_logger.ids = list(model_logger.ids)
-
-            # Traverse in reverse order so deleting doesnt affect the indexes
-            for id_idx in reversed(model_logger.log_helper_data["skip_id_idx"]):
-                del model_logger.ids[id_idx]
-                del model_logger.emb[id_idx]
-                del model_logger.logits[id_idx]
-
-            model_logger.log_helper_data["batch_logged"] = True
-            model_logger.log()
-
-        return scores, backprop_fn
 
 
 class GalileoState2Vec(CallableObjectProxy):
