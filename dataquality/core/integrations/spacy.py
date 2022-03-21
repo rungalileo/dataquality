@@ -353,20 +353,20 @@ class GalileoParserStepModel(ThincModelWrapper):
         # outputted scores match in order to the inputted X: List[StateClass]
         # eg. X == [StateClass_0, StateClass_1] then scores == [2, 22]
         model_logger = self._self_model_logger  # for readability
-        assert len(self._self_model_logger.ids) != 0
         model_logger_idxs = []
 
+        states_to_transition = []
         for i, state in enumerate(X):
             # In case the order of X is different than the original X of docs
             # Assumes passed in data has the "id" user_data appended, which we
             # automatically append with our log_training call.
-
             log_ids = list(model_logger.ids)
             user_sample_id = state.doc.user_data["id"]
             if user_sample_id not in log_ids:
                 warnings.warn("Provided sample id is missing, will skip model logging")
                 continue
 
+            states_to_transition.append(i)
             model_logger_idx = log_ids.index(user_sample_id)
             model_logger_idxs.append(model_logger_idx)
 
@@ -381,19 +381,18 @@ class GalileoParserStepModel(ThincModelWrapper):
 
         ner = text_ner_logger_config.user_data["nlp"].get_pipe("ner")
 
-        print(model_logger_idxs)
-        print(scores.shape)
-        docs = [
-                model_logger.log_helper_data["_spacy_state_for_pred"][idx]
-                for idx in model_logger_idxs
-            ]
+        trans_states = [
+            model_logger.log_helper_data["_spacy_state_for_pred"][idx]
+            for idx in model_logger_idxs
+        ]
         transition_scores = np.array([
-            scores[idx] for idx in model_logger_idxs
+            scores[idx] for idx in states_to_transition
         ])
 
-        print("docs", len(docs), "scores", len(transition_scores), transition_scores.shape)
+        if len(trans_states)!= len(transition_scores):
+            print("Issue in sizes", len(trans_states), len(transition_scores))
         ner.transition_states(
-            docs,
+            trans_states,
             transition_scores,
         )
 
@@ -462,11 +461,8 @@ class GalileoParserStepModel(ThincModelWrapper):
                 del model_logger.emb[id_idx]
                 del model_logger.logits[id_idx]
 
-            print("LOGGING IN SPACY")
             model_logger.log()
-            print("DONE LOGGING IN SPACY")
 
-        print('returning scores and backprop')
         return scores, backprop_fn
 
 
