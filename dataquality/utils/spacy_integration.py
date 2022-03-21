@@ -1,6 +1,7 @@
 from typing import Any, List
 
 import numpy as np
+import spacy
 from spacy.tokens import Doc
 from spacy.training import offsets_to_biluo_tags
 
@@ -69,3 +70,14 @@ def convert_spacy_ents_for_doc_to_predictions(
         pred_output_ind = [labels.index(tok_pred) for tok_pred in pred_output]
         prediction_indices.append(pred_output_ind)
     return prediction_indices
+
+
+def validate_spacy_version() -> None:
+    """Validates the user is on a version of spacy we support"""
+    if spacy.__version__ != "3.2.1":
+        raise GalileoException(
+            "Currently we only support watching SpaCy models running version 3.2.1 of "
+            f"SpaCy. You have version {spacy.__version__}. Please install 3.2.1 using "
+            f"the following: 'pip install --upgrade spacy==3.2.1' and then restart your"
+            f"IPython kernel"
+        )
