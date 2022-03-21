@@ -385,9 +385,7 @@ class GalileoParserStepModel(ThincModelWrapper):
             model_logger.log_helper_data["_spacy_state_for_pred"][idx]
             for idx in model_logger_idxs
         ]
-        transition_scores = np.array([
-            scores[idx] for idx in states_to_transition
-        ])
+        transition_scores = np.array([scores[idx] for idx in states_to_transition])
 
         if len(transition_states):
             ner.transition_states(transition_states, transition_scores)
