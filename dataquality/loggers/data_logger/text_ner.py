@@ -222,7 +222,8 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         max_end_idx, max_start_idx = 0, 0
         for span in sample_spans:
             assert span["label"] in clean_labels, (
-                f"{span['label']} is " f"absent in the provided labels {clean_labels}"
+                f"'{span['label']}' is absent in the provided labels {clean_labels}. "
+                f"Set all labels for run with `dataquality.set_labels_for_run`"
             )
 
             assert isinstance(span, dict), "individual spans must be dictionaries"

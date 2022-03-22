@@ -1,3 +1,4 @@
+import warnings
 from abc import abstractmethod
 from typing import Any, Dict, List, Optional, Union
 from uuid import uuid4
@@ -26,7 +27,9 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         try:
             self.validate()
         except AssertionError as e:
-            raise GalileoException(f"The provided logged data is invalid. {e}")
+            raise GalileoException(
+                f"The provided logged data is invalid: {e}"
+            ) from None
         data = self._get_data_dict()
         self.write_model_output(data)
 
@@ -34,10 +37,7 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         try:
             self._log()
         except Exception as e:
-            print(f"An error occurred while logging: {str(e)}")
-            import traceback
-
-            traceback.print_exc()
+            warnings.warn(f"An issue occurred while logging: {str(e)}")
 
     def log(self) -> None:
         """The top level log function that try/excepts it's child"""
