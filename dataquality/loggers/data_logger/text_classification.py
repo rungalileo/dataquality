@@ -99,7 +99,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         if self.split == Split.inference.value:
             assert not label_len, "You cannot have labels in your inference split!"
             assert self.inference_name, (
-                "Inference name must be set when logging an inference split. Use"
+                "Inference name must be set when logging an inference split. Use "
                 "set_split('inference', inference_name) to set inference name"
             )
 

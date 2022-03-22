@@ -68,7 +68,7 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
                 self.inference_name = self.logger_config.cur_inference_name
             else:
                 raise GalileoException(
-                    "For inference split you must either log an inference name"
+                    "For inference split you must either log an inference name "
                     "or set it before logging. Use `dataquality.set_split` to set"
                     "inference_name"
                 )
