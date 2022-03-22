@@ -277,14 +277,14 @@ def test_init_bad_task(
 
 @patch("dataquality.login")
 def test_reconfigure_sets_env_vars(mock_login: MagicMock) -> None:
-    old_url = config.minio_url
-    test_url = f"{old_url}_TEST"
-    os.environ["GALILEO_MINIO_URL"] = test_url
+    os.environ["GALILEO_CONSOLE_URL"] = "https://console.fakecompany.io"
     dataquality.configure()
-    assert dataquality.config.minio_url == config.minio_url == test_url
-    os.environ["GALILEO_MINIO_URL"] = old_url
+    assert dataquality.config.minio_url == config.minio_url == "data.fakecompany.io"
+    assert dataquality.config.api_url == config.api_url == "https://api.fakecompany.io"
+    os.environ["GALILEO_CONSOLE_URL"] = "https://console.newfake.de"
     dataquality.configure()
-    assert dataquality.config.minio_url == config.minio_url == old_url
+    assert dataquality.config.minio_url == config.minio_url == "data.newfake.de"
+    assert dataquality.config.api_url == config.api_url == "https://api.newfake.de"
 
     assert mock_login.call_count == 2
 
