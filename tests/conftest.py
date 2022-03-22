@@ -18,7 +18,7 @@ DEFAULT_MINIO_URL = "127.0.0.1:9000"
 DEFAULT_PROJECT_ID = UUID("399057bc-b276-4027-a5cf-48893ac45388")
 DEFAULT_RUN_ID = UUID("399057bc-b276-4027-a5cf-48893ac45388")
 
-LOCATION = f"{BaseGalileoLogger.LOG_FILE_DIR}/{DEFAULT_PROJECT_ID}" f"/{DEFAULT_RUN_ID}"
+LOCATION = f"{BaseGalileoLogger.LOG_FILE_DIR}/{DEFAULT_PROJECT_ID}/{DEFAULT_RUN_ID}"
 TEST_STORE_DIR = "TEST_STORE"
 TEST_PATH = f"{LOCATION}/{TEST_STORE_DIR}"
 SPLITS = ["training", "test"]
@@ -66,7 +66,6 @@ def set_test_config(
     config.minio_url = default_minio_url
     config.current_run_id = DEFAULT_RUN_ID
     config.current_project_id = DEFAULT_PROJECT_ID
-    print(config)
 
     def curry(**kwargs: Dict[str, Any]) -> None:
         # Override test config with custom value by currying

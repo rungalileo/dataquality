@@ -194,8 +194,62 @@ def test_logging_duplicate_ids(
         # Equivalent to the users `finish` call, but we don't want to clean up files yet
         ThreadPoolManager.wait_for_threads()
         c = dataquality.get_data_logger("text_classification")
-        with pytest.raises(GalileoException):
+        with pytest.raises(GalileoException) as e:
             c.upload()
+
+        assert str(e.value).startswith(
+            "It seems as though you do not have unique ids in this split/epoch."
+        )
     finally:
         # Mock finish() call without calling the API
         ThreadPoolManager.wait_for_threads()
+
+
+def test_logging_inference_run(
+    cleanup_after_use: Callable, set_test_config: Callable
+) -> None:
+    """
+    Tests that logging metadata columns only attach to the splits we log them for
+    """
+    dataquality.set_labels_for_run(["APPLE", "ORANGE"])
+    input_data = {
+        "text": ["sentence_1", "sentence_2"],
+        "split": "inference",
+        "meta": {"inference_meta_1": [3.14, 42]},
+        "ids": [1, 2],
+        "inference_name": "fruits",
+    }
+    dataquality.log_input_data(**input_data)
+    input_data = {
+        "text": ["sentence_3", "sentence_4"],
+        "split": "inference",
+        "ids": [3, 4],
+        "inference_name": "fruits_prod",
+    }
+    dataquality.log_input_data(**input_data)
+
+    dataquality.set_split("inference", inference_name="fruits")
+    output_data = {
+        "emb": np.random.rand(2, 100),
+        "logits": np.random.rand(2, 5),
+        "ids": [1, 2],
+    }
+    dataquality.log_model_outputs(**output_data)
+    dataquality.set_split("inference", inference_name="fruits_prod")
+    output_data = {
+        "emb": np.random.rand(2, 100),
+        "logits": np.random.rand(2, 5),
+        "ids": [3, 4],
+    }
+    dataquality.log_model_outputs(**output_data)
+
+    dataquality.get_data_logger().upload()
+
+    inference_data_1 = vaex.open(f"{TEST_PATH}/inference/fruits/data/data.hdf5")
+    inference_data_2 = vaex.open(f"{TEST_PATH}/inference/fruits_prod/data/data.hdf5")
+
+    assert "inference_meta_1" in inference_data_1.get_column_names()
+    assert "inference_meta_1" in inference_data_2.get_column_names()
+
+    assert sorted(inference_data_1["inference_meta_1"].tolist()) == [3.14, 42]
+    assert np.isnan(inference_data_2["inference_meta_1"].tolist()).all()
