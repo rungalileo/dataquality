@@ -1,3 +1,4 @@
+import os
 from typing import List, Type
 from unittest import mock
 
@@ -101,14 +102,13 @@ class TestBaseLoggersInference:
         logger = BaseGalileoModelLogger()
         logger.write_model_output(inference_data)
 
+        local_file = (
+            f"{os.getcwd()}/.galileo/logs/{dataquality.config.current_project_id}/"
+            f"{dataquality.config.current_run_id}/inference/customers"
+        )
         # Assert _save_hdf5_file is called with correct args
         mock_save_file.assert_called_once_with(
-            mock.ANY, "1234abcd5678.hdf5", inference_data
-        )
-        local_file = mock_save_file.call_args.args[0]
-        assert local_file.endswith(
-            f".galileo/logs/{dataquality.config.current_project_id}/"
-            f"{dataquality.config.current_run_id}/inference/customers"
+            local_file, "1234abcd5678.hdf5", inference_data
         )
 
     @pytest.mark.parametrize(
