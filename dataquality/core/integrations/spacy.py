@@ -343,27 +343,26 @@ class GalileoParserStepModel(ThincModelWrapper):
     def _self__func(
         self, parser_step_model: ParserStepModel, X: List[StateClass], is_train: bool
     ) -> Tuple[np.ndarray, Callable]:
+        """Patches the ParserStepModel's forward func
+
+        The forward function is called with a token from each chunked doc in the
+        sample. So the max num times its called is equal to the max chunked doc length.
+        """
         parser_step_model.state2vec._self_X = X
         scores, backprop_fn = self._self_orig_forward(parser_step_model, X, is_train)
         logits = scores[..., 1:]  # Throw out the -U token
-
         assert logits.shape == (len(X), parser_step_model.nO - 1)  # type: ignore
-        # Logits are returned for all docs, one token at a time. So as we continue
-        # to call parser_step_forward some docs will have finished and not have
-        # any remaining tokens to make predictions on. We assume that the
-        # outputted scores match in order to the inputted X: List[StateClass]
-        # eg. X == [StateClass_0, StateClass_1] then scores == [2, 22]
-        model_logger = self._self_model_logger  # for readability
-        if not model_logger.log_helper_data["batch_logged"]:
-            self.galileo_transition_states(scores, X, logits)
 
-            # if we are at the end of the batch
-            helper_logits = model_logger.log_helper_data["logits"]
-            helper_lens = model_logger.log_helper_data["expected_lengths"]
-            samples = len(model_logger.ids)
-            if all([len(helper_logits[i]) == helper_lens[i] for i in range(samples)]):
-                model_logger.log_helper_data["batch_logged"] = True
-                self.log_model_outputs()
+        self.galileo_transition_states(scores, X, logits)
+
+
+        model_logger = self._self_model_logger  # for readability
+        helper_logits = model_logger.log_helper_data["logits"]
+        helper_lens = model_logger.log_helper_data["expected_lengths"]
+        samples = len(model_logger.ids)
+        # if we are at the end of the batch
+        if all([len(helper_logits[i]) == helper_lens[i] for i in range(samples)]):
+            self.log_model_outputs()
 
         return scores, backprop_fn
 
@@ -413,24 +412,17 @@ class GalileoParserStepModel(ThincModelWrapper):
 
         model_logger.log()
 
-    def galileo_transition_states(
+    def galileo_parse(
         self, scores: np.ndarray, X: List[StateClass], logits: np.ndarray
     ) -> None:
         """Handles state transition"""
         model_logger = self._self_model_logger
         model_logger_idxs = []
-        states_to_transition = []
+
         for i, state in enumerate(X):
-            # In case the order of X is different than the original X of docs
-            # Assumes passed in data has the "id" user_data appended, which we
-            # automatically append with our log_training call.
             log_ids = list(model_logger.ids)
             user_sample_id = state.doc.user_data["id"]
-            if user_sample_id not in log_ids:
-                warnings.warn("Provided sample id is missing, will skip model logging")
-                continue
 
-            states_to_transition.append(i)
             model_logger_idx = log_ids.index(user_sample_id)
             model_logger_idxs.append(model_logger_idx)
 
@@ -449,40 +441,33 @@ class GalileoParserStepModel(ThincModelWrapper):
             model_logger.log_helper_data["_spacy_state_for_pred"][idx]
             for idx in model_logger_idxs
         ]
-        transition_scores = np.array([scores[idx] for idx in states_to_transition])
 
         if len(transition_states):
-            ner.transition_states(transition_states, transition_scores)
+            ner.transition_states(transition_states, scores)
 
 
 class GalileoState2Vec(CallableObjectProxy):
     def __init__(self, model: State2Vec, model_logger: TextNERModelLogger):
         super().__init__(model)
         validate_obj(model, State2Vec, "__call__")
-
-        assert isinstance(model, State2Vec)
         assert not isinstance(model, GalileoState2Vec)
-        assert len(model_logger.ids) != 0
+
         self._self_model_logger = model_logger
+        # Developer should set this before triggering the __call__ method
         self._self_X: List[StateClass] = []
 
     def __call__(self, *args: Any, **kwargs: Any) -> Tuple[np.ndarray, np.ndarray]:
-        """Overwrites forward to capture embeddings and add to model_logger"""
+        """Overwrites forward to capture embeddings and add to model_logger.
+
+        Note that before this is called self._self_X needs to be set by developer
+        """
         embeddings, embeddings_bp = self.__wrapped__(*args, **kwargs)
 
-        # _self.X needs to be set externally to communicate where these embs belong
-        # in the model wrapper. Maybe this would be better in some more global state
         for i, state in enumerate(self._self_X):
             log_ids = list(self._self_model_logger.ids)
             user_sample_id = state.doc.user_data["id"]
-            if user_sample_id not in log_ids:
-                warnings.warn("Provided sample id is missing, will skip model logging")
-                continue
 
             model_logger_idx = log_ids.index(user_sample_id)
-            # At this point, we are treating embeddings as a list before converting
-            # to a numpy array for logging
-
             self._self_model_logger.log_helper_data["emb"][model_logger_idx].append(
                 embeddings[i]
             )
