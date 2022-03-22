@@ -4,6 +4,7 @@ from typing import Any, Callable, Dict, Generator, List
 from uuid import UUID
 
 import pytest
+import requests
 import spacy
 from vaex.dataframe import DataFrame
 
@@ -24,6 +25,18 @@ SPLITS = ["training", "test"]
 SUBDIRS = ["data", "emb", "prob"]
 
 spacy.util.fix_random_seed()
+
+
+@pytest.fixture(autouse=True)
+def disable_network_calls(request, monkeypatch):
+    # Tests that fetch datasets need network access
+    if "noautofixt" in request.keywords:
+        return
+
+    def stunted_get():
+        raise RuntimeError("Network access not allowed during testing!")
+
+    monkeypatch.setattr(requests, "get", lambda *args, **kwargs: stunted_get())
 
 
 @pytest.fixture(scope="function")

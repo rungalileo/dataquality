@@ -1,5 +1,6 @@
 from typing import Callable
 
+import pytest
 import pytorch_lightning as pl
 import torch
 
@@ -18,6 +19,7 @@ from tests.utils.lightning_model import (
 )
 
 
+@pytest.mark.noautofixt
 def test_lightning_autolog(
     cleanup_after_use: Callable, set_test_config: Callable
 ) -> None:
@@ -45,6 +47,7 @@ def test_lightning_autolog(
     validate_cleanup_data()
 
 
+@pytest.mark.noautofixt
 def test_torch_autolog(cleanup_after_use: Callable, set_test_config: Callable) -> None:
     """Tests our watch(model) functionality for pytorch"""
     train_dataloader = torch.utils.data.DataLoader(
