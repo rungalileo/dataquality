@@ -2,6 +2,7 @@ from typing import List, Type
 from unittest import mock
 
 import pytest
+from pydantic import ValidationError
 
 import dataquality
 from dataquality.exceptions import GalileoException
@@ -24,8 +25,13 @@ class TestSetSplitInference:
         )
 
     def test_set_split_inference_missing_inference_name(self) -> None:
-        with pytest.raises(AssertionError):
+        with pytest.raises(ValidationError) as e:
             dataquality.set_split("inference")
+
+        assert (
+            e.value.errors()[0]["msg"]
+            == "Please specify inference_name when setting split to inference"
+        )
 
 
 class TestBaseLoggersInference:
@@ -41,6 +47,7 @@ class TestBaseLoggersInference:
         assert not base_logger.split
         assert not base_logger.logger_config.inference_logged
 
+        base_logger.logger_config.cur_inference_name = "customers"
         base_logger.logger_config.cur_split = Split.inference
         base_logger.validate()
 
@@ -53,8 +60,8 @@ class TestBaseLoggersInference:
         assert not base_model_logger.split
         assert not base_model_logger.logger_config.inference_logged
 
-        base_model_logger.logger_config.cur_split = Split.inference
         base_model_logger.logger_config.cur_inference_name = "customers"
+        base_model_logger.logger_config.cur_split = Split.inference
 
         base_model_logger.validate()
         assert base_model_logger.split
@@ -66,8 +73,7 @@ class TestBaseLoggersInference:
         assert not base_model_logger.split
         assert not base_model_logger.logger_config.inference_logged
 
-        base_model_logger.logger_config.cur_split = Split.inference
-
+        base_model_logger.split = Split.inference
         with pytest.raises(GalileoException) as e:
             base_model_logger.validate()
 
