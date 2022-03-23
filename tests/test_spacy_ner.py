@@ -1,4 +1,4 @@
-from unittest.mock import Mock
+from typing import Callable, Dict, List, Tuple
 
 import numpy as np
 import pytest
@@ -17,11 +17,12 @@ from dataquality.core.integrations.spacy import (
 from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
 from dataquality.schemas.task_type import TaskType
+from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.conftest import LOCATION
 from tests.utils.spacy_integration import load_ner_data_from_local, train_model
 from tests.utils.spacy_integration_constants import (
-    LONG_SAMPLE,
-    LONG_SAMPLES_ENTITIES_DICT,
+    LONG_SHORT_DATA,
+    LONG_TRAIN_DATA,
     NER_CLASS_LABELS,
     NER_TEST_DATA,
     NER_TRAINING_DATA,
@@ -97,43 +98,6 @@ def test_watch(set_test_config, cleanup_after_use):
 
     assert isinstance(nlp.get_pipe("ner"), EntityRecognizer)
     assert isinstance(nlp.get_pipe("ner"), GalileoEntityRecognizer)
-
-
-def test_long_sample(cleanup_after_use, set_test_config):
-    """Tests logging a long sample during training"""
-    set_test_config(task_type=TaskType.text_ner)
-    nlp = spacy.blank("en")
-    nlp.add_pipe("ner")
-
-    long_example = Example.from_dict(
-        nlp.make_doc(LONG_SAMPLE), LONG_SAMPLES_ENTITIES_DICT
-    )
-    optimizer = nlp.initialize(lambda: [long_example])
-
-    old_log = TextNERModelLogger.log
-    epoch = 0
-
-    def new_log(*args, **kwargs):
-        if epoch == 29:
-            print("breaking")
-        old_log(*args, **kwargs)
-
-    old_log = TextNERModelLogger.log
-    TextNERModelLogger.log = new_log
-
-    watch(nlp)
-    log_input_examples([long_example], split="training")
-
-    dataquality.set_split("training")
-    for _ in range(30):
-        dataquality.set_epoch(epoch)
-        losses = {}
-        nlp.update([long_example], drop=0.5, sgd=optimizer, losses=losses)
-        print(losses)
-        print(epoch)
-        epoch += 1
-
-    TextNERModelLogger.log = old_log
 
 
 @pytest.mark.skip(
@@ -228,63 +192,45 @@ def test_spacy_ner(cleanup_after_use, set_test_config) -> None:
             assert (probs[c].values == gt_probs[c].values).all()
 
 
-@pytest.mark.skip(reason="SpacyPatchState no longer exists")
-def test_galileo_transition_based_parser_forward(set_test_config, cleanup_after_use):
+@pytest.mark.parametrize(
+    "samples",
+    [LONG_SHORT_DATA, LONG_TRAIN_DATA, NER_TRAINING_DATA],
+)
+def test_long_sample(
+    samples: List[Tuple[str, Dict]],
+    cleanup_after_use: Callable,
+    set_test_config: Callable,
+):
+    """Tests logging a long sample during training"""
+    TextNERModelLogger.logger_config.reset()
     set_test_config(task_type=TaskType.text_ner)
+
     nlp = spacy.blank("en")
-
-    text_samples = ["Some text", "Some other text", "Some more text"]
-
-    # mock_transition_based_parser_model = Mock()
-    docs = []
-    for i, text in enumerate(text_samples):
-        doc = nlp(text)
-        doc.user_data["id"] = i
-        docs.append(doc)
-
-    fake_embeddings = np.random.rand(sum([len(doc) for doc in docs]), 64)
-
-    def mock_transition_based_parser_forward(model, X, is_train):
-        mock_parser_step_model = Mock()
-        mock_parser_step_model._func = lambda x: print("parser_step_model forward fn")
-        mock_parser_step_model.tokvecs = fake_embeddings
-        return mock_parser_step_model, lambda x: print(
-            "transition_based_parser backprop fn"
-        )
-
-    # TODO: Need to replace this
-    # SpacyPatchState.orig_transition_based_parser_forward = (
-    #     mock_transition_based_parser_forward
-    # )
-
-    dataquality.set_epoch(0)
-    dataquality.set_split("training")
-
-    # TODO: Need to replace with a different call for this test to work
-    # galileo_transition_based_parser_forward(
-    #     mock_transition_based_parser_model, docs, is_train=True
-    # )
-
-    # TODO: Need to fix this as well
-    # assert SpacyPatchState.model_logger.ids == [0, 1, 2]
-    # assert SpacyPatchState.model_logger.epoch == 0
-    # assert SpacyPatchState.model_logger.split == "training"
-    # assert SpacyPatchState.model_logger.probs == [[], [], []]
-    # assert len(SpacyPatchState.model_logger.emb) == 3
-    # assert all(
-    #     [
-    #         embedding.shape == (len(docs[i]), 64)
-    #         for i, embedding in enumerate(SpacyPatchState.model_logger.emb)
-    #     ]
-    # )
-
-    assert text_ner_logger_config.user_data["_spacy_state_for_pred"] == [
-        None,
-        None,
-        None,
+    nlp.add_pipe("ner")
+    all_examples = [
+        Example.from_dict(nlp.make_doc(text), entities) for text, entities in samples
     ]
+    optimizer = nlp.initialize(lambda: all_examples)
 
+    old_log = TextNERModelLogger.log
 
-@pytest.mark.skip(reason="Still need to implement the mock ParserStepModel")
-def test_galileo_parser_step_forward():
-    pass
+    def new_log(*args, **kwargs):
+        logger: TextNERModelLogger = args[0]
+        assert len(logger.ids) == len(samples)
+        assert len(logger.logits) == len(samples)
+        assert len(logger.emb) == len(samples)
+
+    TextNERModelLogger.log = new_log
+
+    watch(nlp)
+    log_input_examples(all_examples, split="training")
+
+    dataquality.set_split("training")
+    for epoch in range(2):
+        dataquality.set_epoch(epoch)
+        losses = {}
+        nlp.update(all_examples, drop=0.5, sgd=optimizer, losses=losses)
+
+    TextNERModelLogger.log = old_log
+    ThreadPoolManager.wait_for_threads()
+    del nlp
