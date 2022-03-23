@@ -1,5 +1,6 @@
 import warnings
 from typing import Any, Callable, Generator, List, Tuple, Union
+from collections import defaultdict
 
 import numpy as np
 import thinc
@@ -7,7 +8,7 @@ from spacy.language import Language
 from spacy.ml.parser_model import ParserStepModel
 from spacy.ml.parser_model import precompute_hiddens as State2Vec
 from spacy.pipeline._parser_internals.stateclass import StateClass
-from spacy.pipeline.ner import EntityRecognizer, defaultdict
+from spacy.pipeline.ner import EntityRecognizer
 from spacy.tokens import Doc
 from spacy.training import Example
 from spacy.util import minibatch
@@ -142,7 +143,6 @@ class GalileoEntityRecognizer(CallableObjectProxy):
                 f"expects a beam width of 1 (the 'ner' default)."
             )
 
-        # self.cfg["update_with_oracle_cut_size"] = 300 # TODO: remove once we have better long sample support
         ner.model = GalileoTransitionBasedParserModel(ner.model)
 
     def greedy_parse(self, docs: List[Doc], drop: float = 0.0) -> List:
@@ -249,9 +249,9 @@ class ThincModelWrapper(CallableObjectProxy):
 
         self._self_orig_forward = model._func
         # https://github.com/python/mypy/issues/2427
-        model._func = self._self__func  # type: ignore
+        model._func = self._self_forward  # type: ignore
 
-    def _self__func(
+    def _self_forward(
         self, model: thinc.model.Model, X: Any, is_train: bool
     ) -> Tuple[Any, Any]:
         """Overwrite this to patch the Thinc model's forward fn"""
@@ -273,7 +273,7 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
         assert isinstance(model, thinc.model.Model)
         assert not isinstance(model, GalileoTransitionBasedParserModel)
 
-    def _self__func(
+    def _self_forward(
         self, model: thinc.model.Model, X: Any, is_train: bool
     ) -> Tuple[ParserStepModel, Callable]:
         parser_step_model, backprop_fn = self._self_orig_forward(
@@ -291,18 +291,12 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
                 "Make sure to then continue using 'training_examples'"
             )
 
-        model_logger.ids = [doc.user_data["id"] for doc in X]
-        assert model_logger.ids
-        # We expect each id to be unique, because it seems like spacy splits long
-        # samples later, for the parser step (TODO: how is that possible?)
-        assert len(set(model_logger.ids)) == len(model_logger.ids)
-        # These start as lists to append values, but are then converted to numpy
-        # arrays before logging. So we ignore mypy
-        log_data = model_logger.log_helper_data
-        log_data["logits"] = [[None for _ in range(len(doc))] for doc in X]
-        log_data["embs"] = [[None for _ in range(len(doc))] for doc in X]
-        log_data["_spacy_state_for_pred"] = defaultdict(list)
-        log_data["_spacy_state_for_pred_ranges"] = defaultdict(list)
+        helper_data = model_logger.log_helper_data
+        helper_data["logits"] = {doc.user_data["id"]: [None for _ in range(len(doc))] for doc in X}
+        helper_data["embs"] = {doc.user_data["id"]: [None for _ in range(len(doc))] for doc in X}
+        helper_data["spacy_states"] = defaultdict(list)
+        helper_data["spacy_states_end_idxs"] = defaultdict(list)
+        helper_data["already_logged"] = False
         return GalileoParserStepModel(parser_step_model, model_logger), backprop_fn
 
 
@@ -320,155 +314,109 @@ class GalileoParserStepModel(ThincModelWrapper):
                 f"longer compatible with this Galileo integration."
             )
         assert isinstance(model, ParserStepModel)
-        assert not isinstance(model, GalileoParserStepModel)
-        assert len(model_logger.ids) != 0
+        assert not isinstance(model, GalileoParserStepModel), "trying to patch an " \
+                                                              "already patched model"
+
         self._self_model_logger = model_logger
+        # state2vec is the embedding model/layer
         model.state2vec = GalileoState2Vec(model.state2vec, self._self_model_logger)
 
-    def _self_process_pred_state(self, state: StateClass) -> None:
-        log_data = self._self_model_logger.log_helper_data
-        sample_id = state.doc.user_data["id"]
-        log_data["_spacy_state_for_pred"][sample_id].append(None)
+    def _self_get_state_end_idx(self, state_idx: int, states: List[StateClass]) -> int:
+        state = states[state_idx]
+        if state_idx + 1 == len(states):
+            return len(state.doc)
 
-        # spacy queue has its length go to the end often
-        # ranges is [start_idx, end_idx)
-        queue_start, queue_end = state.queue[0].state.queue[-1]
-        if len(log_data["_spacy_state_for_pred_ranges"][sample_id]) > 0:
-            log_data["_spacy_state_for_pred_ranges"][sample_id][-1][1] = queue_start
+        next_state = states[state_idx + 1]
+        if state.doc.user_data["id"] == next_state.doc.user_data["id"]:
+            return next_state.queue[0]
+        else:
+            return len(state.doc)
 
-        log_data["_spacy_state_for_pred_ranges"][sample_id].append(
-            [queue_start, queue_end + 1]
-        )
+    def _self_initialize_helper_data(self, states: List[StateClass]) -> None:
+        # TODO: might need to assert that states has a particular structure
+        helper_data = self._self_model_logger.log_helper_data
+        for state_idx, state in enumerate(states):
+            sample_id = state.doc.user_data["id"]
+            state_end_idx = self._self_get_state_end_idx(state_idx, states)
+            helper_data["spacy_states"][sample_id].append(None)
+            helper_data["spacy_states_end_idxs"][sample_id].append(state_end_idx)
 
-    def _self_transition_state(
-            self, state_ind: int, state: StateClass, scores: np.ndarray, ner: EntityRecognizer, logits: np.ndarray
-    ) -> None:
-        log_data = self._self_model_logger.log_helper_data
-        # In case the order of X is different than the original X of docs
-        # Assumes passed in data has the "id" user_data appended, which we
-        # automatically append with our log_training call.
-        sample_id = state.doc.user_data["id"]
-        token_idx_for_sample = state.queue[0]
+    def _self_is_helper_data_filled(self) -> bool:
+        """Should be enough to check that logits is filled"""
+        helper_data = self._self_model_logger.log_helper_data
+        is_doc_filled = []
+        for doc_id, doc_logits in helper_data["logits"].items():
+            doc_embs = helper_data["embs"][doc_id]
+            is_doc_filled.append(all([
+                token_logits is not None and token_embs is not None for token_logits, token_embs in zip(doc_logits, doc_embs)
+            ]))
+        return all(is_doc_filled)
 
-        for chunk_ind, chunk_range in enumerate(
-                log_data["_spacy_state_for_pred_ranges"][sample_id]
-        ):
-            chunk_start, chunk_end = chunk_range[0], chunk_range[1]
-            if chunk_start <= token_idx_for_sample < chunk_end:
-                self._galileo_transition_states()
-                log_data["_spacy_state_for_pred"][sample_id][chunk_ind] = state.copy()
-                # TODO: could probably speed this up by only doing this at the
-                #  end of a state
-                t_states = log_data["_spacy_state_for_pred"][sample_id][chunk_ind]
-                # transition states expects a 2d np array
-                t_scores = scores[state_ind: state_ind + 1, :]
-                ner.transition_states(t_states, t_scores)
-
-        model_logger_idx = list(self._self_model_logger.ids).index(sample_id)
-        log_data["logits"][model_logger_idx][
-            token_idx_for_sample
-        ] = logits[state_ind]
-
-    def _self_validate_token_data(self) -> None:
-        """Validates token level information is not missing for logits or embs"""
-        log_data = self._self_model_logger.log_helper_data
-        for dtype in ["logits", "embs"]:
-            for sample_data in log_data[dtype]:
-                assert all(
-                    [token_data is not None for token_data in sample_data]
-                )
-
-    def _self_is_final_state(self) -> bool:
-        # TODO: need to replace this assert with something else because it is incorrect
-        log_data = self._self_model_logger.log_helper_data
-        for spacy_states_for_sample in log_data["_spacy_state_for_pred"]:
-            for spacy_chunk_state in spacy_states_for_sample:
-                if not spacy_chunk_state.is_final():
-                    return False
-        return True
-
-    def _self__func(
-        self, parser_step_model: ParserStepModel, X: List[StateClass], is_train: bool
+    def _self_forward(
+        self, parser_step_model: ParserStepModel, states: List[StateClass], is_train: bool
     ) -> Tuple[np.ndarray, Callable]:
-        """
-        here's the deal. Inputs have to be tied to the bigger picture by both their
-        id and their stateclass.queue[0], since the id might not be unique
-        """
         model_logger = self._self_model_logger  # for readability
-        log_data = model_logger.log_helper_data
-        for state in X:
-            self._self_process_pred_state(state)
+        helper_data = model_logger.log_helper_data
+        if not helper_data["spacy_states"]:
+            self._self_initialize_helper_data(states)
 
-        parser_step_model.state2vec._self_X = X
-        scores, backprop_fn = self._self_orig_forward(parser_step_model, X, is_train)
+        parser_step_model.state2vec._self_states = states
+        scores, backprop_fn = self._self_orig_forward(parser_step_model, states, is_train)
+
         logits = scores[..., 1:]  # Throw out the -U token
+        assert logits.shape == (len(states), parser_step_model.nO - 1)  # type: ignore
 
-        assert logits.shape == (len(X), parser_step_model.nO - 1)  # type: ignore
-        # Logits are returned for all docs, one token at a time. So as we continue
-        # to call parser_step_forward some docs will have finished and not have
-        # any remaining tokens to make predictions on. We assume that the
-        # outputted scores match in order to the inputted X: List[StateClass]
-        # eg. X == [StateClass_0, StateClass_1] then scores == [2, 22]
-        assert len(self._self_model_logger.ids) != 0
+        # Fill helper_data
+        for state_idx, state in enumerate(states):
+            doc_id = state.doc.user_data["id"]
+            state_cur_token_idx = state.queue[0]
 
-        ner = text_ner_logger_config.user_data["nlp"].get_pipe("ner")
-        for state_ind, state in enumerate(X):
-            self._self_transition_state(state_ind, state, scores, ner, logits)
+            helper_data["logits"][doc_id][state_cur_token_idx] = logits[state_idx]
 
-        print([state._b_i for state in X])
-        print([(chunk_range[0], chunk_range[1]) for chunk_range in model_logger.log_helper_data["_spacy_state_for_pred_ranges"][0]])
-        print([tracking_state.is_final() for tracking_state in model_logger.log_helper_data["_spacy_state_for_pred"][0]])
-        # Spacy overlaps the beg idx of a chunk with the end idx of another
-        # chunk. This essentially means we have to in some way move the goalposts
-        for chunk_ranges_for_sample in log_data["_spacy_state_for_pred_ranges"]:
-            for chunk_range in chunk_ranges_for_sample:
-                chunk_range[0] += 1
-                chunk_range[1] += 1
+            for chunk_idx, state_end_idx in enumerate(
+                    helper_data["spacy_states_end_idxs"][doc_id]):
+                if state_cur_token_idx < state_end_idx:
+                    # check if this is a pre final state
+                    if state_cur_token_idx == state_end_idx - 1:
+                        final_state = state.copy()
+                        ner = text_ner_logger_config.user_data["nlp"].get_pipe("ner")
+                        ner.transition_states([final_state], scores[state_idx:state_idx + 1, :])
+                        helper_data["spacy_states"][doc_id][chunk_idx] = final_state
+                        helper_data["spacy_states_end_idxs"][doc_id][chunk_idx] += 1
+                    break
 
-        if X[0]._b_i == 175:
-            print("breaking")
 
-        if self._self_is_final_state():
-            self._self_validate_token_data()
+        if not helper_data["already_logged"] and self._self_is_helper_data_filled():
+            docs_copy = {
+                doc_id: states_for_doc[0].doc.copy()
+                for doc_id, states_for_doc in helper_data["spacy_states"].items()
+            }
 
-            # Do the final transition so spacy can get predictions per chunk
-            # TODO: If our states are copies, why do we need to copy doc?
-            docs_copy = [
-                states_for_sample[0].doc.copy()
-                for states_for_sample in log_data["_spacy_state_for_pred"]
-            ]
+            for doc_id, doc in docs_copy.items():
+                states_for_doc = helper_data["spacy_states"][doc_id]
+                ner.set_annotations([doc] * len(states_for_doc), states_for_doc)
 
-            # now we have a copy of the doc for each sample
-            # TODO: this could be super buggy, need to write a unit test that this works
-            for i, states_for_sample in enumerate(
-                model_logger.log_helper_data["_spacy_state_for_pred"]
-            ):
-                # TODO: states_for_sample is a list of states that are per chunk
-                ner.set_annotations([docs_copy[i]],states_for_sample,)
-
-            predictions_for_docs = convert_spacy_ents_for_doc_to_predictions(
+            docs_predictions = convert_spacy_ents_for_doc_to_predictions(
                 docs_copy, model_logger.logger_config.labels
             )
-            print(predictions_for_docs)
-            valid_logits_for_docs: List[List] = [[] for _ in predictions_for_docs]
-            doc_probs_ndarray: List[np.ndarray] = [
-                np.empty((0, 0)) for _ in predictions_for_docs
-            ]
 
-            for doc_idx, logits_for_doc in enumerate(log_data["logits"]):
-                for token_idx, token_logits in enumerate(logits_for_doc):
-                    valid_logits = convert_spacy_ner_logits_to_valid_logits(
-                        token_logits, predictions_for_docs[doc_idx][token_idx]
-                    )
-                    valid_logits_for_docs[doc_idx].append(valid_logits)
+            # Not all logits are valid
+            docs_valid_logits = defaultdict(list)
+            for doc_id, doc_logits in helper_data["logits"].items():
+                for token_idx, token_logits in enumerate(doc_logits):
+                    valid_token_logits = convert_spacy_ner_logits_to_valid_logits(token_logits, docs_predictions[doc_id][token_idx])
+                    docs_valid_logits[doc_id].append(valid_token_logits)
 
-            for i in range(len(valid_logits_for_docs)):
-                doc_probs_ndarray[i] = np.array(valid_logits_for_docs[i])
-                model_logger.emb.append(
-                    np.array(model_logger.log_helper_data["embs"][i])
-                )
-            model_logger.logits = doc_probs_ndarray
+            # Now that we have valid logits and embs, fill out the log
+            for doc_id, doc_valid_logits in docs_valid_logits.items():
+                model_logger.logits.append(np.array(doc_valid_logits))
+                doc_embs = helper_data["embs"][doc_id]
+                model_logger.emb.append(np.array(doc_embs))
+                model_logger.ids.append(doc_id)
+
             model_logger.log()
+            helper_data["already_logged"] = True
+
         return scores, backprop_fn
 
 
@@ -476,33 +424,19 @@ class GalileoState2Vec(CallableObjectProxy):
     def __init__(self, model: State2Vec, model_logger: TextNERModelLogger):
         super().__init__(model)
         validate_obj(model, State2Vec, "__call__")
-
-        assert isinstance(model, State2Vec)
-        assert not isinstance(model, GalileoState2Vec)
-        assert len(model_logger.ids) != 0
+        assert not isinstance(model, GalileoState2Vec), "trying to patch an " \
+                                                        "already patched model"
         self._self_model_logger = model_logger
-        self._self_X: List[StateClass] = []
+        self._self_states: List[StateClass] = []
 
     def __call__(self, *args: Any, **kwargs: Any) -> Tuple[np.ndarray, np.ndarray]:
         """Overwrites forward to capture embeddings and add to model_logger"""
-        assert len(self._self_model_logger.ids) != 0
         embeddings, embeddings_bp = self.__wrapped__(*args, **kwargs)
 
-        # _self.X needs to be set externally to communicate where these embs belong
-        # in the model wrapper. Maybe this would be better in some more global state
-        for i, state in enumerate(self._self_X):
-            log_ids = list(self._self_model_logger.ids)
-            user_sample_id = state.doc.user_data["id"]
-            if user_sample_id not in log_ids:
-                warnings.warn("Provided sample id is missing, will skip model logging")
-                continue
-
-            model_logger_idx = log_ids.index(user_sample_id)
-            # At this point, we are treating embeddings as a list before converting
-            # to a numpy array for logging
-            token_idx_for_sample = state.queue[0]
-            self._self_model_logger.log_helper_data["embs"][model_logger_idx][
-                token_idx_for_sample
-            ] = embeddings[i]
+        helper_data = self._self_model_logger.log_helper_data
+        for state_idx, state in enumerate(self._self_states):
+            doc_id = state.doc.user_data["id"]
+            state_cur_token_idx = state.queue[0]
+            helper_data["embs"][doc_id][state_cur_token_idx] = embeddings[state_idx]
 
         return embeddings, embeddings_bp

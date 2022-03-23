@@ -113,8 +113,7 @@ def test_long_sample(cleanup_after_use, set_test_config):
     epoch = 0
 
     def new_log(*args, **kwargs):
-        print("logging")
-        if epoch == 16:
+        if epoch == 29:
             print("breaking")
         old_log(*args, **kwargs)
 
@@ -125,7 +124,7 @@ def test_long_sample(cleanup_after_use, set_test_config):
     log_input_examples([long_example], split="training")
 
     dataquality.set_split("training")
-    for _ in range(17):
+    for _ in range(30):
         dataquality.set_epoch(epoch)
         losses = {}
         nlp.update([long_example], drop=0.5, sgd=optimizer, losses=losses)
