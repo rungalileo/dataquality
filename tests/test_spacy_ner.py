@@ -16,17 +16,16 @@ from dataquality.core.integrations.spacy import (
 )
 from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
-from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from tests.conftest import LOCATION
 from tests.utils.spacy_integration import load_ner_data_from_local, train_model
 from tests.utils.spacy_integration_constants import (
     LONG_SAMPLE,
+    LONG_SAMPLES_ENTITIES_DICT,
     NER_CLASS_LABELS,
     NER_TEST_DATA,
     NER_TRAINING_DATA,
     TestSpacyNerConstants,
-    LONG_SAMPLES_ENTITIES_DICT,
 )
 
 
@@ -106,7 +105,9 @@ def test_long_sample(cleanup_after_use, set_test_config):
     nlp = spacy.blank("en")
     nlp.add_pipe("ner")
 
-    long_example = Example.from_dict(nlp.make_doc(LONG_SAMPLE), LONG_SAMPLES_ENTITIES_DICT)
+    long_example = Example.from_dict(
+        nlp.make_doc(LONG_SAMPLE), LONG_SAMPLES_ENTITIES_DICT
+    )
     optimizer = nlp.initialize(lambda: [long_example])
 
     old_log = TextNERModelLogger.log

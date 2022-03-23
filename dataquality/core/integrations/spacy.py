@@ -1,6 +1,5 @@
-import warnings
-from typing import Any, Callable, Generator, List, Tuple, Union
 from collections import defaultdict
+from typing import Any, Callable, Generator, List, Tuple, Union
 
 import numpy as np
 import thinc
@@ -292,8 +291,12 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
             )
 
         helper_data = model_logger.log_helper_data
-        helper_data["logits"] = {doc.user_data["id"]: [None for _ in range(len(doc))] for doc in X}
-        helper_data["embs"] = {doc.user_data["id"]: [None for _ in range(len(doc))] for doc in X}
+        helper_data["logits"] = {
+            doc.user_data["id"]: [None for _ in range(len(doc))] for doc in X
+        }
+        helper_data["embs"] = {
+            doc.user_data["id"]: [None for _ in range(len(doc))] for doc in X
+        }
         helper_data["spacy_states"] = defaultdict(list)
         helper_data["spacy_states_end_idxs"] = defaultdict(list)
         helper_data["already_logged"] = False
@@ -314,8 +317,9 @@ class GalileoParserStepModel(ThincModelWrapper):
                 f"longer compatible with this Galileo integration."
             )
         assert isinstance(model, ParserStepModel)
-        assert not isinstance(model, GalileoParserStepModel), "trying to patch an " \
-                                                              "already patched model"
+        assert not isinstance(model, GalileoParserStepModel), (
+            "trying to patch an " "already patched model"
+        )
 
         self._self_model_logger = model_logger
         # state2vec is the embedding model/layer
@@ -347,13 +351,21 @@ class GalileoParserStepModel(ThincModelWrapper):
         is_doc_filled = []
         for doc_id, doc_logits in helper_data["logits"].items():
             doc_embs = helper_data["embs"][doc_id]
-            is_doc_filled.append(all([
-                token_logits is not None and token_embs is not None for token_logits, token_embs in zip(doc_logits, doc_embs)
-            ]))
+            is_doc_filled.append(
+                all(
+                    [
+                        token_logits is not None and token_embs is not None
+                        for token_logits, token_embs in zip(doc_logits, doc_embs)
+                    ]
+                )
+            )
         return all(is_doc_filled)
 
     def _self_forward(
-        self, parser_step_model: ParserStepModel, states: List[StateClass], is_train: bool
+        self,
+        parser_step_model: ParserStepModel,
+        states: List[StateClass],
+        is_train: bool,
     ) -> Tuple[np.ndarray, Callable]:
         model_logger = self._self_model_logger  # for readability
         helper_data = model_logger.log_helper_data
@@ -361,7 +373,9 @@ class GalileoParserStepModel(ThincModelWrapper):
             self._self_initialize_helper_data(states)
 
         parser_step_model.state2vec._self_states = states
-        scores, backprop_fn = self._self_orig_forward(parser_step_model, states, is_train)
+        scores, backprop_fn = self._self_orig_forward(
+            parser_step_model, states, is_train
+        )
 
         logits = scores[..., 1:]  # Throw out the -U token
         assert logits.shape == (len(states), parser_step_model.nO - 1)  # type: ignore
@@ -374,17 +388,19 @@ class GalileoParserStepModel(ThincModelWrapper):
             helper_data["logits"][doc_id][state_cur_token_idx] = logits[state_idx]
 
             for chunk_idx, state_end_idx in enumerate(
-                    helper_data["spacy_states_end_idxs"][doc_id]):
+                helper_data["spacy_states_end_idxs"][doc_id]
+            ):
                 if state_cur_token_idx < state_end_idx:
                     # check if this is a pre final state
                     if state_cur_token_idx == state_end_idx - 1:
                         final_state = state.copy()
                         ner = text_ner_logger_config.user_data["nlp"].get_pipe("ner")
-                        ner.transition_states([final_state], scores[state_idx:state_idx + 1, :])
+                        ner.transition_states(
+                            [final_state], scores[state_idx : state_idx + 1, :]
+                        )
                         helper_data["spacy_states"][doc_id][chunk_idx] = final_state
                         helper_data["spacy_states_end_idxs"][doc_id][chunk_idx] += 1
                     break
-
 
         if not helper_data["already_logged"] and self._self_is_helper_data_filled():
             docs_copy = {
@@ -404,7 +420,9 @@ class GalileoParserStepModel(ThincModelWrapper):
             docs_valid_logits = defaultdict(list)
             for doc_id, doc_logits in helper_data["logits"].items():
                 for token_idx, token_logits in enumerate(doc_logits):
-                    valid_token_logits = convert_spacy_ner_logits_to_valid_logits(token_logits, docs_predictions[doc_id][token_idx])
+                    valid_token_logits = convert_spacy_ner_logits_to_valid_logits(
+                        token_logits, docs_predictions[doc_id][token_idx]
+                    )
                     docs_valid_logits[doc_id].append(valid_token_logits)
 
             # Now that we have valid logits and embs, fill out the log
@@ -424,8 +442,9 @@ class GalileoState2Vec(CallableObjectProxy):
     def __init__(self, model: State2Vec, model_logger: TextNERModelLogger):
         super().__init__(model)
         validate_obj(model, State2Vec, "__call__")
-        assert not isinstance(model, GalileoState2Vec), "trying to patch an " \
-                                                        "already patched model"
+        assert not isinstance(model, GalileoState2Vec), (
+            "trying to patch an " "already patched model"
+        )
         self._self_model_logger = model_logger
         self._self_states: List[StateClass] = []
 
