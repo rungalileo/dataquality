@@ -50,6 +50,8 @@ def finish() -> Optional[Dict[str, Any]]:
         f"Job {res['job_name']} successfully submitted. Results will be available "
         f"soon at {res['link']}"
     )
+    # Reset all config variables
+    data_logger.logger_config.reset()
     return res
 
 
