@@ -317,7 +317,7 @@ class GalileoParserStepModel(ThincModelWrapper):
             )
         assert isinstance(model, ParserStepModel)
         assert not isinstance(model, GalileoParserStepModel), (
-            "trying to patch an " "already patched model"
+            "trying to patch an already patched model"
         )
 
         self._self_model_logger = model_logger
