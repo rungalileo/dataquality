@@ -334,8 +334,7 @@ class GalileoParserStepModel(ThincModelWrapper):
         if next_state and next_state_id == state_id:
             return next_state.queue[0]
         # Otherwise, we're at the end of this doc, so return its length
-        else:
-            return len(state.doc)
+        return len(state.doc)
 
     def _self_initialize_helper_data(self, states: List[StateClass]) -> None:
         # TODO: might need to assert that states has a particular structure
