@@ -367,6 +367,12 @@ class GalileoParserStepModel(ThincModelWrapper):
         states: List[StateClass],
         is_train: bool,
     ) -> Tuple[np.ndarray, Callable]:
+        """Patches the ParserStepModel's forward func
+
+        The forward function is called with a token from each chunked doc in the
+        sample. So the max num times its called is equal to the max num tokens in any
+        doc's chunk.
+        """
         model_logger = self._self_model_logger  # for readability
         helper_data = model_logger.log_helper_data
         if not helper_data["spacy_states"]:
@@ -443,13 +449,16 @@ class GalileoState2Vec(CallableObjectProxy):
         super().__init__(model)
         validate_obj(model, State2Vec, "__call__")
         assert not isinstance(model, GalileoState2Vec), (
-            "trying to patch an " "already patched model"
+            "trying to patch an already patched model"
         )
         self._self_model_logger = model_logger
-        self._self_states: List[StateClass] = []
+        self._self_states: List[StateClass] = [] # Set externally by developer
 
     def __call__(self, *args: Any, **kwargs: Any) -> Tuple[np.ndarray, np.ndarray]:
-        """Overwrites forward to capture embeddings and add to model_logger"""
+        """Overwrites forward to capture embeddings and add to model_logger.
+
+        Note that self._self_states needs to be set by developer before this is called.
+        """
         embeddings, embeddings_bp = self.__wrapped__(*args, **kwargs)
 
         helper_data = self._self_model_logger.log_helper_data
