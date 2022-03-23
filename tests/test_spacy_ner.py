@@ -1,4 +1,4 @@
-from typing import Callable, Tuple, List, Dict
+from typing import Callable, Dict, List, Tuple
 
 import numpy as np
 import pytest
@@ -21,12 +21,12 @@ from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.conftest import LOCATION
 from tests.utils.spacy_integration import load_ner_data_from_local, train_model
 from tests.utils.spacy_integration_constants import (
-    LONG_SAMPLE,
-    LONG_SAMPLES_ENTITIES_DICT,
+    LONG_SHORT_DATA,
+    LONG_TRAIN_DATA,
     NER_CLASS_LABELS,
     NER_TEST_DATA,
     NER_TRAINING_DATA,
-    TestSpacyNerConstants, LONG_SHORT_DATA, LONG_TRAIN_DATA,
+    TestSpacyNerConstants,
 )
 
 
@@ -193,7 +193,8 @@ def test_spacy_ner(cleanup_after_use, set_test_config) -> None:
 
 
 @pytest.mark.parametrize(
-    "samples", [ LONG_SHORT_DATA, LONG_TRAIN_DATA, NER_TRAINING_DATA],
+    "samples",
+    [LONG_SHORT_DATA, LONG_TRAIN_DATA, NER_TRAINING_DATA],
 )
 def test_long_sample(
     samples: List[Tuple[str, Dict]],
@@ -207,8 +208,7 @@ def test_long_sample(
     nlp = spacy.blank("en")
     nlp.add_pipe("ner")
     all_examples = [
-        Example.from_dict(nlp.make_doc(text), entities)
-        for text, entities in samples
+        Example.from_dict(nlp.make_doc(text), entities) for text, entities in samples
     ]
     optimizer = nlp.initialize(lambda: all_examples)
 

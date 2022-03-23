@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Any, Callable, Generator, List, Tuple, Union, Dict, DefaultDict
+from typing import Any, Callable, DefaultDict, Dict, Generator, List, Tuple, Union
 
 import numpy as np
 import thinc
@@ -290,12 +290,8 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
 
         model_logger = TextNERModelLogger()
         helper_data = model_logger.log_helper_data
-        helper_data["logits"] = {
-            doc.user_data["id"]: [None]*len(doc) for doc in X
-        }
-        helper_data["embs"] = {
-            doc.user_data["id"]: [None]*len(doc) for doc in X
-        }
+        helper_data["logits"] = {doc.user_data["id"]: [None] * len(doc) for doc in X}
+        helper_data["embs"] = {doc.user_data["id"]: [None] * len(doc) for doc in X}
         helper_data["spacy_states"] = defaultdict(list)
         helper_data["spacy_states_end_idxs"] = defaultdict(list)
         helper_data["already_logged"] = False
@@ -316,9 +312,9 @@ class GalileoParserStepModel(ThincModelWrapper):
                 f"longer compatible with this Galileo integration."
             )
         assert isinstance(model, ParserStepModel)
-        assert not isinstance(model, GalileoParserStepModel), (
-            "trying to patch an already patched model"
-        )
+        assert not isinstance(
+            model, GalileoParserStepModel
+        ), "trying to patch an already patched model"
 
         self._self_model_logger = model_logger
         # state2vec is the embedding model/layer
@@ -327,7 +323,7 @@ class GalileoParserStepModel(ThincModelWrapper):
     def _self_get_state_end_idx(self, state_idx: int, states: List[StateClass]) -> int:
         state = states[state_idx]
         state_id = state.doc.user_data["id"]
-        next_state = states[state_idx+1] if state_idx+1 < len(states) else None
+        next_state = states[state_idx + 1] if state_idx + 1 < len(states) else None
         next_state_id = next_state.doc.user_data["id"] if next_state else None
 
         # If the next state is from the same doc, return its start
@@ -465,11 +461,11 @@ class GalileoState2Vec(CallableObjectProxy):
     def __init__(self, model: State2Vec, model_logger: TextNERModelLogger):
         super().__init__(model)
         validate_obj(model, State2Vec, "__call__")
-        assert not isinstance(model, GalileoState2Vec), (
-            "trying to patch an already patched model"
-        )
+        assert not isinstance(
+            model, GalileoState2Vec
+        ), "trying to patch an already patched model"
         self._self_model_logger = model_logger
-        self._self_states: List[StateClass] = [] # Set externally by developer
+        self._self_states: List[StateClass] = []  # Set externally by developer
 
     def __call__(self, *args: Any, **kwargs: Any) -> Tuple[np.ndarray, np.ndarray]:
         """Overwrites forward to capture embeddings and add to model_logger.
