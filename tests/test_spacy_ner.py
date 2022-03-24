@@ -1,5 +1,4 @@
 from typing import Callable, Dict, List, Tuple
-from unittest.mock import Mock
 
 import numpy as np
 import pytest
@@ -193,98 +192,23 @@ def test_spacy_ner(cleanup_after_use, set_test_config) -> None:
             assert (probs[c].values == gt_probs[c].values).all()
 
 
-@pytest.mark.skip(reason="SpacyPatchState no longer exists")
-def test_galileo_transition_based_parser_forward(set_test_config, cleanup_after_use):
-    set_test_config(task_type=TaskType.text_ner)
-    nlp = spacy.blank("en")
-
-    text_samples = ["Some text", "Some other text", "Some more text"]
-
-    # mock_transition_based_parser_model = Mock()
-    docs = []
-    for i, text in enumerate(text_samples):
-        doc = nlp(text)
-        doc.user_data["id"] = i
-        docs.append(doc)
-
-    fake_embeddings = np.random.rand(sum([len(doc) for doc in docs]), 64)
-
-    def mock_transition_based_parser_forward(model, X, is_train):
-        mock_parser_step_model = Mock()
-        mock_parser_step_model._func = lambda x: print("parser_step_model forward fn")
-        mock_parser_step_model.tokvecs = fake_embeddings
-        return mock_parser_step_model, lambda x: print(
-            "transition_based_parser backprop fn"
-        )
-
-    # TODO: Need to replace this
-    # SpacyPatchState.orig_transition_based_parser_forward = (
-    #     mock_transition_based_parser_forward
-    # )
-
-    dataquality.set_epoch(0)
-    dataquality.set_split("training")
-
-    # TODO: Need to replace with a different call for this test to work
-    # galileo_transition_based_parser_forward(
-    #     mock_transition_based_parser_model, docs, is_train=True
-    # )
-
-    # TODO: Need to fix this as well
-    # assert SpacyPatchState.model_logger.ids == [0, 1, 2]
-    # assert SpacyPatchState.model_logger.epoch == 0
-    # assert SpacyPatchState.model_logger.split == "training"
-    # assert SpacyPatchState.model_logger.probs == [[], [], []]
-    # assert len(SpacyPatchState.model_logger.emb) == 3
-    # assert all(
-    #     [
-    #         embedding.shape == (len(docs[i]), 64)
-    #         for i, embedding in enumerate(SpacyPatchState.model_logger.emb)
-    #     ]
-    # )
-
-    assert text_ner_logger_config.user_data["_spacy_state_for_pred"] == [
-        None,
-        None,
-        None,
-    ]
-
-
-@pytest.mark.skip(reason="Still need to implement the mock ParserStepModel")
-def test_galileo_parser_step_forward():
-    pass
-
-
 @pytest.mark.parametrize(
-    "samples, cut_size, exp_num_logged",
-    [
-        (LONG_SHORT_DATA, 2_000, len(LONG_SHORT_DATA)),  # all samples, no skips
-        # (LONG_SHORT_DATA, 100, len(LONG_SHORT_DATA) - 2),  # all samples, long skipped
-        # (LONG_TRAIN_DATA + LONG_TRAIN_DATA, 100, 0),  # only long, all skipped
-        (LONG_TRAIN_DATA + LONG_TRAIN_DATA, 2_000, 2),  # only long, no skips
-        (NER_TRAINING_DATA, 100, len(NER_TRAINING_DATA)),  # no long samples, no skips
-        (NER_TRAINING_DATA, 2_000, len(NER_TRAINING_DATA)),  # no long samples, no skips
-    ],
+    "samples",
+    [LONG_SHORT_DATA, LONG_TRAIN_DATA, NER_TRAINING_DATA],
 )
 def test_long_sample(
     samples: List[Tuple[str, Dict]],
-    cut_size: int,
-    exp_num_logged: int,
     cleanup_after_use: Callable,
     set_test_config: Callable,
 ):
     """Tests logging a long sample during training"""
     TextNERModelLogger.logger_config.reset()
     set_test_config(task_type=TaskType.text_ner)
-    default_config = {
-        "update_with_oracle_cut_size": cut_size,
-    }
-    nlp = spacy.blank("en")
-    nlp.add_pipe("ner", config=default_config)
 
+    nlp = spacy.blank("en")
+    nlp.add_pipe("ner")
     all_examples = [
-        Example.from_dict(nlp.make_doc(sample_text), sample_entity)
-        for sample_text, sample_entity in samples
+        Example.from_dict(nlp.make_doc(text), entities) for text, entities in samples
     ]
     optimizer = nlp.initialize(lambda: all_examples)
 
@@ -292,10 +216,9 @@ def test_long_sample(
 
     def new_log(*args, **kwargs):
         logger: TextNERModelLogger = args[0]
-        # Long sample should be skipped
-        assert len(logger.ids) == exp_num_logged
-        assert len(logger.logits) == exp_num_logged
-        assert len(logger.emb) == exp_num_logged
+        assert len(logger.ids) == len(samples)
+        assert len(logger.logits) == len(samples)
+        assert len(logger.emb) == len(samples)
 
     TextNERModelLogger.log = new_log
 

@@ -1,3 +1,4 @@
+import itertools
 from enum import Enum, unique
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -202,8 +203,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             # which are padded by the model
             self.logger_config.sample_length[sample_key] = len(sample_indices)
             # Flatten the List[Tuple[int,int]] to List[int]
-            # https://github.com/python/mypy/issues/6040 (mypy ignore)
-            flattened_indices = list(sum(sample_indices, ()))  # type: ignore
+            flattened_indices = list(itertools.chain(*sample_indices))
             self.text_token_indices_flat.append(flattened_indices)
 
         # Free up the memory, we don't need it anymore
