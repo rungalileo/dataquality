@@ -199,3 +199,12 @@ def drop_empty_columns(df: DataFrame) -> DataFrame:
     col_counts = df.count(cols)
     empty_cols = [col for col, col_count in zip(cols, col_counts) if col_count == 0]
     return df.drop(*empty_cols) if empty_cols else df
+
+
+def safe_slice(df: DataFrame, col_name: str, value: str) -> DataFrame:
+    df_slice = df[df[col_name].str.equals(value)].copy()
+    # Drop any columns for this split that are empty
+    # (ex: metadata logged for a different split)
+    df_slice = drop_empty_columns(df_slice)
+    # Remove the mask, work with only the filtered rows
+    return df_slice.extract()

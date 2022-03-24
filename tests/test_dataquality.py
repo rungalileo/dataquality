@@ -198,7 +198,7 @@ def test_logging_duplicate_ids(
             c.upload()
 
         assert str(e.value).startswith(
-            "It seems as though you do not have unique ids in this split/epoch."
+            "It seems as though you do not have unique ids in this split."
         )
     finally:
         # Mock finish() call without calling the API

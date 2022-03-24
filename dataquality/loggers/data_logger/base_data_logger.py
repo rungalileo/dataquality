@@ -1,8 +1,7 @@
 import os
 import warnings
 from abc import abstractmethod
-from glob import glob
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 from uuid import uuid4
 
 import numpy as np
@@ -23,7 +22,7 @@ from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import (
     _join_in_out_frames,
     concat_hdf5_files,
-    drop_empty_columns,
+    safe_slice,
     validate_ids_for_df,
     validate_unique_ids,
 )
@@ -94,14 +93,15 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     @classmethod
     def upload(cls) -> None:
         """
-        Iterates through all of the splits/epochs/[data/emb/prob] folders, concatenates
-        all of the files with vaex, and uploads them to a single file in minio
+        Iterates through all of each splits children folders [data/emb/prob] for each
+        inference name / epoch, concatenates all of the files with vaex, and uploads
+        them to a single file in minio
         """
         ThreadPoolManager.wait_for_threads()
         print("☁️ Uploading Data")
+        object_store = ObjectStore()
         proj_run = f"{config.current_project_id}/{config.current_run_id}"
         location = f"{cls.LOG_FILE_DIR}/{proj_run}"
-        object_store = ObjectStore()
 
         in_frame = vaex.open(
             f"{location}/{BaseGalileoDataLogger.INPUT_DATA_NAME}"
@@ -111,52 +111,57 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             if not os.path.exists(split_loc):
                 continue
 
-            in_frame_split = in_frame[in_frame["split"].str.equals(split)].copy()
-            # Drop any columns for this split that are empty
-            # (ex: metadata logged for a different split)
-            in_frame_split = drop_empty_columns(in_frame_split)
-            # Remove the mask, work with only the filtered rows
-            in_frame_split = in_frame_split.extract()
-            for dir_name in glob(f"{split_loc}/*"):
-                epoch_or_inference_name = dir_name.split("/")[-1]
-                prob_only = False
-                if split != Split.inference:
-                    epoch = int(epoch_or_inference_name)
-                    # For all epochs that aren't the last 2 (early stopping), we only
-                    # want to upload the probabilities (for DEP calculation).
-                    prob_only = bool(epoch < cls.logger_config.last_epoch - 1)
+            in_frame_split = safe_slice(in_frame, "split", split)
+            cls.upload_split(object_store, in_frame_split, split, split_loc)
 
-                str_cols = concat_hdf5_files(dir_name, prob_only)
-                out_frame = vaex.open(f"{dir_name}/{HDF5_STORE}")
-                # Post concat, string columns come back as bytes and need conversion
-                for col in str_cols:
-                    out_frame[col] = out_frame[col].to_arrow().cast(pa.large_string())
-                if prob_only:
-                    out_frame["epoch"] = vaex.vconstant(epoch, length=len(out_frame))
-                    out_frame["split"] = vaex.vconstant(
-                        split, length=len(out_frame), dtype="str"
-                    )
+    @classmethod
+    def upload_split(
+        cls,
+        object_store: ObjectStore,
+        in_frame: DataFrame,
+        split: str,
+        split_loc: str,
+    ) -> None:
+        split_runs = os.listdir(split_loc)
 
-                in_out_frames = cls.process_in_out_frames(
-                    in_frame_split, out_frame, prob_only
+        for split_run in split_runs:  # For each inference name or epoch
+            prob_only = cls.prob_only(split, split_run)
+
+            dir_name = f"{split_loc}/{split_run}"
+            in_out_frames = cls.create_in_out_frames(
+                in_frame, dir_name, prob_only, split, split_run
+            )
+            cls.upload_in_out_frames(object_store, in_out_frames, split, split_run)
+
+    @classmethod
+    def create_in_out_frames(
+        cls,
+        in_frame: DataFrame,
+        dir_name: str,
+        prob_only: bool,
+        split: str,
+        split_run: Union[str, int],
+    ) -> DataFrame:
+        str_cols = concat_hdf5_files(dir_name, prob_only)
+        out_frame = vaex.open(f"{dir_name}/{HDF5_STORE}")
+
+        # Post concat, string columns come back as bytes and need conversion
+        for col in str_cols:
+            out_frame[col] = out_frame[col].to_arrow().cast(pa.large_string())
+        if prob_only:
+            out_frame["split"] = vaex.vconstant(
+                split, length=len(out_frame), dtype="str"
+            )
+            if split == Split.inference:
+                out_frame["inference_name"] = vaex.vconstant(
+                    split_run, length=len(out_frame), dtype="str"
                 )
-                prob = in_out_frames.prob
-                emb = in_out_frames.emb
-                data_df = in_out_frames.data
+            else:
+                out_frame["epoch"] = vaex.vconstant(
+                    int(split_run), length=len(out_frame)
+                )
 
-                for data_folder, df_obj in tqdm(
-                    zip(DATA_FOLDERS, [emb, prob, data_df]), total=3, desc=split
-                ):
-                    if prob_only and data_folder != "prob":
-                        continue
-                    ext = cls.DATA_FOLDER_EXTENSION[data_folder]
-                    minio_file = (
-                        f"{proj_run}/{split}/{epoch_or_inference_name}/"
-                        f"{data_folder}/{data_folder}.{ext}"
-                    )
-                    object_store.create_project_run_object_from_df(
-                        df=df_obj, object_name=minio_file
-                    )
+        return cls.process_in_out_frames(in_frame, out_frame, prob_only)
 
     @classmethod
     def process_in_out_frames(
@@ -173,7 +178,50 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         in_out = _join_in_out_frames(in_frame, out_frame)
 
         prob, emb, data_df = cls.split_dataframe(in_out, prob_only)
+        # These df vars will be used in upload_in_out_frames
+        emb.set_variable("ignore_prob_only", prob_only)
+        data_df.set_variable("ignore_prob_only", prob_only)
+
         return BaseLoggerInOutFrames(prob=prob, emb=emb, data=data_df)
+
+    @classmethod
+    def upload_in_out_frames(
+        cls,
+        object_store: ObjectStore,
+        in_out_frames: BaseLoggerInOutFrames,
+        split: str,
+        split_run: Union[str, int],
+    ) -> None:
+        proj_run = f"{config.current_project_id}/{config.current_run_id}"
+
+        prob = in_out_frames.prob
+        emb = in_out_frames.emb
+        data_df = in_out_frames.data
+
+        for data_folder, df_obj in tqdm(
+            zip(DATA_FOLDERS, [emb, prob, data_df]), total=3, desc=split
+        ):
+            if df_obj.variables.get("ignore_prob_only"):
+                continue
+
+            ext = cls.DATA_FOLDER_EXTENSION[data_folder]
+            minio_file = (
+                f"{proj_run}/{split}/{split_run}/" f"{data_folder}/{data_folder}.{ext}"
+            )
+            object_store.create_project_run_object_from_df(
+                df=df_obj, object_name=minio_file
+            )
+
+    @classmethod
+    def prob_only(cls, split: str, split_run: Union[int, str]) -> bool:
+        if split == Split.inference:
+            return False
+
+        # If split is not inference, split_run must be epoch
+        epoch = int(split_run)
+        # For all epochs that aren't the last 2 (early stopping), we only
+        # want to upload the probabilities (for DEP calculation).
+        return bool(epoch < cls.logger_config.last_epoch - 1)
 
     @classmethod
     @abstractmethod
@@ -250,7 +298,9 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
     @classmethod
     @abstractmethod
-    def split_dataframe(cls, df: DataFrame, prob_only: bool) -> DataFrame:
+    def split_dataframe(
+        cls, df: DataFrame, prob_only: bool
+    ) -> Tuple[DataFrame, DataFrame, DataFrame]:
         ...
 
     @abstractmethod
