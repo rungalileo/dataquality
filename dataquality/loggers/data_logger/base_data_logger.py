@@ -22,11 +22,10 @@ from dataquality.utils.hdf5_store import HDF5_STORE
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import (
     _join_in_out_frames,
-    _validate_unique_ids,
     concat_hdf5_files,
     drop_empty_columns,
-    get_dup_ids,
-    valid_ids,
+    validate_ids_for_df,
+    validate_unique_ids,
 )
 
 DATA_FOLDERS = ["emb", "prob", "data"]
@@ -46,6 +45,10 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         self.meta: Dict[str, Any] = meta or {}
 
     def log(self) -> None:
+        """Writes input data to disk in .galileo/logs
+
+        If input data already exist, append new data to existing input file
+        """
         self.validate()
         write_input_dir = (
             f"{BaseGalileoLogger.LOG_FILE_DIR}/{config.current_project_id}/"
@@ -53,32 +56,40 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         )
         if not os.path.exists(write_input_dir):
             os.makedirs(write_input_dir)
+
         df = self._get_input_df()
         file_path = f"{write_input_dir}/{BaseGalileoDataLogger.INPUT_DATA_NAME}"
+
         if os.path.isfile(file_path):
-            new_name = f"{write_input_dir}/{str(uuid4()).replace('-', '')[:12]}.arrow"
-            os.rename(file_path, new_name)
-            logged_data = vaex.open(new_name)
-            combined_data = vaex.concat([logged_data, df])
-            # Validate there are no duplicated IDs
-            for split in df["split"].unique():
-                split_df = df[df["split"] == split]
-                if not valid_ids(split_df):
-                    dups = get_dup_ids(split_df)
-                    combined_data.close()
-                    os.rename(new_name, file_path)  # Revert name, we aren't logging
-                    raise GalileoException(
-                        "It seems the newly logged data has IDs that duplicate "
-                        f"previously logged data for split {split}. "
-                        f"Duplicated IDs: {dups}"
-                    )
-            with vaex.progress.tree("vaex", title="Appending input data"):
-                combined_data.export(file_path)
-            os.remove(new_name)
+            self.append_input_data(df, write_input_dir, file_path)
         else:
             with vaex.progress.tree("vaex", title="Exporting input data"):
                 df.export(file_path)
         df.close()
+
+    def append_input_data(
+        self, df: DataFrame, write_input_dir: str, file_path: str
+    ) -> None:
+        # Create a temporary file for existing input data
+        tmp_name = f"{write_input_dir}/{str(uuid4()).replace('-', '')[:12]}.arrow"
+        os.rename(file_path, tmp_name)
+
+        # Merge existing data with new data
+        existing_df = vaex.open(tmp_name)
+        merged_df = vaex.concat([existing_df, df])
+
+        try:  # Validate there are no duplicated IDs
+            validate_ids_for_df(df)
+        except GalileoException as e:  # Cleanup and raise on error
+            merged_df.close()
+            os.rename(tmp_name, file_path)  # Revert name, we aren't logging
+            raise e
+
+        with vaex.progress.tree("vaex", title="Appending input data"):
+            merged_df.export(file_path)
+
+        # Cleanup temporary file after appending input data
+        os.remove(tmp_name)
 
     @classmethod
     def upload(cls) -> None:
@@ -157,7 +168,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         Joins inputs and outputs
         Splits the dataframes into prob, emb, and data for uploading to minio
         """
-        _validate_unique_ids(out_frame)
+        # This will change when i refactor "upload" next
+        validate_unique_ids(out_frame, "epoch")
         in_out = _join_in_out_frames(in_frame, out_frame)
 
         prob, emb, data_df = cls.split_dataframe(in_out, prob_only)

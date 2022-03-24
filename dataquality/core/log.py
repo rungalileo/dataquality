@@ -11,7 +11,7 @@ from dataquality.schemas.task_type import TaskType
 
 
 def log_input_data(**kwargs: Any) -> None:
-    """Logs input data for model training/test/validation.
+    """Logs input data for model training/test/validation/inference.
 
     The expected arguments come from the task_type's data
     logger: See dataquality.get_model_logger().doc() for details
