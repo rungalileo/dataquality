@@ -1,3 +1,4 @@
+import warnings
 from collections import defaultdict
 from typing import Any, Callable, DefaultDict, Dict, Generator, List, Tuple, Union
 
@@ -279,23 +280,34 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
             model, X, is_train=is_train
         )
 
-        if not all(["id" in doc.user_data for doc in X]):
-            raise GalileoException(
-                "One of your model's docs is missing a galileo generated "
-                "id. Did you first log your docs/examples with us using, "
-                "for example, "
-                "`log_input_examples(training_examples, split='training')`? "
-                "Make sure to then continue using 'training_examples'"
-            )
-
         model_logger = TextNERModelLogger()
-        helper_data = model_logger.log_helper_data
-        helper_data["logits"] = {doc.user_data["id"]: [None] * len(doc) for doc in X}
-        helper_data["embs"] = {doc.user_data["id"]: [None] * len(doc) for doc in X}
-        helper_data["spacy_states"] = defaultdict(list)
-        helper_data["spacy_states_end_idxs"] = defaultdict(list)
-        helper_data["already_logged"] = False
-        return GalileoParserStepModel(parser_step_model, model_logger), backprop_fn
+        if model_logger.logger_config.cur_split == "inference":
+            warnings.warn(
+                "Inference logging with Galileo coming soon. For now "
+                "skipping logging"
+            )
+        else:
+            if not all(["id" in doc.user_data for doc in X]):
+                raise GalileoException(
+                    "One of your input's docs is missing a galileo generated "
+                    "id. Did you first log your docs/examples with us using, "
+                    "for example, "
+                    "`log_input_examples(training_examples, split='training')`? "
+                    "Make sure to then continue using 'training_examples'. If this "
+                    "is inference (nlp('some text')) then set "
+                    "`dataquality.set_split('inference')` to continue."
+                )
+            helper_data = model_logger.log_helper_data
+            helper_data["logits"] = {
+                doc.user_data["id"]: [None] * len(doc) for doc in X
+            }
+            helper_data["embs"] = {doc.user_data["id"]: [None] * len(doc) for doc in X}
+            helper_data["spacy_states"] = defaultdict(list)
+            helper_data["spacy_states_end_idxs"] = defaultdict(list)
+            helper_data["already_logged"] = False
+            return GalileoParserStepModel(parser_step_model, model_logger), backprop_fn
+
+        return parser_step_model, backprop_fn
 
 
 class GalileoParserStepModel(ThincModelWrapper):
