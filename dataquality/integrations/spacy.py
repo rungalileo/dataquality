@@ -3,6 +3,7 @@ from collections import defaultdict
 from typing import Any, Callable, DefaultDict, Dict, Generator, List, Tuple, Union
 
 import numpy as np
+import spacy
 import thinc
 from spacy.language import Language
 from spacy.ml.parser_model import ParserStepModel
@@ -121,11 +122,32 @@ def watch(nlp: Language) -> None:
 
 
 def unwatch(nlp: Language) -> None:
-    """Returns spacy nlp Language component to its original unpatched state"""
-    raise GalileoException(
-        "Coming soon! Discussing here: "
-        "https://github.com/explosion/spaCy/discussions/10443"
-    )
+    """Returns spacy nlp Language component to its original unpatched state.
+
+    Unfortunately, spacy does not make this easy, so we replicate spacy's `add_pipe`
+    for logic for using internal spacy methods to add a component object to a specific
+    position.
+    """
+    nlp.rename_pipe("ner", "galileo_ner")
+    galileo_ner = nlp.get_pipe("galileo_ner")
+    if not isinstance(galileo_ner, GalileoEntityRecognizer):
+        raise GalileoException(
+            "Seems like your ner component has already been "
+            "unwatched or was never watched in the first place."
+        )
+
+    # Spacy does not expose an easy way to add a pipeline component from an existing
+    # one, so we use the internal nlp methods from `nlp.add_pipe` for it
+    pipe_component = galileo_ner.__wrapped__
+    pipe_component.model = galileo_ner._self_old_model
+    factory_name = "ner"
+    name = factory_name # for consistency with spacy code
+
+    pipe_index = nlp._get_pipe_index(before="galileo_ner")
+    nlp._pipe_meta[name] = nlp.get_factory_meta(factory_name)
+    nlp._components.insert(pipe_index, (name, pipe_component))
+
+    nlp.remove_pipe("galileo_ner")
 
 
 class GalileoEntityRecognizer(CallableObjectProxy):
@@ -152,6 +174,7 @@ class GalileoEntityRecognizer(CallableObjectProxy):
                 f"expects a beam width of 1 (the 'ner' default)."
             )
 
+        self._self_old_model = ner.model
         ner.model = GalileoTransitionBasedParserModel(ner.model)
 
     def greedy_parse(self, docs: List[Doc], drop: float = 0.0) -> List:
@@ -390,7 +413,7 @@ class GalileoParserStepModel(ThincModelWrapper):
             for chunk_idx, state_end_idx in enumerate(
                 helper_data["spacy_states_end_idxs"][doc_id]
             ):
-                if state_cur_token_idx < state_end_idx:
+                if state_cur_token_idx < state_end_idx: # TODO: See if these next two lines get simpler
                     # check if this is a pre final state
                     if state_cur_token_idx == state_end_idx - 1:
                         final_state = state.copy()
