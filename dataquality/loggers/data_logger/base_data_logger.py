@@ -125,9 +125,10 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         split_runs = os.listdir(split_loc)
 
         for split_run in split_runs:  # For each inference name or epoch
+            in_frame_slice = in_frame.copy()
             prob_only = cls.prob_only(split, split_run)
             if split == Split.inference:
-                in_frame_slice = safe_slice(in_frame, "inference_name", split_run)
+                in_frame_slice = safe_slice(in_frame_slice, "inference_name", split_run)
 
             dir_name = f"{split_loc}/{split_run}"
             in_out_frames = cls.create_in_out_frames(
