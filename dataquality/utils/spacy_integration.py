@@ -1,4 +1,5 @@
-from typing import List
+from collections import defaultdict
+from typing import DefaultDict, Dict, List
 
 import numpy as np
 import spacy
@@ -54,21 +55,21 @@ def convert_spacy_ner_logits_to_valid_logits(
 
 
 def convert_spacy_ents_for_doc_to_predictions(
-    docs: List[Doc], labels: List[str]
-) -> List[List[int]]:
+    docs: Dict[int, Doc], labels: List[str]
+) -> DefaultDict[int, List[int]]:
     """Converts spacy's representation of ner spans to their per token predictions.
 
     Uses some spacy utility code to convert from start/end/label representation to the
     BILUO per token corresponding tagging scheme.
 
     """
-    prediction_indices = []
-    for doc in docs:
+    prediction_indices = defaultdict(list)
+    for doc_id, doc in docs.items():
         pred_output = offsets_to_biluo_tags(
             doc, [(ent.start_char, ent.end_char, ent.label_) for ent in doc.ents]
         )
         pred_output_ind = [labels.index(tok_pred) for tok_pred in pred_output]
-        prediction_indices.append(pred_output_ind)
+        prediction_indices[doc_id] = pred_output_ind
     return prediction_indices
 
 
