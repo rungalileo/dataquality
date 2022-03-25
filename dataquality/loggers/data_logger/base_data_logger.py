@@ -22,7 +22,7 @@ from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import (
     _join_in_out_frames,
     concat_hdf5_files,
-    safe_slice,
+    filter_df,
     validate_ids_for_df,
     validate_unique_ids,
 )
@@ -111,7 +111,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             if not os.path.exists(split_loc):
                 continue
 
-            in_frame_split = safe_slice(in_frame, "split", split)
+            in_frame_split = filter_df(in_frame, "split", split)
             cls.upload_split(object_store, in_frame_split, split, split_loc)
 
     @classmethod
@@ -128,7 +128,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             in_frame_slice = in_frame.copy()
             prob_only = cls.prob_only(split, split_run)
             if split == Split.inference:
-                in_frame_slice = safe_slice(in_frame_slice, "inference_name", split_run)
+                in_frame_slice = filter_df(in_frame_slice, "inference_name", split_run)
 
             dir_name = f"{split_loc}/{split_run}"
             in_out_frames = cls.create_in_out_frames(

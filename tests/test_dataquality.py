@@ -229,20 +229,23 @@ def test_logging_inference_run(
     dataquality.log_input_data(**input_data)
 
     dataquality.set_split("inference", inference_name="fruits")
+    emb_1 = (np.random.rand(2, 100),)
+    logits_1 = np.random.rand(2, 5)
     output_data = {
-        "emb": np.random.rand(2, 100),
-        "logits": np.random.rand(2, 5),
+        "emb": emb_1,
+        "logits": logits_1,
         "ids": [1, 2],
     }
     dataquality.log_model_outputs(**output_data)
     dataquality.set_split("inference", inference_name="fruits_prod")
+    emb_2 = (np.random.rand(2, 100),)
+    logits_2 = np.random.rand(2, 5)
     output_data = {
-        "emb": np.random.rand(2, 100),
-        "logits": np.random.rand(2, 5),
+        "emb": emb_2,
+        "logits": logits_2,
         "ids": [1, 2],
     }
     dataquality.log_model_outputs(**output_data)
-
     dataquality.get_data_logger().upload()
 
     inference_data_1 = vaex.open(f"{TEST_PATH}/inference/fruits/data/data.hdf5")
@@ -250,5 +253,10 @@ def test_logging_inference_run(
 
     assert "inference_meta_1" in inference_data_1.get_column_names()
     assert "inference_meta_1" not in inference_data_2.get_column_names()
-
     assert sorted(inference_data_1["inference_meta_1"].tolist()) == [3.14, 42]
+
+    assert inference_data_1.logits.to_numpy() == logits_1
+    assert inference_data_2.logits.to_numpy() == logits_2
+
+    assert inference_data_1.emb.to_numpy() == emb_1
+    assert inference_data_2.emb.to_numpy() == emb_2

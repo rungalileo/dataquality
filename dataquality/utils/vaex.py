@@ -96,11 +96,22 @@ def validate_unique_ids(df: DataFrame, epoch_or_inf_name: str) -> None:
 
 
 def validate_ids_for_slice(df: DataFrame, col_name: str, value: str) -> None:
+    """Helper function to validate a slice of the logged df has unique ids
+
+    Slice data on the value of a vaex df column. This helper function only
+    validates ids for slice equal to "epoch" or "inference_name".
+
+    Fail gracefully on invalid ids or invalid slice
+    """
     sliced_df = df[df[col_name] == value]
     if col_name == "inference_name":
         validate_unique_ids(sliced_df, "inference_name")
-    else:
+    elif col_name == "epoch":
         validate_unique_ids(sliced_df, "epoch")
+    else:
+        raise GalileoException(
+            f"Invalid data slice. Column: {col_name}, Value: {value}"
+        )
 
 
 def validate_ids_for_df(df: DataFrame) -> None:
@@ -201,10 +212,13 @@ def drop_empty_columns(df: DataFrame) -> DataFrame:
     return df.drop(*empty_cols) if empty_cols else df
 
 
-def safe_slice(df: DataFrame, col_name: str, value: str) -> DataFrame:
+def filter_df(df: DataFrame, col_name: str, value: str) -> DataFrame:
+    """Filter vaex df on the value of a column
+
+    Drop any columns for this df that are empty
+    (e.g. metadata logged for a different split)
+    """
     df_slice = df[df[col_name].str.equals(value)].copy()
-    # Drop any columns for this split that are empty
-    # (ex: metadata logged for a different split)
     df_slice = drop_empty_columns(df_slice)
     # Remove the mask, work with only the filtered rows
     return df_slice.extract()
