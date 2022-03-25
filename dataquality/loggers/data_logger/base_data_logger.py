@@ -189,8 +189,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
         prob, emb, data_df = cls.split_dataframe(in_out, prob_only)
         # These df vars will be used in upload_in_out_frames
-        emb.set_variable("ignore_prob_only", prob_only)
-        data_df.set_variable("ignore_prob_only", prob_only)
+        emb.set_variable("skip_upload", prob_only)
+        data_df.set_variable("skip_upload", prob_only)
 
         return BaseLoggerInOutFrames(prob=prob, emb=emb, data=data_df)
 
@@ -211,7 +211,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         for data_folder, df_obj in tqdm(
             zip(DATA_FOLDERS, [emb, prob, data_df]), total=3, desc=split
         ):
-            if df_obj.variables.get("ignore_prob_only"):
+            if df_obj.variables.get("skip_upload"):
                 continue
 
             ext = cls.DATA_FOLDER_EXTENSION[data_folder]
