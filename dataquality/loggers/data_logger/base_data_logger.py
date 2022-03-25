@@ -126,10 +126,12 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
         for split_run in split_runs:  # For each inference name or epoch
             prob_only = cls.prob_only(split, split_run)
+            if split == Split.inference:
+                in_frame_slice = safe_slice(in_frame, "inference_name", split_run)
 
             dir_name = f"{split_loc}/{split_run}"
             in_out_frames = cls.create_in_out_frames(
-                in_frame, dir_name, prob_only, split, split_run
+                in_frame_slice, dir_name, prob_only, split, split_run
             )
             cls.upload_in_out_frames(object_store, in_out_frames, split, split_run)
 
@@ -145,6 +147,13 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         str_cols = concat_hdf5_files(dir_name, prob_only)
         out_frame = vaex.open(f"{dir_name}/{HDF5_STORE}")
 
+        if split == Split.inference:
+            dtype: Union[str, None] = "str"
+            epoch_or_inf_name = "inference_name"
+        else:
+            dtype = None
+            epoch_or_inf_name = "epoch"
+
         # Post concat, string columns come back as bytes and need conversion
         for col in str_cols:
             out_frame[col] = out_frame[col].to_arrow().cast(pa.large_string())
@@ -152,20 +161,21 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             out_frame["split"] = vaex.vconstant(
                 split, length=len(out_frame), dtype="str"
             )
-            if split == Split.inference:
-                out_frame["inference_name"] = vaex.vconstant(
-                    split_run, length=len(out_frame), dtype="str"
-                )
-            else:
-                out_frame["epoch"] = vaex.vconstant(
-                    int(split_run), length=len(out_frame)
-                )
+            out_frame[epoch_or_inf_name] = vaex.vconstant(
+                split_run, length=len(out_frame), dtype=dtype
+            )
 
-        return cls.process_in_out_frames(in_frame, out_frame, prob_only)
+        return cls.process_in_out_frames(
+            in_frame, out_frame, prob_only, epoch_or_inf_name
+        )
 
     @classmethod
     def process_in_out_frames(
-        cls, in_frame: DataFrame, out_frame: DataFrame, prob_only: bool
+        cls,
+        in_frame: DataFrame,
+        out_frame: DataFrame,
+        prob_only: bool,
+        epoch_or_inf_name: str,
     ) -> BaseLoggerInOutFrames:
         """Processes input and output dataframes from logging
 
@@ -173,8 +183,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         Joins inputs and outputs
         Splits the dataframes into prob, emb, and data for uploading to minio
         """
-        # This will change when i refactor "upload" next
-        validate_unique_ids(out_frame, "epoch")
+        validate_unique_ids(out_frame, epoch_or_inf_name)
         in_out = _join_in_out_frames(in_frame, out_frame)
 
         prob, emb, data_df = cls.split_dataframe(in_out, prob_only)

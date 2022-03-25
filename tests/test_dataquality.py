@@ -223,7 +223,7 @@ def test_logging_inference_run(
     input_data = {
         "text": ["sentence_3", "sentence_4"],
         "split": "inference",
-        "ids": [3, 4],
+        "ids": [1, 2],
         "inference_name": "fruits_prod",
     }
     dataquality.log_input_data(**input_data)
@@ -239,7 +239,7 @@ def test_logging_inference_run(
     output_data = {
         "emb": np.random.rand(2, 100),
         "logits": np.random.rand(2, 5),
-        "ids": [3, 4],
+        "ids": [1, 2],
     }
     dataquality.log_model_outputs(**output_data)
 
@@ -249,7 +249,6 @@ def test_logging_inference_run(
     inference_data_2 = vaex.open(f"{TEST_PATH}/inference/fruits_prod/data/data.hdf5")
 
     assert "inference_meta_1" in inference_data_1.get_column_names()
-    assert "inference_meta_1" in inference_data_2.get_column_names()
+    assert "inference_meta_1" not in inference_data_2.get_column_names()
 
     assert sorted(inference_data_1["inference_meta_1"].tolist()) == [3.14, 42]
-    assert np.isnan(inference_data_2["inference_meta_1"].tolist()).all()
