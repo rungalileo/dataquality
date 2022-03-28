@@ -22,6 +22,7 @@ class GalileoModelLoggerAttributes(str, Enum):
     # mixin restriction on str (due to "str".split(...))
     split = "split"  # type: ignore
     epoch = "epoch"
+    meta = "meta"
 
     @staticmethod
     def get_valid() -> List[str]:
@@ -68,6 +69,7 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         ids: Union[List, np.ndarray] = None,
         split: str = "",
         epoch: Optional[int] = None,
+        meta: Optional[Dict[str, List[Union[str, float, int]]]] = None,
     ) -> None:
         super().__init__()
         # Need to compare to None because they may be np arrays which cannot be
@@ -78,6 +80,7 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         self.ids: Union[List, np.ndarray] = ids if ids is not None else []
         self.split: str = split
         self.epoch = epoch
+        self.meta = meta
 
     @staticmethod
     def get_valid_attributes() -> List[str]:
@@ -159,6 +162,8 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
             }
             for k in record.keys():
                 data[k].append(record[k])
+        for k in self.meta.keys():
+            data[k] = (self.meta[k])
         return data
 
     def _set_num_labels(self, data: Dict) -> None:
