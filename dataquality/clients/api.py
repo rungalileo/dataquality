@@ -8,7 +8,7 @@ from pydantic.types import UUID4
 from dataquality.core._config import config, url_is_localhost
 from dataquality.exceptions import GalileoException
 from dataquality.schemas import RequestType, Route
-from dataquality.schemas.split import conform_split
+from dataquality.schemas.split import Split, conform_split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.auth import headers
 
@@ -134,6 +134,24 @@ class ApiClient:
             url=f"{config.api_url}/{Route.projects}/{proj['id']}/{Route.runs}",
             body=body,
         )
+
+    def add_model_params(self, project_id: UUID4, run_id: UUID4, params: Dict) -> Dict:
+        """Creates params for a project / run"""
+        url = (
+            f"{config.api_url}/{Route.projects}/{project_id}/{Route.runs}/{run_id}/"
+            "params"
+        )
+        return self.make_request(RequestType.POST, url=url, body=params)
+
+    def log_model_metrics(
+        self, project_id: UUID4, run_id: UUID4, split: Split, metrics: Dict
+    ) -> Dict:
+        """Creates params for a run"""
+        url = (
+            f"{config.api_url}/{Route.projects}/{project_id}/{Route.runs}/{run_id}/"
+            f"{Route.split_path}/{split}/metric"
+        )
+        return self.make_request(RequestType.POST, url=url, body=metrics)
 
     def reset_run(self, project_id: UUID4, run_id: UUID4) -> Dict:
         """Resets a run by clearing all minio run data.

@@ -63,6 +63,7 @@ def init(
     run_name: Optional[str] = None,
     is_public: bool = True,
     overwrite_local: bool = True,
+    model_params: dict = {},
 ) -> None:
     """
     Start a run
@@ -99,7 +100,9 @@ def init(
             project_name=project_name, is_public=is_public
         )
         run_response = _init._initialize_run_for_project(
-            project_name=project_name, run_name=run_name, task_type=task_type
+            project_name=project_name,
+            run_name=run_name,
+            task_type=task_type,
         )
         config.current_project_id = project_response["id"]
         config.current_run_id = run_response["id"]
@@ -111,7 +114,9 @@ def init(
             run_name = random_name()
             print(f"📡 Retrieved project, {project_name}, and starting a new run")
             run_response = _init._initialize_run_for_project(
-                project_name=project_name, run_name=run_name, task_type=task_type
+                project_name=project_name,
+                run_name=run_name,
+                task_type=task_type,
             )
             config.current_project_id = project["id"]
             config.current_run_id = run_response["id"]
@@ -126,7 +131,9 @@ def init(
                 project_name=project_name, is_public=is_public
             )
             run_response = _init._initialize_run_for_project(
-                project_name=project_name, run_name=run_name, task_type=task_type
+                project_name=project_name,
+                run_name=run_name,
+                task_type=task_type,
             )
             config.current_project_id = project_response["id"]
             config.current_run_id = run_response["id"]
@@ -150,7 +157,9 @@ def init(
             else:
                 # If the run does not exist, create it
                 run_response = _init._initialize_run_for_project(
-                    project_name, run_name, task_type
+                    project_name=project_name,
+                    run_name=run_name,
+                    task_type=task_type,
                 )
                 config.current_project_id = project["id"]
                 config.current_run_id = run_response["id"]
@@ -165,7 +174,9 @@ def init(
                 project_name=project_name, is_public=is_public
             )
             run_response = _init._initialize_run_for_project(
-                project_name=project_name, run_name=run_name, task_type=task_type
+                project_name=project_name,
+                run_name=run_name,
+                task_type=task_type,
             )
             config.current_project_id = project_response["id"]
             config.current_run_id = run_response["id"]
@@ -184,5 +195,11 @@ def init(
             config.current_run_id,
             overwrite_local=overwrite_local,
         )
+
+    api_client.add_model_params(
+        project_id=config.current_project_id,  # type: ignore
+        run_id=config.current_run_id,  # type: ignore
+        params=model_params,
+    )
     # Reset all config variables
     dataquality.get_data_logger().logger_config.reset()

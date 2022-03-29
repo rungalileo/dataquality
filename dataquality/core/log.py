@@ -1,6 +1,7 @@
 import warnings
-from typing import Any, List, Type, Union
+from typing import Any, Dict, List, Type, Union
 
+from dataquality.clients.api import ApiClient
 from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
@@ -8,6 +9,8 @@ from dataquality.loggers.model_logger import BaseGalileoModelLogger
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
+
+api_client = ApiClient()
 
 
 def log_input_data(**kwargs: Any) -> None:
@@ -42,6 +45,20 @@ def log_model_outputs(**kwargs: Any) -> None:
     ), "You must call dataquality.init before logging data"
     model_logger = get_model_logger()(**kwargs)
     model_logger.log()
+
+
+def log_model_metrics(metrics: Dict, split: Split) -> None:
+    """Logs metrics for model during training/test/validation."""
+    assert all(
+        [config.task_type, config.current_project_id, config.current_run_id]
+    ), "You must call dataquality.init before logging metrics"
+
+    api_client.log_model_metrics(
+        project_id=config.current_project_id,  # type: ignore
+        run_id=config.current_run_id,  # type: ignore
+        split=split,
+        metrics=metrics,
+    )
 
 
 def set_labels_for_run(labels: Union[List[List[str]], List[str]]) -> None:
