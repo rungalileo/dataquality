@@ -86,6 +86,31 @@ def statuses_response() -> Dict[str, List]:
     }
 
 
+@pytest.fixture()
+def input_data() -> Callable:
+    def curry(
+        split: str = "training",
+        inference_name: str = "all-customers",
+        meta: Dict = None,
+    ) -> Dict:
+        data = {
+            "text": ["sentence_1", "sentence_2"],
+            "split": split,
+            "ids": [1, 2],
+        }
+        if split == "inference":
+            data.update(inference_name=inference_name)
+        else:
+            data.update(labels=["APPLE", "ORANGE"])
+
+        if meta:
+            data.update(meta=meta)
+
+        return data
+
+    return curry
+
+
 def patch_object_upload(self: Any, df: DataFrame, object_name: str) -> None:
     """
     A patch for the object_store.create_project_run_object_from_df so we don't have to
