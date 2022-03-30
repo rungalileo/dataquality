@@ -10,6 +10,7 @@ from dataquality import config
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.base_logger import BaseGalileoLogger
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
+from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import _save_hdf5_file
@@ -19,6 +20,7 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
     def __init__(self, **kwargs: Dict[str, Any]) -> None:
         super().__init__()
         self.epoch: Optional[int] = None
+        self.inference_name: Optional[str] = None
 
     def _log(self) -> None:
         """Threaded logger target"""
@@ -48,14 +50,30 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
             f"/{config.current_run_id}"
         )
         epoch, split = data["epoch"][0], data["split"][0]
-        path = f"{location}/{split}/{epoch}"
+
+        if split == Split.inference:
+            inference_name = data["inference_name"][0]
+            path = f"{location}/{split}/{inference_name}"
+        else:
+            path = f"{location}/{split}/{epoch}"
+
         object_name = f"{str(uuid4()).replace('-', '')[:12]}.hdf5"
         _save_hdf5_file(path, object_name, data)
 
     @abstractmethod
     def validate(self) -> None:
         super().validate()
-        if self.epoch is None:
+        if self.split == Split.inference and self.inference_name is None:
+            if self.logger_config.cur_inference_name is not None:
+                self.inference_name = self.logger_config.cur_inference_name
+            else:
+                raise GalileoException(
+                    "For inference split you must either log an inference name "
+                    "or set it before logging. Use `dataquality.set_split` to set"
+                    "inference_name"
+                )
+        # Epoch can be ignored for inference split
+        if self.split != Split.inference and self.epoch is None:
             if self.logger_config.cur_epoch is not None:
                 self.epoch = self.logger_config.cur_epoch
             else:

@@ -63,6 +63,7 @@ class BaseLoggerAttributes(str, Enum):
     pred_dep = "pred_dep"
     text_token_indices_flat = "text_token_indices_flat"
     log_helper_data = "log_helper_data"
+    inference_name = "inference_name"
 
     @staticmethod
     def get_valid() -> List[str]:
@@ -93,9 +94,11 @@ class BaseGalileoLogger:
             else:
                 raise GalileoException(
                     "You didn't log a split and did not set a split. Use "
-                    "`dataquality.set_split` to set the split"
+                    "'dataquality.set_split' to set the split"
                 )
         self.split = self.validate_split(self.split)
+        # Set this config variable in validation, right before logging split data
+        setattr(self.logger_config, f"{self.split}_logged", True)
 
     def is_valid(self) -> bool:
         try:
@@ -103,6 +106,21 @@ class BaseGalileoLogger:
         except AssertionError:
             return False
         return True
+
+    @classmethod
+    def non_inference_logged(cls) -> bool:
+        """Return true if training, test, or validation data is logged
+
+        If just inference data is logged then append data rather than overwriting.
+        This flag is also used by the api to know which processing jobs to run.
+        """
+        return any(
+            [
+                cls.logger_config.training_logged,
+                cls.logger_config.test_logged,
+                cls.logger_config.validation_logged,
+            ]
+        )
 
     @abstractmethod
     def log(self) -> None:

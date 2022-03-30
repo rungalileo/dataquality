@@ -22,6 +22,7 @@ class GalileoModelLoggerAttributes(str, Enum):
     # mixin restriction on str (due to "str".split(...))
     split = "split"  # type: ignore
     epoch = "epoch"
+    inference_name = "inference_name"
 
     @staticmethod
     def get_valid() -> List[str]:
@@ -157,6 +158,8 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
                 "pred": int(np.argmax(prob)),
                 "data_schema_version": __data_schema_version__,
             }
+            if self.split == Split.inference:
+                record.update(inference_name=self.inference_name)
             for k in record.keys():
                 data[k].append(record[k])
         return data

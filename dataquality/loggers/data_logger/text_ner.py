@@ -319,7 +319,11 @@ class TextNERDataLogger(BaseGalileoDataLogger):
 
     @classmethod
     def process_in_out_frames(
-        cls, in_frame: DataFrame, out_frame: DataFrame, prob_only: bool
+        cls,
+        in_frame: DataFrame,
+        out_frame: DataFrame,
+        prob_only: bool,
+        epoch_or_inf_name: str = None,
     ) -> BaseLoggerInOutFrames:
         """Processes input and output dataframes from logging
 

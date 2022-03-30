@@ -21,6 +21,7 @@ class GalileoDataLoggerAttributes(str, Enum):
     # mixin restriction on str (due to "str".split(...))
     split = "split"  # type: ignore
     meta = "meta"  # Metadata columns for logging
+    inference_name = "inference_name"
 
     @staticmethod
     def get_valid() -> List[str]:
@@ -48,6 +49,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         ids: List[int] = None,
         split: str = None,
         meta: Optional[Dict[str, List[Union[str, float, int]]]] = None,
+        inference_name: str = None,
     ) -> None:
         """Create data logger.
 
@@ -65,6 +67,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         self.labels = [str(i) for i in labels] if labels is not None else []
         self.ids = ids if ids is not None else []
         self.split = split
+        self.inference_name = inference_name
 
     @staticmethod
     def get_valid_attributes() -> List[str]:
@@ -95,6 +98,11 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
 
         if self.split == Split.inference.value:
             assert not label_len, "You cannot have labels in your inference split!"
+            assert self.inference_name, (
+                "Inference name must be set when logging an inference split. Use "
+                "set_split('inference', inference_name) to set inference name"
+            )
+
         else:
             assert label_len and text_len, (
                 f"Both text and labels for your logger must be set, but got"
@@ -103,7 +111,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
 
             assert text_len == label_len, (
                 f"labels and text must be the same length, but got"
-                f"(labels, text) ({label_len},{text_len})"
+                f"(labels, text) ({label_len}, {text_len})"
             )
 
         if self.ids:
@@ -125,6 +133,8 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
             gold=self.labels if self.split != Split.inference.value else None,
             **self.meta,
         )
+        if self.inference_name:
+            inp.update(inference_name=self.inference_name)
         return vaex.from_pandas(pd.DataFrame(inp))
 
     @classmethod

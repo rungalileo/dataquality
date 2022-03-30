@@ -4,6 +4,7 @@ import dataquality
 from dataquality.clients.api import ApiClient
 from dataquality.core._config import config
 from dataquality.schemas import RequestType, Route
+from dataquality.schemas.job import JobName
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.version import _version_check
 
@@ -21,13 +22,15 @@ def finish() -> Optional[Dict[str, Any]]:
     data_logger.validate_labels()
 
     _version_check()
-    # Clear the data in minio before uploading new data
-    # If this is a run that already existed, we want to fully overwrite the old data
-    api_client.reset_run(config.current_project_id, config.current_run_id)
+
+    if data_logger.non_inference_logged():
+        # Clear the data in minio before uploading new data
+        # If this is a run that already existed, we want to fully overwrite the old data
+        # If only inference is logged, keep all existing minio data
+        api_client.reset_run(config.current_project_id, config.current_run_id)
 
     data_logger.upload()
     data_logger._cleanup()
-    config.update_file_config()
 
     body = dict(
         project_id=str(config.current_project_id),
@@ -35,6 +38,11 @@ def finish() -> Optional[Dict[str, Any]]:
         labels=data_logger.logger_config.labels,
         tasks=data_logger.logger_config.tasks,
     )
+    if data_logger.logger_config.inference_logged:
+        body.update(
+            job_name=JobName.inference,
+            non_inference_logged=data_logger.non_inference_logged(),
+        )
     res = api_client.make_request(
         RequestType.POST, url=f"{config.api_url}/{Route.jobs}", body=body
     )
@@ -42,6 +50,8 @@ def finish() -> Optional[Dict[str, Any]]:
         f"Job {res['job_name']} successfully submitted. Results will be available "
         f"soon at {res['link']}"
     )
+    # Reset all config variables
+    data_logger.logger_config.reset()
     return res
 
 

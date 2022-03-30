@@ -1,5 +1,5 @@
 import warnings
-from typing import Any, List, Type, Union
+from typing import Any, List, Optional, Type, Union
 
 from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
@@ -11,7 +11,7 @@ from dataquality.schemas.task_type import TaskType
 
 
 def log_input_data(**kwargs: Any) -> None:
-    """Logs input data for model training/test/validation.
+    """Logs input data for model training/test/validation/inference.
 
     The expected arguments come from the task_type's data
     logger: See dataquality.get_model_logger().doc() for details
@@ -119,9 +119,13 @@ def set_epoch(epoch: int) -> None:
     get_data_logger().logger_config.cur_epoch = epoch
 
 
-def set_split(split: Split) -> None:
+def set_split(split: Split, inference_name: Optional[str] = None) -> None:
     """Set the current split.
 
     When set, logging data inputs/model outputs will use this if not logged explicitly
+    When setting split to inference, inference_name must be included
     """
+    get_data_logger().logger_config.cur_inference_name = inference_name
+    setattr(get_data_logger().logger_config, f"{split}_logged", True)
+    # Set cur_inference_name before split for pydantic validation
     get_data_logger().logger_config.cur_split = split
