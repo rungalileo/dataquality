@@ -281,7 +281,7 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
         )
 
         model_logger = TextNERModelLogger()
-        if model_logger.logger_config.cur_split == "inference":
+        if model_logger.logger_config.cur_split == Split.inference:
             warnings.warn(
                 "Inference logging with Galileo coming soon. For now "
                 "skipping logging"
