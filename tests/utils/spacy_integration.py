@@ -100,7 +100,7 @@ def load_ner_data_from_local(
 
 
 def _calculate_emb_from_doc(doc: Doc) -> np.ndarray:
-    hash_seed = int(hashlib.sha256(doc.text.encode("utf-8")).hexdigest(), 16) % 10 ** 8
+    hash_seed = int(hashlib.sha256(doc.text.encode("utf-8")).hexdigest(), 16) % 10**8
     np.random.seed(hash_seed)
     return np.random.rand(len(doc), 64)
 
