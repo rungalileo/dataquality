@@ -229,7 +229,7 @@ def test_logging_inference_run(
     dataquality.log_input_data(**input_data)
 
     dataquality.set_split("inference", inference_name="fruits")
-    emb_1 = (np.random.rand(2, 100),)
+    emb_1 = np.random.rand(2, 100)
     logits_1 = np.random.rand(2, 5)
     output_data = {
         "emb": emb_1,
@@ -238,7 +238,7 @@ def test_logging_inference_run(
     }
     dataquality.log_model_outputs(**output_data)
     dataquality.set_split("inference", inference_name="fruits_prod")
-    emb_2 = (np.random.rand(2, 100),)
+    emb_2 = np.random.rand(2, 100)
     logits_2 = np.random.rand(2, 5)
     output_data = {
         "emb": emb_2,
@@ -246,6 +246,8 @@ def test_logging_inference_run(
         "ids": [1, 2],
     }
     dataquality.log_model_outputs(**output_data)
+
+    ThreadPoolManager.wait_for_threads()
     dataquality.get_data_logger().upload()
 
     inference_data_1 = vaex.open(f"{TEST_PATH}/inference/fruits/data/data.hdf5")
@@ -255,8 +257,25 @@ def test_logging_inference_run(
     assert "inference_meta_1" not in inference_data_2.get_column_names()
     assert sorted(inference_data_1["inference_meta_1"].tolist()) == [3.14, 42]
 
-    assert inference_data_1.logits.to_numpy() == logits_1
-    assert inference_data_2.logits.to_numpy() == logits_2
+    inference_emb_1 = vaex.open(f"{TEST_PATH}/inference/fruits/emb/emb.hdf5")
+    inference_emb_2 = vaex.open(f"{TEST_PATH}/inference/fruits_prod/emb/emb.hdf5")
 
-    assert inference_data_1.emb.to_numpy() == emb_1
-    assert inference_data_2.emb.to_numpy() == emb_2
+    assert (inference_emb_1.emb.to_numpy() == emb_1).all()
+    assert (inference_emb_2.emb.to_numpy() == emb_2).all()
+
+    inference_prob_1 = vaex.open(f"{TEST_PATH}/inference/fruits/prob/prob.hdf5")
+    inference_prob_2 = vaex.open(f"{TEST_PATH}/inference/fruits_prod/prob/prob.hdf5")
+
+    assert "logits" not in inference_prob_1.get_column_names()
+    assert "logits" not in inference_prob_2.get_column_names()
+    assert "prob" in inference_prob_1.get_column_names()
+    assert "prob" in inference_prob_2.get_column_names()
+
+    assert (
+        inference_prob_1.prob.to_numpy()
+        == dataquality.get_model_logger()().convert_logits_to_probs(logits_1)
+    ).all()
+    assert (
+        inference_prob_2.prob.to_numpy()
+        == dataquality.get_model_logger()().convert_logits_to_probs(logits_2)
+    ).all()

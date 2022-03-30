@@ -107,7 +107,7 @@ def validate_ids_for_slice(df: DataFrame, col_name: str, value: str) -> None:
     if col_name == "inference_name":
         validate_unique_ids(sliced_df, "inference_name")
     elif col_name == "epoch":
-        validate_unique_ids(sliced_df, "epoch")
+        validate_unique_ids(sliced_df, "split")
     else:
         raise GalileoException(
             f"Invalid data slice. Column: {col_name}, Value: {value}"
