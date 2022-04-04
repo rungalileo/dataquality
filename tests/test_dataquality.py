@@ -32,9 +32,9 @@ def test_threaded_logging_and_upload(
     """
     num_records = 32
     num_logs = 20
-    num_emb = 50
+    num_embs = 50
     _log_text_classification_data(
-        num_records=num_records, num_logs=num_logs, num_emb=num_emb
+        num_records=num_records, num_logs=num_logs, num_embs=num_embs
     )
     try:
         # Equivalent to the users `finish` call, but we don't want to clean up files yet
@@ -59,9 +59,9 @@ def test_multi_label_logging(
     set_test_config(task_type=TaskType.text_multi_label)
     num_records = 32
     num_logs = 20
-    num_emb = 50
+    num_embs = 50
     _log_text_classification_data(
-        num_records=num_records, num_logs=num_logs, num_emb=num_emb, multi_label=True
+        num_records=num_records, num_logs=num_logs, num_embs=num_embs, multi_label=True
     )
     try:
         # Equivalent to the users `finish` call, but we don't want to clean up files yet
@@ -114,7 +114,7 @@ def test_metadata_logging_different_splits(
     dataquality.log_input_data(**test_data)
 
     output_data = {
-        "emb": np.random.rand(2, 100),
+        "embs": np.random.rand(2, 100),
         "logits": np.random.rand(2, 5),
         "ids": [1, 2],
         "split": "training",
@@ -212,19 +212,19 @@ def test_logging_inference_run(
     dataquality.log_input_data(**inference_data)
 
     dataquality.set_split("inference", inference_name="all-customers")
-    emb_1 = np.random.rand(2, 100)
+    embs_1 = np.random.rand(2, 100)
     logits_1 = np.random.rand(2, 5)
     output_data = {
-        "emb": emb_1,
+        "embs": embs_1,
         "logits": logits_1,
         "ids": [1, 2],
     }
     dataquality.log_model_outputs(**output_data)
     dataquality.set_split("inference", inference_name="last-week-customers")
-    emb_2 = np.random.rand(2, 100)
+    embs_2 = np.random.rand(2, 100)
     logits_2 = np.random.rand(2, 5)
     output_data = {
-        "emb": emb_2,
+        "embs": embs_2,
         "logits": logits_2,
         "ids": [1, 2],
     }
@@ -247,8 +247,8 @@ def test_logging_inference_run(
         f"{TEST_PATH}/inference/last-week-customers/emb/emb.hdf5"
     )
 
-    assert (inference_emb_1.emb.to_numpy() == emb_1).all()
-    assert (inference_emb_2.emb.to_numpy() == emb_2).all()
+    assert (inference_emb_1.emb.to_numpy() == embs_1).all()
+    assert (inference_emb_2.emb.to_numpy() == embs_2).all()
 
     inference_prob_1 = vaex.open(f"{TEST_PATH}/inference/all-customers/prob/prob.hdf5")
     inference_prob_2 = vaex.open(
@@ -285,20 +285,25 @@ def test_logging_train_test_inference(
     dataquality.log_input_data(**inference_data)
 
     dataquality.set_split("training")
-    train_emb = np.random.rand(2, 100)
+    train_embs = np.random.rand(2, 100)
     train_logits = np.random.rand(2, 5)
-    output_data = {"emb": train_emb, "logits": train_logits, "ids": [1, 2], "epoch": 0}
+    output_data = {
+        "embs": train_embs,
+        "logits": train_logits,
+        "ids": [1, 2],
+        "epoch": 0,
+    }
     dataquality.log_model_outputs(**output_data)
     dataquality.set_split("test")
-    test_emb = np.random.rand(2, 100)
+    test_embs = np.random.rand(2, 100)
     test_logits = np.random.rand(2, 5)
-    output_data = {"emb": test_emb, "logits": test_logits, "ids": [1, 2], "epoch": 0}
+    output_data = {"embs": test_embs, "logits": test_logits, "ids": [1, 2], "epoch": 0}
     dataquality.log_model_outputs(**output_data)
     dataquality.set_split("inference", inference_name="all-customers")
-    inf_emb = np.random.rand(2, 100)
+    inf_embs = np.random.rand(2, 100)
     inf_logits = np.random.rand(2, 5)
     output_data = {
-        "emb": inf_emb,
+        "embs": inf_embs,
         "logits": inf_logits,
         "ids": [1, 2],
     }
@@ -320,9 +325,9 @@ def test_logging_train_test_inference(
     test_emb_data = vaex.open(f"{TEST_PATH}/test/0/emb/emb.hdf5")
     inference_emb_data = vaex.open(f"{TEST_PATH}/inference/all-customers/emb/emb.hdf5")
 
-    assert (train_emb_data.emb.to_numpy() == train_emb).all()
-    assert (test_emb_data.emb.to_numpy() == test_emb).all()
-    assert (inference_emb_data.emb.to_numpy() == inf_emb).all()
+    assert (train_emb_data.emb.to_numpy() == train_embs).all()
+    assert (test_emb_data.emb.to_numpy() == test_embs).all()
+    assert (inference_emb_data.emb.to_numpy() == inf_embs).all()
 
     train_prob_data = vaex.open(f"{TEST_PATH}/training/0/prob/prob.hdf5")
     test_prob_data = vaex.open(f"{TEST_PATH}/test/0/prob/prob.hdf5")

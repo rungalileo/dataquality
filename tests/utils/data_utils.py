@@ -93,7 +93,7 @@ def _log_text_classification_data(
     num_records=NUM_RECORDS,
     num_logs=NUM_LOGS,
     unique_ids=True,
-    num_emb=20,
+    num_embs=20,
     meta=None,
     multi_label=False,
 ) -> None:
@@ -135,7 +135,7 @@ def _log_text_classification_data(
         dataquality.set_labels_for_run(run_labels)
     for split in [Split.training, Split.test]:
         for ln in tqdm(range(num_logs)):
-            emb = [[random() for _ in range(num_emb)] for _ in range(num_records)]
+            embs = [[random() for _ in range(num_embs)] for _ in range(num_records)]
             if multi_label:
                 logits = []
                 for i in range(num_records):
@@ -156,4 +156,4 @@ def _log_text_classification_data(
 
             dataquality.set_epoch(epoch)
             dataquality.set_split(split)
-            dataquality.log_model_outputs(emb=emb, logits=logits, ids=ids)
+            dataquality.log_model_outputs(embs=embs, logits=logits, ids=ids)

@@ -411,7 +411,7 @@ class GalileoParserStepModel(ThincModelWrapper):
         for doc_id, doc_valid_logits in docs_valid_logits.items():
             model_logger.logits.append(np.array(doc_valid_logits))
             doc_embs = helper_data["embs"][doc_id]
-            model_logger.emb.append(np.array(doc_embs))
+            model_logger.embs.append(np.array(doc_embs))
             model_logger.ids.append(doc_id)
 
     def _self_get_docs_copy(self) -> Dict[int, Doc]:
