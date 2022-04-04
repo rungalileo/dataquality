@@ -15,7 +15,7 @@ from dataquality.schemas.split import Split
 
 @unique
 class GalileoDataLoggerAttributes(str, Enum):
-    text = "text"
+    texts = "texts"
     labels = "labels"
     ids = "ids"
     # mixin restriction on str (due to "str".split(...))
@@ -32,7 +32,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
     """
     Class for logging input data/metadata of Text Classification models to Galileo.
 
-    * text: The raw text inputs for model training. List[str]
+    * texts: The raw text inputs for model training. List[str]
     * labels: the ground truth labels aligned to each text field. List[str]
     * ids: Optional unique indexes for each record. If not provided, will default to
     the index of the record. Optional[List[int]]
@@ -44,7 +44,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
 
     def __init__(
         self,
-        text: List[str] = None,
+        texts: List[str] = None,
         labels: List[str] = None,
         ids: List[int] = None,
         split: str = None,
@@ -53,7 +53,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
     ) -> None:
         """Create data logger.
 
-        :param text: The raw text inputs for model training. List[str]
+        :param texts: The raw text inputs for model training. List[str]
         :param labels: the ground truth labels aligned to each text field.
         List[str]
         :param ids: Optional unique indexes for each record. If not provided, will
@@ -63,7 +63,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         super().__init__(meta)
         # Need to compare to None because they may be np arrays which cannot be
         # evaluated with bool directly
-        self.text = text if text is not None else []
+        self.texts = texts if texts is not None else []
         self.labels = [str(i) for i in labels] if labels is not None else []
         self.ids = ids if ids is not None else []
         self.split = split
@@ -80,54 +80,54 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
     def validate(self) -> None:
         """
         Validates that the current config is correct.
-        * Text and Labels must both exist (unless split is 'inference' in which case
+        * Texts and Labels must both exist (unless split is 'inference' in which case
         labels must be None)
-        * Text and Labels must be the same length
-        * If ids exist, it must be the same length as text/labels
+        * Texts and Labels must be the same length
+        * If ids exist, it must be the same length as texts/labels
         :return: None
         """
         super().validate()
 
-        label_len = len(self.labels)
-        text_len = len(self.text)
-        id_len = len(self.ids)
+        labels_len = len(self.labels)
+        texts_len = len(self.texts)
+        ids_len = len(self.ids)
 
-        self.text = list(self._convert_tensor_ndarray(self.text))
+        self.texts = list(self._convert_tensor_ndarray(self.texts))
         self.labels = list(self._convert_tensor_ndarray(self.labels, attr="Labels"))
         self.ids = list(self._convert_tensor_ndarray(self.ids))
 
         if self.split == Split.inference.value:
-            assert not label_len, "You cannot have labels in your inference split!"
+            assert not labels_len, "You cannot have labels in your inference split!"
             assert self.inference_name, (
                 "Inference name must be set when logging an inference split. Use "
                 "set_split('inference', inference_name) to set inference name"
             )
 
         else:
-            assert label_len and text_len, (
-                f"Both text and labels for your logger must be set, but got"
-                f" text:{bool(text_len)}, labels:{bool(label_len)}"
+            assert labels_len and texts_len, (
+                f"Both texts and labels for your logger must be set, but got"
+                f" text:{bool(texts_len)}, labels:{bool(labels_len)}"
             )
 
-            assert text_len == label_len, (
-                f"labels and text must be the same length, but got"
-                f"(labels, text) ({label_len}, {text_len})"
+            assert texts_len == labels_len, (
+                f"labels and texts must be the same length, but got"
+                f"(labels, texts) ({labels_len}, {texts_len})"
             )
 
         if self.ids:
-            assert id_len == text_len, (
-                f"Ids exists but are not the same length as text and labels. "
-                f"(ids, text) ({id_len}, {text_len})"
+            assert ids_len == texts_len, (
+                f"Ids exists but are not the same length as texts and labels. "
+                f"(ids, text) ({ids_len}, {texts_len})"
             )
         else:
-            self.ids = list(range(text_len))
+            self.ids = list(range(texts_len))
 
-        self.validate_metadata(batch_size=text_len)
+        self.validate_metadata(batch_size=texts_len)
 
     def _get_input_df(self) -> DataFrame:
         inp = dict(
             id=self.ids,
-            text=self.text,
+            text=self.texts,
             split=self.split,
             data_schema_version=__data_schema_version__,
             gold=self.labels if self.split != Split.inference.value else None,

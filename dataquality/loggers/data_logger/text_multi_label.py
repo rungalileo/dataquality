@@ -24,7 +24,7 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
     """
     Class for logging input data/metadata of Text Multi Label models to Galileo.
 
-    * text: The raw text inputs for model training. List[str]
+    * texts: The raw text inputs for model training. List[str]
     * labels: the list of ground truth labels aligned to each text field. Each text
     field input must have the same number of labels (which must be the number of tasks)
     List[List[str]]
