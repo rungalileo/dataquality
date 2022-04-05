@@ -391,10 +391,28 @@ class GalileoParserStepModel(ThincModelWrapper):
             states_for_doc = helper_data["spacy_states"][doc_id]
             ner.set_annotations([doc] * len(states_for_doc), states_for_doc)
             ents_spacy_wouldve_predicted = text_ner_logger_config.user_data["nlp"](doc.text).ents
-            if ents_spacy_wouldve_predicted != doc.ents:
-                print("Mismatch in our prediction versus spacy's")
+            galileo_ents = doc.ents
+
+            error_found = False
+            if len(ents_spacy_wouldve_predicted) != len(galileo_ents):
+                print("Mismatch in lengths of our prediction versus spacy's")
                 print(f"Spacy: {ents_spacy_wouldve_predicted}")
                 print(f"Ours: {doc.ents}")
+                print()
+                error_found = True
+            else:
+                for spacy_ent, galileo_ent in zip(ents_spacy_wouldve_predicted,
+                                                  galileo_ents):
+                    if spacy_ent.start != galileo_ent.start or spacy_ent.end != galileo_ent.end or spacy_ent.label_ != galileo_ent.label_ :
+                        print("Mismatch in our prediction versus spacy's on this span")
+                        print(f"Spacy: {ents_spacy_wouldve_predicted}")
+                        print(f"Ours: {doc.ents}")
+                        print()
+                        error_found = True
+
+            if not error_found:
+                print("All good!")
+
 
 
     def _self_get_valid_logits(self, docs: Dict[int, Doc]) -> DefaultDict:

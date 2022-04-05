@@ -253,6 +253,7 @@ def train_model(train_data):
             losses = {}
             t_ex = 0
             batches = minibatch(training_examples, minibatch_size)
+            print("Starting training")
             for batch in tqdm(batches):
                     nlp.update(
                     batch,
@@ -264,7 +265,7 @@ def train_model(train_data):
             if USE_GALILEO:
                 dataquality.set_split("validation")
 
-
+            print("Starting validation")
             results = nlp.evaluate(val_examples)
             print(results)
             print(f"Training Loss: {losses}")
