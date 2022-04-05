@@ -280,13 +280,14 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
         )
 
         if not all(["id" in doc.user_data for doc in X]):
-            raise GalileoException(
-                "One of your model's docs is missing a galileo generated "
-                "id. Did you first log your docs/examples with us using, "
-                "for example, "
-                "`log_input_examples(training_examples, split='training')`? "
-                "Make sure to then continue using 'training_examples'"
-            )
+            return parser_step_model, backprop_fn
+            # raise GalileoException(
+            #     "One of your model's docs is missing a galileo generated "
+            #     "id. Did you first log your docs/examples with us using, "
+            #     "for example, "
+            #     "`log_input_examples(training_examples, split='training')`? "
+            #     "Make sure to then continue using 'training_examples'"
+            # )
 
         model_logger = TextNERModelLogger()
         helper_data = model_logger.log_helper_data
@@ -389,6 +390,12 @@ class GalileoParserStepModel(ThincModelWrapper):
         for doc_id, doc in docs.items():
             states_for_doc = helper_data["spacy_states"][doc_id]
             ner.set_annotations([doc] * len(states_for_doc), states_for_doc)
+            ents_spacy_wouldve_predicted = text_ner_logger_config.user_data["nlp"](doc.text).ents
+            if ents_spacy_wouldve_predicted != doc.ents:
+                print("Mismatch in our prediction versus spacy's")
+                print(f"Spacy: {ents_spacy_wouldve_predicted}")
+                print(f"Ours: {doc.ents}")
+
 
     def _self_get_valid_logits(self, docs: Dict[int, Doc]) -> DefaultDict:
         helper_data = self._self_model_logger.log_helper_data
