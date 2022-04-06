@@ -184,10 +184,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         # which are padded by the model
         sample_token_len = self.logger_config.sample_length[sample_key]
         # Get prediction spans
-        if self.logger_config.cur_split == "validation" and sample_id in [23]:
-            print("breaking")
         sample_pred_spans = self._extract_pred_spans(sample_prob, sample_token_len)
-
         # Get gold (ground truth) spans
         gold_span_tup = self.logger_config.gold_spans.get(sample_key, [])
         sample_gold_spans: List[Dict] = [

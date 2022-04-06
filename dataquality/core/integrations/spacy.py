@@ -280,14 +280,13 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
         )
 
         if not all(["id" in doc.user_data for doc in X]):
-            return parser_step_model, backprop_fn
-            # raise GalileoException(
-            #     "One of your model's docs is missing a galileo generated "
-            #     "id. Did you first log your docs/examples with us using, "
-            #     "for example, "
-            #     "`log_input_examples(training_examples, split='training')`? "
-            #     "Make sure to then continue using 'training_examples'"
-            # )
+            raise GalileoException(
+                "One of your model's docs is missing a galileo generated "
+                "id. Did you first log your docs/examples with us using, "
+                "for example, "
+                "`log_input_examples(training_examples, split='training')`? "
+                "Make sure to then continue using 'training_examples'"
+            )
 
         model_logger = TextNERModelLogger()
         helper_data = model_logger.log_helper_data
@@ -390,36 +389,9 @@ class GalileoParserStepModel(ThincModelWrapper):
         for doc_id, doc in docs.items():
             states_for_doc = helper_data["spacy_states"][doc_id]
             ner.set_annotations([doc] * len(states_for_doc), states_for_doc)
-            ents_spacy_wouldve_predicted = text_ner_logger_config.user_data["nlp"](doc.text).ents
-            galileo_ents = doc.ents
-
-            error_found = False
-            if len(ents_spacy_wouldve_predicted) != len(galileo_ents):
-                print("!!!!!!!Mismatch in lengths of our prediction versus spacy's")
-                print(f"Spacy: {ents_spacy_wouldve_predicted}")
-                print(f"Ours: {doc.ents}")
-                print()
-                error_found = True
-            else:
-                for spacy_ent, galileo_ent in zip(ents_spacy_wouldve_predicted,
-                                                  galileo_ents):
-                    if spacy_ent.start != galileo_ent.start or spacy_ent.end != galileo_ent.end or spacy_ent.label_ != galileo_ent.label_ :
-                        print("!!!!!!!!!!!!!!!!Mismatch in our prediction versus spacy's on this span")
-                        print(f"Spacy: {ents_spacy_wouldve_predicted}")
-                        print(f"Ours: {doc.ents}")
-                        print()
-                        error_found = True
-
-            if not error_found:
-                print(f"All good! {doc_id}")
-                print(f"Spacy: {ents_spacy_wouldve_predicted}")
-                print(f"Ours: {doc.ents}")
-
 
     def _self_get_valid_logits(self, docs: Dict[int, Doc]) -> DefaultDict:
         helper_data = self._self_model_logger.log_helper_data
-        if self._self_model_logger.logger_config.cur_split == "validation":
-            print("Should break")
         docs_predictions = convert_spacy_ents_for_doc_to_predictions(
             docs, self._self_model_logger.logger_config.labels
         )

@@ -65,8 +65,6 @@ def convert_spacy_ents_for_doc_to_predictions(
     """
     prediction_indices = defaultdict(list)
     for doc_id, doc in docs.items():
-        if doc_id in [23]:
-            print("If this is validation let's break")
         pred_output = offsets_to_biluo_tags(
             doc, [(ent.start_char, ent.end_char, ent.label_) for ent in doc.ents]
         )
