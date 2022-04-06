@@ -286,8 +286,8 @@ def test_ner_logging_bad_inputs(set_test_config: Callable, cleanup_after_use) ->
     # Handle spans that don't align with token boundaries
     with pytest.raises(AssertionError):
         dataquality.log_input_data(
-            text=text_inputs,
-            text_token_indices=token_boundaries_all,
+            texts=text_inputs,
+            texts_token_indices=token_boundaries_all,
             gold_spans=gold_spans,
             ids=ids,
             split=split,
@@ -306,8 +306,8 @@ def test_ner_logging_bad_inputs(set_test_config: Callable, cleanup_after_use) ->
     # Handle spans that don't align with token boundaries
     with pytest.raises(AssertionError):
         dataquality.log_input_data(
-            text=text_inputs,
-            text_token_indices=token_boundaries_all,
+            texts=text_inputs,
+            texts_token_indices=token_boundaries_all,
             gold_spans=gold_spans,
             ids=ids,
             split=split,
@@ -362,13 +362,13 @@ def test_ner_logging(cleanup_after_use: Callable, set_test_config: Callable) -> 
     split = "training"
 
     dataquality.log_input_data(
-        text=text_inputs,
-        text_token_indices=token_boundaries_all,
+        texts=text_inputs,
+        texts_token_indices=token_boundaries_all,
         gold_spans=gold_spans,
         ids=ids,
     )
 
-    pred_prob = np.array(
+    pred_logits = np.array(
         [
             [
                 [0.0, 0.05, 0.05, 0, 0, 0, 0, 0, 0.9],
@@ -406,7 +406,7 @@ def test_ner_logging(cleanup_after_use: Callable, set_test_config: Callable) -> 
     dataquality.set_epoch(0)
     dataquality.log_model_outputs(
         emb=np.random.rand(3, 8, 5),
-        probs=pred_prob,
+        logits=pred_logits,
         ids=[0, 1, 2],
     )
 
@@ -470,15 +470,15 @@ def test_ner_logging(cleanup_after_use: Callable, set_test_config: Callable) -> 
     c._cleanup()
     dataquality.set_labels_for_run(labels)
     dataquality.log_input_data(
-        text=text_inputs,
-        text_token_indices=token_boundaries_all,
+        texts=text_inputs,
+        texts_token_indices=token_boundaries_all,
         gold_spans=gold_spans,
         ids=ids,
         split=split,
     )
     dataquality.log_model_outputs(
         emb=np.random.rand(3, 8, 5),
-        logits=pred_prob,
+        logits=pred_logits,
         ids=[0, 1, 2],
         split="training",
         epoch=0,

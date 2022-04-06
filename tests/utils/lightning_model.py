@@ -55,7 +55,7 @@ class NewsgroupDataset(torch.utils.data.Dataset):
         #
         # 🔭 Logging Inputs with Galileo!
         #
-        self.glogger.text = self.dataset["text"]
+        self.glogger.texts = self.dataset["text"]
         self.glogger.labels = self.dataset["label"]
 
         tokenizer = DistilBertTokenizerFast.from_pretrained("distilbert-base-uncased")

@@ -127,7 +127,7 @@ def _log_text_classification_data(
             labels = dataset["label"]
             dataquality.set_labels_for_run([str(i) for i in range(len(set(labels)))])
         dataquality.set_split(split)
-        dataquality.log_input_data(text=dataset["text"], labels=labels, meta=meta)
+        dataquality.log_input_data(texts=dataset["text"], labels=labels, meta=meta)
 
     num_labels_in_task = np.random.randint(low=1, high=10, size=MULTI_LABEL_NUM_TASKS)
     if multi_label:

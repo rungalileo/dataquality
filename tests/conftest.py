@@ -94,7 +94,7 @@ def input_data() -> Callable:
         meta: Dict = None,
     ) -> Dict:
         data = {
-            "text": ["sentence_1", "sentence_2"],
+            "texts": ["sentence_1", "sentence_2"],
             "split": split,
             "ids": [1, 2],
         }

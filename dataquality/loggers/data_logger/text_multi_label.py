@@ -82,7 +82,7 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
     def _get_input_df(self) -> DataFrame:
         inp = dict(
             id=self.ids,
-            text=self.text,
+            text=self.texts,
             split=self.split,
             data_schema_version=__data_schema_version__,
             **self.meta,

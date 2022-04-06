@@ -38,7 +38,7 @@ T = TypeVar("T", bound="BaseGalileoLogger")
 class BaseLoggerAttributes(str, Enum):
     """A collection of all default attributes across all loggers"""
 
-    text = "text"
+    texts = "texts"
     labels = "labels"
     ids = "ids"
     # mixin restriction on str (due to "str".split(...))
@@ -58,10 +58,10 @@ class BaseLoggerAttributes(str, Enum):
     gold_emb = "gold_emb"
     pred_spans = "pred_spans"
     dep_scores = "dep_scores"
-    text_token_indices = "text_token_indices"
+    texts_token_indices = "texts_token_indices"
     gold_dep = "gold_dep"
     pred_dep = "pred_dep"
-    text_token_indices_flat = "text_token_indices_flat"
+    texts_token_indices_flat = "texts_token_indices_flat"
     log_helper_data = "log_helper_data"
     inference_name = "inference_name"
 
