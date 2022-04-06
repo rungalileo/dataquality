@@ -295,7 +295,8 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
                     "`log_input_examples(training_examples, split='training')`? "
                     "Make sure to then continue using 'training_examples'. If this "
                     "is inference (nlp('some text')) then set "
-                    "`dataquality.set_split('inference')` to continue."
+                    "`dataquality.set_split(split='inference', "
+                    "inference_name='some_name')` to continue."
                 )
             helper_data = model_logger.log_helper_data
             helper_data["logits"] = {

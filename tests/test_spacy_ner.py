@@ -250,17 +250,16 @@ def test_inference_split_raises_warning(cleanup_after_use, set_test_config):
     ]
     nlp.initialize(lambda: all_examples)
     watch(nlp)
-    dataquality.set_split("inference")
+    dataquality.set_split(split="inference", inference_name="some_name")
 
     with patch(
         "dataquality.loggers.model_logger.text_ner.TextNERModelLogger"
     ) as mocked_model_logger_log:
         with pytest.warns(UserWarning) as record:
             nlp("some text here")
-
-        assert len(record) == 1
-        assert (
-            record[0].message.args[0]
-            == "Inference logging with Galileo coming soon. For now skipping logging"
-        )
+            assert len(record) == 1
+            assert (
+                record[0].message.args[0]
+                == "Inference logging with Galileo coming soon. For now skipping logging"
+            )
         assert not mocked_model_logger_log.called
