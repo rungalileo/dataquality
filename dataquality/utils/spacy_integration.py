@@ -36,7 +36,7 @@ def convert_spacy_ner_logits_to_valid_logits(
     :return: np array of logits. shape of [num_classes]
     """
     assert len(logits.shape) == 1
-
+    logits = logits.copy()
     # Sort in descending order
     argsorted_sample_logits = np.flip(np.argsort(logits))
 
