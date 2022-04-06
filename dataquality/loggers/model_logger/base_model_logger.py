@@ -41,7 +41,9 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
 
     def log(self) -> None:
         """The top level log function that try/excepts it's child"""
-        ThreadPoolManager.add_thread(target=self._add_threaded_log)
+        # ThreadPoolManager.add_thread(target=self._add_threaded_log)
+        # Turning off threading for debugging purposes
+        self._log()
 
     def write_model_output(self, data: Dict) -> None:
         """Creates an hdf5 file from the data dict"""

@@ -50,7 +50,7 @@ def convert_spacy_ner_logits_to_valid_logits(
     # non valid_logit_indices should be set to 0
     zero_out_mask = np.ones(logits.shape, bool)
     zero_out_mask[valid_logit_indices] = False
-    logits[zero_out_mask] = 0
+    logits[zero_out_mask] = -np.inf
     return logits
 
 
@@ -65,6 +65,8 @@ def convert_spacy_ents_for_doc_to_predictions(
     """
     prediction_indices = defaultdict(list)
     for doc_id, doc in docs.items():
+        if doc_id in [23]:
+            print("If this is validation let's break")
         pred_output = offsets_to_biluo_tags(
             doc, [(ent.start_char, ent.end_char, ent.label_) for ent in doc.ents]
         )

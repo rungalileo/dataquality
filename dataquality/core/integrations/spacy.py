@@ -395,7 +395,7 @@ class GalileoParserStepModel(ThincModelWrapper):
 
             error_found = False
             if len(ents_spacy_wouldve_predicted) != len(galileo_ents):
-                print("Mismatch in lengths of our prediction versus spacy's")
+                print("!!!!!!!Mismatch in lengths of our prediction versus spacy's")
                 print(f"Spacy: {ents_spacy_wouldve_predicted}")
                 print(f"Ours: {doc.ents}")
                 print()
@@ -404,19 +404,22 @@ class GalileoParserStepModel(ThincModelWrapper):
                 for spacy_ent, galileo_ent in zip(ents_spacy_wouldve_predicted,
                                                   galileo_ents):
                     if spacy_ent.start != galileo_ent.start or spacy_ent.end != galileo_ent.end or spacy_ent.label_ != galileo_ent.label_ :
-                        print("Mismatch in our prediction versus spacy's on this span")
+                        print("!!!!!!!!!!!!!!!!Mismatch in our prediction versus spacy's on this span")
                         print(f"Spacy: {ents_spacy_wouldve_predicted}")
                         print(f"Ours: {doc.ents}")
                         print()
                         error_found = True
 
             if not error_found:
-                print("All good!")
-
+                print(f"All good! {doc_id}")
+                print(f"Spacy: {ents_spacy_wouldve_predicted}")
+                print(f"Ours: {doc.ents}")
 
 
     def _self_get_valid_logits(self, docs: Dict[int, Doc]) -> DefaultDict:
         helper_data = self._self_model_logger.log_helper_data
+        if self._self_model_logger.logger_config.cur_split == "validation":
+            print("Should break")
         docs_predictions = convert_spacy_ents_for_doc_to_predictions(
             docs, self._self_model_logger.logger_config.labels
         )
@@ -468,7 +471,7 @@ class GalileoParserStepModel(ThincModelWrapper):
             parser_step_model, states, is_train
         )
 
-        self._self_fill_helper_data(states, scores)
+        self._self_fill_helper_data(states, scores.copy())
 
         if not helper_data["already_logged"] and self._self_is_helper_data_filled():
             docs_copy = self._self_get_docs_copy()
@@ -504,6 +507,6 @@ class GalileoState2Vec(CallableObjectProxy):
         for state_idx, state in enumerate(self._self_states):
             doc_id = state.doc.user_data["id"]
             state_cur_token_idx = state.queue[0]
-            helper_data["embs"][doc_id][state_cur_token_idx] = embeddings[state_idx]
+            helper_data["embs"][doc_id][state_cur_token_idx] = embeddings[state_idx].copy()
 
         return embeddings, embeddings_bp

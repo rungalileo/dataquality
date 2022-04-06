@@ -197,7 +197,7 @@ def train_model(train_data):
     USE_GALILEO = True
 
     minibatch_size = 1
-    num_epochs = 3
+    num_epochs = 10
 
     """Model Definition"""
 
@@ -221,7 +221,7 @@ def train_model(train_data):
         dataquality.init(
             task_type="text_ner",
             project_name="debugging_involve_low_f1",
-            run_name="nikita_run"
+            run_name="nikita_fix_#1_10_epochs"
         )
 
     def make_examples(data):
@@ -283,15 +283,16 @@ nlp = train_model(train_data)
 # In[29]:
 
 #
-# num_predictions = 0
-# for text, annotations in tqdm(train_data):
-#     result = nlp(text)
-#     for ent in result.ents:
-#         print(ent)
-#         print(ent.label_)
-#     num_predictions += len(result.ents)
-#
-# print(num_predictions)
+num_predictions = 0
+for text, annotations in tqdm(train_data):
+    print(f"===================Running NLP on a new piece of text")
+    result = nlp(text)
+    for ent in result.ents:
+        print(ent)
+        print(ent.label_)
+    num_predictions += len(result.ents)
+
+print(num_predictions)
 
 
 # In[17]:
