@@ -479,6 +479,8 @@ class GalileoState2Vec(CallableObjectProxy):
         for state_idx, state in enumerate(self._self_states):
             doc_id = state.doc.user_data["id"]
             state_cur_token_idx = state.queue[0]
-            helper_data["embs"][doc_id][state_cur_token_idx] = embeddings[state_idx].copy()
+            helper_data["embs"][doc_id][state_cur_token_idx] = embeddings[
+                state_idx
+            ].copy()
 
         return embeddings, embeddings_bp
