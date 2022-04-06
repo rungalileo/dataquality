@@ -38,7 +38,7 @@ def convert_spacy_ner_logits_to_valid_logits(
     assert len(logits.shape) == 1
     logits = logits.copy()
 
-    # we considered first -inf
+    # we considered first -inf, but -inf skews the softmax'd probs much more than this
     zeroing_value = logits.min() - 1
     # Sort in descending order
     argsorted_sample_logits = np.flip(np.argsort(logits))
