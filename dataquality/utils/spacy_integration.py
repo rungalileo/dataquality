@@ -36,7 +36,10 @@ def convert_spacy_ner_logits_to_valid_logits(
     :return: np array of logits. shape of [num_classes]
     """
     assert len(logits.shape) == 1
+    logits = logits.copy()
 
+    # we considered first -inf, but -inf skews the softmax'd probs much more than this
+    zeroing_value = logits.min() - 1
     # Sort in descending order
     argsorted_sample_logits = np.flip(np.argsort(logits))
 
@@ -50,7 +53,7 @@ def convert_spacy_ner_logits_to_valid_logits(
     # non valid_logit_indices should be set to 0
     zero_out_mask = np.ones(logits.shape, bool)
     zero_out_mask[valid_logit_indices] = False
-    logits[zero_out_mask] = 0
+    logits[zero_out_mask] = zeroing_value
     return logits
 
 

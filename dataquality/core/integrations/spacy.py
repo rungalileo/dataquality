@@ -443,7 +443,7 @@ class GalileoParserStepModel(ThincModelWrapper):
             parser_step_model, states, is_train
         )
 
-        self._self_fill_helper_data(states, scores)
+        self._self_fill_helper_data(states, scores.copy())
 
         if not helper_data["already_logged"] and self._self_is_helper_data_filled():
             docs_copy = self._self_get_docs_copy()
@@ -479,6 +479,8 @@ class GalileoState2Vec(CallableObjectProxy):
         for state_idx, state in enumerate(self._self_states):
             doc_id = state.doc.user_data["id"]
             state_cur_token_idx = state.queue[0]
-            helper_data["embs"][doc_id][state_cur_token_idx] = embeddings[state_idx]
+            helper_data["embs"][doc_id][state_cur_token_idx] = embeddings[
+                state_idx
+            ].copy()
 
         return embeddings, embeddings_bp

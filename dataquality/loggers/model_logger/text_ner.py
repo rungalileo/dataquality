@@ -533,7 +533,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 second_idx = ordered_prob_vector[-1]
             aum = token_prob_vector[g_label_idx] - token_prob_vector[second_idx]
             dep = (1 - aum) / 2  # normalize aum to dep
-            assert 1.0 >= dep >= 0.0, "DEP score is out of bounds"
+            assert 1.0 >= dep >= 0.0, f"DEP score is out of bounds with value {dep}"
             dep_scores_tokens.append(dep)
         assert sample_token_len == len(
             dep_scores_tokens
