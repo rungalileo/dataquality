@@ -106,7 +106,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         else:
             assert labels_len and texts_len, (
                 f"Both texts and labels for your logger must be set, but got"
-                f" text:{bool(texts_len)}, labels:{bool(labels_len)}"
+                f" texts:{bool(texts_len)}, labels:{bool(labels_len)}"
             )
 
             assert texts_len == labels_len, (
@@ -117,7 +117,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         if self.ids:
             assert ids_len == texts_len, (
                 f"Ids exists but are not the same length as texts and labels. "
-                f"(ids, text) ({ids_len}, {texts_len})"
+                f"(ids, texts) ({ids_len}, {texts_len})"
             )
         else:
             self.ids = list(range(texts_len))

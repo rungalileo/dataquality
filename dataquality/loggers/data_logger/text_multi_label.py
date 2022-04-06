@@ -40,7 +40,7 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
 
     def __init__(
         self,
-        text: List[str] = None,
+        texts: List[str] = None,
         labels: List[List[str]] = None,
         ids: List[int] = None,
         split: str = None,
@@ -48,14 +48,14 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
     ) -> None:
         """Create data logger.
 
-        :param text: The raw text inputs for model training. List[str]
+        :param texts: The raw text inputs for model training. List[str]
         :param labels: the ground truth labels aligned to each text field.
         List[List[str]]
         :param ids: Optional unique indexes for each record. If not provided, will
         default to the index of the record. Optional[List[Union[int,str]]]
         :param split: The split for training/test/validation
         """
-        super().__init__(text=text, ids=ids, split=split, meta=meta)
+        super().__init__(texts=texts, ids=ids, split=split, meta=meta)
         if labels is not None:
             self.labels = [[str(i) for i in tl] for tl in labels]  # type: ignore
         else:

@@ -17,9 +17,9 @@ from dataquality.schemas.split import Split
 
 @unique
 class GalileoDataLoggerAttributes(str, Enum):
-    text = "text"
-    text_token_indices = "text_token_indices"
-    text_token_indices_flat = "text_token_indices_flat"
+    texts = "texts"
+    texts_token_indices = "texts_token_indices"
+    texts_token_indices_flat = "texts_token_indices_flat"
     gold_spans = "gold_spans"
     ids = "ids"
     # mixin restriction on str (due to "str".split(...))
@@ -35,9 +35,9 @@ class TextNERDataLogger(BaseGalileoDataLogger):
     """
     Class for logging input data/metadata of Text NER models to Galileo.
 
-    * text: The raw text inputs for model training. List[str]
+    * texts: The raw text inputs for model training. List[str]
 
-    * text_token_indices: Token boundaries of text. List[List[Tuple(int, int)]].
+    * texts_token_indices: Token boundaries for each text. List[List[Tuple(int, int)]].
     Used to convert the gold_spans into token level spans internally. For each sample,
     the boundary of a token will contain the start and end character index of word in
     the `text` to which the said token belongs.
@@ -69,7 +69,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         # One of (IOB2, BIO, IOB, BILOU, BILOES)
         dataquality.set_tagging_schema(tagging_schema: str = "BIO")
 
-        text: List[str] = [
+        texts: List[str] = [
             "The president is Joe Biden",
             "Joe Biden addressed the United States on Monday"
         ]
@@ -84,13 +84,13 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             ]
         ]
 
-        text_token_indices: [[(0, 3), (4, 13), (14, 16), (17, 20), (21, 27), (21, 27)],
+        texts_token_indices: [[(0, 3), (4, 13), (14, 16), (17, 20), (21, 27), (21, 27)],
                 [...]]
         ids: List[int] = [0, 1]
         split = "training"
 
         dataquality.log_input_data(
-            text=text, text_token_indices=text_token_indices,
+            texts=texts, texts_token_indices=texts_token_indices,
             gold_spans=gold_spans, ids=ids, split=split
         )
     """
@@ -102,8 +102,8 @@ class TextNERDataLogger(BaseGalileoDataLogger):
 
     def __init__(
         self,
-        text: List[str] = None,
-        text_token_indices: List[List[Tuple[int, int]]] = None,
+        texts: List[str] = None,
+        texts_token_indices: List[List[Tuple[int, int]]] = None,
         gold_spans: List[List[Dict]] = None,
         ids: List[int] = None,
         split: str = None,
@@ -111,8 +111,8 @@ class TextNERDataLogger(BaseGalileoDataLogger):
     ) -> None:
         """Create data logger.
 
-        :param text: The raw text inputs for model training. List[str]
-        :param text_token_indices: Token boundaries of text. List[Tuple(int, int)].
+        :param texts: The raw text inputs for model training. List[str]
+        :param texts_token_indices: Token boundaries of text. List[Tuple(int, int)].
         Used to convert the gold_spans into token level spans internally.
         t[0] indicates the start index of the span and t[1] is the end index (exclusive)
         :param gold_spans: The model-level gold spans over the char index of `text`
@@ -123,14 +123,14 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         super().__init__(meta)
         # Need to compare to None because they may be np arrays which cannot be
         # evaluated with bool directly
-        self.text = text if text is not None else []
-        self.text_token_indices = (
-            text_token_indices if text_token_indices is not None else []
+        self.texts = texts if texts is not None else []
+        self.texts_token_indices = (
+            texts_token_indices if texts_token_indices is not None else []
         )
         self.gold_spans = gold_spans if gold_spans is not None else []
         self.ids = ids if ids is not None else []
         self.split = split
-        self.text_token_indices_flat: List[List[int]] = []
+        self.texts_token_indices_flat: List[List[int]] = []
 
     @staticmethod
     def get_valid_attributes() -> List[str]:
@@ -143,10 +143,10 @@ class TextNERDataLogger(BaseGalileoDataLogger):
     def validate(self) -> None:
         """
         Validates that the current config is correct.
-        * Text and Labels must both exist (unless split is 'inference' in which case
+        * Texts and Labels must both exist (unless split is 'inference' in which case
         labels must be None)
-        * Text and Labels must be the same length
-        * If ids exist, it must be the same length as text/labels
+        * Texts and Labels must be the same length
+        * If ids exist, it must be the same length as texts/labels
         :return: None
         """
         super().validate()
@@ -161,35 +161,35 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             "See dataquality.set_tagging_schema"
         )
 
-        text_tokenized_len = len(self.text_token_indices)
-        text_len = len(self.text)
-        gold_span_len = len(self.gold_spans)
-        id_len = len(self.ids)
+        texts_token_indices_len = len(self.texts_token_indices)
+        texts_len = len(self.texts)
+        gold_spans_len = len(self.gold_spans)
+        ids_len = len(self.ids)
 
         if self.ids:
-            assert id_len == text_len, (
-                f"Ids exists but are not the same length as text and labels. "
-                f"(ids, text) ({id_len}, {text_len})"
+            assert ids_len == texts_len, (
+                f"Ids exists but are not the same length as texts and labels. "
+                f"(ids, texts) ({ids_len}, {texts_len})"
             )
         else:
-            self.ids = list(range(text_len))
+            self.ids = list(range(texts_len))
 
         if self.split == Split.inference.value:
-            assert not gold_span_len, "You cannot have labels in your inference split!"
+            assert not gold_spans_len, "You cannot have labels in your inference split!"
         else:
-            assert gold_span_len and text_len, (
-                f"Both text and gold spans for your logger must be set, but got"
-                f" text:{bool(text_len)}, labels:{bool(text_len)}"
+            assert texts_len and gold_spans_len, (
+                f"Both texts and gold spans for your logger must be set, but got"
+                f" texts:{bool(texts_len)}, labels:{bool(gold_spans_len)}"
             )
 
-            assert text_len == text_tokenized_len == gold_span_len, (
-                f"labels, text, and tokenized text must be the same length, but got"
-                f"(labels, text, text_token) ({gold_span_len},{text_len}, "
-                f"{text_tokenized_len})"
+            assert texts_len == texts_token_indices_len == gold_spans_len, (
+                f"labels, texts, texts_token_indices must be the same length, but got"
+                f"(labels, texts, texts_token_indices) ({gold_spans_len},{texts_len}, "
+                f"{texts_token_indices_len})"
             )
 
         for sample_id, sample_spans, sample_indices, sample_text in zip(
-            self.ids, self.gold_spans, self.text_token_indices, self.text
+            self.ids, self.gold_spans, self.texts_token_indices, self.texts
         ):
             self._validate_sample_spans(sample_spans, sample_indices, sample_text)
 
@@ -204,12 +204,12 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             self.logger_config.sample_length[sample_key] = len(sample_indices)
             # Flatten the List[Tuple[int,int]] to List[int]
             flattened_indices = list(itertools.chain(*sample_indices))
-            self.text_token_indices_flat.append(flattened_indices)
+            self.texts_token_indices_flat.append(flattened_indices)
 
         # Free up the memory, we don't need it anymore
-        del self.text_token_indices
+        del self.texts_token_indices
 
-        self.validate_metadata(batch_size=text_len)
+        self.validate_metadata(batch_size=texts_len)
 
     def _validate_sample_spans(
         self,
@@ -305,12 +305,12 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         This function will be used for the sentence level, as that enables the parent's
         `log()` function to behave exactly as expected.
         """
-        df_len = len(self.text)
+        df_len = len(self.texts)
         inp = dict(
             id=self.ids,
             split=[Split(self.split).value] * df_len,
-            text=self.text,
-            text_token_indices=pa.array(self.text_token_indices_flat),
+            text=self.texts,
+            text_token_indices=pa.array(self.texts_token_indices_flat),
             data_schema_version=[__data_schema_version__] * df_len,
             **self.meta,
         )
