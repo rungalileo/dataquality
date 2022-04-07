@@ -1,16 +1,19 @@
 import time
 from typing import Callable, Dict, List
 from unittest import mock
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
 
+from dataquality import config
 from dataquality.clients.api import ApiClient
 from dataquality.exceptions import GalileoException
+from dataquality.schemas.task_type import TaskType
 from tests.utils.mock_request import (
     EXISTING_PROJECT,
     EXISTING_RUN,
+    FAKE_NEW_RUN,
     mocked_delete_project_not_found,
     mocked_delete_project_run,
     mocked_get_project_run,
@@ -216,3 +219,47 @@ def test_wait_for_run_unknown(mock_get_run_status: MagicMock) -> None:
     """Waiting for run with unknown status raises error"""
     with pytest.raises(GalileoException):
         api_client.wait_for_run("some_proj", "some_run")
+
+
+@patch.object(
+    ApiClient,
+    "delete_run",
+)
+@patch.object(
+    ApiClient,
+    "create_run",
+    return_value={"name": "my_run", "id": FAKE_NEW_RUN},
+)
+@patch.object(
+    ApiClient,
+    "get_project",
+    return_value={"name": "my_project"},
+)
+@patch.object(
+    ApiClient,
+    "get_project_run",
+    return_value={"name": "my_run", "task_type": 0},
+)
+def test_reset(
+    mock_get_run: MagicMock,
+    mock_get_project: MagicMock,
+    mock_create: MagicMock,
+    mock_delete: MagicMock,
+    set_test_config: Callable,
+) -> None:
+    """
+    Tests that reset run changes the run ID saved and updates the config
+    """
+    old_pid = config.current_project_id
+    assert config.current_run_id != FAKE_NEW_RUN
+    old_rid = config.current_run_id
+    api_client.reset_run(old_pid, old_rid)
+
+    mock_get_run.assert_called_once_with(old_pid, old_rid)
+    mock_get_project.assert_called_once_with(old_pid)
+    mock_create.assert_called_once_with(
+        "my_project", "my_run", TaskType.text_classification
+    )
+    mock_delete.assert_called_once_with(old_pid, old_rid)
+
+    assert config.current_run_id == FAKE_NEW_RUN

@@ -13,3 +13,12 @@ class TaskType(str, Enum):
     @staticmethod
     def get_valid_tasks() -> List[str]:
         return list(map(lambda x: x.value, TaskType))
+
+    @staticmethod
+    def get_mapping(task_int: int) -> "TaskType":
+        """Converts the servers task type enum to client names"""
+        return {
+            0: TaskType.text_classification,
+            1: TaskType.text_multi_label,
+            2: TaskType.text_ner,
+        }[task_int]

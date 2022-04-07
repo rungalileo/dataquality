@@ -1,3 +1,4 @@
+import os
 from typing import Any, Dict, Optional
 
 import dataquality
@@ -27,7 +28,11 @@ def finish() -> Optional[Dict[str, Any]]:
         # Clear the data in minio before uploading new data
         # If this is a run that already existed, we want to fully overwrite the old data
         # If only inference is logged, keep all existing minio data
+        old_run = config.current_run_id
         api_client.reset_run(config.current_project_id, config.current_run_id)
+        project_dir = f"{data_logger.LOG_FILE_DIR}/{config.current_project_id}"
+        # All of the logged user data is to the old run ID, so rename it to the new ID
+        os.rename(f"{project_dir}/{old_run}", f"{project_dir}/{config.current_run_id}")
 
     data_logger.upload()
     data_logger._cleanup()
