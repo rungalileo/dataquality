@@ -260,6 +260,7 @@ def test_inference_split_raises_warning(cleanup_after_use, set_test_config):
             assert len(record) == 1
             assert (
                 record[0].message.args[0]
-                == "Inference logging with Galileo coming soon. For now skipping logging"
+                == "Inference logging with Galileo coming soon. For now skipping "
+                "logging"
             )
         assert not mocked_model_logger_log.called
