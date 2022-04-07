@@ -31,7 +31,7 @@ def finish() -> Optional[Dict[str, Any]]:
         old_run = config.current_run_id
         api_client.reset_run(config.current_project_id, config.current_run_id)
         project_dir = f"{data_logger.LOG_FILE_DIR}/{config.current_project_id}"
-
+        # All of the logged user data is to the old run ID, so rename it to the new ID
         os.rename(f"{project_dir}/{old_run}", f"{project_dir}/{config.current_run_id}")
 
     data_logger.upload()
