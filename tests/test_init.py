@@ -1,4 +1,5 @@
 import os
+from functools import partial
 from typing import Callable
 from unittest.mock import MagicMock, patch
 
@@ -313,3 +314,35 @@ def test_reconfigure_resets_user_token_login_mocked(
     dataquality.configure()
     assert all([config.token == "mock_token", config.token != "old_token"])
     mock_login.assert_called_once()
+
+
+@patch("requests.post", side_effect=mocked_create_project_run)
+@patch("requests.get", side_effect=mocked_get_project_run)
+@patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=True)
+@pytest.mark.parametrize(
+    "run_name,exc",
+    [
+        ("my-run-#1", True),
+        ("$run!$", True),
+        ("a-bad-run##", True),
+        ("A good run1", False),
+        ("a-good-run-123", False),
+        ("MY Run_1-2022", False),
+    ],
+)
+def test_bad_names(
+    mock_valid_user: MagicMock,
+    mock_requests_get: MagicMock,
+    mock_requests_post: MagicMock,
+    run_name: str,
+    exc: bool,
+    set_test_config: Callable,
+):
+    init = partial(
+        dataquality.init, task_type="text_classification", project_name="proj"
+    )
+    if exc:
+        with pytest.raises(GalileoException):
+            init(run_name=run_name)
+    else:
+        init(run_name=run_name)
