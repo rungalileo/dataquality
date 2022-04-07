@@ -251,6 +251,7 @@ def test_reset(
     Tests that get_run_status calls ApiClient
     """
     old_pid = config.current_project_id
+    assert config.current_run_id != FAKE_NEW_RUN
     old_rid = config.current_run_id
     api_client.reset_run(old_pid, old_rid)
 
