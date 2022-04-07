@@ -248,7 +248,7 @@ def test_reset(
     set_test_config: Callable,
 ) -> None:
     """
-    Tests that get_run_status calls ApiClient
+    Tests that reset run changes the run ID saved and updates the config
     """
     old_pid = config.current_project_id
     assert config.current_run_id != FAKE_NEW_RUN
