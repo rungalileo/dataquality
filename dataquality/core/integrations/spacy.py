@@ -299,9 +299,7 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
                 "inference_name='some_name')` to continue."
             )
         helper_data = model_logger.log_helper_data
-        helper_data["logits"] = {
-            doc.user_data["id"]: [None] * len(doc) for doc in X
-        }
+        helper_data["logits"] = {doc.user_data["id"]: [None] * len(doc) for doc in X}
         helper_data["embs"] = {doc.user_data["id"]: [None] * len(doc) for doc in X}
         helper_data["spacy_states"] = defaultdict(list)
         helper_data["spacy_states_end_idxs"] = defaultdict(list)

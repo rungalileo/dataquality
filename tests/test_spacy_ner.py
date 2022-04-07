@@ -237,7 +237,9 @@ def test_long_sample(
     del nlp
 
 
-def test_inference_split_raises_warning(cleanup_after_use, set_test_config):
+def test_inference_split_raises_warning(
+    cleanup_after_use: Callable, set_test_config: Callable
+) -> None:
     """Tests that inference mode raises a warning and continues without dq client"""
     TextNERModelLogger.logger_config.reset()
     set_test_config(task_type=TaskType.text_ner)
