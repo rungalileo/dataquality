@@ -256,7 +256,7 @@ def test_reset(
     api_client.reset_run(old_pid, old_rid)
 
     mock_get_run.assert_called_once_with(old_pid, old_rid)
-    mock_get.assert_called_once_with(old_pid)
+    mock_get_project.assert_called_once_with(old_pid)
     mock_create.assert_called_once_with(
         "my_project", "my_run", TaskType.text_classification
     )
