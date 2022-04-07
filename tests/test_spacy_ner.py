@@ -1,4 +1,5 @@
 from typing import Callable, Dict, List, Tuple
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -234,3 +235,34 @@ def test_long_sample(
     TextNERModelLogger.log = old_log
     ThreadPoolManager.wait_for_threads()
     del nlp
+
+
+def test_inference_split_raises_warning(
+    cleanup_after_use: Callable, set_test_config: Callable
+) -> None:
+    """Tests that inference mode raises a warning and continues without dq client"""
+    TextNERModelLogger.logger_config.reset()
+    set_test_config(task_type=TaskType.text_ner)
+
+    nlp = spacy.blank("en")
+    nlp.add_pipe("ner")
+    all_examples = [
+        Example.from_dict(nlp.make_doc(text), entities)
+        for text, entities in NER_TRAINING_DATA
+    ]
+    nlp.initialize(lambda: all_examples)
+    watch(nlp)
+    dataquality.set_split(split="inference", inference_name="some_name")
+
+    with patch(
+        "dataquality.loggers.model_logger.text_ner.TextNERModelLogger"
+    ) as mocked_model_logger_log:
+        with pytest.warns(UserWarning) as record:
+            nlp("some text here")
+            assert len(record) == 1
+            assert (
+                record[0].message.args[0]
+                == "Inference logging with Galileo coming soon. For now skipping "
+                "logging"
+            )
+        assert not mocked_model_logger_log.called
