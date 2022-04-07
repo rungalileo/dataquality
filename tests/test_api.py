@@ -242,7 +242,7 @@ def test_wait_for_run_unknown(mock_get_run_status: MagicMock) -> None:
 )
 def test_reset(
     mock_get_run: MagicMock,
-    mock_get: MagicMock,
+    mock_get_project: MagicMock,
     mock_create: MagicMock,
     mock_delete: MagicMock,
     set_test_config: Callable,
