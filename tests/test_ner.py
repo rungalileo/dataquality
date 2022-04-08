@@ -602,4 +602,4 @@ def test_duplicate_output_rows(set_test_config, cleanup_after_use) -> None:
     with pytest.raises(GalileoException) as e:
         dataquality.get_data_logger().upload()
 
-    assert str(e.value).startswith("It seems as though you do not have unique ids")
+    assert str(e.value).startswith("It seems as though you have duplicate spans")
