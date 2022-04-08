@@ -337,7 +337,6 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         We do need to split take only the rows from in_frame from this split
         Splits the dataframes into prob, emb, and input data for uploading to minio
         """
-        # Validation expects an "id" col, but NER has "sample_id" so create a temp col
         cls._validate_duplicate_spans(out_frame, epoch_or_inf_name)
         prob, emb, _ = cls.split_dataframe(out_frame, prob_only)
         return BaseLoggerInOutFrames(prob=prob, emb=emb, data=in_frame)

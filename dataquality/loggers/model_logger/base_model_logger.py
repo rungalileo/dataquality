@@ -38,7 +38,6 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
             self._log()
         except Exception as e:
             warnings.warn(f"An issue occurred while logging: {str(e)}")
-            raise e
 
     def log(self) -> None:
         """The top level log function that try/excepts it's child"""
