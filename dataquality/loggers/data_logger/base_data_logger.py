@@ -144,7 +144,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         prob_only: bool,
         split: str,
         split_run: Union[str, int],
-    ) -> DataFrame:
+    ) -> BaseLoggerInOutFrames:
         str_cols = concat_hdf5_files(dir_name, prob_only)
         out_frame = vaex.open(f"{dir_name}/{HDF5_STORE}")
 

@@ -13,6 +13,7 @@ from dataquality.schemas.dataframe import BaseLoggerInOutFrames
 from dataquality.schemas.ner import NERColumns as NERCols
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
+from dataquality.utils.vaex import validate_unique_ids
 
 
 @unique
@@ -323,7 +324,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         in_frame: DataFrame,
         out_frame: DataFrame,
         prob_only: bool,
-        epoch_or_inf_name: str = None,
+        epoch_or_inf_name: str,
     ) -> BaseLoggerInOutFrames:
         """Processes input and output dataframes from logging
 
@@ -336,7 +337,11 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         We do need to split take only the rows from in_frame from this split
         Splits the dataframes into prob, emb, and input data for uploading to minio
         """
-
+        # Validation expects an "id" col, but NER has "sample_id" so create a temp col
+        out_frame["id"] = out_frame["sample_id"]
+        print(out_frame[["id","sample_id","split","epoch"]])
+        validate_unique_ids(out_frame, epoch_or_inf_name)
+        out_frame = out_frame.drop("id")
         prob, emb, _ = cls.split_dataframe(out_frame, prob_only)
         return BaseLoggerInOutFrames(prob=prob, emb=emb, data=in_frame)
 
