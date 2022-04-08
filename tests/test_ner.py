@@ -5,12 +5,14 @@ import pytest
 import vaex
 
 import dataquality
+from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger.text_ner import TextNERDataLogger
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.conftest import TEST_PATH
+from tests.utils.ner_constants import GOLD_SPANS, LABELS, TEXT_INPUTS, TEXT_TOKENS
 
 model_logger = TextNERModelLogger()
 
@@ -510,3 +512,94 @@ def test_ghost_spans() -> None:
     logger = TextNERModelLogger()
     for res, pred_span in zip(results, pred_spans):
         assert logger._is_ghost_span(pred_span, gold_spans) == res
+
+
+def test_duplicate_rows(set_test_config, cleanup_after_use) -> None:
+    set_test_config(task_type="text_ner")
+
+    ids = list(range(5))
+
+    dataquality.set_labels_for_run(LABELS)
+    dataquality.set_tagging_schema("BIO")
+
+    dataquality.log_input_data(
+        text=TEXT_INPUTS,
+        text_token_indices=TEXT_TOKENS,
+        ids=ids,
+        gold_spans=GOLD_SPANS,
+        split="validation",
+    )
+
+    dataquality.log_input_data(
+        text=TEXT_INPUTS,
+        text_token_indices=TEXT_TOKENS,
+        ids=ids,
+        gold_spans=GOLD_SPANS,
+        split="training",
+    )
+
+    with pytest.raises(GalileoException):
+        dataquality.log_input_data(
+            text=TEXT_INPUTS,
+            text_token_indices=TEXT_TOKENS,
+            ids=ids,
+            gold_spans=GOLD_SPANS,
+            split="validation",
+        )
+
+    dataquality.log_input_data(
+        text=TEXT_INPUTS,
+        text_token_indices=TEXT_TOKENS,
+        ids=ids,
+        gold_spans=GOLD_SPANS,
+        split="test",
+    )
+
+    with pytest.raises(GalileoException):
+        dataquality.log_input_data(
+            text=TEXT_INPUTS,
+            text_token_indices=TEXT_TOKENS,
+            ids=ids,
+            gold_spans=GOLD_SPANS,
+            split="training",
+        )
+
+
+def test_duplicate_output_rows(set_test_config, cleanup_after_use) -> None:
+    set_test_config(task_type="text_ner")
+
+    ids = list(range(5))
+
+    dataquality.set_labels_for_run(LABELS)
+    dataquality.set_tagging_schema("BIO")
+
+    dataquality.log_input_data(
+        text=TEXT_INPUTS,
+        text_token_indices=TEXT_TOKENS,
+        ids=ids,
+        gold_spans=GOLD_SPANS,
+        split="validation",
+    )
+
+    dataquality.log_input_data(
+        text=TEXT_INPUTS,
+        text_token_indices=TEXT_TOKENS,
+        ids=ids,
+        gold_spans=GOLD_SPANS,
+        split="training",
+    )
+
+    emb = [np.random.rand(119, 768) for _ in range(5)]
+    logits = [np.random.rand(119, 28) for _ in range(5)]
+
+    dataquality.log_model_outputs(
+        emb=emb, logits=logits, ids=ids, split="training", epoch=0
+    )
+    dataquality.log_model_outputs(
+        emb=emb, logits=logits, ids=ids, split="training", epoch=0
+    )
+
+    with pytest.raises(GalileoException) as e:
+        dataquality.get_data_logger().upload()
+
+    assert str(e.value).startswith("It seems as though you have duplicate spans")

@@ -6,6 +6,7 @@ import pyarrow as pa
 import vaex
 from vaex.dataframe import DataFrame
 
+from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger.base_data_logger import BaseGalileoDataLogger
 from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
 from dataquality.schemas import __data_schema_version__
@@ -323,7 +324,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         in_frame: DataFrame,
         out_frame: DataFrame,
         prob_only: bool,
-        epoch_or_inf_name: str = None,
+        epoch_or_inf_name: str,
     ) -> BaseLoggerInOutFrames:
         """Processes input and output dataframes from logging
 
@@ -336,9 +337,25 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         We do need to split take only the rows from in_frame from this split
         Splits the dataframes into prob, emb, and input data for uploading to minio
         """
-
+        cls._validate_duplicate_spans(out_frame, epoch_or_inf_name)
         prob, emb, _ = cls.split_dataframe(out_frame, prob_only)
         return BaseLoggerInOutFrames(prob=prob, emb=emb, data=in_frame)
+
+    @classmethod
+    def _validate_duplicate_spans(cls, df: DataFrame, epoch_or_inf_name: str) -> None:
+        """Validates that duplicate spans aren't logged for an input sample
+
+        Duplicate spans would be spans in a sample with identical start and end spans
+        """
+        dup_counts = df.groupby(["sample_id", "span_start", "span_end"], agg="count")
+        dup_counts = dup_counts[dup_counts["count"] > 1]
+        if len(dup_counts):
+            epoch_or_inf_value, split = df[[epoch_or_inf_name, "split"]][0]
+            raise GalileoException(
+                "It seems as though you have duplicate spans for samples in this "
+                f"split. (split:{split}, {epoch_or_inf_name}:{epoch_or_inf_value}),"
+                f"dups:\n {dup_counts[['sample_id', 'count']].to_records()}"
+            )
 
     @classmethod
     def split_dataframe(

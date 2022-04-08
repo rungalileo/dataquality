@@ -100,12 +100,11 @@ class TextMultiLabelModelLogger(TextClassificationModelLogger):
                 task_probs: List[float] = prob_per_task[task_num]
                 if len(task_probs) == 1:  # Handle binary classification case
                     task_probs = [task_probs[0], 1 - task_probs[0]]
-                record[f"prob_{task_num}"] = task_probs
+                record[f"prob_{task_num}"] = np.array(task_probs, dtype=np.float32)
                 record[f"pred_{task_num}"] = int(np.argmax(task_probs))
 
             for k in record.keys():
                 data[k].append(record[k])
-
         return data
 
     def _set_num_labels(self, data: Dict) -> None:
