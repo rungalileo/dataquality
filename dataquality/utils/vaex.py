@@ -125,7 +125,7 @@ def validate_ids_for_df(df: DataFrame) -> None:
     for split in df["split"].unique():
         if split == Split.inference:
             inf_df = df[df["split"] == split]
-            for inference_name in df["inference_name"].unique():
+            for inference_name in inf_df["inference_name"].unique():
                 validate_ids_for_slice(inf_df, "inference_name", inference_name)
         else:
             validate_ids_for_slice(df, "split", split)
