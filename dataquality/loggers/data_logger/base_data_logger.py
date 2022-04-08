@@ -78,7 +78,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         merged_df = vaex.concat([existing_df, df])
 
         try:  # Validate there are no duplicated IDs
-            validate_ids_for_df(df)
+            validate_ids_for_df(merged_df)
         except GalileoException as e:  # Cleanup and raise on error
             merged_df.close()
             os.rename(tmp_name, file_path)  # Revert name, we aren't logging
