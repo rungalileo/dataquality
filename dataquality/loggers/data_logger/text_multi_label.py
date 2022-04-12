@@ -35,39 +35,23 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
     the index of the record. Optional[List[int]]
     * split: The split for training/test/validation
 
-    ex:
     .. code-block:: python
 
-        labels = ["B-PER", "I-PER", "B-LOC", "I-LOC", "O"]
-        dq.set_labels_for_run(labels = labels)
-
-        # One of (IOB2, BIO, IOB, BILOU, BILOES)
-        dq.set_tagging_schema(tagging_schema: str = "BIO")
+        all_labels = ["A", "B", "C"]
+        dq.set_labels_for_run(labels = all_labels)
 
         texts: List[str] = [
-            "The president is Joe Biden",
-            "Joe Biden addressed the United States on Monday"
+            "Text sample 1",
+            "Text sample 2",
+            "Text sample 3",
         ]
 
-        gold_spans: List[List[dict]] = [
-            [
-                {"start":17, "end":27, "label":"person"}  # "Joe Biden"
-            ],
-            [
-                {"start":0, "end":10, "label":"person"},    # "Joe Biden"
-                {"start":30, "end":41, "label":"location"}  # "United States"
-            ]
-        ]
+        labels: List[str] = [["A", "A", "B"], ["C", "A", "B"], ["B", "C", "B"]]
 
-        text_token_indices: [[(0, 3), (4, 13), (14, 16), (17, 20), (21, 27), (21, 27)],
-                [...]]
-        ids: List[int] = [0, 1]
+        ids: List[int] = [0, 1, 2]
         split = "training"
 
-        dq.log_input_samples(
-            text=texts, text_token_indices=text_token_indices,
-            gold_spans=gold_spans, ids=ids, split=split
-        )
+        dq.log_input_samples(texts=texts, task_labels=labels, ids=ids, split=split)
     """
 
     __logger_name__ = "text_multi_label"
@@ -95,8 +79,8 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
         super().__init__(texts=texts, ids=ids, split=split, meta=meta)
         if labels is not None:
             self.labels: List[List[str]] = [
-                [str(i) for i in tl] for tl in labels
-            ]  # type: ignore
+                [str(i) for i in tl] for tl in labels  # type: ignore
+            ]
         else:
             self.labels = []
 

@@ -250,6 +250,8 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
             batches["text"].append(self._convert_tensor_to_py(chunk[text]))
             batches["id"].append(self._convert_tensor_to_py(chunk[id]))
             if label:
+                # Process separately because multi-label needs to override this
+                # to handle labels as a list of lists
                 batches = self._process_label(batches, chunk[label])
             for meta_col in meta:
                 metas[meta_col].append(self._convert_tensor_to_py(chunk[meta_col]))
