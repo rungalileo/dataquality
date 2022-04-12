@@ -1,34 +1,63 @@
-import warnings
-from typing import Any, List, Optional, Type, Union
+from typing import Any, Callable, List, Optional, Type, Union
 
 from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
+from dataquality.loggers.data_logger.base_data_logger import D
 from dataquality.loggers.model_logger import BaseGalileoModelLogger
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 
 
-def log_input_data(**kwargs: Any) -> None:
-    """Logs input data for model training/test/validation/inference.
+def add_doc(doc: str) -> Callable:
+    def _doc(func: Callable) -> Callable:
+        func.__doc__ = doc
+        return func
 
-    The expected arguments come from the task_type's data
-    logger: See dataquality.get_model_logger().doc() for details
+    return _doc
+
+
+def log_input_samples(*, texts: List[str], ids: List[int], **kwargs: Any) -> None:
+    """Logs a batch of input samples for model training/test/validation/inference.
+
+    Fields are expected as lists of their content. Field names are in the plural of
+    `log_input_sample` (text -> texts)
+    The expected arguments come from the task_type's data logging schema.
+    logger: See dq.docs() for details
     """
     assert all(
         [config.task_type, config.current_project_id, config.current_run_id]
     ), "You must call dataquality.init before logging data"
-    data_logger = get_data_logger()(**kwargs)
-    data_logger.log()
+    data_logger = get_data_logger()()
+    data_logger.log_input_samples(texts=texts, ids=ids, **kwargs)
 
 
-# Backwards compatibility
-def log_batch_input_data(**kwargs: Any) -> None:
-    warnings.warn(
-        "log_batch_input_data is deprecated. Use log_input_data", DeprecationWarning
-    )
-    log_input_data(**kwargs)
+def log_input_sample(*, text: str, id: int, **kwargs: Any) -> None:
+    """Log a single input example to disk"""
+    assert all(
+        [config.task_type, config.current_project_id, config.current_run_id]
+    ), "You must call dataquality.init before logging data"
+    data_logger = get_data_logger()()
+    data_logger.log_input_sample(text=text, id=id, **kwargs)
+
+
+def log_dataset(
+    dataset: D,
+    *,
+    text: Union[str, int] = "text",
+    id: Union[str, int] = "id",
+    **kwargs: Any,
+) -> None:
+    """Log an iterable or other dataset to disk.
+
+    Keyword arguments are specific to the task type. See dq.docs() for details
+    """
+    assert all(
+        [config.task_type, config.current_project_id, config.current_run_id]
+    ), "You must call dataquality.init before logging data"
+    data_logger = get_data_logger()()
+    data_logger.log_dataset(dataset, text=text, id=id, **kwargs)
 
 
 def log_model_outputs(**kwargs: Any) -> None:

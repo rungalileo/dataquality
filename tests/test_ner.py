@@ -287,8 +287,8 @@ def test_ner_logging_bad_inputs(set_test_config: Callable, cleanup_after_use) ->
 
     # Handle spans that don't align with token boundaries
     with pytest.raises(AssertionError):
-        dataquality.log_input_data(
-            text=text_inputs,
+        dataquality.log_input_samples(
+            texts=text_inputs,
             text_token_indices=token_boundaries_all,
             gold_spans=gold_spans,
             ids=ids,
@@ -307,8 +307,8 @@ def test_ner_logging_bad_inputs(set_test_config: Callable, cleanup_after_use) ->
     ]
     # Handle spans that don't align with token boundaries
     with pytest.raises(AssertionError):
-        dataquality.log_input_data(
-            text=text_inputs,
+        dataquality.log_input_samples(
+            texts=text_inputs,
             text_token_indices=token_boundaries_all,
             gold_spans=gold_spans,
             ids=ids,
@@ -363,8 +363,8 @@ def test_ner_logging(cleanup_after_use: Callable, set_test_config: Callable) -> 
     ids = [0, 1, 2]
     split = "training"
 
-    dataquality.log_input_data(
-        text=text_inputs,
+    dataquality.log_input_samples(
+        texts=text_inputs,
         text_token_indices=token_boundaries_all,
         gold_spans=gold_spans,
         ids=ids,
@@ -471,8 +471,8 @@ def test_ner_logging(cleanup_after_use: Callable, set_test_config: Callable) -> 
     # Test with logits
     c._cleanup()
     dataquality.set_labels_for_run(labels)
-    dataquality.log_input_data(
-        text=text_inputs,
+    dataquality.log_input_samples(
+        texts=text_inputs,
         text_token_indices=token_boundaries_all,
         gold_spans=gold_spans,
         ids=ids,
@@ -522,16 +522,16 @@ def test_duplicate_rows(set_test_config, cleanup_after_use) -> None:
     dataquality.set_labels_for_run(LABELS)
     dataquality.set_tagging_schema("BIO")
 
-    dataquality.log_input_data(
-        text=TEXT_INPUTS,
+    dataquality.log_input_samples(
+        texts=TEXT_INPUTS,
         text_token_indices=TEXT_TOKENS,
         ids=ids,
         gold_spans=GOLD_SPANS,
         split="validation",
     )
 
-    dataquality.log_input_data(
-        text=TEXT_INPUTS,
+    dataquality.log_input_samples(
+        texts=TEXT_INPUTS,
         text_token_indices=TEXT_TOKENS,
         ids=ids,
         gold_spans=GOLD_SPANS,
@@ -539,16 +539,16 @@ def test_duplicate_rows(set_test_config, cleanup_after_use) -> None:
     )
 
     with pytest.raises(GalileoException):
-        dataquality.log_input_data(
-            text=TEXT_INPUTS,
+        dataquality.log_input_samples(
+            texts=TEXT_INPUTS,
             text_token_indices=TEXT_TOKENS,
             ids=ids,
             gold_spans=GOLD_SPANS,
             split="validation",
         )
 
-    dataquality.log_input_data(
-        text=TEXT_INPUTS,
+    dataquality.log_input_samples(
+        texts=TEXT_INPUTS,
         text_token_indices=TEXT_TOKENS,
         ids=ids,
         gold_spans=GOLD_SPANS,
@@ -556,8 +556,8 @@ def test_duplicate_rows(set_test_config, cleanup_after_use) -> None:
     )
 
     with pytest.raises(GalileoException):
-        dataquality.log_input_data(
-            text=TEXT_INPUTS,
+        dataquality.log_input_samples(
+            texts=TEXT_INPUTS,
             text_token_indices=TEXT_TOKENS,
             ids=ids,
             gold_spans=GOLD_SPANS,
@@ -573,16 +573,16 @@ def test_duplicate_output_rows(set_test_config, cleanup_after_use) -> None:
     dataquality.set_labels_for_run(LABELS)
     dataquality.set_tagging_schema("BIO")
 
-    dataquality.log_input_data(
-        text=TEXT_INPUTS,
+    dataquality.log_input_samples(
+        texts=TEXT_INPUTS,
         text_token_indices=TEXT_TOKENS,
         ids=ids,
         gold_spans=GOLD_SPANS,
         split="validation",
     )
 
-    dataquality.log_input_data(
-        text=TEXT_INPUTS,
+    dataquality.log_input_samples(
+        texts=TEXT_INPUTS,
         text_token_indices=TEXT_TOKENS,
         ids=ids,
         gold_spans=GOLD_SPANS,

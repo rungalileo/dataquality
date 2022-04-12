@@ -1,5 +1,5 @@
 import warnings
-from typing import Dict, List, Optional, Union
+from typing import Any, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -7,7 +7,10 @@ import vaex
 from vaex.dataframe import DataFrame
 
 from dataquality.core._config import config
+from dataquality.exceptions import GalileoException
+from dataquality.loggers.data_logger.base_data_logger import MetaType
 from dataquality.loggers.data_logger.text_classification import (
+    MetasType,
     TextClassificationDataLogger,
 )
 from dataquality.loggers.logger_config.text_multi_label import (
@@ -24,13 +27,47 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
     """
     Class for logging input data/metadata of Text Multi Label models to Galileo.
 
-    * text: The raw text inputs for model training. List[str]
+    * texts: The raw text inputs for model training. List[str]
     * labels: the list of ground truth labels aligned to each text field. Each text
     field input must have the same number of labels (which must be the number of tasks)
     List[List[str]]
     * ids: Optional unique indexes for each record. If not provided, will default to
     the index of the record. Optional[List[int]]
     * split: The split for training/test/validation
+
+    ex:
+    .. code-block:: python
+
+        labels = ["B-PER", "I-PER", "B-LOC", "I-LOC", "O"]
+        dq.set_labels_for_run(labels = labels)
+
+        # One of (IOB2, BIO, IOB, BILOU, BILOES)
+        dq.set_tagging_schema(tagging_schema: str = "BIO")
+
+        texts: List[str] = [
+            "The president is Joe Biden",
+            "Joe Biden addressed the United States on Monday"
+        ]
+
+        gold_spans: List[List[dict]] = [
+            [
+                {"start":17, "end":27, "label":"person"}  # "Joe Biden"
+            ],
+            [
+                {"start":0, "end":10, "label":"person"},    # "Joe Biden"
+                {"start":30, "end":41, "label":"location"}  # "United States"
+            ]
+        ]
+
+        text_token_indices: [[(0, 3), (4, 13), (14, 16), (17, 20), (21, 27), (21, 27)],
+                [...]]
+        ids: List[int] = [0, 1]
+        split = "training"
+
+        dq.log_input_samples(
+            text=texts, text_token_indices=text_token_indices,
+            gold_spans=gold_spans, ids=ids, split=split
+        )
     """
 
     __logger_name__ = "text_multi_label"
@@ -40,11 +77,11 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
 
     def __init__(
         self,
-        text: List[str] = None,
+        texts: List[str] = None,
         labels: List[List[str]] = None,
         ids: List[int] = None,
         split: str = None,
-        meta: Optional[Dict[str, List[Union[str, float, int]]]] = None,
+        meta: MetasType = None,
     ) -> None:
         """Create data logger.
 
@@ -55,11 +92,84 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
         default to the index of the record. Optional[List[Union[int,str]]]
         :param split: The split for training/test/validation
         """
-        super().__init__(text=text, ids=ids, split=split, meta=meta)
+        super().__init__(texts=texts, ids=ids, split=split, meta=meta)
         if labels is not None:
-            self.labels = [[str(i) for i in tl] for tl in labels]  # type: ignore
+            self.labels: List[List[str]] = [
+                [str(i) for i in tl] for tl in labels
+            ]  # type: ignore
         else:
             self.labels = []
+
+    def log_input_sample(
+        self,
+        *,
+        text: str,
+        id: int,
+        label: Optional[str] = None,
+        split: Optional[Split] = None,
+        inference_name: Optional[str] = None,
+        meta: Optional[MetaType] = None,
+        task_labels: Optional[List[str]] = None,
+        **kwargs: Any,
+    ) -> None:
+        """
+        Log a single input sample for text multi-label
+        :param text: str the text sample
+        :param id: The sample ID
+        :param task_labels: List[str] The label of each task for this sample
+            Required if split is not inference
+        :param split: train/test/validation/inference. Can be set here or via
+            dq.set_split
+        :param meta: Dict[str, Union[str, int, float]]. Metadata for the text sample
+            Format is the {"metadata_field_name": metadata_field_value}
+        """
+        if label:
+            raise GalileoException("In multi-label, use task_labels instead of label")
+
+        task_labels = [str(i) for i in task_labels] if task_labels else []
+
+        self.texts = [text]
+        self.ids = [id]
+        self.split = split
+        self.labels = [task_labels] if task_labels else []
+        self.inference_name = inference_name
+        self.meta = {i: [meta[i]] for i in meta} if meta else {}
+        self.log()
+
+    def log_input_samples(
+        self,
+        *,
+        texts: List[str],
+        ids: List[int],
+        labels: Optional[List[str]] = None,
+        split: Optional[Split] = None,
+        inference_name: str = None,
+        meta: MetasType = None,
+        task_labels: Optional[List[List[str]]] = None,
+        **kwargs: Any,
+    ) -> None:
+        """Log input samples for text multi-label
+
+        :param texts: List[str] text samples
+        :param ids: List[int,str] IDs for each text sample
+        :param task_labels: List[List[str]] list of labels for each task for each
+            text sample. Required if not in inference
+        :param split: train/test/validation/inference. Can be set here or via
+            dq.set_split
+        :param meta: Dict[str, List[str, int, float]]. Metadata for each text sample
+            Format is the {"metadata_field_name": [metdata value per sample]}
+        """
+        if labels is not None:
+            raise GalileoException("In multi-label, use task_labels instead of labels")
+        self.texts = texts
+        self.ids = ids
+        self.split = split
+        self.meta = meta or {}
+        if task_labels is not None:
+            self.labels = [[str(i) for i in tl] for tl in task_labels]
+        else:
+            self.labels = []
+        self.log()
 
     def validate(self) -> None:
         """
@@ -82,7 +192,7 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
     def _get_input_df(self) -> DataFrame:
         inp = dict(
             id=self.ids,
-            text=self.text,
+            text=self.texts,
             split=self.split,
             data_schema_version=__data_schema_version__,
             **self.meta,

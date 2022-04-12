@@ -38,7 +38,7 @@ T = TypeVar("T", bound="BaseGalileoLogger")
 class BaseLoggerAttributes(str, Enum):
     """A collection of all default attributes across all loggers"""
 
-    text = "text"
+    texts = "texts"
     labels = "labels"
     ids = "ids"
     # mixin restriction on str (due to "str".split(...))

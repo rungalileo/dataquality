@@ -13,8 +13,9 @@ from dataquality.core.log import (
     docs,
     get_data_logger,
     get_model_logger,
-    log_batch_input_data,
-    log_input_data,
+    log_dataset,
+    log_input_sample,
+    log_input_samples,
     log_model_outputs,
     set_epoch,
     set_labels_for_run,
@@ -43,8 +44,7 @@ __all__ = [
     "__version__",
     "login",
     "init",
-    "log_input_data",
-    "log_batch_input_data",
+    "log_input_samples",
     "log_model_outputs",
     "config",
     "configure",
@@ -59,6 +59,8 @@ __all__ = [
     "get_run_status",
     "set_epoch",
     "set_split",
+    "log_input_sample",
+    "log_dataset",
 ]
 
 try:

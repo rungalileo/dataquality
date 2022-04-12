@@ -1,13 +1,20 @@
 import itertools
 from enum import Enum, unique
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
+import pandas as pd
 import pyarrow as pa
 import vaex
 from vaex.dataframe import DataFrame
 
 from dataquality.exceptions import GalileoException
-from dataquality.loggers.data_logger.base_data_logger import BaseGalileoDataLogger
+from dataquality.loggers.data_logger.base_data_logger import (
+    VAEX_CHUNK_SIZE,
+    BaseGalileoDataLogger,
+    D,
+    MetasType,
+    MetaType,
+)
 from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
 from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.dataframe import BaseLoggerInOutFrames
@@ -18,7 +25,7 @@ from dataquality.schemas.split import Split
 
 @unique
 class GalileoDataLoggerAttributes(str, Enum):
-    text = "text"
+    texts = "texts"
     text_token_indices = "text_token_indices"
     text_token_indices_flat = "text_token_indices_flat"
     gold_spans = "gold_spans"
@@ -65,12 +72,12 @@ class TextNERDataLogger(BaseGalileoDataLogger):
     .. code-block:: python
 
         labels = ["B-PER", "I-PER", "B-LOC", "I-LOC", "O"]
-        dataquality.set_labels_for_run(labels = labels)
+        dq.set_labels_for_run(labels = labels)
 
         # One of (IOB2, BIO, IOB, BILOU, BILOES)
-        dataquality.set_tagging_schema(tagging_schema: str = "BIO")
+        dq.set_tagging_schema(tagging_schema: str = "BIO")
 
-        text: List[str] = [
+        texts: List[str] = [
             "The president is Joe Biden",
             "Joe Biden addressed the United States on Monday"
         ]
@@ -90,8 +97,8 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         ids: List[int] = [0, 1]
         split = "training"
 
-        dataquality.log_input_data(
-            text=text, text_token_indices=text_token_indices,
+        dq.log_input_samples(
+            texts=texts, text_token_indices=text_token_indices,
             gold_spans=gold_spans, ids=ids, split=split
         )
     """
@@ -103,16 +110,16 @@ class TextNERDataLogger(BaseGalileoDataLogger):
 
     def __init__(
         self,
-        text: List[str] = None,
+        texts: List[str] = None,
         text_token_indices: List[List[Tuple[int, int]]] = None,
         gold_spans: List[List[Dict]] = None,
         ids: List[int] = None,
         split: str = None,
-        meta: Optional[Dict[str, List[Union[str, float, int]]]] = None,
+        meta: MetasType = None,
     ) -> None:
         """Create data logger.
 
-        :param text: The raw text inputs for model training. List[str]
+        :param texts: The raw text inputs for model training. List[str]
         :param text_token_indices: Token boundaries of text. List[Tuple(int, int)].
         Used to convert the gold_spans into token level spans internally.
         t[0] indicates the start index of the span and t[1] is the end index (exclusive)
@@ -124,7 +131,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         super().__init__(meta)
         # Need to compare to None because they may be np arrays which cannot be
         # evaluated with bool directly
-        self.text = text if text is not None else []
+        self.texts = texts if texts is not None else []
         self.text_token_indices = (
             text_token_indices if text_token_indices is not None else []
         )
@@ -140,6 +147,147 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         :return: List[str]
         """
         return GalileoDataLoggerAttributes.get_valid()
+
+    def log_input_samples(
+        self,
+        *,
+        texts: List[str],
+        ids: List[int],
+        text_token_indices: List[List[Tuple[int, int]]] = None,
+        gold_spans: List[List[Dict]] = None,
+        split: Optional[Split] = None,
+        meta: Optional[MetasType] = None,
+        **kwargs: Any,  # For typing
+    ) -> None:
+        """Log input samples for text classification
+
+        :param texts: List[str] text samples
+        :param ids: List[int,str] IDs for each text sample
+        :param text_token_indices: List[List[Tuple(int, int)]]. Token boundaries of each
+            text sample, 1 list per sample.
+            Used to convert the gold_spans into token level spans internally.
+            t[0] indicates the start index of the span and t[1] is the end index
+            (exclusive). Required if split is not inference
+        :param gold_spans: List[List[Dict]] The model-level gold spans over the char
+            index for each text sample. 1 List[Dict] per text sample.
+            "start", "end", "label" are the required keys
+            Required if split is not inference
+        :param ids: Optional unique indexes for each record. If not provided, will
+        :param split: train/test/validation/inference. Can be set here or via
+            dq.set_split
+        :param meta: Dict[str, List[str, int, float]]. Metadata for each text sample
+            Format is the {"metadata_field_name": [metdata value per sample]}
+        """
+        self.texts = texts
+        self.ids = ids
+        self.split = split
+        self.text_token_indices = (
+            text_token_indices if text_token_indices is not None else []
+        )
+        self.gold_spans = gold_spans if gold_spans is not None else []
+        self.meta = meta or {}
+        self.log()
+
+    def log_input_sample(
+        self,
+        *,
+        text: str,
+        id: int,
+        text_token_indices: List[Tuple[int, int]] = None,
+        gold_spans: List[Dict] = None,
+        split: Optional[Split] = None,
+        meta: Optional[MetaType] = None,
+        **kwargs: Any,
+    ) -> None:
+        """
+        Log a single input sample for text classification
+
+        :param text: str the text sample
+        :param id: The sample ID
+        :param text_token_indices: List[Tuple(int, int)]. Token boundaries of the
+            text sample. Used to convert gold_spans into token level spans internally.
+            t[0] indicates the start index of the span and t[1] is the end index
+            (exclusive). Required if split is not inference
+        :param gold_spans: List[Dict] The model-level gold spans over the char
+            index of the text sample. "start", "end", "label" are the required keys
+            Required if split is not inference
+        :param split: train/test/validation/inference. Can be set here or via
+            dq.set_split
+        :param meta: Dict[str, Union[str, int, float]]. Metadata for the text sample
+            Format is the {"metadata_field_name": metadata_field_value}
+        """
+        self.texts = [text]
+        self.ids = [id]
+        self.split = split
+        self.text_token_indices = (
+            [text_token_indices] if text_token_indices is not None else []
+        )
+        self.gold_spans = [gold_spans] if gold_spans is not None else []
+        self.meta = {i: [meta[i]] for i in meta} if meta else {}
+        self.log()
+
+    def log_dataset(
+        self,
+        dataset: D,
+        *,
+        text: Union[str, int] = "text",
+        id: Union[str, int] = "id",
+        text_token_indices: Union[str, int] = None,
+        gold_spans: Union[str, int] = None,
+        split: Optional[Split] = None,
+        meta: Optional[List[Union[str, int]]] = None,
+        **kwargs: Any,
+    ) -> None:
+        """
+        Log a dataset of input samples for text classification
+
+        :param dataset: The dataset to log. This can be an python iterable or
+            Pandas/Vaex dataframe. If an iterable, it can be a list of elements that can
+            be indexed into either via int index (tuple/list) or string/key index (dict)
+        :param text: The key/index of the text fields
+        :param id: The key/index of the id fields
+        :param text_token_indices: The key/index of the sample text_token_indices
+        :param gold_spans: The key/index of the sample gold_spans
+        :param split: train/test/validation/inference. Can be set here or via
+            dq.set_split
+        :param meta: List[str, int]: The keys/indexes of each metadata field.
+            Consider a pandas dataframe, this would be the list of columns corresponding
+            to each metadata field to log
+        """
+        self.split = split
+        meta = meta or []
+        column_map = {
+            text: "text",
+            id: "id",
+            gold_spans: "gold_spans",
+            text_token_indices: "text_token_indices",
+        }
+        if isinstance(dataset, pd.DataFrame):
+            dataset = dataset.rename(columns=column_map)
+            self._log_pandas_df(dataset, meta)
+        elif isinstance(dataset, DataFrame):
+            for chunk in range(0, len(dataset), VAEX_CHUNK_SIZE):
+                pdf = dataset[chunk : chunk + VAEX_CHUNK_SIZE].to_pandas_df()
+                pdf = pdf.rename(columns=column_map)
+                self._log_pandas_df(pdf, meta)
+        elif isinstance(dataset, Iterable):
+            df = pd.DataFrame(dataset).rename(columns=column_map)
+            self._log_pandas_df(df, meta)
+        else:
+            raise GalileoException(
+                f"Dataset must be one of pandas, vaex, or Iterable, "
+                f"but got {type(dataset)}"
+            )
+
+    def _log_pandas_df(self, df: pd.DataFrame, meta: List[Union[str, int]]) -> None:
+        """Helper to log a pandas df"""
+        self.texts = df["text"].tolist()
+        self.ids = df["id"].tolist()
+        self.text_token_indices = df["text_token_indices"].tolist()
+        self.gold_spans = df["gold_spans"].tolist()
+        for meta_col in meta:
+            self.meta[str(meta_col)] = df[meta_col].tolist()
+        self.log()
 
     def validate(self) -> None:
         """
@@ -163,7 +311,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         )
 
         text_tokenized_len = len(self.text_token_indices)
-        text_len = len(self.text)
+        text_len = len(self.texts)
         gold_span_len = len(self.gold_spans)
         id_len = len(self.ids)
 
@@ -190,7 +338,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             )
 
         for sample_id, sample_spans, sample_indices, sample_text in zip(
-            self.ids, self.gold_spans, self.text_token_indices, self.text
+            self.ids, self.gold_spans, self.text_token_indices, self.texts
         ):
             self._validate_sample_spans(sample_spans, sample_indices, sample_text)
 
@@ -306,11 +454,11 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         This function will be used for the sentence level, as that enables the parent's
         `log()` function to behave exactly as expected.
         """
-        df_len = len(self.text)
+        df_len = len(self.texts)
         inp = dict(
             id=self.ids,
             split=[Split(self.split).value] * df_len,
-            text=self.text,
+            text=self.texts,
             text_token_indices=pa.array(self.text_token_indices_flat),
             data_schema_version=[__data_schema_version__] * df_len,
             **self.meta,

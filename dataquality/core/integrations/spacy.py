@@ -38,7 +38,7 @@ def log_input_examples(examples: List[Example], split: Split) -> None:
             "Galileo does not have any logged labels. Did you forget "
             "to call watch(nlp) before log_input_examples(...)?"
         )
-    text = []
+    texts = []
     text_token_indices = []
     gold_spans = []
     ids = []
@@ -48,7 +48,7 @@ def log_input_examples(examples: List[Example], split: Split) -> None:
         data = example.reference
         # but predicted is the Doc that will be passed along to the spacy models, and
         # crucially holds the "id" user_data we attach
-        text.append(data.text)
+        texts.append(data.text)
         text_token_indices.append(
             [(token.idx, token.idx + len(token)) for token in data]
         )
@@ -62,8 +62,8 @@ def log_input_examples(examples: List[Example], split: Split) -> None:
         # The predicted doc is the one that the model will see
         example.predicted.user_data["id"] = i
         ids.append(i)
-    dataquality.log_input_data(
-        text=text,
+    dataquality.log_input_samples(
+        texts=texts,
         text_token_indices=text_token_indices,
         gold_spans=gold_spans,
         ids=ids,

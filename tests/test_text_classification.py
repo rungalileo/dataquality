@@ -17,16 +17,18 @@ def test_duplicate_rows(set_test_config, cleanup_after_use) -> None:
     gold = ["A", "C", "B", "A", "C"]
     ids = [0, 1, 2, 3, 4]
 
-    dq.log_input_data(text=text_inputs, labels=gold, split="validation", ids=ids)
-    dq.log_input_data(text=text_inputs, labels=gold, split="training", ids=ids)
+    dq.log_input_samples(texts=text_inputs, labels=gold, split="validation", ids=ids)
+    dq.log_input_samples(texts=text_inputs, labels=gold, split="training", ids=ids)
 
     with pytest.raises(GalileoException):
-        dq.log_input_data(text=text_inputs, labels=gold, split="validation", ids=ids)
+        dq.log_input_samples(
+            texts=text_inputs, labels=gold, split="validation", ids=ids
+        )
 
-    dq.log_input_data(text=text_inputs, labels=gold, split="test", ids=ids)
+    dq.log_input_samples(texts=text_inputs, labels=gold, split="test", ids=ids)
 
     with pytest.raises(GalileoException):
-        dq.log_input_data(text=text_inputs, labels=gold, split="training", ids=ids)
+        dq.log_input_samples(texts=text_inputs, labels=gold, split="training", ids=ids)
 
 
 def test_duplicate_output_rows(set_test_config, cleanup_after_use) -> None:
@@ -41,8 +43,8 @@ def test_duplicate_output_rows(set_test_config, cleanup_after_use) -> None:
     gold = ["A", "C", "B", "A", "C"]
     ids = list(range(5))
 
-    dq.log_input_data(text=text_inputs, labels=gold, split="validation", ids=ids)
-    dq.log_input_data(text=text_inputs, labels=gold, split="training", ids=ids)
+    dq.log_input_samples(texts=text_inputs, labels=gold, split="validation", ids=ids)
+    dq.log_input_samples(texts=text_inputs, labels=gold, split="training", ids=ids)
 
     emb = np.random.rand(5, 100)
     logits = np.random.rand(5, 100)

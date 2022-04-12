@@ -1,10 +1,11 @@
 import os
 import warnings
 from abc import abstractmethod
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Tuple, TypeVar, Union
 from uuid import uuid4
 
 import numpy as np
+import pandas as pd
 import pyarrow as pa
 import vaex
 from vaex.dataframe import DataFrame
@@ -28,6 +29,10 @@ from dataquality.utils.vaex import (
 )
 
 DATA_FOLDERS = ["emb", "prob", "data"]
+D = TypeVar("D", bound=Union[Iterable, pd.DataFrame, DataFrame])
+MetasType = TypeVar("MetasType", bound=Dict[str, List[Union[str, float, int]]])
+MetaType = TypeVar("MetaType", bound=Dict[str, Union[str, float, int]])
+VAEX_CHUNK_SIZE = 20_000
 
 
 class BaseGalileoDataLogger(BaseGalileoLogger):
@@ -37,11 +42,32 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
     DATA_FOLDER_EXTENSION = {data_folder: "hdf5" for data_folder in DATA_FOLDERS}
 
-    def __init__(
-        self, meta: Optional[Dict[str, List[Union[str, float, int]]]] = None
-    ) -> None:
+    def __init__(self, meta: MetasType = None) -> None:
         super().__init__()
-        self.meta: Dict[str, Any] = meta or {}
+        self.meta: Dict = meta or {}
+
+    @abstractmethod
+    def log_input_sample(self, *, text: str, id: int, **kwargs: Any) -> None:
+        """Log a single input sample. See child for details"""
+
+    @abstractmethod
+    def log_input_samples(
+        self, *, texts: List[str], ids: List[int], **kwargs: Any
+    ) -> None:
+        """Log a list of input samples. See child for details"""
+
+    @abstractmethod
+    def log_dataset(
+        self,
+        dataset: D,
+        *,
+        text: Union[str, int] = "text",
+        id: Union[str, int] = "id",
+        **kwargs: Any,
+    ) -> None:
+        """Log a dataset/iterable of input samples.
+
+        Provide the dataset and the keys to index into it. See child for details"""
 
     def log(self) -> None:
         """Writes input data to disk in .galileo/logs
