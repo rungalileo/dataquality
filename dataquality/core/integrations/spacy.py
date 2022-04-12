@@ -62,7 +62,7 @@ def log_input_examples(examples: List[Example], split: Split) -> None:
         # The predicted doc is the one that the model will see
         example.predicted.user_data["id"] = i
         ids.append(i)
-    dataquality.log_input_samples(
+    dataquality.log_data_samples(
         texts=texts,
         text_token_indices=text_token_indices,
         gold_spans=gold_spans,

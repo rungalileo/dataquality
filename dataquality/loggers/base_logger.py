@@ -3,7 +3,7 @@ import shutil
 from abc import abstractmethod
 from enum import Enum, unique
 from glob import glob
-from typing import List, Optional, Type, TypeVar, Union
+from typing import Any, List, Optional, Type, TypeVar, Union
 
 import numpy as np
 
@@ -154,6 +154,26 @@ class BaseGalileoLogger:
             elif attr == "Labels" and config.task_type == TaskType.text_multi_label:
                 arr = np.array(arr, dtype=object)
         return np.array(arr)
+
+    @staticmethod
+    def _convert_tensor_to_py(v: Any) -> Union[str, int]:
+        """Converts pytorch and tensorflow tensors to strings or ints"""
+        if TF_AVAILABLE:
+            if isinstance(v, tf.Tensor):
+                v = v.numpy()
+                if isinstance(v, bytes):
+                    v = v.decode("utf-8")
+                else:
+                    v = int(v)
+        if TORCH_AVAILABLE:
+            if isinstance(v, Tensor):
+                v = int(v.numpy())  # Torch tensors cannot hold strings
+        if not isinstance(v, (int, str)):
+            raise GalileoException(
+                f"Logged data should be of type int, string, pytorch tensor, "
+                f"or tf tensor, but got {type(v)}"
+            )
+        return v
 
     @staticmethod
     def validate_task(task_type: Union[str, TaskType]) -> None:

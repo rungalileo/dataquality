@@ -1,5 +1,6 @@
+from collections import defaultdict
 from enum import Enum, unique
-from typing import Any, Iterable, List, Optional, Tuple, Union
+from typing import Any, DefaultDict, Dict, Iterable, List, Optional, Tuple, Union
 
 import pandas as pd
 import vaex
@@ -7,7 +8,7 @@ from vaex.dataframe import DataFrame
 
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger.base_data_logger import (
-    VAEX_CHUNK_SIZE,
+    ITER_CHUNK_SIZE,
     BaseGalileoDataLogger,
     D,
     MetasType,
@@ -18,6 +19,7 @@ from dataquality.loggers.logger_config.text_classification import (
 )
 from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.split import Split
+from dataquality.utils.vaex import rename_df
 
 
 @unique
@@ -96,7 +98,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         self.split = split
         self.inference_name = inference_name
 
-    def log_input_samples(
+    def log_data_samples(
         self,
         *,
         texts: List[str],
@@ -141,7 +143,6 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
 
             dq.log_input_samples(texts=texts, labels=labels, ids=ids, split=split)
         """
-        print("text c log")
         self.texts = texts
         self.ids = ids
         self.split = split
@@ -150,7 +151,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         self.meta = meta or {}
         self.log()
 
-    def log_input_sample(
+    def log_data_sample(
         self,
         *,
         text: str,
@@ -214,25 +215,71 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         self.split = split
         self.inference_name = inference_name
         meta = meta or []
-        column_map = {text: "text", id: "id", label: "label"}
+        column_map = {text: "text", id: "id"}
+        if label:
+            column_map[label] = "label"
         if isinstance(dataset, pd.DataFrame):
             dataset = dataset.rename(columns=column_map)
-            self._log_pandas_df(dataset, meta)
+            self._log_vaex_df(dataset, meta)
         elif isinstance(dataset, DataFrame):
-            for chunk in range(0, len(dataset), VAEX_CHUNK_SIZE):
-                pdf = dataset[chunk : chunk + VAEX_CHUNK_SIZE].to_pandas_df()
-                pdf = pdf.rename(columns=column_map)
-                self._log_pandas_df(pdf, meta)
+            for chunk in range(0, len(dataset), ITER_CHUNK_SIZE):
+                chunk_df = dataset[chunk : chunk + ITER_CHUNK_SIZE]
+                chunk_df = rename_df(chunk_df, column_map)
+                self._log_vaex_df(chunk_df, meta)
         elif isinstance(dataset, Iterable):
-            df = pd.DataFrame(dataset).rename(columns=column_map)
-            self._log_pandas_df(df, meta)
+            self._log_iterator(dataset, text, id, meta, label, split, inference_name)
         else:
             raise GalileoException(
                 f"Dataset must be one of pandas, vaex, or Iterable, "
                 f"but got {type(dataset)}"
             )
 
-    def _log_pandas_df(self, df: pd.DataFrame, meta: List[Union[str, int]]) -> None:
+    def _log_iterator(
+        self,
+        dataset: Iterable,
+        text: Union[str, int],
+        id: Union[str, int],
+        meta: List[Union[str, int]],
+        label: Union[str, int] = None,
+        split: Split = None,
+        inference_name: str = None,
+    ) -> None:
+        batches = defaultdict(list)
+        metas = defaultdict(list)
+        for chunk in dataset:
+            batches["text"].append(self._convert_tensor_to_py(chunk[text]))
+            batches["id"].append(self._convert_tensor_to_py(chunk[id]))
+            if label:
+                batches = self._process_label(batches, chunk[label])
+            for meta_col in meta:
+                metas[meta_col].append(self._convert_tensor_to_py(chunk[meta_col]))
+
+            if len(batches["text"]) >= ITER_CHUNK_SIZE:
+                self._log_dict(batches, metas, split, inference_name)
+                batches.clear()
+                metas.clear()
+        # in case there are any left
+        if batches:
+            self._log_dict(batches, metas, split, inference_name)
+
+    def _process_label(self, batches: DefaultDict, label: Any) -> DefaultDict:
+        """Process label for text-classification and multi-label accordingly"""
+        batches["label"].append(self._convert_tensor_to_py(label))
+        return batches
+
+    def _log_dict(
+        self, d: Dict, meta: Dict, split: Split = None, inference_name: str = None
+    ) -> None:
+        self.log_data_samples(
+            texts=d["text"],
+            labels=d["label"],
+            ids=d["id"],
+            split=split,
+            inference_name=inference_name,
+            meta=meta,
+        )
+
+    def _log_vaex_df(self, df: DataFrame, meta: List[Union[str, int]]) -> None:
         """Helper to log a pandas df"""
         self.texts = df["text"].tolist()
         self.ids = df["id"].tolist()

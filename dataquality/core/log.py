@@ -18,7 +18,7 @@ def add_doc(doc: str) -> Callable:
     return _doc
 
 
-def log_input_samples(*, texts: List[str], ids: List[int], **kwargs: Any) -> None:
+def log_data_samples(*, texts: List[str], ids: List[int], **kwargs: Any) -> None:
     """Logs a batch of input samples for model training/test/validation/inference.
 
     Fields are expected as lists of their content. Field names are in the plural of
@@ -29,17 +29,17 @@ def log_input_samples(*, texts: List[str], ids: List[int], **kwargs: Any) -> Non
     assert all(
         [config.task_type, config.current_project_id, config.current_run_id]
     ), "You must call dataquality.init before logging data"
-    data_logger = get_data_logger()()
-    data_logger.log_input_samples(texts=texts, ids=ids, **kwargs)
+    data_logger = get_data_logger()
+    data_logger.log_data_samples(texts=texts, ids=ids, **kwargs)
 
 
-def log_input_sample(*, text: str, id: int, **kwargs: Any) -> None:
+def log_data_sample(*, text: str, id: int, **kwargs: Any) -> None:
     """Log a single input example to disk"""
     assert all(
         [config.task_type, config.current_project_id, config.current_run_id]
     ), "You must call dataquality.init before logging data"
-    data_logger = get_data_logger()()
-    data_logger.log_input_sample(text=text, id=id, **kwargs)
+    data_logger = get_data_logger()
+    data_logger.log_data_sample(text=text, id=id, **kwargs)
 
 
 def log_dataset(
@@ -51,12 +51,41 @@ def log_dataset(
 ) -> None:
     """Log an iterable or other dataset to disk.
 
+    Dataset provided must be an either a pandas or vaex dataframe, or an iterable that
+    can be traversed row by row, and for each row, the fields can be indexed into
+    either via string keys or int indexes.
+
+    valid examples:
+        d = [
+            {"my_text": "sample1", "my_labels": "A", "my_id": 1},
+            {"my_text": "sample2", "my_labels": "A", "my_id": 2},
+            {"my_text": "sample3", "my_labels": "B", "my_id": 3},
+        ]
+        dq.log_dataset(d, text="my_text", id="my_id", label="my_labels")
+        Another:
+        d = [
+            ("sample1", "A", "ID1"),
+            ("sample2", "A", "ID2"),
+            ("sample3", "B", "ID3"),
+        ]
+        dq.log_dataset(d, text=0, id=2, label=1)
+    invalid example:
+        d = {
+            "my_text": ["sample1", "sample2", "sample3"],
+            "my_labels": ["A", "A", "B"],
+            "my_id": [1, 2, 3],
+        }
+
+    In the invalid case, use log_data_samples:
+        dq.log_data_samples(texts=d["my_text"], labels=d["my_labels"], ids=d["my_ids"])
+
+
     Keyword arguments are specific to the task type. See dq.docs() for details
     """
     assert all(
         [config.task_type, config.current_project_id, config.current_run_id]
     ), "You must call dataquality.init before logging data"
-    data_logger = get_data_logger()()
+    data_logger = get_data_logger()
     data_logger.log_dataset(dataset, text=text, id=id, **kwargs)
 
 
@@ -116,9 +145,9 @@ def get_model_logger(task_type: TaskType = None) -> Type[BaseGalileoModelLogger]
     return BaseGalileoModelLogger.get_logger(task_type)
 
 
-def get_data_logger(task_type: TaskType = None) -> Type[BaseGalileoDataLogger]:
+def get_data_logger(task_type: TaskType = None) -> BaseGalileoDataLogger:
     task_type = _get_task_type(task_type)
-    return BaseGalileoDataLogger.get_logger(task_type)
+    return BaseGalileoDataLogger.get_logger(task_type)()
 
 
 def _get_task_type(task_type: TaskType = None) -> TaskType:

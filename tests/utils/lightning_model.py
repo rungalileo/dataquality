@@ -45,7 +45,7 @@ class NewsgroupDataset(torch.utils.data.Dataset):
         self.dataset["text"] = newsgroups.data
         self.dataset["label"] = newsgroups.target
         self.dataset = self.dataset[:NUM_RECORDS]
-        self.glogger = dataquality.get_data_logger()()
+        self.glogger = dataquality.get_data_logger()
 
         # Shuffle some percentage of the training dataset
         # to force create mislabeled samples

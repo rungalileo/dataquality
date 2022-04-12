@@ -1,5 +1,5 @@
 import warnings
-from typing import Any, List, Optional
+from typing import Any, DefaultDict, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -100,7 +100,7 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
         else:
             self.labels = []
 
-    def log_input_sample(
+    def log_data_sample(
         self,
         *,
         text: str,
@@ -136,7 +136,7 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
         self.meta = {i: [meta[i]] for i in meta} if meta else {}
         self.log()
 
-    def log_input_samples(
+    def log_data_samples(
         self,
         *,
         texts: List[str],
@@ -170,6 +170,23 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
         else:
             self.labels = []
         self.log()
+
+    def _process_label(self, batches: DefaultDict, label: Any) -> DefaultDict:
+        """In multi-label, label will be a list of strings instead of a string"""
+        batches["label"].append(self._convert_tensor_ndarray(label).tolist())
+        return batches
+
+    def _log_dict(
+        self, d: Dict, meta: Dict, split: Split = None, inference_name: str = None
+    ) -> None:
+        self.log_data_samples(
+            texts=d["text"],
+            task_labels=d["label"],
+            ids=d["id"],
+            split=split,
+            inference_name=inference_name,
+            meta=meta,
+        )
 
     def validate(self) -> None:
         """

@@ -32,7 +32,7 @@ DATA_FOLDERS = ["emb", "prob", "data"]
 D = TypeVar("D", bound=Union[Iterable, pd.DataFrame, DataFrame])
 MetasType = TypeVar("MetasType", bound=Dict[str, List[Union[str, float, int]]])
 MetaType = TypeVar("MetaType", bound=Dict[str, Union[str, float, int]])
-VAEX_CHUNK_SIZE = 20_000
+ITER_CHUNK_SIZE = 20_000
 
 
 class BaseGalileoDataLogger(BaseGalileoLogger):
@@ -47,11 +47,11 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         self.meta: Dict = meta or {}
 
     @abstractmethod
-    def log_input_sample(self, *, text: str, id: int, **kwargs: Any) -> None:
+    def log_data_sample(self, *, text: str, id: int, **kwargs: Any) -> None:
         """Log a single input sample. See child for details"""
 
     @abstractmethod
-    def log_input_samples(
+    def log_data_samples(
         self, *, texts: List[str], ids: List[int], **kwargs: Any
     ) -> None:
         """Log a list of input samples. See child for details"""

@@ -119,3 +119,23 @@ LABELS = [
     "I-REVIEW",
     "I-YEAR",
 ]
+
+NER_INPUT_DATA = {
+    "my_text": TEXT_INPUTS,
+    "my_spans": GOLD_SPANS,
+    "my_id": list(range(len(TEXT_TOKENS))),
+    "text_tokens": TEXT_TOKENS,
+}
+
+NER_INPUT_ITER = [
+    {
+        "my_text": NER_INPUT_DATA["my_text"][i],
+        "my_spans": NER_INPUT_DATA["my_spans"][i],
+        "my_id": NER_INPUT_DATA["my_id"][i],
+        "text_tokens": NER_INPUT_DATA["text_tokens"][i],
+    }
+    for i in list(range(len(TEXT_TOKENS)))
+]
+
+NER_INPUT_TUPLES = list(zip(TEXT_INPUTS, GOLD_SPANS, list(range(5)), TEXT_TOKENS))
+NER_INPUT_TUPLES = [tuple(i) for i in NER_INPUT_TUPLES]

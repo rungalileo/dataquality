@@ -1,6 +1,9 @@
-from typing import Callable
+from itertools import chain
+from typing import Any, Callable
+from unittest import mock
 
 import numpy as np
+import pandas as pd
 import pytest
 import vaex
 
@@ -12,7 +15,15 @@ from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.conftest import TEST_PATH
-from tests.utils.ner_constants import GOLD_SPANS, LABELS, TEXT_INPUTS, TEXT_TOKENS
+from tests.utils.ner_constants import (
+    GOLD_SPANS,
+    LABELS,
+    NER_INPUT_DATA,
+    NER_INPUT_ITER,
+    NER_INPUT_TUPLES,
+    TEXT_INPUTS,
+    TEXT_TOKENS,
+)
 
 model_logger = TextNERModelLogger()
 
@@ -287,7 +298,7 @@ def test_ner_logging_bad_inputs(set_test_config: Callable, cleanup_after_use) ->
 
     # Handle spans that don't align with token boundaries
     with pytest.raises(AssertionError):
-        dataquality.log_input_samples(
+        dataquality.log_data_samples(
             texts=text_inputs,
             text_token_indices=token_boundaries_all,
             gold_spans=gold_spans,
@@ -307,7 +318,7 @@ def test_ner_logging_bad_inputs(set_test_config: Callable, cleanup_after_use) ->
     ]
     # Handle spans that don't align with token boundaries
     with pytest.raises(AssertionError):
-        dataquality.log_input_samples(
+        dataquality.log_data_samples(
             texts=text_inputs,
             text_token_indices=token_boundaries_all,
             gold_spans=gold_spans,
@@ -363,7 +374,7 @@ def test_ner_logging(cleanup_after_use: Callable, set_test_config: Callable) -> 
     ids = [0, 1, 2]
     split = "training"
 
-    dataquality.log_input_samples(
+    dataquality.log_data_samples(
         texts=text_inputs,
         text_token_indices=token_boundaries_all,
         gold_spans=gold_spans,
@@ -471,7 +482,7 @@ def test_ner_logging(cleanup_after_use: Callable, set_test_config: Callable) -> 
     # Test with logits
     c._cleanup()
     dataquality.set_labels_for_run(labels)
-    dataquality.log_input_samples(
+    dataquality.log_data_samples(
         texts=text_inputs,
         text_token_indices=token_boundaries_all,
         gold_spans=gold_spans,
@@ -522,7 +533,7 @@ def test_duplicate_rows(set_test_config, cleanup_after_use) -> None:
     dataquality.set_labels_for_run(LABELS)
     dataquality.set_tagging_schema("BIO")
 
-    dataquality.log_input_samples(
+    dataquality.log_data_samples(
         texts=TEXT_INPUTS,
         text_token_indices=TEXT_TOKENS,
         ids=ids,
@@ -530,7 +541,7 @@ def test_duplicate_rows(set_test_config, cleanup_after_use) -> None:
         split="validation",
     )
 
-    dataquality.log_input_samples(
+    dataquality.log_data_samples(
         texts=TEXT_INPUTS,
         text_token_indices=TEXT_TOKENS,
         ids=ids,
@@ -539,7 +550,7 @@ def test_duplicate_rows(set_test_config, cleanup_after_use) -> None:
     )
 
     with pytest.raises(GalileoException):
-        dataquality.log_input_samples(
+        dataquality.log_data_samples(
             texts=TEXT_INPUTS,
             text_token_indices=TEXT_TOKENS,
             ids=ids,
@@ -547,7 +558,7 @@ def test_duplicate_rows(set_test_config, cleanup_after_use) -> None:
             split="validation",
         )
 
-    dataquality.log_input_samples(
+    dataquality.log_data_samples(
         texts=TEXT_INPUTS,
         text_token_indices=TEXT_TOKENS,
         ids=ids,
@@ -556,7 +567,7 @@ def test_duplicate_rows(set_test_config, cleanup_after_use) -> None:
     )
 
     with pytest.raises(GalileoException):
-        dataquality.log_input_samples(
+        dataquality.log_data_samples(
             texts=TEXT_INPUTS,
             text_token_indices=TEXT_TOKENS,
             ids=ids,
@@ -573,7 +584,7 @@ def test_duplicate_output_rows(set_test_config, cleanup_after_use) -> None:
     dataquality.set_labels_for_run(LABELS)
     dataquality.set_tagging_schema("BIO")
 
-    dataquality.log_input_samples(
+    dataquality.log_data_samples(
         texts=TEXT_INPUTS,
         text_token_indices=TEXT_TOKENS,
         ids=ids,
@@ -581,7 +592,7 @@ def test_duplicate_output_rows(set_test_config, cleanup_after_use) -> None:
         split="validation",
     )
 
-    dataquality.log_input_samples(
+    dataquality.log_data_samples(
         texts=TEXT_INPUTS,
         text_token_indices=TEXT_TOKENS,
         ids=ids,
@@ -603,3 +614,65 @@ def test_duplicate_output_rows(set_test_config, cleanup_after_use) -> None:
         dataquality.get_data_logger().upload()
 
     assert str(e.value).startswith("It seems as though you have duplicate spans")
+
+
+@pytest.mark.parametrize(
+    "dataset",
+    [
+        pd.DataFrame(NER_INPUT_DATA),
+        vaex.from_dict(NER_INPUT_DATA),
+        NER_INPUT_ITER,
+    ],
+)
+def test_log_dataset(
+    dataset: Any, set_test_config: Callable, cleanup_after_use: Callable
+) -> None:
+    logger = TextNERDataLogger()
+
+    with mock.patch("dataquality.core.log.get_data_logger") as mock_method:
+        mock_method.return_value = logger
+        dataquality.log_dataset(
+            dataset,
+            text="my_text",
+            gold_spans="my_spans",
+            id="my_id",
+            text_token_indices="text_tokens",
+            split="train",
+        )
+
+        assert logger.texts == TEXT_INPUTS
+        assert logger.gold_spans == GOLD_SPANS
+        # We delete it on successful log
+        assert not hasattr(logger, "text_token_indices")
+        flattened_input = [list(chain(*ind)) for ind in TEXT_TOKENS]
+        assert logger.text_token_indices_flat == flattened_input
+        assert logger.ids == list(range(5))
+        assert logger.split == Split.training
+
+
+@pytest.mark.parametrize(
+    "dataset",
+    [
+        NER_INPUT_TUPLES,
+    ],
+)
+def test_log_dataset_tuple(
+    dataset: Any, set_test_config: Callable, cleanup_after_use: Callable
+) -> None:
+    logger = TextNERDataLogger()
+
+    with mock.patch("dataquality.core.log.get_data_logger") as mock_method:
+        mock_method.return_value = logger
+
+        dataquality.log_dataset(
+            dataset, text=0, gold_spans=1, id=2, text_token_indices=3, split="train"
+        )
+
+        assert logger.texts == TEXT_INPUTS
+        assert logger.gold_spans == GOLD_SPANS
+        # We delete it on successful log
+        assert not hasattr(logger, "text_token_indices")
+        flattened_input = [list(chain(*ind)) for ind in TEXT_TOKENS]
+        assert logger.text_token_indices_flat == flattened_input
+        assert logger.ids == list(range(5))
+        assert logger.split == Split.training

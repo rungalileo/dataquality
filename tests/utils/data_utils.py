@@ -129,7 +129,7 @@ def _log_text_classification_data(
             dataquality.set_labels_for_run([str(i) for i in range(len(set(labels)))])
         dataquality.set_split(split)
         func = partial(
-            dataquality.log_input_samples,
+            dataquality.log_data_samples,
             texts=dataset["text"],
             ids=list(range(len(dataset))),
             meta=meta,
