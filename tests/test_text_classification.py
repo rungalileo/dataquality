@@ -9,7 +9,7 @@ import vaex
 
 import dataquality as dq
 from dataquality.exceptions import GalileoException
-from dataquality.loggers.data_logger.base_data_logger import D
+from dataquality.loggers.data_logger.base_data_logger import DataSet
 from dataquality.loggers.data_logger.text_classification import (
     TextClassificationDataLogger,
 )
@@ -113,7 +113,7 @@ def test_log_data_sample(
     ],
 )
 def test_log_dataset(
-    dataset: D, set_test_config: Callable, cleanup_after_use: Callable
+    dataset: DataSet, set_test_config: Callable, cleanup_after_use: Callable
 ) -> None:
     logger = TextClassificationDataLogger()
 
@@ -147,7 +147,7 @@ def test_log_dataset(
     ],
 )
 def test_log_dataset_tuple(
-    dataset: D, set_test_config: Callable, cleanup_after_use: Callable
+    dataset: DataSet, set_test_config: Callable, cleanup_after_use: Callable
 ) -> None:
     logger = TextClassificationDataLogger()
 
@@ -158,4 +158,29 @@ def test_log_dataset_tuple(
         assert logger.texts == ["sample1", "sample2", "sample3"]
         assert logger.labels == ["A", "A", "B"]
         assert logger.ids == ["ID1", "ID2", "ID3"]
+        assert logger.split == Split.training
+
+
+@pytest.mark.parametrize(
+    "dataset",
+    [
+        [
+            {"text": "sample1", "label": "A", "id": 1},
+            {"text": "sample2", "label": "A", "id": 2},
+            {"text": "sample3", "label": "B", "id": 3},
+        ],
+    ],
+)
+def test_log_dataset_default(
+    dataset: DataSet, set_test_config: Callable, cleanup_after_use: Callable
+) -> None:
+    """Tests that the default keys work as expected when not passed in"""
+    logger = TextClassificationDataLogger()
+    with mock.patch("dataquality.core.log.get_data_logger") as mock_method:
+        mock_method.return_value = logger
+        dq.log_dataset(dataset, split="train")
+
+        assert logger.texts == ["sample1", "sample2", "sample3"]
+        assert logger.labels == ["A", "A", "B"]
+        assert logger.ids == [1, 2, 3]
         assert logger.split == Split.training

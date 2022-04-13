@@ -12,7 +12,7 @@ from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger.base_data_logger import (
     ITER_CHUNK_SIZE,
     BaseGalileoDataLogger,
-    D,
+    DataSet,
     MetasType,
     MetaType,
 )
@@ -230,7 +230,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
 
     def log_dataset(
         self,
-        dataset: D,
+        dataset: DataSet,
         *,
         text: Union[str, int] = "text",
         id: Union[str, int] = "id",

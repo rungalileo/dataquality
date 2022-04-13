@@ -9,7 +9,7 @@ import vaex
 
 import dataquality
 from dataquality.exceptions import GalileoException
-from dataquality.loggers.data_logger.base_data_logger import D
+from dataquality.loggers.data_logger.base_data_logger import DataSet
 from dataquality.loggers.data_logger.text_ner import TextNERDataLogger
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
 from dataquality.schemas.split import Split
@@ -654,7 +654,7 @@ def test_log_data_sample(
     ],
 )
 def test_log_dataset(
-    dataset: D, set_test_config: Callable, cleanup_after_use: Callable
+    dataset: DataSet, set_test_config: Callable, cleanup_after_use: Callable
 ) -> None:
     set_test_config(task_type="text_ner")
     dataquality.set_labels_for_run(LABELS)
@@ -689,7 +689,7 @@ def test_log_dataset(
     ],
 )
 def test_log_dataset_tuple(
-    dataset: D, set_test_config: Callable, cleanup_after_use: Callable
+    dataset: DataSet, set_test_config: Callable, cleanup_after_use: Callable
 ) -> None:
     set_test_config(task_type="text_ner")
     dataquality.set_labels_for_run(LABELS)

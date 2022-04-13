@@ -10,7 +10,7 @@ from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger.base_data_logger import (
     ITER_CHUNK_SIZE,
     BaseGalileoDataLogger,
-    D,
+    DataSet,
     MetasType,
     MetaType,
 )
@@ -185,11 +185,11 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
 
     def log_dataset(
         self,
-        dataset: D,
+        dataset: DataSet,
         *,
         text: Union[str, int] = "text",
         id: Union[str, int] = "id",
-        label: Optional[Union[str, int]] = None,
+        label: Optional[Union[str, int]] = "label",
         split: Optional[Split] = None,
         inference_name: Optional[str] = None,
         meta: Optional[List[Union[str, int]]] = None,
@@ -216,6 +216,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         self.inference_name = inference_name
         meta = meta or []
         column_map = {text: "text", id: "id"}
+        label = None if split == Split.inference else label
         if label:
             column_map[label] = "label"
         if isinstance(dataset, pd.DataFrame):

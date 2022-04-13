@@ -8,7 +8,7 @@ import vaex
 
 import dataquality as dq
 from dataquality.exceptions import GalileoException
-from dataquality.loggers.data_logger.base_data_logger import D
+from dataquality.loggers.data_logger.base_data_logger import DataSet
 from dataquality.loggers.data_logger.text_multi_label import TextMultiLabelDataLogger
 from dataquality.schemas.split import Split
 
@@ -115,7 +115,7 @@ def test_log_data_sample(
     ],
 )
 def test_log_dataset(
-    dataset: D, set_test_config: Callable, cleanup_after_use: Callable
+    dataset: DataSet, set_test_config: Callable, cleanup_after_use: Callable
 ) -> None:
     logger = TextMultiLabelDataLogger()
 

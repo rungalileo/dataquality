@@ -3,7 +3,7 @@ from typing import Any, Callable, List, Optional, Type, Union
 from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
-from dataquality.loggers.data_logger.base_data_logger import D
+from dataquality.loggers.data_logger.base_data_logger import DataSet
 from dataquality.loggers.model_logger import BaseGalileoModelLogger
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
@@ -43,10 +43,11 @@ def log_data_sample(*, text: str, id: int, **kwargs: Any) -> None:
 
 
 def log_dataset(
-    dataset: D,
+    dataset: DataSet,
     *,
     text: Union[str, int] = "text",
     id: Union[str, int] = "id",
+    label: Union[str, int] = "label",
     **kwargs: Any,
 ) -> None:
     """Log an iterable or other dataset to disk.
@@ -86,7 +87,7 @@ def log_dataset(
         [config.task_type, config.current_project_id, config.current_run_id]
     ), "You must call dataquality.init before logging data"
     data_logger = get_data_logger()
-    data_logger.log_dataset(dataset, text=text, id=id, **kwargs)
+    data_logger.log_dataset(dataset, text=text, id=id, label=label, **kwargs)
 
 
 def log_model_outputs(**kwargs: Any) -> None:

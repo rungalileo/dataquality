@@ -29,7 +29,7 @@ from dataquality.utils.vaex import (
 )
 
 DATA_FOLDERS = ["emb", "prob", "data"]
-D = TypeVar("D", bound=Union[Iterable, pd.DataFrame, DataFrame])
+DataSet = TypeVar("DataSet", bound=Union[Iterable, pd.DataFrame, DataFrame])
 MetasType = TypeVar("MetasType", bound=Dict[str, List[Union[str, float, int]]])
 MetaType = TypeVar("MetaType", bound=Dict[str, Union[str, float, int]])
 ITER_CHUNK_SIZE = 20_000
@@ -59,7 +59,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     @abstractmethod
     def log_dataset(
         self,
-        dataset: D,
+        dataset: DataSet,
         *,
         text: Union[str, int] = "text",
         id: Union[str, int] = "id",
