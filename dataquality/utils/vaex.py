@@ -222,3 +222,11 @@ def filter_df(df: DataFrame, col_name: str, value: str) -> DataFrame:
     df_slice = drop_empty_columns(df_slice)
     # Remove the mask, work with only the filtered rows
     return df_slice.extract()
+
+
+def rename_df(df: DataFrame, columns: Dict) -> DataFrame:
+    """Renames a vaex df using a mapping"""
+    df_copy = df.copy()
+    for old, new in columns.items():
+        df_copy.rename(old, new)
+    return df_copy

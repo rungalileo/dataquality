@@ -45,7 +45,8 @@ test = [
     "scikit-learn==1.0",
     "pytorch-lightning==1.4.9",
     "torch==1.9.1",
-    "transformers==4.11.3"
+    "transformers==4.11.3",
+    "tensorflow==2.8.0"
 ]
 dev = [
     "flake8==3.9.2",

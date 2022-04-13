@@ -67,14 +67,14 @@ if __name__ == "__main__":
     )
 
     t_start = time.time()
-    dataquality.log_input_data(
-        text=train_dataset["text"],
+    dataquality.log_data_samples(
+        texts=train_dataset["text"],
         labels=train_dataset["label"],
         ids=train_dataset["id"],
         split="train",
     )
-    dataquality.log_input_data(
-        text=test_dataset["text"],
+    dataquality.log_data_samples(
+        texts=test_dataset["text"],
         labels=test_dataset["label"],
         ids=test_dataset["id"],
         split="test",
