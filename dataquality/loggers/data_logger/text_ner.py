@@ -180,6 +180,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         :param meta: Dict[str, List[str, int, float]]. Metadata for each text sample
             Format is the {"metadata_field_name": [metdata value per sample]}
         """
+        self.validate_kwargs(kwargs)
         self.texts = texts
         self.ids = ids
         self.split = split
@@ -218,6 +219,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         :param meta: Dict[str, Union[str, int, float]]. Metadata for the text sample
             Format is the {"metadata_field_name": metadata_field_value}
         """
+        self.validate_kwargs(kwargs)
         self.texts = [text]
         self.ids = [id]
         self.split = split
@@ -256,6 +258,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             Consider a pandas dataframe, this would be the list of columns corresponding
             to each metadata field to log
         """
+        self.validate_kwargs(kwargs)
         self.split = split
         meta = meta or []
         column_map = {

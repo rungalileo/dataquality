@@ -339,6 +339,11 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     ) -> Tuple[DataFrame, DataFrame, DataFrame]:
         ...
 
+    def validate_kwargs(self, kwargs: Dict) -> None:
+        """Raises if a function that shouldn't get kwargs gets any"""
+        if kwargs.keys():
+            raise GalileoException(f"Unexpected arguments: {tuple(kwargs.keys())}")
+
     @abstractmethod
     def _get_input_df(self) -> DataFrame:
         ...

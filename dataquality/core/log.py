@@ -47,7 +47,6 @@ def log_dataset(
     *,
     text: Union[str, int] = "text",
     id: Union[str, int] = "id",
-    label: Union[str, int] = "label",
     **kwargs: Any,
 ) -> None:
     """Log an iterable or other dataset to disk.
@@ -87,7 +86,7 @@ def log_dataset(
         [config.task_type, config.current_project_id, config.current_run_id]
     ), "You must call dataquality.init before logging data"
     data_logger = get_data_logger()
-    data_logger.log_dataset(dataset, text=text, id=id, label=label, **kwargs)
+    data_logger.log_dataset(dataset, text=text, id=id, **kwargs)
 
 
 def log_model_outputs(**kwargs: Any) -> None:

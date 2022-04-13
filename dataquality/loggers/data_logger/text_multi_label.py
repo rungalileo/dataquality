@@ -114,6 +114,7 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
         :param task_labels: List[str] The label of each task for this sample
             Required if split is not inference
         """
+        self.validate_kwargs(kwargs)
         if label:
             raise GalileoException("In multi-label, use task_labels instead of label")
 
@@ -150,6 +151,7 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
         :param task_labels: List[List[str]] list of labels for each task for each
             text sample. Required if not in inference
         """
+        self.validate_kwargs(kwargs)
         if labels is not None:
             raise GalileoException("In multi-label, use task_labels instead of labels")
         self.texts = texts

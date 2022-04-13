@@ -143,6 +143,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
 
             dq.log_data_samples(texts=texts, labels=labels, ids=ids, split=split)
         """
+        self.validate_kwargs(kwargs)
         self.texts = texts
         self.ids = ids
         self.split = split
@@ -175,6 +176,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         :param meta: Dict[str, Union[str, int, float]]. Metadata for the text sample
             Format is the {"metadata_field_name": metadata_field_value}
         """
+        self.validate_kwargs(kwargs)
         self.texts = [text]
         self.ids = [id]
         self.split = split
@@ -212,6 +214,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
             Consider a pandas dataframe, this would be the list of columns corresponding
             to each metadata field to log
         """
+        self.validate_kwargs(kwargs)
         self.split = split
         self.inference_name = inference_name
         meta = meta or []
