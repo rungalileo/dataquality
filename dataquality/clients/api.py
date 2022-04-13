@@ -474,7 +474,7 @@ class ApiClient:
         while True:
             status = self.get_run_status(project_name=project_name, run_name=run_name)
             if status.get("status") == "finished":
-                print(f"Done!. Job finished with status {status.get('status')}")
+                print(f"Done! Job finished with status {status.get('status')}")
                 return
             elif status.get("status") == "errored":
                 raise GalileoException(
