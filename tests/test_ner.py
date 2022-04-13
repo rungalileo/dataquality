@@ -1,5 +1,5 @@
 from itertools import chain
-from typing import Any, Callable
+from typing import Callable
 from unittest import mock
 
 import numpy as np
@@ -9,6 +9,7 @@ import vaex
 
 import dataquality
 from dataquality.exceptions import GalileoException
+from dataquality.loggers.data_logger.base_data_logger import D
 from dataquality.loggers.data_logger.text_ner import TextNERDataLogger
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
 from dataquality.schemas.split import Split
@@ -616,6 +617,34 @@ def test_duplicate_output_rows(set_test_config, cleanup_after_use) -> None:
     assert str(e.value).startswith("It seems as though you have duplicate spans")
 
 
+def test_log_data_sample(
+    set_test_config: Callable, cleanup_after_use: Callable
+) -> None:
+    set_test_config(task_type="text_ner")
+    dataquality.set_labels_for_run(LABELS)
+    dataquality.set_tagging_schema("BIO")
+    logger = TextNERDataLogger()
+
+    with mock.patch("dataquality.core.log.get_data_logger") as mock_method:
+        mock_method.return_value = logger
+        inp = {
+            "text": TEXT_INPUTS[0],
+            "text_token_indices": TEXT_TOKENS[0],
+            "gold_spans": GOLD_SPANS[0],
+            "id": 0,
+            "split": "training",
+        }
+        dataquality.log_data_sample(**inp)
+
+        assert logger.texts == [inp["text"]]
+        assert logger.gold_spans == [inp["gold_spans"]]
+        assert logger.ids == [0]
+        assert logger.split == Split.training
+        assert not hasattr(logger, "text_token_indices")  # Deleted after log
+        flattened_tokens = list(chain(*inp["text_token_indices"]))
+        assert logger.text_token_indices_flat == [flattened_tokens]
+
+
 @pytest.mark.parametrize(
     "dataset",
     [
@@ -625,8 +654,11 @@ def test_duplicate_output_rows(set_test_config, cleanup_after_use) -> None:
     ],
 )
 def test_log_dataset(
-    dataset: Any, set_test_config: Callable, cleanup_after_use: Callable
+    dataset: D, set_test_config: Callable, cleanup_after_use: Callable
 ) -> None:
+    set_test_config(task_type="text_ner")
+    dataquality.set_labels_for_run(LABELS)
+    dataquality.set_tagging_schema("BIO")
     logger = TextNERDataLogger()
 
     with mock.patch("dataquality.core.log.get_data_logger") as mock_method:
@@ -657,8 +689,11 @@ def test_log_dataset(
     ],
 )
 def test_log_dataset_tuple(
-    dataset: Any, set_test_config: Callable, cleanup_after_use: Callable
+    dataset: D, set_test_config: Callable, cleanup_after_use: Callable
 ) -> None:
+    set_test_config(task_type="text_ner")
+    dataquality.set_labels_for_run(LABELS)
+    dataquality.set_tagging_schema("BIO")
     logger = TextNERDataLogger()
 
     with mock.patch("dataquality.core.log.get_data_logger") as mock_method:

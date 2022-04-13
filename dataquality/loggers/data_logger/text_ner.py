@@ -99,7 +99,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         ids: List[int] = [0, 1]
         split = "training"
 
-        dq.log_input_samples(
+        dq.log_data_samples(
             texts=texts, text_token_indices=text_token_indices,
             gold_spans=gold_spans, ids=ids, split=split
         )
@@ -266,12 +266,12 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         }
         if isinstance(dataset, pd.DataFrame):
             dataset = dataset.rename(columns=column_map)
-            self._log_vaex_df(vaex.from_pandas(dataset), meta)
+            self._log_df(dataset, meta)
         elif isinstance(dataset, DataFrame):
             for chunk in range(0, len(dataset), ITER_CHUNK_SIZE):
                 chunk_df = dataset[chunk : chunk + ITER_CHUNK_SIZE]
                 chunk_df = rename_df(chunk_df, column_map)
-                self._log_vaex_df(chunk_df, meta)
+                self._log_df(chunk_df, meta)
         elif isinstance(dataset, Iterable):
             self._log_iterator(
                 dataset,
@@ -333,8 +333,10 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             meta=meta,
         )
 
-    def _log_vaex_df(self, df: DataFrame, meta: List[Union[str, int]]) -> None:
-        """Helper to log a pandas df"""
+    def _log_df(
+        self, df: Union[pd.DataFrame, DataFrame], meta: List[Union[str, int]]
+    ) -> None:
+        """Helper to log a pandas or vaex df"""
         self.texts = df["text"].tolist()
         self.ids = df["id"].tolist()
         self.text_token_indices = df["text_token_indices"].tolist()
@@ -353,7 +355,6 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         :return: None
         """
         super().validate()
-
         assert self.logger_config.labels, (
             "You must set your labels before logging input data. "
             "See dataquality.set_labels_for_run"

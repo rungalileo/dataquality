@@ -1,4 +1,4 @@
-from typing import Any, Callable
+from typing import Callable
 from unittest import mock
 
 import numpy as np
@@ -8,6 +8,7 @@ import vaex
 
 import dataquality as dq
 from dataquality.exceptions import GalileoException
+from dataquality.loggers.data_logger.base_data_logger import D
 from dataquality.loggers.data_logger.text_multi_label import TextMultiLabelDataLogger
 from dataquality.schemas.split import Split
 
@@ -72,7 +73,7 @@ def test_duplicate_output_rows(set_test_config, cleanup_after_use) -> None:
     assert str(e.value).startswith("It seems as though you do not have unique ids")
 
 
-def test_log_input_sample(
+def test_log_data_sample(
     set_test_config: Callable, cleanup_after_use: Callable
 ) -> None:
     set_test_config(task_type="text_multi_label")
@@ -114,7 +115,7 @@ def test_log_input_sample(
     ],
 )
 def test_log_dataset(
-    dataset: Any, set_test_config: Callable, cleanup_after_use: Callable
+    dataset: D, set_test_config: Callable, cleanup_after_use: Callable
 ) -> None:
     logger = TextMultiLabelDataLogger()
 

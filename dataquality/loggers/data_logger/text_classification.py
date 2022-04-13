@@ -65,7 +65,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         ids: List[int] = [0, 1, 2, 3]
         split = "training"
 
-        dq.log_input_samples(texts=texts, labels=labels, ids=ids, split=split)
+        dq.log_data_samples(texts=texts, labels=labels, ids=ids, split=split)
     """
 
     __logger_name__ = "text_classification"
@@ -112,7 +112,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         """Log input samples for text classification
 
         :param texts: List[str] text samples
-        :param ids: List[int,str] IDs for each text sample
+        :param ids: List[int | str] IDs for each text sample
         :param labels: List[str] labels for each text sample.
             Required if not in inference
         :param split: train/test/validation/inference. Can be set here or via
@@ -141,7 +141,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
             ids: List[int] = [0, 1, 2, 3]
             split = "training"
 
-            dq.log_input_samples(texts=texts, labels=labels, ids=ids, split=split)
+            dq.log_data_samples(texts=texts, labels=labels, ids=ids, split=split)
         """
         self.texts = texts
         self.ids = ids
@@ -220,12 +220,12 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
             column_map[label] = "label"
         if isinstance(dataset, pd.DataFrame):
             dataset = dataset.rename(columns=column_map)
-            self._log_vaex_df(dataset, meta)
+            self._log_df(dataset, meta)
         elif isinstance(dataset, DataFrame):
             for chunk in range(0, len(dataset), ITER_CHUNK_SIZE):
                 chunk_df = dataset[chunk : chunk + ITER_CHUNK_SIZE]
                 chunk_df = rename_df(chunk_df, column_map)
-                self._log_vaex_df(chunk_df, meta)
+                self._log_df(chunk_df, meta)
         elif isinstance(dataset, Iterable):
             self._log_iterator(dataset, text, id, meta, label, split, inference_name)
         else:
@@ -281,8 +281,10 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
             meta=meta,
         )
 
-    def _log_vaex_df(self, df: DataFrame, meta: List[Union[str, int]]) -> None:
-        """Helper to log a pandas df"""
+    def _log_df(
+        self, df: Union[pd.DataFrame, DataFrame], meta: List[Union[str, int]]
+    ) -> None:
+        """Helper to log a pandas or vex df"""
         self.texts = df["text"].tolist()
         self.ids = df["id"].tolist()
         self.labels = df["label"].tolist()

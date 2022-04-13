@@ -37,8 +37,11 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
 
     .. code-block:: python
 
-        all_labels = ["A", "B", "C"]
-        dq.set_labels_for_run(labels = all_labels)
+        task_labels = [["A", "B", "C"], ["Foo", "Bar"], ["Apple", "Orange", "Grape"]]
+        tasks = ["Task_0", "Task_1", "Task_2"]
+        dq.init("text_multi_label")
+        dq.set_tasks_for_run(tasks)
+        dq.set_labels_for_run(labels = task_labels)
 
         texts: List[str] = [
             "Text sample 1",
@@ -46,12 +49,16 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
             "Text sample 3",
         ]
 
-        labels: List[str] = [["A", "A", "B"], ["C", "A", "B"], ["B", "C", "B"]]
+        labels: List[str] = [
+            ["A", "Foo", "Grape"],
+            ["C", "Foo", "Apple"],
+            ["B", "Bar", "Orange"]
+        ]
 
         ids: List[int] = [0, 1, 2]
         split = "training"
 
-        dq.log_input_samples(texts=texts, task_labels=labels, ids=ids, split=split)
+        dq.log_data_samples(texts=texts, task_labels=labels, ids=ids, split=split)
     """
 
     __logger_name__ = "text_multi_label"
@@ -100,12 +107,12 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
         Log a single input sample for text multi-label
         :param text: str the text sample
         :param id: The sample ID
-        :param task_labels: List[str] The label of each task for this sample
-            Required if split is not inference
         :param split: train/test/validation/inference. Can be set here or via
             dq.set_split
         :param meta: Dict[str, Union[str, int, float]]. Metadata for the text sample
             Format is the {"metadata_field_name": metadata_field_value}
+        :param task_labels: List[str] The label of each task for this sample
+            Required if split is not inference
         """
         if label:
             raise GalileoException("In multi-label, use task_labels instead of label")
@@ -136,12 +143,12 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
 
         :param texts: List[str] text samples
         :param ids: List[int,str] IDs for each text sample
-        :param task_labels: List[List[str]] list of labels for each task for each
-            text sample. Required if not in inference
         :param split: train/test/validation/inference. Can be set here or via
             dq.set_split
         :param meta: Dict[str, List[str, int, float]]. Metadata for each text sample
             Format is the {"metadata_field_name": [metdata value per sample]}
+        :param task_labels: List[List[str]] list of labels for each task for each
+            text sample. Required if not in inference
         """
         if labels is not None:
             raise GalileoException("In multi-label, use task_labels instead of labels")
