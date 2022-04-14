@@ -601,14 +601,14 @@ def test_duplicate_output_rows(set_test_config, cleanup_after_use) -> None:
         split="training",
     )
 
-    emb = [np.random.rand(119, 768) for _ in range(5)]
+    embs = [np.random.rand(119, 768) for _ in range(5)]
     logits = [np.random.rand(119, 28) for _ in range(5)]
 
     dataquality.log_model_outputs(
-        emb=emb, logits=logits, ids=ids, split="training", epoch=0
+        embs=embs, logits=logits, ids=ids, split="training", epoch=0
     )
     dataquality.log_model_outputs(
-        emb=emb, logits=logits, ids=ids, split="training", epoch=0
+        embs=embs, logits=logits, ids=ids, split="training", epoch=0
     )
 
     with pytest.raises(GalileoException) as e:

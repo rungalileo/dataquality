@@ -41,7 +41,7 @@ def test_duplicate_rows(set_test_config, cleanup_after_use) -> None:
         dq.log_data_samples(texts=text_inputs, task_labels=gold, split="test", ids=ids)
 
 
-def test_duplicate_output_rows(set_test_config, cleanup_after_use) -> None:
+def test_duplicate_outputs_rows(set_test_config, cleanup_after_use) -> None:
     set_test_config(task_type="text_multi_label")
     num_samples = 5
     num_tasks = 4
@@ -61,11 +61,11 @@ def test_duplicate_output_rows(set_test_config, cleanup_after_use) -> None:
     )
     dq.log_data_samples(texts=text_inputs, task_labels=gold, split="training", ids=ids)
 
-    emb = np.random.rand(num_samples, 100)
+    embs = np.random.rand(num_samples, 100)
     logits = [[np.random.rand(classes_per_task)] * num_tasks] * num_samples
     ids = list(range(5))
-    dq.log_model_outputs(emb=emb, logits=logits, ids=ids, split="training", epoch=0)
-    dq.log_model_outputs(emb=emb, logits=logits, ids=ids, split="training", epoch=0)
+    dq.log_model_outputs(embs=embs, logits=logits, ids=ids, split="training", epoch=0)
+    dq.log_model_outputs(embs=embs, logits=logits, ids=ids, split="training", epoch=0)
 
     with pytest.raises(GalileoException) as e:
         dq.get_data_logger().upload()
