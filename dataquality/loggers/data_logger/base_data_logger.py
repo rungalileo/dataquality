@@ -160,7 +160,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         # For each inference name or epoch of the given split
         for split_run in tqdm(split_runs, total=len(split_runs), desc=split):
             in_frame_slice = in_frame.copy()
-            prob_only = cls.prob_only(split, split_run)
+            prob_only = cls.prob_only(split_runs, split, split_run)
             if split == Split.inference:
                 in_frame_slice = filter_df(in_frame_slice, "inference_name", split_run)
 
@@ -263,7 +263,9 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             )
 
     @classmethod
-    def prob_only(cls, split: str, split_run: Union[int, str]) -> bool:
+    def prob_only(
+        cls, split_runs: List[str], split: str, split_run: Union[int, str]
+    ) -> bool:
         if split == Split.inference:
             return False
 
@@ -271,7 +273,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         epoch = int(split_run)
         # For all epochs that aren't the last 2 (early stopping), we only
         # want to upload the probabilities (for DEP calculation).
-        return bool(epoch < cls.logger_config.last_epoch - 1)
+        max_epoch_for_split = max([int(i) for i in split_runs])
+        return bool(epoch < max_epoch_for_split - 1)
 
     @classmethod
     @abstractmethod

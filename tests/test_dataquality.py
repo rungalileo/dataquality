@@ -351,3 +351,18 @@ def test_logging_train_test_inference(
         inference_prob_data.prob.to_numpy()
         == dataquality.get_model_logger()().convert_logits_to_probs(inf_logits)
     ).all()
+
+
+def test_prob_only(set_test_config) -> None:
+    """Tests that the last_epoch is determined at the split level"""
+    logger = dataquality.get_data_logger()
+    logger.logger_config.last_epoch = 5
+    train_split_runs = ["0", "1", "5", "3", "4"]
+    val_split_runs = ["0", "1", "3", "4"]
+    test_split_runs = ["0"]
+
+    assert logger.prob_only(train_split_runs, "training", "0")
+    assert not logger.prob_only(train_split_runs, "training", "5")
+    assert logger.prob_only(val_split_runs, "validation", "0")
+    assert not logger.prob_only(val_split_runs, "validation", "5")
+    assert not logger.prob_only(test_split_runs, "test", "0")
