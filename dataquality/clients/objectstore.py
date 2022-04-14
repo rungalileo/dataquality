@@ -45,7 +45,6 @@ class ObjectStore:
         ext = get_file_extension(object_name)
         with NamedTemporaryFile(suffix=ext) as f:
             df.export(f.name)
-
             self.create_project_run_object(
                 object_name=object_name,
                 file_path=f.name,
