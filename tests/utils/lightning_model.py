@@ -45,7 +45,7 @@ class NewsgroupDataset(torch.utils.data.Dataset):
         self.dataset["text"] = newsgroups.data
         self.dataset["label"] = newsgroups.target
         self.dataset = self.dataset[:NUM_RECORDS]
-        self.glogger = dataquality.get_data_logger()()
+        self.glogger = dataquality.get_data_logger()
 
         # Shuffle some percentage of the training dataset
         # to force create mislabeled samples
@@ -55,7 +55,7 @@ class NewsgroupDataset(torch.utils.data.Dataset):
         #
         # 🔭 Logging Inputs with Galileo!
         #
-        self.glogger.text = self.dataset["text"]
+        self.glogger.texts = self.dataset["text"]
         self.glogger.labels = self.dataset["label"]
 
         tokenizer = DistilBertTokenizerFast.from_pretrained("distilbert-base-uncased")

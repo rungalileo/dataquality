@@ -1,34 +1,92 @@
-import warnings
-from typing import Any, List, Optional, Type, Union
+from typing import Any, Callable, List, Optional, Type, Union
 
 from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
+from dataquality.loggers.data_logger.base_data_logger import DataSet
 from dataquality.loggers.model_logger import BaseGalileoModelLogger
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 
 
-def log_input_data(**kwargs: Any) -> None:
-    """Logs input data for model training/test/validation/inference.
+def add_doc(doc: str) -> Callable:
+    def _doc(func: Callable) -> Callable:
+        func.__doc__ = doc
+        return func
 
-    The expected arguments come from the task_type's data
-    logger: See dataquality.get_model_logger().doc() for details
+    return _doc
+
+
+def log_data_samples(*, texts: List[str], ids: List[int], **kwargs: Any) -> None:
+    """Logs a batch of input samples for model training/test/validation/inference.
+
+    Fields are expected as lists of their content. Field names are in the plural of
+    `log_input_sample` (text -> texts)
+    The expected arguments come from the task_type's data logging schema.
+    logger: See dq.docs() for details
     """
     assert all(
         [config.task_type, config.current_project_id, config.current_run_id]
     ), "You must call dataquality.init before logging data"
-    data_logger = get_data_logger()(**kwargs)
-    data_logger.log()
+    data_logger = get_data_logger()
+    data_logger.log_data_samples(texts=texts, ids=ids, **kwargs)
 
 
-# Backwards compatibility
-def log_batch_input_data(**kwargs: Any) -> None:
-    warnings.warn(
-        "log_batch_input_data is deprecated. Use log_input_data", DeprecationWarning
-    )
-    log_input_data(**kwargs)
+def log_data_sample(*, text: str, id: int, **kwargs: Any) -> None:
+    """Log a single input example to disk"""
+    assert all(
+        [config.task_type, config.current_project_id, config.current_run_id]
+    ), "You must call dataquality.init before logging data"
+    data_logger = get_data_logger()
+    data_logger.log_data_sample(text=text, id=id, **kwargs)
+
+
+def log_dataset(
+    dataset: DataSet,
+    *,
+    text: Union[str, int] = "text",
+    id: Union[str, int] = "id",
+    **kwargs: Any,
+) -> None:
+    """Log an iterable or other dataset to disk.
+
+    Dataset provided must be an either a pandas or vaex dataframe, or an iterable that
+    can be traversed row by row, and for each row, the fields can be indexed into
+    either via string keys or int indexes.
+
+    valid examples:
+        d = [
+            {"my_text": "sample1", "my_labels": "A", "my_id": 1},
+            {"my_text": "sample2", "my_labels": "A", "my_id": 2},
+            {"my_text": "sample3", "my_labels": "B", "my_id": 3},
+        ]
+        dq.log_dataset(d, text="my_text", id="my_id", label="my_labels")
+        Another:
+        d = [
+            ("sample1", "A", "ID1"),
+            ("sample2", "A", "ID2"),
+            ("sample3", "B", "ID3"),
+        ]
+        dq.log_dataset(d, text=0, id=2, label=1)
+    invalid example:
+        d = {
+            "my_text": ["sample1", "sample2", "sample3"],
+            "my_labels": ["A", "A", "B"],
+            "my_id": [1, 2, 3],
+        }
+
+    In the invalid case, use log_data_samples:
+        dq.log_data_samples(texts=d["my_text"], labels=d["my_labels"], ids=d["my_ids"])
+
+
+    Keyword arguments are specific to the task type. See dq.docs() for details
+    """
+    assert all(
+        [config.task_type, config.current_project_id, config.current_run_id]
+    ), "You must call dataquality.init before logging data"
+    data_logger = get_data_logger()
+    data_logger.log_dataset(dataset, text=text, id=id, **kwargs)
 
 
 def log_model_outputs(**kwargs: Any) -> None:
@@ -87,9 +145,9 @@ def get_model_logger(task_type: TaskType = None) -> Type[BaseGalileoModelLogger]
     return BaseGalileoModelLogger.get_logger(task_type)
 
 
-def get_data_logger(task_type: TaskType = None) -> Type[BaseGalileoDataLogger]:
+def get_data_logger(task_type: TaskType = None) -> BaseGalileoDataLogger:
     task_type = _get_task_type(task_type)
-    return BaseGalileoDataLogger.get_logger(task_type)
+    return BaseGalileoDataLogger.get_logger(task_type)()
 
 
 def _get_task_type(task_type: TaskType = None) -> TaskType:

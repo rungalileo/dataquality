@@ -109,9 +109,9 @@ def test_metadata_logging_different_splits(
     """
     training_data = input_data(meta={"training_meta": [1, 2]})
     dataquality.set_labels_for_run(training_data["labels"])
-    dataquality.log_input_data(**training_data)
+    dataquality.log_data_samples(**training_data)
     test_data = input_data(split="test", meta={"test_meta": ["foo", "bar"]})
-    dataquality.log_input_data(**test_data)
+    dataquality.log_data_samples(**test_data)
 
     output_data = {
         "embs": np.random.rand(2, 100),
@@ -207,9 +207,9 @@ def test_logging_inference_run(
     inference_data = input_data(
         split="inference", meta={"inference_meta_1": [3.14, 42]}
     )
-    dataquality.log_input_data(**inference_data)
+    dataquality.log_data_samples(**inference_data)
     inference_data = input_data(split="inference", inference_name="last-week-customers")
-    dataquality.log_input_data(**inference_data)
+    dataquality.log_data_samples(**inference_data)
 
     dataquality.set_split("inference", inference_name="all-customers")
     embs_1 = np.random.rand(2, 100)
@@ -278,11 +278,11 @@ def test_logging_train_test_inference(
     """
     dataquality.set_labels_for_run(["APPLE", "ORANGE"])
     training_data = input_data(meta={"training_meta": [1.414, 123]})
-    dataquality.log_input_data(**training_data)
+    dataquality.log_data_samples(**training_data)
     test_data = input_data(split="test", meta={"test_meta": [3.14, 42]})
-    dataquality.log_input_data(**test_data)
+    dataquality.log_data_samples(**test_data)
     inference_data = input_data(split="inference")
-    dataquality.log_input_data(**inference_data)
+    dataquality.log_data_samples(**inference_data)
 
     dataquality.set_split("training")
     train_embs = np.random.rand(2, 100)

@@ -1,4 +1,5 @@
 import os
+from functools import partial
 from random import random
 from typing import List, Optional
 
@@ -127,7 +128,16 @@ def _log_text_classification_data(
             labels = dataset["label"]
             dataquality.set_labels_for_run([str(i) for i in range(len(set(labels)))])
         dataquality.set_split(split)
-        dataquality.log_input_data(text=dataset["text"], labels=labels, meta=meta)
+        func = partial(
+            dataquality.log_data_samples,
+            texts=dataset["text"],
+            ids=list(range(len(dataset))),
+            meta=meta,
+        )
+        if multi_label:
+            func(task_labels=labels)
+        else:
+            func(labels=labels)
 
     num_labels_in_task = np.random.randint(low=1, high=10, size=MULTI_LABEL_NUM_TASKS)
     if multi_label:

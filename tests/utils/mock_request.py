@@ -9,6 +9,7 @@ config = dataquality.config
 EXISTING_PROJECT = "existing_proj"
 EXISTING_RUN = "existing_run"
 TMP_CREATE_NEW_PROJ_RUN = None
+FAKE_NEW_RUN = uuid4()
 
 
 class MockResponse:

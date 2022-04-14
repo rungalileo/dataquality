@@ -1,3 +1,4 @@
+import warnings
 from collections import defaultdict
 from typing import Any, Callable, DefaultDict, Dict, Generator, List, Tuple, Union
 
@@ -37,7 +38,7 @@ def log_input_examples(examples: List[Example], split: Split) -> None:
             "Galileo does not have any logged labels. Did you forget "
             "to call watch(nlp) before log_input_examples(...)?"
         )
-    text = []
+    texts = []
     text_token_indices = []
     gold_spans = []
     ids = []
@@ -47,7 +48,7 @@ def log_input_examples(examples: List[Example], split: Split) -> None:
         data = example.reference
         # but predicted is the Doc that will be passed along to the spacy models, and
         # crucially holds the "id" user_data we attach
-        text.append(data.text)
+        texts.append(data.text)
         text_token_indices.append(
             [(token.idx, token.idx + len(token)) for token in data]
         )
@@ -61,8 +62,8 @@ def log_input_examples(examples: List[Example], split: Split) -> None:
         # The predicted doc is the one that the model will see
         example.predicted.user_data["id"] = i
         ids.append(i)
-    dataquality.log_input_data(
-        text=text,
+    dataquality.log_data_samples(
+        texts=texts,
         text_token_indices=text_token_indices,
         gold_spans=gold_spans,
         ids=ids,
@@ -279,16 +280,24 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
             model, X, is_train=is_train
         )
 
+        model_logger = TextNERModelLogger()
+        if model_logger.logger_config.cur_split == Split.inference:
+            warnings.warn(
+                "Inference logging with Galileo coming soon. For now "
+                "skipping logging"
+            )
+            return parser_step_model, backprop_fn
         if not all(["id" in doc.user_data for doc in X]):
             raise GalileoException(
-                "One of your model's docs is missing a galileo generated "
+                "One of your input's docs is missing a galileo generated "
                 "id. Did you first log your docs/examples with us using, "
                 "for example, "
                 "`log_input_examples(training_examples, split='training')`? "
-                "Make sure to then continue using 'training_examples'"
+                "Make sure to then continue using 'training_examples'. If this "
+                "is inference (nlp('some text')) then set "
+                "`dataquality.set_split(split='inference', "
+                "inference_name='some_name')` to continue."
             )
-
-        model_logger = TextNERModelLogger()
         helper_data = model_logger.log_helper_data
         helper_data["logits"] = {doc.user_data["id"]: [None] * len(doc) for doc in X}
         helper_data["embs"] = {doc.user_data["id"]: [None] * len(doc) for doc in X}

@@ -1,4 +1,5 @@
 import os
+import re
 import shutil
 import warnings
 from typing import Dict, Optional
@@ -56,6 +57,17 @@ class _Init:
         if not os.path.exists(write_output_dir):
             os.makedirs(write_output_dir)
 
+    def validate_name(self, name: Optional[str]) -> None:
+        """Validates project/run name ensuring only letters, numbers, space, - and _"""
+        if not name:
+            return
+        badchars = re.findall(r"[^\w -]+", name)
+        if badchars:
+            raise GalileoException(
+                "Only letters, numbers, whitespace, - and _ are allowed in a project "
+                f"or run name. Remove the following characters: {badchars}"
+            )
+
 
 def init(
     task_type: str,
@@ -92,6 +104,8 @@ def init(
     BaseGalileoLogger.validate_task(task_type)
     task_type = TaskType[task_type]
     config.task_type = task_type
+    _init.validate_name(project_name)
+    _init.validate_name(run_name)
     if not project_name and not run_name:
         # no project and no run id, start a new project and start a new run
         project_name, run_name = random_name(), random_name()

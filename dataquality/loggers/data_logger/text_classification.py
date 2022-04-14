@@ -1,21 +1,30 @@
+from collections import defaultdict
 from enum import Enum, unique
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, DefaultDict, Dict, Iterable, List, Optional, Tuple, Union
 
 import pandas as pd
 import vaex
 from vaex.dataframe import DataFrame
 
-from dataquality.loggers.data_logger.base_data_logger import BaseGalileoDataLogger
+from dataquality.exceptions import GalileoException
+from dataquality.loggers.data_logger.base_data_logger import (
+    ITER_CHUNK_SIZE,
+    BaseGalileoDataLogger,
+    DataSet,
+    MetasType,
+    MetaType,
+)
 from dataquality.loggers.logger_config.text_classification import (
     text_classification_logger_config,
 )
 from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.split import Split
+from dataquality.utils.vaex import rename_df
 
 
 @unique
 class GalileoDataLoggerAttributes(str, Enum):
-    text = "text"
+    texts = "texts"
     labels = "labels"
     ids = "ids"
     # mixin restriction on str (due to "str".split(...))
@@ -32,11 +41,31 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
     """
     Class for logging input data/metadata of Text Classification models to Galileo.
 
-    * text: The raw text inputs for model training. List[str]
+    * texts: The raw text inputs for model training. List[str]
     * labels: the ground truth labels aligned to each text field. List[str]
     * ids: Optional unique indexes for each record. If not provided, will default to
     the index of the record. Optional[List[int]]
     * split: The split for training/test/validation
+
+    ex:
+    .. code-block:: python
+
+        all_labels = ["A", "B", "C"]
+        dq.set_labels_for_run(labels = all_labels)
+
+        texts: List[str] = [
+            "Text sample 1",
+            "Text sample 2",
+            "Text sample 3",
+            "Text sample 4"
+        ]
+
+        labels: List[str] = ["B", "C", "A", "A"]
+
+        ids: List[int] = [0, 1, 2, 3]
+        split = "training"
+
+        dq.log_data_samples(texts=texts, labels=labels, ids=ids, split=split)
     """
 
     __logger_name__ = "text_classification"
@@ -44,16 +73,16 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
 
     def __init__(
         self,
-        text: List[str] = None,
+        texts: List[str] = None,
         labels: List[str] = None,
         ids: List[int] = None,
         split: str = None,
-        meta: Optional[Dict[str, List[Union[str, float, int]]]] = None,
+        meta: MetasType = None,
         inference_name: str = None,
     ) -> None:
         """Create data logger.
 
-        :param text: The raw text inputs for model training. List[str]
+        :param texts: The raw text inputs for model training. List[str]
         :param labels: the ground truth labels aligned to each text field.
         List[str]
         :param ids: Optional unique indexes for each record. If not provided, will
@@ -63,11 +92,209 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         super().__init__(meta)
         # Need to compare to None because they may be np arrays which cannot be
         # evaluated with bool directly
-        self.text = text if text is not None else []
+        self.texts = texts if texts is not None else []
         self.labels = [str(i) for i in labels] if labels is not None else []
         self.ids = ids if ids is not None else []
         self.split = split
         self.inference_name = inference_name
+
+    def log_data_samples(
+        self,
+        *,
+        texts: List[str],
+        ids: List[int],
+        labels: Optional[List[str]] = None,
+        split: Optional[Split] = None,
+        inference_name: Optional[str] = None,
+        meta: Optional[MetasType] = None,
+        **kwargs: Any,  # For typing
+    ) -> None:
+        """Log input samples for text classification
+
+        :param texts: List[str] text samples
+        :param ids: List[int | str] IDs for each text sample
+        :param labels: List[str] labels for each text sample.
+            Required if not in inference
+        :param split: train/test/validation/inference. Can be set here or via
+            dq.set_split
+        :param inference_name: If logging inference data, a name for this inference
+            data is required. Can be set here or via dq.set_split
+        :param meta: Dict[str, List[str, int, float]]. Metadata for each text sample
+            Format is the {"metadata_field_name": [metdata value per sample]}
+
+        ex:
+        .. code-block:: python
+
+            dq.init("text_classification")
+            all_labels = ["A", "B", "C"]
+            dq.set_labels_for_run(labels = all_labels)
+
+            texts: List[str] = [
+                "Text sample 1",
+                "Text sample 2",
+                "Text sample 3",
+                "Text sample 4"
+            ]
+
+            labels: List[str] = ["B", "C", "A", "A"]
+
+            ids: List[int] = [0, 1, 2, 3]
+            split = "training"
+
+            dq.log_data_samples(texts=texts, labels=labels, ids=ids, split=split)
+        """
+        self.validate_kwargs(kwargs)
+        self.texts = texts
+        self.ids = ids
+        self.split = split
+        self.labels = [str(i) for i in labels] if labels is not None else []
+        self.inference_name = inference_name
+        self.meta = meta or {}
+        self.log()
+
+    def log_data_sample(
+        self,
+        *,
+        text: str,
+        id: int,
+        label: Optional[str] = None,
+        split: Optional[Split] = None,
+        inference_name: Optional[str] = None,
+        meta: Optional[MetaType] = None,
+        **kwargs: Any,
+    ) -> None:
+        """
+        Log a single input sample for text classification
+
+        :param text: str the text sample
+        :param id: The sample ID
+        :param label: str label for the sample. Required if not in inference
+        :param split: train/test/validation/inference. Can be set here or via
+            dq.set_split
+        :param inference_name: If logging inference data, a name for this inference
+            data is required. Can be set here or via dq.set_split
+        :param meta: Dict[str, Union[str, int, float]]. Metadata for the text sample
+            Format is the {"metadata_field_name": metadata_field_value}
+        """
+        self.validate_kwargs(kwargs)
+        self.texts = [text]
+        self.ids = [id]
+        self.split = split
+        self.labels = [label] if label else []
+        self.inference_name = inference_name
+        self.meta = {i: [meta[i]] for i in meta} if meta else {}
+        self.log()
+
+    def log_dataset(
+        self,
+        dataset: DataSet,
+        *,
+        text: Union[str, int] = "text",
+        id: Union[str, int] = "id",
+        label: Optional[Union[str, int]] = "label",
+        split: Optional[Split] = None,
+        inference_name: Optional[str] = None,
+        meta: Optional[List[Union[str, int]]] = None,
+        **kwargs: Any,
+    ) -> None:
+        """
+        Log a dataset of input samples for text classification
+
+        :param dataset: The dataset to log. This can be an python iterable or
+            Pandas/Vaex dataframe. If an iterable, it can be a list of elements that can
+            be indexed into either via int index (tuple/list) or string/key index (dict)
+        :param text: The key/index of the text fields
+        :param id: The key/index of the id fields
+        :param label: The key/index of the label fields
+        :param split: train/test/validation/inference. Can be set here or via
+            dq.set_split
+        :param inference_name: If logging inference data, a name for this inference
+            data is required. Can be set here or via dq.set_split
+        :param meta: List[str, int]: The keys/indexes of each metadata field.
+            Consider a pandas dataframe, this would be the list of columns corresponding
+            to each metadata field to log
+        """
+        self.validate_kwargs(kwargs)
+        self.split = split
+        self.inference_name = inference_name
+        meta = meta or []
+        column_map = {text: "text", id: "id"}
+        label = None if split == Split.inference else label
+        if label:
+            column_map[label] = "label"
+        if isinstance(dataset, pd.DataFrame):
+            dataset = dataset.rename(columns=column_map)
+            self._log_df(dataset, meta)
+        elif isinstance(dataset, DataFrame):
+            for chunk in range(0, len(dataset), ITER_CHUNK_SIZE):
+                chunk_df = dataset[chunk : chunk + ITER_CHUNK_SIZE]
+                chunk_df = rename_df(chunk_df, column_map)
+                self._log_df(chunk_df, meta)
+        elif isinstance(dataset, Iterable):
+            self._log_iterator(dataset, text, id, meta, label, split, inference_name)
+        else:
+            raise GalileoException(
+                f"Dataset must be one of pandas, vaex, or Iterable, "
+                f"but got {type(dataset)}"
+            )
+
+    def _log_iterator(
+        self,
+        dataset: Iterable,
+        text: Union[str, int],
+        id: Union[str, int],
+        meta: List[Union[str, int]],
+        label: Union[str, int] = None,
+        split: Split = None,
+        inference_name: str = None,
+    ) -> None:
+        batches = defaultdict(list)
+        metas = defaultdict(list)
+        for chunk in dataset:
+            batches["text"].append(self._convert_tensor_to_py(chunk[text]))
+            batches["id"].append(self._convert_tensor_to_py(chunk[id]))
+            if label:
+                # Process separately because multi-label needs to override this
+                # to handle labels as a list of lists
+                batches = self._process_label(batches, chunk[label])
+            for meta_col in meta:
+                metas[meta_col].append(self._convert_tensor_to_py(chunk[meta_col]))
+
+            if len(batches["text"]) >= ITER_CHUNK_SIZE:
+                self._log_dict(batches, metas, split, inference_name)
+                batches.clear()
+                metas.clear()
+        # in case there are any left
+        if batches:
+            self._log_dict(batches, metas, split, inference_name)
+
+    def _process_label(self, batches: DefaultDict, label: Any) -> DefaultDict:
+        """Process label for text-classification and multi-label accordingly"""
+        batches["label"].append(self._convert_tensor_to_py(label))
+        return batches
+
+    def _log_dict(
+        self, d: Dict, meta: Dict, split: Split = None, inference_name: str = None
+    ) -> None:
+        self.log_data_samples(
+            texts=d["text"],
+            labels=d["label"],
+            ids=d["id"],
+            split=split,
+            inference_name=inference_name,
+            meta=meta,
+        )
+
+    def _log_df(
+        self, df: Union[pd.DataFrame, DataFrame], meta: List[Union[str, int]]
+    ) -> None:
+        """Helper to log a pandas or vex df"""
+        self.texts = df["text"].tolist()
+        self.ids = df["id"].tolist()
+        self.labels = df["label"].tolist()
+        for meta_col in meta:
+            self.meta[str(meta_col)] = df[meta_col].tolist()
+        self.log()
 
     @staticmethod
     def get_valid_attributes() -> List[str]:
@@ -89,10 +316,10 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         super().validate()
 
         label_len = len(self.labels)
-        text_len = len(self.text)
+        text_len = len(self.texts)
         id_len = len(self.ids)
 
-        self.text = list(self._convert_tensor_ndarray(self.text))
+        self.texts = list(self._convert_tensor_ndarray(self.texts))
         self.labels = list(self._convert_tensor_ndarray(self.labels, attr="Labels"))
         self.ids = list(self._convert_tensor_ndarray(self.ids))
 
@@ -127,7 +354,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
     def _get_input_df(self) -> DataFrame:
         inp = dict(
             id=self.ids,
-            text=self.text,
+            text=self.texts,
             split=self.split,
             data_schema_version=__data_schema_version__,
             gold=self.labels if self.split != Split.inference.value else None,
