@@ -15,7 +15,7 @@ from dataquality.schemas.split import Split
 
 @unique
 class GalileoModelLoggerAttributes(str, Enum):
-    emb = "emb"
+    embs = "embs"
     probs = "probs"
     logits = "logits"
     ids = "ids"
@@ -33,9 +33,9 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
     """
     Class for logging model output data of Text Classification models to Galileo.
 
-    * emb: Union[List, np.ndarray, torch.Tensor, tf.Tensor]. The Embeddings per
+    * embs: Union[List, np.ndarray, torch.Tensor, tf.Tensor]. The Embeddings per
     text sample input. Only one embedding vector is allowed per input sample.
-    the `emb` parameter can be formatted either as:
+    the `embs` parameter can be formatted either as:
         * np.ndarray
         * torch.tensor / tf.tensor
         * A list of List[float]
@@ -63,7 +63,7 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
 
     def __init__(
         self,
-        emb: Union[List, np.ndarray] = None,
+        embs: Union[List, np.ndarray] = None,
         probs: Union[List, np.ndarray] = None,
         logits: Union[List, np.ndarray] = None,
         ids: Union[List, np.ndarray] = None,
@@ -73,7 +73,7 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         super().__init__()
         # Need to compare to None because they may be np arrays which cannot be
         # evaluated with bool directly
-        self.emb: Union[List, np.ndarray] = emb if emb is not None else []
+        self.embs: Union[List, np.ndarray] = embs if embs is not None else []
         self.logits: Union[List, np.ndarray] = logits if logits is not None else []
         self.probs: Union[List, np.ndarray] = probs if probs is not None else []
         self.ids: Union[List, np.ndarray] = ids if ids is not None else []
@@ -91,7 +91,7 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
     def validate(self) -> None:
         """
         Validates that the current config is correct.
-        * emb, probs, and ids must exist and be the same length
+        * embs, probs, and ids must exist and be the same length
         :return:
         """
         super().validate()
@@ -104,23 +104,23 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
             warnings.warn("Usage of probs is deprecated, use logits instead")
             self.probs = self._convert_tensor_ndarray(self.probs, "Prob")
 
-        emb_len = len(self.emb)
-        prob_len = len(self.probs)
-        id_len = len(self.ids)
+        embs_len = len(self.embs)
+        probs_len = len(self.probs)
+        ids_len = len(self.ids)
 
-        self.emb = self._convert_tensor_ndarray(self.emb, "Embedding")
+        self.embs = self._convert_tensor_ndarray(self.embs, "Embedding")
         self.ids = self._convert_tensor_ndarray(self.ids)
 
-        assert self.emb.ndim == 2, "Only one embedding vector is allowed per input."
+        assert self.embs.ndim == 2, "Only one embedding vector is allowed per input."
 
-        assert emb_len and prob_len and id_len, (
+        assert embs_len and probs_len and ids_len, (
             f"All of emb, probs, and ids for your logger must be set, but "
-            f"got emb:{bool(emb_len)}, probs:{bool(prob_len)}, ids:{bool(id_len)}"
+            f"got emb:{bool(embs_len)}, probs:{bool(probs_len)}, ids:{bool(ids_len)}"
         )
 
-        assert emb_len == prob_len == id_len, (
+        assert embs_len == probs_len == ids_len, (
             f"All of emb, probs, and ids for your logger must be the same "
-            f"length, but got (emb, probs, ids) -> ({emb_len},{prob_len}, {id_len})"
+            f"length, but got (emb, probs, ids) -> ({embs_len},{probs_len}, {ids_len})"
         )
 
         # User may manually pass in 'train' instead of 'training' / 'test' vs 'testing'
@@ -146,7 +146,7 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
 
     def _get_data_dict(self) -> Dict[str, Any]:
         data = defaultdict(list)
-        for record_id, prob, emb in zip(self.ids, self.probs, self.emb):
+        for record_id, prob, emb in zip(self.ids, self.probs, self.embs):
             # Handle binary classification by making it 2-class classification
             p = [prob[0], 1 - prob[0]] if len(prob) == 1 else prob
             record = {

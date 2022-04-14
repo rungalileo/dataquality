@@ -219,7 +219,7 @@ def test_long_sample(
         logger: TextNERModelLogger = args[0]
         assert len(logger.ids) == len(samples)
         assert len(logger.logits) == len(samples)
-        assert len(logger.emb) == len(samples)
+        assert len(logger.embs) == len(samples)
 
     TextNERModelLogger.log = new_log
 

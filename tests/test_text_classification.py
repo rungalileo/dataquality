@@ -55,11 +55,11 @@ def test_duplicate_output_rows(set_test_config, cleanup_after_use) -> None:
     dq.log_data_samples(texts=text_inputs, labels=gold, split="validation", ids=ids)
     dq.log_data_samples(texts=text_inputs, labels=gold, split="training", ids=ids)
 
-    emb = np.random.rand(5, 100)
+    embs = np.random.rand(5, 100)
     logits = np.random.rand(5, 100)
     ids = list(range(5))
-    dq.log_model_outputs(emb=emb, logits=logits, ids=ids, split="training", epoch=0)
-    dq.log_model_outputs(emb=emb, logits=logits, ids=ids, split="training", epoch=0)
+    dq.log_model_outputs(embs=embs, logits=logits, ids=ids, split="training", epoch=0)
+    dq.log_model_outputs(embs=embs, logits=logits, ids=ids, split="training", epoch=0)
 
     with pytest.raises(GalileoException) as e:
         dq.get_data_logger().upload()
