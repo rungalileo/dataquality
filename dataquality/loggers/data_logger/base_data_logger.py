@@ -150,7 +150,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     ) -> None:
         split_runs = os.listdir(split_loc)
 
-        for split_run in split_runs:  # For each inference name or epoch
+        # For each inference name or epoch of the given split
+        for split_run in tqdm(split_runs, total=len(split_runs), desc=split):
             in_frame_slice = in_frame.copy()
             prob_only = cls.prob_only(split, split_run)
             if split == Split.inference:
@@ -217,6 +218,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         # These df vars will be used in upload_in_out_frames
         emb.set_variable("skip_upload", prob_only)
         data_df.set_variable("skip_upload", prob_only)
+        epoch_inf_val = out_frame[[epoch_or_inf_name]][0][0]
+        data_df.set_variable("progress_name", str(epoch_inf_val))
 
         return BaseLoggerInOutFrames(prob=prob, emb=emb, data=data_df)
 
@@ -234,8 +237,10 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         emb = in_out_frames.emb
         data_df = in_out_frames.data
 
+        epoch_inf = data_df.get_variable("progress_name")
+        desc = f"{split} ({epoch_inf})"
         for data_folder, df_obj in tqdm(
-            zip(DATA_FOLDERS, [emb, prob, data_df]), total=3, desc=split
+            zip(DATA_FOLDERS, [emb, prob, data_df]), total=3, desc=desc, leave=False
         ):
             if df_obj.variables.get("skip_upload"):
                 continue
