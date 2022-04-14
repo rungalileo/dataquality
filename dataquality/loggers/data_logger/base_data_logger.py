@@ -226,7 +226,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         emb.set_variable("skip_upload", prob_only)
         data_df.set_variable("skip_upload", prob_only)
         epoch_inf_val = out_frame[[epoch_or_inf_name]][0][0]
-        data_df.set_variable("progress_name", str(epoch_inf_val))
+        prob.set_variable("progress_name", str(epoch_inf_val))
 
         return BaseLoggerInOutFrames(prob=prob, emb=emb, data=data_df)
 
@@ -244,8 +244,9 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         emb = in_out_frames.emb
         data_df = in_out_frames.data
 
-        epoch_inf = data_df.get_variable("progress_name")
-        name = "inf_name" if split==Split.inference else "epoch"
+        epoch_inf = prob.variables.pop("progress_name", "")
+
+        name = "inf_name" if split == Split.inference else "epoch"
         desc = f"{split} ({name}={epoch_inf})"
         for data_folder, df_obj in tqdm(
             zip(DATA_FOLDERS, [emb, prob, data_df]), total=3, desc=desc, leave=False
