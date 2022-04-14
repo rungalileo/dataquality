@@ -8,7 +8,7 @@ import tensorflow as tf
 import vaex
 
 import dataquality as dq
-from dataquality.exceptions import GalileoException
+from dataquality.exceptions import GalileoException, GalileoWarning
 from dataquality.loggers.data_logger.base_data_logger import DataSet
 from dataquality.loggers.data_logger.text_classification import (
     TextClassificationDataLogger,
@@ -184,3 +184,32 @@ def test_log_dataset_default(
         assert logger.labels == ["A", "A", "B"]
         assert logger.ids == [1, 2, 3]
         assert logger.split == Split.training
+
+
+@pytest.mark.parametrize(
+    "dataset",
+    [
+        [
+            {"text": "sample1", "label": "A", "id": 1},
+            {"text": "sample2", "label": "A", "id": 2},
+            {"text": "sample3", "label": "B", "id": 3},
+        ],
+    ],
+)
+def test_output_no_input_for_split(
+    dataset: DataSet, set_test_config: Callable, cleanup_after_use: Callable
+) -> None:
+    """Validates that no error is thrown and a warning is printed on finish
+
+    When you try to upload data for a split that has no input data
+    """
+    dq.log_dataset(dataset, split="train")
+    dq.log_model_outputs(
+        embs=np.random.rand(3, 50),
+        logits=np.random.rand(3, 10),
+        ids=[1, 2, 3],
+        split="validation",
+        epoch=0,
+    )
+    with pytest.warns(GalileoWarning, match=r"There was output data"):
+        dq.get_data_logger().upload()

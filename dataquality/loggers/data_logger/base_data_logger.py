@@ -12,7 +12,7 @@ from vaex.dataframe import DataFrame
 
 from dataquality.clients.objectstore import ObjectStore
 from dataquality.core._config import config
-from dataquality.exceptions import GalileoException
+from dataquality.exceptions import GalileoException, GalileoWarning
 from dataquality.loggers.base_logger import BaseGalileoLogger, BaseLoggerAttributes
 from dataquality.schemas.dataframe import BaseLoggerInOutFrames
 from dataquality.schemas.ner import TaggingSchema
@@ -142,6 +142,14 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         for split in Split.get_valid_attributes():
             split_loc = f"{location}/{split}"
             if not os.path.exists(split_loc):
+                continue
+            if not len(in_frame[in_frame["split"] == split]):
+                warnings.warn(
+                    f"There was output data logged for split {split} but no input data "
+                    "logged. Skipping upload for this split as there are no samples "
+                    "to join to.",
+                    GalileoWarning,
+                )
                 continue
 
             in_frame_split = filter_df(in_frame, "split", split)
@@ -285,7 +293,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         if len(self.meta.keys()) > self.MAX_META_COLS:
             warnings.warn(
                 f"You can only log up to {self.MAX_META_COLS} metadata attrs. "
-                f"The first {self.MAX_META_COLS} will be logged only."
+                f"The first {self.MAX_META_COLS} will be logged only.",
+                GalileoWarning,
             )
         # When logging metadata columns, if the user breaks a rule, don't fail
         # completely, just warn them and remove that metadata column
@@ -298,7 +307,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                 warnings.warn(
                     f"Metadata column names must not override default values "
                     f"{reserved_keys}. Metadata field {key} "
-                    f"will be removed."
+                    f"will be removed.",
+                    GalileoWarning,
                 )
                 continue
             bad_prefixes = ["galileo", "prob", "gold", "pred"]
@@ -306,14 +316,16 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                 if key.startswith(bad_start):
                     warnings.warn(
                         "Metadata name must not start with the following "
-                        f"prefixes: (galileo_, prob_, gold_. Won't log {key}"
+                        f"prefixes: (galileo_, prob_, gold_. Won't log {key}",
+                        GalileoWarning,
                     )
                     continue
             # Must be the same length as input
             if len(values) != batch_size:
                 warnings.warn(
                     f"Expected {batch_size} values for key {key} but got "
-                    f"{len(values)}. Will not log this metadata column."
+                    f"{len(values)}. Will not log this metadata column.",
+                    GalileoWarning,
                 )
                 continue
             # Values must be a point, not an iterable
@@ -328,7 +340,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                 warnings.warn(
                     f"Metadata column {key} has one or more invalid values {bad_val} "
                     f"of type {type(bad_val)}. Only strings of "
-                    f"len < {self.MAX_STR_LEN} and numbers can be logged."
+                    f"len < {self.MAX_STR_LEN} and numbers can be logged.",
+                    GalileoWarning,
                 )
                 continue
             valid_meta[key] = values
