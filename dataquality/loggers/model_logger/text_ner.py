@@ -18,7 +18,7 @@ class GalileoModelLoggerAttributes(str, Enum):
     gold_emb = "gold_emb"
     gold_spans = "gold_spans"
     gold_dep = "gold_dep"
-    emb = "emb"
+    embs = "embs"
     pred_emb = "pred_emb"
     pred_spans = "pred_spans"
     pred_dep = "pred_dep"
@@ -41,10 +41,10 @@ class TextNERModelLogger(BaseGalileoModelLogger):
     """
     Class for logging model output data of Text NER models to Galileo.
 
-    * emb: List[np.ndarray]: Each np.ndarray represents all embeddings of a given
+    * embs: List[np.ndarray]: Each np.ndarray represents all embeddings of a given
     sample. These embeddings are from the tokenized text, and will align with the tokens
     in the sample. If you have 12 samples in the dataset, with each sample of 20 tokens
-    in length, and an embedding vector of size 768, len(emb) will be 12, and
+    in length, and an embedding vector of size 768, len(embs) will be 12, and
     np.ndarray.shape is (20, 768).
 
     * logits: List[np.ndarray]: The NER prediction logits from the model
@@ -73,16 +73,16 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             model(the), model(united), model(states), model(on), model(monday)])]
 
         embs =
-            [np.array([embs(the), embs(president), embs(is), embs(joe),
-            embs(bi), embs(##den), embs(<pad>), embs(<pad>), embs(<pad>)]),
-            np.array([embs(joe), embs(bi), embs(##den), embs(addressed),
-            embs(the), embs(united), embs(states), embs(on), embs(monday)])]
+            [np.array([emb(the), emb(president), emb(is), emb(joe),
+            emb(bi), emb(##den), emb(<pad>), emb(<pad>), emb(<pad>)]),
+            np.array([emb(joe), emb(bi), emb(##den), emb(addressed),
+            emb(the), emb(united), emb(states), emb(on), emb(monday)])]
 
         epoch = 0
         ids = [0, 1]  # Must match the data input IDs
         split = "training"
         dataquality.log_model_outputs(
-            emb=emb, logits=logits, ids=ids, split=split, epoch=epoch
+            embs=embs, logits=logits, ids=ids, split=split, epoch=epoch
         )
     """
 
@@ -91,7 +91,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
 
     def __init__(
         self,
-        emb: List[np.ndarray] = None,
+        embs: List[np.ndarray] = None,
         probs: List[np.ndarray] = None,
         logits: List[np.ndarray] = None,
         ids: Union[List, np.ndarray] = None,
@@ -101,7 +101,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         super().__init__()
         # Need to compare to None because they may be np arrays which cannot be
         # evaluated with bool directly
-        self.emb = emb if emb is not None else []
+        self.embs = embs if embs is not None else []
         self.probs = probs if probs is not None else []
         self.logits = logits if logits is not None else []
         self.ids: Union[List, np.ndarray] = ids if ids is not None else []
@@ -131,7 +131,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
     def validate(self) -> None:
         """
         Validates that the current config is correct.
-        * emb, probs, and ids must exist and be the same length
+        * embs, probs, and ids must exist and be the same length
         :return:
         """
         super().validate()
@@ -141,24 +141,24 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         elif len(self.probs):
             warnings.warn("Usage of probs is deprecated, use logits instead")
 
-        emb_len = len(self.emb)
-        prob_len = len(self.probs)
-        id_len = len(self.ids)
+        embs_len = len(self.embs)
+        probs_len = len(self.probs)
+        ids_len = len(self.ids)
 
-        assert all([emb_len, prob_len, id_len]), (
+        assert all([embs_len, probs_len, ids_len]), (
             f"All of emb, probs, and ids for your logger must be set, but "
-            f"got emb:{bool(emb_len)}, probs:{bool(prob_len)}, ids:{bool(id_len)}"
+            f"got emb:{bool(embs_len)}, probs:{bool(probs_len)}, ids:{bool(ids_len)}"
         )
 
-        assert emb_len == prob_len == id_len, (
+        assert embs_len == probs_len == ids_len, (
             f"All of emb, probs, and ids for your logger must be the same "
-            f"length, but got (emb, probs, ids) -> ({emb_len}, {prob_len}, {id_len})"
+            f"length, but got (emb, probs, ids) -> ({embs_len}, {probs_len}, {ids_len})"
         )
 
         # We need to average the embeddings for the tokens within a span
         # so each span has only 1 embedding vector
         logged_sample_ids = []
-        for sample_id, sample_emb, sample_prob in zip(self.ids, self.emb, self.probs):
+        for sample_id, sample_emb, sample_prob in zip(self.ids, self.embs, self.probs):
             # This will return True if there was a prediction or gold span
             if self._process_sample(sample_id, sample_emb, sample_prob):
                 logged_sample_ids.append(sample_id)

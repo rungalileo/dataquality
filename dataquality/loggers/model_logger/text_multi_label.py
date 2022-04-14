@@ -17,9 +17,9 @@ class TextMultiLabelModelLogger(TextClassificationModelLogger):
     """
     Class for logging model outputs of Multi Label Text classification models to Galileo
 
-    * emb: (Embeddings) List[List[Union[int,float]]]. Embeddings per text sample input.
-    Only one embedding vector is allowed per input (len(emb) == len(text)
-    and emb.shape==2)
+    * embs: (Embeddings) List[List[Union[int,float]]]. Embeddings per text sample input.
+    Only one embedding vector is allowed per input (len(embs) == len(text)
+    and embs.shape==2)
     * logits: Output from forward pass during model training/evalutation.
     List[List[List[float]]] or List[np.ndarray].
     For each text input, a list of lists of floats is expected (one list/array per task)
@@ -40,7 +40,7 @@ class TextMultiLabelModelLogger(TextClassificationModelLogger):
 
     def __init__(
         self,
-        emb: Union[List, np.ndarray] = None,
+        embs: Union[List, np.ndarray] = None,
         probs: Union[List[List[List]], List[np.ndarray]] = None,
         logits: Union[List[List[List]], List[np.ndarray]] = None,
         ids: Union[List, np.ndarray] = None,
@@ -50,7 +50,7 @@ class TextMultiLabelModelLogger(TextClassificationModelLogger):
         super().__init__()
         # Need to compare to None because they may be np arrays which cannot be
         # evaluated with bool directly
-        self.emb = emb if emb is not None else []
+        self.embs = embs if embs is not None else []
         self.probs = probs if probs is not None else []
         self.logits = logits if logits is not None else []
         self.ids = ids if ids is not None else []
@@ -60,7 +60,7 @@ class TextMultiLabelModelLogger(TextClassificationModelLogger):
     def validate(self) -> None:
         """
         Validates that the current config is correct.
-        * emb, probs, and ids must exist and be the same length
+        * embs, probs, and ids must exist and be the same length
         :return:
         """
         super().validate()
@@ -86,7 +86,7 @@ class TextMultiLabelModelLogger(TextClassificationModelLogger):
 
     def _get_data_dict(self) -> Dict[str, Any]:
         data = defaultdict(list)
-        for record_id, prob_per_task, emb in zip(self.ids, self.probs, self.emb):
+        for record_id, prob_per_task, emb in zip(self.ids, self.probs, self.embs):
             # Handle binary classification by making it 2-class classification
             record = {
                 "id": record_id,

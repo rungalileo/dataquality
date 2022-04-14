@@ -46,7 +46,7 @@ class BaseLoggerAttributes(str, Enum):
     meta = "meta"  # Metadata columns for logging
     prob = "prob"
     gold = "gold"
-    emb = "emb"
+    embs = "embs"
     probs = "probs"
     logits = "logits"
     epoch = "epoch"

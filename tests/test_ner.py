@@ -419,7 +419,7 @@ def test_ner_logging(cleanup_after_use: Callable, set_test_config: Callable) -> 
 
     dataquality.set_epoch(0)
     dataquality.log_model_outputs(
-        emb=np.random.rand(3, 8, 5),
+        embs=np.random.rand(3, 8, 5),
         probs=pred_prob,
         ids=[0, 1, 2],
     )
@@ -491,7 +491,7 @@ def test_ner_logging(cleanup_after_use: Callable, set_test_config: Callable) -> 
         split=split,
     )
     dataquality.log_model_outputs(
-        emb=np.random.rand(3, 8, 5),
+        embs=np.random.rand(3, 8, 5),
         logits=pred_prob,
         ids=[0, 1, 2],
         split="training",
@@ -601,14 +601,14 @@ def test_duplicate_output_rows(set_test_config, cleanup_after_use) -> None:
         split="training",
     )
 
-    emb = [np.random.rand(119, 768) for _ in range(5)]
+    embs = [np.random.rand(119, 768) for _ in range(5)]
     logits = [np.random.rand(119, 28) for _ in range(5)]
 
     dataquality.log_model_outputs(
-        emb=emb, logits=logits, ids=ids, split="training", epoch=0
+        embs=embs, logits=logits, ids=ids, split="training", epoch=0
     )
     dataquality.log_model_outputs(
-        emb=emb, logits=logits, ids=ids, split="training", epoch=0
+        embs=embs, logits=logits, ids=ids, split="training", epoch=0
     )
 
     with pytest.raises(GalileoException) as e:
