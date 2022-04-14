@@ -39,6 +39,12 @@ def log_data_sample(*, text: str, id: int, **kwargs: Any) -> None:
         [config.task_type, config.current_project_id, config.current_run_id]
     ), "You must call dataquality.init before logging data"
     data_logger = get_data_logger()
+    # For logging a single sample, we don't want a progress bar because it will be
+    # nearly instant, and it's likely that the user will call this many times which
+    # would flood the output.
+    # We don't need to reset log_export_progress because this class instance is
+    # ephemeral
+    data_logger.log_export_progress = False
     data_logger.log_data_sample(text=text, id=id, **kwargs)
 
 

@@ -45,6 +45,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     def __init__(self, meta: MetasType = None) -> None:
         super().__init__()
         self.meta: Dict = meta or {}
+        self.log_export_progress = True
 
     @abstractmethod
     def log_data_sample(self, *, text: str, id: int, **kwargs: Any) -> None:
@@ -88,7 +89,10 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         if os.path.isfile(file_path):
             self.append_input_data(df, write_input_dir, file_path)
         else:
-            with vaex.progress.tree("vaex", title="Exporting input data"):
+            if self.log_export_progress:
+                with vaex.progress.tree("vaex", title="Exporting input data"):
+                    df.export(file_path)
+            else:
                 df.export(file_path)
         df.close()
 
@@ -110,7 +114,10 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             os.rename(tmp_name, file_path)  # Revert name, we aren't logging
             raise e
 
-        with vaex.progress.tree("vaex", title="Appending input data"):
+        if self.log_export_progress:
+            with vaex.progress.tree("vaex", title="Appending input data"):
+                merged_df.export(file_path)
+        else:
             merged_df.export(file_path)
 
         # Cleanup temporary file after appending input data
@@ -150,7 +157,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     ) -> None:
         split_runs = os.listdir(split_loc)
 
-        for split_run in split_runs:  # For each inference name or epoch
+        # For each inference name or epoch of the given split
+        for split_run in tqdm(split_runs, total=len(split_runs), desc=split):
             in_frame_slice = in_frame.copy()
             prob_only = cls.prob_only(split, split_run)
             if split == Split.inference:
@@ -217,6 +225,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         # These df vars will be used in upload_in_out_frames
         emb.set_variable("skip_upload", prob_only)
         data_df.set_variable("skip_upload", prob_only)
+        epoch_inf_val = out_frame[[epoch_or_inf_name]][0][0]
+        prob.set_variable("progress_name", str(epoch_inf_val))
 
         return BaseLoggerInOutFrames(prob=prob, emb=emb, data=data_df)
 
@@ -234,8 +244,12 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         emb = in_out_frames.emb
         data_df = in_out_frames.data
 
+        epoch_inf = prob.variables.pop("progress_name", "")
+
+        name = "inf_name" if split == Split.inference else "epoch"
+        desc = f"{split} ({name}={epoch_inf})"
         for data_folder, df_obj in tqdm(
-            zip(DATA_FOLDERS, [emb, prob, data_df]), total=3, desc=split
+            zip(DATA_FOLDERS, [emb, prob, data_df]), total=3, desc=desc, leave=False
         ):
             if df_obj.variables.get("skip_upload"):
                 continue
