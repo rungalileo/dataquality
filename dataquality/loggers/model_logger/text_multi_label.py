@@ -46,16 +46,17 @@ class TextMultiLabelModelLogger(TextClassificationModelLogger):
         ids: Union[List, np.ndarray] = None,
         split: str = "",
         epoch: Optional[int] = None,
+        inference_name: Optional[str] = None,
     ) -> None:
-        super().__init__()
-        # Need to compare to None because they may be np arrays which cannot be
-        # evaluated with bool directly
-        self.embs = embs if embs is not None else []
-        self.probs = probs if probs is not None else []
-        self.logits = logits if logits is not None else []
-        self.ids = ids if ids is not None else []
-        self.split = split
-        self.epoch = epoch
+        super().__init__(
+            embs=embs,
+            probs=probs,
+            logits=logits,
+            ids=ids,
+            split=split,
+            epoch=epoch,
+            inference_name=inference_name,
+        )
 
     def validate(self) -> None:
         """

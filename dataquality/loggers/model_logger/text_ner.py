@@ -95,18 +95,23 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         probs: List[np.ndarray] = None,
         logits: List[np.ndarray] = None,
         ids: Union[List, np.ndarray] = None,
-        split: Optional[str] = None,
+        split: str = "",
         epoch: Optional[int] = None,
+        inference_name: Optional[str] = None,
     ) -> None:
-        super().__init__()
-        # Need to compare to None because they may be np arrays which cannot be
-        # evaluated with bool directly
-        self.embs = embs if embs is not None else []
-        self.probs = probs if probs is not None else []
-        self.logits = logits if logits is not None else []
-        self.ids: Union[List, np.ndarray] = ids if ids is not None else []
-        self.split = split
-        self.epoch = epoch
+        super().__init__(
+            embs=embs,
+            probs=probs,
+            logits=logits,
+            ids=ids,
+            split=split,
+            epoch=epoch,
+            inference_name=inference_name,
+        )
+        # Explicit cast to List from parent
+        self.embs: List[np.ndarray] = list(self.embs)
+        self.logits: List[np.ndarray] = list(self.logits)
+        self.probs: List[np.ndarray] = list(self.probs)
 
         # Calculated internally
         self.gold_emb: List[List[np.ndarray]] = []

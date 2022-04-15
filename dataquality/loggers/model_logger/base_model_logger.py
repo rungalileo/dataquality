@@ -1,6 +1,6 @@
 import warnings
 from abc import abstractmethod
-from typing import Any, Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union
 from uuid import uuid4
 
 import numpy as np
@@ -17,10 +17,26 @@ from dataquality.utils.vaex import _save_hdf5_file
 
 
 class BaseGalileoModelLogger(BaseGalileoLogger):
-    def __init__(self, **kwargs: Dict[str, Any]) -> None:
+    def __init__(
+        self,
+        embs: Union[List, np.ndarray] = None,
+        probs: Union[List, np.ndarray] = None,
+        logits: Union[List, np.ndarray] = None,
+        ids: Union[List, np.ndarray] = None,
+        split: str = "",
+        epoch: Optional[int] = None,
+        inference_name: Optional[str] = None,
+    ) -> None:
         super().__init__()
-        self.epoch: Optional[int] = None
-        self.inference_name: Optional[str] = None
+        # Need to compare to None because they may be np arrays which cannot be
+        # evaluated with bool directly
+        self.embs: Union[List, np.ndarray] = embs if embs is not None else []
+        self.logits: Union[List, np.ndarray] = logits if logits is not None else []
+        self.probs: Union[List, np.ndarray] = probs if probs is not None else []
+        self.ids: Union[List, np.ndarray] = ids if ids is not None else []
+        self.epoch = epoch
+        self.split: str = split
+        self.inference_name = inference_name
 
     def _log(self) -> None:
         """Threaded logger target"""

@@ -69,16 +69,17 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         ids: Union[List, np.ndarray] = None,
         split: str = "",
         epoch: Optional[int] = None,
+        inference_name: Optional[str] = None,
     ) -> None:
-        super().__init__()
-        # Need to compare to None because they may be np arrays which cannot be
-        # evaluated with bool directly
-        self.embs: Union[List, np.ndarray] = embs if embs is not None else []
-        self.logits: Union[List, np.ndarray] = logits if logits is not None else []
-        self.probs: Union[List, np.ndarray] = probs if probs is not None else []
-        self.ids: Union[List, np.ndarray] = ids if ids is not None else []
-        self.split: str = split
-        self.epoch = epoch
+        super().__init__(
+            embs=embs,
+            probs=probs,
+            logits=logits,
+            ids=ids,
+            split=split,
+            epoch=epoch,
+            inference_name=inference_name,
+        )
 
     @staticmethod
     def get_valid_attributes() -> List[str]:

@@ -2,6 +2,7 @@ import json
 import os
 import warnings
 from enum import Enum, unique
+from pathlib import Path
 from typing import Dict, Optional
 
 from pydantic import BaseModel
@@ -34,7 +35,7 @@ class GalileoConfigVars(str, Enum):
 
 
 class ConfigData(str, Enum):
-    DEFAULT_GALILEO_CONFIG_DIR = f"{os.getcwd()}/.galileo"
+    DEFAULT_GALILEO_CONFIG_DIR = f"{os.environ.get('HOME', str(Path.home()))}/.galileo"
     DEFAULT_GALILEO_CONFIG_FILE = f"{DEFAULT_GALILEO_CONFIG_DIR}/config.json"
     minio_secret_key = "_minio_secret_key"
 
