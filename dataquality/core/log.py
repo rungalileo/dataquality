@@ -1,5 +1,7 @@
 from typing import Any, Callable, List, Optional, Type, Union
 
+import numpy as np
+
 from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
@@ -95,16 +97,46 @@ def log_dataset(
     data_logger.log_dataset(dataset, text=text, id=id, **kwargs)
 
 
-def log_model_outputs(**kwargs: Any) -> None:
+def log_model_outputs(
+    *,
+    embs: Union[List, np.ndarray],
+    ids: Union[List, np.ndarray],
+    split: Optional[Split] = None,
+    epoch: Optional[int] = None,
+    logits: Union[List, np.ndarray] = None,
+    probs: Union[List, np.ndarray] = None,
+    inference_name: str = None,
+) -> None:
     """Logs model outputs for model during training/test/validation.
 
-    The expected arguments come from the task_type's model
+    :param embs: The embeddings per output sample
+    :param ids: The ids for each sample. Must match input ids of logged samples
+    :param split: The current split. Must be set either here or via dq.set_split
+    :param split: The current epoch. Must be set either here or via dq.set_epoch
+    :param logits: The logits for each sample
+    :param probs: Deprecated, use logits. If passed in, a softmax will NOT be applied
+    :param inference_name: Inference name indicator for this inference split.
+        If logging for an inference split, this is required.
+
+    The expected argument shapes come from the task_type's model
     logger: See dataquality.get_model_logger().doc() for details
+    in inputs for your task_type
     """
     assert all(
         [config.task_type, config.current_project_id, config.current_run_id]
     ), "You must call dataquality.init before logging data"
-    model_logger = get_model_logger()(**kwargs)
+    assert (probs is not None) or (
+        logits is not None
+    ), "You must provide either logits or probs"
+    model_logger = get_model_logger()(
+        embs=embs,
+        ids=ids,
+        split=Split[split].value if split else "",
+        epoch=epoch,
+        logits=logits,
+        probs=probs,
+        inference_name=inference_name,
+    )
     model_logger.log()
 
 
