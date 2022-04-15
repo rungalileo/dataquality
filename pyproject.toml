@@ -46,6 +46,7 @@ test = [
     "pytorch-lightning==1.4.9",
     "torch==1.9.1",
     "transformers==4.11.3",
+    "torchmetrics<0.8.0",
     "tensorflow==2.8.0"
 ]
 dev = [
