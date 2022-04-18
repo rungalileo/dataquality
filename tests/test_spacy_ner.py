@@ -28,6 +28,7 @@ from tests.utils.spacy_integration_constants import (
     NER_TEST_DATA,
     NER_TRAINING_DATA,
     TestSpacyNerConstants,
+    MISALIGNED_SPAN_DATA
 )
 
 
@@ -272,17 +273,12 @@ def test_spacy_does_not_log_misaligned_entities(cleanup_after_use, set_test_conf
     TextNERModelLogger.logger_config.reset()
     set_test_config(task_type=TaskType.text_ner)
 
-    misaligned_span_data = [(
-     'Additional To  BCC Attachment Subject Proposal for Ping\nIdentityBodyNicole, Im connecting with experts like you to\nget input on our CustomerIntelligence Platform! LinkedIns\nCCOs feedback was, Involve. ai helps CSMs pinpoint\neverycustomers unique needs for current and future value\ndelivery. WhatInvolve. ai is doing is gamechanging! Its the\nonly customer success platform using AI and automation to\ndelivertrue customer intelligence. When could we show it to\nyou and get yourfeedback? JamieJamie DavisBusiness Colorado\nAve, B, Santa Monica CA 90404image facebookimage\ntwitterimage linkedinWould you like to opt out?',
-     {'entities': [(108, 110, 'Scaled Outreach')]})]
-
-
     nlp = spacy.blank("en")
     nlp.add_pipe("ner", last=True)
 
     # Spacy pre-processing
     training_examples = []
-    for text, annotations in misaligned_span_data:
+    for text, annotations in MISALIGNED_SPAN_DATA:
         doc = nlp.make_doc(text)
         training_examples.append(Example.from_dict(doc, annotations))
 
@@ -314,7 +310,7 @@ def test_log_input_examples_no_gold_spans(set_test_config, cleanup_after_use):
     log_input_examples(training_examples, "training")
 
 
-def test_log_input_examples_one_no_gold_spans(set_test_config, cleanup_after_use):
+def test_log_input_one_example_has_no_gold_spans(set_test_config, cleanup_after_use):
     set_test_config(task_type=TaskType.text_ner)
     text_ner_logger_config.gold_spans = {}
     nlp = spacy.blank("en")
