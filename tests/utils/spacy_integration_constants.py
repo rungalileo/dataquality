@@ -773,6 +773,9 @@ LONG_SHORT_DATA = (
     NER_TRAINING_DATA[:2] + LONG_TRAIN_DATA + NER_TRAINING_DATA[2:] + LONG_TRAIN_DATA
 )
 
-MISALIGNED_SPAN_DATA = [(
-    'Additional To  BCC Attachment Subject Proposal for Ping\nIdentityBodyNicole, Im connecting with experts like you to\nget input on our CustomerIntelligence Platform! LinkedIns\nCCOs feedback was, Involve. ai helps CSMs pinpoint\neverycustomers unique needs for current and future value\ndelivery. WhatInvolve. ai is doing is gamechanging! Its the\nonly customer success platform using AI and automation to\ndelivertrue customer intelligence. When could we show it to\nyou and get yourfeedback? JamieJamie DavisBusiness Colorado\nAve, B, Santa Monica CA 90404image facebookimage\ntwitterimage linkedinWould you like to opt out?',
-    {'entities': [(108, 110, 'Scaled Outreach')]})]
+MISALIGNED_SPAN_DATA = [
+    (
+        "Additional To  BCC Attachment Subject Proposal for Ping\nIdentityBodyNicole, Im connecting with experts like you to\nget input on our CustomerIntelligence Platform! LinkedIns\nCCOs feedback was, Involve. ai helps CSMs pinpoint\neverycustomers unique needs for current and future value\ndelivery. WhatInvolve. ai is doing is gamechanging! Its the\nonly customer success platform using AI and automation to\ndelivertrue customer intelligence. When could we show it to\nyou and get yourfeedback? JamieJamie DavisBusiness Colorado\nAve, B, Santa Monica CA 90404image facebookimage\ntwitterimage linkedinWould you like to opt out?",
+        {"entities": [(108, 110, "Scaled Outreach")]},
+    )
+]

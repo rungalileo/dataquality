@@ -24,11 +24,11 @@ from tests.utils.spacy_integration import load_ner_data_from_local, train_model
 from tests.utils.spacy_integration_constants import (
     LONG_SHORT_DATA,
     LONG_TRAIN_DATA,
+    MISALIGNED_SPAN_DATA,
     NER_CLASS_LABELS,
     NER_TEST_DATA,
     NER_TRAINING_DATA,
     TestSpacyNerConstants,
-    MISALIGNED_SPAN_DATA
 )
 
 
@@ -292,6 +292,7 @@ def test_spacy_does_not_log_misaligned_entities(cleanup_after_use, set_test_conf
 
     logged_gold_spans = dataquality.get_data_logger().logger_config.gold_spans
     assert len(logged_gold_spans["training_0"]) == 0
+
 
 def test_log_input_examples_no_gold_spans(set_test_config, cleanup_after_use):
     set_test_config(task_type=TaskType.text_ner)
