@@ -13,7 +13,7 @@ from tqdm import tqdm
 from vaex.dataframe import DataFrameLocal
 
 import dataquality
-from dataquality.core.integrations.spacy import log_input_examples, watch
+from dataquality.integrations import log_input_examples, watch
 from tests.conftest import SUBDIRS, TEST_PATH
 
 

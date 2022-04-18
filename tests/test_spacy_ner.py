@@ -9,7 +9,7 @@ from spacy.pipeline.ner import EntityRecognizer
 from spacy.training import Example
 
 import dataquality
-from dataquality.core.integrations.spacy import (
+from dataquality.integrations import (
     GalileoEntityRecognizer,
     log_input_examples,
     unwatch,

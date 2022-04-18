@@ -13,7 +13,7 @@ from transformers import DistilBertTokenizerFast
 #
 # 🔭 Use the GalileoModelConfig and GalileoDataConfig to keep track of Galileo metrics for logging
 #
-from dataquality.core.integrations.config import GalileoDataConfig, GalileoModelConfig
+from dataquality.integrations import GalileoDataConfig, GalileoModelConfig
 
 
 def introduce_label_errors(
@@ -160,7 +160,7 @@ class LightningDistilBERT(pl.LightningModule):
 
 
 # Use the PyTorch Lightning Callback to log data to Galileo
-from dataquality.core.integrations.lightning import DataQualityCallback
+from dataquality.integrations.lightning import DataQualityCallback
 
 model = LightningDistilBERT()
 
