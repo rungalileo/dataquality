@@ -5,8 +5,8 @@ import pytorch_lightning as pl
 import torch
 
 import dataquality
-from dataquality.integrations.lightning import DataQualityCallback
 from dataquality.integrations import log_input_data, watch
+from dataquality.integrations.lightning import DataQualityCallback
 from dataquality.schemas.split import Split
 from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.test_dataquality import validate_uploaded_data
