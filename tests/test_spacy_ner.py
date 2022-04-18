@@ -294,36 +294,29 @@ def test_spacy_does_not_log_misaligned_entities(cleanup_after_use, set_test_conf
     assert len(logged_gold_spans["training_0"]) == 0
 
 
-def test_log_input_examples_no_gold_spans(set_test_config, cleanup_after_use):
+@pytest.mark.parametrize(
+    "training_data",
+    [
+        NER_TRAINING_DATA,
+        [(text, {"entities": []}) for text, entities in NER_TRAINING_DATA],
+        [
+            (text, entities if i != 1 else {"entities": []})
+            for i, (text, entities) in enumerate(NER_TRAINING_DATA)
+        ],
+    ],
+)
+def test_log_input_examples_have_no_gold_spans(
+    set_test_config, cleanup_after_use, training_data
+):
     set_test_config(task_type=TaskType.text_ner)
     text_ner_logger_config.gold_spans = {}
     nlp = spacy.blank("en")
     nlp.add_pipe("ner")
 
     training_examples = []
-    for text, _ in NER_TRAINING_DATA:
+    for text, annotations in training_data:
         doc = nlp.make_doc(text)
-        training_examples.append(Example.from_dict(doc, {"entities": []}))
-
-    nlp.initialize(lambda: training_examples)
-
-    watch(nlp)
-    log_input_examples(training_examples, "training")
-
-
-def test_log_input_one_example_has_no_gold_spans(set_test_config, cleanup_after_use):
-    set_test_config(task_type=TaskType.text_ner)
-    text_ner_logger_config.gold_spans = {}
-    nlp = spacy.blank("en")
-    nlp.add_pipe("ner")
-
-    training_examples = []
-    for text, annotations in NER_TRAINING_DATA:
-        doc = nlp.make_doc(text)
-        if len(training_examples) == 2:
-            training_examples.append(Example.from_dict(doc, {"entities": []}))
-        else:
-            training_examples.append(Example.from_dict(doc, annotations))
+        training_examples.append(Example.from_dict(doc, annotations))
 
     nlp.initialize(lambda: training_examples)
 
@@ -337,6 +330,6 @@ def test_log_input_one_example_has_no_gold_spans(set_test_config, cleanup_after_
 
         assert len(logged_gold_spans) == len(original_spans)
         for logged_gold_span, original_span in zip(logged_gold_spans, original_spans):
-            assert logged_gold_span[0] == original_span.start_char
-            assert logged_gold_span[1] == original_span.end_char
+            assert logged_gold_span[0] == original_span.start
+            assert logged_gold_span[1] == original_span.end
             assert logged_gold_span[2] == original_span.label_
