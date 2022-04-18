@@ -266,3 +266,80 @@ def test_inference_split_raises_warning(
                 "logging"
             )
         assert not mocked_model_logger_log.called
+
+
+def test_spacy_does_not_log_misaligned_entities(cleanup_after_use, set_test_config):
+    TextNERModelLogger.logger_config.reset()
+    set_test_config(task_type=TaskType.text_ner)
+
+    misaligned_span_data = [(
+     'Additional To  BCC Attachment Subject Proposal for Ping\nIdentityBodyNicole, Im connecting with experts like you to\nget input on our CustomerIntelligence Platform! LinkedIns\nCCOs feedback was, Involve. ai helps CSMs pinpoint\neverycustomers unique needs for current and future value\ndelivery. WhatInvolve. ai is doing is gamechanging! Its the\nonly customer success platform using AI and automation to\ndelivertrue customer intelligence. When could we show it to\nyou and get yourfeedback? JamieJamie DavisBusiness Colorado\nAve, B, Santa Monica CA 90404image facebookimage\ntwitterimage linkedinWould you like to opt out?',
+     {'entities': [(108, 110, 'Scaled Outreach')]})]
+
+
+    nlp = spacy.blank("en")
+    nlp.add_pipe("ner", last=True)
+
+    # Spacy pre-processing
+    training_examples = []
+    for text, annotations in misaligned_span_data:
+        doc = nlp.make_doc(text)
+        training_examples.append(Example.from_dict(doc, annotations))
+
+    assert len(training_examples[0].reference.ents) == 0
+
+    nlp.initialize(lambda: training_examples)
+
+    # Galileo code
+    watch(nlp)
+    log_input_examples(training_examples, "training")
+
+    logged_gold_spans = dataquality.get_data_logger().logger_config.gold_spans
+    assert len(logged_gold_spans["training_0"]) == 0
+
+def test_log_input_examples_no_gold_spans(set_test_config, cleanup_after_use):
+    set_test_config(task_type=TaskType.text_ner)
+    text_ner_logger_config.gold_spans = {}
+    nlp = spacy.blank("en")
+    nlp.add_pipe("ner")
+
+    training_examples = []
+    for text, _ in NER_TRAINING_DATA:
+        doc = nlp.make_doc(text)
+        training_examples.append(Example.from_dict(doc, {"entities": []}))
+
+    nlp.initialize(lambda: training_examples)
+
+    watch(nlp)
+    log_input_examples(training_examples, "training")
+
+
+def test_log_input_examples_one_no_gold_spans(set_test_config, cleanup_after_use):
+    set_test_config(task_type=TaskType.text_ner)
+    text_ner_logger_config.gold_spans = {}
+    nlp = spacy.blank("en")
+    nlp.add_pipe("ner")
+
+    training_examples = []
+    for text, annotations in NER_TRAINING_DATA:
+        doc = nlp.make_doc(text)
+        if len(training_examples) == 2:
+            training_examples.append(Example.from_dict(doc, {"entities": []}))
+        else:
+            training_examples.append(Example.from_dict(doc, annotations))
+
+    nlp.initialize(lambda: training_examples)
+
+    watch(nlp)
+    log_input_examples(training_examples, "training")
+
+    samples_logged_gold_spans = dataquality.get_data_logger().logger_config.gold_spans
+
+    for i, (_, logged_gold_spans) in enumerate(samples_logged_gold_spans.items()):
+        original_spans = training_examples[i].reference.ents
+
+        assert len(logged_gold_spans) == len(original_spans)
+        for logged_gold_span, original_span in zip(logged_gold_spans, original_spans):
+            assert logged_gold_span[0] == original_span.start_char
+            assert logged_gold_span[1] == original_span.end_char
+            assert logged_gold_span[2] == original_span.label_
