@@ -645,10 +645,12 @@ class TextNERDataLogger(BaseGalileoDataLogger):
     def is_valid_span_label(cls, label: str) -> bool:
         """Denotes if a span label is valid based on our allowed tagging schemas
 
-        B- = Before the sequence
-        I- = In the sequence
-        L-/E- = Last/Ending character of the sequence
-        S-/U- = Single/Unit element of a sequence
+        B = Before the sequence
+        I = In the sequence
+        L/E = Last/Ending character of the sequence
+        S/U = Single/Unit element of a sequence
+
+        A valid span label would then start with 'B-' for example.
         """
         return (
             label.startswith("B-")
