@@ -11,7 +11,7 @@ from dataquality.loggers.logger_config.text_classification import (
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.split import Split
-from dataquality.utils.logger import get_stdout_logger
+from dataquality.utils.stdout_logger import get_stdout_logger
 
 
 @unique

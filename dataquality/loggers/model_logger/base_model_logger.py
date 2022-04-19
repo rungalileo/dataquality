@@ -12,7 +12,7 @@ from dataquality.loggers.base_logger import BaseGalileoLogger
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
-from dataquality.utils.logger import get_stdout_logger
+from dataquality.utils.stdout_logger import get_stdout_logger
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import _save_hdf5_file
 
