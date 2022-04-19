@@ -1,4 +1,5 @@
 import os
+from typing import Callable
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -15,23 +16,21 @@ config = dataquality.config
 @mock.patch("requests.post", side_effect=mocked_login_requests)
 @mock.patch("requests.get", side_effect=mocked_login_requests)
 def test_good_login(
-    mock_get_current_user: MagicMock,
-    mock_login: MagicMock,
+    mock_get_current_user: MagicMock, mock_login: MagicMock, set_test_config: Callable
 ) -> None:
     os.environ[GALILEO_AUTH_METHOD] = "email"
     os.environ["GALILEO_USERNAME"] = "user"
     os.environ["GALILEO_PASSWORD"] = "password"
-    config.token = "mytoken"
+    set_test_config(token="mytoken")
     dataquality.login()
 
 
 @mock.patch("requests.post", side_effect=mocked_failed_login_requests)
-def test_bad_login(mock_post: MagicMock) -> None:
-    tok = config.token
-    config.token = None
+def test_bad_login(mock_post: MagicMock, set_test_config: Callable) -> None:
+    set_test_config(token=None)
     os.environ[GALILEO_AUTH_METHOD] = "email"
     os.environ["GALILEO_USERNAME"] = "user"
     os.environ["GALILEO_PASSWORD"] = "password"
-    with pytest.raises(GalileoException):
+    with pytest.raises(GalileoException) as e:
         dataquality.login()
-    config.token = tok
+    assert e.value.args[0] == "Issue logging in: Incorrect login credentials."
