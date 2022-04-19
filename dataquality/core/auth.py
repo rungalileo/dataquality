@@ -6,6 +6,7 @@ import requests
 
 from dataquality.clients.api import ApiClient
 from dataquality.core._config import AuthMethod, Config, config
+from dataquality.exceptions import GalileoException
 
 GALILEO_AUTH_METHOD = "GALILEO_AUTH_METHOD"
 api_client = ApiClient()
@@ -34,8 +35,7 @@ class _Auth:
             headers={"X-Galileo-Request-Source": "dataquality_python_client"},
         )
         if res.status_code != 200:
-            print(res.json())
-            return
+            raise GalileoException(f"Issue logging in: {res.json()['detail']}")
 
         access_token = res.json().get("access_token")
         config.token = access_token
