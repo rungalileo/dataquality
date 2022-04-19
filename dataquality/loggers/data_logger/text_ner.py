@@ -623,7 +623,6 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         )
 
         clean_labels = []
-
         for i in cls.logger_config.labels:
             if i and cls.is_valid_span_label(i):
                 label = i.split("-", maxsplit=1)[1]
