@@ -12,7 +12,7 @@ from dataquality.loggers.base_logger import BaseGalileoLogger
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
-from dataquality.utils.logger import get_logger
+from dataquality.utils.logger import get_stdout_logger
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import _save_hdf5_file
 
@@ -44,7 +44,7 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         try:
             self.validate()
         except AssertionError as e:
-            get_logger().exception("Validation of data failed")
+            get_stdout_logger().exception("Validation of data failed")
             raise GalileoException(
                 f"The provided logged data is invalid: {e}"
             ) from None
@@ -55,7 +55,7 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         try:
             self._log()
         except Exception as e:
-            get_logger().exception("Logging of model outputs failed")
+            get_stdout_logger().exception("Logging of model outputs failed")
             warnings.warn(f"An issue occurred while logging: {str(e)}")
 
     def log(self) -> None:
@@ -64,7 +64,7 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
 
     def write_model_output(self, data: Dict) -> None:
         """Creates an hdf5 file from the data dict"""
-        get_logger().info("Writing model output")
+        get_stdout_logger().info("Writing model output")
         location = (
             f"{self.LOG_FILE_DIR}/{config.current_project_id}"
             f"/{config.current_run_id}"
@@ -78,7 +78,7 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
             path = f"{location}/{split}/{epoch}"
 
         object_name = f"{str(uuid4()).replace('-', '')[:12]}.hdf5"
-        get_logger().info("Saving hdf5 file")
+        get_stdout_logger().info("Saving hdf5 file")
         _save_hdf5_file(path, object_name, data)
 
     @abstractmethod
