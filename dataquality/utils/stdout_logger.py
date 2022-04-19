@@ -13,8 +13,9 @@ def get_stdout_logger() -> logging.Logger:
     """Returns a logger based on the current run_id"""
     logger = logging.getLogger(str(config.current_run_id))
     logger.setLevel(os.environ.get("GALILEO_LOG_LEVEL", "INFO").upper())
-    # Avoid adding multiple handlers if it already exists
-    if not logger.hasHandlers():
+    # Avoid adding multiple handlers if one already exists
+    if not logger.handlers:
+        print("CREATING HANDLER")
         handler = logging.FileHandler(
             f"{STDOUT_HOME}/{config.current_run_id}/stdout.log"
         )

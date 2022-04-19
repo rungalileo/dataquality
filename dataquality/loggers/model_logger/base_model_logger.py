@@ -60,6 +60,7 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
 
     def log(self) -> None:
         """The top level log function that try/excepts it's child"""
+        get_stdout_logger().info("Starting logging process from thread")
         ThreadPoolManager.add_thread(target=self._add_threaded_log)
 
     def write_model_output(self, data: Dict) -> None:
