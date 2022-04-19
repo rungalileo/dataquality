@@ -16,7 +16,7 @@ def get_stdout_logger() -> logging.Logger:
     logger.getLogger caches loggers by name, so it won't return a new logging
     handler each time. We will have only 1 handler per new run
     """
-    logger = logging.Logger(config.current_run_id)
+    logger = logging.Logger(str(config.current_run_id))
     logger.setLevel(os.environ.get("GALILEO_LOG_LEVEL", "INFO").upper())
     galileo_home = ConfigData.DEFAULT_GALILEO_CONFIG_DIR
     handler = logging.FileHandler(
