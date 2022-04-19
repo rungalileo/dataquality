@@ -3,7 +3,7 @@ from typing import Any, Dict, Optional
 
 import dataquality
 from dataquality.clients.api import ApiClient
-from dataquality.core._config import config
+from dataquality.core._config import ConfigData, config
 from dataquality.schemas import RequestType, Route
 from dataquality.schemas.job import JobName
 from dataquality.utils.thread_pool import ThreadPoolManager
@@ -33,6 +33,9 @@ def finish() -> Optional[Dict[str, Any]]:
         project_dir = f"{data_logger.LOG_FILE_DIR}/{config.current_project_id}"
         # All of the logged user data is to the old run ID, so rename it to the new ID
         os.rename(f"{project_dir}/{old_run}", f"{project_dir}/{config.current_run_id}")
+        # Move stdout as well
+        stdout_dir = f"{ConfigData.DEFAULT_GALILEO_CONFIG_DIR}/stdout"
+        os.rename(f"{stdout_dir}/{old_run}", f"{stdout_dir}/{config.current_run_id}")
 
     data_logger.upload()
     data_logger._cleanup()
