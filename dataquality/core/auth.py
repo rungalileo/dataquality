@@ -35,7 +35,7 @@ class _Auth:
             headers={"X-Galileo-Request-Source": "dataquality_python_client"},
         )
         if res.status_code != 200:
-            raise GalileoException(f"Issue logging in: {res.json()['detail']}")
+            raise GalileoException(f"Issue authenticating: {res.json()['detail']}")
 
         access_token = res.json().get("access_token")
         config.token = access_token

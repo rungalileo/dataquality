@@ -33,4 +33,4 @@ def test_bad_login(mock_post: MagicMock, set_test_config: Callable) -> None:
     os.environ["GALILEO_PASSWORD"] = "password"
     with pytest.raises(GalileoException) as e:
         dataquality.login()
-    assert e.value.args[0] == "Issue logging in: Incorrect login credentials."
+    assert e.value.args[0] == "Issue authenticating: Incorrect login credentials."
