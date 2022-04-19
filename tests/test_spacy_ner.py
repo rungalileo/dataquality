@@ -45,7 +45,7 @@ def test_log_input_examples_without_watch(set_test_config, cleanup_after_use):
     )
 
 
-def test_log_input_examples_bad_inputs(set_test_config, cleanup_after_use):
+def test_log_input_list_of_tuples(set_test_config, cleanup_after_use):
     text_ner_logger_config.reset()
     set_test_config(task_type=TaskType.text_ner)
 
