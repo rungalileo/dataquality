@@ -1,5 +1,5 @@
 from itertools import chain
-from typing import Callable
+from typing import Callable, List
 from unittest import mock
 
 import numpy as np
@@ -711,3 +711,40 @@ def test_log_dataset_tuple(
         assert logger.text_token_indices_flat == flattened_input
         assert logger.ids == list(range(5))
         assert logger.split == Split.training
+
+
+@pytest.mark.parametrize(
+    "labels, expected_err_message",
+    [
+        (LABELS, None),
+        (
+            [""],
+            "No valid labels found among ['', 'NOT_']. A valid label is one that "
+            "starts with either B-, I-, L-, E-, S-, or U- according to your "
+            "particular tagging scheme",
+        ),
+        (
+            ["B-"],
+            "The class names following the tag cannot be empty. For example 'B-' is "
+            "not allowed, but 'B-some_class' is.",
+        ),
+        (
+            ["B_starting_word"],
+            "No valid labels found among ['B_starting_word', 'NOT_B_starting_word']. "
+            "A valid label is one that starts with either B-, I-, L-, E-, S-, or U- "
+            "according to your particular tagging scheme",
+        ),
+    ],
+)
+def test_is_valid_span_label(
+    set_test_config: Callable, labels: List[str], expected_err_message: str
+):
+    set_test_config(task_type="text_ner")
+
+    dataquality.set_labels_for_run(labels)
+    if expected_err_message:
+        with pytest.raises(AssertionError) as e:
+            TextNERDataLogger._clean_labels()
+        assert e.value.args[0] == expected_err_message
+    else:
+        TextNERDataLogger._clean_labels()
