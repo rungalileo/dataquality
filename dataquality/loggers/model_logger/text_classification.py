@@ -96,7 +96,7 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         * embs, probs, and ids must exist and be the same length
         :return:
         """
-        get_stdout_logger().info("Handling logits and probs")
+        get_stdout_logger().info("Handling logits and probs", split=self.split)
         if len(self.logits):
             self.logits = self._convert_tensor_ndarray(self.logits, "Prob")
             self.probs = self.convert_logits_to_probs(self.logits)
@@ -109,11 +109,11 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         probs_len = len(self.probs)
         ids_len = len(self.ids)
 
-        get_stdout_logger().info("Converting inputs to numpy arrays")
+        get_stdout_logger().info("Converting inputs to numpy arrays", split=self.split)
         self.embs = self._convert_tensor_ndarray(self.embs, "Embedding")
         self.ids = self._convert_tensor_ndarray(self.ids)
 
-        get_stdout_logger().info("Validating embedding shape")
+        get_stdout_logger().info("Validating embedding shape", split=self.split)
         assert self.embs.ndim == 2, "Only one embedding vector is allowed per input."
 
         assert embs_len and probs_len and ids_len, (
@@ -131,7 +131,7 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         try:
             self.split = Split[self.split].value
         except KeyError:
-            get_stdout_logger().error("Provided a bad split")
+            get_stdout_logger().error("Provided a bad split", split=self.split)
             raise AssertionError(
                 f"Split should be one of {Split.get_valid_attributes()} "
                 f"but got {self.split}"

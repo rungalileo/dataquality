@@ -44,7 +44,9 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         try:
             self.validate()
         except AssertionError as e:
-            get_stdout_logger().error("Validation of data failed")
+            get_stdout_logger().error(
+                "Validation of data failed", split=self.split, epoch=self.epoch
+            )
             raise GalileoException(
                 f"The provided logged data is invalid: {e}"
             ) from None
@@ -55,7 +57,9 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         try:
             self._log()
         except Exception as e:
-            get_stdout_logger().exception("Logging of model outputs failed")
+            get_stdout_logger().exception(
+                "Logging of model outputs failed", split=self.split, epoch=self.epoch
+            )
             warnings.warn(f"An issue occurred while logging: {str(e)}")
 
     def log(self) -> None:
@@ -64,12 +68,16 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         # global variables (cur_split and cur_epoch) that are subject to change
         # between subsequent threads
         self.set_split_epoch()
-        get_stdout_logger().info("Starting logging process from thread")
+        get_stdout_logger().info(
+            "Starting logging process from thread", split=self.split, epoch=self.epoch
+        )
         ThreadPoolManager.add_thread(target=self._add_threaded_log)
 
     def write_model_output(self, data: Dict) -> None:
         """Creates an hdf5 file from the data dict"""
-        get_stdout_logger().info("Writing model output")
+        get_stdout_logger().info(
+            "Writing model output", split=self.split, epoch=self.epoch
+        )
         location = (
             f"{self.LOG_FILE_DIR}/{config.current_project_id}"
             f"/{config.current_run_id}"
@@ -83,7 +91,7 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
             path = f"{location}/{split}/{epoch}"
 
         object_name = f"{str(uuid4()).replace('-', '')[:12]}.hdf5"
-        get_stdout_logger().info("Saving hdf5 file")
+        get_stdout_logger().info("Saving hdf5 file", split=self.split)
         _save_hdf5_file(path, object_name, data)
 
     def set_split_epoch(self) -> None:

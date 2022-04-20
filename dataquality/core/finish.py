@@ -103,3 +103,4 @@ def _reset_run(project_id: UUID4, run_id: UUID4) -> None:
     # Move stdout as well
     stdout_dir = f"{ConfigData.DEFAULT_GALILEO_CONFIG_DIR}/stdout"
     os.rename(f"{stdout_dir}/{old_run_id}", f"{stdout_dir}/{config.current_run_id}")
+    config.update_file_config()
