@@ -222,6 +222,7 @@ def set_split(split: Split, inference_name: Optional[str] = None) -> None:
     When setting split to inference, inference_name must be included
     """
     get_data_logger().logger_config.cur_inference_name = inference_name
+    split = Split[split]
     setattr(get_data_logger().logger_config, f"{split}_logged", True)
     # Set cur_inference_name before split for pydantic validation
     get_data_logger().logger_config.cur_split = split

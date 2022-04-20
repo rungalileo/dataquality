@@ -96,7 +96,6 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         * embs, probs, and ids must exist and be the same length
         :return:
         """
-        super().validate()
         get_stdout_logger().info("Handling logits and probs")
         if len(self.logits):
             self.logits = self._convert_tensor_ndarray(self.logits, "Prob")

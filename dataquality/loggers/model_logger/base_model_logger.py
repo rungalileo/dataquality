@@ -60,6 +60,10 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
 
     def log(self) -> None:
         """The top level log function that try/excepts it's child"""
+        # We validate split and epoch before entering the thread because we reference
+        # global variables (cur_split and cur_epoch) that are subject to change
+        # between subsequent threads
+        self.set_split_epoch()
         get_stdout_logger().info("Starting logging process from thread")
         ThreadPoolManager.add_thread(target=self._add_threaded_log)
 
@@ -82,9 +86,8 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         get_stdout_logger().info("Saving hdf5 file")
         _save_hdf5_file(path, object_name, data)
 
-    @abstractmethod
-    def validate(self) -> None:
-        super().validate()
+    def set_split_epoch(self) -> None:
+        super().set_split_epoch()
         if self.split == Split.inference and self.inference_name is None:
             if self.logger_config.cur_inference_name is not None:
                 self.inference_name = self.logger_config.cur_inference_name
