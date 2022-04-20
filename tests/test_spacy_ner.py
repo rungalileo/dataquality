@@ -9,13 +9,13 @@ from spacy.pipeline.ner import EntityRecognizer
 from spacy.training import Example
 
 import dataquality
-from dataquality.core.integrations.spacy import (
+from dataquality.exceptions import GalileoException
+from dataquality.integrations.spacy import (
     GalileoEntityRecognizer,
     log_input_examples,
     unwatch,
     watch,
 )
-from dataquality.exceptions import GalileoException
 from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
 from dataquality.schemas.task_type import TaskType
