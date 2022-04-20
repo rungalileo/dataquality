@@ -351,8 +351,8 @@ def test_spacy_does_not_log_misaligned_entities(cleanup_after_use, set_test_conf
 def test_log_input_examples_have_no_gold_spans(
     set_test_config, cleanup_after_use, training_data
 ):
+    TextNERModelLogger.logger_config.reset()
     set_test_config(task_type=TaskType.text_ner)
-    text_ner_logger_config.gold_spans = {}
     nlp = spacy.blank("en")
     nlp.add_pipe("ner")
 
@@ -380,3 +380,23 @@ def test_log_input_examples_have_no_gold_spans(
             assert logged_gold_span[0] == original_span.start
             assert logged_gold_span[1] == original_span.end
             assert logged_gold_span[2] == original_span.label_
+
+
+def test_watch_nlp_with_no_gold_labels(set_test_config, cleanup_after_use):
+    TextNERModelLogger.logger_config.reset()
+    set_test_config(task_type=TaskType.text_ner)
+
+    nlp = spacy.blank("en")
+    nlp.add_pipe("ner")
+    nlp.initialize()
+
+    with pytest.raises(GalileoException) as e:
+        watch(nlp)
+    assert e.value.args[0] == (
+        "Your nlp seems to not have been initialized with any "
+        "ground truth spans. Galileo needs all labels to have "
+        "been added to the model before calling "
+        "watch(nlp). Please run `nlp.initialize(lambda: your_examples)` over a "
+        "list of examples that include all of the gold spans you plan to make "
+        "predictions over."
+    )
