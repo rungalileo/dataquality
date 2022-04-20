@@ -621,11 +621,23 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             "You must set your config labels before calling finish. "
             "See `dataquality.set_labels_for_run`"
         )
-        clean_labels = [
-            i.split("-", maxsplit=1)[1]
-            for i in cls.logger_config.labels
-            if i and cls.is_valid_span_label(i)
-        ]
+
+        clean_labels = []
+        for i in cls.logger_config.labels:
+            if i and cls.is_valid_span_label(i):
+                label = i.split("-", maxsplit=1)[1]
+                assert len(label) != 0, (
+                    "The class names following the tag cannot be empty. For example "
+                    "'B-' is not allowed, but 'B-some_class' is."
+                )
+                clean_labels.append(label)
+
+        assert len(clean_labels) != 0, (
+            f"No valid labels found among {cls.logger_config.labels}. A valid label "
+            f"is one that starts with either B-, I-, L-, E-, S-, or U- according to "
+            f"your particular tagging scheme"
+        )
+
         clean_labels = list(dict.fromkeys(clean_labels))  # Remove dups, keep order
         return clean_labels
 
@@ -637,14 +649,16 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         I = In the sequence
         L/E = Last/Ending character of the sequence
         S/U = Single/Unit element of a sequence
+
+        A valid span label would then start with 'B-' for example.
         """
         return (
-            label.startswith("B")
-            or label.startswith("I")
-            or label.startswith("L")
-            or label.startswith("E")
-            or label.startswith("S")
-            or label.startswith("U")
+            label.startswith("B-")
+            or label.startswith("I-")
+            or label.startswith("L-")
+            or label.startswith("E-")
+            or label.startswith("S-")
+            or label.startswith("U-")
         )
 
     @classmethod

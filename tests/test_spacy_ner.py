@@ -15,6 +15,7 @@ from dataquality.core.integrations.spacy import (
     unwatch,
     watch,
 )
+from dataquality.exceptions import GalileoException
 from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
 from dataquality.schemas.task_type import TaskType
@@ -32,9 +33,46 @@ from tests.utils.spacy_integration_constants import (
 )
 
 
-def test_log_input_examples(set_test_config, cleanup_after_use):
+def test_log_input_examples_without_watch(set_test_config, cleanup_after_use):
+    text_ner_logger_config.reset()
     set_test_config(task_type=TaskType.text_ner)
-    text_ner_logger_config.gold_spans = {}
+
+    with pytest.raises(GalileoException) as e:
+        log_input_examples(NER_TRAINING_DATA, split="training")
+    assert (
+        e.value.args[0]
+        == "Galileo does not have any logged labels. Did you forget to call "
+        "watch(nlp) before log_input_examples(...)?"
+    )
+
+
+def test_log_input_list_of_tuples(set_test_config, cleanup_after_use):
+    text_ner_logger_config.reset()
+    set_test_config(task_type=TaskType.text_ner)
+
+    nlp = spacy.blank("en")
+    nlp.add_pipe("ner")
+
+    training_examples = []
+    for text, annotations in NER_TRAINING_DATA:
+        doc = nlp.make_doc(text)
+        training_examples.append(Example.from_dict(doc, annotations))
+    nlp.initialize(lambda: training_examples)
+
+    watch(nlp)
+
+    with pytest.raises(GalileoException) as e:
+        log_input_examples(NER_TRAINING_DATA, "training")
+    assert (
+        e.value.args[0]
+        == "Expected a <class 'spacy.training.example.Example'>. Received "
+        "<class 'tuple'>"
+    )
+
+
+def test_log_input_examples(set_test_config, cleanup_after_use):
+    text_ner_logger_config.reset()
+    set_test_config(task_type=TaskType.text_ner)
     nlp = spacy.blank("en")
     nlp.add_pipe("ner")
 
@@ -276,11 +314,16 @@ def test_spacy_does_not_log_misaligned_entities(cleanup_after_use, set_test_conf
     nlp = spacy.blank("en")
     nlp.add_pipe("ner", last=True)
 
-    # Spacy pre-processing
-    training_examples = []
-    for text, annotations in MISALIGNED_SPAN_DATA:
-        doc = nlp.make_doc(text)
-        training_examples.append(Example.from_dict(doc, annotations))
+    def make_examples(data):
+        examples = []
+        for text, annotations in data:
+            doc = nlp.make_doc(text)
+            examples.append(Example.from_dict(doc, annotations))
+        return examples
+
+    nlp.initialize(lambda: make_examples(NER_TRAINING_DATA))
+
+    training_examples = make_examples(MISALIGNED_SPAN_DATA)
 
     assert len(training_examples[0].reference.ents) == 0
 
@@ -313,12 +356,16 @@ def test_log_input_examples_have_no_gold_spans(
     nlp = spacy.blank("en")
     nlp.add_pipe("ner")
 
-    training_examples = []
-    for text, annotations in training_data:
-        doc = nlp.make_doc(text)
-        training_examples.append(Example.from_dict(doc, annotations))
+    def make_examples(data):
+        examples = []
+        for text, annotations in data:
+            doc = nlp.make_doc(text)
+            examples.append(Example.from_dict(doc, annotations))
+        return examples
 
-    nlp.initialize(lambda: training_examples)
+    nlp.initialize(lambda: make_examples(NER_TRAINING_DATA))
+
+    training_examples = make_examples(training_data)
 
     watch(nlp)
     log_input_examples(training_examples, "training")
