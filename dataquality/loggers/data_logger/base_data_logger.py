@@ -284,6 +284,9 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         max_epoch_for_split = max([int(i) for i in split_runs])
         return bool(epoch < max_epoch_for_split - 1)
 
+    def validate(self) -> None:
+        self.set_split_epoch()
+
     @classmethod
     @abstractmethod
     def validate_labels(cls) -> None:

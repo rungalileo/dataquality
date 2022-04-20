@@ -67,7 +67,7 @@ def mocked_failed_login_requests(
     data: Dict = {},
 ) -> MockResponse:
     if request_url.endswith("login"):
-        return MockResponse({"detail": "Invalid credentials"}, 404)
+        return MockResponse({"detail": "Incorrect login credentials."}, 404)
     return MockResponse({}, 404)
 
 

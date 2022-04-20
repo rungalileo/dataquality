@@ -102,6 +102,15 @@ def watch(nlp: Language) -> None:
             "`nlp.initialize(training_examples)`?"
         )
 
+    if len(ner.move_names) <= 1:  # type: ignore
+        raise GalileoException(
+            "Your nlp seems to not have been initialized with any ground truth spans. "
+            "Galileo needs all labels to have been added to the model before calling "
+            "watch(nlp). Please run `nlp.initialize(lambda: your_examples)` over a "
+            "list of examples that include all of the gold spans you plan to make "
+            "predictions over."
+        )
+
     text_ner_logger_config.user_data["nlp"] = nlp
     dataquality.set_labels_for_run(ner.move_names)  # type: ignore
     dataquality.set_tagging_schema(TaggingSchema.BILOU)

@@ -1,9 +1,11 @@
 import os
 from typing import Any, Dict, Optional
 
+from pydantic import UUID4
+
 import dataquality
 from dataquality.clients.api import ApiClient
-from dataquality.core._config import config
+from dataquality.core._config import ConfigData, config
 from dataquality.schemas import RequestType, Route
 from dataquality.schemas.job import JobName
 from dataquality.utils.thread_pool import ThreadPoolManager
@@ -25,14 +27,7 @@ def finish() -> Optional[Dict[str, Any]]:
     _version_check()
 
     if data_logger.non_inference_logged():
-        # Clear the data in minio before uploading new data
-        # If this is a run that already existed, we want to fully overwrite the old data
-        # If only inference is logged, keep all existing minio data
-        old_run = config.current_run_id
-        api_client.reset_run(config.current_project_id, config.current_run_id)
-        project_dir = f"{data_logger.LOG_FILE_DIR}/{config.current_project_id}"
-        # All of the logged user data is to the old run ID, so rename it to the new ID
-        os.rename(f"{project_dir}/{old_run}", f"{project_dir}/{config.current_run_id}")
+        _reset_run(config.current_project_id, config.current_run_id)
 
     data_logger.upload()
     data_logger._cleanup()
@@ -89,3 +84,23 @@ def get_run_status(
       to the status of the run. Other info, such as `timestamp`, may be included.
     """
     return api_client.get_run_status(project_name=project_name, run_name=run_name)
+
+
+def _reset_run(project_id: UUID4, run_id: UUID4) -> None:
+    """Clear the data in minio before uploading new data
+
+    If this is a run that already existed, we want to fully overwrite the old data.
+    We can do this by deleting the run and recreating it with the same name, which will
+    give it a new ID
+    """
+    old_run_id = run_id
+    api_client.reset_run(project_id, old_run_id)
+    project_dir = (
+        f"{dataquality.get_data_logger().LOG_FILE_DIR}/{config.current_project_id}"
+    )
+    # All of the logged user data is to the old run ID, so rename it to the new ID
+    os.rename(f"{project_dir}/{old_run_id}", f"{project_dir}/{config.current_run_id}")
+    # Move stdout as well
+    stdout_dir = f"{ConfigData.DEFAULT_GALILEO_CONFIG_DIR}/stdout"
+    os.rename(f"{stdout_dir}/{old_run_id}", f"{stdout_dir}/{config.current_run_id}")
+    config.update_file_config()

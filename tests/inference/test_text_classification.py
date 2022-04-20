@@ -50,7 +50,7 @@ class TestBaseLoggersInference:
 
         base_logger.logger_config.cur_inference_name = "customers"
         base_logger.logger_config.cur_split = Split.inference
-        base_logger.validate()
+        base_logger.set_split_epoch()
 
         assert base_logger.split
         assert base_logger.logger_config.inference_logged
@@ -64,7 +64,7 @@ class TestBaseLoggersInference:
         base_model_logger.logger_config.cur_inference_name = "customers"
         base_model_logger.logger_config.cur_split = Split.inference
 
-        base_model_logger.validate()
+        base_model_logger.set_split_epoch()
         assert base_model_logger.split
         assert base_model_logger.logger_config.inference_logged
 
@@ -76,7 +76,7 @@ class TestBaseLoggersInference:
 
         base_model_logger.split = Split.inference
         with pytest.raises(GalileoException) as e:
-            base_model_logger.validate()
+            base_model_logger.set_split_epoch()
 
         assert e.value.args[0] == (
             "For inference split you must either log an inference name or set "
