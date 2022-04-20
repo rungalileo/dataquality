@@ -10,6 +10,7 @@ from vaex.dataframe import DataFrame
 
 from dataquality import config
 from dataquality.clients import objectstore
+from dataquality.core._config import ConfigData
 from dataquality.loggers import BaseGalileoLogger
 from dataquality.schemas.task_type import TaskType
 
@@ -19,6 +20,8 @@ DEFAULT_PROJECT_ID = UUID("399057bc-b276-4027-a5cf-48893ac45388")
 DEFAULT_RUN_ID = UUID("399057bc-b276-4027-a5cf-48893ac45388")
 
 LOCATION = f"{BaseGalileoLogger.LOG_FILE_DIR}/{DEFAULT_PROJECT_ID}/{DEFAULT_RUN_ID}"
+STDOUT_HOME = f"{ConfigData.DEFAULT_GALILEO_CONFIG_DIR}/stdout"
+STDOUT_LOCATION = f"{STDOUT_HOME}/{DEFAULT_RUN_ID}"
 TEST_STORE_DIR = "TEST_STORE"
 TEST_PATH = f"{LOCATION}/{TEST_STORE_DIR}"
 SPLITS = ["training", "test"]
@@ -48,9 +51,12 @@ def cleanup_after_use() -> Generator:
             for split in SPLITS:
                 for subdir in SUBDIRS:
                     os.makedirs(f"{TEST_PATH}/{split}/{subdir}")
+        if not os.path.isdir(STDOUT_LOCATION):
+            os.makedirs(STDOUT_LOCATION)
         yield
     finally:
         shutil.rmtree(BaseGalileoLogger.LOG_FILE_DIR)
+        shutil.rmtree(STDOUT_LOCATION)
 
 
 @pytest.fixture()

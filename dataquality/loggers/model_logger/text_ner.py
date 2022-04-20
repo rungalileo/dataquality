@@ -139,8 +139,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         * embs, probs, and ids must exist and be the same length
         :return:
         """
-        super().validate()
-
         if len(self.logits):
             self.probs = self.convert_logits_to_probs(self.logits).tolist()
         elif len(self.probs):

@@ -8,7 +8,7 @@ from pydantic.types import UUID4
 
 import dataquality
 from dataquality.clients.api import ApiClient
-from dataquality.core._config import config
+from dataquality.core._config import ConfigData, config
 from dataquality.core.auth import login
 from dataquality.exceptions import GalileoException
 from dataquality.loggers import BaseGalileoLogger
@@ -52,10 +52,12 @@ class _Init:
         self, project_id: UUID4, run_id: UUID4, overwrite_local: bool
     ) -> None:
         write_output_dir = f"{BaseGalileoLogger.LOG_FILE_DIR}/{project_id}/{run_id}"
-        if overwrite_local and os.path.exists(write_output_dir):
-            shutil.rmtree(write_output_dir)
-        if not os.path.exists(write_output_dir):
-            os.makedirs(write_output_dir)
+        stdout_dir = f"{ConfigData.DEFAULT_GALILEO_CONFIG_DIR}/stdout/{run_id}"
+        for out_dir in [write_output_dir, stdout_dir]:
+            if overwrite_local and os.path.exists(out_dir):
+                shutil.rmtree(out_dir)
+            if not os.path.exists(out_dir):
+                os.makedirs(out_dir)
 
     def validate_name(self, name: Optional[str]) -> None:
         """Validates project/run name ensuring only letters, numbers, space, - and _"""
