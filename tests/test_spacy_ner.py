@@ -276,11 +276,16 @@ def test_spacy_does_not_log_misaligned_entities(cleanup_after_use, set_test_conf
     nlp = spacy.blank("en")
     nlp.add_pipe("ner", last=True)
 
-    # Spacy pre-processing
-    training_examples = []
-    for text, annotations in MISALIGNED_SPAN_DATA:
-        doc = nlp.make_doc(text)
-        training_examples.append(Example.from_dict(doc, annotations))
+    def make_examples(data):
+        examples = []
+        for text, annotations in data:
+            doc = nlp.make_doc(text)
+            examples.append(Example.from_dict(doc, annotations))
+        return examples
+
+    nlp.initialize(lambda: make_examples(NER_TRAINING_DATA))
+
+    training_examples = make_examples(MISALIGNED_SPAN_DATA)
 
     assert len(training_examples[0].reference.ents) == 0
 
@@ -313,12 +318,16 @@ def test_log_input_examples_have_no_gold_spans(
     nlp = spacy.blank("en")
     nlp.add_pipe("ner")
 
-    training_examples = []
-    for text, annotations in training_data:
-        doc = nlp.make_doc(text)
-        training_examples.append(Example.from_dict(doc, annotations))
+    def make_examples(data):
+        examples = []
+        for text, annotations in data:
+            doc = nlp.make_doc(text)
+            examples.append(Example.from_dict(doc, annotations))
+        return examples
 
-    nlp.initialize(lambda: training_examples)
+    nlp.initialize(lambda: make_examples(NER_TRAINING_DATA))
+
+    training_examples = make_examples(training_data)
 
     watch(nlp)
     log_input_examples(training_examples, "training")
