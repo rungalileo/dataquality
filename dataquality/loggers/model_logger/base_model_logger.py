@@ -44,7 +44,7 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         try:
             self.validate()
         except AssertionError as e:
-            get_stdout_logger().exception("Validation of data failed")
+            get_stdout_logger().error("Validation of data failed")
             raise GalileoException(
                 f"The provided logged data is invalid: {e}"
             ) from None
