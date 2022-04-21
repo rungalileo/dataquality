@@ -57,6 +57,18 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
     IDs for each sample input. This will be used to join them together for analysis
     by Galileo.
     * split: The model training/test/validation split for the samples being logged
+
+    ex:
+    .. code-block:: python
+
+        dq.set_epoch(0)
+        dq.set_split("train")
+
+        embs: np.ndarray = np.random.rand(4, 768)  # 4 samples, embedding dim 768
+        logits: np.ndarray = np.random.rand(4, 3)  # 4 samples, 3 classes
+        ids: List[int] = [0, 1, 2, 3]
+
+        dq.log_model_outputs(embs=embs, logits=logits, ids=ids)
     """
 
     __logger_name__ = "text_classification"

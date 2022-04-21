@@ -1,4 +1,4 @@
-from typing import Any, Callable, List, Optional, Type, Union
+from typing import Any, Callable, Dict, List, Optional, Type, Union
 
 import numpy as np
 
@@ -20,23 +20,73 @@ def add_doc(doc: str) -> Callable:
     return _doc
 
 
-def log_data_samples(*, texts: List[str], ids: List[int], **kwargs: Any) -> None:
+def log_data_samples(
+    *,
+    texts: List[str],
+    ids: List[int],
+    meta: Dict[str, List[Union[str, float, int]]] = None,
+    **kwargs: Any,
+) -> None:
     """Logs a batch of input samples for model training/test/validation/inference.
 
     Fields are expected as lists of their content. Field names are in the plural of
     `log_input_sample` (text -> texts)
-    The expected arguments come from the task_type's data logging schema.
-    logger: See dq.docs() for details
+    The expected arguments come from the task_type being used: See dq.docs() for details
+
+    ex (text classification):
+    .. code-block:: python
+
+        all_labels = ["A", "B", "C"]
+        dq.set_labels_for_run(labels = all_labels)
+
+        texts: List[str] = [
+            "Text sample 1",
+            "Text sample 2",
+            "Text sample 3",
+            "Text sample 4"
+        ]
+
+        labels: List[str] = ["B", "C", "A", "A"]
+
+        meta = {
+            "sample_importance": ["high", "low", "low", "medium"]
+            "quality_ranking": [9.7, 2.4, 5.5, 1.2]
+        }
+
+        ids: List[int] = [0, 1, 2, 3]
+        split = "training"
+
+        dq.log_data_samples(texts=texts, labels=labels, ids=ids, meta=meta split=split)
+
+    :param texts: List[str] the input samples to your model
+    :param ids: List[int | str] the ids per sample
+    :param split: Optional[str] the split for this data. Can also be set via
+        dq.set_split
+    :param meta: Dict[str, List[str | int | float]]. Log additional metadata fields to
+    each sample. The name of the field is the key of the dictionary, and the values are
+    a list that correspond in length and order to the text samples.
+    :param kwargs: See dq.docs() for details on other task specific parameters
     """
     assert all(
         [config.task_type, config.current_project_id, config.current_run_id]
     ), "You must call dataquality.init before logging data"
     data_logger = get_data_logger()
-    data_logger.log_data_samples(texts=texts, ids=ids, **kwargs)
+    data_logger.log_data_samples(texts=texts, ids=ids, meta=meta, **kwargs)
 
 
 def log_data_sample(*, text: str, id: int, **kwargs: Any) -> None:
-    """Log a single input example to disk"""
+    """Log a single input example to disk
+
+    Fields are expected singular elements. Field names are in the singular of
+    `log_input_samples` (texts -> text)
+    The expected arguments come from the task_type being used: See dq.docs() for details
+
+    :param text: List[str] the input samples to your model
+    :param id: List[int | str] the ids per sample
+    :param split: Optional[str] the split for this data. Can also be set via
+        dq.set_split
+    :param kwargs: See dq.docs() for details on other task specific parameters
+    """
     assert all(
         [config.task_type, config.current_project_id, config.current_run_id]
     ), "You must call dataquality.init before logging data"
@@ -55,6 +105,8 @@ def log_dataset(
     *,
     text: Union[str, int] = "text",
     id: Union[str, int] = "id",
+    split: Optional[Split] = None,
+    meta: Optional[List[Union[str, int]]] = None,
     **kwargs: Any,
 ) -> None:
     """Log an iterable or other dataset to disk.
@@ -65,36 +117,61 @@ def log_dataset(
 
     valid examples:
         d = [
-            {"my_text": "sample1", "my_labels": "A", "my_id": 1},
-            {"my_text": "sample2", "my_labels": "A", "my_id": 2},
-            {"my_text": "sample3", "my_labels": "B", "my_id": 3},
+            {"my_text": "sample1", "my_labels": "A", "my_id": 1, "sample_quality": 5.3},
+            {"my_text": "sample2", "my_labels": "A", "my_id": 2, "sample_quality": 9.1},
+            {"my_text": "sample3", "my_labels": "B", "my_id": 3, "sample_quality": 2.7},
         ]
-        dq.log_dataset(d, text="my_text", id="my_id", label="my_labels")
-        Another:
+        dq.log_dataset(
+            d, text="my_text", id="my_id", label="my_labels", meta=["sample_quality"]
+        )
+
+        Logging a pandas dataframe, df:
+              text label  id  sample_quality
+        0  sample1     A   1             5.3
+        1  sample2     A   2             9.1
+        2  sample3     B   3             2.7
+        # We don't need to set text id or label because it matches the default
+        dq.log_dataset(d, meta=["sample_quality"])
+
+        Logging and iterable of tuples:
         d = [
             ("sample1", "A", "ID1"),
             ("sample2", "A", "ID2"),
             ("sample3", "B", "ID3"),
         ]
         dq.log_dataset(d, text=0, id=2, label=1)
+
     invalid example:
         d = {
             "my_text": ["sample1", "sample2", "sample3"],
             "my_labels": ["A", "A", "B"],
             "my_id": [1, 2, 3],
+            "sample_quality": [5.3, 9.1, 2.7]
         }
 
-    In the invalid case, use log_data_samples:
-        dq.log_data_samples(texts=d["my_text"], labels=d["my_labels"], ids=d["my_ids"])
-
+    In the invalid case, use `dq.log_data_samples`:
+        meta = {"sample_quality": d["sample_quality"]}
+        dq.log_data_samples(
+            texts=d["my_text"], labels=d["my_labels"], ids=d["my_ids"], meta=meta
+        )
 
     Keyword arguments are specific to the task type. See dq.docs() for details
+
+    :param text: str | int The column, key, or int index for text data. Default "text"
+    :param id: str | int The column, key, or int index for id data. Default "id"
+    :param split: Optional[str] the split for this data. Can also be set via
+        dq.set_split
+    :param meta: List[str | int] Additional keys/columns to your input data to be
+        logged as metadata. Consider a pandas dataframe, this would be the list of
+        columns corresponding to each metadata field to log
+    :param kwargs: See help(dq.get_data_logger().log_dataset) for more details here
+    or dq.docs() for more general task details
     """
     assert all(
         [config.task_type, config.current_project_id, config.current_run_id]
     ), "You must call dataquality.init before logging data"
     data_logger = get_data_logger()
-    data_logger.log_dataset(dataset, text=text, id=id, **kwargs)
+    data_logger.log_dataset(dataset, text=text, id=id, split=split, meta=meta, **kwargs)
 
 
 def log_model_outputs(
@@ -112,15 +189,14 @@ def log_model_outputs(
     :param embs: The embeddings per output sample
     :param ids: The ids for each sample. Must match input ids of logged samples
     :param split: The current split. Must be set either here or via dq.set_split
-    :param split: The current epoch. Must be set either here or via dq.set_epoch
+    :param epoch: The current epoch. Must be set either here or via dq.set_epoch
     :param logits: The logits for each sample
     :param probs: Deprecated, use logits. If passed in, a softmax will NOT be applied
     :param inference_name: Inference name indicator for this inference split.
         If logging for an inference split, this is required.
 
-    The expected argument shapes come from the task_type's model
-    logger: See dataquality.get_model_logger().doc() for details
-    in inputs for your task_type
+    The expected argument shapes come from the task_type being used
+    See dq.docs() for more task specific details on parameter shape
     """
     assert all(
         [config.task_type, config.current_project_id, config.current_run_id]

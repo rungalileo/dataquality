@@ -335,6 +335,14 @@ def test_logging_train_test_inference(
         f"{TEST_PATH}/inference/all-customers/prob/prob.hdf5"
     )
 
+    assert "training_meta" in train_data.get_column_names()
+    assert "training_meta" not in test_data.get_column_names()
+    assert "training_meta" not in inference_data.get_column_names()
+
+    assert "test_meta" not in train_data.get_column_names()
+    assert "test_meta" in test_data.get_column_names()
+    assert "test_meta" not in inference_data.get_column_names()
+
     assert "logits" not in train_prob_data.get_column_names()
     assert "logits" not in test_prob_data.get_column_names()
     assert "logits" not in inference_prob_data.get_column_names()

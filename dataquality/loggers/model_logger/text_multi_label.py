@@ -31,6 +31,26 @@ class TextMultiLabelModelLogger(TextClassificationModelLogger):
     * ids: Indexes of each input field: List[int]. These IDs must align with the input
     IDs for each sample input. This will be used to join them together for analysis
     by Galileo.
+
+    ex:
+    .. code-block:: python
+
+        dq.set_epoch(0)
+        dq.set_split("train")
+
+        # 3 samples, embedding dim 768. Only 1 embedding vector can be logged for all
+        # tasks. Each task CANNOT have it's own embedding vector
+        embs: np.ndarray = np.random.rand(3, 768)
+        # Logits per task. In this example, tasks "task_0" and "task_2" have 3 classes
+        # but task "task_1" has 2
+        logits: List[np.ndarray] = [
+            np.random.rand(3, 3),  # 3 samples, 3 classes
+            np.random.rand(3, 3),  # 3 samples, 2 classes
+            np.random.rand(3, 3)  # 3 samples, 3 classes
+        ]
+        ids: List[int] = [0, 1, 2]
+
+        dq.log_model_outputs(embs=embs, logits=logits, ids=ids)
     """
 
     __logger_name__ = "text_multi_label"
