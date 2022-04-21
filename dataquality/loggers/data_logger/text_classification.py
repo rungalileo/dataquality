@@ -63,9 +63,10 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         labels: List[str] = ["B", "C", "A", "A"]
 
         ids: List[int] = [0, 1, 2, 3]
+        meta = {"sample_quality": [5.3, 9.1, 2.7, 5.8]}
         split = "training"
 
-        dq.log_data_samples(texts=texts, labels=labels, ids=ids, split=split)
+        dq.log_data_samples(texts=texts, labels=labels, ids=ids, meta=meta, split=split)
     """
 
     __logger_name__ = "text_classification"
@@ -111,17 +112,6 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
     ) -> None:
         """Log input samples for text classification
 
-        :param texts: List[str] text samples
-        :param ids: List[int | str] IDs for each text sample
-        :param labels: List[str] labels for each text sample.
-            Required if not in inference
-        :param split: train/test/validation/inference. Can be set here or via
-            dq.set_split
-        :param inference_name: If logging inference data, a name for this inference
-            data is required. Can be set here or via dq.set_split
-        :param meta: Dict[str, List[str, int, float]]. Metadata for each text sample
-            Format is the {"metadata_field_name": [metdata value per sample]}
-
         ex:
         .. code-block:: python
 
@@ -142,6 +132,17 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
             split = "training"
 
             dq.log_data_samples(texts=texts, labels=labels, ids=ids, split=split)
+
+        :param texts: List[str] text samples
+        :param ids: List[int | str] IDs for each text sample
+        :param labels: List[str] labels for each text sample.
+            Required if not in inference
+        :param split: train/test/validation/inference. Can be set here or via
+            dq.set_split
+        :param inference_name: If logging inference data, a name for this inference
+            data is required. Can be set here or via dq.set_split
+        :param meta: Dict[str, List[str, int, float]]. Metadata for each text sample
+            Format is the {"metadata_field_name": [metdata value per sample]}
         """
         self.validate_kwargs(kwargs)
         self.texts = texts

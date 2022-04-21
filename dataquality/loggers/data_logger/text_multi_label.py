@@ -28,7 +28,7 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
     Class for logging input data/metadata of Text Multi Label models to Galileo.
 
     * texts: The raw text inputs for model training. List[str]
-    * labels: the list of ground truth labels aligned to each text field. Each text
+    * task_labels: the list of ground truth labels aligned to each text field. Each text
     field input must have the same number of labels (which must be the number of tasks)
     List[List[str]]
     * ids: Optional unique indexes for each record. If not provided, will default to
@@ -49,16 +49,19 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
             "Text sample 3",
         ]
 
-        labels: List[str] = [
+        task_labels: List[str] = [
             ["A", "Foo", "Grape"],
             ["C", "Foo", "Apple"],
             ["B", "Bar", "Orange"]
         ]
 
         ids: List[int] = [0, 1, 2]
+        meta = {"sample_quality": [5.3, 9.1, 2.7]}
         split = "training"
 
-        dq.log_data_samples(texts=texts, task_labels=labels, ids=ids, split=split)
+        dq.log_data_samples(
+            texts=texts, task_labels=task_labels, ids=ids, meta=meta, split=split
+        )
     """
 
     __logger_name__ = "text_multi_label"
