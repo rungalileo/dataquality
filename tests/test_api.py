@@ -263,3 +263,16 @@ def test_reset(
     mock_delete.assert_called_once_with(old_pid, old_rid)
 
     assert config.current_run_id == FAKE_NEW_RUN
+
+
+@patch.object(
+    ApiClient,
+    "get_run_status",
+    side_effect=[{}, {"status": "finished", "timestamp": 1}],
+)
+def test_get_run_status_no_status(
+    mock_get_status: MagicMock, set_test_config: Callable
+) -> None:
+    """Asserts that wait_for_run with an empty status doens't crash"""
+    api_client.wait_for_run()
+    assert mock_get_status.call_count == 2
