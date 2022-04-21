@@ -481,7 +481,7 @@ class ApiClient:
                     f"It seems your run failed with status "
                     f"{status.get('status')}, error {status.get('message')}"
                 )
-            elif status.get("status") == "started":
+            elif not status or status.get("status") == "started":
                 sleep(2)
             else:
                 raise GalileoException(
