@@ -13,6 +13,7 @@ from dataquality.schemas.ner import NERErrorType, TaggingSchema
 from dataquality.schemas.split import Split
 from dataquality.utils.stdout_logger import get_stdout_logger
 
+
 @unique
 class GalileoModelLoggerAttributes(str, Enum):
     gold_emb = "gold_emb"
