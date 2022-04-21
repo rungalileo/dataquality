@@ -24,7 +24,7 @@ def log_data_samples(
     *,
     texts: List[str],
     ids: List[int],
-    meta: Dict[str, List[Union[str, float, int]]],
+    meta: Dict[str, List[Union[str, float, int]]] = None,
     **kwargs: Any,
 ) -> None:
     """Logs a batch of input samples for model training/test/validation/inference.
@@ -157,8 +157,8 @@ def log_dataset(
 
     Keyword arguments are specific to the task type. See dq.docs() for details
 
-    :param text: str | int The column, key, or int index of the text data. Default "text"
-    :param id: str | int The column, key, or int index of the id data. Default "id"
+    :param text: str | int The column, key, or int index for text data. Default "text"
+    :param id: str | int The column, key, or int index for id data. Default "id"
     :param split: Optional[str] the split for this data. Can also be set via
         dq.set_split
     :param meta: List[str | int] Additional keys/columns to your input data to be
