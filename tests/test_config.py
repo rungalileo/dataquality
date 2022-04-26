@@ -1,9 +1,12 @@
 import os
 from typing import Callable
+from unittest.mock import MagicMock, patch
 
 import pytest
+import requests
 
 from dataquality.core._config import set_config, url_is_localhost
+from dataquality.exceptions import GalileoException
 
 
 def test_console_url(set_test_config: Callable) -> None:
@@ -41,3 +44,21 @@ def test_bad_console_url(set_test_config: Callable) -> None:
 )
 def test_url_is_localhost(url: str, expected: bool) -> bool:
     assert url_is_localhost(url) is expected
+
+
+@patch("requests.get")
+@pytest.mark.noautofixt
+def test_validate_bad_config_url(get_mock: MagicMock) -> None:
+    get_mock.side_effect = requests.ConnectionError("No connection!")
+    bad_url = "https://console.mytest2.rungalileo.io/badurl"
+    os.environ["GALILEO_CONSOLE_URL"] = bad_url
+    with pytest.raises(GalileoException) as e:
+        set_config()
+    assert e.value.args[0].startswith(f"The provided console URL {bad_url} is invalid")
+
+
+def test_handle_extra_slash_in_console(set_test_config: Callable) -> None:
+    """Removes slashes in an otherwise valid console url"""
+    os.environ["GALILEO_CONSOLE_URL"] = "https://console.mytest2.rungalileo.io///"
+    cfg = set_config()
+    assert cfg.api_url == "https://api.mytest2.rungalileo.io"

@@ -5,10 +5,13 @@ from enum import Enum, unique
 from pathlib import Path
 from typing import Dict, Optional
 
+import requests
 from pydantic import BaseModel
 from pydantic.class_validators import validator
 from pydantic.types import UUID4
+from requests.exceptions import ConnectionError as ReqConnectionError
 
+from dataquality.exceptions import GalileoException
 from dataquality.schemas.task_type import TaskType
 
 
@@ -93,12 +96,30 @@ def set_platform_urls(console_url_str: str) -> None:
         os.environ[GalileoConfigVars.API_URL] = "http://localhost:8088"
         os.environ[GalileoConfigVars.MINIO_URL] = "http://localhost:9000"
     else:
-        os.environ[GalileoConfigVars.API_URL] = console_url_str.replace(
-            "console.", "api."
-        )
+        api_url = console_url_str.replace("console.", "api.").rstrip("/")
+        _validate_api_url(console_url_str, api_url)
+        os.environ[GalileoConfigVars.API_URL] = api_url
+
         os.environ[GalileoConfigVars.MINIO_URL] = console_url_str.replace(
             "console.", "data."
-        )
+        ).rstrip("/")
+
+
+def _validate_api_url(console_url: str, api_url: str) -> None:
+    """Ensures the api url is a valid one"""
+    err_detail = (
+        f"The provided console URL {console_url} is invalid or is not currently "
+        "available. If you are sure this is correct, reach out to your admin.\n\n"
+        "To change your console url, run: \n`os.environ['GALILEO_CONSOLE_URL']='URL'` "
+        "and then \n`dq.configure()`"
+        "\n\nDetail: {err}"
+    )
+    try:
+        r = requests.get(f"{api_url}/healthcheck")
+        if not r.ok:
+            raise GalileoException(err_detail.format(err=r.text)) from None
+    except (ReqConnectionError, ConnectionError) as e:
+        raise GalileoException(err_detail.format(err=str(e))) from None
 
 
 def _check_console_url() -> None:
