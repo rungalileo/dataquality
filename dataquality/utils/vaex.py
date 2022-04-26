@@ -158,7 +158,8 @@ def concat_hdf5_files(location: str, prob_only: bool) -> List[str]:
 
     # Construct a store per column
     if prob_only:
-        cols = ["id"] if "id" in df.get_column_names() else []
+        # In ner the column is sample_id, in others it's id (because of spans)
+        cols = ["id"] if "id" in df.get_column_names() else ["sample_id"]
         cols += [c for c in df.get_column_names() if c.startswith("prob")]
         cols += [c for c in df.get_column_names() if c.startswith("gold")]
         cols += [c for c in df.get_column_names() if c.endswith("_gold")]
