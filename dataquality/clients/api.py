@@ -465,7 +465,7 @@ class ApiClient:
         url = f"{config.api_url}/{Route.content_path(pid, rid)}/{Route.jobs}/status"
         statuses = self.make_request(RequestType.GET, url)["statuses"]
         status = sorted(statuses, key=lambda row: row["timestamp"], reverse=True)
-        return status[0] if status else []
+        return status[0] if status else {}
 
     def wait_for_run(
         self, project_name: Optional[str] = None, run_name: Optional[str] = None
@@ -481,7 +481,7 @@ class ApiClient:
                     f"It seems your run failed with status "
                     f"{status.get('status')}, error {status.get('message')}"
                 )
-            elif status.get("status") == "started":
+            elif not status or status.get("status") == "started":
                 sleep(2)
             else:
                 raise GalileoException(

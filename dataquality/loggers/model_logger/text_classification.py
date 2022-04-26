@@ -11,6 +11,7 @@ from dataquality.loggers.logger_config.text_classification import (
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.split import Split
+from dataquality.utils.stdout_logger import get_stdout_logger
 
 
 @unique
@@ -56,6 +57,18 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
     IDs for each sample input. This will be used to join them together for analysis
     by Galileo.
     * split: The model training/test/validation split for the samples being logged
+
+    ex:
+    .. code-block:: python
+
+        dq.set_epoch(0)
+        dq.set_split("train")
+
+        embs: np.ndarray = np.random.rand(4, 768)  # 4 samples, embedding dim 768
+        logits: np.ndarray = np.random.rand(4, 3)  # 4 samples, 3 classes
+        ids: List[int] = [0, 1, 2, 3]
+
+        dq.log_model_outputs(embs=embs, logits=logits, ids=ids)
     """
 
     __logger_name__ = "text_classification"
@@ -95,8 +108,7 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         * embs, probs, and ids must exist and be the same length
         :return:
         """
-        super().validate()
-
+        get_stdout_logger().info("Handling logits and probs", split=self.split)
         if len(self.logits):
             self.logits = self._convert_tensor_ndarray(self.logits, "Prob")
             self.probs = self.convert_logits_to_probs(self.logits)
@@ -109,9 +121,11 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         probs_len = len(self.probs)
         ids_len = len(self.ids)
 
+        get_stdout_logger().info("Converting inputs to numpy arrays", split=self.split)
         self.embs = self._convert_tensor_ndarray(self.embs, "Embedding")
         self.ids = self._convert_tensor_ndarray(self.ids)
 
+        get_stdout_logger().info("Validating embedding shape", split=self.split)
         assert self.embs.ndim == 2, "Only one embedding vector is allowed per input."
 
         assert embs_len and probs_len and ids_len, (
@@ -129,6 +143,7 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         try:
             self.split = Split[self.split].value
         except KeyError:
+            get_stdout_logger().error("Provided a bad split", split=self.split)
             raise AssertionError(
                 f"Split should be one of {Split.get_valid_attributes()} "
                 f"but got {self.split}"

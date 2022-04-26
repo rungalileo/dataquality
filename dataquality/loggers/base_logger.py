@@ -88,6 +88,9 @@ class BaseGalileoLogger:
 
     @abstractmethod
     def validate(self) -> None:
+        """Validates params passed in during logging. Implemented by child"""
+
+    def set_split_epoch(self) -> None:
         if not self.split:
             if self.logger_config.cur_split:
                 self.split = self.logger_config.cur_split

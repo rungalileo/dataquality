@@ -97,11 +97,12 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         text_token_indices: [[(0, 3), (4, 13), (14, 16), (17, 20), (21, 27), (21, 27)],
                 [...]]
         ids: List[int] = [0, 1]
+        meta = {"sample_quality": [5.3, 1.1]}
         split = "training"
 
         dq.log_data_samples(
             texts=texts, text_token_indices=text_token_indices,
-            gold_spans=gold_spans, ids=ids, split=split
+            gold_spans=gold_spans, meta=meta, ids=ids, split=split
         )
     """
 
@@ -243,7 +244,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         **kwargs: Any,
     ) -> None:
         """
-        Log a dataset of input samples for text classification
+        Log a dataset of input samples for NER
 
         :param dataset: The dataset to log. This can be an python iterable or
             Pandas/Vaex dataframe. If an iterable, it can be a list of elements that can

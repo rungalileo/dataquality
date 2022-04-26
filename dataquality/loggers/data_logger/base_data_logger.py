@@ -1,7 +1,7 @@
 import os
 import warnings
 from abc import abstractmethod
-from typing import Any, Dict, Iterable, List, Tuple, TypeVar, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, TypeVar, Union
 from uuid import uuid4
 
 import numpy as np
@@ -64,6 +64,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         *,
         text: Union[str, int] = "text",
         id: Union[str, int] = "id",
+        split: Optional[Split] = None,
+        meta: Optional[List[Union[str, int]]] = None,
         **kwargs: Any,
     ) -> None:
         """Log a dataset/iterable of input samples.
@@ -283,6 +285,9 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         # want to upload the probabilities (for DEP calculation).
         max_epoch_for_split = max([int(i) for i in split_runs])
         return bool(epoch < max_epoch_for_split - 1)
+
+    def validate(self) -> None:
+        self.set_split_epoch()
 
     @classmethod
     @abstractmethod
