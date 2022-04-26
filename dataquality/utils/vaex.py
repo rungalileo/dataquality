@@ -162,8 +162,12 @@ def concat_hdf5_files(location: str, prob_only: bool) -> List[str]:
         cols = ["id"] if "id" in df.get_column_names() else ["sample_id"]
         cols += [c for c in df.get_column_names() if c.startswith("prob")]
         cols += [c for c in df.get_column_names() if c.startswith("gold")]
+        cols += [c for c in df.get_column_names() if c.startswith("pred")]
         cols += [c for c in df.get_column_names() if c.endswith("_gold")]
         cols += [c for c in df.get_column_names() if c.endswith("_pred")]
+        cols += [c for c in df.get_column_names() if c.startswith("span")]
+        cols += [c for c in df.get_column_names() if c.startswith("data_")]
+        cols += [c for c in df.get_column_names() if c.startswith("galileo")]
     else:
         cols = df.get_column_names()
     for col in cols:

@@ -165,7 +165,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         split: str,
         split_loc: str,
     ) -> None:
-        split_runs = os.listdir(split_loc)
+        split_runs = sorted(os.listdir(split_loc))
 
         # For each inference name or epoch of the given split
         for split_run in tqdm(split_runs, total=len(split_runs), desc=split):
