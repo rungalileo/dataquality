@@ -46,7 +46,7 @@ def test_url_is_localhost(url: str, expected: bool) -> bool:
     assert url_is_localhost(url) is expected
 
 
-@patch("requests.get")
+@patch("dataquality/core/_config.requests.get")
 @pytest.mark.noautofixt
 def test_validate_bad_config_url(get_mock: MagicMock) -> None:
     get_mock.side_effect = requests.ConnectionError("No connection!")
