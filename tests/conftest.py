@@ -40,8 +40,7 @@ def disable_network_calls(request, monkeypatch):
     def stunted_get(url: str):
         """Unless it's a mocked call to healthcheck, disable network access"""
         if url.endswith("healthcheck"):
-            mock = MagicMock()
-            mock.ok = True
+            mock = MagicMock(ok=True)
             return mock
         raise RuntimeError("Network access not allowed during testing!")
 
