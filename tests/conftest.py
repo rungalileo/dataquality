@@ -1,6 +1,7 @@
 import os
 import shutil
 from typing import Any, Callable, Dict, Generator, List
+from unittest.mock import MagicMock
 from uuid import UUID
 
 import pytest
@@ -36,10 +37,14 @@ def disable_network_calls(request, monkeypatch):
     if "noautofixt" in request.keywords:
         return
 
-    def stunted_get():
+    def stunted_get(url: str) -> MagicMock:
+        """Unless it's a mocked call to healthcheck, disable network access"""
+        if url.endswith("healthcheck"):
+            mock = MagicMock(ok=True)
+            return mock
         raise RuntimeError("Network access not allowed during testing!")
 
-    monkeypatch.setattr(requests, "get", lambda *args, **kwargs: stunted_get())
+    monkeypatch.setattr(requests, "get", lambda url, *args, **kwargs: stunted_get(url))
 
 
 @pytest.fixture(scope="function")
