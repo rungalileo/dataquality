@@ -37,7 +37,7 @@ def disable_network_calls(request, monkeypatch):
     if "noautofixt" in request.keywords:
         return
 
-    def stunted_get(url: str):
+    def stunted_get(url: str) -> MagicMock:
         """Unless it's a mocked call to healthcheck, disable network access"""
         if url.endswith("healthcheck"):
             mock = MagicMock(ok=True)
