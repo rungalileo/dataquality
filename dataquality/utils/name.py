@@ -422,7 +422,6 @@ ADJECTIVES = [
     "future",
     "fuzzy",
     "gastric",
-    "gay",
     "general",
     "generous",
     "genetic",
