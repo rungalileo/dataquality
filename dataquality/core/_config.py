@@ -114,8 +114,9 @@ def _validate_api_url(console_url: str, api_url: str) -> None:
         "and then \n`dq.configure()`"
         "\n\nDetail: {err}"
     )
+    url = f"http://{api_url}" if not api_url.startswith("http") else api_url
     try:
-        r = requests.get(f"{api_url}/healthcheck")
+        r = requests.get(f"{url}/healthcheck")
         if not r.ok:
             raise GalileoException(err_detail.format(err=r.text)) from None
     except (ReqConnectionError, ConnectionError) as e:
