@@ -138,6 +138,18 @@ def get_dup_ids(df: DataFrame) -> List:
     return dup_df[dup_df["count"] > 1].to_records()
 
 
+def _valid_prob_col(col: str) -> bool:
+    return (
+        col.endswith("id")
+        or "gold" in col
+        or "pred" in col
+        or col.startswith("prob")
+        or col.startswith("span")
+        or col.startswith("data_")
+        or col.startswith("galileo")
+    )
+
+
 def concat_hdf5_files(location: str, prob_only: bool) -> List[str]:
     """Concatenates all hdf5 in a directory using an HDF5 store
 
@@ -158,16 +170,7 @@ def concat_hdf5_files(location: str, prob_only: bool) -> List[str]:
 
     # Construct a store per column
     if prob_only:
-        # In ner the column is sample_id, in others it's id (because of spans)
-        cols = ["id"] if "id" in df.get_column_names() else ["sample_id"]
-        cols += [c for c in df.get_column_names() if c.startswith("prob")]
-        cols += [c for c in df.get_column_names() if c.startswith("gold")]
-        cols += [c for c in df.get_column_names() if c.startswith("pred")]
-        cols += [c for c in df.get_column_names() if c.endswith("_gold")]
-        cols += [c for c in df.get_column_names() if c.endswith("_pred")]
-        cols += [c for c in df.get_column_names() if c.startswith("span")]
-        cols += [c for c in df.get_column_names() if c.startswith("data_")]
-        cols += [c for c in df.get_column_names() if c.startswith("galileo")]
+        cols = [c for c in df.get_column_names() if _valid_prob_col(c)]
     else:
         cols = df.get_column_names()
     for col in cols:
