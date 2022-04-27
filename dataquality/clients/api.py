@@ -381,6 +381,11 @@ class ApiClient:
         url = f"{config.api_url}/{Route.content_path(project, run, split)}/meta/columns"
         return self.make_request(RequestType.GET, url)
 
+    def get_task_type(self, project_id: UUID4, run_id: UUID4) -> TaskType:
+        return TaskType.get_mapping(
+            self.get_project_run(project_id, run_id)["task_type"]
+        )
+
     def export_run(
         self,
         project_name: str,
@@ -415,6 +420,9 @@ class ApiClient:
         if include_metadata:
             meta_cols = self.get_metadata_columns(project_name, run_name, split)
             body["meta_cols"] = [i["name"] for i in meta_cols["meta"]]
+
+        if self.get_task_type(project, run) == TaskType.text_multi_label:
+            body["task"] = self.get_tasks_for_run(project_name, run_name)[0]
 
         url = f"{config.api_url}/{Route.content_path(project, run, split)}/export"
         with requests.post(
