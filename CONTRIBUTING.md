@@ -91,7 +91,7 @@ Now run your tests!
 Run this from this project's root directory to boot up tests.
 
 ```
-. ./scripts/set-local-env.sh; jupyter notebook tests/notebooks
+. ./scripts/set-local-env.sh; jupyter notebook docs/
 ```
 
 
