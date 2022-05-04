@@ -164,22 +164,21 @@ class TextNERDataLogger(BaseGalileoDataLogger):
     ) -> None:
         """Log input samples for text classification
 
-        :param texts: List[str] text samples
-        :param ids: List[int,str] IDs for each text sample
-        :param text_token_indices: List[List[Tuple(int, int)]]. Token boundaries of each
+        :param texts: Text samples.
+        :param ids: The samples' IDs. Need to match ids in the model's output.
+        :param text_token_indices: Token boundaries of each
             text sample, 1 list per sample.
             Used to convert the gold_spans into token level spans internally.
-            t[0] indicates the start index of the span and t[1] is the end index
-            (exclusive). Required if split is not inference
-        :param gold_spans: List[List[Dict]] The model-level gold spans over the char
-            index for each text sample. 1 List[Dict] per text sample.
-            "start", "end", "label" are the required keys
-            Required if split is not inference
+            `t[0]` indicates the start index of the span and `t[1]` is the end index
+            (exclusive).
+        :param gold_spans: The model-level gold spans over the char
+            index for each text sample. A `List[Dict]` per text sample.
+            `start`, `end`, `label` are the required keys.
         :param ids: Optional unique indexes for each record. If not provided, will
         :param split: train/test/validation/inference. Can be set here or via
             dq.set_split
-        :param meta: Dict[str, List[str, int, float]]. Metadata for each text sample
-            Format is the {"metadata_field_name": [metdata value per sample]}
+        :param meta: Metadata for each text sample.
+            Format is the `{"metadata_field_name": [metadata value per sample]}`
         """
         self.validate_kwargs(kwargs)
         self.texts = texts
@@ -195,8 +194,8 @@ class TextNERDataLogger(BaseGalileoDataLogger):
     def log_data_sample(
         self,
         *,
+        id: Union[int, str],
         text: str,
-        id: int,
         text_token_indices: List[Tuple[int, int]] = None,
         gold_spans: List[Dict] = None,
         split: Optional[Split] = None,
@@ -204,21 +203,20 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         **kwargs: Any,
     ) -> None:
         """
-        Log a single input sample for text classification
+        Log a single input sample for named entity recognition.
 
-        :param text: str the text sample
-        :param id: The sample ID
-        :param text_token_indices: List[Tuple(int, int)]. Token boundaries of the
+        :param id: The sample's ID. Needs to match an id in the model's output.
+        :param text: The text sample.
+        :param text_token_indices: Token boundaries of the
             text sample. Used to convert gold_spans into token level spans internally.
-            t[0] indicates the start index of the span and t[1] is the end index
-            (exclusive). Required if split is not inference
-        :param gold_spans: List[Dict] The model-level gold spans over the char
-            index of the text sample. "start", "end", "label" are the required keys
-            Required if split is not inference
-        :param split: train/test/validation/inference. Can be set here or via
-            dq.set_split
+            `t[0]` indicates the start index of the span and `t[1]` is the end index
+            (exclusive).
+        :param gold_spans: The model-level gold spans over the char
+            index of the text sample. `start`, `end`, `label` are the required keys.
+        :param split: `train`/`test`/`validation`/`inference`. Can be set here or via
+            `dq.set_split`
         :param meta: Dict[str, Union[str, int, float]]. Metadata for the text sample
-            Format is the {"metadata_field_name": metadata_field_value}
+            Format is the `{"metadata_field_name": metadata_field_value}`
         """
         self.validate_kwargs(kwargs)
         self.texts = [text]
@@ -235,8 +233,8 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         self,
         dataset: DataSet,
         *,
-        text: Union[str, int] = "text",
         id: Union[str, int] = "id",
+        text: Union[str, int] = "text",
         text_token_indices: Union[str, int] = "text_token_indices",
         gold_spans: Union[str, int] = "gold_spans",
         split: Optional[Split] = None,
@@ -249,15 +247,15 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         :param dataset: The dataset to log. This can be an python iterable or
             Pandas/Vaex dataframe. If an iterable, it can be a list of elements that can
             be indexed into either via int index (tuple/list) or string/key index (dict)
-        :param text: The key/index of the text fields
-        :param id: The key/index of the id fields
-        :param text_token_indices: The key/index of the sample text_token_indices
-        :param gold_spans: The key/index of the sample gold_spans
+        :param text: The key/index of the text fields.
+        :param id: The key/index of the id fields.
+        :param text_token_indices: The key/index of the sample text_token_indices.
+        :param gold_spans: The key/index of the sample gold_spans.
         :param split: train/test/validation/inference. Can be set here or via
             dq.set_split
-        :param meta: List[str, int]: The keys/indexes of each metadata field.
+        :param meta: The keys/indexes of each metadata field.
             Consider a pandas dataframe, this would be the list of columns corresponding
-            to each metadata field to log
+            to each metadata field to log.
         """
         self.validate_kwargs(kwargs)
         self.split = split

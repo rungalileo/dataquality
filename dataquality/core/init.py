@@ -88,17 +88,14 @@ def init(
     existing ones.
 
     :param task_type: The task type for modeling. This must be one of the valid
-    `dataquality.schemas.task_type.TaskType` options
+    `dq.schemas.task_type.TaskType` options.
     :param project_name: The project name. If not passed in, a random one will be
-    generated. If provided, and the project does not exist, it will be created. If it
-    does exist, it will be set.
-    :param run_name: The run name. If not passed in, a random one will be
-    generated. If provided, and the project does not exist, it will be created. If it
-    does exist, it will be set.
-    :param is_public: Boolean value that sets the project's visibility. Default True.
-    :param overwrite_local: If True, the current project/run log directory will be
-    cleared during this function. If logging over many sessions with checkpoints, you
-    may want to set this to False. Default True
+    generated.
+    :param run_name: The run name. If not passed in, a random one will be generated.
+    :param is_public: Sets the project's visibility. Default `True`.
+    :param overwrite_local: [Internal] If True, the current project/run log directory
+    will be cleared during this function. If logging over many sessions with
+    checkpoints, you may want to set this to False. Default True
     """
     if not api_client.valid_current_user():
         login()

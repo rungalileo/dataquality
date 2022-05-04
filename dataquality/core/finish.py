@@ -16,7 +16,7 @@ api_client = ApiClient()
 
 def finish() -> Optional[Dict[str, Any]]:
     """
-    Finishes the current run and invokes a job
+    Finishes the current logged run and uploads to the console.
     """
     ThreadPoolManager.wait_for_threads()
     assert config.current_project_id, "You must have an active project to call finish"

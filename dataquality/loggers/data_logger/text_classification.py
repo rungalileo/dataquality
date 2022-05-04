@@ -102,8 +102,8 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
     def log_data_samples(
         self,
         *,
+        ids: List[Union[int, str]],
         texts: List[str],
-        ids: List[int],
         labels: Optional[List[str]] = None,
         split: Optional[Split] = None,
         inference_name: Optional[str] = None,
@@ -133,10 +133,9 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
 
             dq.log_data_samples(texts=texts, labels=labels, ids=ids, split=split)
 
-        :param texts: List[str] text samples
-        :param ids: List[int | str] IDs for each text sample
-        :param labels: List[str] labels for each text sample.
-            Required if not in inference
+        :param texts: Text samples.
+        :param ids: Samples' ids. Need to match ids in the model's output.
+        :param labels: Labels for text samples. Required if not an inference split.
         :param split: train/test/validation/inference. Can be set here or via
             dq.set_split
         :param inference_name: If logging inference data, a name for this inference
@@ -156,8 +155,8 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
     def log_data_sample(
         self,
         *,
+        id: Union[int, str],
         text: str,
-        id: int,
         label: Optional[str] = None,
         split: Optional[Split] = None,
         inference_name: Optional[str] = None,
@@ -167,15 +166,15 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         """
         Log a single input sample for text classification
 
-        :param text: str the text sample
-        :param id: The sample ID
-        :param label: str label for the sample. Required if not in inference
+        :param id: The sample's ID. Needs to match an id in the model's output.
+        :param text: The text sample.
+        :param label: Label for the sample. Required if not an inference split.
         :param split: train/test/validation/inference. Can be set here or via
-            dq.set_split
+            `dq.set_split`.
         :param inference_name: If logging inference data, a name for this inference
-            data is required. Can be set here or via dq.set_split
-        :param meta: Dict[str, Union[str, int, float]]. Metadata for the text sample
-            Format is the {"metadata_field_name": metadata_field_value}
+            data is required. Can be set here or via `dq.set_split`.
+        :param meta: Dict[str, Union[str, int, float]]. Metadata for the text sample.
+            Format is the `{"metadata_field_name": metadata_field_value}`
         """
         self.validate_kwargs(kwargs)
         self.texts = [text]
@@ -190,8 +189,8 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         self,
         dataset: DataSet,
         *,
-        text: Union[str, int] = "text",
         id: Union[str, int] = "id",
+        text: Union[str, int] = "text",
         label: Optional[Union[str, int]] = "label",
         split: Optional[Split] = None,
         inference_name: Optional[str] = None,
@@ -201,19 +200,19 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         """
         Log a dataset of input samples for text classification
 
-        :param dataset: The dataset to log. This can be an python iterable or
+        :param dataset: The dataset to log. This can be a python iterable or
             Pandas/Vaex dataframe. If an iterable, it can be a list of elements that can
             be indexed into either via int index (tuple/list) or string/key index (dict)
-        :param text: The key/index of the text fields
-        :param id: The key/index of the id fields
-        :param label: The key/index of the label fields
+        :param text: The key/index of the text fields.
+        :param id: The key/index of the id fields.
+        :param label: The key/index of the label fields.
         :param split: train/test/validation/inference. Can be set here or via
             dq.set_split
         :param inference_name: If logging inference data, a name for this inference
             data is required. Can be set here or via dq.set_split
         :param meta: List[str, int]: The keys/indexes of each metadata field.
             Consider a pandas dataframe, this would be the list of columns corresponding
-            to each metadata field to log
+            to each metadata field to log.
         """
         self.validate_kwargs(kwargs)
         self.split = split

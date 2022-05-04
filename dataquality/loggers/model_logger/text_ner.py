@@ -42,7 +42,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
     """
     Class for logging model output data of Text NER models to Galileo.
 
-    * embs: List[np.ndarray]: Each np.ndarray represents all embeddings of a given
+    * embs: List[np.ndarray]: Each `np.ndarray` represents all embeddings of a given
     sample. These embeddings are from the tokenized text, and will align with the tokens
     in the sample. If you have 12 samples in the dataset, with each sample of 20 tokens
     in length, and an embedding vector of size 768, len(embs) will be 12, and

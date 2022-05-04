@@ -78,7 +78,7 @@ def log_data_samples(
 
 
 def log_data_sample(*, text: str, id: int, **kwargs: Any) -> None:
-    """Log a single input example to disk
+    """Log a single data sample
 
     Fields are expected singular elements. Field names are in the singular of
     `log_input_samples` (texts -> text)
@@ -181,20 +181,18 @@ def log_model_outputs(
     *,
     embs: Union[List, np.ndarray],
     ids: Union[List, np.ndarray],
+    logits: Union[List, np.ndarray],
     split: Optional[Split] = None,
     epoch: Optional[int] = None,
-    logits: Union[List, np.ndarray] = None,
-    probs: Union[List, np.ndarray] = None,
     inference_name: str = None,
 ) -> None:
-    """Logs model outputs for model during training/test/validation.
+    """Logs a batch of model outputs for model during a forward pass.
 
-    :param embs: The embeddings per output sample
     :param ids: The ids for each sample. Must match input ids of logged samples
-    :param split: The current split. Must be set either here or via dq.set_split
-    :param epoch: The current epoch. Must be set either here or via dq.set_epoch
-    :param logits: The logits for each sample
-    :param probs: Deprecated, use logits. If passed in, a softmax will NOT be applied
+    :param embs: The embeddings for each sample in the batch.
+    :param logits: The logits for each sample in the batch.
+    :param split: The current split. Must be set either here or via `dq.set_split`.
+    :param epoch: The current epoch. Must be set either here or via `dq.set_epoch`.
     :param inference_name: Inference name indicator for this inference split.
         If logging for an inference split, this is required.
 
@@ -204,33 +202,26 @@ def log_model_outputs(
     assert all(
         [config.task_type, config.current_project_id, config.current_run_id]
     ), "You must call dataquality.init before logging data"
-    assert (probs is not None) or (
-        logits is not None
-    ), "You must provide either logits or probs"
     model_logger = get_model_logger()(
         embs=embs,
         ids=ids,
         split=Split[split].value if split else "",
         epoch=epoch,
         logits=logits,
-        probs=probs,
         inference_name=inference_name,
     )
     model_logger.log()
 
 
-def set_labels_for_run(labels: Union[List[List[str]], List[str]]) -> None:
+def set_labels_for_run(labels: Union[List[str], List[List[str]]]) -> None:
     """
-    Creates the mapping of the labels for the model to their respective indexes.
+    Sets the ordering of the labels for the model's output logits or probabilities.
 
-    :param labels: An ordered list of labels (ie ['dog','cat','fish']
-    If this is a multi-label type, then labels are a list of lists where each inner
-    list indicates the label for the given task
-
-    This order MUST match the order of probabilities that the model outputs.
-
-    In the multi-label case, the outer order (order of the tasks) must match the
-    task-order of the task-probabilities logged as well.
+    :param labels: An ordered list of labels ie ['dog','cat','fish']. This order
+    MUST match the order of probabilities that the model outputs.
+    If this is a multi-label task, then labels are a list of lists where each inner
+    list indicates the label for the given task. The outer order (order of the tasks)
+    must match the task-order of the task-probabilities logged as well.
     """
     get_data_logger().logger_config.labels = labels
 
