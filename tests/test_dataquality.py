@@ -407,6 +407,7 @@ def test_log_invalid_model_outputs_final_thread(
     cleanup_after_use: Callable, set_test_config: Callable, input_data: Callable
 ) -> None:
     """Validate that we error on finish if issues occur while logging"""
+    assert dataquality.get_model_logger().logger_config.exception == ""
     dataquality.set_labels_for_run(["APPLE", "ORANGE"])
     training_data = input_data(meta={"training_meta": [1.414, 123]})
     dataquality.log_data_samples(**training_data)
