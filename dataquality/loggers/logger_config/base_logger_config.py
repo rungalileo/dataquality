@@ -19,6 +19,7 @@ class BaseLoggerConfig(BaseModel):
     validation_logged: bool = False
     test_logged: bool = False
     inference_logged: bool = False
+    exception: str = ""
 
     class Config:
         validate_assignment = True

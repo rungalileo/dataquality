@@ -1,3 +1,4 @@
+import time
 from random import random
 from typing import Callable
 
@@ -374,3 +375,28 @@ def test_prob_only(set_test_config) -> None:
     assert logger.prob_only(val_split_runs, "validation", "0")
     assert not logger.prob_only(val_split_runs, "validation", "5")
     assert not logger.prob_only(test_split_runs, "test", "0")
+
+
+def test_log_invalid_model_outputs(
+    cleanup_after_use: Callable, set_test_config: Callable, input_data: Callable
+) -> None:
+    """Validate that we interrupt the main process if issues occur while logging"""
+    dataquality.set_labels_for_run(["APPLE", "ORANGE"])
+    training_data = input_data(meta={"training_meta": [1.414, 123]})
+    dataquality.log_data_samples(**training_data)
+
+    dataquality.set_split("training")
+    train_embs = np.random.rand(1, 100)  # Not enough embeddings
+    train_logits = np.random.rand(2, 5)
+    output_data = {
+        "embs": train_embs,
+        "logits": train_logits,
+        "ids": [1, 2],
+        "epoch": 0,
+    }
+    with pytest.raises(GalileoException) as e:
+        dataquality.log_model_outputs(**output_data)
+        time.sleep(1)  # ensure the first one records a failure
+        dataquality.log_model_outputs(**output_data)
+
+    assert str(e.value).startswith("An issue occurred while logging model outputs.")
