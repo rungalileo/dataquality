@@ -374,13 +374,10 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         gold_span_len = len(self.gold_spans)
         id_len = len(self.ids)
 
-        if self.ids:
-            assert id_len == text_len, (
-                f"Ids exists but are not the same length as text and labels. "
-                f"(ids, text) ({id_len}, {text_len})"
-            )
-        else:
-            self.ids = list(range(text_len))
+        assert id_len == text_len, (
+            f"Ids exists but are not the same length as text and labels. "
+            f"(ids, text) ({id_len}, {text_len})"
+        )
 
         if self.split == Split.inference.value:
             assert not gold_span_len, "You cannot have labels in your inference split!"

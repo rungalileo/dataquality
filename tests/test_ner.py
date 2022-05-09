@@ -5,6 +5,7 @@ from unittest import mock
 import numpy as np
 import pandas as pd
 import pytest
+import tensorflow as tf
 import vaex
 
 import dataquality
@@ -328,7 +329,10 @@ def test_ner_logging_bad_inputs(set_test_config: Callable, cleanup_after_use) ->
         )
 
 
-def test_ner_logging(cleanup_after_use: Callable, set_test_config: Callable) -> None:
+@pytest.mark.parametrize("as_tensor", [False, True])
+def test_ner_logging(
+    as_tensor: bool, cleanup_after_use: Callable, set_test_config: Callable
+) -> None:
     """
     To validate:
     * dep scores are all 0 <= dep <= 1
@@ -418,11 +422,13 @@ def test_ner_logging(cleanup_after_use: Callable, set_test_config: Callable) -> 
     )
 
     dataquality.set_epoch(0)
-    dataquality.log_model_outputs(
-        embs=np.random.rand(3, 8, 5),
-        probs=pred_prob,
-        ids=[0, 1, 2],
-    )
+    embs = np.random.rand(3, 8, 5)
+    ids = [0, 1, 2]
+    if as_tensor:
+        embs = tf.convert_to_tensor(embs)
+        pred_prob = tf.convert_to_tensor(pred_prob)
+        ids = tf.convert_to_tensor(np.array(ids))
+    dataquality.log_model_outputs(embs=embs, probs=pred_prob, ids=ids)
 
     ThreadPoolManager.wait_for_threads()
     c = dataquality.get_data_logger()
@@ -491,9 +497,9 @@ def test_ner_logging(cleanup_after_use: Callable, set_test_config: Callable) -> 
         split=split,
     )
     dataquality.log_model_outputs(
-        embs=np.random.rand(3, 8, 5),
+        embs=embs,
         logits=pred_prob,
-        ids=[0, 1, 2],
+        ids=ids,
         split="training",
         epoch=0,
     )

@@ -145,4 +145,6 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         """Converts logits to probs via softmax"""
         # axis ensures that in a matrix of probs with dims num_samples x num_classes
         # we take the softmax for each sample
+        if not isinstance(sample_logits, np.ndarray):
+            sample_logits = self._convert_tensor_ndarray(sample_logits)
         return softmax(np.array(sample_logits), axis=-1)

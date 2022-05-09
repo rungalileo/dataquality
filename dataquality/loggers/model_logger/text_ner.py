@@ -152,6 +152,8 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         probs_len = len(self.probs)
         ids_len = len(self.ids)
 
+        self.ids = self._convert_tensor_ndarray(self.ids)
+
         assert all([embs_len, probs_len, ids_len]), (
             f"All of emb, probs, and ids for your logger must be set, but "
             f"got emb:{bool(embs_len)}, probs:{bool(probs_len)}, ids:{bool(ids_len)}"
@@ -167,6 +169,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         logged_sample_ids = []
         for sample_id, sample_emb, sample_prob in zip(self.ids, self.embs, self.probs):
             # This will return True if there was a prediction or gold span
+            sample_emb = self._convert_tensor_ndarray(sample_emb)
             if self._process_sample(sample_id, sample_emb, sample_prob):
                 logged_sample_ids.append(sample_id)
 
