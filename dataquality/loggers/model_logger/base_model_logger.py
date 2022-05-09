@@ -70,9 +70,7 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
 
     def log(self) -> None:
         """The top level log function that try/excepts its child"""
-        # If a currently active thread crashed, check and raise a top level exception
-        if self.logger_config.exception:
-            raise GalileoException(self.logger_config.exception)
+        self.check_for_logging_failures()
         # We validate split and epoch before entering the thread because we reference
         # global variables (cur_split and cur_epoch) that are subject to change
         # between subsequent threads

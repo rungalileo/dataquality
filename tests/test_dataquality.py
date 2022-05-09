@@ -399,4 +399,31 @@ def test_log_invalid_model_outputs(
         time.sleep(1)  # ensure the first one records a failure
         dataquality.log_model_outputs(**output_data)
 
+    assert dataquality.get_model_logger().logger_config.exception != ""
+    assert str(e.value).startswith("An issue occurred while logging model outputs.")
+
+
+def test_log_invalid_model_outputs_final_thread(
+    cleanup_after_use: Callable, set_test_config: Callable, input_data: Callable
+) -> None:
+    """Validate that we error on finish if issues occur while logging"""
+    dataquality.set_labels_for_run(["APPLE", "ORANGE"])
+    training_data = input_data(meta={"training_meta": [1.414, 123]})
+    dataquality.log_data_samples(**training_data)
+
+    dataquality.set_split("training")
+    train_embs = np.random.rand(1, 100)  # Not enough embeddings
+    train_logits = np.random.rand(2, 5)
+    output_data = {
+        "embs": train_embs,
+        "logits": train_logits,
+        "ids": [1, 2],
+        "epoch": 0,
+    }
+
+    dataquality.log_model_outputs(**output_data)
+    with pytest.raises(GalileoException) as e:
+        dataquality.get_data_logger().upload()
+
+    assert dataquality.get_model_logger().logger_config.exception != ""
     assert str(e.value).startswith("An issue occurred while logging model outputs.")

@@ -133,6 +133,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         them to a single file in minio
         """
         ThreadPoolManager.wait_for_threads()
+        cls.check_for_logging_failures()
         print("☁️ Uploading Data")
         object_store = ObjectStore()
         proj_run = f"{config.current_project_id}/{config.current_run_id}"

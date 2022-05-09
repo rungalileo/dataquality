@@ -231,3 +231,13 @@ class BaseGalileoLogger:
     @classmethod
     def validate_split(cls, split: Union[str, Split]) -> str:
         return conform_split(split).value
+
+    @classmethod
+    def check_for_logging_failures(cls) -> None:
+        """When a threaded logging call fails, it sets the logger_config.exception
+
+        If that field is set, raise an exception here and stop the main process
+        """
+        # If a currently active thread crashed, check and raise a top level exception
+        if cls.logger_config.exception:
+            raise GalileoException(cls.logger_config.exception)
