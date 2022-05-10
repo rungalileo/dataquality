@@ -60,10 +60,17 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
             get_stdout_logger().exception(
                 "Logging of model outputs failed", split=self.split, epoch=self.epoch
             )
-            warnings.warn(f"An issue occurred while logging: {str(e)}")
+            err_msg = (
+                f"An issue occurred while logging model outputs. Address any issues in "
+                f"your logging and make sure to call dq.init before restarting:\n"
+                f"{str(e)}"
+            )
+            warnings.warn(err_msg)
+            self.logger_config.exception = err_msg
 
     def log(self) -> None:
-        """The top level log function that try/excepts it's child"""
+        """The top level log function that try/excepts its child"""
+        self.check_for_logging_failures()
         # We validate split and epoch before entering the thread because we reference
         # global variables (cur_split and cur_epoch) that are subject to change
         # between subsequent threads

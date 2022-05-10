@@ -9,6 +9,7 @@ import requests
 import spacy
 from vaex.dataframe import DataFrame
 
+import dataquality
 from dataquality import config
 from dataquality.clients import objectstore
 from dataquality.core._config import ConfigData
@@ -50,6 +51,7 @@ def disable_network_calls(request, monkeypatch):
 @pytest.fixture(scope="function")
 def cleanup_after_use() -> Generator:
     try:
+        dataquality.get_model_logger().logger_config.reset()
         if os.path.isdir(BaseGalileoLogger.LOG_FILE_DIR):
             shutil.rmtree(BaseGalileoLogger.LOG_FILE_DIR)
         if not os.path.isdir(TEST_PATH):
@@ -62,6 +64,7 @@ def cleanup_after_use() -> Generator:
     finally:
         shutil.rmtree(BaseGalileoLogger.LOG_FILE_DIR)
         shutil.rmtree(STDOUT_LOCATION)
+        dataquality.get_model_logger().logger_config.reset()
 
 
 @pytest.fixture()
