@@ -6,6 +6,9 @@ from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
 from dataquality.loggers.data_logger.base_data_logger import DataSet
+from dataquality.loggers.logger_config.text_multi_label import (
+    text_multi_label_logger_config,
+)
 from dataquality.loggers.model_logger import BaseGalileoModelLogger
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
@@ -232,7 +235,7 @@ def set_labels_for_run(labels: Union[List[List[str]], List[str]]) -> None:
     get_data_logger().logger_config.labels = labels
 
 
-def set_tasks_for_run(tasks: List[str]) -> None:
+def set_tasks_for_run(tasks: List[str], binary: bool = False) -> None:
     """Sets the task names for the run (multi-label case only).
 
     This order MUST match the order of the labels list provided in log_input_data
@@ -244,6 +247,10 @@ def set_tasks_for_run(tasks: List[str]) -> None:
     if config.task_type != TaskType.text_multi_label:
         raise GalileoException("You can only set task names for multi-label use cases.")
     get_data_logger().logger_config.tasks = tasks
+    text_multi_label_logger_config.binary = binary
+    if binary:
+        # The labels validator will handle adding the "NOT_" to each label
+        text_multi_label_logger_config.labels = [[task] for task in tasks]
 
 
 def set_tagging_schema(tagging_schema: TaggingSchema) -> None:

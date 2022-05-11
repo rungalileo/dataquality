@@ -2,6 +2,7 @@ from collections import defaultdict
 from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
+from scipy.special import expit
 
 from dataquality.loggers.logger_config.text_multi_label import (
     TextMultiLabelLoggerConfig,
@@ -120,7 +121,7 @@ class TextMultiLabelModelLogger(TextClassificationModelLogger):
             for task_num in range(self.logger_config.observed_num_tasks):
                 task_probs: List[float] = prob_per_task[task_num]
                 if len(task_probs) == 1:  # Handle binary classification case
-                    task_probs = [task_probs[0], 1 - task_probs[0]]
+                    task_probs = [1 - task_probs[0], task_probs[0]]
                 record[f"prob_{task_num}"] = np.array(task_probs, dtype=np.float32)
                 record[f"pred_{task_num}"] = int(np.argmax(task_probs))
 
@@ -144,10 +145,29 @@ class TextMultiLabelModelLogger(TextClassificationModelLogger):
             )
         super().__setattr__(key, value)
 
+    def convert_logits_to_prob_binary(self, sample_logits: np.ndarray) -> np.ndarray:
+        """Converts logits to probs in the binary case
+
+        Takes the sigmoid of the single class logits and adds the negative
+        lass prediction (1-class pred)
+        """
+        sample_probs = expit(sample_logits)
+        probs_1 = np.expand_dims(sample_probs, axis=-1)
+        probs_0 = 1 - probs_1
+        probs = np.concatenate([probs_0, probs_1], axis=-1)
+        return probs
+
     def convert_logits_to_probs(
         self, sample_logits: Union[List, np.ndarray]
     ) -> np.ndarray:
-        """Converts logits to probs via softmax per sample"""
+        """Converts logits to probs via softmax per sample
+
+        In the case of binary multi-label, we don't run softmax, we use sigmoid
+        """
+        if self.logger_config.binary:
+            return self.convert_logits_to_prob_binary(
+                np.array(sample_logits, dtype=np.float32)
+            )
         # axis ensures that in a matrix of probs with dims num_samples x num_classes
         # we take the softmax for each sample
         probs = []

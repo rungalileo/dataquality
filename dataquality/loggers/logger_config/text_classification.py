@@ -22,7 +22,7 @@ class TextClassificationLoggerConfig(BaseLoggerConfig):
         if labels is not None:
             assert isinstance(labels, List), "Labels must be a list"
         if labels and len(labels) == 1:
-            labels = [labels[0], f"NOT_{labels[0]}"]
+            labels = [f"NOT_{labels[0]}", labels[0]]
         return [str(i) for i in labels]
 
 

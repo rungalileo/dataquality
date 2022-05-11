@@ -184,12 +184,46 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
             meta=meta,
         )
 
+    def _process_binary_labels(self) -> None:
+        """In binary multi labels, users will simply log the samples that are
+        active in this case. If tasks are ["A","B","C"] and sample 1 ground truth is
+        ["A"], sample 2 is ["A","C"] the user will log
+        [
+            ("Sample 1", ["A"]),
+            ("Sample 1", ["A","C"])
+        ]
+
+        We want to convert that to
+        [
+            ("Sample 1", ["A", "NOT_B", "NOT_C"]),
+            ("Sample 1", ["A","NOT_B", "C"])
+        ]
+        """
+        # Assert for mypy
+        assert self.logger_config.tasks, (
+            "You must call dq.set_tasks_for_run(..., binary=True) before logging"
+            " in binary multi-label"
+        )
+        clean_task_labels = []
+        for sample_task_labels in self.labels:
+            clean_sample_labels = []
+            sample_label_set = set(sample_task_labels)
+            for task in self.logger_config.tasks:
+                if task in sample_label_set:
+                    clean_sample_labels.append(task)
+                else:
+                    clean_sample_labels.append(f"NOT_{task}")
+            clean_task_labels.append(clean_sample_labels)
+        self.labels = clean_task_labels
+
     def validate(self) -> None:
         """
         Parent validation (text_classification) with additional validation on labels
 
         in multi_label modeling, each element in self.labels should itself be a list
         """
+        if self.logger_config.binary:
+            self._process_binary_labels()
         super().validate()
         self.logger_config.observed_num_tasks = len(self.labels[0])
         for ind, input_labels in enumerate(self.labels):
@@ -199,7 +233,9 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
             assert len(input_labels) == self.logger_config.observed_num_tasks, (
                 f"Each {self.split} input must have the same number of labels. "
                 f"Expected {self.logger_config.observed_num_tasks} based on record 0 "
-                f"but saw {len(input_labels)} for input record {ind}."
+                f"but saw {len(input_labels)} for input record {ind}. If this is a "
+                f"binary multi label and you are logging the active tasks, call"
+                f"dq.set_tasks_for_run(tasks, binary=True) and log again"
             )
 
     def _get_input_df(self) -> DataFrame:
