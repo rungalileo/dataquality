@@ -243,6 +243,11 @@ def set_tasks_for_run(tasks: List[str], binary: bool = False) -> None:
 
     This also must match the order of the labels logged in set_labels_for_run (meaning
     that the first list of labels must be the labels of the first task passed in here)
+
+    :param tasks: The list of tasks for your run
+    :param binary: Whether this is a binary multi label run. If true, tasks will also
+    be set as your labels, and you should NOT call `dq.set_labels_for_run` it will be
+    handled for you. Default False
     """
     if config.task_type != TaskType.text_multi_label:
         raise GalileoException("You can only set task names for multi-label use cases.")
