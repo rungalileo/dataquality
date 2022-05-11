@@ -2,8 +2,9 @@ from collections import defaultdict
 from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
-from scipy.special import expit
+from scipy.special import softmax
 
+from dataquality.exceptions import GalileoException
 from dataquality.loggers.logger_config.text_multi_label import (
     TextMultiLabelLoggerConfig,
     text_multi_label_logger_config,
@@ -151,11 +152,14 @@ class TextMultiLabelModelLogger(TextClassificationModelLogger):
         Takes the sigmoid of the single class logits and adds the negative
         lass prediction (1-class pred)
         """
-        sample_probs = expit(sample_logits)
-        probs_1 = np.expand_dims(sample_probs, axis=-1)
-        probs_0 = 1 - probs_1
-        probs = np.concatenate([probs_0, probs_1], axis=-1)
-        return probs
+        if sample_logits.ndim > 2:
+            raise GalileoException(
+                f"In binary multi-label, your logits should have 2 dimensions, but "
+                f"they currently have {sample_logits.ndim}. Do you mean to use to "
+                f"binary multi-label? If not, call dq.set_tasks_for_run(tasks) without "
+                f"the binary=True flag. Or call dq.init() to reset."
+            )
+        return super().convert_logits_to_prob_binary(sample_logits)
 
     def convert_logits_to_probs(
         self, sample_logits: Union[List, np.ndarray]
@@ -174,8 +178,7 @@ class TextMultiLabelModelLogger(TextClassificationModelLogger):
         for sample_logits in sample_logits:
             task_probs = []
             for task_logits in sample_logits:
-                task_probs.append(
-                    super().convert_logits_to_probs(task_logits.astype(np.float_))
-                )
+                task_logits = self._convert_tensor_ndarray(task_logits)
+                task_probs.append(softmax(task_logits.astype(np.float_), axis=-1))
             probs.append(task_probs)
         return np.array(probs, dtype=object)
