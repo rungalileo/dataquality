@@ -10,6 +10,9 @@ import dataquality
 import dataquality.core._config
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
+from dataquality.loggers.model_logger.text_classification import (
+    TextClassificationModelLogger,
+)
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.conftest import TEST_PATH
@@ -428,3 +431,24 @@ def test_log_invalid_model_outputs_final_thread(
 
     assert dataquality.get_model_logger().logger_config.exception != ""
     assert str(e.value).startswith("An issue occurred while logging model outputs.")
+
+
+def test_log_outputs_binary(
+    set_test_config: Callable, cleanup_after_use: Callable
+) -> None:
+    """Tests that binary logging of logits works"""
+    set_test_config(task_type="text_classification")
+
+    logger = TextClassificationModelLogger(
+        embs=np.random.rand(10, 100),  # 10 samples, 100 emb per sample
+        logits=np.random.rand(10, 1),  # 10 samples
+        ids=list(range(10)),
+        split="training",
+        epoch=0,
+    )
+    logger._log()
+
+    assert not hasattr(logger, "logits")
+    assert logger.probs.shape == (10, 2)  # samples X tasks X classes per task
+    for sample_probs in logger.probs:
+        assert np.isclose(np.sum(sample_probs), 1.0)

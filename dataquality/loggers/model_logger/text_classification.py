@@ -164,7 +164,7 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         data = defaultdict(list)
         for record_id, prob, emb in zip(self.ids, self.probs, self.embs):
             # Handle binary classification by making it 2-class classification
-            p = [prob[0], 1 - prob[0]] if len(prob) == 1 else prob
+            p = [1 - prob[0], prob[0]] if len(prob) == 1 else prob
             record = {
                 "id": record_id,
                 "epoch": self.epoch,

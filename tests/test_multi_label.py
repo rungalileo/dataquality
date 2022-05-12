@@ -1,4 +1,5 @@
-from typing import Callable
+from random import randint, sample
+from typing import Callable, Tuple
 from unittest import mock
 
 import numpy as np
@@ -6,10 +7,12 @@ import pandas as pd
 import pytest
 import vaex
 
+import dataquality
 import dataquality as dq
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger.base_data_logger import DataSet
 from dataquality.loggers.data_logger.text_multi_label import TextMultiLabelDataLogger
+from dataquality.loggers.model_logger.text_multi_label import TextMultiLabelModelLogger
 from dataquality.schemas.split import Split
 
 
@@ -151,3 +154,124 @@ def test_log_dataset_tuple(
         assert log_labels == [["A", "A", "B"], ["C", "A", "B"], ["B", "C", "B"]]
         assert logger.ids == [1, 2, 3]
         assert logger.split == Split.training
+
+
+def test_log_data_binary(
+    set_test_config: Callable, cleanup_after_use: Callable
+) -> None:
+    set_test_config(task_type="text_multi_label")
+    logger = TextMultiLabelDataLogger()
+    with mock.patch("dataquality.core.log.get_data_logger") as mock_method:
+        mock_method.return_value = logger
+        tasks = ["A", "B", "C", "D"]
+        dq.set_tasks_for_run(tasks, binary=True)
+        task_labels = [sample(tasks, k=randint(1, 4)) for _ in range(10)]
+        dq.log_data_samples(
+            texts=[f"sample {i}" for i in range(10)],
+            task_labels=task_labels,
+            ids=list(range(10)),
+            split="training",
+        )
+
+        assert logger.texts == [f"sample {i}" for i in range(10)]
+        assert logger.ids == list(range(10))
+        for logged_labels, clean_sample_labels in zip(task_labels, logger.labels):
+            assert len(clean_sample_labels) == 4
+            for task in tasks:
+                if task in logged_labels:
+                    assert task in clean_sample_labels
+                else:
+                    assert f"NOT_{task}" in clean_sample_labels
+        assert logger.logger_config.observed_num_tasks == 4
+
+
+def test_log_data_binary_not_setting_binary(
+    set_test_config: Callable, cleanup_after_use: Callable
+) -> None:
+    set_test_config(task_type="text_multi_label")
+
+    tasks = ["A", "B", "C", "D"]
+    task_labels = [sample(tasks, k=randint(1, 4)) for _ in range(10)]
+    with pytest.raises(AssertionError) as e:
+        dq.log_data_samples(
+            texts=[f"sample {i}" for i in range(10)],
+            task_labels=task_labels,
+            ids=list(range(10)),
+            split="training",
+        )
+    # We didn't set binary=true in our tasks so during logging we should get a nice err
+    assert str(e.value).startswith(
+        "Each training input must have the same number of labels."
+    )
+    assert "If this is a binary multi label and" in str(e.value)
+
+
+def test_set_tasks_not_set_binary(
+    set_test_config: Callable, cleanup_after_use: Callable
+) -> None:
+    set_test_config(task_type="text_multi_label")
+
+    tasks = ["A", "B", "C", "D"]
+    dq.set_tasks_for_run(tasks)
+    # We didn't set binary=True above so validation should fail nicely
+    with pytest.raises(ValueError) as e:
+        dq.set_labels_for_run(tasks)
+
+    err = e.value.errors()[0]["msg"]
+    assert err.startswith("Labels must be a list of lists.")
+    assert "If you are running a binary multi-label case," in err
+
+
+def test_log_model_outputs_binary(
+    set_test_config: Callable, cleanup_after_use: Callable
+) -> None:
+    set_test_config(task_type="text_multi_label")
+    tasks = ["A", "B", "C", "D"]
+    dq.set_tasks_for_run(tasks, binary=True)
+
+    logger = TextMultiLabelModelLogger(
+        embs=np.random.rand(10, 100),  # 10 samples, 100 emb per sample
+        logits=np.random.rand(10, 5),  # 10 samples, 5 tasks
+        ids=list(range(10)),
+        split="training",
+        epoch=0,
+    )
+    logger.logger_config.observed_num_tasks = 5
+    logger._log()
+
+    assert not hasattr(logger, "logits")
+    assert logger.probs.shape == (10, 5, 2)  # samples X tasks X classes per task
+    for sample_probs in logger.probs:
+        for task_probs in sample_probs:
+            assert np.isclose(np.sum(task_probs), 1.0)
+
+
+@pytest.mark.parametrize("dims", [(10, 5, 2), (10,)])
+def test_log_model_outputs_binary_bad_shapes(
+    dims: Tuple, set_test_config: Callable, cleanup_after_use: Callable
+) -> None:
+    set_test_config(task_type="text_multi_label")
+    tasks = ["A", "B", "C", "D"]
+    dq.set_tasks_for_run(tasks, binary=True)
+
+    logger = TextMultiLabelModelLogger(
+        embs=np.random.rand(10, 100),  # 10 samples, 100 emb per sample
+        logits=np.random.rand(*dims),
+        ids=list(range(10)),
+        split="training",
+        epoch=0,
+    )
+    ndim = 5 if len(dims) == 3 else 2
+    logger.logger_config.observed_num_tasks = ndim
+
+    with pytest.raises(GalileoException) as e:
+        logger._log()
+
+    err = str(e.value)
+    if len(dims) == 1:
+        assert "Probs/logits must have at least 2 dimensions, they have 1" in err
+    else:
+        assert (
+            f"In binary multi-label, your logits should have 2 dimensions, but they "
+            f"currently have {len(dims)}."
+        ) in err

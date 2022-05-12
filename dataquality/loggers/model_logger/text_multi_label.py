@@ -2,6 +2,7 @@ from collections import defaultdict
 from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
+from scipy.special import softmax
 
 from dataquality.loggers.logger_config.text_multi_label import (
     TextMultiLabelLoggerConfig,
@@ -120,7 +121,7 @@ class TextMultiLabelModelLogger(TextClassificationModelLogger):
             for task_num in range(self.logger_config.observed_num_tasks):
                 task_probs: List[float] = prob_per_task[task_num]
                 if len(task_probs) == 1:  # Handle binary classification case
-                    task_probs = [task_probs[0], 1 - task_probs[0]]
+                    task_probs = [1 - task_probs[0], task_probs[0]]
                 record[f"prob_{task_num}"] = np.array(task_probs, dtype=np.float32)
                 record[f"pred_{task_num}"] = int(np.argmax(task_probs))
 
@@ -144,18 +145,38 @@ class TextMultiLabelModelLogger(TextClassificationModelLogger):
             )
         super().__setattr__(key, value)
 
+    def convert_logits_to_prob_binary(self, sample_logits: np.ndarray) -> np.ndarray:
+        """Converts logits to probs in the binary case
+
+        Takes the sigmoid of the single class logits and adds the negative
+        lass prediction (1-class pred)
+        """
+        assert sample_logits.ndim == 2, (
+            f"In binary multi-label, your logits should have 2 dimensions, but "
+            f"they currently have {sample_logits.ndim}. Do you mean to use to "
+            f"binary multi-label? If not, call dq.set_tasks_for_run(tasks) without "
+            f"the binary=True flag. Or call dq.init() to reset."
+        )
+        return super().convert_logits_to_prob_binary(sample_logits)
+
     def convert_logits_to_probs(
         self, sample_logits: Union[List, np.ndarray]
     ) -> np.ndarray:
-        """Converts logits to probs via softmax per sample"""
+        """Converts logits to probs via softmax per sample
+
+        In the case of binary multi-label, we don't run softmax, we use sigmoid
+        """
+        if self.logger_config.binary:
+            return self.convert_logits_to_prob_binary(
+                np.array(sample_logits, dtype=np.float32)
+            )
         # axis ensures that in a matrix of probs with dims num_samples x num_classes
         # we take the softmax for each sample
         probs = []
         for sample_logits in sample_logits:
             task_probs = []
             for task_logits in sample_logits:
-                task_probs.append(
-                    super().convert_logits_to_probs(task_logits.astype(np.float_))
-                )
+                task_logits = self._convert_tensor_ndarray(task_logits)
+                task_probs.append(softmax(task_logits.astype(np.float_), axis=-1))
             probs.append(task_probs)
         return np.array(probs, dtype=object)

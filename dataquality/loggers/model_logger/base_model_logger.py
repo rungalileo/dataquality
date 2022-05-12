@@ -4,7 +4,7 @@ from typing import Dict, List, Optional, Union
 from uuid import uuid4
 
 import numpy as np
-from scipy.special import softmax
+from scipy.special import expit, softmax
 
 from dataquality import config
 from dataquality.exceptions import GalileoException
@@ -146,6 +146,18 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
     def _get_data_dict(self) -> Dict:
         """Constructs a dictionary of arrays from logged model output data"""
 
+    def convert_logits_to_prob_binary(self, sample_logits: np.ndarray) -> np.ndarray:
+        """Converts logits to probs in the binary case
+
+        Takes the sigmoid of the single class logits and adds the negative
+        lass prediction (1-class pred)
+        """
+        sample_probs = expit(sample_logits)
+        probs_1 = np.expand_dims(sample_probs, axis=-1)
+        probs_0 = 1 - probs_1
+        probs = np.concatenate([probs_0, probs_1], axis=-1)
+        return probs
+
     def convert_logits_to_probs(
         self, sample_logits: Union[List[np.ndarray], np.ndarray]
     ) -> np.ndarray:
@@ -154,4 +166,9 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         # we take the softmax for each sample
         if not isinstance(sample_logits, np.ndarray):
             sample_logits = self._convert_tensor_ndarray(sample_logits)
+        if len(sample_logits.shape) == 1 or sample_logits.shape[1] == 1:
+            if len(sample_logits.shape) > 1:
+                # Remove final empty dimension if it's there
+                sample_logits = sample_logits.reshape(-1)
+            return self.convert_logits_to_prob_binary(sample_logits)
         return softmax(np.array(sample_logits), axis=-1)
