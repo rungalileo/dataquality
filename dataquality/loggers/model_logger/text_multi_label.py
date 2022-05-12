@@ -4,7 +4,6 @@ from typing import Any, Dict, List, Optional, Union
 import numpy as np
 from scipy.special import softmax
 
-from dataquality.exceptions import GalileoException
 from dataquality.loggers.logger_config.text_multi_label import (
     TextMultiLabelLoggerConfig,
     text_multi_label_logger_config,
@@ -152,13 +151,12 @@ class TextMultiLabelModelLogger(TextClassificationModelLogger):
         Takes the sigmoid of the single class logits and adds the negative
         lass prediction (1-class pred)
         """
-        if sample_logits.ndim > 2:
-            raise GalileoException(
-                f"In binary multi-label, your logits should have 2 dimensions, but "
-                f"they currently have {sample_logits.ndim}. Do you mean to use to "
-                f"binary multi-label? If not, call dq.set_tasks_for_run(tasks) without "
-                f"the binary=True flag. Or call dq.init() to reset."
-            )
+        assert sample_logits.ndim == 2, (
+            f"In binary multi-label, your logits should have 2 dimensions, but "
+            f"they currently have {sample_logits.ndim}. Do you mean to use to "
+            f"binary multi-label? If not, call dq.set_tasks_for_run(tasks) without "
+            f"the binary=True flag. Or call dq.init() to reset."
+        )
         return super().convert_logits_to_prob_binary(sample_logits)
 
     def convert_logits_to_probs(

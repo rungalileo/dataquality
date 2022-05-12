@@ -1,5 +1,5 @@
 from random import randint, sample
-from typing import Callable
+from typing import Callable, Tuple
 from unittest import mock
 
 import numpy as np
@@ -244,3 +244,34 @@ def test_log_model_outputs_binary(
     for sample_probs in logger.probs:
         for task_probs in sample_probs:
             assert np.isclose(np.sum(task_probs), 1.0)
+
+
+@pytest.mark.parametrize("dims", [(10, 5, 2), (10,)])
+def test_log_model_outputs_binary_bad_shapes(
+    dims: Tuple, set_test_config: Callable, cleanup_after_use: Callable
+) -> None:
+    set_test_config(task_type="text_multi_label")
+    tasks = ["A", "B", "C", "D"]
+    dq.set_tasks_for_run(tasks, binary=True)
+
+    logger = TextMultiLabelModelLogger(
+        embs=np.random.rand(10, 100),  # 10 samples, 100 emb per sample
+        logits=np.random.rand(*dims),
+        ids=list(range(10)),
+        split="training",
+        epoch=0,
+    )
+    ndim = 5 if len(dims) == 3 else 2
+    logger.logger_config.observed_num_tasks = ndim
+
+    with pytest.raises(GalileoException) as e:
+        logger._log()
+
+    err = str(e.value)
+    if len(dims) == 1:
+        assert "Probs/logits must have at least 2 dimensions, they have 1" in err
+    else:
+        assert (
+            f"In binary multi-label, your logits should have 2 dimensions, but they "
+            f"currently have {len(dims)}."
+        ) in err

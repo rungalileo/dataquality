@@ -148,12 +148,16 @@ class BaseGalileoLogger:
             elif attr == "Prob":
                 if config.task_type != TaskType.text_multi_label:
                     assert (
-                        len(arr.shape) == 2
-                    ), f"{attr} tensor must be 2D shape, but got shape {arr.shape}"
+                        arr.ndim == 2
+                    ), f"Probs/logits must have ndim=2, but got shape {arr.shape}"
                 else:
                     # Because probs in multi label may not have a clear shape (each
                     # task may have a different number of probabilities
                     arr = np.array(arr, dtype=object)
+                    assert arr.ndim > 1, (
+                        f"Probs/logits must have at least 2 dimensions, "
+                        f"they have {arr.ndim}"
+                    )
             elif attr == "Labels" and config.task_type == TaskType.text_multi_label:
                 arr = np.array(arr, dtype=object)
         return np.array(arr)
