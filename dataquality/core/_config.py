@@ -11,6 +11,7 @@ from pydantic.class_validators import validator
 from pydantic.types import UUID4
 from requests.exceptions import ConnectionError as ReqConnectionError
 
+from dataquality import __version__ as dq_version
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.task_type import TaskType
 
@@ -155,8 +156,7 @@ def set_config() -> Config:
                     f"We had an issue reading your config file ({type(e)}). "
                     f"Recreating your file from scratch."
                 )
-                os.remove(ConfigData.DEFAULT_GALILEO_CONFIG_FILE.value)
-                return set_config()
+                return reset_config()
         # If the user updated any config vars via env, grab those updates
         new_config_attrs = GalileoConfigVars.get_available_config_attrs()
         config_vars.update(**new_config_attrs)
@@ -171,7 +171,7 @@ def set_config() -> Config:
         config = Config(**galileo_vars)
 
     else:
-        print("Welcome to Galileo!")
+        print(f"Welcome to Galileo {dq_version}!")
         print(
             "To skip this prompt in the future, set the following environment "
             "variable: GALILEO_CONSOLE_URL"
@@ -181,6 +181,12 @@ def set_config() -> Config:
         galileo_vars = GalileoConfigVars.get_config_mapping()
         config = Config(**galileo_vars)
     return config
+
+
+def reset_config() -> Config:
+    """Wipe the config file and reconfigure"""
+    os.remove(ConfigData.DEFAULT_GALILEO_CONFIG_FILE.value)
+    return set_config()
 
 
 config = set_config()
