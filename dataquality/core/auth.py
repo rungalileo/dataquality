@@ -48,7 +48,7 @@ class _Auth:
 
 
 def login() -> None:
-    print(f"📡 {config.api_url}")
+    print(f"📡 {config.api_url.replace('api.','console.')}")
     print("🔭 Logging you into Galileo\n")
     auth_methods = ",".join([am.value for am in AuthMethod])
     # Try auto auth config
