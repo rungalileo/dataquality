@@ -32,7 +32,7 @@ def configure() -> None:
     Available environment variables to update:
     * GALILEO_CONSOLE_URL
     """
-    updated_config = dataquality.core._config.set_config()
+    updated_config = dataquality.core._config.reset_config()
     for k, v in updated_config.dict().items():
         config.__setattr__(k, v)
     config.token = None
