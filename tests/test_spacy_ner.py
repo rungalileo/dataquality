@@ -160,11 +160,12 @@ def test_unwatch(set_test_config):
     watch(nlp)
     unwatch(nlp)
 
-    assert isinstance(nlp.get_pipe("ner"), EntityRecognizer)
-    assert not isinstance(nlp.get_pipe("ner"), GalileoEntityRecognizer)
-
-    assert nlp.get_pipe("ner").moves == original_ner.moves
-    assert not isinstance(nlp.get_pipe("ner").model, GalileoTransitionBasedParserModel)
+    unwatched_ner = nlp.get_pipe("ner")
+    assert isinstance(unwatched_ner, EntityRecognizer)
+    assert not isinstance(unwatched_ner, GalileoEntityRecognizer)
+    assert not isinstance(unwatched_ner.model, GalileoTransitionBasedParserModel)
+    assert unwatched_ner.model == original_ner.model
+    assert unwatched_ner.moves == original_ner.moves
 
     # Should be able to now save the language
     pickle.dumps(nlp.get_pipe("ner"))
