@@ -13,9 +13,10 @@ import dataquality
 from dataquality.exceptions import GalileoException
 from dataquality.integrations.spacy import (
     GalileoEntityRecognizer,
+    GalileoTransitionBasedParserModel,
     log_input_examples,
     unwatch,
-    watch, GalileoTransitionBasedParserModel,
+    watch,
 )
 from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
@@ -167,6 +168,7 @@ def test_unwatch(set_test_config):
 
     # Should be able to now save the language
     pickle.dumps(nlp.get_pipe("ner"))
+
 
 def test_embeddings_get_updated(cleanup_after_use, set_test_config):
     """This test both checks our spacy wrapper end to end and that embs update.

@@ -3,7 +3,6 @@ from collections import defaultdict
 from typing import Any, Callable, DefaultDict, Dict, Generator, List, Tuple, Union
 
 import numpy as np
-import spacy
 import thinc
 from spacy.language import Language
 from spacy.ml.parser_model import ParserStepModel
@@ -141,7 +140,7 @@ def unwatch(nlp: Language) -> None:
     pipe_component = galileo_ner.__wrapped__
     pipe_component.model = galileo_ner._self_old_model
     factory_name = "ner"
-    name = factory_name # for consistency with spacy code
+    name = factory_name  # for consistency with spacy code
 
     pipe_index = nlp._get_pipe_index(before="galileo_ner")
     nlp._pipe_meta[name] = nlp.get_factory_meta(factory_name)
@@ -174,7 +173,7 @@ class GalileoEntityRecognizer(CallableObjectProxy):
                 f"expects a beam width of 1 (the 'ner' default)."
             )
 
-        self._self_old_model = ner.model
+        self._self_old_model = ner.model.copy()
         ner.model = GalileoTransitionBasedParserModel(ner.model)
 
     def greedy_parse(self, docs: List[Doc], drop: float = 0.0) -> List:
@@ -413,7 +412,7 @@ class GalileoParserStepModel(ThincModelWrapper):
             for chunk_idx, state_end_idx in enumerate(
                 helper_data["spacy_states_end_idxs"][doc_id]
             ):
-                if state_cur_token_idx < state_end_idx: # TODO: See if these next two lines get simpler
+                if state_cur_token_idx < state_end_idx:
                     # check if this is a pre final state
                     if state_cur_token_idx == state_end_idx - 1:
                         final_state = state.copy()
