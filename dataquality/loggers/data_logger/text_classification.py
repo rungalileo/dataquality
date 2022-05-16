@@ -334,7 +334,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         else:
             assert label_len and text_len, (
                 f"You must log both text and labels for split {self.split}."
-                f" text samples logged:{text_len}, labels logged:{label_len}"
+                f" Text samples logged:{text_len}, labels logged:{label_len}"
             )
 
             assert text_len == label_len, (
