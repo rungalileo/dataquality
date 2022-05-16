@@ -383,14 +383,14 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             assert not gold_span_len, "You cannot have labels in your inference split!"
         else:
             assert gold_span_len and text_len, (
-                f"Both text and gold spans for your logger must be set, but got"
-                f" text:{bool(text_len)}, labels:{bool(text_len)}"
+                f"You must log both text and gold_spans for split {self.split}."
+                f" Text samples logged:{text_len}, gold spans logged:{gold_span_len}"
             )
 
             assert text_len == text_tokenized_len == gold_span_len, (
-                f"labels, text, and tokenized text must be the same length, but got"
-                f"(labels, text, text_token) ({gold_span_len},{text_len}, "
-                f"{text_tokenized_len})"
+                f"gold spans, text, and tokenized text must be the same length for "
+                f"split {self.split}, but got (gold spans, text, text_token) "
+                f"({gold_span_len},{text_len},{text_tokenized_len})"
             )
 
         for sample_id, sample_spans, sample_indices, sample_text in zip(
