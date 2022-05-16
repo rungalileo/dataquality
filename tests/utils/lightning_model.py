@@ -57,6 +57,7 @@ class NewsgroupDataset(torch.utils.data.Dataset):
         #
         self.glogger.texts = self.dataset["text"]
         self.glogger.labels = self.dataset["label"]
+        self.glogger.ids = list(range(len(self.dataset)))
 
         tokenizer = DistilBertTokenizerFast.from_pretrained("distilbert-base-uncased")
         self.encodings = tokenizer(
