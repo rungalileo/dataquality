@@ -384,7 +384,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         else:
             assert gold_span_len and text_len, (
                 f"You must log both text and gold_spans for split {self.split}."
-                f" text samples logged:{text_len}, gold spans logged:{gold_span_len}"
+                f" Text samples logged:{text_len}, gold spans logged:{gold_span_len}"
             )
 
             assert text_len == text_tokenized_len == gold_span_len, (
