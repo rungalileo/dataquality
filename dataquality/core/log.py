@@ -182,6 +182,7 @@ def log_model_outputs(
     embs: Union[List, np.ndarray],
     ids: Union[List, np.ndarray],
     logits: Union[List, np.ndarray],
+    probs: Union[List, np.ndarray] = None,
     split: Optional[Split] = None,
     epoch: Optional[int] = None,
     inference_name: str = None,
@@ -191,6 +192,7 @@ def log_model_outputs(
     :param ids: The ids for each sample. Must match input ids of logged samples
     :param embs: The embeddings for each sample in the batch.
     :param logits: The logits for each sample in the batch.
+    :param probs: Deprecated, use logits. If passed in, a softmax will NOT be applied
     :param split: The current split. Must be set either here or via `dq.set_split`.
     :param epoch: The current epoch. Must be set either here or via `dq.set_epoch`.
     :param inference_name: Inference name indicator for this inference split.

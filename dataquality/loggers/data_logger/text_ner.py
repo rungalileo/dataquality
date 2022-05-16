@@ -247,8 +247,8 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         :param dataset: The dataset to log. This can be an python iterable or
             Pandas/Vaex dataframe. If an iterable, it can be a list of elements that can
             be indexed into either via int index (tuple/list) or string/key index (dict)
-        :param text: The key/index of the text fields.
         :param id: The key/index of the id fields.
+        :param text: The key/index of the text fields.
         :param text_token_indices: The key/index of the sample text_token_indices.
         :param gold_spans: The key/index of the sample gold_spans.
         :param split: train/test/validation/inference. Can be set here or via

@@ -133,8 +133,8 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
 
             dq.log_data_samples(texts=texts, labels=labels, ids=ids, split=split)
 
-        :param texts: Text samples.
         :param ids: Samples' ids. Need to match ids in the model's output.
+        :param texts: Text samples.
         :param labels: Labels for text samples. Required if not an inference split.
         :param split: train/test/validation/inference. Can be set here or via
             dq.set_split
@@ -203,8 +203,8 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         :param dataset: The dataset to log. This can be a python iterable or
             Pandas/Vaex dataframe. If an iterable, it can be a list of elements that can
             be indexed into either via int index (tuple/list) or string/key index (dict)
-        :param text: The key/index of the text fields.
         :param id: The key/index of the id fields.
+        :param text: The key/index of the text fields.
         :param label: The key/index of the label fields.
         :param split: train/test/validation/inference. Can be set here or via
             dq.set_split
