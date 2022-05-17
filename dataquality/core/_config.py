@@ -14,6 +14,7 @@ from requests.exceptions import ConnectionError as ReqConnectionError
 from dataquality import __version__ as dq_version
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.task_type import TaskType
+from dataquality.utils.helpers import GALILEO_DISABLED
 
 
 class GalileoConfigVars(str, Enum):
@@ -142,6 +143,8 @@ def _check_console_url() -> None:
 
 
 def set_config() -> Config:
+    if os.getenv(GALILEO_DISABLED):
+        return Config(api_url="", minio_url="")
     _check_console_url()
     if not os.path.isdir(ConfigData.DEFAULT_GALILEO_CONFIG_DIR.value):
         os.makedirs(ConfigData.DEFAULT_GALILEO_CONFIG_DIR.value, exist_ok=True)

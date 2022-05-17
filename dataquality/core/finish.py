@@ -8,12 +8,14 @@ from dataquality.clients.api import ApiClient
 from dataquality.core._config import ConfigData, config
 from dataquality.schemas import RequestType, Route
 from dataquality.schemas.job import JobName
+from dataquality.utils.helpers import check_noop
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.version import _version_check
 
 api_client = ApiClient()
 
 
+@check_noop
 def finish() -> Optional[Dict[str, Any]]:
     """
     Finishes the current run and invokes a job
@@ -55,6 +57,7 @@ def finish() -> Optional[Dict[str, Any]]:
     return res
 
 
+@check_noop
 def wait_for_run(
     project_name: Optional[str] = None, run_name: Optional[str] = None
 ) -> None:
@@ -70,6 +73,7 @@ def wait_for_run(
     return api_client.wait_for_run(project_name=project_name, run_name=run_name)
 
 
+@check_noop
 def get_run_status(
     project_name: Optional[str] = None, run_name: Optional[str] = None
 ) -> Dict[str, Any]:
@@ -86,6 +90,7 @@ def get_run_status(
     return api_client.get_run_status(project_name=project_name, run_name=run_name)
 
 
+@check_noop
 def _reset_run(project_id: UUID4, run_id: UUID4) -> None:
     """Clear the data in minio before uploading new data
 

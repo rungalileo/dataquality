@@ -13,6 +13,7 @@ from dataquality.core.auth import login
 from dataquality.exceptions import GalileoException
 from dataquality.loggers import BaseGalileoLogger
 from dataquality.schemas.task_type import TaskType
+from dataquality.utils.helpers import check_noop
 from dataquality.utils.name import random_name
 
 api_client = ApiClient()
@@ -71,6 +72,7 @@ class _Init:
             )
 
 
+@check_noop
 def init(
     task_type: str,
     project_name: Optional[str] = None,

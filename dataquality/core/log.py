@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, List, Optional, Type, Union
+from typing import Any, Dict, List, Optional, Type, Union
 
 import numpy as np
 
@@ -13,16 +13,10 @@ from dataquality.loggers.model_logger import BaseGalileoModelLogger
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
+from dataquality.utils.helpers import check_noop
 
 
-def add_doc(doc: str) -> Callable:
-    def _doc(func: Callable) -> Callable:
-        func.__doc__ = doc
-        return func
-
-    return _doc
-
-
+@check_noop
 def log_data_samples(
     *,
     texts: List[str],
@@ -77,6 +71,7 @@ def log_data_samples(
     data_logger.log_data_samples(texts=texts, ids=ids, meta=meta, **kwargs)
 
 
+@check_noop
 def log_data_sample(*, text: str, id: int, **kwargs: Any) -> None:
     """Log a single input example to disk
 
@@ -103,6 +98,7 @@ def log_data_sample(*, text: str, id: int, **kwargs: Any) -> None:
     data_logger.log_data_sample(text=text, id=id, **kwargs)
 
 
+@check_noop
 def log_dataset(
     dataset: DataSet,
     *,
@@ -177,6 +173,7 @@ def log_dataset(
     data_logger.log_dataset(dataset, text=text, id=id, split=split, meta=meta, **kwargs)
 
 
+@check_noop
 def log_model_outputs(
     *,
     embs: Union[List, np.ndarray],
@@ -219,6 +216,7 @@ def log_model_outputs(
     model_logger.log()
 
 
+@check_noop
 def set_labels_for_run(labels: Union[List[List[str]], List[str]]) -> None:
     """
     Creates the mapping of the labels for the model to their respective indexes.
@@ -235,6 +233,7 @@ def set_labels_for_run(labels: Union[List[List[str]], List[str]]) -> None:
     get_data_logger().logger_config.labels = labels
 
 
+@check_noop
 def set_tasks_for_run(tasks: List[str], binary: bool = False) -> None:
     """Sets the task names for the run (multi-label case only).
 
@@ -258,6 +257,7 @@ def set_tasks_for_run(tasks: List[str], binary: bool = False) -> None:
         text_multi_label_logger_config.labels = [[task] for task in tasks]
 
 
+@check_noop
 def set_tagging_schema(tagging_schema: TaggingSchema) -> None:
     """Sets the tagging schema for NER models
 
@@ -295,6 +295,7 @@ def docs() -> None:
     get_model_logger().doc()
 
 
+@check_noop
 def set_epoch(epoch: int) -> None:
     """Set the current epoch.
 
@@ -303,6 +304,7 @@ def set_epoch(epoch: int) -> None:
     get_data_logger().logger_config.cur_epoch = epoch
 
 
+@check_noop
 def set_split(split: Split, inference_name: Optional[str] = None) -> None:
     """Set the current split.
 
