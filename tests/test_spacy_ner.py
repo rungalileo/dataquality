@@ -1,3 +1,4 @@
+import pickle
 from typing import Callable, Dict, List, Tuple
 from unittest.mock import patch
 
@@ -12,6 +13,7 @@ import dataquality
 from dataquality.exceptions import GalileoException
 from dataquality.integrations.spacy import (
     GalileoEntityRecognizer,
+    GalileoTransitionBasedParserModel,
     log_input_examples,
     unwatch,
     watch,
@@ -140,9 +142,6 @@ def test_watch(set_test_config, cleanup_after_use):
     assert isinstance(nlp.get_pipe("ner"), GalileoEntityRecognizer)
 
 
-@pytest.mark.skip(
-    reason="Implementation hinges on more info from spacy or a bug fix, " "see unwatch"
-)
 def test_unwatch(set_test_config):
     set_test_config(task_type=TaskType.text_ner)
     nlp = spacy.blank("en")
@@ -154,14 +153,24 @@ def test_unwatch(set_test_config):
         training_examples.append(Example.from_dict(doc, annotations))
 
     nlp.initialize(lambda: training_examples)
+
+    # This should be possible here
+    pickle.dumps(nlp)
+
     watch(nlp)
     unwatch(nlp)
 
-    assert isinstance(nlp.get_pipe("ner"), EntityRecognizer)
-    assert not isinstance(nlp.get_pipe("ner"), GalileoEntityRecognizer)
+    unwatched_ner = nlp.get_pipe("ner")
+    assert isinstance(unwatched_ner, EntityRecognizer)
+    assert not isinstance(unwatched_ner, GalileoEntityRecognizer)
+    assert not isinstance(unwatched_ner.model, GalileoTransitionBasedParserModel)
+    assert unwatched_ner.model == original_ner.model
+    assert unwatched_ner.moves == original_ner.moves
 
-    assert nlp.get_pipe("ner").moves == original_ner.moves
-    assert nlp.get_pipe("ner").moves == original_ner.model
+    # Should be able to now save + load the pipeline component
+    pickle.loads(pickle.dumps(nlp.get_pipe("ner")))
+    # and the language
+    pickle.loads(pickle.dumps(nlp))
 
 
 def test_embeddings_get_updated(cleanup_after_use, set_test_config):
