@@ -167,8 +167,10 @@ def test_unwatch(set_test_config):
     assert unwatched_ner.model == original_ner.model
     assert unwatched_ner.moves == original_ner.moves
 
-    # Should be able to now save the language
-    pickle.dumps(nlp.get_pipe("ner"))
+    # Should be able to now save + load the pipeline component
+    pickle.loads(pickle.dumps(nlp.get_pipe("ner")))
+    # and the language
+    pickle.loads(pickle.dumps(nlp))
 
 
 def test_embeddings_get_updated(cleanup_after_use, set_test_config):
