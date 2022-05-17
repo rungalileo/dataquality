@@ -1,6 +1,8 @@
+import os
 import time
 from random import random
 from typing import Callable
+from unittest import mock
 
 import numpy as np
 import pytest
@@ -452,3 +454,14 @@ def test_log_outputs_binary(
     assert logger.probs.shape == (10, 2)  # samples X tasks X classes per task
     for sample_probs in logger.probs:
         assert np.isclose(np.sum(sample_probs), 1.0)
+
+
+def test_calls_noop() -> None:
+    os.environ["GALILEO_DISABLED"] = "True"
+    c = dataquality.core._config.set_config()
+    assert c.api_url == "http://"
+    assert c.minio_url == ""
+    with mock.patch("dataquality.core.log.log_data_samples") as mock_log:
+        dataquality.log_data_samples(texts=["test"], labels=["1"], ids=[1])
+        mock_log.assert_not_called()
+    del os.environ["GALILEO_DISABLED"]
