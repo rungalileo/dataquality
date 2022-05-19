@@ -9,8 +9,8 @@ from dataquality.clients.objectstore import ObjectStore
 from dataquality.core._config import ConfigData, config
 from dataquality.utils.helpers import check_noop
 
-STD_HOME = f"{ConfigData.DEFAULT_GALILEO_CONFIG_DIR}/std"
-STD_FILE = "out.log"
+DQ_LOG_FILE_HOME = f"{ConfigData.DEFAULT_GALILEO_CONFIG_DIR}/out"
+DQ_LOG_FILE = "out.log"
 
 
 class CustomSplitAdapter(logging.LoggerAdapter):
@@ -33,49 +33,56 @@ log_formatter = logging.Formatter(
 )
 
 
-def get_std_logger() -> CustomSplitAdapter:
-    """Returns a std out/err logger based on the current run_id"""
+def get_dq_logger() -> CustomSplitAdapter:
+    """Returns the dq logger for the current run_id"""
     logger = logging.getLogger(str(config.current_run_id))
     logger.setLevel(os.environ.get("GALILEO_LOG_LEVEL", "INFO").upper())
     # Avoid adding multiple handlers if one already exists
     if not logger.handlers:
-        handler = logging.FileHandler(get_std_file_path())
+        handler = logging.FileHandler(dq_log_file_path())
         handler.setFormatter(log_formatter)
         logger.addHandler(handler)
     adapter = CustomSplitAdapter(logger, {"split": None, "epoch": None})
     return adapter
 
 
-def get_std_file_path(run_id: Optional[UUID4] = None) -> str:
+def dq_log_file_path(run_id: Optional[UUID4] = None) -> str:
     rid = run_id or config.current_run_id
-    return f"{STD_HOME}/{rid}/{STD_FILE}"
+    return f"{DQ_LOG_FILE_HOME}/{rid}/{DQ_LOG_FILE}"
 
 
-def get_std_object_name(project_id: UUID4, run_id: UUID4) -> str:
+def remove_dq_log_file(run_id: Optional[UUID4] = None) -> None:
+    file_path = dq_log_file_path(run_id)
+    if os.path.isfile(file_path):
+        os.remove(file_path)
+
+
+def dq_log_object_name(project_id: UUID4, run_id: UUID4) -> str:
     """Returns the minio/s3 object name"""
-    return f"{project_id}/{run_id}/out/{STD_FILE}"
+    return f"{project_id}/{run_id}/out/{DQ_LOG_FILE}"
 
 
 @check_noop
-def upload_std_file() -> None:
+def upload_dq_log_file() -> None:
     # For typing
     assert config.current_project_id and config.current_run_id
     obj_store = ObjectStore()
-    obj_name = get_std_object_name(config.current_project_id, config.current_run_id)
+    obj_name = dq_log_object_name(config.current_project_id, config.current_run_id)
     obj_store.create_project_run_object(
-        object_name=obj_name, file_path=get_std_file_path(), content_type="text/plain"
+        object_name=obj_name, file_path=dq_log_file_path(), content_type="text/plain"
     )
+    remove_dq_log_file()
 
 
 @check_noop
-def get_std_log_file(
+def get_dq_log_file(
     project_name: Optional[str] = None, run_name: Optional[str] = None
 ) -> str:
     pid, rid = ApiClient()._get_project_run_id(
         project_name=project_name, run_name=run_name
     )
-    log_object = get_std_object_name(pid, rid)
-    log_file_path = get_std_file_path(rid)
+    log_object = dq_log_object_name(pid, rid)
+    log_file_path = dq_log_file_path(rid)
     obj_store = ObjectStore()
     obj_store.download_file(log_object, log_file_path)
     print(f"Your logfile has been written to {log_file_path}")

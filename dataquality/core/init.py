@@ -13,9 +13,9 @@ from dataquality.core.auth import login
 from dataquality.exceptions import GalileoException
 from dataquality.loggers import BaseGalileoLogger
 from dataquality.schemas.task_type import TaskType
+from dataquality.utils.dq_logger import DQ_LOG_FILE_HOME
 from dataquality.utils.helpers import check_noop
 from dataquality.utils.name import random_name
-from dataquality.utils.std_logger import STD_HOME
 
 api_client = ApiClient()
 
@@ -54,7 +54,7 @@ class _Init:
         self, project_id: UUID4, run_id: UUID4, overwrite_local: bool
     ) -> None:
         write_output_dir = f"{BaseGalileoLogger.LOG_FILE_DIR}/{project_id}/{run_id}"
-        stdout_dir = f"{STD_HOME}/{run_id}"
+        stdout_dir = f"{DQ_LOG_FILE_HOME}/{run_id}"
         for out_dir in [write_output_dir, stdout_dir]:
             if overwrite_local and os.path.exists(out_dir):
                 shutil.rmtree(out_dir)

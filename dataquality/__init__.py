@@ -23,7 +23,7 @@ from dataquality.core.log import (
     set_tagging_schema,
     set_tasks_for_run,
 )
-from dataquality.utils.std_logger import get_std_log_file
+from dataquality.utils.dq_logger import get_dq_log_file
 
 
 def configure() -> None:
@@ -62,7 +62,7 @@ __all__ = [
     "set_split",
     "log_data_sample",
     "log_dataset",
-    "get_std_log_file",
+    "get_dq_log_file",
 ]
 
 try:

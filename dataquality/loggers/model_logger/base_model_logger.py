@@ -12,7 +12,7 @@ from dataquality.loggers.base_logger import BaseGalileoLogger
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
-from dataquality.utils.std_logger import get_std_logger
+from dataquality.utils.dq_logger import get_dq_logger
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import _save_hdf5_file
 
@@ -44,7 +44,7 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         try:
             self.validate()
         except AssertionError as e:
-            get_std_logger().error(
+            get_dq_logger().error(
                 "Validation of data failed", split=self.split, epoch=self.epoch
             )
             raise GalileoException(
@@ -57,7 +57,7 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         try:
             self._log()
         except Exception as e:
-            get_std_logger().exception(
+            get_dq_logger().exception(
                 "Logging of model outputs failed", split=self.split, epoch=self.epoch
             )
             err_msg = (
@@ -75,16 +75,14 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         # global variables (cur_split and cur_epoch) that are subject to change
         # between subsequent threads
         self.set_split_epoch()
-        get_std_logger().info(
+        get_dq_logger().info(
             "Starting logging process from thread", split=self.split, epoch=self.epoch
         )
         ThreadPoolManager.add_thread(target=self._add_threaded_log)
 
     def write_model_output(self, data: Dict) -> None:
         """Creates an hdf5 file from the data dict"""
-        get_std_logger().info(
-            "Writing model output", split=self.split, epoch=self.epoch
-        )
+        get_dq_logger().info("Writing model output", split=self.split, epoch=self.epoch)
         location = (
             f"{self.LOG_FILE_DIR}/{config.current_project_id}"
             f"/{config.current_run_id}"
@@ -98,7 +96,7 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
             path = f"{location}/{split}/{epoch}"
 
         object_name = f"{str(uuid4()).replace('-', '')[:12]}.hdf5"
-        get_std_logger().info("Saving hdf5 file", split=self.split)
+        get_dq_logger().info("Saving hdf5 file", split=self.split)
         _save_hdf5_file(path, object_name, data)
 
     def set_split_epoch(self) -> None:

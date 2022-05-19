@@ -8,8 +8,8 @@ from dataquality.clients.api import ApiClient
 from dataquality.core._config import config
 from dataquality.schemas import RequestType, Route
 from dataquality.schemas.job import JobName
+from dataquality.utils.dq_logger import DQ_LOG_FILE_HOME, upload_dq_log_file
 from dataquality.utils.helpers import check_noop
-from dataquality.utils.std_logger import STD_HOME, upload_std_file
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.version import _version_check
 
@@ -34,7 +34,7 @@ def finish() -> Optional[Dict[str, Any]]:
 
     data_logger.upload()
     data_logger._cleanup()
-    upload_std_file()
+    upload_dq_log_file()
 
     body = dict(
         project_id=str(config.current_project_id),
@@ -108,5 +108,8 @@ def _reset_run(project_id: UUID4, run_id: UUID4) -> None:
     # All of the logged user data is to the old run ID, so rename it to the new ID
     os.rename(f"{project_dir}/{old_run_id}", f"{project_dir}/{config.current_run_id}")
     # Move std logs as well
-    os.rename(f"{STD_HOME}/{old_run_id}", f"{STD_HOME}/{config.current_run_id}")
+    os.rename(
+        f"{DQ_LOG_FILE_HOME}/{old_run_id}",
+        f"{DQ_LOG_FILE_HOME}/{config.current_run_id}",
+    )
     config.update_file_config()

@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 import numpy as np
 
 import dataquality as dq
-from dataquality.utils.std_logger import get_std_file_path
+from dataquality.utils.dq_logger import dq_log_file_path
 
 
 @mock.patch("dataquality.core.finish._reset_run")
@@ -41,13 +41,13 @@ def test_std_log(
     mock_put_object.assert_called_once_with(
         "galileo-project-runs",
         f"{dq.config.current_project_id}/{dq.config.current_run_id}/out/out.log",
-        file_path=get_std_file_path(),
+        file_path=dq_log_file_path(),
         content_type="text/plain",
     )
-    x = dq.get_std_log_file()
-    assert x == get_std_file_path()
+    x = dq.get_dq_log_file()
+    assert x == dq_log_file_path()
     mock_get_object.assert_called_once_with(
         "galileo-project-runs",
         f"{dq.config.current_project_id}/{dq.config.current_run_id}/out/out.log",
-        get_std_file_path(),
+        dq_log_file_path(),
     )
