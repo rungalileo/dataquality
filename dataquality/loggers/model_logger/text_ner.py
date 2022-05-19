@@ -11,7 +11,7 @@ from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelL
 from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.ner import NERErrorType, TaggingSchema
 from dataquality.schemas.split import Split
-from dataquality.utils.stdout_logger import get_stdout_logger
+from dataquality.utils.dq_logger import get_dq_logger
 
 
 @unique
@@ -140,7 +140,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         * embs, probs, and ids must exist and be the same length
         :return:
         """
-        get_stdout_logger().info(
+        get_dq_logger().info(
             "Validating the output log.", split=self.split, epoch=self.epoch
         )
         if len(self.logits):
@@ -187,9 +187,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         A sample should be logged only if there was at least 1 prediction span or 1
         gold span
         """
-        get_stdout_logger().info(
-            "Processing a sample.", split=self.split, epoch=self.epoch
-        )
+        get_dq_logger().info("Processing a sample.", split=self.split, epoch=self.epoch)
         # To extract metadata about the sample we are looking at
         sample_key = self.logger_config.get_sample_key(Split(self.split), sample_id)
 
@@ -230,7 +228,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         We take the average of the token embeddings per span and use that as the span
         level embedding
         """
-        get_stdout_logger().info(
+        get_dq_logger().info(
             "Extracting span embeddings.", split=self.split, epoch=self.epoch
         )
         embeddings = []
@@ -250,7 +248,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         """
         # use length of the tokens stored to strip the pads
         # Drop the spans post first PAD
-        get_stdout_logger().info(
+        get_dq_logger().info(
             "Extracting pred spans.", split=self.split, epoch=self.epoch
         )
         argmax_indices: List[int] = np.array(pred_prob).argmax(axis=1)
@@ -471,7 +469,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         gold_sequence = [O, O, O, O, O, B-nothing, I-nothing, I-nothing, O, O] for BIO
         gold_sequence = [O, O, O, O, O, B-nothing, I-nothing, L-nothing, O, O] for BILOU
         """
-        get_stdout_logger().info(
+        get_dq_logger().info(
             "Constructing a gold sequence", split=self.split, epoch=self.epoch
         )
         gold_sequence = ["O"] * len_sequence
@@ -507,7 +505,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         dep_scores: DEP scores for every token in a sample, so len(dep_scores) is
             the number of tokens in a sentence
         """
-        get_stdout_logger().info(
+        get_dq_logger().info(
             "Calculating DEP across spans.", split=self.split, epoch=self.epoch
         )
         dep_score_per_span = []
@@ -537,7 +535,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             predicted spans which are padded by the model
         :return: The DEP score per-token for both the gold spans and pred spans
         """
-        get_stdout_logger().info("Calculating DEP.", split=self.split, epoch=self.epoch)
+        get_dq_logger().info("Calculating DEP.", split=self.split, epoch=self.epoch)
         pred_prob = np.array(pred_prob)
         label2idx = {l: i for i, l in enumerate(self.logger_config.labels)}
         argmax_indices: List[int] = pred_prob.argmax(axis=1).tolist()
@@ -582,9 +580,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         """
         data: defaultdict = defaultdict(list)
 
-        get_stdout_logger().info(
-            "Getting data dict.", split=self.split, epoch=self.epoch
-        )
+        get_dq_logger().info("Getting data dict.", split=self.split, epoch=self.epoch)
         # Loop through samples
         num_samples = len(self.ids)
         for idx in range(num_samples):
@@ -726,7 +722,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         In this function, we only look at spans that don't have pred/gold alignment,
         so the error can only be span_shift or missed_label.
         """
-        get_stdout_logger().info(
+        get_dq_logger().info(
             "Getting span error type.", split=self.split, epoch=self.epoch
         )
         gold_start, gold_end = gold_span
@@ -757,7 +753,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         """Converts logits to probs via softmax per sample"""
         # axis ensures that in a matrix of probs with dims num_samples x num_classes
         # we take the softmax for each sample
-        get_stdout_logger().info(
+        get_dq_logger().info(
             "Converting logits to probs.", split=self.split, epoch=self.epoch
         )
         token_probs = []

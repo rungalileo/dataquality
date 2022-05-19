@@ -267,7 +267,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
             ext = cls.DATA_FOLDER_EXTENSION[data_folder]
             minio_file = (
-                f"{proj_run}/{split}/{split_run}/" f"{data_folder}/{data_folder}.{ext}"
+                f"{proj_run}/{split}/{split_run}/{data_folder}/{data_folder}.{ext}"
             )
             object_store.create_project_run_object_from_df(
                 df=df_obj, object_name=minio_file

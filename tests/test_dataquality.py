@@ -3,6 +3,7 @@ import time
 from random import random
 from typing import Callable
 from unittest import mock
+from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
@@ -382,8 +383,12 @@ def test_prob_only(set_test_config) -> None:
     assert not logger.prob_only(test_split_runs, "test", "0")
 
 
+@mock.patch.object(dataquality.clients.objectstore.Minio, "fput_object")
 def test_log_invalid_model_outputs(
-    cleanup_after_use: Callable, set_test_config: Callable, input_data: Callable
+    mock_put: MagicMock,
+    cleanup_after_use: Callable,
+    set_test_config: Callable,
+    input_data: Callable,
 ) -> None:
     """Validate that we interrupt the main process if issues occur while logging"""
     dataquality.set_labels_for_run(["APPLE", "ORANGE"])
@@ -406,10 +411,16 @@ def test_log_invalid_model_outputs(
 
     assert dataquality.get_model_logger().logger_config.exception != ""
     assert str(e.value).startswith("An issue occurred while logging model outputs.")
+    # Here we are uploading the std logfile to minio
+    mock_put.assert_called_once()
 
 
+@mock.patch.object(dataquality.clients.objectstore.Minio, "fput_object")
 def test_log_invalid_model_outputs_final_thread(
-    cleanup_after_use: Callable, set_test_config: Callable, input_data: Callable
+    mock_put: MagicMock,
+    cleanup_after_use: Callable,
+    set_test_config: Callable,
+    input_data: Callable,
 ) -> None:
     """Validate that we error on finish if issues occur while logging"""
     assert dataquality.get_model_logger().logger_config.exception == ""
@@ -433,6 +444,8 @@ def test_log_invalid_model_outputs_final_thread(
 
     assert dataquality.get_model_logger().logger_config.exception != ""
     assert str(e.value).startswith("An issue occurred while logging model outputs.")
+    # Here we are uploading the std logfile to minio
+    mock_put.assert_called_once()
 
 
 def test_log_outputs_binary(

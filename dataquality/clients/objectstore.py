@@ -1,9 +1,10 @@
 from tempfile import NamedTemporaryFile
 
-from minio import Minio
+from minio import Minio, S3Error
 from vaex.dataframe import DataFrame
 
 from dataquality.core._config import config
+from dataquality.exceptions import GalileoException
 from dataquality.utils.file import get_file_extension
 
 
@@ -49,3 +50,15 @@ class ObjectStore:
                 object_name=object_name,
                 file_path=f.name,
             )
+
+    def download_file(self, object_name: str, file_path: str) -> None:
+        try:
+            self.minio_client.fget_object(self.ROOT_BUCKET_NAME, object_name, file_path)
+        except S3Error as e:
+            if e.message == "Object does not exist":
+                raise GalileoException("No log file available for this run")
+            else:
+                raise GalileoException(
+                    f"An unexpected error occurred while downloading the log file:\n"
+                    f"{str(e)}"
+                )

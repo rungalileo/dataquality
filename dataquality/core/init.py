@@ -8,11 +8,12 @@ from pydantic.types import UUID4
 
 import dataquality
 from dataquality.clients.api import ApiClient
-from dataquality.core._config import ConfigData, config
+from dataquality.core._config import config
 from dataquality.core.auth import login
 from dataquality.exceptions import GalileoException
 from dataquality.loggers import BaseGalileoLogger
 from dataquality.schemas.task_type import TaskType
+from dataquality.utils.dq_logger import DQ_LOG_FILE_HOME
 from dataquality.utils.helpers import check_noop
 from dataquality.utils.name import random_name
 
@@ -53,7 +54,7 @@ class _Init:
         self, project_id: UUID4, run_id: UUID4, overwrite_local: bool
     ) -> None:
         write_output_dir = f"{BaseGalileoLogger.LOG_FILE_DIR}/{project_id}/{run_id}"
-        stdout_dir = f"{ConfigData.DEFAULT_GALILEO_CONFIG_DIR}/stdout/{run_id}"
+        stdout_dir = f"{DQ_LOG_FILE_HOME}/{run_id}"
         for out_dir in [write_output_dir, stdout_dir]:
             if overwrite_local and os.path.exists(out_dir):
                 shutil.rmtree(out_dir)
