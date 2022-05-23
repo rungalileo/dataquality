@@ -92,10 +92,19 @@ def url_is_localhost(url: str) -> bool:
     return any(["localhost" in url, "127.0.0.1" in url])
 
 
+def url_is_public_cloud(url: str) -> bool:
+    return "console.cloud.rungalileo.io" in url
+
+
 def set_platform_urls(console_url_str: str) -> None:
     if url_is_localhost(console_url_str):
         os.environ[GalileoConfigVars.API_URL] = "http://localhost:8088"
         os.environ[GalileoConfigVars.MINIO_URL] = "http://localhost:9000"
+    elif url_is_public_cloud(console_url_str):
+        api_url = console_url_str.replace("console.", "api.").rstrip("/")
+        _validate_api_url(console_url_str, api_url)
+        os.environ[GalileoConfigVars.API_URL] = api_url
+        os.environ[GalileoConfigVars.MINIO_URL] = "https://storage.googleapis.com"
     else:
         api_url = console_url_str.replace("console.", "api.").rstrip("/")
         _validate_api_url(console_url_str, api_url)
