@@ -26,7 +26,8 @@ requires = [
     "blake3==0.2.1",
     "spacy==3.2.1",
     "wrapt==1.13.3",
-    "scipy>=1.7.0"
+    "scipy>=1.7.0",
+    "numpy<1.22.4"  # https://github.com/vaexio/vaex/issues/2062
 ]
 
 [tool.flit.metadata.urls]
