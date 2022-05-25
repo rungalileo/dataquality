@@ -21,6 +21,7 @@ class Route(str, Enum):
     slices = "slices"
     split_path = "split"
     jobs = "jobs"
+    presigned_url = "presigned_url"
 
     # content_path = partial(content_path)
     # def __call__(self, *args: Any) -> None:

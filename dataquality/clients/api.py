@@ -496,3 +496,18 @@ class ApiClient:
                     f"It seems there was an issue with your job. Received "
                     f"an unexpected status {status}"
                 )
+
+    def get_presigned_url(
+        self, project_id: str, method: str, bucket_name: str, object_name: str
+    ) -> str:
+        response = self.make_request(
+            request=RequestType.GET,
+            url=f"{config.api_url}/{Route.presigned_url}",
+            params={
+                "bucket_name": bucket_name,
+                "object_name": object_name,
+                "method": method.upper(),
+                "project_id": project_id,
+            },
+        )
+        return response["url"]

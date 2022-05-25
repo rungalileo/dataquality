@@ -84,6 +84,6 @@ def get_dq_log_file(
     log_object = dq_log_object_name(pid, rid)
     log_file_path = dq_log_file_path(rid)
     obj_store = ObjectStore()
-    obj_store.download_file(log_object, log_file_path)
+    obj_store.download_file(object_name=log_object, file_path=log_file_path)
     print(f"Your logfile has been written to {log_file_path}")
     return log_file_path
