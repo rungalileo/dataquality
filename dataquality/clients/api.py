@@ -504,6 +504,7 @@ class ApiClient:
             request=RequestType.GET,
             url=f"{config.api_url}/{Route.presigned_url}",
             params={
+                "api_url": config.api_url,
                 "bucket_name": bucket_name,
                 "object_name": object_name,
                 "method": method.upper(),
