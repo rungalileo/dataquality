@@ -3,7 +3,6 @@ import time
 from random import random
 from typing import Callable
 from unittest import mock
-from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
@@ -383,9 +382,13 @@ def test_prob_only(set_test_config) -> None:
     assert not logger.prob_only(test_split_runs, "test", "0")
 
 
-@mock.patch.object(dataquality.clients.objectstore.Minio, "fput_object")
+@mock.patch.object(dataquality.clients.api.ApiClient, "get_presigned_url")
+@mock.patch.object(
+    dataquality.clients.objectstore.ObjectStore, "_upload_file_from_local"
+)
 def test_log_invalid_model_outputs(
-    mock_put: MagicMock,
+    mock_upload_from_local: mock.MagicMock,
+    mock_presigned_url: mock.MagicMock,
     cleanup_after_use: Callable,
     set_test_config: Callable,
     input_data: Callable,
@@ -405,19 +408,23 @@ def test_log_invalid_model_outputs(
         "epoch": 0,
     }
     with pytest.raises(GalileoException) as e:
+        mock_presigned_url.return_value = "https://google.com"
+        mock_upload_from_local.return_value = None
         dataquality.log_model_outputs(**output_data)
         time.sleep(1)  # ensure the first one records a failure
         dataquality.log_model_outputs(**output_data)
 
     assert dataquality.get_model_logger().logger_config.exception != ""
     assert str(e.value).startswith("An issue occurred while logging model outputs.")
-    # Here we are uploading the std logfile to minio
-    mock_put.assert_called_once()
 
 
-@mock.patch.object(dataquality.clients.objectstore.Minio, "fput_object")
+@mock.patch.object(dataquality.clients.api.ApiClient, "get_presigned_url")
+@mock.patch.object(
+    dataquality.clients.objectstore.ObjectStore, "_upload_file_from_local"
+)
 def test_log_invalid_model_outputs_final_thread(
-    mock_put: MagicMock,
+    mock_upload_from_local: mock.MagicMock,
+    mock_presigned_url: mock.MagicMock,
     cleanup_after_use: Callable,
     set_test_config: Callable,
     input_data: Callable,
@@ -438,14 +445,14 @@ def test_log_invalid_model_outputs_final_thread(
         "epoch": 0,
     }
 
+    mock_presigned_url.return_value = "https://google.com"
     dataquality.log_model_outputs(**output_data)
     with pytest.raises(GalileoException) as e:
+        mock_upload_from_local.return_value = None
         dataquality.get_data_logger().upload()
 
     assert dataquality.get_model_logger().logger_config.exception != ""
     assert str(e.value).startswith("An issue occurred while logging model outputs.")
-    # Here we are uploading the std logfile to minio
-    mock_put.assert_called_once()
 
 
 def test_log_outputs_binary(
@@ -473,7 +480,6 @@ def test_calls_noop() -> None:
     os.environ["GALILEO_DISABLED"] = "True"
     c = dataquality.core._config.set_config()
     assert c.api_url == "http://"
-    assert c.minio_url == ""
     with mock.patch("dataquality.core.log.log_data_samples") as mock_log:
         dataquality.log_data_samples(texts=["test"], labels=["1"], ids=[1])
         mock_log.assert_not_called()

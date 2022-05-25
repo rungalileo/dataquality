@@ -50,7 +50,6 @@ def mocked_login_requests(
         return MockResponse(
             {
                 "access_token": "mock_token",
-                "minio_user_secret_access_key": "mock_secret_key",
             },
             200,
         )

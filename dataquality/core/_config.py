@@ -18,7 +18,6 @@ from dataquality.schemas.task_type import TaskType
 
 class GalileoConfigVars(str, Enum):
     API_URL = "GALILEO_API_URL"
-    MINIO_URL = "GALILEO_MINIO_URL"
     CONSOLE_URL = "GALILEO_CONSOLE_URL"
 
     @staticmethod
@@ -35,13 +34,12 @@ class GalileoConfigVars(str, Enum):
 
     @staticmethod
     def auto_init_vars_available() -> bool:
-        return bool(os.getenv("GALILEO_MINIO_URL") and os.getenv("GALILEO_API_URL"))
+        return bool(os.getenv("GALILEO_API_URL"))
 
 
 class ConfigData(str, Enum):
     DEFAULT_GALILEO_CONFIG_DIR = f"{os.environ.get('HOME', str(Path.home()))}/.galileo"
     DEFAULT_GALILEO_CONFIG_FILE = f"{DEFAULT_GALILEO_CONFIG_DIR}/config.json"
-    minio_secret_key = "_minio_secret_key"
 
 
 @unique
@@ -51,15 +49,12 @@ class AuthMethod(str, Enum):
 
 class Config(BaseModel):
     api_url: str
-    minio_url: str
-    minio_region: str = "us-east-1"
     auth_method: AuthMethod = AuthMethod.email
     token: Optional[str] = None
     current_user: Optional[str] = None
     current_project_id: Optional[UUID4] = None
     current_run_id: Optional[UUID4] = None
     task_type: Optional[TaskType] = None
-    _minio_secret_key: str = ""
 
     class Config:
         validate_assignment = True
@@ -68,17 +63,9 @@ class Config(BaseModel):
 
     def update_file_config(self) -> None:
         config_json = self.dict()
-        config_json[ConfigData.minio_secret_key.value] = self._minio_secret_key
 
         with open(ConfigData.DEFAULT_GALILEO_CONFIG_FILE.value, "w+") as f:
             f.write(json.dumps(config_json, default=str))
-
-    @validator("minio_url", pre=True, always=True, allow_reuse=True)
-    def remove_scheme(cls, v: str) -> str:
-        if v.startswith("http"):
-            # Minio url cannot have the scheme - fqdm
-            v = v.split("://")[-1]
-        return v
 
     @validator("api_url", pre=True, always=True, allow_reuse=True)
     def add_scheme(cls, v: str) -> str:
@@ -95,15 +82,10 @@ def url_is_localhost(url: str) -> bool:
 def set_platform_urls(console_url_str: str) -> None:
     if url_is_localhost(console_url_str):
         os.environ[GalileoConfigVars.API_URL] = "http://localhost:8088"
-        os.environ[GalileoConfigVars.MINIO_URL] = "http://localhost:9000"
     else:
         api_url = console_url_str.replace("console.", "api.").rstrip("/")
         _validate_api_url(console_url_str, api_url)
         os.environ[GalileoConfigVars.API_URL] = api_url
-
-        os.environ[GalileoConfigVars.MINIO_URL] = console_url_str.replace(
-            "console.", "data."
-        ).rstrip("/")
 
 
 def _validate_api_url(console_url: str, api_url: str) -> None:
@@ -127,8 +109,8 @@ def _validate_api_url(console_url: str, api_url: str) -> None:
 def _check_console_url() -> None:
     """Checks for user setting of GALILEO_CONSOLE_URL instead of
 
-    GALILEO_API_URL and GALILEO_MINIO_URL. If set, this will automatically set
-    platform urls (GALILEO_API_URL and GALILEO_MINIO_URL) for auto_init
+    GALILEO_API_URL. If set, this will automatically set
+    platform urls (GALILEO_API_URL) for auto_init
     """
     console_url = os.getenv(GalileoConfigVars.CONSOLE_URL)
     if console_url:
@@ -143,7 +125,7 @@ def _check_console_url() -> None:
 
 def set_config() -> Config:
     if os.getenv("GALILEO_DISABLED"):
-        return Config(api_url="", minio_url="")
+        return Config(api_url="")
     _check_console_url()
     if not os.path.isdir(ConfigData.DEFAULT_GALILEO_CONFIG_DIR.value):
         os.makedirs(ConfigData.DEFAULT_GALILEO_CONFIG_DIR.value, exist_ok=True)
@@ -163,10 +145,6 @@ def set_config() -> Config:
         new_config_attrs = GalileoConfigVars.get_available_config_attrs()
         config_vars.update(**new_config_attrs)
         config = Config(**config_vars)
-        # Need to set private pydantic fields explicitly
-        config._minio_secret_key = config_vars.get(
-            ConfigData.minio_secret_key.value, ""
-        )
 
     elif GalileoConfigVars.auto_init_vars_available():
         galileo_vars = GalileoConfigVars.get_config_mapping()

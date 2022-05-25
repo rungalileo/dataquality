@@ -11,11 +11,13 @@ from dataquality.utils.dq_logger import dq_log_file_path
 @mock.patch("dataquality.core.finish._reset_run")
 @mock.patch("dataquality.core.finish._version_check")
 @mock.patch.object(dq.clients.api.ApiClient, "make_request")
-@mock.patch.object(dq.clients.objectstore.Minio, "fget_object")
-@mock.patch.object(dq.clients.objectstore.Minio, "fput_object")
+@mock.patch.object(dq.clients.api.ApiClient, "get_presigned_url")
+@mock.patch.object(dq.clients.objectstore.ObjectStore, "download_file")
+@mock.patch.object(dq.clients.objectstore.ObjectStore, "_upload_file_from_local")
 def test_std_log(
-    mock_put_object: MagicMock,
-    mock_get_object: MagicMock,
+    mock_upload_from_local: MagicMock,
+    mock_download: MagicMock,
+    mock_presigned_url: MagicMock,
     mock_finish: MagicMock,
     mock_version_check: MagicMock,
     mock_reset_run: MagicMock,
@@ -36,18 +38,10 @@ def test_std_log(
         epoch=0,
     )
     mock_finish.return_value = {"job_name": "test_job", "link": "link"}
+    mock_presigned_url.return_value = "https://google.com"
+    mock_upload_from_local.return_value = None
     dq.finish()
+    mock_download.return_value = "my-file"
 
-    mock_put_object.assert_called_once_with(
-        "galileo-project-runs",
-        f"{dq.config.current_project_id}/{dq.config.current_run_id}/out/out.log",
-        file_path=dq_log_file_path(),
-        content_type="text/plain",
-    )
     x = dq.get_dq_log_file()
     assert x == dq_log_file_path()
-    mock_get_object.assert_called_once_with(
-        "galileo-project-runs",
-        f"{dq.config.current_project_id}/{dq.config.current_run_id}/out/out.log",
-        dq_log_file_path(),
-    )
