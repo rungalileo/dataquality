@@ -11,14 +11,11 @@ class ObjectStore:
     ROOT_BUCKET_NAME = "galileo-project-runs"
     DOWNLOAD_CHUNK_SIZE_MB = 256
 
-    def __init__(self) -> None:
-        pass
-
     def create_project_run_object(
         self,
         object_name: str,
         file_path: str,
-        content_type: str = None,
+        content_type: str = "application/octet-stream",
     ) -> None:
         url = api_client.get_presigned_url(
             project_id=object_name.split("/")[0],
@@ -26,12 +23,12 @@ class ObjectStore:
             bucket_name=self.ROOT_BUCKET_NAME,
             object_name=object_name,
         )
-        return self._upload_file_from_local(
+        self._upload_file_from_local(
             url=url, file_path=file_path, content_type=content_type
         )
 
     def _upload_file_from_local(
-        self, url: str, file_path: str, content_type: str = None
+        self, url: str, file_path: str, content_type: str = "application/octet-stream"
     ) -> None:
         """_upload_file_from_local
 
@@ -43,8 +40,6 @@ class ObjectStore:
         Returns:
             None
         """
-        if not content_type:
-            content_type = "application/octet-stream"
         requests.put(
             url=url, data=open(file_path, "rb"), headers={"content-type": content_type}
         )
