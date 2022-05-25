@@ -52,7 +52,7 @@ class ObjectStore:
     def create_project_run_object_from_df(
         self, df: DataFrame, object_name: str
     ) -> None:
-        """Uploads a Vaex dataframe to Minio at the specified object_name location"""
+        """Uploads a Vaex dataframe at the specified object_name location"""
         ext = get_file_extension(object_name)
         with NamedTemporaryFile(suffix=ext) as f:
             df.export(f.name)

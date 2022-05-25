@@ -17,7 +17,7 @@ class _Auth:
         return {AuthMethod.email: self.email_login}
 
     def email_login(self) -> None:
-        if self.email_token_present_and_valid(config) and config._minio_secret_key:
+        if self.email_token_present_and_valid(config):
             return
 
         username = os.getenv("GALILEO_USERNAME")
@@ -39,8 +39,6 @@ class _Auth:
 
         access_token = res.json().get("access_token")
         config.token = access_token
-        minio_secret_key = res.json().get("minio_user_secret_access_key", "")
-        config._minio_secret_key = minio_secret_key
         config.update_file_config()
 
     def email_token_present_and_valid(self, config: Config) -> bool:

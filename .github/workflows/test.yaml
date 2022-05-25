@@ -9,7 +9,6 @@ on:
 
 env:
   GALILEO_API_URL: "http://localhost:8000"
-  GALILEO_MINIO_URL: "127.0.0.1:9000"
 
 jobs:
   test:

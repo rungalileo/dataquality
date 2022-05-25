@@ -13,7 +13,6 @@ def test_console_url(set_test_config: Callable) -> None:
     os.environ["GALILEO_CONSOLE_URL"] = "https://console.mytest.rungalileo.io"
     cfg = set_config()
     assert cfg.api_url == "https://api.mytest.rungalileo.io"
-    assert cfg.minio_url == "data.mytest.rungalileo.io"
 
 
 @pytest.mark.parametrize(
@@ -24,7 +23,6 @@ def test_console_url_local(set_test_config: Callable, console_url: str) -> None:
     os.environ["GALILEO_CONSOLE_URL"] = console_url
     cfg = set_config()
     assert cfg.api_url == "http://localhost:8088"
-    assert cfg.minio_url == "localhost:9000"
 
 
 def test_bad_console_url(set_test_config: Callable) -> None:

@@ -15,9 +15,6 @@ import numpy as np
 import pandas as pd
 
 os.environ["GALILEO_API_URL"] = "https://api.dev.rungalileo.io"
-os.environ["GALILEO_MINIO_URL"] = "data.dev.rungalileo.io"
-os.environ["GALILEO_MINIO_ACCESS_KEY"] = "minioadmin"
-os.environ["GALILEO_MINIO_SECRET_KEY"] = "minioadmin"
 os.environ["GALILEO_AUTH_METHOD"] = "email"
 os.environ["GALILEO_USERNAME"] = "adminy_guy@rungalileo.io"
 os.environ["GALILEO_PASSWORD"] = "Admin123@"

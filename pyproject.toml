@@ -14,7 +14,6 @@ requires = [
     "pydantic==1.8.2",
     "requests==2.26.0",
     "types-requests==2.25.2",
-    "minio==7.1.0",
     "pandas>=0.20.0",
     "gorilla==0.3.0",
     "pyarrow==5.0.0",
