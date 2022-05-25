@@ -57,6 +57,15 @@ class ObjectStore:
             )
 
     def download_file(self, object_name: str, file_path: str) -> str:
+        """download_file
+
+        Args:
+            object_name (str): The object name.
+            file_path (str): Where to write the object data locally.
+
+        Returns:
+            str: The local file where the object name was written.
+        """
         url = api_client.get_presigned_url(
             project_id=object_name.split("/")[0],
             method="get",
