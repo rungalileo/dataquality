@@ -404,7 +404,9 @@ class ApiClient:
         :param file_name: The file name. Must end in .csv
         :param slice_name: The optional slice name to export. If selected, this data
         from this slice will be exported only.
-        :param file_name: The file name. Must end in .csv
+        :param include_cols: List of columns to include in the export. If not set,
+        all columns will be exported.
+        :param col_mapping: Dictionary of renamed column names for export.
         """
         project, run = self._get_project_run_id(project_name, run_name)
         assert os.path.splitext(file_name)[-1] == ".csv", "File must end in .csv"
