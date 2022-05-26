@@ -393,8 +393,8 @@ class ApiClient:
         split: str,
         file_name: str,
         slice_name: Optional[str] = None,
-        include_metadata: bool = True,
-        _include_emb: Optional[bool] = False,
+        include_cols: Optional[List[str]] = None,
+        col_mapping: Optional[Dict[str, str]] = None,
     ) -> None:
         """Export a project/run to disk as a csv file
 
@@ -403,23 +403,19 @@ class ApiClient:
         :param split: The split to export on
         :param file_name: The file name. Must end in .csv
         :param slice_name: The optional slice name to export. If selected, this data
-        :param include_metadata: If true, include all logged metadata columns in the
-        exported CSV file. Default True
         from this slice will be exported only.
+        :param file_name: The file name. Must end in .csv
         """
         project, run = self._get_project_run_id(project_name, run_name)
         assert os.path.splitext(file_name)[-1] == ".csv", "File must end in .csv"
         split = conform_split(split)
         body: Dict[str, Any] = dict(
-            include_emb=_include_emb,
+            include_cols=include_cols,
+            col_mapping=col_mapping,
         )
         if slice_name:
             slice_ = self.get_slice_by_name(project_name, slice_name)
             body["filter_params"] = slice_["logic"]
-
-        if include_metadata:
-            meta_cols = self.get_metadata_columns(project_name, run_name, split)
-            body["meta_cols"] = [i["name"] for i in meta_cols["meta"]]
 
         if self.get_task_type(project, run) == TaskType.text_multi_label:
             body["task"] = self.get_tasks_for_run(project_name, run_name)[0]
