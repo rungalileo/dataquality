@@ -1,4 +1,5 @@
 import os
+from functools import wraps
 from typing import Callable, Optional, TypeVar
 
 from typing_extensions import ParamSpec
@@ -14,6 +15,8 @@ def check_noop(func: Callable[P, T]) -> Callable[P, Optional[T]]:
     https://peps.python.org/pep-0612/
     """
 
+    # Wrap is used to preserve the docstring of the original function
+    @wraps(func)
     def decorator(*args: P.args, **kwargs: P.kwargs) -> Optional[T]:
         if os.getenv(GALILEO_DISABLED):
             return None
