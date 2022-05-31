@@ -235,6 +235,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         self,
         dataset: DataSet,
         *,
+        batch_size: int = ITER_CHUNK_SIZE,
         text: Union[str, int] = "text",
         id: Union[str, int] = "id",
         text_token_indices: Union[str, int] = "text_token_indices",
@@ -249,6 +250,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         :param dataset: The dataset to log. This can be an python iterable or
             Pandas/Vaex dataframe. If an iterable, it can be a list of elements that can
             be indexed into either via int index (tuple/list) or string/key index (dict)
+        :param batch_size: Number of samples to log in a batch. Default 100,000
         :param text: The key/index of the text fields
         :param id: The key/index of the id fields
         :param text_token_indices: The key/index of the sample text_token_indices
@@ -272,13 +274,14 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             dataset = dataset.rename(columns=column_map)
             self._log_df(dataset, meta)
         elif isinstance(dataset, DataFrame):
-            for chunk in range(0, len(dataset), ITER_CHUNK_SIZE):
-                chunk_df = dataset[chunk : chunk + ITER_CHUNK_SIZE]
+            for chunk in range(0, len(dataset), batch_size):
+                chunk_df = dataset[chunk : chunk + batch_size]
                 chunk_df = rename_df(chunk_df, column_map)
                 self._log_df(chunk_df, meta)
         elif isinstance(dataset, Iterable):
             self._log_iterator(
                 dataset,
+                batch_size,
                 text,
                 id,
                 text_token_indices,
@@ -295,6 +298,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
     def _log_iterator(
         self,
         dataset: Iterable,
+        batch_size: int,
         text: Union[str, int],
         id: Union[str, int],
         text_token_indices: Union[str, int],
@@ -313,7 +317,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             for meta_col in meta:
                 metas[meta_col].append(self._convert_tensor_to_py(chunk[meta_col]))
 
-            if len(batches["text"]) >= ITER_CHUNK_SIZE:
+            if len(batches["text"]) >= batch_size:
                 self._log_dict(batches, metas, split)
                 batches.clear()
                 metas.clear()

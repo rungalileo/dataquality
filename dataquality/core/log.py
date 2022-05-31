@@ -5,7 +5,7 @@ import numpy as np
 from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
-from dataquality.loggers.data_logger.base_data_logger import DataSet
+from dataquality.loggers.data_logger.base_data_logger import ITER_CHUNK_SIZE, DataSet
 from dataquality.loggers.logger_config.text_multi_label import (
     text_multi_label_logger_config,
 )
@@ -102,17 +102,18 @@ def log_data_sample(*, text: str, id: int, **kwargs: Any) -> None:
 def log_dataset(
     dataset: DataSet,
     *,
+    batch_size: int = ITER_CHUNK_SIZE,
     text: Union[str, int] = "text",
     id: Union[str, int] = "id",
     split: Optional[Split] = None,
     meta: Optional[List[Union[str, int]]] = None,
     **kwargs: Any,
 ) -> None:
-    """Log an iterable or other dataset to disk.
+    """Log an iterable or other dataset to disk. Useful for logging memory mapped files
 
-    Dataset provided must be an either a pandas or vaex dataframe, or an iterable that
-    can be traversed row by row, and for each row, the fields can be indexed into
-    either via string keys or int indexes.
+    Dataset provided must be an iterable that can be traversed row by row, and for each
+    row, the fields can be indexed into either via string keys or int indexes. Pandas
+    and Vaex dataframes are also allowed.
 
     valid examples:
         d = [
@@ -140,7 +141,7 @@ def log_dataset(
         ]
         dq.log_dataset(d, text=0, id=2, label=1)
 
-    invalid example:
+    Invalid example:
         d = {
             "my_text": ["sample1", "sample2", "sample3"],
             "my_labels": ["A", "A", "B"],
@@ -156,6 +157,10 @@ def log_dataset(
 
     Keyword arguments are specific to the task type. See dq.docs() for details
 
+    :param dataset: The iterable or dataframe to log
+    :batch_size: The number of data samples to log at a time. Useful when logging a
+    memory mapped dataset. A larger batch_size will result in faster logging at the
+    expense of more memory usage. Default 100,000
     :param text: str | int The column, key, or int index for text data. Default "text"
     :param id: str | int The column, key, or int index for id data. Default "id"
     :param split: Optional[str] the split for this data. Can also be set via
@@ -170,7 +175,15 @@ def log_dataset(
         [config.task_type, config.current_project_id, config.current_run_id]
     ), "You must call dataquality.init before logging data"
     data_logger = get_data_logger()
-    data_logger.log_dataset(dataset, text=text, id=id, split=split, meta=meta, **kwargs)
+    data_logger.log_dataset(
+        dataset,
+        batch_size=batch_size,
+        text=text,
+        id=id,
+        split=split,
+        meta=meta,
+        **kwargs,
+    )
 
 
 @check_noop
