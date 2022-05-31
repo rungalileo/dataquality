@@ -18,8 +18,12 @@ def check_noop(func: Callable[P, T]) -> Callable[P, Optional[T]]:
     # Wrap is used to preserve the docstring of the original function
     @wraps(func)
     def decorator(*args: P.args, **kwargs: P.kwargs) -> Optional[T]:
-        if os.getenv(GALILEO_DISABLED):
+        if galileo_disabled():
             return None
         return func(*args, **kwargs)
 
     return decorator
+
+
+def galileo_disabled() -> bool:
+    return os.getenv(GALILEO_DISABLED) in (True, "TRUE", "True", "true", 1)
