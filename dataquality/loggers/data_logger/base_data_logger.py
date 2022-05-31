@@ -32,7 +32,7 @@ DATA_FOLDERS = ["emb", "prob", "data"]
 DataSet = TypeVar("DataSet", bound=Union[Iterable, pd.DataFrame, DataFrame])
 MetasType = TypeVar("MetasType", bound=Dict[str, List[Union[str, float, int]]])
 MetaType = TypeVar("MetaType", bound=Dict[str, Union[str, float, int]])
-ITER_CHUNK_SIZE = 20_000
+ITER_CHUNK_SIZE = 100_000
 
 
 class BaseGalileoDataLogger(BaseGalileoLogger):
@@ -62,6 +62,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         self,
         dataset: DataSet,
         *,
+        batch_size: int = ITER_CHUNK_SIZE,
         text: Union[str, int] = "text",
         id: Union[str, int] = "id",
         split: Optional[Split] = None,
