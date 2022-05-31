@@ -16,7 +16,7 @@ requires = [
     "types-requests==2.25.2",
     "pandas>=0.20.0",
     "gorilla==0.3.0",
-    "pyarrow==5.0.0",
+    "pyarrow>=5.0.0",
     "vaex-core==4.9.1",
     "vaex-hdf5==0.12.1",
     "diskcache==5.2.1",
@@ -47,7 +47,7 @@ test = [
     "torch==1.9.1",
     "transformers==4.11.3",
     "torchmetrics<0.8.0",
-    "tensorflow==2.8.0",
+    "tensorflow==2.9.1",
     "pytest-env==0.6.2"
 ]
 dev = [
