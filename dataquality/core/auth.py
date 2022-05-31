@@ -7,6 +7,7 @@ import requests
 from dataquality.clients.api import ApiClient
 from dataquality.core._config import AuthMethod, Config, config
 from dataquality.exceptions import GalileoException
+from dataquality.utils.helpers import check_noop
 
 GALILEO_AUTH_METHOD = "GALILEO_AUTH_METHOD"
 api_client = ApiClient()
@@ -45,6 +46,7 @@ class _Auth:
         return config.auth_method == "email" and api_client.valid_current_user()
 
 
+@check_noop
 def login() -> None:
     print(f"📡 {config.api_url.replace('api.','console.')}")
     print("🔭 Logging you into Galileo\n")

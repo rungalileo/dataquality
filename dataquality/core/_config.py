@@ -14,6 +14,7 @@ from requests.exceptions import ConnectionError as ReqConnectionError
 from dataquality import __version__ as dq_version
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.task_type import TaskType
+from dataquality.utils.helpers import galileo_disabled
 
 
 class GalileoConfigVars(str, Enum):
@@ -124,7 +125,7 @@ def _check_console_url() -> None:
 
 
 def set_config() -> Config:
-    if os.getenv("GALILEO_DISABLED"):
+    if galileo_disabled():
         return Config(api_url="")
     _check_console_url()
     if not os.path.isdir(ConfigData.DEFAULT_GALILEO_CONFIG_DIR.value):
@@ -160,6 +161,7 @@ def set_config() -> Config:
         set_platform_urls(console_url_str=console_url)
         galileo_vars = GalileoConfigVars.get_config_mapping()
         config = Config(**galileo_vars)
+    config.update_file_config()
     return config
 
 
@@ -171,4 +173,3 @@ def reset_config() -> Config:
 
 
 config = set_config()
-config.update_file_config()
