@@ -31,6 +31,13 @@ try:
 except ImportError:
     TF_AVAILABLE = False
 
+try:
+    import datasets
+
+    HF_AVAILABLE = True
+except ImportError:
+    HF_AVAILABLE = False
+
 
 T = TypeVar("T", bound="BaseGalileoLogger")
 
@@ -166,6 +173,8 @@ class BaseGalileoLogger:
     @staticmethod
     def _convert_tensor_to_py(v: Any) -> Union[str, int]:
         """Converts pytorch and tensorflow tensors to strings or ints"""
+        if isinstance(v, (int, str)):
+            return v
         if TF_AVAILABLE:
             if isinstance(v, tf.Tensor):
                 v = v.numpy()
@@ -247,3 +256,9 @@ class BaseGalileoLogger:
         if cls.logger_config.exception:
             upload_dq_log_file()
             raise GalileoException(cls.logger_config.exception)
+
+    @classmethod
+    def is_hf_dataset(cls, df: Any) -> bool:
+        if HF_AVAILABLE:
+            return isinstance(df, datasets.Dataset)
+        return False

@@ -1,6 +1,7 @@
 from typing import Callable
 from unittest import mock
 
+import datasets
 import numpy as np
 import pandas as pd
 import pytest
@@ -109,6 +110,13 @@ def test_log_data_sample(
                 "my_labels": ["A", "A", "B"],
                 "my_id": [1, 2, 3],
             }
+        ),
+        datasets.Dataset.from_dict(
+            dict(
+                my_text=["sample1", "sample2", "sample3"],
+                my_labels=["A", "A", "B"],
+                my_id=[1, 2, 3],
+            )
         ),
     ],
 )

@@ -48,7 +48,8 @@ test = [
     "transformers==4.11.3",
     "torchmetrics<0.8.0",
     "tensorflow==2.9.1",
-    "pytest-env==0.6.2"
+    "pytest-env==0.6.2",
+    "datasets==2.2.2"
 ]
 dev = [
     "flake8==3.9.2",

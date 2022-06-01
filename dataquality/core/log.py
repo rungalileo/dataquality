@@ -113,7 +113,7 @@ def log_dataset(
 
     Dataset provided must be an iterable that can be traversed row by row, and for each
     row, the fields can be indexed into either via string keys or int indexes. Pandas
-    and Vaex dataframes are also allowed.
+    and Vaex dataframes are also allowed, as well as HuggingFace Datasets
 
     valid examples:
         d = [

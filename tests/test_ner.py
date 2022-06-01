@@ -2,6 +2,7 @@ from itertools import chain
 from typing import Callable, List
 from unittest import mock
 
+import datasets
 import numpy as np
 import pandas as pd
 import pytest
@@ -657,6 +658,7 @@ def test_log_data_sample(
         pd.DataFrame(NER_INPUT_DATA),
         vaex.from_dict(NER_INPUT_DATA),
         NER_INPUT_ITER,
+        datasets.Dataset.from_dict(NER_INPUT_DATA),
     ],
 )
 def test_log_dataset(
