@@ -169,6 +169,9 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
 
     def _process_label(self, batches: DefaultDict, label: Any) -> DefaultDict:
         """In multi-label, label will be a list of strings instead of a string"""
+        # In binary multi-label, it will be a single string
+        if self.logger_config.binary:
+            return super()._process_label(batches, label)
         batches["label"].append(self._convert_tensor_ndarray(label).tolist())
         return batches
 

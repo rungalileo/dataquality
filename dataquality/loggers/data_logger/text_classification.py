@@ -233,6 +233,10 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
                 chunk_df = dataset[chunk : chunk + batch_size]
                 chunk_df = rename_df(chunk_df, column_map)
                 self._log_df(chunk_df, meta)
+        elif self.is_hf_dataset(dataset):
+            self._log_hf_dataset(
+                dataset, batch_size, text, id, meta, label, split, inference_name
+            )
         elif isinstance(dataset, Iterable):
             self._log_iterator(
                 dataset, batch_size, text, id, meta, label, split, inference_name
@@ -242,6 +246,30 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
                 f"Dataset must be one of pandas, vaex, or Iterable, "
                 f"but got {type(dataset)}"
             )
+
+    def _log_hf_dataset(
+        self,
+        dataset: Any,
+        batch_size: int,
+        text: Union[str, int],
+        id: Union[str, int],
+        meta: List[Union[str, int]],
+        label: Union[str, int] = None,
+        split: Split = None,
+        inference_name: str = None,
+    ) -> None:
+        """Helper function to log a huggingface dataset
+
+        HuggingFace datasets can be sliced, returning a dict that is in the correct
+        format to log directly.
+        """
+        for i in range(0, len(dataset), batch_size):
+            chunk = dataset[i : i + batch_size]
+            data = dict(
+                text=chunk[text], id=chunk[id], label=chunk[label] if label else None
+            )
+            chunk_meta = {col: chunk[col] for col in meta}
+            self._log_dict(data, chunk_meta, split, inference_name)
 
     def _log_iterator(
         self,

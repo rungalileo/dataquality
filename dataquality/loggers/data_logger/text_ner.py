@@ -278,6 +278,17 @@ class TextNERDataLogger(BaseGalileoDataLogger):
                 chunk_df = dataset[chunk : chunk + batch_size]
                 chunk_df = rename_df(chunk_df, column_map)
                 self._log_df(chunk_df, meta)
+        elif self.is_hf_dataset(dataset):
+            self._log_hf_dataset(
+                dataset,
+                batch_size,
+                text,
+                id,
+                text_token_indices,
+                gold_spans,
+                meta,
+                split,
+            )
         elif isinstance(dataset, Iterable):
             self._log_iterator(
                 dataset,
@@ -293,6 +304,34 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             raise GalileoException(
                 f"Dataset must be one of pandas, vaex, or Iterable, "
                 f"but got {type(dataset)}"
+            )
+
+    def _log_hf_dataset(
+        self,
+        dataset: Any,
+        batch_size: int,
+        text: Union[str, int],
+        id: Union[str, int],
+        text_token_indices: Union[str, int],
+        gold_spans: Union[str, int],
+        meta: List[Union[str, int]],
+        split: Optional[Split] = None,
+    ) -> None:
+        """Helper function to log a huggingface dataset
+
+        HuggingFace datasets can be sliced, returning a dict that is in the correct
+        format to log directly.
+        """
+        for i in range(0, len(dataset), batch_size):
+            chunk = dataset[i : i + batch_size]
+            chunk_meta: Dict = {col: chunk[col] for col in meta}
+            self.log_data_samples(
+                texts=chunk[text],
+                ids=chunk[id],
+                text_token_indices=chunk[text_token_indices],
+                gold_spans=chunk[gold_spans],
+                split=split,
+                meta=chunk_meta,
             )
 
     def _log_iterator(
