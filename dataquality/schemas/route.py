@@ -22,10 +22,11 @@ class Route(str, Enum):
     split_path = "split"
     jobs = "jobs"
     presigned_url = "presigned_url"
-
-    # content_path = partial(content_path)
-    # def __call__(self, *args: Any) -> None:
-    #     self.value(*args)
+    tasks = "tasks"
+    labels = "labels"
+    epochs = "epochs"
+    summary = "insights/summary"
+    groupby = "insights/groupby"
 
     @staticmethod
     def content_path(

@@ -6,6 +6,7 @@ import os
 import resource
 
 import dataquality.core._config
+import dataquality.metrics
 from dataquality.core._config import config
 from dataquality.core.auth import login
 from dataquality.core.finish import finish, get_run_status, wait_for_run
@@ -24,7 +25,6 @@ from dataquality.core.log import (
     set_tagging_schema,
     set_tasks_for_run,
 )
-import dataquality.metrics
 from dataquality.utils.dq_logger import get_dq_log_file
 from dataquality.utils.helpers import check_noop
 
