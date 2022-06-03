@@ -164,7 +164,7 @@ def get_dataframe(
                 "Probabilities are not availble for NER runs, ignoring", GalileoWarning
             )
         else:
-            prob_df = get_probabilities(project_name, run_name, split)[["id", "prob"]]
+            prob_df = get_probabilities(project_name, run_name, split)
             prob_cols = prob_df.get_column_names(regex="prob*") + ["id"]
             data_df = data_df.join(prob_df[prob_cols], on="id")
     return data_df
@@ -281,9 +281,9 @@ def _validate_epoch(
 def _index_df(df: DataFrame, labels: List, tasks: Optional[List] = None) -> DataFrame:
     """Indexes gold and pred columns"""
     tasks = tasks or [None]
-    for task in tasks:
+    for ind, task in enumerate(tasks):
         # If multi label, must do it per task. If TC, then it's just 1 list of labels
-        task_labels = labels[task] if task else labels
+        task_labels = labels[ind] if task else labels
         for col in ["gold", "pred"]:
             df_col = f"{col}_{task}" if task else col
             df[f"{df_col}_idx"] = df[df_col]
