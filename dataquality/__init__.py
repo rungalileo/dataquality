@@ -1,6 +1,6 @@
 "dataquality"
 
-__version__ = "v0.3.0"
+__version__ = "v0.3.1"
 
 import os
 import resource
@@ -24,6 +24,7 @@ from dataquality.core.log import (
     set_tagging_schema,
     set_tasks_for_run,
 )
+import dataquality.metrics
 from dataquality.utils.dq_logger import get_dq_log_file
 from dataquality.utils.helpers import check_noop
 

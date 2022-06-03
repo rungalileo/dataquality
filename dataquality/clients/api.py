@@ -8,6 +8,7 @@ from pydantic.types import UUID4
 from dataquality.core._config import config, url_is_localhost
 from dataquality.exceptions import GalileoException
 from dataquality.schemas import RequestType, Route
+from dataquality.schemas.dataframe import FileType
 from dataquality.schemas.split import conform_split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.auth import headers
@@ -409,11 +410,14 @@ class ApiClient:
         :param col_mapping: Dictionary of renamed column names for export.
         """
         project, run = self._get_project_run_id(project_name, run_name)
-        assert os.path.splitext(file_name)[-1] == ".csv", "File must end in .csv"
+        ext = os.path.splitext(file_name)[-1].lstrip(".")
+
+        assert ext in list(FileType), f"File must be one of {list(FileType)}"
         split = conform_split(split)
         body: Dict[str, Any] = dict(
             include_cols=include_cols,
             col_mapping=col_mapping,
+            file_type=ext
         )
         if slice_name:
             slice_ = self.get_slice_by_name(project_name, slice_name)
