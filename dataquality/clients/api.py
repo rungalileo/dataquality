@@ -283,13 +283,13 @@ class ApiClient:
     def get_epochs_for_run(
         self, project_name: str, run_name: str, split: str
     ) -> List[int]:
+        """Returns an ordered list of epochs for a run"""
         project, run = self._get_project_run_id(project_name, run_name)
         split = conform_split(split)
         url = (
             f"{config.api_url}/{Route.content_path(project, run, split)}/{Route.epochs}"
         )
-        res = self.make_request(RequestType.GET, url=url)
-        return res
+        return self.make_request(RequestType.GET, url=url)
 
     def reprocess_run(
         self,
@@ -545,14 +545,15 @@ class ApiClient:
         split = conform_split(split)
         path = Route.content_path(project, run, split)
         url = f"{config.api_url}/{path}/{Route.summary}"
+        params = {}
         if inference_name:
-            url += f"?inference_name={inference_name}"
+            params["inference_name"] = inference_name
         body = {
             "hard_easy_threshold": True,
             "task": task,
             "filter_params": filter_params or {},
         }
-        return self.make_request(RequestType.POST, url, body=body)
+        return self.make_request(RequestType.POST, url, body=body, params=params)
 
     def get_run_metrics(
         self,

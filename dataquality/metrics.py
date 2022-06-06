@@ -43,9 +43,9 @@ def get_metrics(
     project_name: str,
     run_name: str,
     split: Split,
-    category: str = "gold",
     task: Optional[str] = None,
     inference_name: Optional[str] = None,
+    category: str = "gold",
 ) -> Dict[str, List]:
     """Calculates available metrics for a run/split, grouped by a particular category
 
@@ -55,11 +55,11 @@ def get_metrics(
     :param project_name: The project name
     :param run_name: The run name
     :param split: The split (training/test/validation/inference)
+    :param task: (If multi-label only) the task name in question
+    :param inference_name: (If inference split only) The inference split name
     :param category: The category/column to calculate metrics for. Default "gold"
         Can be "gold" for ground truth, "pred" for predicted values, or any metadata
         column logged (or smart feature).
-    :param task: (If multi-label only) the task name in question
-    :param inference_name: (If inference split only) The inference split name
     """
     return api_client.get_run_metrics(
         project_name,
@@ -71,7 +71,7 @@ def get_metrics(
     )
 
 
-def get_dep_distribution(
+def display_dep_distribution(
     project_name: str,
     run_name: str,
     split: Split,
@@ -162,7 +162,7 @@ def get_dataframe(
     if include_probs:
         if task_type == task_type.text_ner:
             warnings.warn(
-                "Probabilities are not availble for NER runs, ignoring", GalileoWarning
+                "Probabilities are not available for NER runs, ignoring", GalileoWarning
             )
         else:
             prob_df = get_probabilities(project_name, run_name, split)
