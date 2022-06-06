@@ -8,6 +8,7 @@ from pydantic.types import UUID4
 from dataquality.core._config import config, url_is_localhost
 from dataquality.exceptions import GalileoException
 from dataquality.schemas import RequestType, Route
+from dataquality.schemas.dataframe import FileType
 from dataquality.schemas.split import conform_split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.auth import headers
@@ -111,6 +112,8 @@ class ApiClient:
 
     def get_project_run_by_name(self, project_name: str, run_name: str) -> Dict:
         proj = self.get_project_by_name(project_name)
+        if not proj:
+            raise GalileoException(f"No project with name {project_name}")
         url = (
             f"{config.api_url}/{Route.projects}/{proj['id']}/{Route.runs}?"
             f"run_name={run_name}"
@@ -254,7 +257,7 @@ class ApiClient:
             project_name=project_name, run_name=run_name
         )
 
-        url = f"{config.api_url}/{Route.content_path(project, run)}/labels"
+        url = f"{config.api_url}/{Route.content_path(project, run)}/{Route.labels}"
         if task:
             url += f"?task={task}"
         res = self.make_request(RequestType.GET, url=url)
@@ -273,9 +276,20 @@ class ApiClient:
         project, run = self._get_project_run_id(
             project_name=project_name, run_name=run_name
         )
-        url = f"{config.api_url}/{Route.content_path(project, run)}/tasks"
+        url = f"{config.api_url}/{Route.content_path(project, run)}/{Route.tasks}"
         res = self.make_request(RequestType.GET, url=url)
         return res["tasks"]
+
+    def get_epochs_for_run(
+        self, project_name: str, run_name: str, split: str
+    ) -> List[int]:
+        """Returns an ordered list of epochs for a run"""
+        project, run = self._get_project_run_id(project_name, run_name)
+        split = conform_split(split)
+        url = (
+            f"{config.api_url}/{Route.content_path(project, run, split)}/{Route.epochs}"
+        )
+        return self.make_request(RequestType.GET, url=url)
 
     def reprocess_run(
         self,
@@ -409,11 +423,12 @@ class ApiClient:
         :param col_mapping: Dictionary of renamed column names for export.
         """
         project, run = self._get_project_run_id(project_name, run_name)
-        assert os.path.splitext(file_name)[-1] == ".csv", "File must end in .csv"
+        ext = os.path.splitext(file_name)[-1].lstrip(".")
+
+        assert ext in list(FileType), f"File must be one of {list(FileType)}"
         split = conform_split(split)
         body: Dict[str, Any] = dict(
-            include_cols=include_cols,
-            col_mapping=col_mapping,
+            include_cols=include_cols, col_mapping=col_mapping, file_type=ext
         )
         if slice_name:
             slice_ = self.get_slice_by_name(project_name, slice_name)
@@ -510,3 +525,60 @@ class ApiClient:
             },
         )
         return response["url"]
+
+    def get_run_summary(
+        self,
+        project_name: str,
+        run_name: str,
+        split: str,
+        task: str = None,
+        inference_name: str = None,
+        filter_params: Dict = None,
+    ) -> Dict:
+        """Gets overall run summary, or summary of a filtered subset.
+
+        Use filter_params to apply arbitrary filters on the dataframe, based on the
+        filter schema:
+        https://api.dev.rungalileo.io/redoc#tag/insights
+        """
+        project, run = self._get_project_run_id(project_name, run_name)
+        split = conform_split(split)
+        path = Route.content_path(project, run, split)
+        url = f"{config.api_url}/{path}/{Route.summary}"
+        params = {}
+        if inference_name:
+            params["inference_name"] = inference_name
+        body = {
+            "hard_easy_threshold": True,
+            "task": task,
+            "filter_params": filter_params or {},
+        }
+        return self.make_request(RequestType.POST, url, body=body, params=params)
+
+    def get_run_metrics(
+        self,
+        project_name: str,
+        run_name: str,
+        split: str,
+        task: str = None,
+        inference_name: str = None,
+        category: str = "gold",
+        filter_params: Dict = None,
+    ) -> Dict[str, List]:
+        project, run = self._get_project_run_id(project_name, run_name)
+        split = conform_split(split)
+
+        all_meta = self.get_metadata_columns(project_name, run_name, split)
+        categorical_meta = [i["name"] for i in all_meta["meta"] if i["is_categorical"]]
+        avl_cols = categorical_meta + ["gold", "pred"]
+        if category not in avl_cols:
+            raise GalileoException(
+                f"Category must be one of {avl_cols} for this run but got {category}"
+            )
+
+        path = Route.content_path(project, run, split)
+        url = f"{config.api_url}/{path}/{Route.groupby}?groupby_col={category}"
+        if inference_name:
+            url += f"?inference_name={inference_name}"
+        body = {"task": task, "filter_params": filter_params or {}}
+        return self.make_request(RequestType.POST, url, body=body)

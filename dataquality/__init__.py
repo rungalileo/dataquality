@@ -1,11 +1,12 @@
 "dataquality"
 
-__version__ = "v0.3.0"
+__version__ = "v0.3.1"
 
 import os
 import resource
 
 import dataquality.core._config
+import dataquality.metrics
 from dataquality.core._config import config
 from dataquality.core.auth import login
 from dataquality.core.finish import finish, get_run_status, wait_for_run
