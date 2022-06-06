@@ -144,6 +144,7 @@ def get_dataframe(
     api_client.export_run(project_name, run_name, split, file_name=file_name)
     data_df = vaex.open(file_name)
 
+    tasks = []
     if task_type == TaskType.text_multi_label:
         tasks = api_client.get_tasks_for_run(project_name, run_name)
         labels = [
@@ -152,8 +153,8 @@ def get_dataframe(
         ]
         data_df = _index_df(data_df, labels, tasks)
     if task_type == TaskType.text_classification:
-        labels = api_client.get_labels_for_run(project_name, run_name)
-        data_df = _index_df(data_df, labels)
+        labels_per_task = api_client.get_labels_for_run(project_name, run_name)
+        data_df = _index_df(data_df, labels_per_task)
 
     if include_embs:
         emb_df = get_embeddings(project_name, run_name, split)
@@ -167,6 +168,7 @@ def get_dataframe(
             prob_df = get_probabilities(project_name, run_name, split)
             prob_cols = prob_df.get_column_names(regex="prob*") + ["id"]
             data_df = data_df.join(prob_df[prob_cols], on="id")
+            data_df = _rename_prob_cols(data_df, tasks)
     return data_df
 
 
@@ -280,6 +282,7 @@ def _validate_epoch(
 
 def _index_df(df: DataFrame, labels: List, tasks: Optional[List] = None) -> DataFrame:
     """Indexes gold and pred columns"""
+    # We do this so if this is TC (no tasks), we can still iterate with the same logic
     tasks = tasks or [None]
     for ind, task in enumerate(tasks):
         # If multi label, must do it per task. If TC, then it's just 1 list of labels
@@ -288,4 +291,10 @@ def _index_df(df: DataFrame, labels: List, tasks: Optional[List] = None) -> Data
             df_col = f"{col}_{task}" if task else col
             df[f"{df_col}_idx"] = df[df_col]
             df = df.ordinal_encode(f"{df_col}_idx", values=task_labels, lazy=True)
+    return df
+
+
+def _rename_prob_cols(df: DataFrame, tasks: List[str]) -> DataFrame:
+    for ind, task in enumerate(tasks):
+        df.rename(f"prob_{ind}", f"prob_{task}")
     return df
