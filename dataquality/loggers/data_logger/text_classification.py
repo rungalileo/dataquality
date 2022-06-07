@@ -392,7 +392,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
             assert set_labels.issuperset(found_labels), (
                 f"Labels set to {set_labels} but found logged labels {found_labels}. "
                 f"Logged labels must be the same as labels set during "
-                f"dq.set_labels_for_run. Fixed logged data or update labels."
+                f"dq.set_labels_for_run. Fix logged data or update labels."
             )
 
     def _get_input_df(self) -> DataFrame:
