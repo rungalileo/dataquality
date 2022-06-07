@@ -349,7 +349,7 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
             logged_labels = cls.logger_config.observed_labels[task_num]
             assert logged_labels.issubset(task_labels), (
                 f"The labels set for task #{task_num} ({task}) do not align with the "
-                f"observed labels during logging. Labels logged for this task during "
+                "observed labels during logging. Labels logged for this task during "
                 f"input logging: {logged_labels} -- labels set for this task: "
                 f"{task_labels}. Update the labels for this task using "
                 "`dq.set_labels_for_run`"
