@@ -352,7 +352,7 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
                 f"observed labels during logging. Labels logged for this task during "
                 f"input logging: {logged_labels} -- labels set for this task: "
                 f"{task_labels}. Update the labels for this task using "
-                f"`dq.set_labels_for_run`"
+                "`dq.set_labels_for_run`"
             )
 
     def _get_num_labels(self, df: DataFrame) -> List[int]:
