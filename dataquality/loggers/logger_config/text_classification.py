@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Set
 
 import numpy as np
 from pydantic import validator
@@ -9,6 +9,7 @@ from dataquality.loggers.logger_config.base_logger_config import BaseLoggerConfi
 class TextClassificationLoggerConfig(BaseLoggerConfig):
     labels: Optional[List[str]] = None
     observed_num_labels: int = 0
+    observed_labels: Set[str] = set()
 
     class Config:
         validate_assignment = True

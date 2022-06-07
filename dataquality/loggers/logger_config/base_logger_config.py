@@ -10,6 +10,7 @@ class BaseLoggerConfig(BaseModel):
     labels: Any = None
     tasks: Any = None
     observed_num_labels: Any = None
+    observed_labels: Any = None
     tagging_schema: Optional[TaggingSchema]
     last_epoch: int = 0
     cur_epoch: Optional[int]

@@ -8,6 +8,7 @@ import pytest
 import tensorflow as tf
 import vaex
 
+import dataquality
 import dataquality as dq
 from dataquality.exceptions import GalileoException, GalileoWarning
 from dataquality.loggers.data_logger.base_data_logger import DataSet
@@ -221,3 +222,29 @@ def test_output_no_input_for_split(
     )
     with pytest.warns(GalileoWarning, match=r"There was output data"):
         dq.get_data_logger().upload()
+
+
+@pytest.mark.parametrize("set_labels_first", [True, False])
+def test_logged_labels_dont_match_set_labels(
+    set_labels_first: bool, set_test_config: Callable, cleanup_after_use: Callable
+) -> None:
+    """An error should be thrown when the set labels dont match the logged labels"""
+    set_test_config(task_type="text_classification")
+    labels = ["A", "B", "C"]
+    # labels are the index, not the actual labels. No good
+    dataset = [
+        {"text": "sample1", "label": 1, "id": 1},
+        {"text": "sample2", "label": 1, "id": 2},
+        {"text": "sample3", "label": 2, "id": 3},
+    ]
+    if set_labels_first:
+        dataquality.set_labels_for_run(labels)
+        with pytest.raises(AssertionError) as e:
+            dataquality.log_dataset(dataset, split="train")
+    else:
+        dataquality.log_dataset(dataset, split="train")
+        dataquality.get_data_logger().logger_config.observed_num_labels = len(labels)
+        dataquality.set_labels_for_run(labels)
+        with pytest.raises(AssertionError) as e:
+            dataquality.get_data_logger().validate_labels()
+    assert str(e.value).startswith("Labels set to")

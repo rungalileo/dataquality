@@ -380,7 +380,20 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
             f"(ids, text) ({id_len}, {text_len})"
         )
 
+        self.validate_logged_labels()
         self.validate_metadata(batch_size=text_len)
+
+    def validate_logged_labels(self) -> None:
+        """Validates that the labels logged match the labels set"""
+        self.logger_config.observed_labels.update(self.labels)
+        found_labels = self.logger_config.observed_labels
+        if self.logger_config.labels:
+            set_labels = set(self.logger_config.labels)
+            assert set_labels.issuperset(found_labels), (
+                f"Labels set to {set_labels} but found logged labels {found_labels}. "
+                f"Logged labels must be the same as labels set during "
+                f"dq.set_labels_for_run. Fix logged data or update labels."
+            )
 
     def _get_input_df(self) -> DataFrame:
         inp = dict(
@@ -438,4 +451,11 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
             f"({len(cls.logger_config.labels)} labels) but based on training, your "
             f"model is expecting {cls.logger_config.observed_num_labels} labels. "
             f"Use dataquality.set_labels_for_run to update your config labels."
+        )
+
+        assert cls.logger_config.observed_labels.issubset(cls.logger_config.labels), (
+            f"Labels set to {cls.logger_config.labels} do not align with observed "
+            f"logged labels of {cls.logger_config.observed_labels}. Set labels must "
+            "contain all logged labels. Update your labels with "
+            "`dq.set_labels_for_run` or fix input data."
         )

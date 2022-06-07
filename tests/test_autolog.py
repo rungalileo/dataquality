@@ -62,10 +62,6 @@ def test_torch_autolog(cleanup_after_use: Callable, set_test_config: Callable) -
     log_input_data(train_dataloader, "training")
     log_input_data(test_dataloader, "test")
 
-    optimizer = torch.optim.AdamW(
-        filter(lambda p: p.requires_grad, torch_model.parameters()), lr=1e-5
-    )
-
     watch(torch_model)
 
     for epoch in range(2):
@@ -78,8 +74,6 @@ def test_torch_autolog(cleanup_after_use: Callable, set_test_config: Callable) -
             attention_mask = attention_mask.to(device)
             y = torch.tensor(y, device=device)
 
-            # zero the parameter gradients
-            optimizer.zero_grad()
             # forward + backward + optimize
             _ = torch_model(x, attention_mask, x_idxs=x_idxs)
 
