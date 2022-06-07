@@ -112,6 +112,7 @@ def watch(nlp: Language) -> None:
         )
 
     text_ner_logger_config.user_data["nlp"] = nlp
+    text_ner_logger_config.user_data["ner_config"] = nlp._pipe_configs["ner"]
     dataquality.set_labels_for_run(ner.move_names)  # type: ignore
     dataquality.set_tagging_schema(TaggingSchema.BILOU)
 
@@ -144,6 +145,7 @@ def unwatch(nlp: Language) -> None:
 
     pipe_index = nlp._get_pipe_index(before="galileo_ner")
     nlp._pipe_meta[name] = nlp.get_factory_meta(factory_name)
+    nlp._pipe_configs[name] = text_ner_logger_config.user_data["ner_config"]
     nlp._components.insert(pipe_index, (name, pipe_component))
 
     nlp.remove_pipe("galileo_ner")
