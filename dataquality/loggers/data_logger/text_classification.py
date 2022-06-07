@@ -456,6 +456,6 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         assert cls.logger_config.observed_labels.issubset(cls.logger_config.labels), (
             f"Labels set to {cls.logger_config.labels} do not align with observed "
             f"logged labels of {cls.logger_config.observed_labels}. Set labels must "
-            f"contain all logged labels. Update your labels with "
-            f"`dq.set_labels_for_run` or fix input data."
+            "contain all logged labels. Update your labels with "
+            "`dq.set_labels_for_run` or fix input data."
         )
