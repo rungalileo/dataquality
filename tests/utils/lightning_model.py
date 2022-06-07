@@ -5,12 +5,6 @@ import pandas as pd
 import pytorch_lightning as pl
 import torch
 from sklearn.datasets import fetch_20newsgroups
-from transformers import (
-    AutoModel,
-    DistilBertConfig,
-    DistilBertForSequenceClassification,
-    DistilBertTokenizerFast,
-)
 
 import dataquality
 
@@ -59,14 +53,9 @@ class NewsgroupDataset(torch.utils.data.Dataset):
         self.glogger.labels = self.dataset["label"]
         self.glogger.ids = list(range(len(self.dataset)))
 
-        tokenizer = DistilBertTokenizerFast.from_pretrained("distilbert-base-uncased")
-        self.encodings = tokenizer(
-            self.dataset["text"].tolist(), truncation=True, padding=True
-        )
-
     def __getitem__(self, idx):
-        x = torch.tensor(self.encodings["input_ids"][idx])
-        attention_mask = torch.tensor(self.encodings["attention_mask"][idx])
+        x = torch.tensor(np.random.randint(0, 100, size=50))
+        attention_mask = x
         y = self.dataset["label"][idx]
         return idx, x, attention_mask, y
 
@@ -77,10 +66,6 @@ class NewsgroupDataset(torch.utils.data.Dataset):
 class TorchDistilBERTTorch(pl.LightningModule):
     def __init__(self):
         super().__init__()
-        self.model = DistilBertForSequenceClassification.from_pretrained(
-            "distilbert-base-uncased", config=DistilBertConfig(num_labels=20)
-        )
-        self.feature_extractor = AutoModel.from_pretrained("distilbert-base-uncased")
 
     def forward(self, x, attention_mask, x_idxs):
         # Fake model building for less memory usage
@@ -98,10 +83,6 @@ class TorchDistilBERTTorch(pl.LightningModule):
 class LightningDistilBERT(pl.LightningModule):
     def __init__(self):
         super().__init__()
-        self.model = DistilBertForSequenceClassification.from_pretrained(
-            "distilbert-base-uncased", config=DistilBertConfig(num_labels=20)
-        )
-        self.feature_extractor = AutoModel.from_pretrained("distilbert-base-uncased")
 
     def forward(self, x, attention_mask, x_idxs):
         # Fake model building for less memory usage
@@ -144,9 +125,6 @@ class LightningDistilBERT(pl.LightningModule):
 
     def configure_optimizers(self):
         """Model optimizers."""
-        return torch.optim.AdamW(
-            filter(lambda p: p.requires_grad, self.parameters()), lr=1e-5
-        )
 
 
 model = LightningDistilBERT()

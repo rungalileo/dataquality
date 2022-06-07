@@ -103,6 +103,7 @@ def _log_text_classification_data(
     """
     meta = meta or {}
     # Log train/test data
+    num_labels_in_task = np.random.randint(low=1, high=10, size=MULTI_LABEL_NUM_TASKS)
     for split in [Split.test, Split.training]:
         newsgroups_train = fetch_20newsgroups(
             subset="train" if split == Split.training else split.value,
@@ -119,7 +120,7 @@ def _log_text_classification_data(
         if multi_label:
             labels = []
             for i in range(len(dataset)):
-                task_labels = np.random.randint(10, size=MULTI_LABEL_NUM_TASKS)
+                task_labels = [np.random.randint(i) for i in num_labels_in_task]
                 labels.append(task_labels)
             dataquality.set_tasks_for_run(
                 [str(i) for i in range(MULTI_LABEL_NUM_TASKS)]
@@ -139,7 +140,6 @@ def _log_text_classification_data(
         else:
             func(labels=labels)
 
-    num_labels_in_task = np.random.randint(low=1, high=10, size=MULTI_LABEL_NUM_TASKS)
     if multi_label:
         run_labels = [[str(i) for i in range(tl)] for tl in num_labels_in_task]
         dataquality.set_labels_for_run(run_labels)

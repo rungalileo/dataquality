@@ -227,8 +227,10 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
         """
         if self.logger_config.binary:
             self._process_binary_labels()
-        super().validate()
         self.logger_config.observed_num_tasks = len(self.labels[0])
+        super().validate()
+
+    def validate_logged_labels(self) -> None:
         for ind, input_labels in enumerate(self.labels):
             assert isinstance(
                 input_labels, (list, np.ndarray, pd.Series)
@@ -239,6 +241,26 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
                 f"but saw {len(input_labels)} for input record {ind}. If this is a "
                 f"binary multi label and you are logging the active tasks, call"
                 f"dq.set_tasks_for_run(tasks, binary=True) and log again"
+            )
+
+            for task_ind, task_label in enumerate(input_labels):
+                # In binary case its just the 1 label so we make it a list to conform
+                self._validate_task_labels(ind, task_ind, task_label)
+
+    def _validate_task_labels(
+        self, input_ind: int, task_ind: int, task_label: str
+    ) -> None:
+        # Capture the observed labels per task
+        self.logger_config.observed_labels[task_ind].update({task_label})
+        observed_task_labels = self.logger_config.observed_labels[task_ind]
+        # If the user has already set labels validate logged ones are valid
+        if self.logger_config.labels:
+            set_task_labels = self.logger_config.labels[task_ind]
+            assert observed_task_labels.issubset(set_task_labels), (
+                f"The input labels you log must be exactly the same as the "
+                f"labels you set in set_labels_for_run. Input record {input_ind}: "
+                f"logged labels: {observed_task_labels}, set labels for that "
+                f"task (task #{task_ind}): {set_task_labels}"
             )
 
     def _get_input_df(self) -> DataFrame:
@@ -306,10 +328,12 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
             f"you are using the logger properly and that your task_type is "
             f"correct ({config.task_type})."
         )
-        for task, task_labels, num_task_labels in zip(
-            cls.logger_config.tasks,
-            cls.logger_config.labels,
-            cls.logger_config.observed_num_labels,
+        for task_num, (task, task_labels, num_task_labels) in enumerate(
+            zip(
+                cls.logger_config.tasks,
+                cls.logger_config.labels,
+                cls.logger_config.observed_num_labels,
+            )
         ):
             assert isinstance(task_labels, list), (
                 "In the multi-label case, your config labels should be a list of lists "
@@ -321,6 +345,14 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
                 f"but based on training, your model has {num_task_labels} labels "
                 f"for that task. See dataquality.set_labels_for_run to update your "
                 f"config labels"
+            )
+            logged_labels = cls.logger_config.observed_labels[task_num]
+            assert logged_labels.issubset(task_labels), (
+                f"The labels set for task #{task_num} ({task}) do not align with the "
+                f"observed labels during logging. Labels logged for this task during "
+                f"input logging: {logged_labels} -- labels set for this task: "
+                f"{task_labels}. Update the labels for this task using "
+                f"`dq.set_labels_for_run`"
             )
 
     def _get_num_labels(self, df: DataFrame) -> List[int]:

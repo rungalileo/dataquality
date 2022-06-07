@@ -82,6 +82,7 @@ def set_test_config(
         for k, v in kwargs.items():
             if k in config.dict():
                 config.__setattr__(k, v)
+        dataquality.get_model_logger().logger_config.reset()
 
     return curry
 
