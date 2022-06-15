@@ -104,3 +104,10 @@ Everything is done through github actions. Make sure to bump the version of the 
 ```
 
 commit the change and publish a new version.
+
+
+## Downloading Console Data
+
+You know how sometimes you just want to try that new distribution plot over some real datasets? Well now you can ML experiment to your heart content using these handy functions to download the real data from the Galileo console (including probs and embeddings).
+
+Refer to [dataquality.metrics](https://github.com/rungalileo/dataquality/blob/main/dataquality/metrics.py) for helpful utility functions like `dq.metrics.get_dataframe`!
