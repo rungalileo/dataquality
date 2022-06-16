@@ -276,7 +276,6 @@ def _get_hdf5_file_for_epoch(
     object_name = f"{project_id}/{run_id}/{split}/{epoch}/{object_name}"
     file_name = os.path.split(object_name)[-1]
     object_store.download_file(object_name, file_name)
-    print(f"Your file has been written to {file_name}")
     return vaex.open(file_name)
 
 
