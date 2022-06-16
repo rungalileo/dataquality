@@ -139,6 +139,11 @@ def get_dataframe(
     """
     project_id, run_id = api_client._get_project_run_id(project_name, run_name)
     task_type = api_client.get_task_type(project_id, run_id)
+    tasks = api_client.get_tasks_for_run(project_name, run_name)
+
+    print("🧐 Ensuring this run has data")
+    _validate_run_data_for_export(project_name, run_name, split, tasks)
+    print("✅ Data found. Exporting")
 
     file_name = f"data.{file_type}"
     api_client.export_run(project_name, run_name, split, file_name=file_name)
@@ -146,7 +151,6 @@ def get_dataframe(
 
     tasks = []
     if task_type == TaskType.text_multi_label:
-        tasks = api_client.get_tasks_for_run(project_name, run_name)
         labels = [
             api_client.get_labels_for_run(project_name, run_name, task)
             for task in tasks
@@ -320,3 +324,26 @@ def _rename_prob_cols(df: DataFrame, tasks: List[str]) -> DataFrame:
     for ind, task in enumerate(tasks):
         df.rename(f"prob_{ind}", f"prob_{task}")
     return df
+
+
+def _validate_run_data_for_export(project_name: str, run_name: str, split: Split, tasks: Optional[List] = None,) -> None:
+    """Validates the run/split for export_run has data
+
+    If a run/split or a set of filters has no data, the API will return a 200 with
+    {"detail": "no data found"}. Since it returns the 200, we won't know that there's
+    no data to export, but when we try to open that file it won't be a dataframe so
+    the user will get a weird error.
+
+    To address this, we simply call the API directly and see if theres any data for the
+    split. If the response is a dictionary with "detail" in the key, then we know
+    there's no data
+    """
+    summary = get_run_summary(
+        project_name, run_name, split, tasks[0] if tasks else None
+    )
+    if "detail" in summary:
+        raise GalileoException(
+            f"It seems there is no data for run {project_name}/{run_name}/{split}."
+            f"\nEnsure you spelled everything correctly. Projects and runs are case"
+            f"sensitive."
+        )
