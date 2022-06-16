@@ -84,7 +84,8 @@ class ApiClient:
     def get_project_by_name(self, project_name: str) -> Dict:
         projs = self.make_request(
             RequestType.GET,
-            url=f"{config.api_url}/{Route.projects}?project_name={project_name}",
+            url=f"{config.api_url}/{Route.projects}",
+            params={"project_name": project_name},
         )
         return projs[0] if projs else {}
 
@@ -114,11 +115,9 @@ class ApiClient:
         proj = self.get_project_by_name(project_name)
         if not proj:
             raise GalileoException(f"No project with name {project_name}")
-        url = (
-            f"{config.api_url}/{Route.projects}/{proj['id']}/{Route.runs}?"
-            f"run_name={run_name}"
-        )
-        runs = self.make_request(RequestType.GET, url=url)
+        url = f"{config.api_url}/{Route.projects}/{proj['id']}/{Route.runs}"
+        params = {"run_name": run_name}
+        runs = self.make_request(RequestType.GET, url=url, params=params)
         return runs[0] if runs else {}
 
     def create_project(self, project_name: str, is_public: bool = True) -> Dict:
@@ -177,7 +176,7 @@ class ApiClient:
         run = self.get_project_run_by_name(project_name, run_name)
         if not run:
             raise GalileoException(
-                f"No project/run found with name " f"{project_name}/{run_name}"
+                f"No project/run found with name {project_name}/{run_name}"
             )
         project_id = run["project_id"]
         run_id = run["id"]
@@ -258,9 +257,8 @@ class ApiClient:
         )
 
         url = f"{config.api_url}/{Route.content_path(project, run)}/{Route.labels}"
-        if task:
-            url += f"?task={task}"
-        res = self.make_request(RequestType.GET, url=url)
+        params = {"task": task} if task else None
+        res = self.make_request(RequestType.GET, url=url, params=params)
         return res["labels"]
 
     def get_tasks_for_run(
@@ -364,11 +362,9 @@ class ApiClient:
     def get_slice_by_name(self, project_name: str, slice_name: str) -> Dict:
         """Get a slice by name"""
         proj = self.get_project_by_name(project_name)
-        url = (
-            f"{config.api_url}/{Route.content_path(proj['id'])}/{Route.slices}?"
-            f"slice_name={slice_name}"
-        )
-        slices = self.make_request(RequestType.GET, url=url)
+        url = f"{config.api_url}/{Route.content_path(proj['id'])}/{Route.slices}"
+        params = {"slice_name": slice_name}
+        slices = self.make_request(RequestType.GET, url=url, params=params)
         if not slices:
             raise GalileoException(
                 f"No slice found for project {project_name} with name {slice_name}"
@@ -579,11 +575,12 @@ class ApiClient:
             )
 
         path = Route.content_path(project, run, split)
-        url = f"{config.api_url}/{path}/{Route.groupby}?groupby_col={category}"
+        url = f"{config.api_url}/{path}/{Route.groupby}"
+        params = {"groupby_col": category}
         if inference_name:
-            url += f"?inference_name={inference_name}"
+            params["inference_name"] = inference_name
         body = {"task": task, "filter_params": filter_params or {}}
-        return self.make_request(RequestType.POST, url, body=body)
+        return self.make_request(RequestType.POST, url, body=body, params=params)
 
     def get_xray_cards(
         self, project_name: str, run_name: str, split: str, inference_name: str = None
@@ -592,6 +589,5 @@ class ApiClient:
         project, run = self._get_project_run_id(project_name, run_name)
         path = Route.content_path(project, run, split)
         url = f"{config.api_url}/{path}/{Route.xray}"
-        if inference_name:
-            url += f"?inference_name={inference_name}"
-        return self.make_request(RequestType.GET, url)
+        params = {"inference_name": inference_name} if inference_name else None
+        return self.make_request(RequestType.GET, url, params=params)
