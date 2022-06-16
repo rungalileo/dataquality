@@ -276,6 +276,8 @@ class ApiClient:
         project, run = self._get_project_run_id(
             project_name=project_name, run_name=run_name
         )
+        if self.get_task_type(project, run) != TaskType.text_multi_label:
+            return []
         url = f"{config.api_url}/{Route.content_path(project, run)}/{Route.tasks}"
         res = self.make_request(RequestType.GET, url=url)
         return res["tasks"]
@@ -582,3 +584,14 @@ class ApiClient:
             url += f"?inference_name={inference_name}"
         body = {"task": task, "filter_params": filter_params or {}}
         return self.make_request(RequestType.POST, url, body=body)
+
+    def get_xray_cards(
+        self, project_name: str, run_name: str, split: str, inference_name: str = None
+    ) -> List[Dict[str, str]]:
+        """Queries API for xray cards for a run/split"""
+        project, run = self._get_project_run_id(project_name, run_name)
+        path = Route.content_path(project, run, split)
+        url = f"{config.api_url}/{path}/{Route.xray}"
+        if inference_name:
+            url += f"?inference_name={inference_name}"
+        return self.make_request(RequestType.GET, url)

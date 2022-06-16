@@ -27,6 +27,7 @@ class Route(str, Enum):
     epochs = "epochs"
     summary = "insights/summary"
     groupby = "insights/groupby"
+    xray = "insights/xray"
 
     @staticmethod
     def content_path(

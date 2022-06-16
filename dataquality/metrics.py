@@ -245,6 +245,28 @@ def get_raw_data(
     return _get_hdf5_file_for_epoch(project_name, run_name, split, object_name, epoch)
 
 
+def get_xray_cards(
+    project_name: str, run_name: str, split: Split, inference_name: Optional[str] = None
+) -> List[Dict[str, str]]:
+    """Get xray cards for a project/run/split
+
+    Xray cards are automatic insights calculated and provided by Galileo on your data
+    """
+    return api_client.get_xray_cards(project_name, run_name, split, inference_name)
+
+
+def get_label_for_run(
+    project_name: str, run_name: str, task: Optional[str] = None
+) -> List[str]:
+    """Gets labels for a given run. If multi-label, a task must be provided"""
+    return api_client.get_labels_for_run(project_name, run_name, task)
+
+
+def get_tasks_for_run(project_name: str, run_name: str) -> List[str]:
+    """Gets task names for a multi-label run"""
+    return api_client.get_tasks_for_run(project_name, run_name)
+
+
 def _get_hdf5_file_for_epoch(
     project_name: str, run_name: str, split: Split, object_name: str, epoch: int = None
 ) -> DataFrame:
