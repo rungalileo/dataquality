@@ -176,7 +176,7 @@ class ApiClient:
         run = self.get_project_run_by_name(project_name, run_name)
         if not run:
             raise GalileoException(
-                f"No project/run found with name " f"{project_name}/{run_name}"
+                f"No project/run found with name {project_name}/{run_name}"
             )
         project_id = run["project_id"]
         run_id = run["id"]

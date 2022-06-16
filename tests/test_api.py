@@ -14,11 +14,11 @@ from tests.utils.mock_request import (
     EXISTING_PROJECT,
     EXISTING_RUN,
     FAKE_NEW_RUN,
+    MockResponse,
     mocked_delete_project_not_found,
     mocked_delete_project_run,
     mocked_get_project_run,
     mocked_missing_project_name,
-    mocked_missing_run,
 )
 
 api_client = ApiClient()
@@ -99,13 +99,19 @@ def test_delete_run_by_name(
     api_client.delete_run_by_name(EXISTING_PROJECT, EXISTING_RUN)
 
 
-@mock.patch("requests.get", side_effect=mocked_missing_run)
+@mock.patch("requests.get")
 def test_delete_run_by_name_missing_run(
     mock_get_run: MagicMock, set_test_config: Callable
 ) -> None:
-    """Base case: Tests creating a new project and run"""
-    with pytest.raises(GalileoException):
+    """tests deleting a project/run with a run name that doesn't exist"""
+    mock_get_run.side_effect = [
+        MockResponse(json_data=[{"id": "uuid"}], status_code=200),
+        MockResponse(json_data=[], status_code=200),
+    ]
+    with pytest.raises(GalileoException) as e:
         api_client.delete_run_by_name("some_proj", "some_run")
+
+    assert str(e.value) == "No project/run found with name some_proj/some_run"
 
 
 @pytest.mark.parametrize(
