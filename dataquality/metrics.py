@@ -145,7 +145,7 @@ def get_dataframe(
     _validate_run_data_for_export(project_name, run_name, split, tasks)
     print("✅ Data found. Exporting")
 
-    file_name = f"data.{file_type}"
+    file_name = f"/tmp/data.{file_type}"
     api_client.export_run(project_name, run_name, split, file_name=file_name)
     data_df = vaex.open(file_name)
 
