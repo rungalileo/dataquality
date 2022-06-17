@@ -326,7 +326,12 @@ def _rename_prob_cols(df: DataFrame, tasks: List[str]) -> DataFrame:
     return df
 
 
-def _validate_run_data_for_export(project_name: str, run_name: str, split: Split, tasks: Optional[List] = None,) -> None:
+def _validate_run_data_for_export(
+    project_name: str,
+    run_name: str,
+    split: Split,
+    tasks: Optional[List] = None,
+) -> None:
     """Validates the run/split for export_run has data
 
     If a run/split or a set of filters has no data, the API will return a 200 with
