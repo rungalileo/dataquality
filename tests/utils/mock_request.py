@@ -13,7 +13,10 @@ FAKE_NEW_RUN = uuid4()
 
 
 class MockResponse:
-    def __init__(self, json_data: Union[Dict, List], status_code: int) -> None:
+    def __init__(
+        self, json_data: Union[Dict, List], status_code: int, headers: Dict = None
+    ) -> None:
+        self.headers = headers or {}
         self.json_data = json_data
         self.status_code = status_code
         if status_code in (200, 204):
@@ -24,6 +27,9 @@ class MockResponse:
 
     def json(self) -> Union[Dict, List]:
         return self.json_data
+
+    def raise_for_status(self) -> None:
+        pass
 
 
 def mocked_healthcheck_request(request_url: str) -> MockResponse:

@@ -140,7 +140,7 @@ def get_dataframe(
     project_id, run_id = api_client._get_project_run_id(project_name, run_name)
     task_type = api_client.get_task_type(project_id, run_id)
 
-    file_name = f"data.{file_type}"
+    file_name = f"/tmp/data.{file_type}"
     api_client.export_run(project_name, run_name, split, file_name=file_name)
     data_df = vaex.open(file_name)
 

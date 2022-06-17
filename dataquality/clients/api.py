@@ -440,6 +440,16 @@ class ApiClient:
             url, json=body, stream=True, headers=headers(config.token)
         ) as r:
             r.raise_for_status()
+            # If a run/split or a set of filters has no data, the API will return a 200
+            # with a special header letting us know, so we don't try to load a file
+            # with an unexpected format
+            if r.headers.get("Galileo-No-Data") == "true":
+                raise GalileoException(
+                    f"It seems there is no data for run {project_name}/{run_name}/"
+                    f"{split}.\nEnsure you spelled everything correctly. "
+                    "Projects and runs are case sensitive."
+                )
+
             with open(file_name, "wb") as f:
                 for chunk in r.iter_content(chunk_size=8192):
                     f.write(chunk)

@@ -6,6 +6,7 @@ from uuid import uuid4
 
 import pytest
 
+import dataquality.clients.api
 from dataquality import config
 from dataquality.clients.api import ApiClient
 from dataquality.exceptions import GalileoException
@@ -282,3 +283,23 @@ def test_get_run_status_no_status(
     """Asserts that wait_for_run with an empty status doens't crash"""
     api_client.wait_for_run()
     assert mock_get_status.call_count == 2
+
+
+@patch.object(dataquality.clients.api.requests, "post")
+@patch.object(dataquality.clients.api.ApiClient, "get_task_type")
+@patch.object(dataquality.clients.api.ApiClient, "_get_project_run_id")
+def test_export_run_no_data(
+    mock_get_run: MagicMock, mock_get_task_type: MagicMock, mock_post: MagicMock
+) -> None:
+    mock_get_run.return_value = uuid4(), uuid4()
+    mock_get_task_type.return_value = TaskType.text_classification
+    # In export_run we use requests.post as a context manager (with requests.post(...))
+    # so we need to mock the `__enter__` return value
+    mock_post.return_value.__enter__.return_value = MockResponse(
+        status_code=200, json_data={}, headers={"Galileo-No-Data": "true"}
+    )
+    with pytest.raises(GalileoException) as e:
+        api_client.export_run("project", "run", "training", "file.csv")
+    assert str(e.value).startswith(
+        "It seems there is no data for run project/run/training"
+    )
