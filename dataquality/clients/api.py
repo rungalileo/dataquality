@@ -443,7 +443,7 @@ class ApiClient:
             # If a run/split or a set of filters has no data, the API will return a 200
             # with a special header letting us know, so we don't try to load a file
             # with an unexpected format
-            if r.headers.get("Galileo-No-Data"):
+            if r.headers.get("Galileo-No-Data") == "true":
                 raise GalileoException(
                     f"It seems there is no data for run {project_name}/{run_name}/"
                     f"{split}.\nEnsure you spelled everything correctly. "
