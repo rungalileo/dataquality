@@ -137,7 +137,9 @@ class ApiClient:
             body=body,
         )
 
-    def reset_run(self, project_id: UUID4, run_id: UUID4) -> None:
+    def reset_run(
+        self, project_id: UUID4, run_id: UUID4, task_type: Optional[TaskType] = None
+    ) -> None:
         """Resets a run by deleting the run with that name and creating a new one
         with the same name, getting a new UUID
 
@@ -147,14 +149,12 @@ class ApiClient:
         project_name = self.get_project(project_id)["name"]
         run = self.get_project_run(project_id, run_id)
         run_name = run["name"]
-        task_type = run["task_type"]
+        task_type = task_type or TaskType.get_mapping(run["task_type"])
 
         # Delete the run
         self.delete_run(project_id, run_id)
         # Create a run with the same name
-        new_run = self.create_run(
-            project_name, run_name, TaskType.get_mapping(task_type)
-        )
+        new_run = self.create_run(project_name, run_name, task_type)
         # Update config
         config.current_run_id = new_run["id"]
 

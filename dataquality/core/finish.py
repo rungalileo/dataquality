@@ -8,6 +8,7 @@ from dataquality.clients.api import ApiClient
 from dataquality.core._config import config
 from dataquality.schemas import RequestType, Route
 from dataquality.schemas.job import JobName
+from dataquality.schemas.task_type import TaskType
 from dataquality.utils.dq_logger import DQ_LOG_FILE_HOME, upload_dq_log_file
 from dataquality.utils.helpers import check_noop
 from dataquality.utils.thread_pool import ThreadPoolManager
@@ -30,7 +31,7 @@ def finish() -> Optional[Dict[str, Any]]:
     _version_check()
 
     if data_logger.non_inference_logged():
-        _reset_run(config.current_project_id, config.current_run_id)
+        _reset_run(config.current_project_id, config.current_run_id, config.task_type)
 
     data_logger.upload()
     data_logger._cleanup()
@@ -93,7 +94,9 @@ def get_run_status(
 
 
 @check_noop
-def _reset_run(project_id: UUID4, run_id: UUID4) -> None:
+def _reset_run(
+    project_id: UUID4, run_id: UUID4, task_type: Optional[TaskType] = None
+) -> None:
     """Clear the data in minio before uploading new data
 
     If this is a run that already existed, we want to fully overwrite the old data.
@@ -101,7 +104,7 @@ def _reset_run(project_id: UUID4, run_id: UUID4) -> None:
     give it a new ID
     """
     old_run_id = run_id
-    api_client.reset_run(project_id, old_run_id)
+    api_client.reset_run(project_id, old_run_id, task_type)
     project_dir = (
         f"{dataquality.get_data_logger().LOG_FILE_DIR}/{config.current_project_id}"
     )
