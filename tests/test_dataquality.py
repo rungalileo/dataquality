@@ -3,6 +3,8 @@ import time
 from random import random
 from typing import Callable
 from unittest import mock
+from unittest.mock import MagicMock
+from uuid import uuid4
 
 import numpy as np
 import pytest
@@ -488,13 +490,31 @@ def test_calls_noop() -> None:
     del os.environ["GALILEO_DISABLED"]
 
 
-@mock.patch.object(dataquality.core.finish.config, "update_file_config")
+@mock.patch.object(dataquality.core._config.Config, "update_file_config")
 @mock.patch.object(dataquality.core.finish.os, "rename")
-@mock.patch.object(dataquality.clients.api, "get_project")
-@mock.patch.object(dataquality.clients.api, "get_project_run")
-@mock.patch.object(dataquality.clients.api, "delete_run")
-@mock.patch.object(dataquality.clients.api, "create_run")
+@mock.patch.object(dataquality.clients.api.ApiClient, "get_project_run")
+@mock.patch.object(dataquality.clients.api.ApiClient, "get_project")
+@mock.patch.object(dataquality.clients.api.ApiClient, "delete_run")
+@mock.patch.object(dataquality.clients.api.ApiClient, "create_run")
 def test_reset_run_new_task_type(
-    set_test_config: Callable, cleanup_after_use: Callable
+    mock_create_run: MagicMock,
+    mock_delete_run: MagicMock,
+    mock_get_project: MagicMock,
+    mock_get_project_run: MagicMock,
+    mock_rename: MagicMock,
+    mock_update_file_config: MagicMock,
+    set_test_config: Callable,
+    cleanup_after_use: Callable,
 ) -> None:
     """Tests that resetting a run with a new task type changes the task type"""
+    set_test_config(task_type=TaskType.text_classification)
+    mock_get_project.return_value = {"name": "project_name"}
+    # task_type 0 from API is text_classification
+    mock_get_project_run.return_value = {"name": "run_name", "task_type": 0}
+    pid = uuid4()
+    rid = uuid4()
+    mock_create_run.return_value = {"id": rid}
+    dataquality.core.finish._reset_run(pid, rid, TaskType.text_multi_label)
+
+    assert mock_create_run.called_once_with(pid, rid, TaskType.text_multi_label)
+    assert dataquality.config.current_run_id == rid
