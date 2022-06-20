@@ -138,7 +138,7 @@ class ApiClient:
         )
 
     def reset_run(
-        self, project_id: UUID4, run_id: UUID4, task_type: Optional[TypeError] = None
+        self, project_id: UUID4, run_id: UUID4, task_type: Optional[TaskType] = None
     ) -> None:
         """Resets a run by deleting the run with that name and creating a new one
         with the same name, getting a new UUID
