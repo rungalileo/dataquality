@@ -9,7 +9,9 @@ import pytest
 import vaex
 
 import dataquality
+import dataquality.clients.api
 import dataquality.core._config
+import dataquality.core.finish
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
 from dataquality.loggers.model_logger.text_classification import (
@@ -484,3 +486,15 @@ def test_calls_noop() -> None:
         dataquality.log_data_samples(texts=["test"], labels=["1"], ids=[1])
         mock_log.assert_not_called()
     del os.environ["GALILEO_DISABLED"]
+
+
+@mock.patch.object(dataquality.core.finish.config, "update_file_config")
+@mock.patch.object(dataquality.core.finish.os, "rename")
+@mock.patch.object(dataquality.clients.api, "get_project")
+@mock.patch.object(dataquality.clients.api, "get_project_run")
+@mock.patch.object(dataquality.clients.api, "delete_run")
+@mock.patch.object(dataquality.clients.api, "create_run")
+def test_reset_run_new_task_type(
+    set_test_config: Callable, cleanup_after_use: Callable
+) -> None:
+    """Tests that resetting a run with a new task type changes the task type"""
