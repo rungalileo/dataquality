@@ -86,7 +86,7 @@ def test_log_data_sample(
         dq.log_data_sample(text="sample 1", task_labels="A", id=1, split="training")
 
         assert logger.texts == ["sample 1"]
-        assert logger.labels == ["A"]
+        assert logger.labels == [["A"]]
         assert logger.ids == [1]
         assert logger.split == Split.training
 

@@ -2,6 +2,7 @@ from collections import defaultdict
 from enum import Enum, unique
 from typing import Any, DefaultDict, Dict, Iterable, List, Optional, Tuple, Union
 
+import numpy as np
 import pandas as pd
 import vaex
 from vaex.dataframe import DataFrame
@@ -354,11 +355,14 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         id_len = len(self.ids)
 
         self.texts = list(self._convert_tensor_ndarray(self.texts))
-        self.labels = (
-            self._convert_tensor_ndarray(self.labels, attr="Labels")
-            .astype("str")
-            .tolist()
-        )
+        clean_labels = self._convert_tensor_ndarray(self.labels, attr="Labels")
+        # If the dtype if object, we have a ragged nested sequence, so we need to
+        # iterate list by list converting to strings
+        if clean_labels.dtype == object:
+            self.labels = [np.array(i).astype("str").tolist() for i in clean_labels]
+        # Normal nparray, can convert to string elements directly
+        else:
+            self.labels = clean_labels.astype("str").tolist()
         self.ids = list(self._convert_tensor_ndarray(self.ids))
 
         if self.split == Split.inference.value:
