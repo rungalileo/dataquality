@@ -354,7 +354,11 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         id_len = len(self.ids)
 
         self.texts = list(self._convert_tensor_ndarray(self.texts))
-        self.labels = list(self._convert_tensor_ndarray(self.labels, attr="Labels"))
+        self.labels = (
+            self._convert_tensor_ndarray(self.labels, attr="Labels")
+            .astype("str")
+            .tolist()
+        )
         self.ids = list(self._convert_tensor_ndarray(self.ids))
 
         if self.split == Split.inference.value:

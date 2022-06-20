@@ -248,3 +248,29 @@ def test_logged_labels_dont_match_set_labels(
         with pytest.raises(AssertionError) as e:
             dataquality.get_data_logger().validate_labels()
     assert str(e.value).startswith("Labels set to")
+
+
+def test_log_int_labels(set_test_config: Callable, cleanup_after_use: Callable) -> None:
+    """Tests that a user can log their labels as ints without issue"""
+    set_test_config(task_type="text_classification")
+    labels = [1, 2, 3]
+    # labels are the index, not the actual labels. No good
+    dataset = pd.DataFrame(
+        [
+            {"text": "sample1", "label": 1, "id": 1},
+            {"text": "sample2", "label": 1, "id": 2},
+            {"text": "sample3", "label": 2, "id": 3},
+        ]
+    )
+    dataquality.log_dataset(dataset, split="train")
+    dataquality.get_data_logger().logger_config.observed_num_labels = len(labels)
+
+    dataquality.set_labels_for_run(labels)
+    # Should not throw an error
+    dataquality.get_data_logger().validate_labels()
+    assert sorted(
+        dataquality.get_data_logger().logger_config.observed_labels
+    ) == sorted(["1", "2"])
+    assert sorted(dataquality.get_data_logger().logger_config.labels) == sorted(
+        ["1", "2", "3"]
+    )
