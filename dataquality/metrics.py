@@ -274,7 +274,7 @@ def _get_hdf5_file_for_epoch(
     epoch = _validate_epoch(project_name, run_name, split, epoch, emb=emb)
     project_id, run_id = api_client._get_project_run_id(project_name, run_name)
     object_name = f"{project_id}/{run_id}/{split}/{epoch}/{object_name}"
-    file_name = os.path.split(object_name)[-1]
+    file_name = f"/tmp/{os.path.split(object_name)[-1]}"
     object_store.download_file(object_name, file_name)
     return vaex.open(file_name)
 
