@@ -454,7 +454,6 @@ class ApiClient:
                 for chunk in r.iter_content(chunk_size=8192):
                     f.write(chunk)
 
-
     def get_project_run_name(
         self, project_id: Optional[UUID4] = None, run_id: Optional[UUID4] = None
     ) -> Tuple[str, str]:
