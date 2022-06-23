@@ -100,7 +100,7 @@ def display_dep_distribution(
     )["split_run_results"]
     easy, hard = summary["easy_samples_threshold"], summary["hard_samples_threshold"]
     dep = summary["model_metrics"]["dep_distribution"]
-    dep_bins, dep_counts = dep["dep_bins"], dep["count"]
+    dep_bins, dep_counts = dep["bins"], dep["counts"]
 
     fig = px.bar(
         x=dep_bins[1:],
