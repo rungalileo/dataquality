@@ -127,7 +127,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         os.remove(tmp_name)
 
     @classmethod
-    def upload(cls, max_epoch: Optional[int] = None) -> None:
+    def upload(cls, last_epoch: Optional[int] = None) -> None:
         """
         Iterates through all of each splits children folders [data/emb/prob] for each
         inference name / epoch, concatenates all of the files with vaex, and uploads
@@ -157,7 +157,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                 continue
 
             in_frame_split = filter_df(in_frame, "split", split)
-            cls.upload_split(object_store, in_frame_split, split, split_loc, max_epoch)
+            cls.upload_split(object_store, in_frame_split, split, split_loc, last_epoch)
 
     @classmethod
     def upload_split(
@@ -166,15 +166,18 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         in_frame: DataFrame,
         split: str,
         split_loc: str,
-        max_epoch: Optional[int] = None,
+        last_epoch: Optional[int] = None,
     ) -> None:
-        # If set, max_epoch will only let you upload to the provided epoch value,
-        # nothing more. If None, then slicing a list [:None] will include all values
+        # If set, last_epoch will only let you upload to and including the provided
+        # epoch value, nothing more.
+        # If None, then slicing a list [:None] will include all values
         epochs_or_infs = os.listdir(split_loc)
         epochs_or_infs = sorted(
             epochs_or_infs, key=lambda i: int(i) if split != Split.inference else i
         )
-        epochs_or_infs = epochs_or_infs[:max_epoch]
+        # last_epoch is inclusive
+        last_epoch = last_epoch + 1 if last_epoch else last_epoch
+        epochs_or_infs = epochs_or_infs[:last_epoch]
 
         # For each inference name or epoch of the given split
         for split_run in tqdm(epochs_or_infs, total=len(epochs_or_infs), desc=split):
