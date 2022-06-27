@@ -567,7 +567,7 @@ def test_finish_max_epoch(
     for i, call in enumerate(mock_upload_frames.call_args_list):
         # python 3.7 vs >= 3.8 compatibility
         if not hasattr(call, "args"):  # python 3.7
-            assert call[0][-1] == i
+            assert int(call[0][-1]) == i
         else:  # python 3.8+
             assert int(call.args[-1]) == i
     assert mock_upload_frames.call_count == max_uploaded
