@@ -11,6 +11,7 @@ import pytest
 import vaex
 
 import dataquality
+import dataquality as dq
 import dataquality.clients.api
 import dataquality.core._config
 import dataquality.core.finish
@@ -518,3 +519,57 @@ def test_reset_run_new_task_type(
 
     assert mock_create_run.called_once_with(pid, rid, TaskType.text_multi_label)
     assert dataquality.config.current_run_id == rid
+
+
+@pytest.mark.parametrize("last_epoch", [1, 3, None, 10])
+@mock.patch.object(dataquality.core.finish, "_version_check")
+@mock.patch.object(dataquality.core.finish, "_reset_run")
+@mock.patch.object(dataquality.core.finish, "upload_dq_log_file")
+@mock.patch.object(dataquality.clients.api.ApiClient, "make_request")
+@mock.patch.object(dataquality.loggers.base_logger.BaseGalileoLogger, "_cleanup")
+@mock.patch.object(
+    dataquality.loggers.data_logger.text_classification.TextClassificationDataLogger,
+    "upload_in_out_frames",
+)
+def test_finish_last_epoch(
+    mock_upload_frames: MagicMock,
+    mock_cleanup: MagicMock,
+    mock_make_request: MagicMock,
+    mock_upload_log_file: MagicMock,
+    mock_reset_run: MagicMock,
+    mock_version_check: MagicMock,
+    set_test_config: Callable,
+    cleanup_after_use: Callable,
+    last_epoch: int,
+) -> None:
+    text_inputs = ["sample1", "sample2", "sample3"] * 30
+    gold = ["A", "C", "B"] * 30
+    ids = list(range(90))
+
+    dq.set_labels_for_run(["A", "B", "C"])
+    dq.log_data_samples(texts=text_inputs, labels=gold, split="validation", ids=ids)
+    dq.log_data_samples(texts=text_inputs, labels=gold, split="training", ids=ids)
+
+    embs = np.random.rand(3, 100)
+    logits = np.random.rand(3, 3)
+    last_logged_epoch = 0
+    for i in range(0, 15, 3):
+        ids = list(range(i, i + 3))
+        dq.log_model_outputs(
+            embs=embs, logits=logits, ids=ids, split="training", epoch=i // 3
+        )
+        last_logged_epoch += 1
+    dq.finish(last_epoch=last_epoch)
+    # if max epoch is None, all should be uploaded.
+    # if max epoch is greater than the max logged, all should be uploaded
+    # if max epoch is less than max logged, only log up to and including max_epoch
+    max_uploaded = (
+        min(last_logged_epoch, last_epoch + 1) if last_epoch else last_logged_epoch
+    )
+    for i, call in enumerate(mock_upload_frames.call_args_list):
+        # python 3.7 vs 3.8+ compatibility
+        try:  # python 3.8+
+            assert int(call.args[-1]) == i
+        except TypeError:  # python 3.7
+            assert int(call[0][-1]) == i
+    assert mock_upload_frames.call_count == max_uploaded

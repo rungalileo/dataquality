@@ -127,7 +127,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         os.remove(tmp_name)
 
     @classmethod
-    def upload(cls) -> None:
+    def upload(cls, last_epoch: Optional[int] = None) -> None:
         """
         Iterates through all of each splits children folders [data/emb/prob] for each
         inference name / epoch, concatenates all of the files with vaex, and uploads
@@ -157,7 +157,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                 continue
 
             in_frame_split = filter_df(in_frame, "split", split)
-            cls.upload_split(object_store, in_frame_split, split, split_loc)
+            cls.upload_split(object_store, in_frame_split, split, split_loc, last_epoch)
 
     @classmethod
     def upload_split(
@@ -166,13 +166,23 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         in_frame: DataFrame,
         split: str,
         split_loc: str,
+        last_epoch: Optional[int] = None,
     ) -> None:
-        split_runs = sorted(os.listdir(split_loc))
+        # If set, last_epoch will only let you upload to and including the provided
+        # epoch value, nothing more.
+        # If None, then slicing a list [:None] will include all values
+        epochs_or_infs = os.listdir(split_loc)
+        epochs_or_infs = sorted(
+            epochs_or_infs, key=lambda i: int(i) if split != Split.inference else i
+        )
+        # last_epoch is inclusive
+        last_epoch = last_epoch + 1 if last_epoch else last_epoch
+        epochs_or_infs = epochs_or_infs[:last_epoch]
 
         # For each inference name or epoch of the given split
-        for split_run in tqdm(split_runs, total=len(split_runs), desc=split):
+        for split_run in tqdm(epochs_or_infs, total=len(epochs_or_infs), desc=split):
             in_frame_slice = in_frame.copy()
-            prob_only = cls.prob_only(split_runs, split, split_run)
+            prob_only = cls.prob_only(epochs_or_infs, split, split_run)
             if split == Split.inference:
                 in_frame_slice = filter_df(in_frame_slice, "inference_name", split_run)
 
@@ -276,7 +286,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
     @classmethod
     def prob_only(
-        cls, split_runs: List[str], split: str, split_run: Union[int, str]
+        cls, epochs: List[str], split: str, split_run: Union[int, str]
     ) -> bool:
         if split == Split.inference:
             return False
@@ -285,7 +295,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         epoch = int(split_run)
         # For all epochs that aren't the last 2 (early stopping), we only
         # want to upload the probabilities (for DEP calculation).
-        max_epoch_for_split = max([int(i) for i in split_runs])
+        max_epoch_for_split = max([int(i) for i in epochs])
         return bool(epoch < max_epoch_for_split - 1)
 
     def validate(self) -> None:

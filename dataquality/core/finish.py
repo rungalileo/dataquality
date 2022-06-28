@@ -18,9 +18,12 @@ api_client = ApiClient()
 
 
 @check_noop
-def finish() -> Optional[Dict[str, Any]]:
+def finish(last_epoch: Optional[int] = None) -> Optional[Dict[str, Any]]:
     """
     Finishes the current run and invokes a job
+
+    :param last_epoch: If set, only epochs up to this value will be uploaded/processed
+        This is inclusive, so setting last_epoch to 5 would upload epochs 0,1,2,3,4,5
     """
     ThreadPoolManager.wait_for_threads()
     assert config.current_project_id, "You must have an active project to call finish"
@@ -33,7 +36,7 @@ def finish() -> Optional[Dict[str, Any]]:
     if data_logger.non_inference_logged():
         _reset_run(config.current_project_id, config.current_run_id, config.task_type)
 
-    data_logger.upload()
+    data_logger.upload(last_epoch)
     data_logger._cleanup()
     upload_dq_log_file()
 
