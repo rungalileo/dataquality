@@ -8,6 +8,7 @@ import resource
 import dataquality.core._config
 import dataquality.metrics
 from dataquality.core._config import config
+from dataquality.core.auth import verify_jwt_token
 from dataquality.core.finish import finish, get_run_status, wait_for_run
 from dataquality.core.init import init
 from dataquality.core.log import (
@@ -40,8 +41,9 @@ def configure() -> None:
     updated_config = dataquality.core._config.reset_config()
     for k, v in updated_config.dict().items():
         config.__setattr__(k, v)
-    config.token = os.environ["GALILEO_JWT_TOKEN"]
+    config.token = os.getenv("GALILEO_JWT_TOKEN")
     config.update_file_config()
+    verify_jwt_token()
 
 
 __all__ = [
