@@ -58,7 +58,6 @@ if __name__ == "__main__":
     train_dataset = load_dataset_split(DATASET, "train")
     test_dataset = load_dataset_split(DATASET, "test")
 
-    dataquality.login()
     dataquality.init(
         project_name="test_large_dataset", run_name=DATASET, task_type=TASK_TYPE
     )

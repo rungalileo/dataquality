@@ -45,37 +45,6 @@ def mocked_healthcheck_request_new_api_version(request_url: str) -> MockResponse
     return MockResponse({}, 200)
 
 
-def mocked_login_requests(
-    request_url: str,
-    json: Dict = {},
-    params: Dict = {},
-    headers: Dict = {},
-    data: Dict = {},
-) -> MockResponse:
-    if request_url.endswith("login"):
-        return MockResponse(
-            {
-                "access_token": "mock_token",
-            },
-            200,
-        )
-    if request_url.endswith("current_user"):
-        return MockResponse({"user": "user"}, 200)
-    return MockResponse({}, 200)
-
-
-def mocked_failed_login_requests(
-    request_url: str,
-    json: Dict = {},
-    params: Dict = {},
-    headers: Dict = {},
-    data: Dict = {},
-) -> MockResponse:
-    if request_url.endswith("login"):
-        return MockResponse({"detail": "Incorrect login credentials."}, 404)
-    return MockResponse({}, 404)
-
-
 def mocked_get_project_run(
     request_url: str, json: Dict, params: Dict, headers: Dict, data: Dict
 ) -> MockResponse:
@@ -142,7 +111,3 @@ def mocked_delete_project_not_found(
     if request_url.endswith("current_user"):
         return MockResponse({"id": "user"}, 200)
     return MockResponse({"detail": "project not found"}, 404)
-
-
-def mocked_login() -> None:
-    config.token = "mock_token"

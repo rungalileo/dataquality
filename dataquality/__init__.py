@@ -8,7 +8,6 @@ import resource
 import dataquality.core._config
 import dataquality.metrics
 from dataquality.core._config import config
-from dataquality.core.auth import login
 from dataquality.core.finish import finish, get_run_status, wait_for_run
 from dataquality.core.init import init
 from dataquality.core.log import (
@@ -32,7 +31,6 @@ from dataquality.utils.helpers import check_noop
 @check_noop
 def configure() -> None:
     """Update your active config with new env variables.
-    Reset user token on configure and prompt new login.
 
     Available environment variables to update:
     * GALILEO_CONSOLE_URL
@@ -42,14 +40,12 @@ def configure() -> None:
     updated_config = dataquality.core._config.reset_config()
     for k, v in updated_config.dict().items():
         config.__setattr__(k, v)
-    config.token = None
+    config.token = os.environ["GALILEO_JWT_TOKEN"]
     config.update_file_config()
-    login()
 
 
 __all__ = [
     "__version__",
-    "login",
     "init",
     "log_data_samples",
     "log_model_outputs",

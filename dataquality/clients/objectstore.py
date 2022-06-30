@@ -3,8 +3,10 @@ from tempfile import NamedTemporaryFile
 import requests
 from vaex.dataframe import DataFrame
 
-from dataquality.core.auth import api_client
+from dataquality.clients.api import ApiClient
 from dataquality.utils.file import get_file_extension
+
+api_client = ApiClient()
 
 
 class ObjectStore:

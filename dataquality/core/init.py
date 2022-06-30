@@ -9,7 +9,6 @@ from pydantic.types import UUID4
 import dataquality
 from dataquality.clients.api import ApiClient
 from dataquality.core._config import config
-from dataquality.core.auth import login
 from dataquality.exceptions import GalileoException
 from dataquality.loggers import BaseGalileoLogger
 from dataquality.schemas.task_type import TaskType
@@ -104,7 +103,10 @@ def init(
     may want to set this to False. Default True
     """
     if not api_client.valid_current_user():
-        login()
+        raise GalileoException(
+            "Trouble verifying the current user. Please ensure that GALILEO_JWT_TOKEN "
+            "is set and unexpired. You can fetch a new token at the Galileo console."
+        )
     _init = _Init()
     BaseGalileoLogger.validate_task(task_type)
     task_type = TaskType[task_type]

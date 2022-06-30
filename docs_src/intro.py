@@ -1,7 +1,5 @@
 import dataquality
 
-dataquality.login()
-
 dataquality.init()
 
 dataquality.config

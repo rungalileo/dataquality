@@ -17,9 +17,12 @@ from dataquality.utils.auth import headers
 
 
 class ApiClient:
-    def __check_login(self) -> None:
+    def __check_token(self) -> None:
         if not config.token:
-            raise GalileoException("You are not logged in. Call dataquality.login()")
+            raise GalileoException(
+                "You must set GALILEO_JWT_TOKEN in your environment. "
+                "You can fetch a new token from the Galileo console."
+            )
 
     def _validate_response(self, res: Response) -> None:
         if not res.ok:
@@ -39,15 +42,10 @@ class ApiClient:
             raise GalileoException(msg)
 
     def _get_user_id(self) -> UUID4:
-        self.__check_login()
         return self.get_current_user()["id"]
 
     def get_current_user(self) -> Dict:
-        if not config.token:
-            raise GalileoException(
-                "Current user is not set! Please ensure GALILEO_USERNAME "
-                "is set to the registered email"
-            )
+        self.__check_token()
 
         return self.make_request(
             RequestType.GET, url=f"{config.api_url}/{Route.current_user}"
@@ -74,7 +72,7 @@ class ApiClient:
         This is the center point of all functions and the main entry/exit for the
         dataquality client to interact with the server.
         """
-        self.__check_login()
+        self.__check_token()
         header = header or headers(config.token)
         res = RequestType.get_method(request.value)(
             url, json=body, params=params, headers=header, data=data

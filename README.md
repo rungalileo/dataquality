@@ -9,11 +9,9 @@ Install the package.
 pip install dataquality
 ```
 
-Import the package, login, and initialize a new project and run.
+Import the package and initialize a new project and run.
 ```python
 import dataquality
-
-dataquality.login()
 
 dataquality.init()
 ```
