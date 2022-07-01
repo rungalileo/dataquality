@@ -13,8 +13,8 @@ def verify_jwt_token() -> None:
     print("🔭 Validating Galileo token...\n")
     if not config.token:
         config.token = input(
-            "🔐 Authentication token not found. To skip this prompt in the future \n"
-            "set the GALILEO_JWT_TOKEN environment variable. You can get your JWT \n"
+            "🔐 Authentication token not found. To skip this prompt in the future "
+            "set the GALILEO_JWT_TOKEN environment variable.\nYou can get your JWT "
             "token from the console. \n"
             "Please enter your token: \n"
         )
