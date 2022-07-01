@@ -186,22 +186,34 @@ def test_init_bad_task(
         dataquality.init(task_type="not_text_classification")
 
 
-def test_reconfigure_sets_env_vars() -> None:
-    os.environ["GALILEO_JWT_TOKEN"] = None
+@patch("builtins.input", return_value="")
+@patch.object(dataquality.core.init.ApiClient, "get_current_user")
+def test_reconfigure_sets_env_vars(
+    mock_get_user: MagicMock, mock_input: MagicMock
+) -> None:
+    # First token should fail, but second one should succeed
+    mock_get_user.side_effect = [GalileoException, {"email": "me@example.com"}]
+
+    os.environ["GALILEO_JWT_TOKEN"] = ""
     os.environ["GALILEO_CONSOLE_URL"] = "https://console.fakecompany.io"
     dataquality.configure()
     assert dataquality.config.api_url == config.api_url == "https://api.fakecompany.io"
-    assert dataquality.config.token == config.token is None
+    assert dataquality.config.token == config.token == ""
+
     os.environ["GALILEO_CONSOLE_URL"] = "https://console.newfake.de"
     os.environ["GALILEO_JWT_TOKEN"] = "my-token"
     dataquality.configure()
     assert dataquality.config.api_url == config.api_url == "https://api.newfake.de"
     assert dataquality.config.token == config.token == "my-token"
+    assert dataquality.config.current_user == config.current_user == "me@example.com"
 
 
+@patch.object(dataquality.core.init.ApiClient, "get_current_user")
 def test_reconfigure_resets_user_token(
+    mock_get_user: MagicMock,
     set_test_config: Callable,
 ) -> None:
+    mock_get_user.side_effect = GalileoException
     set_test_config(token="old_token")
 
     os.environ["GALILEO_JWT_TOKEN"] = "fake-token"
