@@ -1,6 +1,7 @@
 import os
 import warnings
 from typing import Dict, List, Optional
+from uuid import uuid4
 
 import vaex
 from vaex.dataframe import DataFrame
@@ -140,7 +141,7 @@ def get_dataframe(
     project_id, run_id = api_client._get_project_run_id(project_name, run_name)
     task_type = api_client.get_task_type(project_id, run_id)
 
-    file_name = f"/tmp/data.{file_type}"
+    file_name = f"/tmp/{uuid4()}-data.{file_type}"
     api_client.export_run(project_name, run_name, split, file_name=file_name)
     data_df = vaex.open(file_name)
 
@@ -274,7 +275,7 @@ def _get_hdf5_file_for_epoch(
     epoch = _validate_epoch(project_name, run_name, split, epoch, emb=emb)
     project_id, run_id = api_client._get_project_run_id(project_name, run_name)
     object_name = f"{project_id}/{run_id}/{split}/{epoch}/{object_name}"
-    file_name = f"/tmp/{os.path.split(object_name)[-1]}"
+    file_name = f"/tmp/{uuid4()}-{os.path.split(object_name)[-1]}"
     object_store.download_file(object_name, file_name)
     return vaex.open(file_name)
 
