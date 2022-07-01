@@ -18,12 +18,17 @@ api_client = ApiClient()
 
 
 @check_noop
-def finish(last_epoch: Optional[int] = None) -> Optional[Dict[str, Any]]:
+def finish(
+    last_epoch: Optional[int] = None, wait: bool = True
+) -> Optional[Dict[str, Any]]:
     """
     Finishes the current run and invokes a job
 
     :param last_epoch: If set, only epochs up to this value will be uploaded/processed
         This is inclusive, so setting last_epoch to 5 would upload epochs 0,1,2,3,4,5
+    :param wait: If true, after uploading the data, this will wait for the
+        run to be processed by the Galileo server. If false, you can manually wait
+        for the run by calling `dq.wait_for_run()` Default True
     """
     ThreadPoolManager.wait_for_threads()
     assert config.current_project_id, "You must have an active project to call finish"
@@ -60,6 +65,8 @@ def finish(last_epoch: Optional[int] = None) -> Optional[Dict[str, Any]]:
     )
     # Reset all config variables
     data_logger.logger_config.reset()
+    if wait:
+        wait_for_run()
     return res
 
 
