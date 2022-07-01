@@ -13,15 +13,17 @@ def verify_jwt_token() -> None:
     print("🔭 Validating Galileo token...\n")
     if not config.token:
         config.token = input(
-            "🔐 Missing GALILEO_JWT_TOKEN. This can be found in the \n"
-            "Galileo console. Please enter token: \n"
+            "🔐 Authentication token not found. To skip this prompt in the future \n"
+            "set the GALILEO_JWT_TOKEN environment variable. You can get your JWT \n"
+            "token from the console. \n"
+            "Please enter your token: \n"
         )
 
     try:
         current_user_email = api_client.get_current_user().get("email")
     except GalileoException:
         print(
-            "\n🚨 Invalid JWT token. Make sure to get the latest token from the "
+            "\n🚨 Invalid token. Make sure to get the latest token from the "
             "console. \n"
         )
         return
