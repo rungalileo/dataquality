@@ -27,6 +27,7 @@ class Route(str, Enum):
     epochs = "epochs"
     summary = "insights/summary"
     groupby = "insights/groupby"
+    distribution = "insights/distribution"
     xray = "insights/xray"
 
     @staticmethod

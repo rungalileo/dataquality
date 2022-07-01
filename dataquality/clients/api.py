@@ -590,6 +590,36 @@ class ApiClient:
         body = {"task": task, "filter_params": filter_params or {}}
         return self.make_request(RequestType.POST, url, body=body, params=params)
 
+    def get_column_distribution(
+        self,
+        project_name: str,
+        run_name: str,
+        split: str,
+        task: str = None,
+        inference_name: str = None,
+        column: str = "data_error_potential",
+        filter_params: Dict = None,
+    ) -> Dict[str, List]:
+        project, run = self._get_project_run_id(project_name, run_name)
+        split = conform_split(split)
+
+        all_meta = self.get_metadata_columns(project_name, run_name, split)
+        continuous_meta = [i["name"] for i in all_meta["meta"] if i["is_continuous"]]
+        avl_cols = continuous_meta + ["data_error_potential"]
+        if column not in avl_cols:
+            raise GalileoException(
+                f"Column must be one of continuous columns {avl_cols} for this run "
+                f"but got {column}"
+            )
+
+        path = Route.content_path(project, run, split)
+        url = f"{config.api_url}/{path}/{Route.distribution}"
+        params = {"col": column}
+        if inference_name:
+            params["inference_name"] = inference_name
+        body = {"task": task, "filter_params": filter_params or {}}
+        return self.make_request(RequestType.POST, url, body=body, params=params)
+
     def get_xray_cards(
         self, project_name: str, run_name: str, split: str, inference_name: str = None
     ) -> List[Dict[str, str]]:
