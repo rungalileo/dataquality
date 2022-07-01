@@ -559,7 +559,7 @@ def test_finish_last_epoch(
             embs=embs, logits=logits, ids=ids, split="training", epoch=i // 3
         )
         last_logged_epoch += 1
-    dq.finish(last_epoch=last_epoch)
+    dq.finish(last_epoch=last_epoch, wait=False)
     # if max epoch is None, all should be uploaded.
     # if max epoch is greater than the max logged, all should be uploaded
     # if max epoch is less than max logged, only log up to and including max_epoch

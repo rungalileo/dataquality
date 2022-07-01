@@ -40,7 +40,7 @@ def test_std_log(
     mock_finish.return_value = {"job_name": "test_job", "link": "link"}
     mock_presigned_url.return_value = "https://google.com"
     mock_upload_from_local.return_value = None
-    dq.finish()
+    dq.finish(wait=False)
     mock_download.return_value = "my-file"
 
     x = dq.get_dq_log_file()
