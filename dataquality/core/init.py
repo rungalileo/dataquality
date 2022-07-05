@@ -105,7 +105,7 @@ def init(
     if not api_client.valid_current_user():
         raise GalileoException(
             "Trouble verifying the current user. Please ensure that GALILEO_JWT_TOKEN "
-            "is set and unexpired. You can fetch a new token at the Galileo console."
+            "is set and unexpired. You can fetch a new token in the console."
         )
     _init = _Init()
     BaseGalileoLogger.validate_task(task_type)

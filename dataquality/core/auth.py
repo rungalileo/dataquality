@@ -29,11 +29,10 @@ def verify_jwt_token() -> None:
         return
 
     if not current_user_email:
-        print(
+        raise GalileoException(
             "\n🚨 User not found for this token. Make sure to get the latest token "
             "from the console. \n"
         )
-        return
     config.current_user = current_user_email
     config.update_file_config()
     print(f"\n🚀 You're logged in to Galileo as {current_user_email}!")
