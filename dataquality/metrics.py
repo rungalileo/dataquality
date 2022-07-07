@@ -1,6 +1,6 @@
 import os
 import warnings
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 from uuid import uuid4
 
 import vaex
@@ -10,6 +10,7 @@ from dataquality.clients.api import ApiClient
 from dataquality.clients.objectstore import ObjectStore
 from dataquality.exceptions import GalileoException, GalileoWarning
 from dataquality.schemas.dataframe import FileType
+from dataquality.schemas.metrics import FilterParams
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 
@@ -23,6 +24,7 @@ def get_run_summary(
     split: Split,
     task: Optional[str] = None,
     inference_name: Optional[str] = None,
+    filter: Union[FilterParams, Dict] = None,
 ) -> Dict:
     """Gets the summary for a run/split
 
@@ -34,9 +36,12 @@ def get_run_summary(
     :param split: The split (training/test/validation/inference)
     :param task: (If multi-label only) the task name in question
     :param inference_name: (If inference split only) The inference split name
+    :param filter: Optional filter to provide to restrict the summary to only to
+        matching rows. See `dq.schemas.metrics.FilterParams`
     """
+    filter_params = _validate_filter(filter)
     return api_client.get_run_summary(
-        project_name, run_name, split, task, inference_name
+        project_name, run_name, split, task, inference_name, filter_params=filter_params
     )
 
 
@@ -47,6 +52,7 @@ def get_metrics(
     task: Optional[str] = None,
     inference_name: Optional[str] = None,
     category: str = "gold",
+    filter: Union[FilterParams, Dict] = None,
 ) -> Dict[str, List]:
     """Calculates available metrics for a run/split, grouped by a particular category
 
@@ -61,6 +67,8 @@ def get_metrics(
     :param category: The category/column to calculate metrics for. Default "gold"
         Can be "gold" for ground truth, "pred" for predicted values, or any metadata
         column logged (or smart feature).
+    :param filter: Optional filter to provide to restrict the metrics to only to
+        matching rows. See `dq.schemas.metrics.FilterParams`
     """
     metrics = api_client.get_run_metrics(
         project_name,
@@ -69,6 +77,7 @@ def get_metrics(
         task=task,
         inference_name=inference_name,
         category=category,
+        filter_params=_validate_filter(filter),
     )
     # Filter out metrics not available for this request
     metrics = {k: v for k, v in metrics.items() if v}
@@ -82,6 +91,7 @@ def display_distribution(
     task: Optional[str] = None,
     inference_name: Optional[str] = None,
     column: str = "data_error_potential",
+    filter: Union[FilterParams, Dict] = None,
 ) -> None:
     """Displays the column distribution for a run. Plotly must be installed
 
@@ -91,6 +101,8 @@ def display_distribution(
     :param task: (If multi-label only) the task name in question
     :param inference_name: (If inference split only) The inference split name
     :param column: The column to get the distribution for. Default data error potential
+    :param filter: Optional filter to provide to restrict the distribution to only to
+        matching rows. See `dq.schemas.metrics.FilterParams`
     """
     try:
         import plotly.express as px
@@ -105,6 +117,7 @@ def display_distribution(
         column=column,
         task=task,
         inference_name=inference_name,
+        filter_params=_validate_filter(filter),
     )
     bins, counts = distribution["bins"], distribution["counts"]
     labels = {"x": column, "y": "Count"}
@@ -142,6 +155,7 @@ def get_dataframe(
     include_embs: bool = False,
     include_probs: bool = False,
     include_token_indices: bool = False,
+    filter: Union[FilterParams, Dict] = None,
 ) -> DataFrame:
     """Gets the dataframe for a run/split
 
@@ -162,18 +176,28 @@ def get_dataframe(
     :param include_probs: Whether to include the probs in the data. Default False
     :param include_token_indices: (NER only) Whether to include logged
         text_token_indices in the data. Useful for reconstructing tokens for retraining
+    :param filter: Optional filter to provide to restrict the distribution to only to
+        matching rows. See `dq.schemas.metrics.FilterParams`
     """
     project_id, run_id = api_client._get_project_run_id(project_name, run_name)
     task_type = api_client.get_task_type(project_id, run_id)
 
     file_name = f"/tmp/{uuid4()}-data.{file_type}"
-    api_client.export_run(project_name, run_name, split, file_name=file_name)
+    filter_params = _validate_filter(filter)
+    api_client.export_run(
+        project_name, run_name, split, file_name=file_name, filter_params=filter_params
+    )
     data_df = vaex.open(file_name)
     # See docstring. In this case, we need span-level data
     if include_embs and task_type == TaskType.text_ner:
         # In NER, the `probabilities` contains the span level data
         span_df = get_probabilities(project_name, run_name, split)
-        data_df = span_df.join(data_df[["text", "sample_id"]], on="sample_id")
+        # These are the token (not char) indices, lets make that clear
+        span_df.rename("span_start", "span_token_start")
+        span_df.rename("span_end", "span_token_end")
+        data_df = data_df[["sample_id", "text", "spans"]].join(
+            span_df, on="sample_id", allow_duplication=True
+        )
 
     tasks = []
     if task_type == TaskType.text_multi_label:
@@ -296,7 +320,7 @@ def get_xray_cards(
     return api_client.get_xray_cards(project_name, run_name, split, inference_name)
 
 
-def get_label_for_run(
+def get_labels_for_run(
     project_name: str, run_name: str, task: Optional[str] = None
 ) -> List[str]:
     """Gets labels for a given run. If multi-label, a task must be provided"""
@@ -360,3 +384,8 @@ def _rename_prob_cols(df: DataFrame, tasks: List[str]) -> DataFrame:
     for ind, task in enumerate(tasks):
         df.rename(f"prob_{ind}", f"prob_{task}")
     return df
+
+
+def _validate_filter(filter: Union[FilterParams, Dict] = None) -> Dict:
+    # Validate the fields provided with pydantic before making request
+    return FilterParams(**dict(filter or {})).dict()

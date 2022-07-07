@@ -407,6 +407,7 @@ class ApiClient:
         slice_name: Optional[str] = None,
         include_cols: Optional[List[str]] = None,
         col_mapping: Optional[Dict[str, str]] = None,
+        filter_params: Dict = None,
     ) -> None:
         """Export a project/run to disk as a csv file
 
@@ -419,6 +420,9 @@ class ApiClient:
         :param include_cols: List of columns to include in the export. If not set,
         all columns will be exported.
         :param col_mapping: Dictionary of renamed column names for export.
+        :param filter_params: Filters to apply to the dataframe before exporting. Only
+        rows with matching filters will be included in the exported data. If a slice
+
         """
         project, run = self._get_project_run_id(project_name, run_name)
         ext = os.path.splitext(file_name)[-1].lstrip(".")
@@ -428,9 +432,13 @@ class ApiClient:
         body: Dict[str, Any] = dict(
             include_cols=include_cols, col_mapping=col_mapping, file_type=ext
         )
+        body["filter_params"] = {}
         if slice_name:
             slice_ = self.get_slice_by_name(project_name, slice_name)
-            body["filter_params"] = slice_["logic"]
+            body["filter_params"].update(slice_["logic"])
+
+        if filter_params:
+            body["filter_params"].update(filter_params)
 
         if self.get_task_type(project, run) == TaskType.text_multi_label:
             body["task"] = self.get_tasks_for_run(project_name, run_name)[0]
