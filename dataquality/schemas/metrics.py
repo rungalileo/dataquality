@@ -54,22 +54,41 @@ class FilterParams(BaseModel):
     """A class for sending filters to the API alongside most any request.
 
     Each field represents things you can filter the dataframe on.
+
+    Args:
+        ids: List[int] = []  filter for specific IDs in the dataframe (span IDs for NER)
+        similar_to: Optional[int] = None  provide an ID to run similarity search on
+        num_similar_to: Optional[int] = None  if running similarity search, how many
+        text_pat: Optional[StrictStr] = None  filter text samples by some text pattern
+        regex: Optional[bool] = None  if searching with text, whether to use regex
+        data_error_potential_high: Optional[float] = None  only samples with DEP <= this
+        data_error_potential_low: Optional[float] = None  only samples with DEP >= this
+        misclassified_only: Optional[bool] = None  Only look at missed samples
+        gold_filter: Optional[List[StrictStr]] = None  filter GT classes
+        pred_filter: Optional[List[StrictStr]] = None  filter prediction classes
+        meta_filter: Optional[List[MetaFilter]] = None  see MetaFilter class
+        inference_filter: Optional[InferenceFilter] = None  see InferenceFilter class
+        span_sample_ids: Optional[List[int]] = None  (NER only) filter for full samples
+        span_text: Optional[str] = None  (NER only) filter only on span text
+        exclude_ids: List[int] = []  opposite of `ids`
+        lasso: Optional[LassoSelection] = None  see LassoSelection class
+        class_filter: Optional[List[StrictStr]] = None  filter GT OR prediction
     """
 
-    ids: List[int] = []  # filter for specific IDs in the dataframe (span IDs for NER)
-    similar_to: Optional[int] = None  # provide an ID to run similarity search on
-    num_similar_to: Optional[int] = None  # if running similarity search, how many
-    text_pat: Optional[StrictStr] = None  # searching the samples for some text pattern
-    regex: Optional[bool] = None  # if searching with text, whether to use regex
-    data_error_potential_high: Optional[float] = None  # only samples with DEP <= this
-    data_error_potential_low: Optional[float] = None  # only samples with DEP >= this
-    misclassified_only: Optional[bool] = None  # Whether to only look at missed samples
-    gold_filter: Optional[List[StrictStr]] = None  # filter GT classes
-    pred_filter: Optional[List[StrictStr]] = None  # filter prediction classes
-    meta_filter: Optional[List[MetaFilter]] = None  # see MetaFilter class
-    inference_filter: Optional[InferenceFilter] = None  # see InferenceFilter class
-    span_sample_ids: Optional[List[int]] = None  # (NER only) filter for full samples
-    span_text: Optional[str] = None  # (NER only) filter only on span text
-    exclude_ids: List[int] = []  # opposite of `ids`
-    lasso: Optional[LassoSelection] = None  # see LassoSelection class
-    class_filter: Optional[List[StrictStr]] = None  # filter GT OR prediction
+    ids: List[int] = []
+    similar_to: Optional[int] = None
+    num_similar_to: Optional[int] = None
+    text_pat: Optional[StrictStr] = None
+    regex: Optional[bool] = None
+    data_error_potential_high: Optional[float] = None
+    data_error_potential_low: Optional[float] = None
+    misclassified_only: Optional[bool] = None
+    gold_filter: Optional[List[StrictStr]] = None
+    pred_filter: Optional[List[StrictStr]] = None
+    meta_filter: Optional[List[MetaFilter]] = None
+    inference_filter: Optional[InferenceFilter] = None
+    span_sample_ids: Optional[List[int]] = None
+    span_text: Optional[str] = None
+    exclude_ids: List[int] = []
+    lasso: Optional[LassoSelection] = None
+    class_filter: Optional[List[StrictStr]] = None
