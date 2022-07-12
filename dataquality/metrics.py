@@ -3,6 +3,7 @@ import warnings
 from typing import Dict, List, Optional, Union
 from uuid import uuid4
 
+import pandas as pd
 import vaex
 from vaex.dataframe import DataFrame
 
@@ -146,6 +147,35 @@ def display_distribution(
     )
     fig.show()
 
+
+def display_embeddings(
+    project_name: str,
+    run_name: str,
+    split: Split,
+    inference_name: Optional[str] = None,
+    filter: Union[FilterParams, Dict] = None,
+) -> None:
+    """Displays the embeddings for a run/split. Plotly must be installed
+
+    :param project_name: The project name
+    :param run_name: The run name
+    :param split: The split (training/test/validation/inference)
+    :param inference_name: (If inference split only) The inference split name
+    :param filter: Optional filter to provide to restrict the distribution to only to
+        matching rows. See `dq.schemas.metrics.FilterParams`
+    """
+    try:
+        import plotly.express as px
+    except ImportError:
+        raise GalileoException(
+            "You must install plotly to use this function. Run `pip install plotly`"
+        )
+    file = f"/tmp/{uuid4()}.csv"
+    filter_params = _validate_filter(filter)
+    api_client.get_embeddings(
+        project_name, run_name, split, file, inference_name, filter_params=filter_params
+    )
+    emb_df = pd.read_csv(file)
 
 def get_dataframe(
     project_name: str,

@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import requests
 from pydantic.types import UUID4
+from requests import Response
 
 from dataquality.core._config import config, url_is_localhost
 from dataquality.exceptions import GalileoException
@@ -414,14 +415,14 @@ class ApiClient:
         :param project_name: The project name
         :param run_name: The run name
         :param split: The split to export on
-        :param file_name: The file name. Must end in .csv
+        :param file_name: The file name.
         :param slice_name: The optional slice name to export. If selected, this data
         from this slice will be exported only.
         :param include_cols: List of columns to include in the export. If not set,
         all columns will be exported.
         :param col_mapping: Dictionary of renamed column names for export.
         :param filter_params: Filters to apply to the dataframe before exporting. Only
-        rows with matching filters will be included in the exported data. If a slice
+        rows with matching filters will be included in the exported data.
 
         """
         project, run = self._get_project_run_id(project_name, run_name)
@@ -447,20 +448,7 @@ class ApiClient:
         with requests.post(
             url, json=body, stream=True, headers=headers(config.token)
         ) as r:
-            r.raise_for_status()
-            # If a run/split or a set of filters has no data, the API will return a 200
-            # with a special header letting us know, so we don't try to load a file
-            # with an unexpected format
-            if r.headers.get("Galileo-No-Data") == "true":
-                raise GalileoException(
-                    f"It seems there is no data for run {project_name}/{run_name}/"
-                    f"{split}.\nEnsure you spelled everything correctly. "
-                    "Projects and runs are case sensitive."
-                )
-
-            with open(file_name, "wb") as f:
-                for chunk in r.iter_content(chunk_size=8192):
-                    f.write(chunk)
+            self._process_request_stream(project_name, run_name, split, r, file_name)
 
     def get_project_run_name(
         self, project_id: Optional[UUID4] = None, run_id: Optional[UUID4] = None
@@ -637,3 +625,57 @@ class ApiClient:
         url = f"{config.api_url}/{path}/{Route.xray}"
         params = {"inference_name": inference_name} if inference_name else None
         return self.make_request(RequestType.GET, url, params=params)
+
+    def get_embeddings(
+        self,
+        project_name: str,
+        run_name: str,
+        split: str,
+        file_name: str,
+        inference_name: str = "",
+        filter_params: Dict = None,
+    ) -> None:
+        """Export a project/run to disk as a csv file
+
+        :param project_name: The project name
+        :param run_name: The run name
+        :param split: The split to export on
+        :param file_name: The file name to write embeddings to
+        :param inference_name: If split is inference, must provide an inference name
+        :param filter_params: Filters to apply to the dataframe. Only rows with matching
+        filters will be included in the embeddings data.
+        """
+        project, run = self._get_project_run_id(project_name, run_name)
+        ext = os.path.splitext(file_name)[-1].lstrip(".")
+
+        assert ext in list(FileType), f"File must be one of {list(FileType)}"
+        split = conform_split(split)
+        body: Dict[str, Any] = dict(filter_params=filter_params or {})
+
+        if self.get_task_type(project, run) == TaskType.text_multi_label:
+            body["task"] = self.get_tasks_for_run(project_name, run_name)[0]
+        params = dict(inference_name=inference_name) if inference_name else {}
+
+        url = f"{config.api_url}/{Route.content_path(project, run, split)}/export"
+        with requests.post(
+            url, json=body, stream=True, headers=headers(config.token), params=params
+        ) as r:
+            self._process_request_stream(project_name, run_name, split, r, file_name)
+
+    def _process_request_stream(
+        self, project_name: str, run_name: str, split: str, r: Response, file_name: str
+    ) -> None:
+        r.raise_for_status()
+        # If a run/split or a set of filters has no data, the API will return a 200
+        # with a special header letting us know, so we don't try to load a file
+        # with an unexpected format
+        if r.headers.get("Galileo-No-Data") == "true":
+            raise GalileoException(
+                f"It seems there is no data for run {project_name}/{run_name}/"
+                f"{split}.\nEnsure you spelled everything correctly. "
+                "Projects and runs are case sensitive."
+            )
+
+        with open(file_name, "wb") as f:
+            for chunk in r.iter_content(chunk_size=8192):
+                f.write(chunk)
