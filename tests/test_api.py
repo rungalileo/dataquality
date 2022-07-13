@@ -300,6 +300,4 @@ def test_export_run_no_data(
     )
     with pytest.raises(GalileoException) as e:
         api_client.export_run("project", "run", "training", "file.csv")
-    assert str(e.value).startswith(
-        "It seems there is no data for this request"
-    )
+    assert str(e.value).startswith("It seems there is no data for this request")
