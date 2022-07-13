@@ -152,6 +152,7 @@ def get_dataframe(
     project_name: str,
     run_name: str,
     split: Split,
+    file_type: FileType = FileType.arrow,
     include_embs: bool = False,
     include_probs: bool = False,
     include_token_indices: bool = False,
@@ -173,6 +174,7 @@ def get_dataframe(
     :param project_name: The project name
     :param run_name: The run name
     :param split: The split (training/test/validation/inference)
+    :param file_type: The file type to download the data as. Default arrow
     :param include_embs: Whether to include the embeddings in the data. Default False
     :param include_probs: Whether to include the probs in the data. Default False
     :param include_token_indices: (NER only) Whether to include logged
