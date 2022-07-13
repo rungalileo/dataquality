@@ -11,6 +11,7 @@ from dataquality.clients.objectstore import ObjectStore
 from dataquality.exceptions import GalileoException, GalileoWarning
 from dataquality.schemas.dataframe import FileType
 from dataquality.schemas.metrics import FilterParams
+from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 
@@ -151,10 +152,11 @@ def get_dataframe(
     project_name: str,
     run_name: str,
     split: Split,
-    file_type: FileType = FileType.arrow,
     include_embs: bool = False,
     include_probs: bool = False,
     include_token_indices: bool = False,
+    hf_format: bool = False,
+    tagging_schema: Optional[TaggingSchema] = None,
     filter: Union[FilterParams, Dict] = None,
 ) -> DataFrame:
     """Gets the dataframe for a run/split
@@ -171,25 +173,36 @@ def get_dataframe(
     :param project_name: The project name
     :param run_name: The run name
     :param split: The split (training/test/validation/inference)
-    :param file_type: The file type to download the data as. Default arrow
     :param include_embs: Whether to include the embeddings in the data. Default False
     :param include_probs: Whether to include the probs in the data. Default False
     :param include_token_indices: (NER only) Whether to include logged
         text_token_indices in the data. Useful for reconstructing tokens for retraining
+    :param hf_format: (NER only)
+        Whether to export the dataframe in a HuggingFace compatible format
+    :param tagging_schema: (NER only)
+        If hf_format is True, you must pass a tagging schema
     :param filter: Optional filter to provide to restrict the distribution to only to
         matching rows. See `dq.schemas.metrics.FilterParams`
     """
     project_id, run_id = api_client._get_project_run_id(project_name, run_name)
     task_type = api_client.get_task_type(project_id, run_id)
 
-    file_name = f"/tmp/{uuid4()}-data.{file_type}"
+    file_name = f"/tmp/{uuid4()}-data.{FileType.arrow}"
     filter_params = _validate_filter(filter)
     api_client.export_run(
-        project_name, run_name, split, file_name=file_name, filter_params=filter_params
+        project_name,
+        run_name,
+        split,
+        file_name=file_name,
+        filter_params=filter_params,
+        hf_format=hf_format,
+        tagging_schema=tagging_schema,
     )
     data_df = vaex.open(file_name)
     # See docstring. In this case, we need span-level data
-    if include_embs and task_type == TaskType.text_ner:
+    # You can't attach embeddings to the huggingface data, since the HF format is
+    # sample level, and the embeddings are span level
+    if include_embs and task_type == TaskType.text_ner and not hf_format:
         # In NER, the `probabilities` contains the span level data
         span_df = get_probabilities(project_name, run_name, split)
         # These are the token (not char) indices, lets make that clear
@@ -212,12 +225,22 @@ def get_dataframe(
         data_df = _index_df(data_df, labels_per_task)
 
     if include_embs:
-        emb_df = get_embeddings(project_name, run_name, split)
-        data_df = data_df.join(emb_df, on="id")
+        # Embeddings are span level, but huggingface is sample level, so can't combine
+        if hf_format:
+            warnings.warn(
+                "Embeddings are not available in HF format, ignoring", GalileoWarning
+            )
+        else:
+            emb_df = get_embeddings(project_name, run_name, split)
+            data_df = data_df.join(emb_df, on="id")
     if include_probs:
         if task_type == task_type.text_ner:
             warnings.warn(
                 "Probabilities are not available for NER runs, ignoring", GalileoWarning
+            )
+        elif hf_format:
+            warnings.warn(
+                "Probabilities are not available in HF format, ignoring", GalileoWarning
             )
         else:
             prob_df = get_probabilities(project_name, run_name, split)
@@ -232,8 +255,9 @@ def get_dataframe(
         else:
             raw_tokens = get_raw_data(project_name, run_name, split)
             raw_tokens = raw_tokens[["id", "text_token_indices"]]
-            raw_tokens.rename("id", "sample_id")
-            data_df = data_df.join(raw_tokens, on="sample_id")
+            if "sample_id" in data_df.get_column_names():
+                data_df.rename("sample_id", "id")
+            data_df = data_df.join(raw_tokens, on="id")
     return data_df
 
 
