@@ -189,7 +189,7 @@ def get_dataframe(
     project_id, run_id = api_client._get_project_run_id(project_name, run_name)
     task_type = api_client.get_task_type(project_id, run_id)
 
-    file_name = f"/tmp/{uuid4()}-data.{FileType.arrow}"
+    file_name = f"/tmp/{uuid4()}-data.{file_type}"
     filter_params = _validate_filter(filter)
     api_client.export_run(
         project_name,
