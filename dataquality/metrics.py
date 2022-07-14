@@ -259,7 +259,7 @@ def get_embeddings(
     project_name: str,
     run_name: str,
     split: Split,
-    inference_name: str = None,
+    inference_name: str = "",
     epoch: int = None,
 ) -> DataFrame:
     """Downloads the embeddings for a run/split at an epoch as a Vaex dataframe.
@@ -289,7 +289,7 @@ def get_probabilities(
     project_name: str,
     run_name: str,
     split: Split,
-    inference_name: str = None,
+    inference_name: str = "",
     epoch: int = None,
 ) -> DataFrame:
     """Downloads the probabilities for a run/split at an epoch as a Vaex dataframe.
@@ -313,7 +313,7 @@ def get_raw_data(
     project_name: str,
     run_name: str,
     split: Split,
-    inference_name: str = None,
+    inference_name: str = "",
     epoch: int = None,
 ) -> DataFrame:
     """Downloads the raw logged data for a run/split at an epoch as a Vaex dataframe.
@@ -367,14 +367,14 @@ def _get_hdf5_file_for_epoch(
     run_name: str,
     split: Split,
     object_name: str,
-    inference_name: str = None,
+    inference_name: str = "",
     epoch: int = None,
 ) -> DataFrame:
     emb = "emb" in object_name
     if inference_name:
         split_path = inference_name
     else:
-        split_path = _validate_epoch(project_name, run_name, split, epoch, emb=emb)
+        split_path = str(_validate_epoch(project_name, run_name, split, epoch, emb=emb))
     project_id, run_id = api_client._get_project_run_id(project_name, run_name)
     object_name = f"{project_id}/{run_id}/{split}/{split_path}/{object_name}"
     file_name = f"/tmp/{uuid4()}-{os.path.split(object_name)[-1]}"
