@@ -371,7 +371,7 @@ def _get_hdf5_file_for_epoch(
     epoch: int = None,
 ) -> DataFrame:
     emb = "emb" in object_name
-    if inference_name:
+    if split == Split.inference and inference_name:
         split_path = inference_name
     else:
         split_path = str(_validate_epoch(project_name, run_name, split, epoch, emb=emb))
