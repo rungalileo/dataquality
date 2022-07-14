@@ -240,7 +240,7 @@ def get_dataframe(
             emb_df = get_embeddings(project_name, run_name, split, inference_name)
             data_df = data_df.join(emb_df, on="id")
     if include_probs:
-        if task_type in task_type.text_ner:
+        if task_type == task_type.text_ner:
             warnings.warn(
                 "Probabilities are not available for NER runs, ignoring", GalileoWarning
             )
