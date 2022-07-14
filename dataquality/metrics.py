@@ -151,6 +151,7 @@ def get_dataframe(
     project_name: str,
     run_name: str,
     split: Split,
+    inference_name: str = "",
     file_type: FileType = FileType.arrow,
     include_embs: bool = False,
     include_probs: bool = False,
@@ -171,6 +172,8 @@ def get_dataframe(
     :param project_name: The project name
     :param run_name: The run name
     :param split: The split (training/test/validation/inference)
+    :param inference_name: Required if split is inference. The name of the inference
+        split to get data for.
     :param file_type: The file type to download the data as. Default arrow
     :param include_embs: Whether to include the embeddings in the data. Default False
     :param include_probs: Whether to include the probs in the data. Default False
@@ -185,13 +188,18 @@ def get_dataframe(
     file_name = f"/tmp/{uuid4()}-data.{file_type}"
     filter_params = _validate_filter(filter)
     api_client.export_run(
-        project_name, run_name, split, file_name=file_name, filter_params=filter_params
+        project_name,
+        run_name,
+        split,
+        inference_name=inference_name,
+        file_name=file_name,
+        filter_params=filter_params,
     )
     data_df = vaex.open(file_name)
     # See docstring. In this case, we need span-level data
     if include_embs and task_type == TaskType.text_ner:
         # In NER, the `probabilities` contains the span level data
-        span_df = get_probabilities(project_name, run_name, split)
+        span_df = get_probabilities(project_name, run_name, split, inference_name)
         # These are the token (not char) indices, lets make that clear
         span_df.rename("span_start", "span_token_start")
         span_df.rename("span_end", "span_token_end")
@@ -212,15 +220,15 @@ def get_dataframe(
         data_df = _index_df(data_df, labels_per_task)
 
     if include_embs:
-        emb_df = get_embeddings(project_name, run_name, split)
+        emb_df = get_embeddings(project_name, run_name, split, inference_name)
         data_df = data_df.join(emb_df, on="id")
     if include_probs:
-        if task_type == task_type.text_ner:
+        if task_type in task_type.text_ner:
             warnings.warn(
                 "Probabilities are not available for NER runs, ignoring", GalileoWarning
             )
         else:
-            prob_df = get_probabilities(project_name, run_name, split)
+            prob_df = get_probabilities(project_name, run_name, split, inference_name)
             prob_cols = prob_df.get_column_names(regex="prob*") + ["id"]
             data_df = data_df.join(prob_df[prob_cols], on="id")
             data_df = _rename_prob_cols(data_df, tasks)
@@ -248,7 +256,11 @@ def get_epochs(project_name: str, run_name: str, split: Split) -> List[int]:
 
 
 def get_embeddings(
-    project_name: str, run_name: str, split: Split, epoch: int = None
+    project_name: str,
+    run_name: str,
+    split: Split,
+    inference_name: str = "",
+    epoch: int = None,
 ) -> DataFrame:
     """Downloads the embeddings for a run/split at an epoch as a Vaex dataframe.
 
@@ -260,15 +272,25 @@ def get_embeddings(
     :param project_name: The project name
     :param run_name: The run name
     :param split: The split (training/test/validation/inference)
+    :param inference_name: Required if split is inference
     :param epoch: The epoch to get embeddings for. Default final epoch
     """
     return _get_hdf5_file_for_epoch(
-        project_name, run_name, split, "emb/emb.hdf5", epoch
+        project_name,
+        run_name,
+        split,
+        "emb/emb.hdf5",
+        inference_name,
+        epoch,
     )
 
 
 def get_probabilities(
-    project_name: str, run_name: str, split: Split, epoch: int = None
+    project_name: str,
+    run_name: str,
+    split: Split,
+    inference_name: str = "",
+    epoch: int = None,
 ) -> DataFrame:
     """Downloads the probabilities for a run/split at an epoch as a Vaex dataframe.
 
@@ -279,15 +301,20 @@ def get_probabilities(
     :param project_name: The project name
     :param run_name: The run name
     :param split: The split (training/test/validation/inference)
+    :param inference_name: Required if split is inference
     :param epoch: The epoch to get embeddings for. Default final epoch
     """
     return _get_hdf5_file_for_epoch(
-        project_name, run_name, split, "prob/prob.hdf5", epoch
+        project_name, run_name, split, "prob/prob.hdf5", inference_name, epoch
     )
 
 
 def get_raw_data(
-    project_name: str, run_name: str, split: Split, epoch: int = None
+    project_name: str,
+    run_name: str,
+    split: Split,
+    inference_name: str = "",
+    epoch: int = None,
 ) -> DataFrame:
     """Downloads the raw logged data for a run/split at an epoch as a Vaex dataframe.
 
@@ -298,6 +325,7 @@ def get_raw_data(
     :param project_name: The project name
     :param run_name: The run name
     :param split: The split (training/test/validation/inference)
+    :param inference_name: Required if split is inference
     :param epoch: The epoch to get embeddings for. Default final epoch
     """
 
@@ -307,7 +335,9 @@ def get_raw_data(
         object_name = "data/data.arrow"
     else:
         object_name = "data/data.hdf5"
-    return _get_hdf5_file_for_epoch(project_name, run_name, split, object_name, epoch)
+    return _get_hdf5_file_for_epoch(
+        project_name, run_name, split, object_name, inference_name, epoch
+    )
 
 
 def get_xray_cards(
@@ -333,12 +363,20 @@ def get_tasks_for_run(project_name: str, run_name: str) -> List[str]:
 
 
 def _get_hdf5_file_for_epoch(
-    project_name: str, run_name: str, split: Split, object_name: str, epoch: int = None
+    project_name: str,
+    run_name: str,
+    split: Split,
+    object_name: str,
+    inference_name: str = "",
+    epoch: int = None,
 ) -> DataFrame:
     emb = "emb" in object_name
-    epoch = _validate_epoch(project_name, run_name, split, epoch, emb=emb)
+    if split == Split.inference and inference_name:
+        split_path = inference_name
+    else:
+        split_path = str(_validate_epoch(project_name, run_name, split, epoch, emb=emb))
     project_id, run_id = api_client._get_project_run_id(project_name, run_name)
-    object_name = f"{project_id}/{run_id}/{split}/{epoch}/{object_name}"
+    object_name = f"{project_id}/{run_id}/{split}/{split_path}/{object_name}"
     file_name = f"/tmp/{uuid4()}-{os.path.split(object_name)[-1]}"
     object_store.download_file(object_name, file_name)
     return vaex.open(file_name)
@@ -374,6 +412,8 @@ def _index_df(df: DataFrame, labels: List, tasks: Optional[List] = None) -> Data
         # If multi label, must do it per task. If TC, then it's just 1 list of labels
         task_labels = labels[ind] if task else labels
         for col in ["gold", "pred"]:
+            if col not in df.get_column_names():
+                continue
             df_col = f"{col}_{task}" if task else col
             df[f"{df_col}_idx"] = df[df_col]
             df = df.ordinal_encode(f"{df_col}_idx", values=task_labels, lazy=True)
