@@ -404,6 +404,7 @@ class ApiClient:
         run_name: str,
         split: str,
         file_name: str,
+        inference_name: str = "",
         slice_name: Optional[str] = None,
         include_cols: Optional[List[str]] = None,
         col_mapping: Optional[Dict[str, str]] = None,
@@ -414,7 +415,9 @@ class ApiClient:
         :param project_name: The project name
         :param run_name: The run name
         :param split: The split to export on
-        :param file_name: The file name. Must end in .csv
+        :param file_name: The file name. Must end in a supported FileType
+        :param inference_name: Required if split is inference. The name of the inference
+            split to get data for.
         :param slice_name: The optional slice name to export. If selected, this data
         from this slice will be exported only.
         :param include_cols: List of columns to include in the export. If not set,
@@ -443,9 +446,10 @@ class ApiClient:
         if self.get_task_type(project, run) == TaskType.text_multi_label:
             body["task"] = self.get_tasks_for_run(project_name, run_name)[0]
 
+        params = {"inference_name": inference_name}
         url = f"{config.api_url}/{Route.content_path(project, run, split)}/export"
         with requests.post(
-            url, json=body, stream=True, headers=headers(config.token)
+            url, json=body, stream=True, headers=headers(config.token), params=params
         ) as r:
             r.raise_for_status()
             # If a run/split or a set of filters has no data, the API will return a 200
