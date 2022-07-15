@@ -89,6 +89,7 @@ class FilterParams(BaseModel):
     inference_filter: Optional[InferenceFilter] = None
     span_sample_ids: Optional[List[int]] = None
     span_text: Optional[str] = None
+    span_regex: Optional[bool] = None
     exclude_ids: List[int] = []
     lasso: Optional[LassoSelection] = None
     class_filter: Optional[List[StrictStr]] = None
