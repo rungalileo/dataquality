@@ -29,6 +29,9 @@ class Route(str, Enum):
     groupby = "insights/groupby"
     distribution = "insights/distribution"
     xray = "insights/xray"
+    export = "export"
+    edits = "edits"
+    export_edits = "edits/export"
 
     @staticmethod
     def content_path(

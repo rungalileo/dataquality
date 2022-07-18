@@ -205,6 +205,101 @@ def get_dataframe(
         tagging_schema=tagging_schema,
     )
     data_df = vaex.open(file_name)
+    return _process_exported_dataframe(
+        data_df,
+        project_name,
+        run_name,
+        split,
+        task_type,
+        inference_name,
+        include_embs,
+        include_probs,
+        include_token_indices,
+        hf_format,
+    )
+
+
+def get_edited_dataframe(
+    project_name: str,
+    run_name: str,
+    split: Split,
+    inference_name: str = "",
+    file_type: FileType = FileType.arrow,
+    include_embs: bool = False,
+    include_probs: bool = False,
+    include_token_indices: bool = False,
+    hf_format: bool = False,
+    tagging_schema: Optional[TaggingSchema] = None,
+) -> DataFrame:
+    """Gets the edited dataframe for a run/split
+
+    Exports a run/split's data with all active edits in the edits cart and returns
+    a vaex dataframe
+
+    Special note for NER. By default, the data will be downloaded at a sample level
+    (1 row per sample text), with spans for each sample in a `spans` column in a
+    spacy-compatible JSON format. If include_emb is True, the data will be expanded
+    into span level (1 row per span, with sample text repeated for each span row), in
+    order to join the span-level embeddings
+
+    :param project_name: The project name
+    :param run_name: The run name
+    :param split: The split (training/test/validation/inference)
+    :param inference_name: Required if split is inference. The name of the inference
+        split to get data for.
+    :param file_type: The file type to download the data as. Default arrow
+    :param include_embs: Whether to include the embeddings in the data. Default False
+    :param include_probs: Whether to include the probs in the data. Default False
+    :param include_token_indices: (NER only) Whether to include logged
+        text_token_indices in the data. Useful for reconstructing tokens for retraining
+    :param hf_format: (NER only)
+        Whether to export the dataframe in a HuggingFace compatible format
+    :param tagging_schema: (NER only)
+        If hf_format is True, you must pass a tagging schema
+    """
+    project_id, run_id = api_client._get_project_run_id(project_name, run_name)
+    task_type = api_client.get_task_type(project_id, run_id)
+
+    file_name = f"/tmp/{uuid4()}-data.{file_type}"
+    api_client.export_edits(
+        project_name,
+        run_name,
+        split,
+        inference_name=inference_name,
+        file_name=file_name,
+        hf_format=hf_format,
+        tagging_schema=tagging_schema,
+    )
+    data_df = vaex.open(file_name)
+    return _process_exported_dataframe(
+        data_df,
+        project_name,
+        run_name,
+        split,
+        task_type,
+        inference_name,
+        include_embs,
+        include_probs,
+        include_token_indices,
+        hf_format,
+    )
+
+
+def _process_exported_dataframe(
+    data_df: DataFrame,
+    project_name: str,
+    run_name: str,
+    split: Split,
+    task_type: TaskType,
+    inference_name: str = "",
+    include_embs: bool = False,
+    include_probs: bool = False,
+    include_token_indices: bool = False,
+    hf_format: bool = False,
+) -> DataFrame:
+    """Process dataframe after export of run or edits.
+
+    See `get_dataframe` and `get_edited_dataframe` for details"""
     # See docstring. In this case, we need span-level data
     # You can't attach embeddings to the huggingface data, since the HF format is
     # sample level, and the embeddings are span level

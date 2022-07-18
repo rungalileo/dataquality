@@ -426,7 +426,7 @@ class ApiClient:
         tagging_schema: Optional[TaggingSchema] = None,
         filter_params: Dict = None,
     ) -> None:
-        """Export a project/run to disk as a csv file
+        """Export a project/run to disk as a file
 
         :param project_name: The project name
         :param run_name: The run name
@@ -471,14 +471,10 @@ class ApiClient:
             body["task"] = self.get_tasks_for_run(project_name, run_name)[0]
 
         params = {"inference_name": inference_name}
-        url = f"{config.api_url}/{Route.content_path(project, run, split)}/export"
-        with requests.post(
-            url, json=body, stream=True, headers=headers(config.token), params=params
-        ) as r:
-            self._validate_response(r)
-            with open(file_name, "wb") as f:
-                for chunk in r.iter_content(chunk_size=8192):
-                    f.write(chunk)
+        url = (
+            f"{config.api_url}/{Route.content_path(project, run, split)}/{Route.export}"
+        )
+        self._export_dataframe_request(url, body, params, file_name)
 
     def get_project_run_name(
         self, project_id: Optional[UUID4] = None, run_id: Optional[UUID4] = None
@@ -655,3 +651,74 @@ class ApiClient:
         url = f"{config.api_url}/{path}/{Route.xray}"
         params = {"inference_name": inference_name} if inference_name else None
         return self.make_request(RequestType.GET, url, params=params)
+
+    def get_edits(
+        self, project_name: str, run_name: str, split: str, inference_name: str = None
+    ) -> List:
+        """Gets all edits for a run/split"""
+        project, run = self._get_project_run_id(project_name, run_name)
+        split = conform_split(split)
+
+        url = (
+            f"{config.api_url}/{Route.content_path(project, run, split)}/{Route.edits}"
+        )
+        params = {"inference_name": inference_name} if inference_name else None
+        return self.make_request(RequestType.GET, url, params=params)
+
+    def export_edits(
+        self,
+        project_name: str,
+        run_name: str,
+        split: str,
+        file_name: str,
+        inference_name: str = None,
+        include_cols: Optional[List[str]] = None,
+        col_mapping: Optional[Dict[str, str]] = None,
+        hf_format: bool = False,
+        tagging_schema: Optional[TaggingSchema] = None,
+    ) -> None:
+        """Export the edits of a project/run/split to disk as a file
+
+        :param project_name: The project name
+        :param run_name: The run name
+        :param split: The split to export on
+        :param file_name: The file name. Must end in a supported FileType
+        :param inference_name: Required if split is inference. The name of the inference
+            split to get data for.
+        :param include_cols: List of columns to include in the export. If not set,
+        all columns will be exported.
+        :param col_mapping: Dictionary of renamed column names for export.
+        :param hf_format: (NER only)
+            Whether to export the dataframe in a HuggingFace compatible format
+        :param tagging_schema: (NER only)
+            If hf_format is True, you must pass a tagging schema
+        :param filter_params: Filters to apply to the dataframe before exporting. Only
+        rows with matching filters will be included in the exported data. If a slice
+        """
+        edits = self.get_edits(project_name, run_name, split, inference_name)
+
+        ext = os.path.splitext(file_name)[-1].lstrip(".")
+        assert ext in list(FileType), f"File must be one of {list(FileType)}"
+
+        body: Dict[str, Any] = dict(
+            include_cols=include_cols,
+            col_mapping=col_mapping,
+            file_type=ext,
+            hf_format=hf_format,
+            tagging_schema=tagging_schema,
+            edit_ids=[edit["id"] for edit in edits],
+        )
+        url = f"{config.api_url}/{Route.export_edits}"
+        params = {"inference_name": inference_name}
+        self._export_dataframe_request(url, body, params, file_name)
+
+    def _export_dataframe_request(
+        self, url: str, body: Dict, params: Dict, file_name: str
+    ) -> None:
+        with requests.post(
+            url, json=body, stream=True, headers=headers(config.token), params=params
+        ) as r:
+            self._validate_response(r)
+            with open(file_name, "wb") as f:
+                for chunk in r.iter_content(chunk_size=8192):
+                    f.write(chunk)
