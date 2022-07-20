@@ -1,3 +1,5 @@
+from typing import Optional
+
 from dataquality.clients.api import ApiClient
 from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
@@ -36,3 +38,15 @@ def verify_jwt_token() -> None:
     config.current_user = current_user_email
     config.update_file_config()
     print(f"\n🚀 You're logged in to Galileo as {current_user_email}!")
+
+
+def login(token: Optional[str] = None) -> None:
+    """Login to the Galileo environment with your JWT token
+
+    :param token: The JWT token retrieved from the Galileo UI
+        If not provided, you will be prompted for a token
+    """
+    if token:
+        config.token = token
+        config.update_file_config()
+    verify_jwt_token()

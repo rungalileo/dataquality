@@ -8,7 +8,7 @@ import resource
 import dataquality.core._config
 import dataquality.metrics
 from dataquality.core._config import config
-from dataquality.core.auth import verify_jwt_token
+from dataquality.core.auth import login, verify_jwt_token
 from dataquality.core.finish import finish, get_run_status, wait_for_run
 from dataquality.core.init import init
 from dataquality.core.log import (
@@ -51,6 +51,7 @@ __all__ = [
     "init",
     "log_data_samples",
     "log_model_outputs",
+    "login",
     "config",
     "configure",
     "finish",

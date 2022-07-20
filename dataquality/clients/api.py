@@ -20,7 +20,7 @@ class ApiClient:
     def __check_token(self) -> None:
         if not config.token:
             raise GalileoException(
-                "You must set GALILEO_JWT_TOKEN in your environment. "
+                "You must call login or set GALILEO_JWT_TOKEN in your environment. "
                 "You can fetch a new token from the Galileo console."
             )
 
