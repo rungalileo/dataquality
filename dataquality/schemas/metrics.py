@@ -93,3 +93,4 @@ class FilterParams(BaseModel):
     exclude_ids: List[int] = []
     lasso: Optional[LassoSelection] = None
     class_filter: Optional[List[StrictStr]] = None
+    likely_mislabeled: Optional[bool] = None

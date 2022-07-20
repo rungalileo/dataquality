@@ -321,6 +321,7 @@ def _process_exported_dataframe(
             for task in tasks
         ]
         data_df = _index_df(data_df, labels, tasks)
+        data_df = _clean_mltc_df(data_df)
     if task_type == TaskType.text_classification:
         labels_per_task = api_client.get_labels_for_run(project_name, run_name)
         data_df = _index_df(data_df, labels_per_task)
@@ -546,3 +547,10 @@ def _rename_prob_cols(df: DataFrame, tasks: List[str]) -> DataFrame:
 def _validate_filter(filter: Union[FilterParams, Dict] = None) -> Dict:
     # Validate the fields provided with pydantic before making request
     return FilterParams(**dict(filter or {})).dict()
+
+
+def _clean_mltc_df(df: DataFrame) -> DataFrame:
+    """In MLTC, don't return the non-task-indexes gold/pred/dep columns"""
+    drop_cols = ["gold", "pred", "data_error_potential", "prob"]
+    keep_cols = [col for col in df.get_column_names() if col not in drop_cols]
+    return df[keep_cols]
