@@ -326,7 +326,9 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         """Helper to log a pandas or vex df"""
         self.texts = df["text"].tolist()
         self.ids = df["id"].tolist()
-        self.labels = df["label"].tolist()
+        # Inference case
+        if "label" in df.columns:
+            self.labels = df["label"].tolist()
         for meta_col in meta:
             self.meta[str(meta_col)] = df[meta_col].tolist()
         self.log()
