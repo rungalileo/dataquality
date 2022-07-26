@@ -3,6 +3,7 @@ from time import sleep
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import requests
+from pydantic import StrictStr
 from pydantic.types import UUID4
 from requests import Response
 
@@ -72,8 +73,9 @@ class ApiClient:
         This is the center point of all functions and the main entry/exit for the
         dataquality client to interact with the server.
         """
-        self.__check_token()
-        header = header or headers(config.token)
+        if not url.endswith(Route.refresh_token):
+            self.__check_token()
+            header = header or headers(config.token)
         res = RequestType.get_method(request.value)(
             url, json=body, params=params, headers=header, data=data
         )
@@ -720,3 +722,15 @@ class ApiClient:
             with open(file_name, "wb") as f:
                 for chunk in r.iter_content(chunk_size=8192):
                     f.write(chunk)
+
+    def get_refresh_token(self, code: Optional[StrictStr]) -> Dict:
+        """Gets a refresh token for the current user"""
+        url = f"{config.api_url}/{Route.refresh_token}"
+        return self.make_request(RequestType.GET, url, params={"code": code})
+
+    def use_refresh_token(self, refresh_token: Optional[StrictStr]) -> Dict:
+        """Uses a refresh token to get a new access token"""
+        url = f"{config.api_url}/{Route.refresh_token}"
+        return self.make_request(
+            RequestType.POST, url, params={"refresh_token": refresh_token}
+        )

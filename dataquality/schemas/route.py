@@ -31,6 +31,7 @@ class Route(str, Enum):
     export = "export"
     edits = "edits"
     export_edits = "edits/export"
+    refresh_token = "refresh_token"
 
     @staticmethod
     def content_path(

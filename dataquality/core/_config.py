@@ -46,6 +46,7 @@ class ConfigData(str, Enum):
 class Config(BaseModel):
     api_url: str
     token: Optional[str] = None
+    refresh_token: Optional[str] = None
     current_user: Optional[str] = None
     current_project_id: Optional[UUID4] = None
     current_run_id: Optional[UUID4] = None

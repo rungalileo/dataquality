@@ -1,3 +1,4 @@
+import os
 from typing import Optional
 
 from dataquality.clients.api import ApiClient
@@ -7,10 +8,36 @@ from dataquality.exceptions import GalileoException
 api_client = ApiClient()
 
 
+def use_code_for_access_token() -> None:
+    """
+    Submit the code for access token to the Galileo console
+    """
+    print("🔭 Submitting code for access token...\n")
+    auth_code = os.getenv("GALILEO_AUTH_CODE", None)
+    refresh_token = config.refresh_token
+
+    if refresh_token is not None:
+        print(f"🔐 Using refresh token")
+        response = api_client.use_refresh_token(refresh_token)
+
+    if auth_code is None and refresh_token is None:
+        auth_code = input(
+            "🔐 Authentication code not found in environment. To skip this prompt in the future "
+            "set the GALILEO_AUTH_CODE environment variable.\n\n You can get your auth "
+            "code from the console.\n\n Please enter your auth code: \n"
+        )
+        response = api_client.get_refresh_token(code=auth_code)
+
+    config.token = response.get("access_token")
+    config.refresh_token = response.get("refresh_token")
+
+
 def verify_jwt_token() -> None:
     """
     Set and verify the JWT token for the current user.
     """
+    use_code_for_access_token()
+
     print(f"📡 {config.api_url.replace('api.','console.')}")
     print("🔭 Validating Galileo token...\n")
     if not config.token:
@@ -21,6 +48,7 @@ def verify_jwt_token() -> None:
             "Please enter your token: \n"
         )
 
+    api_client.get_current_user()
     try:
         current_user_email = api_client.get_current_user().get("email")
     except GalileoException:
