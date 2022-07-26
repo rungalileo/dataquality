@@ -17,12 +17,13 @@ def use_code_for_access_token() -> None:
     refresh_token = config.refresh_token
 
     if refresh_token is not None:
-        print(f"🔐 Using refresh token")
+        print("🔐 Using refresh token")
         response = api_client.use_refresh_token(refresh_token)
 
     if auth_code is None and refresh_token is None:
         auth_code = input(
-            "🔐 Authentication code not found in environment. To skip this prompt in the future "
+            "🔐 Authentication code not found in environment. "
+            "To skip this prompt in the future "
             "set the GALILEO_AUTH_CODE environment variable.\n\n You can get your auth "
             "code from the console.\n\n Please enter your auth code: \n"
         )
