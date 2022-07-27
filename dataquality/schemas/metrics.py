@@ -76,7 +76,7 @@ class FilterParams(BaseModel):
     """
 
     ids: List[int] = []
-    similar_to: Optional[int] = None
+    similar_to: Optional[List[int]] = None
     num_similar_to: Optional[int] = None
     text_pat: Optional[StrictStr] = None
     regex: Optional[bool] = None
