@@ -35,19 +35,12 @@ def use_code_for_access_token() -> None:
 
 def verify_jwt_token() -> None:
     """
-    Set and verify the JWT token for the current user.
+    Set and verify the Auth0 token for the current user.
     """
     use_code_for_access_token()
 
     print(f"📡 {config.api_url.replace('api.','console.')}")
-    print("🔭 Validating Galileo token...\n")
-    if not config.token:
-        config.token = input(
-            "🔐 Authentication token not found. To skip this prompt in the future "
-            "set the GALILEO_JWT_TOKEN environment variable.\nYou can get your JWT "
-            "token from the console. \n"
-            "Please enter your token: \n"
-        )
+    print("🔭 Validating Auth0 token...\n")
 
     api_client.get_current_user()
     try:
