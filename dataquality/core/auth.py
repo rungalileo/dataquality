@@ -14,13 +14,15 @@ def use_code_for_access_token() -> None:
     """
     print("🔭 Submitting code for access token...\n")
     auth_code = os.getenv("GALILEO_AUTH_CODE", None)
-    refresh_token = config.refresh_token
+    refresh_token = config.refresh_token or os.getenv("GALILEO_REFRESH_TOKEN")
 
+    # if the refresh token is present, use it
     if refresh_token is not None:
         print("🔐 Using refresh token")
         response = api_client.use_refresh_token(refresh_token)
 
-    if auth_code is None and refresh_token is None:
+    # otherwise, use the provided auth code
+    elif auth_code is None:
         auth_code = input(
             "🔐 Authentication code not found in environment. "
             "To skip this prompt in the future "
