@@ -68,10 +68,12 @@ def cleanup_after_use() -> Generator:
 @pytest.fixture()
 def set_test_config(
     default_token: str = "sometoken",
+    default_refresh_token: str = "somerefreshtoken",
     default_task_type: TaskType = TaskType.text_classification,
     default_api_url: str = DEFAULT_API_URL,
 ) -> Callable:
     config.token = default_token
+    config.refresh_token = default_refresh_token
     config.task_type = default_task_type
     config.api_url = default_api_url
     config.current_run_id = DEFAULT_RUN_ID

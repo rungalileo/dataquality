@@ -12,23 +12,29 @@ def use_code_for_access_token() -> None:
     """
     Submit the code for access token to the Galileo console
     """
-    print("🔭 Submitting code for access token...\n")
     auth_code = os.getenv("GALILEO_AUTH_CODE", None)
     refresh_token = config.refresh_token or os.getenv("GALILEO_REFRESH_TOKEN")
+    response = {}
 
     # if the refresh token is present, use it
-    if refresh_token is not None:
+    if refresh_token:
         print("🔐 Using refresh token")
         response = api_client.use_refresh_token(refresh_token)
 
     # otherwise, use the provided auth code
-    elif auth_code is None:
+    elif auth_code is None or auth_code == "":
         auth_code = input(
             "🔐 Authentication code not found in environment. "
             "To skip this prompt in the future "
             "set the GALILEO_AUTH_CODE environment variable.\n\n You can get your auth "
             "code from the console.\n\n Please enter your auth code: \n"
         )
+        print("🔭 Submitting code for access token...\n")
+        response = api_client.get_refresh_token(code=auth_code)
+
+    # otherwise use the provided auth code from the env
+    else:
+        print("🔭 Submitting code for access token...\n")
         response = api_client.get_refresh_token(code=auth_code)
 
     config.token = response.get("access_token")
@@ -44,7 +50,6 @@ def verify_jwt_token() -> None:
     print(f"📡 {config.api_url.replace('api.','console.')}")
     print("🔭 Validating Auth0 token...\n")
 
-    api_client.get_current_user()
     try:
         current_user_email = api_client.get_current_user().get("email")
     except GalileoException:

@@ -188,37 +188,110 @@ def test_init_bad_task(
 
 @patch("builtins.input", return_value="")
 @patch.object(dataquality.core.init.ApiClient, "get_current_user")
+@patch.object(dataquality.core.init.ApiClient, "get_refresh_token")
 def test_reconfigure_sets_env_vars(
-    mock_get_user: MagicMock, mock_input: MagicMock
+    mock_get_refresh_token: MagicMock,
+    mock_get_user: MagicMock,
+    mock_input: MagicMock,
 ) -> None:
     # First token should fail, but second one should succeed
-    mock_get_user.side_effect = [GalileoException, {"email": "me@example.com"}]
+    mock_get_user.side_effect = [
+        GalileoException,
+        {"email": "me@example.com"},
+    ]
+    mock_get_refresh_token.side_effect = [
+        {"access_token": "", "refresh_token": ""},
+        {"access_token": "token", "refresh_token": "refresh_token"},
+    ]
 
-    os.environ["GALILEO_JWT_TOKEN"] = ""
     os.environ["GALILEO_CONSOLE_URL"] = "https://console.fakecompany.io"
+    os.environ["GALILEO_AUTH_CODE"] = ""
     dataquality.configure()
     assert dataquality.config.api_url == config.api_url == "https://api.fakecompany.io"
     assert dataquality.config.token == config.token == ""
+    assert dataquality.config.refresh_token == config.refresh_token == ""
 
     os.environ["GALILEO_CONSOLE_URL"] = "https://console.newfake.de"
-    os.environ["GALILEO_JWT_TOKEN"] = "my-token"
+    os.environ["GALILEO_AUTH_CODE"] = "my-code"
     dataquality.configure()
     assert dataquality.config.api_url == config.api_url == "https://api.newfake.de"
-    assert dataquality.config.token == config.token == "my-token"
+    assert dataquality.config.token == config.token == "token"
+    assert dataquality.config.refresh_token == config.refresh_token == "refresh_token"
     assert dataquality.config.current_user == config.current_user == "me@example.com"
 
 
 @patch.object(dataquality.core.init.ApiClient, "get_current_user")
+@patch.object(dataquality.core.init.ApiClient, "get_refresh_token")
 def test_reconfigure_resets_user_token(
+    mock_get_refresh_token: MagicMock,
     mock_get_user: MagicMock,
     set_test_config: Callable,
 ) -> None:
-    mock_get_user.side_effect = GalileoException
+    mock_get_user.side_effect = [GalileoException]
+    mock_get_refresh_token.side_effect = [
+        {
+            "access_token": "new_token",
+            "refresh_token": "new_refresh_token",
+        }
+    ]
+    os.environ["GALILEO_AUTH_CODE"] = "my-code"
     set_test_config(token="old_token")
 
-    os.environ["GALILEO_JWT_TOKEN"] = "fake-token"
     dataquality.configure()
-    assert all([config.token == "fake-token", config.token != "old_token"])
+    assert all(
+        [
+            config.token == "new_token",
+            config.token != "old_token",
+            config.refresh_token == "new_refresh_token",
+        ]
+    )
+
+
+@patch.object(dataquality.core.init.ApiClient, "get_current_user")
+@patch.object(dataquality.core.init.ApiClient, "get_refresh_token")
+@patch.object(dataquality.core.init.ApiClient, "use_refresh_token")
+def test_refresh_token_overrides_auth_code_on_login(
+    mock_use_refresh_token: MagicMock,
+    mock_get_refresh_token: MagicMock,
+    mock_get_user: MagicMock,
+) -> None:
+    mock_get_user.side_effect = [
+        {"email": "me@example.com"},
+        {"email": "me@example.com"},
+    ]
+    mock_get_refresh_token.side_effect = [
+        {
+            "access_token": "first_token",
+            "refresh_token": "first_refresh_token",
+        }
+    ]
+    mock_use_refresh_token.side_effect = [
+        {
+            "access_token": "second_token",
+            "refresh_token": "second_refresh_token",
+        }
+    ]
+
+    os.environ["GALILEO_AUTH_CODE"] = "my-code"
+    os.environ["GALILEO_CONSOLE_URL"] = "https://console.galileo.ai"
+
+    dataquality.configure()
+    assert dataquality.config.api_url == config.api_url == "https://api.galileo.ai"
+    assert dataquality.config.token == config.token == "first_token"
+    assert (
+        dataquality.config.refresh_token
+        == config.refresh_token
+        == "first_refresh_token"
+    )
+
+    dataquality.login()
+    assert dataquality.config.api_url == config.api_url == "https://api.galileo.ai"
+    assert dataquality.config.token == config.token == "second_token"
+    assert (
+        dataquality.config.refresh_token
+        == config.refresh_token
+        == "second_refresh_token"
+    )
 
 
 @patch("requests.post", side_effect=mocked_create_project_run)
