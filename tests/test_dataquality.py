@@ -573,3 +573,67 @@ def test_finish_last_epoch(
         except TypeError:  # python 3.7
             assert int(call[0][-1]) == i
     assert mock_upload_frames.call_count == max_uploaded
+
+
+@mock.patch("dataquality.core.log.np.random.rand")
+def test_log_model_outputs_exclude_embs(
+    mock_numpy: mock.MagicMock,
+    set_test_config: Callable,
+    cleanup_after_use: Callable,
+) -> None:
+    """
+    Tests that logging model outputs with missing embeddings and exclude embs
+    generates random embs
+    """
+    # Use random.randn to avoid clash with numpy.random.rand mock
+    mock_numpy.return_value = np.random.randn(10, 2)
+    output_data = {
+        "embs": None,
+        "logits": np.random.randn(10, 5),
+        "ids": list(range(1, 11)),
+        "split": "training",
+        "epoch": 0,
+        "exclude_embs": True,
+    }
+    dataquality.log_model_outputs(**output_data)
+    # Assert that random embeddings were created with dim 2
+    mock_numpy.assert_called_once_with(10, 2)
+
+
+def test_log_model_outputs_missing_embs_exclude_emb_false(
+    set_test_config: Callable,
+) -> None:
+    """
+    Tests that logging model outputs with missing embeddings raises an error
+    """
+    output_data = {
+        "embs": None,
+        "logits": np.random.rand(2, 5),
+        "ids": [1, 2],
+        "split": "training",
+        "epoch": 0,
+    }
+
+    with pytest.raises(AssertionError) as e:
+        dataquality.log_model_outputs(**output_data)
+    assert str(e.value) == "embs can be None if and only if exclude_embs is True"
+
+
+def test_log_model_outputs_with_embs_exclude_emb_true(
+    set_test_config: Callable,
+) -> None:
+    """
+    Tests that logging model outputs embeddings with exclude_emb raises an error
+    """
+    output_data = {
+        "embs": np.random.rand(2, 100),
+        "logits": np.random.rand(2, 5),
+        "ids": [1, 2],
+        "split": "training",
+        "epoch": 0,
+        "exclude_embs": True,
+    }
+    with pytest.raises(AssertionError) as e:
+        dataquality.log_model_outputs(**output_data)
+
+    assert str(e.value) == "embs can be None if and only if exclude_embs is True"
