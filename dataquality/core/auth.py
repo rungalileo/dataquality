@@ -55,7 +55,7 @@ def verify_jwt_token() -> None:
     except GalileoException:
         print(
             "\n🚨 Invalid token. Make sure to get the latest token from the "
-            "console and call dq.login\n"
+            "console and run dataquality.configure()\n"
         )
         return
 
