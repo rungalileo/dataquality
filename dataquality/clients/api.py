@@ -263,12 +263,12 @@ class ApiClient:
         project/run will be used. Otherwise you must provide both a project and run name
         If the run is a multi-label run, a task must be provided
         """
-        if not task and config.task_type == TaskType.text_multi_label:
-            raise GalileoException("For multi-label runs, a task name must be provided")
-
         project, run = self._get_project_run_id(
             project_name=project_name, run_name=run_name
         )
+        task_type = self.get_task_type(project, run)
+        if not task and task_type == TaskType.text_multi_label:
+            raise GalileoException("For multi-label runs, a task name must be provided")
 
         url = f"{config.api_url}/{Route.content_path(project, run)}/{Route.labels}"
         params = {"task": task} if task else None
@@ -330,9 +330,10 @@ class ApiClient:
         project, run = self._get_project_run_id(project_name, run_name)
         project_name = project_name or self.get_project(project)["name"]
         run_name = run_name or self.get_project_run(project, run)["name"]
+        task_type = self.get_task_type(project, run)
 
         # Multi-label has tasks and List[List] for labels
-        if config.task_type == TaskType.text_multi_label:
+        if task_type == TaskType.text_multi_label:
             tasks = self.get_tasks_for_run(project_name, run_name)
             if not labels:
                 labels = [
