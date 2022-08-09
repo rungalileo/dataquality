@@ -1,0 +1,254 @@
+import warnings
+from typing import Dict, List, Set
+
+from datasets import Dataset
+from transformers import PreTrainedTokenizerBase
+
+from dataquality.exceptions import GalileoException, GalileoWarning
+from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
+from dataquality.schemas.hf import HFCol
+from dataquality.schemas.ner import TaggingSchema
+
+
+def _is_bio(schema_tags: Set[str]) -> bool:
+    return sorted(list(schema_tags)) == sorted(["B", "I", "O"])
+
+
+def _is_bioes(schema_tags: Set[str]) -> bool:
+    return sorted(list(schema_tags)) == sorted(["B", "I", "O", "E", "S"])
+
+
+def _is_bilou(schema_tags: Set[str]) -> bool:
+    return sorted(list(schema_tags)) == sorted(["B", "I", "L", "O", "U"])
+
+
+def infer_schema(label_list: List[str]) -> TaggingSchema:
+    schema_tags = set([x.split("-")[0] for x in label_list])
+    if _is_bio(schema_tags):
+        return TaggingSchema.BIO
+    elif _is_bioes(schema_tags):
+        return TaggingSchema.BIOES
+    elif _is_bilou(schema_tags):
+        return TaggingSchema.BILOU
+    else:
+        raise GalileoException(
+            "Tagging schema must be one of BIO, BIOES, or BILOU. Given schemas tags "
+            f"{schema_tags} we cannot identify the tagging schema."
+        )
+
+
+def extract_gold_spans_at_word_level(gold_sequence: List[str]) -> List[Dict]:
+    """Extracts span level words from a gold sequence
+
+    Given a gold sequence [O, O, B-PER, I-PER, I-PER, ...] -> extracts out spans
+    at the word level
+
+    gold_sequence = ['B-LOC', 'I-LOC', 'I-LOC', 'I-LOC', 'I-LOC']
+    gold_spans = extract_gold_spans_at_word_level(gold_sequence)
+    # gold_spans -> [{'start': 0, 'end': 5, 'label': 'LOC'}]
+    """
+    logger = TextNERModelLogger()
+    schema = infer_schema(gold_sequence)
+    if schema == TaggingSchema.BIO:
+        return logger._extract_spans_bio(gold_sequence)
+    else:  # BILOU or BIOES
+        return logger._extract_spans_token_level(gold_sequence)
+
+
+class LabelTokenizer:
+    def __init__(
+        self, ds: Dataset, tokenizer: PreTrainedTokenizerBase, schema: TaggingSchema
+    ) -> None:
+        self.ds = ds
+        self.schema = schema
+        self.tokenized_samples = tokenizer.batch_encode_plus(
+            ds[HFCol.tokens], is_split_into_words=True
+        )
+
+        self.total_adjusted_labels = []
+        self.total_text_token_indices = []
+        self.total_bpe_tokens = []
+        self.texts = []  # TODO: Add warning that we assume space seperation here
+        self.idx_2_labels = ds.features[HFCol.ner_tags].feature.names
+        # TODO: make this k:v
+        self.labels_2_idx = {k: v for v, k in enumerate(self.idx_2_labels)}
+        self.total_gold_spans = []
+        self.num_samples = len(self.tokenized_samples[HFCol.input_ids])
+
+        # Batch initialization
+        self.previous_word_id = None
+        self.word_ids = None
+        self.word_gold_spans = None
+        self.original_word_idx = None
+        self.char_seen = None
+        self.adjusted_label_indices = None
+        self.adjusted_labels = None
+        self.text_token_indices = None
+        self.start_char_idx = None
+        self.end_char_idx = None
+        self.gold_spans = None
+        self.current_gold_span_idx = None
+        self.skip_batch = False
+
+    def initialize_batch(self, k: int) -> None:
+        self.previous_word_id = -1
+        self.word_ids = self.tokenized_samples.word_ids(batch_index=k)
+        existing_labels = [
+            self.idx_2_labels[label] for label in self.ds[HFCol.ner_tags][k]
+        ]
+        self.word_gold_spans = extract_gold_spans_at_word_level(existing_labels)
+        if not self.word_gold_spans:
+            warnings.warn(
+                f"No gold spans found for batch {k}. This batch will not be logged",
+                GalileoWarning,
+            )
+            self.skip_batch = True
+            return
+        self.original_word_idx = -1
+        self.char_seen = -len(self.ds[HFCol.tokens][k][0])
+        self.adjusted_label_indices = [self.labels_2_idx["O"]] * len(self.word_ids)
+        self.adjusted_labels = ["O"] * len(self.word_ids)
+        self.text_token_indices = []
+        self.start_char_idx, self.end_char_idx = 0, 0
+        self.gold_spans = []
+        self.current_gold_span_idx = 0
+
+    def update_text_token_indices(self, k: int, w_index_bpe: int, wid: int) -> bool:
+        if wid is None:
+            # adjusted_labels[w_index_bpe] = -100
+            # TODO consider uncommenting
+            # TODO write test functions for each function
+            """
+            if w_index_bpe == 0:
+              text_token_indices.append((0, 0)) # This is the CLS and SEP tokens
+            else:
+                # This is the CLS and SEP tokens
+              text_token_indices.append((end_char_idx, end_char_idx))
+            """
+            self.char_seen += len(self.ds[HFCol.tokens][k][0])
+            # Word ID is None
+            return True
+        elif wid != self.previous_word_id:
+            original_word_idx = self.original_word_idx + 1
+            self.previous_word_id = wid
+            self.start_char_idx = self.char_seen
+            self.end_char_idx = self.char_seen + len(
+                self.ds[HFCol.tokens][k][original_word_idx]
+            )
+            # Get the char start and end index for the word
+            self.text_token_indices.append((self.start_char_idx, self.end_char_idx))
+            self.char_seen += len(self.ds[HFCol.tokens][k][original_word_idx]) + 1
+        else:
+            # Get the char start and end index for the word
+            self.text_token_indices.append((self.start_char_idx, self.end_char_idx))
+        # Word ID is not None
+        return False
+
+    def _is_singleton_span(
+        self, wid: int, w_index_bpe: int, span_start_word: int, span_end_word: int
+    ) -> bool:
+        return (
+            span_start_word == span_end_word
+            and wid == span_start_word
+            and wid != self.word_ids[w_index_bpe - 1]
+            and wid != self.word_ids[w_index_bpe + 1]
+        )
+
+    def _is_within_span(
+        self, wid: int, span_start_word: int, span_end_word: int
+    ) -> bool:
+        return span_start_word <= wid <= span_end_word
+
+    def _is_first_bpe(self, wid: int, w_index_bpe: int, span_start_word: int) -> bool:
+        is_first_index = w_index_bpe == 0
+        wid_is_first = wid != self.word_ids[w_index_bpe - 1] and wid == span_start_word
+        return is_first_index or wid_is_first
+
+    def _is_last_bpe(self, wid: int, w_index_bpe: int, span_end_word: int) -> bool:
+        is_last_index = w_index_bpe == len(self.word_ids) - 1
+        wid_is_last = wid != self.word_ids[w_index_bpe + 1] and wid == span_end_word
+        return is_last_index or wid_is_last
+
+    def _adjust_label_at_index(self, w_index_bpe: int, span_label_suffix: str) -> None:
+        if self.schema == TaggingSchema.BILOU:
+            self.adjusted_labels[w_index_bpe] = f"U-{span_label_suffix}"
+        if self.schema == TaggingSchema.BIOES:
+            self.adjusted_labels[w_index_bpe] = f"S-{span_label_suffix}"
+        else:
+            self.adjusted_labels[w_index_bpe] = f"B-{span_label_suffix}"
+        self.adjusted_label_indices[w_index_bpe] = self.labels_2_idx[
+            self.adjusted_labels[w_index_bpe]
+        ]
+        self.current_gold_span_idx += 1
+        self.gold_spans.append(
+            {
+                HFCol.start: self.start_char_idx,
+                HFCol.end: self.end_char_idx,
+                HFCol.label: span_label_suffix,
+            }
+        )
+
+    def _adjust_first_bpe(self, w_index_bpe: int, span_label_suffix: str) -> None:
+        self.adjusted_labels[w_index_bpe] = f"B-{span_label_suffix}"
+        self.adjusted_label_indices[w_index_bpe] = self.labels_2_idx[
+            self.adjusted_labels[w_index_bpe]
+        ]
+        self.gold_spans.append(
+            {
+                HFCol.start: self.start_char_idx,
+                HFCol.label: span_label_suffix,
+            }
+        )
+
+    def _adjust_last_bpe(self, w_index_bpe: int, span_label_suffix: str) -> None:
+        if self.schema == TaggingSchema.BILOU:
+            self.adjusted_labels[w_index_bpe] = f"L-{span_label_suffix}"
+        if self.schema == TaggingSchema.BIOES:
+            self.adjusted_labels[w_index_bpe] = f"E-{span_label_suffix}"
+        else:
+            self.adjusted_labels[w_index_bpe] = f"I-{span_label_suffix}"
+        self.adjusted_label_indices[w_index_bpe] = self.labels_2_idx[
+            self.adjusted_labels[w_index_bpe]
+        ]
+        # Update end indices
+        self.gold_spans[-1][HFCol.end] = self.end_char_idx
+        self.current_gold_span_idx += 1
+
+    def _adjust_middle_bpe(self, w_index_bpe: int, span_label_suffix: str) -> None:
+        self.adjusted_labels[w_index_bpe] = f"I-{span_label_suffix}"
+        self.adjusted_label_indices[w_index_bpe] = self.labels_2_idx[
+            self.adjusted_labels[w_index_bpe]
+        ]
+
+    def adjust_labels_bpe(self, wid: int, w_index_bpe: int) -> None:
+        span_start_word = self.word_gold_spans[self.current_gold_span_idx][HFCol.start]
+        span_end_word = self.word_gold_spans[self.current_gold_span_idx][HFCol.end] - 1
+        span_label_sfx = self.word_gold_spans[self.current_gold_span_idx][HFCol.label]
+        # Found a singelton length span that could be in the
+        # start, middle, or end of the sentence
+        if self._is_singleton_span(wid, w_index_bpe, span_start_word, span_end_word):
+            self._adjust_label_at_index(w_index_bpe, span_label_sfx)
+
+        # Recognized within a span
+        elif self._is_within_span(wid, span_start_word, span_end_word):
+            # Hit the start of a span and start BPEs
+            if self._is_first_bpe(wid, w_index_bpe, span_start_word):
+                self._adjust_first_bpe(w_index_bpe, span_label_sfx)
+            elif self._is_last_bpe(wid, w_index_bpe, span_end_word):
+                self._adjust_last_bpe(w_index_bpe, span_label_sfx)
+            else:  # other BPEs
+                self._adjust_middle_bpe(w_index_bpe, span_label_sfx)
+
+    def update_totals_for_batch(self, k: int) -> None:
+        self.total_adjusted_labels.append(self.adjusted_label_indices)
+        self.total_text_token_indices.append(self.text_token_indices)
+        self.total_bpe_tokens.append(self.tokenized_samples[k].tokens)
+        self.texts.append(" ".join(self.ds[HFCol.tokens][k]))
+        self.total_gold_spans.append(self.gold_spans)
+
+    def update_tokenized_samples(self) -> None:
+        self.tokenized_samples[HFCol.label] = self.total_adjusted_labels
+        self.tokenized_samples[HFCol.text_token_indices] = self.total_text_token_indices
+        self.tokenized_samples[HFCol.bpe_tokens] = self.total_bpe_tokens
+        self.tokenized_samples[HFCol.text] = self.texts
+        self.tokenized_samples[HFCol.gold_spans] = self.total_gold_spans
