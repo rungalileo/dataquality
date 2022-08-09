@@ -51,7 +51,9 @@ def _validate_dataset(ds: DatasetDict) -> None:
         )
 
 
-def tokenize_and_align_labels(ds: DatasetDict, tokenizer: PreTrainedTokenizerBase):
+def tokenize_and_align_labels(
+    ds: DatasetDict, tokenizer: PreTrainedTokenizerBase
+) -> DatasetDict:
     _validate_dataset(ds)
     tokenized_dataset = ds.map(
         tokenize_adjust_labels,
@@ -64,5 +66,6 @@ def tokenize_and_align_labels(ds: DatasetDict, tokenizer: PreTrainedTokenizerBas
         dq_split = conform_split(split)
         ids = list(range(len(tokenized_dataset[split])))
         tokenized_dataset[split] = tokenized_dataset[split].add_column(HFCol.id, ids)
-        dq.log_dataset(tokenized_dataset[split], split=dq_split)
+        dataset: Dataset = tokenized_dataset[split]
+        dq.log_dataset(dataset, split=dq_split)  # type: ignore
     return tokenized_dataset

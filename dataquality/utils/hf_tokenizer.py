@@ -1,5 +1,5 @@
 import warnings
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Tuple
 
 from datasets import Dataset
 from transformers import PreTrainedTokenizerBase
@@ -65,29 +65,31 @@ class LabelTokenizer:
             ds[HFCol.tokens], is_split_into_words=True
         )
 
-        self.total_adjusted_labels = []
-        self.total_text_token_indices = []
-        self.total_bpe_tokens = []
-        self.texts = []  # TODO: Add warning that we assume space seperation here
+        self.total_adjusted_labels_indices: List[List[int]] = []
+        self.total_text_token_indices: List[List[Tuple]] = []
+        self.total_bpe_tokens: List[List[str]] = []
+        self.texts: List[
+            str
+        ] = []  # TODO: Add warning that we assume space seperation here
         self.idx_2_labels = ds.features[HFCol.ner_tags].feature.names
         # TODO: make this k:v
         self.labels_2_idx = {k: v for v, k in enumerate(self.idx_2_labels)}
-        self.total_gold_spans = []
+        self.total_gold_spans: List[List[Dict]] = []
         self.num_samples = len(self.tokenized_samples[HFCol.input_ids])
 
         # Batch initialization
-        self.previous_word_id = None
-        self.word_ids = None
-        self.word_gold_spans = None
-        self.original_word_idx = None
-        self.char_seen = None
-        self.adjusted_label_indices = None
-        self.adjusted_labels = None
-        self.text_token_indices = None
-        self.start_char_idx = None
-        self.end_char_idx = None
-        self.gold_spans = None
-        self.current_gold_span_idx = None
+        self.previous_word_id = -1
+        self.word_ids: List[int] = []
+        self.word_gold_spans: List[Dict] = []
+        self.original_word_idx = -1
+        self.char_seen = -1
+        self.adjusted_label_indices: List[int] = []
+        self.adjusted_labels: List[str] = []
+        self.text_token_indices: List[Tuple] = []
+        self.start_char_idx = -1
+        self.end_char_idx = -1
+        self.gold_spans: List[Dict] = []
+        self.current_gold_span_idx = -1
         self.skip_batch = False
 
     def initialize_batch(self, k: int) -> None:
@@ -240,14 +242,14 @@ class LabelTokenizer:
                 self._adjust_middle_bpe(w_index_bpe, span_label_sfx)
 
     def update_totals_for_batch(self, k: int) -> None:
-        self.total_adjusted_labels.append(self.adjusted_label_indices)
+        self.total_adjusted_labels_indices.append(self.adjusted_label_indices)
         self.total_text_token_indices.append(self.text_token_indices)
         self.total_bpe_tokens.append(self.tokenized_samples[k].tokens)
         self.texts.append(" ".join(self.ds[HFCol.tokens][k]))
         self.total_gold_spans.append(self.gold_spans)
 
     def update_tokenized_samples(self) -> None:
-        self.tokenized_samples[HFCol.label] = self.total_adjusted_labels
+        self.tokenized_samples[HFCol.label] = self.total_adjusted_labels_indices
         self.tokenized_samples[HFCol.text_token_indices] = self.total_text_token_indices
         self.tokenized_samples[HFCol.bpe_tokens] = self.total_bpe_tokens
         self.tokenized_samples[HFCol.text] = self.texts
