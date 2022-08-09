@@ -1,4 +1,5 @@
 import os
+import webbrowser
 from typing import Optional
 
 from dataquality.clients.api import ApiClient
@@ -14,6 +15,7 @@ def use_code_for_access_token() -> None:
     """
     auth_code = os.getenv("GALILEO_AUTH_CODE", None)
     refresh_token = config.refresh_token or os.getenv("GALILEO_REFRESH_TOKEN")
+    token_path = f"{config.api_url.replace('api', 'console')}/api/client-code"
     response = {}
 
     # if the refresh token is present, use it
@@ -23,11 +25,14 @@ def use_code_for_access_token() -> None:
 
     # otherwise, use the provided auth code
     elif auth_code is None or auth_code == "":
+        webbrowser.open(token_path)
         auth_code = input(
             "🔐 Authentication code not found in environment. "
             "To skip this prompt in the future "
-            "set the GALILEO_AUTH_CODE environment variable.\n\n You can get your auth "
-            "code from the console.\n\n Please enter your auth code: \n"
+            "set the GALILEO_AUTH_CODE environment variable.\n\n "
+            "If your browser did not open, please copy and paste the following link into your browser\n\n"
+            f"{token_path}\n\n"
+            "Please copy and paste your auth code below: \n"
         )
         print("🔭 Submitting code for access token...\n")
         response = api_client.get_refresh_token(code=auth_code)
