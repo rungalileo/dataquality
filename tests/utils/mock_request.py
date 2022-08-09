@@ -33,14 +33,14 @@ class MockResponse:
 
 
 def mocked_healthcheck_request(request_url: str) -> MockResponse:
-    if request_url.endswith("healthcheck"):
+    if request_url.endswith("healthcheck/runners"):
         return MockResponse({"api_version": __version__}, 200)
 
     return MockResponse({}, 200)
 
 
 def mocked_healthcheck_request_new_api_version(request_url: str) -> MockResponse:
-    if request_url.endswith("healthcheck"):
+    if request_url.endswith("healthcheck/runners"):
         return MockResponse({"api_version": "100.0.0"}, 200)
     return MockResponse({}, 200)
 
