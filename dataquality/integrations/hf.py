@@ -5,16 +5,16 @@ from transformers import BatchEncoding, PreTrainedTokenizerBase
 import dataquality as dq
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.hf import HFCol
-from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import conform_split
-from dataquality.utils.hf_tokenizer import LabelTokenizer
+from dataquality.utils.hf_tokenizer import LabelTokenizer, infer_schema
 
 
 def tokenize_adjust_labels(
     all_samples_per_split: Dataset,
     tokenizer: PreTrainedTokenizerBase,
-    schema: TaggingSchema,
 ) -> BatchEncoding:
+    tag_names = all_samples_per_split.features[HFCol.ner_tags].feature.names
+    schema = infer_schema(tag_names)
     label_tokenizer = LabelTokenizer(all_samples_per_split, tokenizer, schema)
 
     for k in range(label_tokenizer.num_samples):
@@ -41,11 +41,11 @@ def tokenize_adjust_labels(
     return label_tokenizer.tokenized_samples
 
 
-def _validate_dataset(ds: DatasetDict) -> None:
+def _validate_dataset(dd: DatasetDict) -> None:
     """Validates that the dataset passed in is a DatasetDict"""
-    if not isinstance(ds, DatasetDict):
+    if not isinstance(dd, DatasetDict):
         raise GalileoException(
-            f"Expected DatasetDict but got object of type {type(ds)}. "
+            f"Expected DatasetDict but got object of type {type(dd)}. "
             f"If this is a dataset, you can create a dataset dict by running"
             # TODO Add snippet
         )
