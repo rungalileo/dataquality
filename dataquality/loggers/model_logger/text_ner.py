@@ -361,9 +361,10 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             token_val, token_label = self._split_token(token)
 
             for next_tok in sequence[idx + 1 :]:
+                # next_tok == "I" and the label matches the current B label
                 if self._is_in_token(next_tok, token_label):
                     next_idx += 1
-                # next_tok == "L" and the label matches the current B label
+                # next_tok == "L"/"E" and the label matches the current B label
                 elif self._is_end_token(next_tok, token_label):
                     next_idx += 1
                     found_end = True

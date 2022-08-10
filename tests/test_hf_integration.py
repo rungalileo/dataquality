@@ -41,8 +41,19 @@ def test_infer_schema(labels: List[str], schema: TaggingSchema) -> None:
 
 def test_tokenize_adjust_labels() -> None:
     tokenizer = mock.Mock()
-    tokenizer.batch_encode_plus.return_value = TOKENIZED_DATA
-    output = tokenize_adjust_labels(UNADJUSTED_TOKEN_DATA, tokenizer)
+    batch_encoded = datasets.Dataset.from_dict(TOKENIZED_DATA)
+    tokenizer.batch_encode_plus.return_value = batch_encoded
+    ds_input = datasets.Dataset.from_dict(UNADJUSTED_TOKEN_DATA)
+    ds_input.features["ner_tags"].feature.names = [
+        "O",
+        "B-PER",
+        "I-PER",
+        "B-ORG",
+        "I-ORG",
+        "B-LOC",
+        "I-LOC",
+    ]
+    output = tokenize_adjust_labels(ds_input, tokenizer).to_dict()
     for k in ADJUSTED_TOKEN_DATA:
         assert ADJUSTED_TOKEN_DATA[k] == output[k]
 
@@ -98,9 +109,9 @@ def test_validate_dataset() -> None:
         _validate_dataset(ds)
 
 
-@mock.patch("dataquality.integrations.hf.dataquality")
+@mock.patch("dataquality.integrations.hf.dq")
 def test_tokenize_and_and_log_dataset(mock_dq: mock.MagicMock) -> None:
-    """TODO @ben - to test for dq logging 
+    """TODO @ben - to test for dq logging
     Tests the e2e function call, passing in a DatasetDict and receiving a
     new DatasetDict, and that the datasets per split were logged correctly.
     """

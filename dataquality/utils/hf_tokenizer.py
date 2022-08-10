@@ -31,8 +31,9 @@ def extract_gold_spans_at_word_level(
 
 class LabelTokenizer:
     """
-    Class that allows Galileo users to directly tokenize their data using a provided HF tokenizer,
-    infers the schema based on provided labels, and also align the labels for the tokenized data.
+    Class that allows Galileo users to directly tokenize their data using a provided HF
+    tokenizer, infers the schema based on provided labels, and also align the labels
+    for the tokenized data.
     Galileo automatically extracts out the required input data and logs it.
     """
 
