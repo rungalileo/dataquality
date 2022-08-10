@@ -15,7 +15,7 @@ import dataquality as dq
 import dataquality.clients.api
 import dataquality.core._config
 import dataquality.core.finish
-from dataquality.exceptions import GalileoException
+from dataquality.exceptions import GalileoException, GalileoWarning, LogBatchError
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
 from dataquality.loggers.model_logger.text_classification import (
     TextClassificationModelLogger,
@@ -173,7 +173,7 @@ def test_metadata_logging_invalid(
 
     _log_text_classification_data(meta=meta)
     valid_meta_cols = ["test1", "meta2"]
-    valid_meta_cols += [f"attr_{i}" for i in range(44)]
+    valid_meta_cols += [f"attr_{i}" for i in range(MAX_META_COLS - len(meta))]
     try:
         # Equivalent to the users `finish` call, but we don't want to clean up files yet
         c = dataquality.get_data_logger("text_classification")
@@ -202,7 +202,7 @@ def test_logging_duplicate_ids(
             c.upload()
 
         assert str(e.value).startswith(
-            "It seems as though you do not have unique ids in this split."
+            "It seems as though you do not have unique ids in split training"
         )
     finally:
         # Mock finish() call without calling the API
@@ -637,3 +637,60 @@ def test_log_model_outputs_with_embs_exclude_emb_true(
         dataquality.log_model_outputs(**output_data)
 
     assert str(e.value) == "embs can be None if and only if exclude_embs is True"
+
+
+@mock.patch.object(
+    dataquality.loggers.model_logger.base_model_logger.BaseGalileoModelLogger,
+    "write_model_output",
+)
+@mock.patch.object(
+    dataquality.loggers.model_logger.base_model_logger.BaseGalileoModelLogger,
+    "_get_data_dict",
+)
+@mock.patch.object(
+    dataquality.loggers.model_logger.base_model_logger.BaseGalileoModelLogger,
+    "validate",
+)
+def test_log_batch_error_warns(
+    mock_validate: mock.MagicMock,
+    mock_get_data: mock.MagicMock,
+    mock_write: mock.MagicMock,
+    set_test_config: Callable,
+) -> None:
+    """Ensure that when a log_batch_error is thrown, its caught properly"""
+    mock_validate.side_effect = LogBatchError("problem!")
+    logger = dataquality.loggers.model_logger.base_model_logger.BaseGalileoModelLogger()
+    # This should return and NOT log data and NOT throw an exception
+    with pytest.warns(GalileoWarning):
+        logger._log()
+    mock_get_data.assert_not_called()
+    mock_write.assert_not_called()
+
+
+@mock.patch.object(
+    dataquality.loggers.model_logger.base_model_logger.BaseGalileoModelLogger,
+    "write_model_output",
+)
+@mock.patch.object(
+    dataquality.loggers.model_logger.base_model_logger.BaseGalileoModelLogger,
+    "_get_data_dict",
+)
+@mock.patch.object(
+    dataquality.loggers.model_logger.base_model_logger.BaseGalileoModelLogger,
+    "validate",
+)
+def test_log_assertion_error_raises(
+    mock_validate: mock.MagicMock,
+    mock_get_data: mock.MagicMock,
+    mock_write: mock.MagicMock,
+    set_test_config: Callable,
+    cleanup_after_use: Callable,
+) -> None:
+    """Ensure that when a log_batch_error is thrown, its caught properly"""
+    mock_validate.side_effect = AssertionError("problem!")
+    logger = dataquality.loggers.model_logger.base_model_logger.BaseGalileoModelLogger()
+    # This should raise and exception and NOT log data
+    with pytest.raises(GalileoException):
+        logger._log()
+    mock_get_data.assert_not_called()
+    mock_write.assert_not_called()
