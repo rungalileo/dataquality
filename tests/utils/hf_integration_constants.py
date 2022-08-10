@@ -300,7 +300,7 @@ TOKENIZED_DATA = {
 }
 
 
-class BIOESequence:
+class BIOSequence:
     gold_sequences = [
         ["B-PER", "I-PER", "O", "I-PER", "B-MISC", "I-MISC", "B-PER"],
         ["O", "B-PER", "I-ORG", "O", "I-ORG"],

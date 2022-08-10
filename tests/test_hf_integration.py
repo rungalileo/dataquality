@@ -18,7 +18,8 @@ from tests.utils.hf_integration_constants import (
     TOKENIZED_DATA,
     UNADJUSTED_TOKEN_DATA,
     BILOUSequence,
-    BIOESequence,
+    BIOESSequence,
+    BIOSequence,
 )
 
 
@@ -60,7 +61,7 @@ def test_tokenize_adjust_labels() -> None:
 
 @pytest.mark.parametrize(
     "gold_sequence,gold_span",
-    list(zip(BIOESequence.gold_sequences, BIOESequence.gold_spans)),
+    list(zip(BIOSequence.gold_sequences, BIOSequence.gold_spans)),
 )
 def test_extract_gold_spans_at_word_level_bio(
     gold_sequence: List[str], gold_span: List[Dict]
@@ -72,7 +73,7 @@ def test_extract_gold_spans_at_word_level_bio(
 
 @pytest.mark.parametrize(
     "gold_sequence,gold_span",
-    list(zip(BIOESequence.gold_sequences, BIOESequence.gold_spans)),
+    list(zip(BIOESSequence.gold_sequences, BIOESSequence.gold_spans)),
 )
 def test_extract_gold_spans_at_word_level_bioes(
     gold_sequence: List[str], gold_span: List[Dict]
