@@ -7,7 +7,7 @@ import numpy as np
 from scipy.special import expit, softmax
 
 from dataquality import config
-from dataquality.exceptions import GalileoException
+from dataquality.exceptions import GalileoException, GalileoWarning, LogBatchError
 from dataquality.loggers.base_logger import BaseGalileoLogger
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
 from dataquality.schemas.split import Split
@@ -40,7 +40,15 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         self.inference_name = inference_name
 
     def _log(self) -> None:
-        """Threaded logger target"""
+        """Threaded logger target
+
+        If validation fails with an assertion error, we stop the model training process
+        (something is wrong)
+
+        If validation fails with a LogBatchError, we simply warn and skip logging this
+        batch, but do not halt model training
+        (this batch is bad, but we can continue logging)
+        """
         try:
             self.validate()
         except AssertionError as e:
@@ -50,6 +58,12 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
             raise GalileoException(
                 f"The provided logged data is invalid: {e}"
             ) from None
+        except LogBatchError as e:
+            warnings.warn(
+                f"An error occurred logging this batch, it will be skipped. Error: {e}",
+                GalileoWarning,
+            )
+            return
         data = self._get_data_dict()
         self.write_model_output(data)
 
