@@ -35,6 +35,7 @@ class LabelTokenizer:
     infers the schema based on provided labels, and also align the labels for the tokenized data.
     Galileo automatically extracts out the required input data and logs it.
     """
+
     def __init__(
         self, ds: Dataset, tokenizer: PreTrainedTokenizerBase, schema: TaggingSchema
     ) -> None:
@@ -47,9 +48,7 @@ class LabelTokenizer:
         self.total_adjusted_labels_indices: List[List[int]] = []
         self.total_text_token_indices: List[List[Tuple]] = []
         self.total_bpe_tokens: List[List[str]] = []
-        self.texts: List[
-            str
-        ] = []
+        self.texts: List[str] = []
         self.idx_2_labels = ds.features[HFCol.ner_tags].feature.names
         self.labels_2_idx = {k: v for v, k in enumerate(self.idx_2_labels)}
         self.total_gold_spans: List[List[Dict]] = []
