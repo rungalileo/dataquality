@@ -6,6 +6,7 @@ from typing import Any, DefaultDict, Dict, List, Optional, Tuple, Union
 import numpy as np
 from numpy import ndarray
 
+from dataquality.exceptions import LogBatchError
 from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.schemas import __data_schema_version__
@@ -174,10 +175,11 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 logged_sample_ids.append(sample_id)
 
         self.ids = logged_sample_ids
-        assert self.ids, (
-            "No samples in this batch had any gold or prediction spans. Logging will "
-            "be skipped"
-        )
+        if not self.ids:
+            raise LogBatchError(
+                "No samples in this batch had any gold or prediction spans. "
+                "Logging will be skipped"
+            )
 
     def _process_sample(
         self, sample_id: int, sample_emb: np.ndarray, sample_prob: np.ndarray

@@ -16,7 +16,7 @@ from thinc.api import set_dropout_rate
 from wrapt import CallableObjectProxy
 
 import dataquality
-from dataquality import config
+from dataquality import check_noop, config
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
@@ -30,6 +30,7 @@ from dataquality.utils.spacy_integration import (
 )
 
 
+@check_noop
 def log_input_examples(examples: List[Example], split: Split) -> None:
     """Logs a list of Spacy Examples using the dataquality client"""
     split = conform_split(split)
@@ -71,6 +72,7 @@ def log_input_examples(examples: List[Example], split: Split) -> None:
     )
 
 
+@check_noop
 def watch(nlp: Language) -> None:
     """Stores the nlp object before calling watch on the ner component within it
 
@@ -121,6 +123,7 @@ def watch(nlp: Language) -> None:
     nlp.rename_pipe("galileo_ner", "ner")
 
 
+@check_noop
 def unwatch(nlp: Language) -> None:
     """Returns spacy nlp Language component to its original unpatched state.
 
