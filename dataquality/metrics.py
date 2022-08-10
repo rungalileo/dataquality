@@ -12,7 +12,7 @@ from dataquality.exceptions import GalileoException, GalileoWarning
 from dataquality.schemas.dataframe import FileType
 from dataquality.schemas.metrics import FilterParams
 from dataquality.schemas.ner import TaggingSchema
-from dataquality.schemas.split import Split
+from dataquality.schemas.split import Split, conform_split
 from dataquality.schemas.task_type import TaskType
 
 api_client = ApiClient()
@@ -40,6 +40,7 @@ def get_run_summary(
     :param filter: Optional filter to provide to restrict the summary to only to
         matching rows. See `dq.schemas.metrics.FilterParams`
     """
+    split = conform_split(split)
     filter_params = _validate_filter(filter)
     return api_client.get_run_summary(
         project_name, run_name, split, task, inference_name, filter_params=filter_params
@@ -71,6 +72,7 @@ def get_metrics(
     :param filter: Optional filter to provide to restrict the metrics to only to
         matching rows. See `dq.schemas.metrics.FilterParams`
     """
+    split = conform_split(split)
     metrics = api_client.get_run_metrics(
         project_name,
         run_name,
@@ -111,6 +113,7 @@ def display_distribution(
         raise GalileoException(
             "You must install plotly to use this function. Run `pip install plotly`"
         )
+    split = conform_split(split)
     distribution = api_client.get_column_distribution(
         project_name,
         run_name,
@@ -189,6 +192,7 @@ def get_dataframe(
     :param filter: Optional filter to provide to restrict the distribution to only to
         matching rows. See `dq.schemas.metrics.FilterParams`
     """
+    split = conform_split(split)
     project_id, run_id = api_client._get_project_run_id(project_name, run_name)
     task_type = api_client.get_task_type(project_id, run_id)
 
@@ -257,6 +261,7 @@ def get_edited_dataframe(
     :param tagging_schema: (NER only)
         If hf_format is True, you must pass a tagging schema
     """
+    split = conform_split(split)
     project_id, run_id = api_client._get_project_run_id(project_name, run_name)
     task_type = api_client.get_task_type(project_id, run_id)
 
@@ -300,6 +305,7 @@ def _process_exported_dataframe(
     """Process dataframe after export of run or edits.
 
     See `get_dataframe` and `get_edited_dataframe` for details"""
+    split = conform_split(split)
     # See docstring. In this case, we need span-level data
     # You can't attach embeddings to the huggingface data, since the HF format is
     # sample level, and the embeddings are span level
@@ -370,6 +376,7 @@ def get_epochs(project_name: str, run_name: str, split: Split) -> List[int]:
     :param run_name: The run name
     :param split: The split (training/test/validation/inference)
     """
+    split = conform_split(split)
     return api_client.get_epochs_for_run(project_name, run_name, split)
 
 
@@ -393,6 +400,7 @@ def get_embeddings(
     :param inference_name: Required if split is inference
     :param epoch: The epoch to get embeddings for. Default final epoch
     """
+    split = conform_split(split)
     return _get_hdf5_file_for_epoch(
         project_name,
         run_name,
@@ -422,6 +430,7 @@ def get_probabilities(
     :param inference_name: Required if split is inference
     :param epoch: The epoch to get embeddings for. Default final epoch
     """
+    split = conform_split(split)
     return _get_hdf5_file_for_epoch(
         project_name, run_name, split, "prob/prob.hdf5", inference_name, epoch
     )
@@ -446,7 +455,7 @@ def get_raw_data(
     :param inference_name: Required if split is inference
     :param epoch: The epoch to get embeddings for. Default final epoch
     """
-
+    split = conform_split(split)
     project_id, run_id = api_client._get_project_run_id(project_name, run_name)
     task_type = api_client.get_task_type(project_id, run_id)
     if task_type == TaskType.text_ner:
@@ -465,6 +474,7 @@ def get_xray_cards(
 
     Xray cards are automatic insights calculated and provided by Galileo on your data
     """
+    split = conform_split(split)
     return api_client.get_xray_cards(project_name, run_name, split, inference_name)
 
 
@@ -488,6 +498,7 @@ def _get_hdf5_file_for_epoch(
     inference_name: str = "",
     epoch: int = None,
 ) -> DataFrame:
+    split = conform_split(split)
     emb = "emb" in object_name
     if split == Split.inference and inference_name:
         split_path = inference_name
@@ -503,6 +514,7 @@ def _get_hdf5_file_for_epoch(
 def _validate_epoch(
     project_name: str, run_name: str, split: Split, epoch: int = None, emb: bool = False
 ) -> int:
+    split = conform_split(split)
     epochs = get_epochs(project_name, run_name, split)
     last_epoch = epochs[-1]
     if not epochs:
