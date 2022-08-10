@@ -279,3 +279,26 @@ class BIOESSequence:
         [],
         [],
     ]
+
+
+class BILOUSequence:
+    gold_sequences = [
+        ["B-PER", "I-PER", "L-PER", "I-PER", "B-MISC", "I-MISC", "U-PER"],
+        ["O", "U-PER", "I-ORG", "O", "I-ORG"],
+        ["U-PER", "O", "B-ORG", "I-ORG", "I-ORG", "L-ORG", "B-ORG", "O", "O"],
+        ["B-PER", "I-PER", "I-ORG"],
+        ["B-PER", "I-PER", "I-PER", "I-PER"],
+    ]
+    gold_spans = [
+        [
+            {"start": 0, "end": 3, "label": "PER"},
+            {"start": 6, "end": 7, "label": "PER"},
+        ],
+        [{"start": 1, "end": 2, "label": "PER"}],
+        [
+            {"start": 0, "end": 1, "label": "PER"},
+            {"start": 2, "end": 6, "label": "ORG"},
+        ],
+        [],
+        [],
+    ]

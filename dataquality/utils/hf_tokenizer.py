@@ -30,7 +30,11 @@ def extract_gold_spans_at_word_level(
 
 
 class LabelTokenizer:
-    """TODO: @nidhi docstring for this class"""
+    """
+    Class that allows Galileo users to directly tokenize their data using a provided HF tokenizer,
+    infers the schema based on provided labels, and also align the labels for the tokenized data.
+    Galileo automatically extracts out the required input data and logs it.
+    """
     def __init__(
         self, ds: Dataset, tokenizer: PreTrainedTokenizerBase, schema: TaggingSchema
     ) -> None:
@@ -45,7 +49,7 @@ class LabelTokenizer:
         self.total_bpe_tokens: List[List[str]] = []
         self.texts: List[
             str
-        ] = []  # TODO: @nidhi Add warning that we assume space separation here
+        ] = []
         self.idx_2_labels = ds.features[HFCol.ner_tags].feature.names
         self.labels_2_idx = {k: v for v, k in enumerate(self.idx_2_labels)}
         self.total_gold_spans: List[List[Dict]] = []
@@ -93,18 +97,7 @@ class LabelTokenizer:
 
     def update_text_token_indices(self, k: int, w_index_bpe: int, wid: int) -> bool:
         if wid is None:
-            # adjusted_labels[w_index_bpe] = -100
-            # TODO consider uncommenting @nidhi
-            # TODO write test functions for each function
-            """
-            if w_index_bpe == 0:
-              text_token_indices.append((0, 0)) # This is the CLS and SEP tokens
-            else:
-                # This is the CLS and SEP tokens
-              text_token_indices.append((end_char_idx, end_char_idx))
-            """
             self.char_seen += len(self.ds[HFCol.tokens][k][0])
-            # Word ID is None
             return True
         elif wid != self.previous_word_id:
             original_word_idx = self.original_word_idx + 1
