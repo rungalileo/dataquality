@@ -4,11 +4,13 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import requests
 from pydantic.types import UUID4
+from requests import Response
 
 from dataquality.core._config import config, url_is_localhost
 from dataquality.exceptions import GalileoException
 from dataquality.schemas import RequestType, Route
 from dataquality.schemas.dataframe import FileType
+from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import conform_split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.auth import headers
@@ -18,6 +20,23 @@ class ApiClient:
     def __check_login(self) -> None:
         if not config.token:
             raise GalileoException("You are not logged in. Call dataquality.login()")
+
+    def _validate_response(self, res: Response) -> None:
+        if not res.ok:
+            msg = (
+                "Something didn't go quite right. The api returned a non-ok status "
+                f"code {res.status_code} with output: {res.text}"
+            )
+            raise GalileoException(msg)
+        # If a run/split or a set of filters has no data, the API will return a 200
+        # with a special header letting us know, so we don't try to load a file
+        # with an unexpected format
+        elif res.headers.get("Galileo-No-Data") == "true":
+            msg = (
+                "It seems there is no data for this request.\nEnsure you spelled "
+                "everything correctly. Projects and runs are case sensitive."
+            )
+            raise GalileoException(msg)
 
     def _get_user_id(self) -> UUID4:
         self.__check_login()
@@ -57,16 +76,11 @@ class ApiClient:
         """
         self.__check_login()
         header = header or headers(config.token)
-        req = RequestType.get_method(request.value)(
+        res = RequestType.get_method(request.value)(
             url, json=body, params=params, headers=header, data=data
         )
-        if not req.ok:
-            msg = (
-                "Something didn't go quite right. The api returned a non-ok status "
-                f"code {req.status_code} with output: {req.text}"
-            )
-            raise GalileoException(msg)
-        return req.json()
+        self._validate_response(res)
+        return res.json()
 
     def get_project(self, project_id: UUID4) -> Dict:
         return self.make_request(
@@ -404,21 +418,34 @@ class ApiClient:
         run_name: str,
         split: str,
         file_name: str,
+        inference_name: str = "",
         slice_name: Optional[str] = None,
         include_cols: Optional[List[str]] = None,
         col_mapping: Optional[Dict[str, str]] = None,
+        hf_format: bool = False,
+        tagging_schema: Optional[TaggingSchema] = None,
+        filter_params: Dict = None,
     ) -> None:
-        """Export a project/run to disk as a csv file
+        """Export a project/run to disk as a file
 
         :param project_name: The project name
         :param run_name: The run name
         :param split: The split to export on
-        :param file_name: The file name. Must end in .csv
+        :param file_name: The file name. Must end in a supported FileType
+        :param inference_name: Required if split is inference. The name of the inference
+            split to get data for.
         :param slice_name: The optional slice name to export. If selected, this data
         from this slice will be exported only.
         :param include_cols: List of columns to include in the export. If not set,
         all columns will be exported.
         :param col_mapping: Dictionary of renamed column names for export.
+        :param hf_format: (NER only)
+            Whether to export the dataframe in a HuggingFace compatible format
+        :param tagging_schema: (NER only)
+            If hf_format is True, you must pass a tagging schema
+        :param filter_params: Filters to apply to the dataframe before exporting. Only
+        rows with matching filters will be included in the exported data. If a slice
+
         """
         project, run = self._get_project_run_id(project_name, run_name)
         ext = os.path.splitext(file_name)[-1].lstrip(".")
@@ -426,33 +453,28 @@ class ApiClient:
         assert ext in list(FileType), f"File must be one of {list(FileType)}"
         split = conform_split(split)
         body: Dict[str, Any] = dict(
-            include_cols=include_cols, col_mapping=col_mapping, file_type=ext
+            include_cols=include_cols,
+            col_mapping=col_mapping,
+            file_type=ext,
+            hf_format=hf_format,
+            tagging_schema=tagging_schema,
         )
+        body["filter_params"] = {}
         if slice_name:
             slice_ = self.get_slice_by_name(project_name, slice_name)
-            body["filter_params"] = slice_["logic"]
+            body["filter_params"].update(slice_["logic"])
+
+        if filter_params:
+            body["filter_params"].update(filter_params)
 
         if self.get_task_type(project, run) == TaskType.text_multi_label:
             body["task"] = self.get_tasks_for_run(project_name, run_name)[0]
 
-        url = f"{config.api_url}/{Route.content_path(project, run, split)}/export"
-        with requests.post(
-            url, json=body, stream=True, headers=headers(config.token)
-        ) as r:
-            r.raise_for_status()
-            # If a run/split or a set of filters has no data, the API will return a 200
-            # with a special header letting us know, so we don't try to load a file
-            # with an unexpected format
-            if r.headers.get("Galileo-No-Data") == "true":
-                raise GalileoException(
-                    f"It seems there is no data for run {project_name}/{run_name}/"
-                    f"{split}.\nEnsure you spelled everything correctly. "
-                    "Projects and runs are case sensitive."
-                )
-
-            with open(file_name, "wb") as f:
-                for chunk in r.iter_content(chunk_size=8192):
-                    f.write(chunk)
+        params = {"inference_name": inference_name}
+        url = (
+            f"{config.api_url}/{Route.content_path(project, run, split)}/{Route.export}"
+        )
+        self._export_dataframe_request(url, body, params, file_name)
 
     def get_project_run_name(
         self, project_id: Optional[UUID4] = None, run_id: Optional[UUID4] = None
@@ -629,3 +651,74 @@ class ApiClient:
         url = f"{config.api_url}/{path}/{Route.xray}"
         params = {"inference_name": inference_name} if inference_name else None
         return self.make_request(RequestType.GET, url, params=params)
+
+    def get_edits(
+        self, project_name: str, run_name: str, split: str, inference_name: str = None
+    ) -> List:
+        """Gets all edits for a run/split"""
+        project, run = self._get_project_run_id(project_name, run_name)
+        split = conform_split(split)
+
+        url = (
+            f"{config.api_url}/{Route.content_path(project, run, split)}/{Route.edits}"
+        )
+        params = {"inference_name": inference_name} if inference_name else None
+        return self.make_request(RequestType.GET, url, params=params)
+
+    def export_edits(
+        self,
+        project_name: str,
+        run_name: str,
+        split: str,
+        file_name: str,
+        inference_name: str = None,
+        include_cols: Optional[List[str]] = None,
+        col_mapping: Optional[Dict[str, str]] = None,
+        hf_format: bool = False,
+        tagging_schema: Optional[TaggingSchema] = None,
+    ) -> None:
+        """Export the edits of a project/run/split to disk as a file
+
+        :param project_name: The project name
+        :param run_name: The run name
+        :param split: The split to export on
+        :param file_name: The file name. Must end in a supported FileType
+        :param inference_name: Required if split is inference. The name of the inference
+            split to get data for.
+        :param include_cols: List of columns to include in the export. If not set,
+        all columns will be exported.
+        :param col_mapping: Dictionary of renamed column names for export.
+        :param hf_format: (NER only)
+            Whether to export the dataframe in a HuggingFace compatible format
+        :param tagging_schema: (NER only)
+            If hf_format is True, you must pass a tagging schema
+        :param filter_params: Filters to apply to the dataframe before exporting. Only
+        rows with matching filters will be included in the exported data. If a slice
+        """
+        edits = self.get_edits(project_name, run_name, split, inference_name)
+
+        ext = os.path.splitext(file_name)[-1].lstrip(".")
+        assert ext in list(FileType), f"File must be one of {list(FileType)}"
+
+        body: Dict[str, Any] = dict(
+            include_cols=include_cols,
+            col_mapping=col_mapping,
+            file_type=ext,
+            hf_format=hf_format,
+            tagging_schema=tagging_schema,
+            edit_ids=[edit["id"] for edit in edits],
+        )
+        url = f"{config.api_url}/{Route.export_edits}"
+        params = {"inference_name": inference_name}
+        self._export_dataframe_request(url, body, params, file_name)
+
+    def _export_dataframe_request(
+        self, url: str, body: Dict, params: Dict, file_name: str
+    ) -> None:
+        with requests.post(
+            url, json=body, stream=True, headers=headers(config.token), params=params
+        ) as r:
+            self._validate_response(r)
+            with open(file_name, "wb") as f:
+                for chunk in r.iter_content(chunk_size=8192):
+                    f.write(chunk)

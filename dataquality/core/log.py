@@ -15,6 +15,8 @@ from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.helpers import check_noop
 
+DEFAULT_RANDOM_EMB_DIM = 2
+
 
 @check_noop
 def log_data_samples(
@@ -189,13 +191,14 @@ def log_dataset(
 @check_noop
 def log_model_outputs(
     *,
-    embs: Union[List, np.ndarray],
+    embs: Optional[Union[List, np.ndarray]],
     ids: Union[List, np.ndarray],
     split: Optional[Split] = None,
     epoch: Optional[int] = None,
     logits: Union[List, np.ndarray] = None,
     probs: Union[List, np.ndarray] = None,
     inference_name: str = None,
+    exclude_embs: bool = False,
 ) -> None:
     """Logs model outputs for model during training/test/validation.
 
@@ -207,6 +210,8 @@ def log_model_outputs(
     :param probs: Deprecated, use logits. If passed in, a softmax will NOT be applied
     :param inference_name: Inference name indicator for this inference split.
         If logging for an inference split, this is required.
+    :param exclude_embs: Optional flag to exclude embeddings from logging. If True and
+        embs is set to None, this will generate random embs for each sample.
 
     The expected argument shapes come from the task_type being used
     See dq.docs() for more task specific details on parameter shape
@@ -217,6 +222,11 @@ def log_model_outputs(
     assert (probs is not None) or (
         logits is not None
     ), "You must provide either logits or probs"
+    assert (embs is None and exclude_embs) or (
+        embs is not None and not exclude_embs
+    ), "embs can be None if and only if exclude_embs is True"
+    if embs is None and exclude_embs:
+        embs = np.random.rand(len(ids), DEFAULT_RANDOM_EMB_DIM)
     model_logger = get_model_logger()(
         embs=embs,
         ids=ids,

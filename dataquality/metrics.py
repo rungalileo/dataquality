@@ -1,6 +1,6 @@
 import os
 import warnings
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 from uuid import uuid4
 
 import vaex
@@ -10,7 +10,9 @@ from dataquality.clients.api import ApiClient
 from dataquality.clients.objectstore import ObjectStore
 from dataquality.exceptions import GalileoException, GalileoWarning
 from dataquality.schemas.dataframe import FileType
-from dataquality.schemas.split import Split
+from dataquality.schemas.metrics import FilterParams
+from dataquality.schemas.ner import TaggingSchema
+from dataquality.schemas.split import Split, conform_split
 from dataquality.schemas.task_type import TaskType
 
 api_client = ApiClient()
@@ -23,6 +25,7 @@ def get_run_summary(
     split: Split,
     task: Optional[str] = None,
     inference_name: Optional[str] = None,
+    filter: Union[FilterParams, Dict] = None,
 ) -> Dict:
     """Gets the summary for a run/split
 
@@ -34,9 +37,13 @@ def get_run_summary(
     :param split: The split (training/test/validation/inference)
     :param task: (If multi-label only) the task name in question
     :param inference_name: (If inference split only) The inference split name
+    :param filter: Optional filter to provide to restrict the summary to only to
+        matching rows. See `dq.schemas.metrics.FilterParams`
     """
+    split = conform_split(split)
+    filter_params = _validate_filter(filter)
     return api_client.get_run_summary(
-        project_name, run_name, split, task, inference_name
+        project_name, run_name, split, task, inference_name, filter_params=filter_params
     )
 
 
@@ -47,6 +54,7 @@ def get_metrics(
     task: Optional[str] = None,
     inference_name: Optional[str] = None,
     category: str = "gold",
+    filter: Union[FilterParams, Dict] = None,
 ) -> Dict[str, List]:
     """Calculates available metrics for a run/split, grouped by a particular category
 
@@ -61,7 +69,10 @@ def get_metrics(
     :param category: The category/column to calculate metrics for. Default "gold"
         Can be "gold" for ground truth, "pred" for predicted values, or any metadata
         column logged (or smart feature).
+    :param filter: Optional filter to provide to restrict the metrics to only to
+        matching rows. See `dq.schemas.metrics.FilterParams`
     """
+    split = conform_split(split)
     metrics = api_client.get_run_metrics(
         project_name,
         run_name,
@@ -69,6 +80,7 @@ def get_metrics(
         task=task,
         inference_name=inference_name,
         category=category,
+        filter_params=_validate_filter(filter),
     )
     # Filter out metrics not available for this request
     metrics = {k: v for k, v in metrics.items() if v}
@@ -82,6 +94,7 @@ def display_distribution(
     task: Optional[str] = None,
     inference_name: Optional[str] = None,
     column: str = "data_error_potential",
+    filter: Union[FilterParams, Dict] = None,
 ) -> None:
     """Displays the column distribution for a run. Plotly must be installed
 
@@ -91,6 +104,8 @@ def display_distribution(
     :param task: (If multi-label only) the task name in question
     :param inference_name: (If inference split only) The inference split name
     :param column: The column to get the distribution for. Default data error potential
+    :param filter: Optional filter to provide to restrict the distribution to only to
+        matching rows. See `dq.schemas.metrics.FilterParams`
     """
     try:
         import plotly.express as px
@@ -98,6 +113,7 @@ def display_distribution(
         raise GalileoException(
             "You must install plotly to use this function. Run `pip install plotly`"
         )
+    split = conform_split(split)
     distribution = api_client.get_column_distribution(
         project_name,
         run_name,
@@ -105,6 +121,7 @@ def display_distribution(
         column=column,
         task=task,
         inference_name=inference_name,
+        filter_params=_validate_filter(filter),
     )
     bins, counts = distribution["bins"], distribution["counts"]
     labels = {"x": column, "y": "Count"}
@@ -138,10 +155,14 @@ def get_dataframe(
     project_name: str,
     run_name: str,
     split: Split,
+    inference_name: str = "",
     file_type: FileType = FileType.arrow,
     include_embs: bool = False,
     include_probs: bool = False,
     include_token_indices: bool = False,
+    hf_format: bool = False,
+    tagging_schema: Optional[TaggingSchema] = None,
+    filter: Union[FilterParams, Dict] = None,
 ) -> DataFrame:
     """Gets the dataframe for a run/split
 
@@ -157,23 +178,146 @@ def get_dataframe(
     :param project_name: The project name
     :param run_name: The run name
     :param split: The split (training/test/validation/inference)
+    :param inference_name: Required if split is inference. The name of the inference
+        split to get data for.
     :param file_type: The file type to download the data as. Default arrow
     :param include_embs: Whether to include the embeddings in the data. Default False
     :param include_probs: Whether to include the probs in the data. Default False
     :param include_token_indices: (NER only) Whether to include logged
         text_token_indices in the data. Useful for reconstructing tokens for retraining
+    :param hf_format: (NER only)
+        Whether to export the dataframe in a HuggingFace compatible format
+    :param tagging_schema: (NER only)
+        If hf_format is True, you must pass a tagging schema
+    :param filter: Optional filter to provide to restrict the distribution to only to
+        matching rows. See `dq.schemas.metrics.FilterParams`
     """
+    split = conform_split(split)
     project_id, run_id = api_client._get_project_run_id(project_name, run_name)
     task_type = api_client.get_task_type(project_id, run_id)
 
     file_name = f"/tmp/{uuid4()}-data.{file_type}"
-    api_client.export_run(project_name, run_name, split, file_name=file_name)
+    filter_params = _validate_filter(filter)
+    api_client.export_run(
+        project_name,
+        run_name,
+        split,
+        inference_name=inference_name,
+        file_name=file_name,
+        filter_params=filter_params,
+        hf_format=hf_format,
+        tagging_schema=tagging_schema,
+    )
     data_df = vaex.open(file_name)
+    return _process_exported_dataframe(
+        data_df,
+        project_name,
+        run_name,
+        split,
+        task_type,
+        inference_name,
+        include_embs,
+        include_probs,
+        include_token_indices,
+        hf_format,
+    )
+
+
+def get_edited_dataframe(
+    project_name: str,
+    run_name: str,
+    split: Split,
+    inference_name: str = "",
+    file_type: FileType = FileType.arrow,
+    include_embs: bool = False,
+    include_probs: bool = False,
+    include_token_indices: bool = False,
+    hf_format: bool = False,
+    tagging_schema: Optional[TaggingSchema] = None,
+) -> DataFrame:
+    """Gets the edited dataframe for a run/split
+
+    Exports a run/split's data with all active edits in the edits cart and returns
+    a vaex dataframe
+
+    Special note for NER. By default, the data will be downloaded at a sample level
+    (1 row per sample text), with spans for each sample in a `spans` column in a
+    spacy-compatible JSON format. If include_emb is True, the data will be expanded
+    into span level (1 row per span, with sample text repeated for each span row), in
+    order to join the span-level embeddings
+
+    :param project_name: The project name
+    :param run_name: The run name
+    :param split: The split (training/test/validation/inference)
+    :param inference_name: Required if split is inference. The name of the inference
+        split to get data for.
+    :param file_type: The file type to download the data as. Default arrow
+    :param include_embs: Whether to include the embeddings in the data. Default False
+    :param include_probs: Whether to include the probs in the data. Default False
+    :param include_token_indices: (NER only) Whether to include logged
+        text_token_indices in the data. Useful for reconstructing tokens for retraining
+    :param hf_format: (NER only)
+        Whether to export the dataframe in a HuggingFace compatible format
+    :param tagging_schema: (NER only)
+        If hf_format is True, you must pass a tagging schema
+    """
+    split = conform_split(split)
+    project_id, run_id = api_client._get_project_run_id(project_name, run_name)
+    task_type = api_client.get_task_type(project_id, run_id)
+
+    file_name = f"/tmp/{uuid4()}-data.{file_type}"
+    api_client.export_edits(
+        project_name,
+        run_name,
+        split,
+        inference_name=inference_name,
+        file_name=file_name,
+        hf_format=hf_format,
+        tagging_schema=tagging_schema,
+    )
+    data_df = vaex.open(file_name)
+    return _process_exported_dataframe(
+        data_df,
+        project_name,
+        run_name,
+        split,
+        task_type,
+        inference_name,
+        include_embs,
+        include_probs,
+        include_token_indices,
+        hf_format,
+    )
+
+
+def _process_exported_dataframe(
+    data_df: DataFrame,
+    project_name: str,
+    run_name: str,
+    split: Split,
+    task_type: TaskType,
+    inference_name: str = "",
+    include_embs: bool = False,
+    include_probs: bool = False,
+    include_token_indices: bool = False,
+    hf_format: bool = False,
+) -> DataFrame:
+    """Process dataframe after export of run or edits.
+
+    See `get_dataframe` and `get_edited_dataframe` for details"""
+    split = conform_split(split)
     # See docstring. In this case, we need span-level data
-    if include_embs and task_type == TaskType.text_ner:
+    # You can't attach embeddings to the huggingface data, since the HF format is
+    # sample level, and the embeddings are span level
+    if include_embs and task_type == TaskType.text_ner and not hf_format:
         # In NER, the `probabilities` contains the span level data
-        span_df = get_probabilities(project_name, run_name, split)
-        data_df = span_df.join(data_df[["text", "sample_id"]], on="sample_id")
+        span_df = get_probabilities(project_name, run_name, split, inference_name)
+        # These are the token (not char) indices, lets make that clear
+        span_df.rename("span_start", "span_token_start")
+        span_df.rename("span_end", "span_token_end")
+        data_df = data_df[["sample_id", "text", "spans"]].join(
+            span_df, on="sample_id", allow_duplication=True
+        )
 
     tasks = []
     if task_type == TaskType.text_multi_label:
@@ -183,20 +327,31 @@ def get_dataframe(
             for task in tasks
         ]
         data_df = _index_df(data_df, labels, tasks)
+        data_df = _clean_mltc_df(data_df)
     if task_type == TaskType.text_classification:
         labels_per_task = api_client.get_labels_for_run(project_name, run_name)
         data_df = _index_df(data_df, labels_per_task)
 
     if include_embs:
-        emb_df = get_embeddings(project_name, run_name, split)
-        data_df = data_df.join(emb_df, on="id")
+        # Embeddings are span level, but huggingface is sample level, so can't combine
+        if hf_format:
+            warnings.warn(
+                "Embeddings are not available in HF format, ignoring", GalileoWarning
+            )
+        else:
+            emb_df = get_embeddings(project_name, run_name, split, inference_name)
+            data_df = data_df.join(emb_df, on="id")
     if include_probs:
         if task_type == task_type.text_ner:
             warnings.warn(
                 "Probabilities are not available for NER runs, ignoring", GalileoWarning
             )
+        elif hf_format:
+            warnings.warn(
+                "Probabilities are not available in HF format, ignoring", GalileoWarning
+            )
         else:
-            prob_df = get_probabilities(project_name, run_name, split)
+            prob_df = get_probabilities(project_name, run_name, split, inference_name)
             prob_cols = prob_df.get_column_names(regex="prob*") + ["id"]
             data_df = data_df.join(prob_df[prob_cols], on="id")
             data_df = _rename_prob_cols(data_df, tasks)
@@ -208,8 +363,9 @@ def get_dataframe(
         else:
             raw_tokens = get_raw_data(project_name, run_name, split)
             raw_tokens = raw_tokens[["id", "text_token_indices"]]
-            raw_tokens.rename("id", "sample_id")
-            data_df = data_df.join(raw_tokens, on="sample_id")
+            if "sample_id" in data_df.get_column_names():
+                data_df.rename("sample_id", "id")
+            data_df = data_df.join(raw_tokens, on="id")
     return data_df
 
 
@@ -220,11 +376,16 @@ def get_epochs(project_name: str, run_name: str, split: Split) -> List[int]:
     :param run_name: The run name
     :param split: The split (training/test/validation/inference)
     """
+    split = conform_split(split)
     return api_client.get_epochs_for_run(project_name, run_name, split)
 
 
 def get_embeddings(
-    project_name: str, run_name: str, split: Split, epoch: int = None
+    project_name: str,
+    run_name: str,
+    split: Split,
+    inference_name: str = "",
+    epoch: int = None,
 ) -> DataFrame:
     """Downloads the embeddings for a run/split at an epoch as a Vaex dataframe.
 
@@ -236,15 +397,26 @@ def get_embeddings(
     :param project_name: The project name
     :param run_name: The run name
     :param split: The split (training/test/validation/inference)
+    :param inference_name: Required if split is inference
     :param epoch: The epoch to get embeddings for. Default final epoch
     """
+    split = conform_split(split)
     return _get_hdf5_file_for_epoch(
-        project_name, run_name, split, "emb/emb.hdf5", epoch
+        project_name,
+        run_name,
+        split,
+        "emb/emb.hdf5",
+        inference_name,
+        epoch,
     )
 
 
 def get_probabilities(
-    project_name: str, run_name: str, split: Split, epoch: int = None
+    project_name: str,
+    run_name: str,
+    split: Split,
+    inference_name: str = "",
+    epoch: int = None,
 ) -> DataFrame:
     """Downloads the probabilities for a run/split at an epoch as a Vaex dataframe.
 
@@ -255,15 +427,21 @@ def get_probabilities(
     :param project_name: The project name
     :param run_name: The run name
     :param split: The split (training/test/validation/inference)
+    :param inference_name: Required if split is inference
     :param epoch: The epoch to get embeddings for. Default final epoch
     """
+    split = conform_split(split)
     return _get_hdf5_file_for_epoch(
-        project_name, run_name, split, "prob/prob.hdf5", epoch
+        project_name, run_name, split, "prob/prob.hdf5", inference_name, epoch
     )
 
 
 def get_raw_data(
-    project_name: str, run_name: str, split: Split, epoch: int = None
+    project_name: str,
+    run_name: str,
+    split: Split,
+    inference_name: str = "",
+    epoch: int = None,
 ) -> DataFrame:
     """Downloads the raw logged data for a run/split at an epoch as a Vaex dataframe.
 
@@ -274,16 +452,19 @@ def get_raw_data(
     :param project_name: The project name
     :param run_name: The run name
     :param split: The split (training/test/validation/inference)
+    :param inference_name: Required if split is inference
     :param epoch: The epoch to get embeddings for. Default final epoch
     """
-
+    split = conform_split(split)
     project_id, run_id = api_client._get_project_run_id(project_name, run_name)
     task_type = api_client.get_task_type(project_id, run_id)
     if task_type == TaskType.text_ner:
         object_name = "data/data.arrow"
     else:
         object_name = "data/data.hdf5"
-    return _get_hdf5_file_for_epoch(project_name, run_name, split, object_name, epoch)
+    return _get_hdf5_file_for_epoch(
+        project_name, run_name, split, object_name, inference_name, epoch
+    )
 
 
 def get_xray_cards(
@@ -293,10 +474,11 @@ def get_xray_cards(
 
     Xray cards are automatic insights calculated and provided by Galileo on your data
     """
+    split = conform_split(split)
     return api_client.get_xray_cards(project_name, run_name, split, inference_name)
 
 
-def get_label_for_run(
+def get_labels_for_run(
     project_name: str, run_name: str, task: Optional[str] = None
 ) -> List[str]:
     """Gets labels for a given run. If multi-label, a task must be provided"""
@@ -309,12 +491,21 @@ def get_tasks_for_run(project_name: str, run_name: str) -> List[str]:
 
 
 def _get_hdf5_file_for_epoch(
-    project_name: str, run_name: str, split: Split, object_name: str, epoch: int = None
+    project_name: str,
+    run_name: str,
+    split: Split,
+    object_name: str,
+    inference_name: str = "",
+    epoch: int = None,
 ) -> DataFrame:
+    split = conform_split(split)
     emb = "emb" in object_name
-    epoch = _validate_epoch(project_name, run_name, split, epoch, emb=emb)
+    if split == Split.inference and inference_name:
+        split_path = inference_name
+    else:
+        split_path = str(_validate_epoch(project_name, run_name, split, epoch, emb=emb))
     project_id, run_id = api_client._get_project_run_id(project_name, run_name)
-    object_name = f"{project_id}/{run_id}/{split}/{epoch}/{object_name}"
+    object_name = f"{project_id}/{run_id}/{split}/{split_path}/{object_name}"
     file_name = f"/tmp/{uuid4()}-{os.path.split(object_name)[-1]}"
     object_store.download_file(object_name, file_name)
     return vaex.open(file_name)
@@ -323,6 +514,7 @@ def _get_hdf5_file_for_epoch(
 def _validate_epoch(
     project_name: str, run_name: str, split: Split, epoch: int = None, emb: bool = False
 ) -> int:
+    split = conform_split(split)
     epochs = get_epochs(project_name, run_name, split)
     last_epoch = epochs[-1]
     if not epochs:
@@ -350,6 +542,8 @@ def _index_df(df: DataFrame, labels: List, tasks: Optional[List] = None) -> Data
         # If multi label, must do it per task. If TC, then it's just 1 list of labels
         task_labels = labels[ind] if task else labels
         for col in ["gold", "pred"]:
+            if col not in df.get_column_names():
+                continue
             df_col = f"{col}_{task}" if task else col
             df[f"{df_col}_idx"] = df[df_col]
             df = df.ordinal_encode(f"{df_col}_idx", values=task_labels, lazy=True)
@@ -360,3 +554,15 @@ def _rename_prob_cols(df: DataFrame, tasks: List[str]) -> DataFrame:
     for ind, task in enumerate(tasks):
         df.rename(f"prob_{ind}", f"prob_{task}")
     return df
+
+
+def _validate_filter(filter: Union[FilterParams, Dict] = None) -> Dict:
+    # Validate the fields provided with pydantic before making request
+    return FilterParams(**dict(filter or {})).dict()
+
+
+def _clean_mltc_df(df: DataFrame) -> DataFrame:
+    """In MLTC, don't return the non-task-indexes gold/pred/dep columns"""
+    drop_cols = ["gold", "pred", "data_error_potential", "prob"]
+    keep_cols = [col for col in df.get_column_names() if col not in drop_cols]
+    return df[keep_cols]
