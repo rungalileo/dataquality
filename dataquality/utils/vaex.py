@@ -13,6 +13,7 @@ from dataquality.loggers.base_logger import BaseLoggerAttributes
 from dataquality.schemas.split import Split
 from dataquality.utils import tqdm
 from dataquality.utils.hdf5_store import HDF5_STORE, HDF5Store
+from dataquality.utils.helpers import galileo_verbose_logging
 
 lock = threading.Lock()
 
@@ -86,13 +87,18 @@ def validate_unique_ids(df: DataFrame, epoch_or_inf_name: str) -> None:
     if df["id"].nunique() != len(df):
         epoch_or_inf_value, split = df[[epoch_or_inf_name, "split"]][0]
         dups = get_dup_ids(df)
-        raise GalileoException(
-            "It seems as though you do not have unique ids in this "
-            f"split. Did you provide your own IDs? Or did you log for the same "
-            f"split multiple times? Check where you are logging {split} data\n"
-            f"split:{split}, {epoch_or_inf_name}: {epoch_or_inf_value}, "
-            f"dup ids and counts: {dups}"
+        exc = (
+            f"It seems as though you do not have unique ids in split {split}. If "
+            f"you've re-run a block of code or notebook cell that logs model outputs, "
+            f"that could be the cause. Try reinitializing with `dq.init` to clear your "
+            f"local environment, and then logging your data again. "
         )
+        if galileo_verbose_logging():
+            exc += (
+                f"split:{split}, {epoch_or_inf_name}: {epoch_or_inf_value}, "
+                f"dup ids and counts: {dups}"
+            )
+        raise GalileoException(exc)
 
 
 def validate_ids_for_slice(df: DataFrame, col_name: str, value: str) -> None:

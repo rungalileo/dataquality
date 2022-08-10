@@ -173,7 +173,7 @@ def test_metadata_logging_invalid(
 
     _log_text_classification_data(meta=meta)
     valid_meta_cols = ["test1", "meta2"]
-    valid_meta_cols += [f"attr_{i}" for i in range(44)]
+    valid_meta_cols += [f"attr_{i}" for i in range(MAX_META_COLS - len(meta))]
     try:
         # Equivalent to the users `finish` call, but we don't want to clean up files yet
         c = dataquality.get_data_logger("text_classification")
@@ -202,7 +202,7 @@ def test_logging_duplicate_ids(
             c.upload()
 
         assert str(e.value).startswith(
-            "It seems as though you do not have unique ids in this split."
+            "It seems as though you do not have unique ids in split training"
         )
     finally:
         # Mock finish() call without calling the API
