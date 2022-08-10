@@ -7,6 +7,7 @@ import dataquality
 from dataquality.clients.api import ApiClient
 from dataquality.core._config import config
 from dataquality.schemas import RequestType, Route
+from dataquality.schemas import task_type
 from dataquality.schemas.job import JobName
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.dq_logger import DQ_LOG_FILE_HOME, upload_dq_log_file
@@ -33,6 +34,7 @@ def finish(
     ThreadPoolManager.wait_for_threads()
     assert config.current_project_id, "You must have an active project to call finish"
     assert config.current_run_id, "You must have an active run to call finish"
+    assert config.task_type, "You must have a task type to call finish"
     data_logger = dataquality.get_data_logger()
     data_logger.validate_labels()
 
@@ -49,6 +51,7 @@ def finish(
         project_id=str(config.current_project_id),
         run_id=str(config.current_run_id),
         labels=data_logger.logger_config.labels,
+        task_type=config.task_type.value,
         tasks=data_logger.logger_config.tasks,
     )
     if data_logger.logger_config.inference_logged:
