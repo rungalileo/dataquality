@@ -1,20 +1,23 @@
 from typing import Dict, List
 from unittest import mock
 
+import dataquality.utils.hf_tokenizer
 import datasets
 import pytest
+from unittest import mock
 
 from dataquality.exceptions import GalileoException
-from dataquality.integrations.hf import _validate_dataset, tokenize_adjust_labels
-from dataquality.schemas.ner import TaggingSchema
-from dataquality.utils.hf_tokenizer import (
-    extract_gold_spans_at_word_level,
+from dataquality.integrations.hf import (
+    _validate_dataset,
     infer_schema,
+    tokenize_adjust_labels,
 )
+from dataquality.schemas.ner import TaggingSchema
+from dataquality.utils.hf_tokenizer import extract_gold_spans_at_word_level
 from tests.utils.hf_integration_constants import (
     ADJUSTED_TOKEN_DATA,
     UNADJUSTED_TOKEN_DATA,
-    BIOSequence,
+    BIOESequence,
 )
 
 
@@ -35,12 +38,9 @@ def test_infer_schema(labels: List[str], schema: TaggingSchema) -> None:
         assert infer_schema(labels) == schema
 
 
-@pytest.mark.skip
 def test_tokenize_adjust_labels() -> None:
-    # TODO how do we test this without downloading from the internet
-    # tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
-    # ds = load_dataset("wikiann", "it")
     tokenizer = mock.Mock()
+    tokenizer.batch_encode_plus.return_value = None  # TODO Nidhi put here
     output = tokenize_adjust_labels(UNADJUSTED_TOKEN_DATA, tokenizer)
     for k in ADJUSTED_TOKEN_DATA:
         assert ADJUSTED_TOKEN_DATA[k] == output[k]
@@ -48,25 +48,27 @@ def test_tokenize_adjust_labels() -> None:
 
 @pytest.mark.parametrize(
     "gold_sequence,gold_span",
-    list(zip(BIOSequence.gold_sequences, BIOSequence.gold_spans)),
+    list(zip(BIOESequence.gold_sequences, BIOESequence.gold_spans)),
 )
 def test_extract_gold_spans_at_word_level_bio(
     gold_sequence: List[str], gold_span: List[Dict]
 ) -> None:
-    # TODO: Our infer_schema function isnt good. If a gold sequence has {B, I}
-    #  but no O, it throws an error because we need BIO or BIOES all/nothing.
-    #  we need a more robust solution
-    assert extract_gold_spans_at_word_level(gold_sequence) == gold_span
+    assert (
+        extract_gold_spans_at_word_level(gold_sequence, TaggingSchema.BIO) == gold_span
+    )
 
 
 @pytest.mark.parametrize(
     "gold_sequence,gold_span",
-    list(zip(BIOSequence.gold_sequences, BIOSequence.gold_spans)),
+    list(zip(BIOESequence.gold_sequences, BIOESequence.gold_spans)),
 )
 def test_extract_gold_spans_at_word_level_bioes(
     gold_sequence: List[str], gold_span: List[Dict]
 ) -> None:
-    assert extract_gold_spans_at_word_level(gold_sequence) == gold_span
+    assert (
+        extract_gold_spans_at_word_level(gold_sequence, TaggingSchema.BIOES)
+        == gold_span
+    )
 
 
 def test_extract_gold_spans_at_word_level_bilou() -> None:
@@ -87,7 +89,7 @@ def test_validate_dataset() -> None:
 
 
 @mock.patch("dataquality.integrations.hf.dataquality")
-def test_tokenize_and_align_labels(mock_dq: mock.MagicMock) -> None:
+def test_tokenize_and_and_log_dataset(mock_dq: mock.MagicMock) -> None:
     """TODO @nidhi
 
     Tests the e2e function call, passing in a DatasetDict and receiving a

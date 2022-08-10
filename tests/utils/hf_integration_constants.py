@@ -232,7 +232,7 @@ ADJUSTED_TOKEN_DATA = {
 }
 
 
-class BIOSequence:
+class BIOESequence:
     gold_sequences = [
         ["B-PER", "I-PER", "O", "I-PER", "B-MISC", "I-MISC", "B-PER"],
         ["O", "B-PER", "I-ORG", "O", "I-ORG"],

@@ -1,43 +1,18 @@
 import warnings
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Tuple
 
 from datasets import Dataset
 from transformers import PreTrainedTokenizerBase
 
-from dataquality.exceptions import GalileoException, GalileoWarning
+from dataquality.exceptions import GalileoWarning
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
 from dataquality.schemas.hf import HFCol
 from dataquality.schemas.ner import TaggingSchema
 
 
-def _is_bio(schema_tags: Set[str]) -> bool:
-    return sorted(list(schema_tags)) == sorted(["B", "I", "O"])
-
-
-def _is_bioes(schema_tags: Set[str]) -> bool:
-    return sorted(list(schema_tags)) == sorted(["B", "I", "O", "E", "S"])
-
-
-def _is_bilou(schema_tags: Set[str]) -> bool:
-    return sorted(list(schema_tags)) == sorted(["B", "I", "L", "O", "U"])
-
-
-def infer_schema(label_list: List[str]) -> TaggingSchema:
-    schema_tags = set([x.split("-")[0] for x in label_list])
-    if _is_bio(schema_tags):
-        return TaggingSchema.BIO
-    elif _is_bioes(schema_tags):
-        return TaggingSchema.BIOES
-    elif _is_bilou(schema_tags):
-        return TaggingSchema.BILOU
-    else:
-        raise GalileoException(
-            "Tagging schema must be one of BIO, BIOES, or BILOU. Given schemas tags "
-            f"{schema_tags} we cannot identify the tagging schema."
-        )
-
-
-def extract_gold_spans_at_word_level(gold_sequence: List[str]) -> List[Dict]:
+def extract_gold_spans_at_word_level(
+    gold_sequence: List[str], schema: TaggingSchema
+) -> List[Dict]:
     """Extracts span level words from a gold sequence
 
     Given a gold sequence [O, O, B-PER, I-PER, I-PER, ...] -> extracts out spans
@@ -48,7 +23,6 @@ def extract_gold_spans_at_word_level(gold_sequence: List[str]) -> List[Dict]:
     # gold_spans -> [{'start': 0, 'end': 5, 'label': 'LOC'}]
     """
     logger = TextNERModelLogger()
-    schema = infer_schema(gold_sequence)
     if schema == TaggingSchema.BIO:
         return logger._extract_spans_bio(gold_sequence)
     else:  # BILOU or BIOES
@@ -56,6 +30,7 @@ def extract_gold_spans_at_word_level(gold_sequence: List[str]) -> List[Dict]:
 
 
 class LabelTokenizer:
+    """TODO: @nidhi docstring for this class"""
     def __init__(
         self, ds: Dataset, tokenizer: PreTrainedTokenizerBase, schema: TaggingSchema
     ) -> None:
@@ -70,9 +45,8 @@ class LabelTokenizer:
         self.total_bpe_tokens: List[List[str]] = []
         self.texts: List[
             str
-        ] = []  # TODO: Add warning that we assume space seperation here
+        ] = []  # TODO: @nidhi Add warning that we assume space separation here
         self.idx_2_labels = ds.features[HFCol.ner_tags].feature.names
-        # TODO: make this k:v
         self.labels_2_idx = {k: v for v, k in enumerate(self.idx_2_labels)}
         self.total_gold_spans: List[List[Dict]] = []
         self.num_samples = len(self.tokenized_samples[HFCol.input_ids])
@@ -98,7 +72,9 @@ class LabelTokenizer:
         existing_labels = [
             self.idx_2_labels[label] for label in self.ds[HFCol.ner_tags][k]
         ]
-        self.word_gold_spans = extract_gold_spans_at_word_level(existing_labels)
+        self.word_gold_spans = extract_gold_spans_at_word_level(
+            existing_labels, self.schema
+        )
         if not self.word_gold_spans:
             warnings.warn(
                 f"No gold spans found for batch {k}. This batch will not be logged",
@@ -118,7 +94,7 @@ class LabelTokenizer:
     def update_text_token_indices(self, k: int, w_index_bpe: int, wid: int) -> bool:
         if wid is None:
             # adjusted_labels[w_index_bpe] = -100
-            # TODO consider uncommenting
+            # TODO consider uncommenting @nidhi
             # TODO write test functions for each function
             """
             if w_index_bpe == 0:

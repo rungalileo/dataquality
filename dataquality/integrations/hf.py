@@ -1,3 +1,5 @@
+from typing import List, Set
+
 from datasets.arrow_dataset import Dataset
 from datasets.dataset_dict import DatasetDict
 from transformers import BatchEncoding, PreTrainedTokenizerBase
@@ -5,8 +7,37 @@ from transformers import BatchEncoding, PreTrainedTokenizerBase
 import dataquality as dq
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.hf import HFCol
+from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import conform_split
-from dataquality.utils.hf_tokenizer import LabelTokenizer, infer_schema
+from dataquality.utils.hf_tokenizer import LabelTokenizer
+
+
+def _is_bio(schema_tags: Set[str]) -> bool:
+    return sorted(list(schema_tags)) == sorted(["B", "I", "O"])
+
+
+def _is_bioes(schema_tags: Set[str]) -> bool:
+    return sorted(list(schema_tags)) == sorted(["B", "I", "O", "E", "S"])
+
+
+def _is_bilou(schema_tags: Set[str]) -> bool:
+    return sorted(list(schema_tags)) == sorted(["B", "I", "L", "O", "U"])
+
+
+def infer_schema(label_list: List[str]) -> TaggingSchema:
+    """Infers the schema via the exhaustive list of labels"""
+    schema_tags = set([x.split("-")[0] for x in label_list])
+    if _is_bio(schema_tags):
+        return TaggingSchema.BIO
+    elif _is_bioes(schema_tags):
+        return TaggingSchema.BIOES
+    elif _is_bilou(schema_tags):
+        return TaggingSchema.BILOU
+    else:
+        raise GalileoException(
+            "Tagging schema must be one of BIO, BIOES, or BILOU. Given schemas tags "
+            f"{schema_tags} we cannot identify the tagging schema."
+        )
 
 
 def tokenize_adjust_labels(
@@ -51,9 +82,17 @@ def _validate_dataset(dd: DatasetDict) -> None:
         )
 
 
-def tokenize_and_align_labels(
+def tokenize_and_log_dataset(
     ds: DatasetDict, tokenizer: PreTrainedTokenizerBase
 ) -> DatasetDict:
+    """This function tokenizes a huggingface DatasetDict and aligns the labels to BPE
+
+    After tokenization, this function will also log the dataset(s) present in the
+    DatasetDict
+
+    :param ds: DatasetDict from huggingface to log
+    :param tokenizer: The pretrained tokenizer from huggingface
+    """
     _validate_dataset(ds)
     tokenized_dataset = ds.map(
         tokenize_adjust_labels,
