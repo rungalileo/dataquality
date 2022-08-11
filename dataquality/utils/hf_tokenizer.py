@@ -6,7 +6,7 @@ from transformers import PreTrainedTokenizerBase
 
 from dataquality.exceptions import GalileoWarning
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
-from dataquality.schemas.hf import HFCol
+from dataquality.schemas.hf import HFCol, SpanKey
 from dataquality.schemas.ner import TaggingSchema
 
 
@@ -79,7 +79,7 @@ class LabelTokenizer:
         self.word_gold_spans = extract_gold_spans_at_word_level(
             existing_labels, self.schema
         )
-        if not self.word_gold_spans:
+        if len(self.word_gold_spans) == 0:
             warnings.warn(
                 f"No gold spans found for batch {k}. This batch will not be logged",
                 GalileoWarning,
@@ -100,15 +100,15 @@ class LabelTokenizer:
             self.char_seen += len(self.ds[HFCol.tokens][k][0])
             return True
         elif wid != self.previous_word_id:
-            original_word_idx = self.original_word_idx + 1
+            self.original_word_idx = self.original_word_idx + 1
             self.previous_word_id = wid
             self.start_char_idx = self.char_seen
             self.end_char_idx = self.char_seen + len(
-                self.ds[HFCol.tokens][k][original_word_idx]
+                self.ds[HFCol.tokens][k][self.original_word_idx]
             )
             # Get the char start and end index for the word
             self.text_token_indices.append((self.start_char_idx, self.end_char_idx))
-            self.char_seen += len(self.ds[HFCol.tokens][k][original_word_idx]) + 1
+            self.char_seen += len(self.ds[HFCol.tokens][k][self.original_word_idx]) + 1
         else:
             # Get the char start and end index for the word
             self.text_token_indices.append((self.start_char_idx, self.end_char_idx))
@@ -153,9 +153,9 @@ class LabelTokenizer:
         self.current_gold_span_idx += 1
         self.gold_spans.append(
             {
-                HFCol.start: self.start_char_idx,
-                HFCol.end: self.end_char_idx,
-                HFCol.label: span_label_suffix,
+                SpanKey.start: self.start_char_idx,
+                SpanKey.end: self.end_char_idx,
+                SpanKey.label: span_label_suffix,
             }
         )
 
@@ -166,8 +166,8 @@ class LabelTokenizer:
         ]
         self.gold_spans.append(
             {
-                HFCol.start: self.start_char_idx,
-                HFCol.label: span_label_suffix,
+                SpanKey.start: self.start_char_idx,
+                SpanKey.label: span_label_suffix,
             }
         )
 
@@ -182,7 +182,7 @@ class LabelTokenizer:
             self.adjusted_labels[w_index_bpe]
         ]
         # Update end indices
-        self.gold_spans[-1][HFCol.end] = self.end_char_idx
+        self.gold_spans[-1][SpanKey.end] = self.end_char_idx
         self.current_gold_span_idx += 1
 
     def _adjust_middle_bpe(self, w_index_bpe: int, span_label_suffix: str) -> None:
@@ -192,9 +192,13 @@ class LabelTokenizer:
         ]
 
     def adjust_labels_bpe(self, wid: int, w_index_bpe: int) -> None:
-        span_start_word = self.word_gold_spans[self.current_gold_span_idx][HFCol.start]
-        span_end_word = self.word_gold_spans[self.current_gold_span_idx][HFCol.end] - 1
-        span_label_sfx = self.word_gold_spans[self.current_gold_span_idx][HFCol.label]
+        span_start_word = self.word_gold_spans[self.current_gold_span_idx][
+            SpanKey.start
+        ]
+        span_end_word = (
+            self.word_gold_spans[self.current_gold_span_idx][SpanKey.end] - 1
+        )
+        span_label_sfx = self.word_gold_spans[self.current_gold_span_idx][SpanKey.label]
         # Found a singelton length span that could be in the
         # start, middle, or end of the sentence
         if self._is_singleton_span(wid, w_index_bpe, span_start_word, span_end_word):
@@ -218,7 +222,7 @@ class LabelTokenizer:
         self.total_gold_spans.append(self.gold_spans)
 
     def update_tokenized_samples(self) -> None:
-        self.tokenized_samples[HFCol.label] = self.total_adjusted_labels_indices
+        self.tokenized_samples[HFCol.labels] = self.total_adjusted_labels_indices
         self.tokenized_samples[HFCol.text_token_indices] = self.total_text_token_indices
         self.tokenized_samples[HFCol.bpe_tokens] = self.total_bpe_tokens
         self.tokenized_samples[HFCol.text] = self.texts

@@ -1,9 +1,9 @@
+import json
 from typing import Dict, List
 from unittest import mock
 
 import datasets
 import pytest
-from transformers import BatchEncoding
 
 from dataquality.exceptions import GalileoException
 from dataquality.integrations.hf import (
@@ -16,12 +16,11 @@ from dataquality.schemas.ner import TaggingSchema
 from dataquality.utils.hf_tokenizer import extract_gold_spans_at_word_level
 from tests.utils.hf_integration_constants import (
     ADJUSTED_TOKEN_DATA,
-    TOKENIZED_DATA,
-    UNADJUSTED_TOKEN_DATA,
     BILOUSequence,
     BIOESSequence,
     BIOSequence,
-    WORD_IDS, BATCH_TOKENS, BatchEncodingTokens
+    mock_ds,
+    mock_tokenizer,
 )
 
 
@@ -43,24 +42,7 @@ def test_infer_schema(labels: List[str], schema: TaggingSchema) -> None:
 
 
 def test_tokenize_adjust_labels() -> None:
-    tokenizer = mock.Mock()
-    batch_encoded = BatchEncoding(data=TOKENIZED_DATA)
-    batch_encoded.word_ids = lambda batch_index: WORD_IDS[batch_index]
-    batch_encoded._encodings = [BatchEncodingTokens(tokens) for tokens in BATCH_TOKENS]
-    tokenizer.batch_encode_plus.return_value = batch_encoded
-
-    ds_input = datasets.Dataset.from_dict(UNADJUSTED_TOKEN_DATA)
-    ds_input.features["ner_tags"].feature.names = [
-        "O",
-        "B-PER",
-        "I-PER",
-        "B-ORG",
-        "I-ORG",
-        "B-LOC",
-        "I-LOC",
-    ]
-    output = tokenize_adjust_labels(ds_input, tokenizer)
-    print(output.keys())
+    output = tokenize_adjust_labels(mock_ds, mock_tokenizer)
     for k in ADJUSTED_TOKEN_DATA:
         assert ADJUSTED_TOKEN_DATA[k] == output[k]
 
@@ -112,18 +94,35 @@ def test_validate_dataset() -> None:
         )
     )
     # Must be a DatasetDict, not Dataset
-    with pytest.raises(GalileoException):
+    with pytest.raises(GalileoException) as e:
         _validate_dataset(ds)
+    assert str(e.value) == (
+        f"Expected DatasetDict but got object of type {type(ds)}. "
+        f"If this is a dataset, you can create a dataset dict by running\n"
+        "dd = datasets.DatasetDict({'your_split': your_Dataset})"
+    )
 
 
-@mock.patch("dataquality.integrations.hf.dq")
-def test_tokenize_and_and_log_dataset(mock_dq: mock.MagicMock) -> None:
-    """TODO @ben - to test for dq logging
-    Tests the e2e function call, passing in a DatasetDict and receiving a
+@mock.patch("dataquality.log_dataset")
+def test_tokenize_and_log_dataset(mock_log_dataset: mock.MagicMock) -> None:
+    """Tests the e2e function call, passing in a DatasetDict and receiving a
+
     new DatasetDict, and that the datasets per split were logged correctly.
     """
-    tokenizer = mock.Mock()
-    tokenizer.batch_encode_plus.return_value = TOKENIZED_DATA
-    assert ADJUSTED_TOKEN_DATA == tokenize_and_log_dataset(
-        UNADJUSTED_TOKEN_DATA, tokenizer
-    )
+    tokenize_output = tokenize_adjust_labels(mock_ds, mock_tokenizer)
+    with mock.patch("dataquality.integrations.hf.tokenize_adjust_labels") as mock_tok:
+        mock_tok.return_value = tokenize_output
+        ds_dict = datasets.DatasetDict(
+            {"train": mock_ds, "test": mock_ds, "validation": mock_ds}
+        )
+        output = tokenize_and_log_dataset(ds_dict, mock_tokenizer)
+    for split in ds_dict.keys():
+        split_output = output[split]
+        for k in ADJUSTED_TOKEN_DATA:
+            token_data = ADJUSTED_TOKEN_DATA[k]
+            if k == "text_token_indices":
+                # We abuse token data because outputs are returning tuples but we want
+                # to compare lists
+                token_data = json.loads(json.dumps(token_data))
+            assert token_data == split_output[k]
+    assert mock_log_dataset.call_count == 3

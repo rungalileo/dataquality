@@ -1,24 +1,8 @@
 from typing import List
+from unittest import mock
 
-WORD_IDS = [
-    [None, 0, 1, 1, 2, 3, 4, 4, 5, 6, 7, 7, 8, 8, 8, None],
-    [None, 0, 0, 0, 1, 2, 2, 3, 4, 5, 6, 6, 6, None],
-    [None, 0, 1, 1, 2, 3, 3, 4, None],
-    [None, 0, 0, 0, 1, 2, 2, None],
-    [None, 0, 1, 1, 1, 2, 3, 3, 4, 5, 5, 5, 5, 6, 6, 6, 7, None],
-]
-BATCH_TOKENS = [
-    ['[CLS]', "'", "'", "'", 'andrew', 'noble', "'", "'", "'", '-', 'fis', '##ico', 'brit', '##ann', '##ico', '[SEP]'] ,
-    ['[CLS]', 'eli', '##mina', '##to', 'al', '4', '##t', 'da', 'andy', 'murray', '[', '3', ']', '[SEP]'] ,
-    ['[CLS]', "'", "'", "'", 'suzuki', "'", "'", "'", '[SEP]'] ,
-    ['[CLS]', 'seek', '##ir', '##chen', 'am', 'waller', '##see', '[SEP]'] ,
-    ['[CLS]', 'ha', 'mu', '##tua', '##to', 'il', 'no', '##me', 'dal', 'cap', '##ol', '##uo', '##go', 'tar', '##fa', '##ya', '.', '[SEP]']
-]
-
-
-class BatchEncodingTokens:
-    def __init__(self, tokens: List[str]) -> None:
-        self.tokens = tokens
+import datasets
+from transformers import BatchEncoding
 
 UNADJUSTED_TOKEN_DATA = {
     "tokens": [
@@ -117,7 +101,7 @@ ADJUSTED_TOKEN_DATA = {
         [1, 1, 1, 1, 1, 1, 1, 1],
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     ],
-    "label": [
+    "labels": [
         [0, 0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0, 5, 6, 6, 0],
         [0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 0, 0, 0, 0],
         [0, 0, 0, 0, 3, 0, 0, 0, 0],
@@ -392,3 +376,97 @@ class BILOUSequence:
         [],
         [],
     ]
+
+
+BATCH_WORD_IDS = [
+    [None, 0, 1, 1, 2, 3, 4, 4, 5, 6, 7, 7, 8, 8, 8, None],
+    [None, 0, 0, 0, 1, 2, 2, 3, 4, 5, 6, 6, 6, None],
+    [None, 0, 1, 1, 2, 3, 3, 4, None],
+    [None, 0, 0, 0, 1, 2, 2, None],
+    [None, 0, 1, 1, 1, 2, 3, 3, 4, 5, 5, 5, 5, 6, 6, 6, 7, None],
+]
+BATCH_TOKENS = [
+    [
+        "[CLS]",
+        "'",
+        "'",
+        "'",
+        "andrew",
+        "noble",
+        "'",
+        "'",
+        "'",
+        "-",
+        "fis",
+        "##ico",
+        "brit",
+        "##ann",
+        "##ico",
+        "[SEP]",
+    ],
+    [
+        "[CLS]",
+        "eli",
+        "##mina",
+        "##to",
+        "al",
+        "4",
+        "##t",
+        "da",
+        "andy",
+        "murray",
+        "[",
+        "3",
+        "]",
+        "[SEP]",
+    ],
+    ["[CLS]", "'", "'", "'", "suzuki", "'", "'", "'", "[SEP]"],
+    ["[CLS]", "seek", "##ir", "##chen", "am", "waller", "##see", "[SEP]"],
+    [
+        "[CLS]",
+        "ha",
+        "mu",
+        "##tua",
+        "##to",
+        "il",
+        "no",
+        "##me",
+        "dal",
+        "cap",
+        "##ol",
+        "##uo",
+        "##go",
+        "tar",
+        "##fa",
+        "##ya",
+        ".",
+        "[SEP]",
+    ],
+]
+
+
+class BatchTokens:
+    def __init__(self, tokens: List[str]) -> None:
+        self.tokens = tokens
+
+
+# We mock the BatchEncoding so we do not need to use a real huggingface tokenizer
+mock_batch_encoding = BatchEncoding(TOKENIZED_DATA)
+mock_batch_encoding.word_ids = lambda batch_index: BATCH_WORD_IDS[batch_index]
+mock_batch_encoding._encodings = [BatchTokens(tokens) for tokens in BATCH_TOKENS]
+
+# We mock the tokenizer so we don't need to use the real tokenizer from hf
+mock_tokenizer = mock.Mock()
+mock_tokenizer.batch_encode_plus.return_value = mock_batch_encoding
+
+# We mock the hf dataset so we don't need to download a dataset from hf
+mock_ds = datasets.Dataset.from_dict(UNADJUSTED_TOKEN_DATA)
+mock_ds.features["ner_tags"].feature.names = [
+    "O",
+    "B-PER",
+    "I-PER",
+    "B-ORG",
+    "I-ORG",
+    "B-LOC",
+    "I-LOC",
+]

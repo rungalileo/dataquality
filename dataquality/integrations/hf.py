@@ -78,8 +78,8 @@ def _validate_dataset(dd: DatasetDict) -> None:
     if not isinstance(dd, DatasetDict):
         raise GalileoException(
             f"Expected DatasetDict but got object of type {type(dd)}. "
-            f"If this is a dataset, you can create a dataset dict by running"
-            # TODO Add snippet
+            f"If this is a dataset, you can create a dataset dict by running\n"
+            "dd = datasets.DatasetDict({'your_split': your_Dataset})"
         )
 
 
