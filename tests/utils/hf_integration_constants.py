@@ -1,3 +1,25 @@
+from typing import List
+
+WORD_IDS = [
+    [None, 0, 1, 1, 2, 3, 4, 4, 5, 6, 7, 7, 8, 8, 8, None],
+    [None, 0, 0, 0, 1, 2, 2, 3, 4, 5, 6, 6, 6, None],
+    [None, 0, 1, 1, 2, 3, 3, 4, None],
+    [None, 0, 0, 0, 1, 2, 2, None],
+    [None, 0, 1, 1, 1, 2, 3, 3, 4, 5, 5, 5, 5, 6, 6, 6, 7, None],
+]
+BATCH_TOKENS = [
+    ['[CLS]', "'", "'", "'", 'andrew', 'noble', "'", "'", "'", '-', 'fis', '##ico', 'brit', '##ann', '##ico', '[SEP]'] ,
+    ['[CLS]', 'eli', '##mina', '##to', 'al', '4', '##t', 'da', 'andy', 'murray', '[', '3', ']', '[SEP]'] ,
+    ['[CLS]', "'", "'", "'", 'suzuki', "'", "'", "'", '[SEP]'] ,
+    ['[CLS]', 'seek', '##ir', '##chen', 'am', 'waller', '##see', '[SEP]'] ,
+    ['[CLS]', 'ha', 'mu', '##tua', '##to', 'il', 'no', '##me', 'dal', 'cap', '##ol', '##uo', '##go', 'tar', '##fa', '##ya', '.', '[SEP]']
+]
+
+
+class BatchEncodingTokens:
+    def __init__(self, tokens: List[str]) -> None:
+        self.tokens = tokens
+
 UNADJUSTED_TOKEN_DATA = {
     "tokens": [
         ["'", "''", "Andrew", "Noble", "''", "'", "-", "fisico", "britannico"],
@@ -95,7 +117,7 @@ ADJUSTED_TOKEN_DATA = {
         [1, 1, 1, 1, 1, 1, 1, 1],
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     ],
-    "labels": [
+    "label": [
         [0, 0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0, 5, 6, 6, 0],
         [0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 0, 0, 0, 0],
         [0, 0, 0, 0, 3, 0, 0, 0, 0],
@@ -212,7 +234,7 @@ ADJUSTED_TOKEN_DATA = {
             "[SEP]",
         ],
     ],
-    "texts": [
+    "text": [
         "' '' Andrew Noble '' ' - fisico britannico",
         "Eliminato al 4T da Andy Murray [3]",
         "' '' Suzuki '' '",

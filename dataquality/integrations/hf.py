@@ -69,6 +69,7 @@ def tokenize_adjust_labels(
 
         label_tokenizer.update_totals_for_batch(k)
 
+    label_tokenizer.update_tokenized_samples()
     return label_tokenizer.tokenized_samples
 
 

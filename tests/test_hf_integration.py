@@ -21,6 +21,7 @@ from tests.utils.hf_integration_constants import (
     BILOUSequence,
     BIOESSequence,
     BIOSequence,
+    WORD_IDS, BATCH_TOKENS, BatchEncodingTokens
 )
 
 
@@ -44,7 +45,10 @@ def test_infer_schema(labels: List[str], schema: TaggingSchema) -> None:
 def test_tokenize_adjust_labels() -> None:
     tokenizer = mock.Mock()
     batch_encoded = BatchEncoding(data=TOKENIZED_DATA)
+    batch_encoded.word_ids = lambda batch_index: WORD_IDS[batch_index]
+    batch_encoded._encodings = [BatchEncodingTokens(tokens) for tokens in BATCH_TOKENS]
     tokenizer.batch_encode_plus.return_value = batch_encoded
+
     ds_input = datasets.Dataset.from_dict(UNADJUSTED_TOKEN_DATA)
     ds_input.features["ner_tags"].feature.names = [
         "O",
@@ -56,6 +60,7 @@ def test_tokenize_adjust_labels() -> None:
         "I-LOC",
     ]
     output = tokenize_adjust_labels(ds_input, tokenizer)
+    print(output.keys())
     for k in ADJUSTED_TOKEN_DATA:
         assert ADJUSTED_TOKEN_DATA[k] == output[k]
 
