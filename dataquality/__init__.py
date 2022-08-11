@@ -6,6 +6,7 @@ import os
 import resource
 
 import dataquality.core._config
+import dataquality.integrations
 import dataquality.metrics
 from dataquality.core._config import config
 from dataquality.core.auth import login
