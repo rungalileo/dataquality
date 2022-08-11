@@ -7,7 +7,6 @@ import dataquality
 from dataquality.clients.api import ApiClient
 from dataquality.core._config import config
 from dataquality.schemas import RequestType, Route
-from dataquality.schemas import task_type
 from dataquality.schemas.job import JobName
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.dq_logger import DQ_LOG_FILE_HOME, upload_dq_log_file
