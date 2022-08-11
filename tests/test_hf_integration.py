@@ -3,6 +3,7 @@ from unittest import mock
 
 import datasets
 import pytest
+from transformers import BatchEncoding
 
 from dataquality.exceptions import GalileoException
 from dataquality.integrations.hf import (
@@ -42,7 +43,7 @@ def test_infer_schema(labels: List[str], schema: TaggingSchema) -> None:
 
 def test_tokenize_adjust_labels() -> None:
     tokenizer = mock.Mock()
-    batch_encoded = datasets.Dataset.from_dict(TOKENIZED_DATA)
+    batch_encoded = BatchEncoding(data=TOKENIZED_DATA)
     tokenizer.batch_encode_plus.return_value = batch_encoded
     ds_input = datasets.Dataset.from_dict(UNADJUSTED_TOKEN_DATA)
     ds_input.features["ner_tags"].feature.names = [
@@ -54,7 +55,7 @@ def test_tokenize_adjust_labels() -> None:
         "B-LOC",
         "I-LOC",
     ]
-    output = tokenize_adjust_labels(ds_input, tokenizer).to_dict()
+    output = tokenize_adjust_labels(ds_input, tokenizer)
     for k in ADJUSTED_TOKEN_DATA:
         assert ADJUSTED_TOKEN_DATA[k] == output[k]
 
