@@ -109,21 +109,22 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         :return:
         """
         get_dq_logger().info("Handling logits and probs", split=self.split)
-        if len(self.logits):
-            self.logits = self._convert_tensor_ndarray(self.logits, "Prob")
-            self.probs = self.convert_logits_to_probs(self.logits)
-            del self.logits
-        elif len(self.probs):
-            warnings.warn("Usage of probs is deprecated, use logits instead")
+        # TODO: Need a better check here for logits/probs existence that isn't checking for len
+        # if self.logits is not None:
+        #     self.logits = self._convert_tensor_ndarray(self.logits, "Prob")
+        #     self.probs = self.convert_logits_to_probs(self.logits)
+        #     del self.logits
+        # elif self.probs is not None:
+        if self.probs is not None:
             self.probs = self._convert_tensor_ndarray(self.probs, "Prob")
-
-        embs_len = len(self.embs)
-        probs_len = len(self.probs)
-        ids_len = len(self.ids)
 
         get_dq_logger().info("Converting inputs to numpy arrays", split=self.split)
         self.embs = self._convert_tensor_ndarray(self.embs, "Embedding")
         self.ids = self._convert_tensor_ndarray(self.ids)
+
+        embs_len = len(self.embs)
+        probs_len = len(self.probs)
+        ids_len = len(self.ids)
 
         get_dq_logger().info("Validating embedding shape", split=self.split)
         assert self.embs.ndim == 2, "Only one embedding vector is allowed per input."

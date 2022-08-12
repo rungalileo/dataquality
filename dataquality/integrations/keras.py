@@ -3,6 +3,8 @@ import dataquality as dq
 import numpy as np
 import tensorflow as tf
 
+# If this is TF 1.x
+tf.compat.v1.enable_eager_execution()
 
 def _indices_for_ids(arr):
     return tuple([list(range(arr.shape[0]))] + [[-1]] * (len(arr.shape) - 1))
@@ -23,7 +25,7 @@ def split_into_ids_and_numpy_arr(arr):
     return orig_arr, ids.astype(int)
 
 
-class DataQualityLoggingLayer(keras.layers.Layer):
+class DataQualityLoggingLayer(tf.keras.layers.Layer):
     def __init__(self, what_to_log: str):
         super(DataQualityLoggingLayer, self).__init__()
         self.what_to_log = what_to_log
@@ -31,7 +33,10 @@ class DataQualityLoggingLayer(keras.layers.Layer):
 
     def call(self, inputs):
         if self.what_to_log == "ids":
-            if inputs.shape[0] == None:
+            # TODO: Distinguish between tensorflow 1 and tf 2
+            if inputs.shape[0].value == None:  # TF 1.x
+            # if inputs.shape[0] == None: # TF 2.x
+                # In this case the tensor is symbolic and has no real information
                 inputs = inputs[..., :-1]
             else:
                 inputs, ids = split_into_ids_and_numpy_arr(inputs)

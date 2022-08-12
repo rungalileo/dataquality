@@ -147,7 +147,8 @@ class BaseGalileoLogger:
                 arr = arr.detach().cpu().numpy()
         if TF_AVAILABLE:
             if isinstance(arr, tf.Tensor):
-                arr = arr.cpu().numpy()
+                # arr = arr.cpu().numpy() # TODO: Need a way to distinguish whether this is TF 1.x or 2.x
+                arr = arr.numpy() # Just for TF1.x
         if isinstance(arr, np.ndarray):
             if attr == "Embedding":
                 assert (
