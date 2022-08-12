@@ -102,6 +102,20 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         """
         return GalileoModelLoggerAttributes.get_valid()
 
+    def _has_len(self, arr: Any) -> bool:
+        """Checks if an array has length
+
+        Array can be list, numpy array, or tensorflow tensor. Tensorflow tensors don't
+        let you call len(), they throw a TypeError so we catch that here and check
+        shape https://github.com/tensorflow/tensorflow/blob/master/tensorflow/...
+        python/framework/ops.py#L929
+        """
+        try:
+            has_len = len(arr) != 0
+        except TypeError:
+            has_len = bool(arr.shape[0])
+        return has_len
+
     def validate(self) -> None:
         """
         Validates that the current config is correct.
@@ -118,11 +132,13 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         # if self.probs is not None:
         #     self.probs = self._convert_tensor_ndarray(self.probs, "Prob")
         # TODO @nikita i would do this
-        if self.logits is not None:
+        has_logits = self._has_len(self.logits)
+        has_probs = self._has_len(self.probs)
+        if has_logits:
             self.logits = self._convert_tensor_ndarray(self.logits, "Prob")
             self.probs = self.convert_logits_to_probs(self.logits)
             del self.logits
-        elif self.probs is not None:
+        elif has_probs:
             warnings.warn("Usage of probs is deprecated, use logits instead")
             self.probs = self._convert_tensor_ndarray(self.probs, "Prob")
 
