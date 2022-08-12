@@ -110,12 +110,20 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         """
         get_dq_logger().info("Handling logits and probs", split=self.split)
         # TODO: Need a better check here for logits/probs existence that isn't checking for len
-        # if self.logits is not None:
-        #     self.logits = self._convert_tensor_ndarray(self.logits, "Prob")
-        #     self.probs = self.convert_logits_to_probs(self.logits)
-        #     del self.logits
-        # elif self.probs is not None:
-        if self.probs is not None:
+        # # if self.logits is not None:
+        # #     self.logits = self._convert_tensor_ndarray(self.logits, "Prob")
+        # #     self.probs = self.convert_logits_to_probs(self.logits)
+        # #     del self.logits
+        # # elif self.probs is not None:
+        # if self.probs is not None:
+        #     self.probs = self._convert_tensor_ndarray(self.probs, "Prob")
+        # TODO @nikita i would do this
+        if self.logits is not None:
+            self.logits = self._convert_tensor_ndarray(self.logits, "Prob")
+            self.probs = self.convert_logits_to_probs(self.logits)
+            del self.logits
+        elif self.probs is not None:
+            warnings.warn("Usage of probs is deprecated, use logits instead")
             self.probs = self._convert_tensor_ndarray(self.probs, "Prob")
 
         get_dq_logger().info("Converting inputs to numpy arrays", split=self.split)

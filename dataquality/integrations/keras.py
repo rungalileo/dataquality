@@ -2,9 +2,11 @@ import keras
 import dataquality as dq
 import numpy as np
 import tensorflow as tf
+from dataquality.utils.tf import is_tf_2
 
 # If this is TF 1.x
-tf.compat.v1.enable_eager_execution()
+if not is_tf_2():
+    tf.compat.v1.enable_eager_execution()
 
 def _indices_for_ids(arr):
     return tuple([list(range(arr.shape[0]))] + [[-1]] * (len(arr.shape) - 1))
@@ -34,13 +36,12 @@ class DataQualityLoggingLayer(tf.keras.layers.Layer):
     def call(self, inputs):
         if self.what_to_log == "ids":
             # TODO: Distinguish between tensorflow 1 and tf 2
-            if inputs.shape[0].value == None:  # TF 1.x
-            # if inputs.shape[0] == None: # TF 2.x
-                # In this case the tensor is symbolic and has no real information
-                inputs = inputs[..., :-1]
-            else:
+            if is_tf_2():
                 inputs, ids = split_into_ids_and_numpy_arr(inputs)
                 self.helper_data[self.what_to_log] = ids
+            else:
+                # In this case the tensor is symbolic and has no real information
+                inputs = inputs[..., :-1]
         else:
             self.helper_data[self.what_to_log] = inputs
         return inputs
