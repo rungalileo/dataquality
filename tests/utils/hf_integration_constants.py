@@ -461,7 +461,7 @@ mock_tokenizer.batch_encode_plus.return_value = mock_batch_encoding
 
 # We mock the hf dataset so we don't need to download a dataset from hf
 mock_ds = datasets.Dataset.from_dict(UNADJUSTED_TOKEN_DATA)
-mock_ds.features["ner_tags"].feature.names = [
+tag_names = [
     "O",
     "B-PER",
     "I-PER",
@@ -470,3 +470,4 @@ mock_ds.features["ner_tags"].feature.names = [
     "B-LOC",
     "I-LOC",
 ]
+mock_ds.features["ner_tags"].feature.names = tag_names

@@ -38,7 +38,11 @@ class LabelTokenizer:
     """
 
     def __init__(
-        self, ds: Dataset, tokenizer: PreTrainedTokenizerBase, schema: TaggingSchema
+        self,
+        ds: Dataset,
+        tokenizer: PreTrainedTokenizerBase,
+        schema: TaggingSchema,
+        tag_names: List[str],
     ) -> None:
         self.ds = ds
         self.schema = schema
@@ -50,7 +54,7 @@ class LabelTokenizer:
         self.total_text_token_indices: List[List[Tuple]] = []
         self.total_bpe_tokens: List[List[str]] = []
         self.texts: List[str] = []
-        self.idx_2_labels = ds.features[HFCol.ner_tags].feature.names
+        self.idx_2_labels = tag_names
         self.labels_2_idx = {k: v for v, k in enumerate(self.idx_2_labels)}
         self.total_gold_spans: List[List[Dict]] = []
         self.num_samples = len(self.tokenized_samples[HFCol.input_ids])

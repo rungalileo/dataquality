@@ -21,6 +21,7 @@ from tests.utils.hf_integration_constants import (
     BIOSequence,
     mock_ds,
     mock_tokenizer,
+    tag_names,
 )
 
 
@@ -42,7 +43,7 @@ def test_infer_schema(labels: List[str], schema: TaggingSchema) -> None:
 
 
 def test_tokenize_adjust_labels() -> None:
-    output = tokenize_adjust_labels(mock_ds, mock_tokenizer)
+    output = tokenize_adjust_labels(mock_ds, mock_tokenizer, tag_names)
     for k in ADJUSTED_TOKEN_DATA:
         assert ADJUSTED_TOKEN_DATA[k] == output[k]
 
@@ -109,7 +110,8 @@ def test_tokenize_and_log_dataset(mock_log_dataset: mock.MagicMock) -> None:
 
     new DatasetDict, and that the datasets per split were logged correctly.
     """
-    tokenize_output = tokenize_adjust_labels(mock_ds, mock_tokenizer)
+
+    tokenize_output = tokenize_adjust_labels(mock_ds, mock_tokenizer, tag_names)
     with mock.patch("dataquality.integrations.hf.tokenize_adjust_labels") as mock_tok:
         mock_tok.return_value = tokenize_output
         ds_dict = datasets.DatasetDict(

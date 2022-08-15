@@ -43,10 +43,12 @@ def infer_schema(label_list: List[str]) -> TaggingSchema:
 def tokenize_adjust_labels(
     all_samples_per_split: Dataset,
     tokenizer: PreTrainedTokenizerBase,
+    tag_names: List[str],
 ) -> BatchEncoding:
-    tag_names = all_samples_per_split.features[HFCol.ner_tags].feature.names
     schema = infer_schema(tag_names)
-    label_tokenizer = LabelTokenizer(all_samples_per_split, tokenizer, schema)
+    label_tokenizer = LabelTokenizer(
+        all_samples_per_split, tokenizer, schema, tag_names
+    )
 
     for k in range(label_tokenizer.num_samples):
         label_tokenizer.initialize_batch(k)
@@ -95,10 +97,12 @@ def tokenize_and_log_dataset(
     :param tokenizer: The pretrained tokenizer from huggingface
     """
     _validate_dataset(ds)
+    ds_keys = list(ds.keys())
+    tag_names = ds[ds_keys[0]].features[HFCol.ner_tags].feature.names
     tokenized_dataset = ds.map(
         tokenize_adjust_labels,
         batched=True,
-        fn_kwargs={"tokenizer": tokenizer},
+        fn_kwargs={"tokenizer": tokenizer, "tag_names": tag_names},
     )
     splits = tokenized_dataset.keys()
 
