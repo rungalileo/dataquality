@@ -1,14 +1,15 @@
-import dataquality as dq
 import numpy as np
-from tensorflow import keras
 import tensorflow as tf
+from tensorflow import keras
 
+import dataquality as dq
 from dataquality.exceptions import GalileoException
 from dataquality.utils.tf import is_tf_2
 
 # If this is TF 1.x
 if not is_tf_2():
     tf.compat.v1.enable_eager_execution()
+
 
 def _indices_for_ids(arr):
     return tuple([list(range(arr.shape[0]))] + [[-1]] * (len(arr.shape) - 1))
@@ -65,7 +66,8 @@ class DataQualityCallback(keras.callbacks.Callback):
         dq.set_split("train")
 
     def on_test_begin(self, logs):
-        # TODO: Somehow we should figure out whether this is in .fit (so really this should be val) or .evaluate (so this should be test)
+        # TODO: Somehow we should figure out whether this is in .fit
+        #  (so really this should be val) or .evaluate (so this should be test)
         dq.set_split("test")
 
     def on_epoch_begin(self, epoch, logs):
@@ -88,4 +90,3 @@ class DataQualityCallback(keras.callbacks.Callback):
 
     def on_test_batch_end(self, batch, logs=None):
         dq.get_model_logger()(**self.helper_data).log()
-
