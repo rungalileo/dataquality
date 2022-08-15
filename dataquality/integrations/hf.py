@@ -1,8 +1,9 @@
-from typing import Any, List, Set, Dict
+from typing import Any, Dict, List, Set
 
 from datasets.arrow_dataset import Dataset
 from datasets.dataset_dict import DatasetDict
-from torch.utils.data import DataLoader, Dataset as TorchDataset
+from torch.utils.data import DataLoader
+from torch.utils.data import Dataset as TorchDataset
 from transformers import BatchEncoding, PreTrainedTokenizerBase
 
 import dataquality as dq
