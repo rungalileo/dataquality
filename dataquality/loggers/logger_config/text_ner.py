@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Tuple
+from typing import Dict, List, Tuple
 
 import numpy as np
 from pydantic import validator
@@ -9,7 +9,6 @@ from dataquality.loggers.logger_config.base_logger_config import BaseLoggerConfi
 class TextNERLoggerConfig(BaseLoggerConfig):
     gold_spans: Dict[str, List[Tuple[int, int, str]]] = {}
     sample_length: Dict[str, int] = {}
-    user_data: Dict[str, Any] = {}
 
     class Config:
         validate_assignment = True
