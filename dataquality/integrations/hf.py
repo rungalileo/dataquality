@@ -1,8 +1,8 @@
-from typing import Any, List, Set
+from typing import Any, List, Set, Dict
 
 from datasets.arrow_dataset import Dataset
 from datasets.dataset_dict import DatasetDict
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset as TorchDataset
 from transformers import BatchEncoding, PreTrainedTokenizerBase
 
 import dataquality as dq
@@ -116,15 +116,15 @@ def tokenize_and_log_dataset(
     return tokenized_dataset
 
 
-class TextDataset(Dataset):
+class TextDataset(TorchDataset):
     """An abstracted Huggingface Text dataset for users to import and use
 
     Get back a DataLoader via the get_dataloader function"""
 
-    def __init__(self, hf_dataset):
+    def __init__(self, hf_dataset: Dataset) -> None:
         self.dataset = hf_dataset
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int) -> Dict:
         row = self.dataset[idx]
         return {
             "id": row["id"],
@@ -133,7 +133,7 @@ class TextDataset(Dataset):
             "labels": row["labels"],
         }
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.dataset)
 
 
