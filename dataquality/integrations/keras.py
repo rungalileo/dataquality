@@ -1,9 +1,12 @@
+from typing import Any, Dict, List, Tuple, Union
+
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 
 import dataquality as dq
 from dataquality.exceptions import GalileoException
+from dataquality.schemas.split import Split
 from dataquality.utils.tf import is_tf_2
 
 # If this is TF 1.x
@@ -11,17 +14,19 @@ if not is_tf_2():
     tf.compat.v1.enable_eager_execution()
 
 
-def _indices_for_ids(arr):
+def _indices_for_ids(arr: np.ndarray) -> Tuple:
     return tuple([list(range(arr.shape[0]))] + [[-1]] * (len(arr.shape) - 1))
 
 
-def add_ids_to_numpy_arr(orig_arr, ids):
+def add_ids_to_numpy_arr(
+    orig_arr: np.ndarray, ids: Union[List[int], np.ndarray]
+) -> np.ndarray:
     arr = np.concatenate([orig_arr, np.zeros(orig_arr.shape[:-1] + (1,))], axis=-1)
     arr[_indices_for_ids(arr)] = ids
     return arr
 
 
-def split_into_ids_and_numpy_arr(arr):
+def split_into_ids_and_numpy_arr(arr: tf.Tensor) -> Tuple[tf.Tensor, np.ndarray]:
     orig_arr = arr[..., :-1]
     # Tflow doesn't seem to quite support my advanced indexing
     if tf.is_tensor(arr):
@@ -38,7 +43,7 @@ class DataQualityLoggingLayer(tf.keras.layers.Layer):
         self.what_to_log = what_to_log
         self.helper_data = dq.get_model_logger().logger_config.helper_data
 
-    def call(self, inputs):
+    def call(self, inputs: tf.Tensor) -> tf.Tensor:
         if self.what_to_log == "ids":
             is_input_symbolic = False
             if is_tf_2():
@@ -57,36 +62,36 @@ class DataQualityLoggingLayer(tf.keras.layers.Layer):
 
 
 class DataQualityCallback(keras.callbacks.Callback):
-    def __init__(self):
+    def __init__(self) -> None:
         super(DataQualityCallback, self).__init__()
         self.helper_data = dq.get_model_logger().logger_config.helper_data
         # In the future we could maybe insert the layers into sequential or something
 
-    def on_train_begin(self, logs):
-        dq.set_split("train")
+    def on_train_begin(self, logs: Dict) -> None:
+        dq.set_split(Split.train)
 
-    def on_test_begin(self, logs):
+    def on_test_begin(self, logs: Dict) -> None:
         # TODO: Somehow we should figure out whether this is in .fit
         #  (so really this should be val) or .evaluate (so this should be test)
-        dq.set_split("test")
+        dq.set_split(Split.test)
 
-    def on_epoch_begin(self, epoch, logs):
+    def on_epoch_begin(self, epoch: int, logs: Dict) -> None:
         dq.set_epoch(epoch)
         print(f"Starting with epoch {epoch}")
 
-    def _clear_logger_config_helper_data(self):
+    def _clear_logger_config_helper_data(self) -> None:
         self.helper_data["embs"] = None
         self.helper_data["probs"] = None
         self.helper_data["logits"] = None
 
-    def on_train_batch_begin(self, batch, logs=None):
+    def on_train_batch_begin(self, batch: Any, logs: Dict = None) -> None:
         self._clear_logger_config_helper_data()
 
-    def on_train_batch_end(self, batch, logs=None):
+    def on_train_batch_end(self, batch: Any, logs: Dict = None) -> None:
         dq.get_model_logger()(**self.helper_data).log()
 
-    def on_test_batch_begin(self, batch, logs=None):
+    def on_test_batch_begin(self, batch: Any, logs: Dict = None) -> None:
         self._clear_logger_config_helper_data()
 
-    def on_test_batch_end(self, batch, logs=None):
+    def on_test_batch_end(self, batch: Any, logs: Dict = None) -> None:
         dq.get_model_logger()(**self.helper_data).log()

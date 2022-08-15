@@ -1,4 +1,4 @@
-from pkg_resources import parse_version
+from pkg_resources import parse_version  # type: ignore
 from tensorflow import __version__
 
 
