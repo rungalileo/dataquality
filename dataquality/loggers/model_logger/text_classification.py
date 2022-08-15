@@ -123,15 +123,6 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         :return:
         """
         get_dq_logger().info("Handling logits and probs", split=self.split)
-        # TODO: Need a better check here for logits/probs existence that isn't checking for len
-        # # if self.logits is not None:
-        # #     self.logits = self._convert_tensor_ndarray(self.logits, "Prob")
-        # #     self.probs = self.convert_logits_to_probs(self.logits)
-        # #     del self.logits
-        # # elif self.probs is not None:
-        # if self.probs is not None:
-        #     self.probs = self._convert_tensor_ndarray(self.probs, "Prob")
-        # TODO @nikita i would do this
         has_logits = self._has_len(self.logits)
         has_probs = self._has_len(self.probs)
         if has_logits:
