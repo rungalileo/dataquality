@@ -100,6 +100,9 @@ def tokenize_and_log_dataset(
     _validate_dataset(ds)
     ds_keys = list(ds.keys())
     tag_names = ds[ds_keys[0]].features[HFCol.ner_tags].feature.names
+    dq.set_tagging_schema(infer_schema(tag_names))
+    dq.set_labels_for_run(tag_names)
+    
     tokenized_dataset = ds.map(
         tokenize_adjust_labels,
         batched=True,
