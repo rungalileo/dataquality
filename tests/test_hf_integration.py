@@ -106,7 +106,9 @@ def test_validate_dataset() -> None:
 
 
 @mock.patch("dataquality.log_dataset")
-def test_tokenize_and_log_dataset(mock_log_dataset: mock.MagicMock, set_test_config) -> None:
+def test_tokenize_and_log_dataset(
+    mock_log_dataset: mock.MagicMock, set_test_config
+) -> None:
     """Tests the e2e function call, passing in a DatasetDict and receiving a
 
     new DatasetDict, and that the datasets per split were logged correctly.
