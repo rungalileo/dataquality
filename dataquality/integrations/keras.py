@@ -35,13 +35,17 @@ class DataQualityLoggingLayer(tf.keras.layers.Layer):
 
     def call(self, inputs):
         if self.what_to_log == "ids":
-            # TODO: Distinguish between tensorflow 1 and tf 2
+            is_input_symbolic = False
             if is_tf_2():
+                is_input_symbolic = inputs.shape[0] == None
+            else:
+                is_input_symbolic = inputs.shape[0].value == None
+
+            if is_input_symbolic:
+                inputs = inputs[..., :-1]
+            else:
                 inputs, ids = split_into_ids_and_numpy_arr(inputs)
                 self.helper_data[self.what_to_log] = ids
-            else:
-                # In this case the tensor is symbolic and has no real information
-                inputs = inputs[..., :-1]
         else:
             self.helper_data[self.what_to_log] = inputs
         return inputs
