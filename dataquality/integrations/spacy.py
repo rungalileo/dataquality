@@ -113,8 +113,8 @@ def watch(nlp: Language) -> None:
             "predictions over."
         )
 
-    text_ner_logger_config.user_data["nlp"] = nlp
-    text_ner_logger_config.user_data["ner_config"] = nlp._pipe_configs["ner"]
+    text_ner_logger_config.helper_data["nlp"] = nlp
+    text_ner_logger_config.helper_data["ner_config"] = nlp._pipe_configs["ner"]
     dataquality.set_labels_for_run(ner.move_names)  # type: ignore
     dataquality.set_tagging_schema(TaggingSchema.BILOU)
 
@@ -148,7 +148,7 @@ def unwatch(nlp: Language) -> None:
 
     pipe_index = nlp._get_pipe_index(before="galileo_ner")
     nlp._pipe_meta[name] = nlp.get_factory_meta(factory_name)
-    nlp._pipe_configs[name] = text_ner_logger_config.user_data["ner_config"]
+    nlp._pipe_configs[name] = text_ner_logger_config.helper_data["ner_config"]
     nlp._components.insert(pipe_index, (name, pipe_component))
 
     nlp.remove_pipe("galileo_ner")
@@ -407,7 +407,7 @@ class GalileoParserStepModel(ThincModelWrapper):
     ) -> None:
         helper_data = self._self_model_logger.log_helper_data
         logits = scores[..., 1:]  # Throw out the -U token
-        ner = text_ner_logger_config.user_data["nlp"].get_pipe("ner")
+        ner = text_ner_logger_config.helper_data["nlp"].get_pipe("ner")
         for state_idx, state in enumerate(states):
             doc_id = state.doc.user_data["id"]
             state_cur_token_idx = state.queue[0]
@@ -430,7 +430,7 @@ class GalileoParserStepModel(ThincModelWrapper):
 
     def _self_set_annotations(self, docs: Dict[int, Doc]) -> None:
         helper_data = self._self_model_logger.log_helper_data
-        ner = text_ner_logger_config.user_data["nlp"].get_pipe("ner")
+        ner = text_ner_logger_config.helper_data["nlp"].get_pipe("ner")
         for doc_id, doc in docs.items():
             states_for_doc = helper_data["spacy_states"][doc_id]
             ner.set_annotations([doc] * len(states_for_doc), states_for_doc)

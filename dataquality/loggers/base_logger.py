@@ -16,6 +16,7 @@ from dataquality.loggers.logger_config.base_logger_config import (
 from dataquality.schemas.split import Split, conform_split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.dq_logger import upload_dq_log_file
+from dataquality.utils.tf import is_tf_2
 
 try:
     from torch import Tensor
@@ -147,7 +148,10 @@ class BaseGalileoLogger:
                 arr = arr.detach().cpu().numpy()
         if TF_AVAILABLE:
             if isinstance(arr, tf.Tensor):
-                arr = arr.cpu().numpy()
+                if is_tf_2():
+                    arr = arr.cpu().numpy()
+                else:  # Just for TF1.x
+                    arr = arr.numpy()
         if isinstance(arr, np.ndarray):
             if attr == "Embedding":
                 assert (
