@@ -100,6 +100,9 @@ def tokenize_and_log_dataset(
     _validate_dataset(ds)
     ds_keys = list(ds.keys())
     tag_names = ds[ds_keys[0]].features[HFCol.ner_tags].feature.names
+    dq.set_tagging_schema(infer_schema(tag_names))
+    dq.set_labels_for_run(tag_names)
+
     tokenized_dataset = ds.map(
         tokenize_adjust_labels,
         batched=True,
@@ -145,7 +148,7 @@ def get_dataloader(dataset: Dataset, **kwargs: Any) -> DataLoader:
      * id - the Galileo ID of the sample
      * input_ids - the standard huggingface input_ids
      * attention_mask - the standard huggingface attention_mask
-     * labels - the standard huggingface labels
+     * labels - output labels adjusted with tokenized NER data
 
     :param dataset: The huggingface dataset to convert to a DataLoader
     :param kwargs: Any additional keyword arguments to be passed into the DataLoader
