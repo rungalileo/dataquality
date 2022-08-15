@@ -1,6 +1,6 @@
-import keras
 import dataquality as dq
 import numpy as np
+from tensorflow import keras
 import tensorflow as tf
 from dataquality.utils.tf import is_tf_2
 
@@ -37,9 +37,9 @@ class DataQualityLoggingLayer(tf.keras.layers.Layer):
         if self.what_to_log == "ids":
             is_input_symbolic = False
             if is_tf_2():
-                is_input_symbolic = inputs.shape[0] == None
+                is_input_symbolic = inputs.shape[0] is None
             else:
-                is_input_symbolic = inputs.shape[0].value == None
+                is_input_symbolic = inputs.shape[0].value is None
 
             if is_input_symbolic:
                 inputs = inputs[..., :-1]
@@ -49,10 +49,6 @@ class DataQualityLoggingLayer(tf.keras.layers.Layer):
         else:
             self.helper_data[self.what_to_log] = inputs
         return inputs
-
-
-# For more info see: https://keras.io/guides/writing_your_own_callbacks/#usage-of-selfmodel-attribute
-import dataquality as dq
 
 
 class DataQualityCallback(keras.callbacks.Callback):
