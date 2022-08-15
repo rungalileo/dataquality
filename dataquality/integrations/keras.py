@@ -2,6 +2,8 @@ import dataquality as dq
 import numpy as np
 from tensorflow import keras
 import tensorflow as tf
+
+from dataquality.exceptions import GalileoException
 from dataquality.utils.tf import is_tf_2
 
 # If this is TF 1.x
@@ -30,6 +32,8 @@ def split_into_ids_and_numpy_arr(arr):
 class DataQualityLoggingLayer(tf.keras.layers.Layer):
     def __init__(self, what_to_log: str):
         super(DataQualityLoggingLayer, self).__init__()
+        if what_to_log not in ["ids", "probs", "embs"]:
+            raise GalileoException("What to log must be one of ids, probs or embs")
         self.what_to_log = what_to_log
         self.helper_data = dq.get_model_logger().logger_config.helper_data
 
