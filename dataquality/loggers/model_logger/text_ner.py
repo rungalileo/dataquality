@@ -259,14 +259,12 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         ][0:sample_len]
 
         if self.logger_config.tagging_schema == TaggingSchema.BIO:
-            pred_spans = self._extract_pred_spans_bio(pred_sequence)
-        elif self.logger_config.tagging_schema == TaggingSchema.BILOU:
-            pred_spans = self._extract_pred_spans_bilou(pred_sequence)
-        else:  # BIOES
-            pred_spans = self._extract_pred_spans_bioes(pred_sequence)
+            pred_spans = self._extract_spans_bio(pred_sequence)
+        else:  # BIOES or BILOU
+            pred_spans = self._extract_spans_token_level(pred_sequence)
         return pred_spans
 
-    def _extract_pred_spans_bio(self, pred_sequence: List[str]) -> List[Dict]:
+    def _extract_spans_bio(self, pred_sequence: List[str]) -> List[Dict]:
         """
         Converts the prediction sequences into prediction span tokens
 
@@ -330,27 +328,26 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         assert total_b_count == len(pred_spans)
         return pred_spans
 
-    def _extract_pred_spans_bilou(self, pred_sequence: List[str]) -> List[Dict]:
-        """BILOU is a special case for BIO.
+    def _extract_spans_token_level(self, sequence: List[str]) -> List[Dict]:
+        """Extract spans at token or word level for gold or pred spans.
 
-        The presense of I in a sequence does not mean a
-        presence of a span until an L is successfully predicted.
+        This should be called with a BILOU or BIOES sequence
         """
-        pred_spans = []
+        spans = []
         total_b_count = 0
         idx = 0
         found_end = False  # Tracks if there was an end tag predicted for BIOES
 
         # Use a while loop so we can skip rows already scanned in the inner loop
-        while idx < len(pred_sequence):
-            token = pred_sequence[idx]
+        while idx < len(sequence):
+            token = sequence[idx]
             next_idx = idx + 1
 
             if self._is_single_token(token):
                 total_b_count += 1
                 # hit a single token prediction, update and continue
                 token_val, token_label = self._split_token(token)
-                pred_spans.append({"start": idx, "end": next_idx, "label": token_label})
+                spans.append({"start": idx, "end": next_idx, "label": token_label})
                 idx += 1
                 continue
 
@@ -363,63 +360,11 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             # different label
             token_val, token_label = self._split_token(token)
 
-            for next_tok in pred_sequence[idx + 1 :]:
-                if self._is_in_token(next_tok, token_label):
-                    next_idx += 1
-                # next_tok == "L" and the label matches the current B label
-                elif self._is_end_token(next_tok, token_label):
-                    next_idx += 1
-                    found_end = True
-                    total_b_count += 1
-                    break
-                else:
-                    break
-            if found_end:
-                pred_spans.append({"start": idx, "end": next_idx, "label": token_label})
-            idx = next_idx
-            found_end = False
-
-        assert total_b_count == len(pred_spans)
-        return pred_spans
-
-    def _extract_pred_spans_bioes(self, pred_sequence: List[str]) -> List[Dict]:
-        """BIOES is a special case for BIO.
-
-        The presense of I in a sequence does not mean a presence of a span until
-        an E is successfully predicted.
-        """
-        pred_spans = []
-        total_b_count = 0
-        idx = 0
-        found_end = False  # Tracks if there was an end tag predicted for BIOES
-
-        # Use a while loop so we can skip rows already scanned in the inner loop
-        while idx < len(pred_sequence):
-            token = pred_sequence[idx]
-            next_idx = idx + 1
-
-            if self._is_single_token(token):
-                total_b_count += 1
-                # hit a single token prediction , update and continue
-                token_val, token_label = self._split_token(token)
-                pred_spans.append({"start": idx, "end": next_idx, "label": token_label})
-                idx += 1
-                continue
-
-            if not self._is_before_token(token):
-                idx += 1
-                continue
-
-            # We've hit a prediction. Continue until it's invalid
-            # Invalid means we hit a new B or O tag, or the next I tag has a
-            # different label
-            token_val, token_label = self._split_token(token)
-
-            for next_tok in pred_sequence[idx + 1 :]:
+            for next_tok in sequence[idx + 1 :]:
                 # next_tok == "I" and the label matches the current B label
                 if self._is_in_token(next_tok, token_label):
                     next_idx += 1
-                # next_tok == "E" and the label matches the current B label
+                # next_tok == "L"/"E" and the label matches the current B label
                 elif self._is_end_token(next_tok, token_label):
                     next_idx += 1
                     found_end = True
@@ -428,12 +373,12 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 else:
                     break
             if found_end:
-                pred_spans.append({"start": idx, "end": next_idx, "label": token_label})
+                spans.append({"start": idx, "end": next_idx, "label": token_label})
             idx = next_idx
             found_end = False
 
-        assert total_b_count == len(pred_spans)
-        return pred_spans
+        assert total_b_count == len(spans)
+        return spans
 
     def _is_single_token(self, tok: str) -> bool:
         return tok.startswith("U") or tok.startswith("S")
