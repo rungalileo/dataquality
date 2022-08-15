@@ -71,9 +71,6 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         try:
             self._log()
         except Exception as e:
-            if str(e).endswith("Logging will be skipped"):
-                print("debugging fix -- skipping batch")
-                return
             get_dq_logger().exception(
                 "Logging of model outputs failed", split=self.split, epoch=self.epoch
             )
