@@ -8,6 +8,7 @@ import pytest
 from dataquality.exceptions import GalileoException
 from dataquality.integrations.hf import (
     _validate_dataset,
+    get_dataloader,
     infer_schema,
     tokenize_adjust_labels,
     tokenize_and_log_dataset,
@@ -128,3 +129,14 @@ def test_tokenize_and_log_dataset(mock_log_dataset: mock.MagicMock) -> None:
                 token_data = json.loads(json.dumps(token_data))
             assert token_data == split_output[k]
     assert mock_log_dataset.call_count == 3
+
+
+def test_get_dataloader() -> None:
+    dataset = ADJUSTED_TOKEN_DATA.copy()
+    dataset["id"] = list(range(len(dataset["input_ids"])))
+    ds = datasets.Dataset.from_dict(dataset)
+    loader = get_dataloader(ds)
+    assert len(loader.dataset) == len(mock_ds)
+    assert sorted(list(loader.dataset[2].keys())) == sorted(
+        ["id", "input_ids", "attention_mask", "labels"]
+    )

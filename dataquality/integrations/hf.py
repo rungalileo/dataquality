@@ -1,7 +1,8 @@
-from typing import List, Set
+from typing import Any, List, Set
 
 from datasets.arrow_dataset import Dataset
 from datasets.dataset_dict import DatasetDict
+from torch.utils.data import DataLoader
 from transformers import BatchEncoding, PreTrainedTokenizerBase
 
 import dataquality as dq
@@ -113,3 +114,42 @@ def tokenize_and_log_dataset(
         dataset: Dataset = tokenized_dataset[split]
         dq.log_dataset(dataset, split=dq_split)  # type: ignore
     return tokenized_dataset
+
+
+class TextDataset(Dataset):
+    """An abstracted Huggingface Text dataset for users to import and use
+
+    Get back a DataLoader via the get_dataloader function"""
+
+    def __init__(self, hf_dataset):
+        self.dataset = hf_dataset
+
+    def __getitem__(self, idx):
+        row = self.dataset[idx]
+        return {
+            "id": row["id"],
+            "input_ids": row["input_ids"],
+            "attention_mask": row["attention_mask"],
+            "labels": row["labels"],
+        }
+
+    def __len__(self):
+        return len(self.dataset)
+
+
+def get_dataloader(dataset: Dataset, **kwargs: Any) -> DataLoader:
+    """Create a DataLoader for a particular split given a huggingface Dataset
+
+    The DataLoader will be a loader of a TextDataset. The __getitem__ for that dataset
+    will return:
+     * id - the Galileo ID of the sample
+     * input_ids - the standard huggingface input_ids
+     * attention_mask - the standard huggingface attention_mask
+     * labels - the standard huggingface labels
+
+    :param dataset: The huggingface dataset to convert to a DataLoader
+    :param kwargs: Any additional keyword arguments to be passed into the DataLoader
+        Things like batch_size or shuffle
+    """
+    text_dataset = TextDataset(dataset)
+    return DataLoader(text_dataset, **kwargs)
