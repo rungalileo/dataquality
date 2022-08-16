@@ -54,8 +54,8 @@ def tokenize_adjust_labels(
 
     for k in range(label_tokenizer.num_samples):
         label_tokenizer.initialize_sample(k)
-        if label_tokenizer.skip_sample:
-            continue
+        # if label_tokenizer.skip_sample:
+        #     continue
 
         for w_index_bpe, wid in enumerate(label_tokenizer.word_ids):
             # Logic for text_token_indices
@@ -148,9 +148,10 @@ def tokenize_and_log_dataset(
 
     for split in splits:
         dq_split = conform_split(split)
-        ids = list(range(len(tokenized_dataset[split])))
-        tokenized_dataset[split] = tokenized_dataset[split].add_column(HFCol.id, ids)
         dataset: Dataset = tokenized_dataset[split]
+        if HFCol.id not in dataset.features:
+            ids = list(range(len(tokenized_dataset[split])))
+            tokenized_dataset[split] = dataset.add_column(HFCol.id, ids)
         dq.log_dataset(dataset, split=dq_split)  # type: ignore
     return tokenized_dataset
 
