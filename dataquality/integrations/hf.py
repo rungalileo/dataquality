@@ -1,5 +1,5 @@
 from typing import Any, Dict, List, Optional, Set
-
+import warnings
 from datasets.arrow_dataset import Dataset
 from datasets.dataset_dict import DatasetDict
 from torch.utils.data import DataLoader
@@ -92,6 +92,9 @@ def _validate_dataset(dd: DatasetDict) -> DatasetDict:
                 dd[key] = ds.rename_column(HFCol.tags, HFCol.ner_tags)
             else:
                 raise GalileoException("Each dataset must have either ner_tags or tags")
+        if HFCol.id in ds.features and isinstance(ds[HFCol.id][0], str):
+            dd[key] = ds.remove_columns(HFCol.id)
+            warnings.warn(f"{HFCol.id} column is {ds[HFCol.id][0]}, Galileo will replace them")
     return dd
 
 
@@ -145,14 +148,13 @@ def tokenize_and_log_dataset(
         fn_kwargs={"tokenizer": tokenizer, "label_names": label_names},
     )
     splits = tokenized_dataset.keys()
-
     for split in splits:
         dq_split = conform_split(split)
         dataset: Dataset = tokenized_dataset[split]
         # Filter out rows with no gold spans
         dataset = dataset.filter(lambda row: len(row[HFCol.gold_spans]) != 0)
         if HFCol.id not in dataset.features:
-            ids = list(range(len(tokenized_dataset[split])))
+            ids = list(range(len(dataset)))
             dataset = dataset.add_column(HFCol.id, ids)
             tokenized_dataset[split] = dataset
         dq.log_dataset(dataset, split=dq_split)  # type: ignore
