@@ -149,6 +149,8 @@ def tokenize_and_log_dataset(
     for split in splits:
         dq_split = conform_split(split)
         dataset: Dataset = tokenized_dataset[split]
+        # Filter out rows with no gold spans
+        dataset = dataset.filter(lambda row: len(row[HFCol.gold_spans]) != 0)
         if HFCol.id not in dataset.features:
             ids = list(range(len(tokenized_dataset[split])))
             dataset = dataset.add_column(HFCol.id, ids)
