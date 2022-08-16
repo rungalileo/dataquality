@@ -12,6 +12,8 @@ class HFCol:
     bpe_tokens: str = "bpe_tokens"
     gold_spans: str = "gold_spans"
     labels: str = "labels"
+    ner_labels: str = "ner_labels"
+    tags: str = "tags"
 
 
 @dataclass

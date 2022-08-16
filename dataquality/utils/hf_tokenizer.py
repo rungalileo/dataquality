@@ -42,7 +42,7 @@ class LabelTokenizer:
         ds: Dataset,
         tokenizer: PreTrainedTokenizerBase,
         schema: TaggingSchema,
-        tag_names: List[str],
+        label_names: List[str],
     ) -> None:
         self.ds = ds
         self.schema = schema
@@ -54,7 +54,7 @@ class LabelTokenizer:
         self.total_text_token_indices: List[List[Tuple]] = []
         self.total_bpe_tokens: List[List[str]] = []
         self.texts: List[str] = []
-        self.idx_2_labels = tag_names
+        self.idx_2_labels = label_names
         self.labels_2_idx = {k: v for v, k in enumerate(self.idx_2_labels)}
         self.total_gold_spans: List[List[Dict]] = []
         self.num_samples = len(self.tokenized_samples[HFCol.input_ids])
@@ -218,7 +218,7 @@ class LabelTokenizer:
             else:  # other BPEs
                 self._adjust_middle_bpe(w_index_bpe, span_label_sfx)
 
-    def update_totals_for_batch(self, k: int) -> None:
+    def update_totals_for_sample(self, k: int) -> None:
         self.total_adjusted_labels_indices.append(self.adjusted_label_indices)
         self.total_text_token_indices.append(self.text_token_indices)
         self.total_bpe_tokens.append(self.tokenized_samples[k].tokens)
