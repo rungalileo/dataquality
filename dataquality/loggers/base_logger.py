@@ -16,7 +16,7 @@ from dataquality.loggers.logger_config.base_logger_config import (
 from dataquality.schemas.split import Split, conform_split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.dq_logger import upload_dq_log_file
-from dataquality.utils.tf import is_tf_2
+from dataquality.utils.tf import TF_AVAILABLE, is_tf_2
 
 try:
     from torch import Tensor
@@ -25,12 +25,8 @@ try:
 except ImportError:
     TORCH_AVAILABLE = False
 
-try:
+if TF_AVAILABLE:
     import tensorflow as tf
-
-    TF_AVAILABLE = True
-except ImportError:
-    TF_AVAILABLE = False
 
 try:
     import datasets
