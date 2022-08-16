@@ -1,5 +1,6 @@
-from typing import Any, Dict, List, Optional, Set
 import warnings
+from typing import Any, Dict, List, Optional, Set
+
 from datasets.arrow_dataset import Dataset
 from datasets.dataset_dict import DatasetDict
 from torch.utils.data import DataLoader
@@ -7,7 +8,7 @@ from torch.utils.data import Dataset as TorchDataset
 from transformers import BatchEncoding, PreTrainedTokenizerBase
 
 import dataquality as dq
-from dataquality.exceptions import GalileoException
+from dataquality.exceptions import GalileoException, GalileoWarning
 from dataquality.schemas.hf import HFCol
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import conform_split
@@ -78,7 +79,11 @@ def tokenize_adjust_labels(
 
 
 def _validate_dataset(dd: DatasetDict) -> DatasetDict:
-    """Validates that the dataset passed in is a DatasetDict"""
+    """Validates that the dataset passed in is a DatasetDict
+
+    Also removes the id column if one is found (and replaces it) and validates
+    that `tags` or `ner_tags` is present
+    """
     if not isinstance(dd, DatasetDict):
         raise GalileoException(
             f"Expected DatasetDict but got object of type {type(dd)}. "
@@ -90,11 +95,18 @@ def _validate_dataset(dd: DatasetDict) -> DatasetDict:
         if HFCol.ner_tags not in ds.features:
             if HFCol.tags in ds.features:
                 dd[key] = ds.rename_column(HFCol.tags, HFCol.ner_tags)
+                warnings.warn(
+                    f"{HFCol.tags} column found, it will be "
+                    f"renamed to {HFCol.ner_tags}",
+                    GalileoWarning,
+                )
             else:
                 raise GalileoException("Each dataset must have either ner_tags or tags")
-        if HFCol.id in ds.features and isinstance(ds[HFCol.id][0], str):
+        if HFCol.id in ds.features:
             dd[key] = ds.remove_columns(HFCol.id)
-            warnings.warn(f"{HFCol.id} column is {ds[HFCol.id][0]}, Galileo will replace them")
+            warnings.warn(
+                f"{HFCol.id} column found, it will be replaced", GalileoWarning
+            )
     return dd
 
 
@@ -153,10 +165,9 @@ def tokenize_and_log_dataset(
         dataset: Dataset = tokenized_dataset[split]
         # Filter out rows with no gold spans
         dataset = dataset.filter(lambda row: len(row[HFCol.gold_spans]) != 0)
-        if HFCol.id not in dataset.features:
-            ids = list(range(len(dataset)))
-            dataset = dataset.add_column(HFCol.id, ids)
-            tokenized_dataset[split] = dataset
+        ids = list(range(len(dataset)))
+        dataset = dataset.add_column(HFCol.id, ids)
+        tokenized_dataset[split] = dataset
         dq.log_dataset(dataset, split=dq_split)  # type: ignore
     return tokenized_dataset
 
