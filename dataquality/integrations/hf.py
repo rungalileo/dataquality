@@ -53,8 +53,8 @@ def tokenize_adjust_labels(
     )
 
     for k in range(label_tokenizer.num_samples):
-        label_tokenizer.initialize_batch(k)
-        if label_tokenizer.skip_batch:
+        label_tokenizer.initialize_sample(k)
+        if label_tokenizer.skip_sample:
             continue
 
         for w_index_bpe, wid in enumerate(label_tokenizer.word_ids):

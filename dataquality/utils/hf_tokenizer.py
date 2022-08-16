@@ -72,9 +72,9 @@ class LabelTokenizer:
         self.end_char_idx = -1
         self.gold_spans: List[Dict] = []
         self.current_gold_span_idx = -1
-        self.skip_batch = False
+        self.skip_sample = False
 
-    def initialize_batch(self, k: int) -> None:
+    def initialize_sample(self, k: int) -> None:
         self.previous_word_id = -1
         self.word_ids = self.tokenized_samples.word_ids(batch_index=k)
         existing_labels = [
@@ -85,10 +85,10 @@ class LabelTokenizer:
         )
         if len(self.word_gold_spans) == 0:
             warnings.warn(
-                f"No gold spans found for batch {k}. This batch will not be logged",
+                f"No gold spans found for sample {k}. This batch will not be logged",
                 GalileoWarning,
             )
-            self.skip_batch = True
+            self.skip_sample = True
             return
         self.original_word_idx = -1
         self.char_seen = -len(self.ds[HFCol.tokens][k][0])
