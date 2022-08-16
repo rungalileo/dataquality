@@ -151,7 +151,8 @@ def tokenize_and_log_dataset(
         dataset: Dataset = tokenized_dataset[split]
         if HFCol.id not in dataset.features:
             ids = list(range(len(tokenized_dataset[split])))
-            tokenized_dataset[split] = dataset.add_column(HFCol.id, ids)
+            dataset = dataset.add_column(HFCol.id, ids)
+            tokenized_dataset[split] = dataset
         dq.log_dataset(dataset, split=dq_split)  # type: ignore
     return tokenized_dataset
 
