@@ -1,10 +1,8 @@
-import warnings
 from typing import Dict, List, Tuple
 
 from datasets import Dataset
 from transformers import PreTrainedTokenizerBase
 
-from dataquality.exceptions import GalileoWarning
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
 from dataquality.schemas.hf import HFCol, SpanKey
 from dataquality.schemas.ner import TaggingSchema

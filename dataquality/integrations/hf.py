@@ -95,11 +95,11 @@ def _validate_dataset(dd: DatasetDict) -> DatasetDict:
     return dd
 
 
-def _extract_labels_from_ds(dsd: DatasetDict) -> List[str]:
+def _extract_labels_from_ds(dd: DatasetDict) -> List[str]:
     """Extracts labels from a Dataset, if possible"""
-    ds_keys = list(dsd.keys())
+    ds_keys = list(dd.keys())
     # Grab the first dataset available
-    ds = dsd[ds_keys[0]]
+    ds = dd[ds_keys[0]]
     # First, try to get the names from the ner_tags
     if HFCol.ner_tags in ds.features and hasattr(
         ds.features[HFCol.ner_tags].feature, "names"
@@ -129,7 +129,7 @@ def tokenize_and_log_dataset(
     :param tokenizer: The pretrained tokenizer from huggingface
     """
     dd = _validate_dataset(dd)
-    if label_names:
+    if label_names is not None and len(label_names):
         assert isinstance(
             label_names, list
         ), f"label_names must be of type list, but got {type(label_names)}"
