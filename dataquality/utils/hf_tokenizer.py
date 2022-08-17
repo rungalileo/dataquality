@@ -1,10 +1,8 @@
-import warnings
 from typing import Dict, List, Tuple
 
 from datasets import Dataset
 from transformers import PreTrainedTokenizerBase
 
-from dataquality.exceptions import GalileoWarning
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
 from dataquality.schemas.hf import HFCol, SpanKey
 from dataquality.schemas.ner import TaggingSchema
@@ -42,7 +40,7 @@ class LabelTokenizer:
         ds: Dataset,
         tokenizer: PreTrainedTokenizerBase,
         schema: TaggingSchema,
-        tag_names: List[str],
+        label_names: List[str],
     ) -> None:
         self.ds = ds
         self.schema = schema
@@ -54,7 +52,7 @@ class LabelTokenizer:
         self.total_text_token_indices: List[List[Tuple]] = []
         self.total_bpe_tokens: List[List[str]] = []
         self.texts: List[str] = []
-        self.idx_2_labels = tag_names
+        self.idx_2_labels = label_names
         self.labels_2_idx = {k: v for v, k in enumerate(self.idx_2_labels)}
         self.total_gold_spans: List[List[Dict]] = []
         self.num_samples = len(self.tokenized_samples[HFCol.input_ids])
@@ -72,9 +70,8 @@ class LabelTokenizer:
         self.end_char_idx = -1
         self.gold_spans: List[Dict] = []
         self.current_gold_span_idx = -1
-        self.skip_batch = False
 
-    def initialize_batch(self, k: int) -> None:
+    def initialize_sample(self, k: int) -> None:
         self.previous_word_id = -1
         self.word_ids = self.tokenized_samples.word_ids(batch_index=k)
         existing_labels = [
@@ -83,13 +80,6 @@ class LabelTokenizer:
         self.word_gold_spans = extract_gold_spans_at_word_level(
             existing_labels, self.schema
         )
-        if len(self.word_gold_spans) == 0:
-            warnings.warn(
-                f"No gold spans found for batch {k}. This batch will not be logged",
-                GalileoWarning,
-            )
-            self.skip_batch = True
-            return
         self.original_word_idx = -1
         self.char_seen = -len(self.ds[HFCol.tokens][k][0])
         self.adjusted_label_indices = [self.labels_2_idx["O"]] * len(self.word_ids)
@@ -218,7 +208,7 @@ class LabelTokenizer:
             else:  # other BPEs
                 self._adjust_middle_bpe(w_index_bpe, span_label_sfx)
 
-    def update_totals_for_batch(self, k: int) -> None:
+    def update_totals_for_sample(self, k: int) -> None:
         self.total_adjusted_labels_indices.append(self.adjusted_label_indices)
         self.total_text_token_indices.append(self.text_token_indices)
         self.total_bpe_tokens.append(self.tokenized_samples[k].tokens)
