@@ -93,14 +93,15 @@ def get_run_status(
     project_name: Optional[str] = None, run_name: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    Returns the status of a specified project run.
+    Returns the latest job of a specified project run.
     Defaults to the current run if project_name and run_name are empty.
     Raises error if only one of project_name and run_name is passed in.
 
     :param project_name: The project name. Default to current project if not passed in.
     :param run_name: The run name. Default to current run if not passed in.
-    :return: Dict[str, Any]. Response will have key `status` with value corresponding
-      to the status of the run. Other info, such as `timestamp`, may be included.
+    :return: Dict[str, Any]. Response will have key `status` with value
+      corresponding to the status of the latest job for the run.
+      Other info, such as `created_at`, may be included.
     """
     return api_client.get_run_status(project_name=project_name, run_name=run_name)
 

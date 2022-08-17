@@ -512,31 +512,31 @@ class ApiClient:
         pid, rid = self._get_project_run_id(
             project_name=project_name, run_name=run_name
         )
-        url = f"{config.api_url}/{Route.content_path(pid, rid)}/{Route.jobs}/status"
-        statuses = self.make_request(RequestType.GET, url)["statuses"]
-        status = sorted(statuses, key=lambda row: row["timestamp"], reverse=True)
-        return status[0] if status else {}
+        list_jobs_url = f"{config.api_url}/{Route.content_path(pid, rid)}/{Route.jobs}"
+        jobs = self.make_request(RequestType.GET, list_jobs_url)
+        sorted_jobs = sorted(jobs, key=lambda row: row["created_at"], reverse=True)
+        return sorted_jobs[0] if sorted_jobs else {}
 
     def wait_for_run(
         self, project_name: Optional[str] = None, run_name: Optional[str] = None
     ) -> None:
         print("Waiting for job...")
         while True:
-            status = self.get_run_status(project_name=project_name, run_name=run_name)
-            if status.get("status") == "finished":
-                print(f"Done! Job finished with status {status.get('status')}")
+            job = self.get_run_status(project_name=project_name, run_name=run_name)
+            if job.get("status") == "completed":
+                print(f"Done! Job finished with status {job.get('status')}")
                 return
-            elif status.get("status") == "errored":
+            elif job.get("status") == "failed":
                 raise GalileoException(
                     f"It seems your run failed with status "
-                    f"{status.get('status')}, error {status.get('message')}"
+                    f"{job.get('status')}, error {job.get('error_message')}"
                 )
-            elif not status or status.get("status") == "started":
+            elif not job or job.get("status") in ["unstarted", "in_progress"]:
                 sleep(2)
             else:
                 raise GalileoException(
                     f"It seems there was an issue with your job. Received "
-                    f"an unexpected status {status}"
+                    f"an unexpected status {job.get('status')}"
                 )
 
     def get_presigned_url(
