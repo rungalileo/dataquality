@@ -70,7 +70,6 @@ class LabelTokenizer:
         self.end_char_idx = -1
         self.gold_spans: List[Dict] = []
         self.current_gold_span_idx = -1
-        self.skip_sample = False
 
     def initialize_sample(self, k: int) -> None:
         self.previous_word_id = -1
@@ -81,13 +80,6 @@ class LabelTokenizer:
         self.word_gold_spans = extract_gold_spans_at_word_level(
             existing_labels, self.schema
         )
-        # if len(self.word_gold_spans) == 0:
-        #     warnings.warn(
-        #         f"No gold spans found for sample {k}. This batch will not be logged",
-        #         GalileoWarning,
-        #     )
-        #     self.skip_sample = True
-        #     return
         self.original_word_idx = -1
         self.char_seen = -len(self.ds[HFCol.tokens][k][0])
         self.adjusted_label_indices = [self.labels_2_idx["O"]] * len(self.word_ids)
