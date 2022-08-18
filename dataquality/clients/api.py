@@ -307,7 +307,7 @@ class ApiClient:
         return self.make_request(RequestType.GET, url=url)
 
     def create_edit(self, edit: Edit) -> Dict:
-        assert all([edit.project_id, edit.run_id, edit.split])
+        assert edit.project_id and edit.run_id and edit.split
         split = conform_split(edit.split)
         url = f"{config.api_url}/{Route.content_path(edit.project_id, edit.run_id, split)}/{Route.edits}"
         body = edit.dict()

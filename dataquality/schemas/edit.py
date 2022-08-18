@@ -1,7 +1,7 @@
 from enum import Enum, unique
 from typing import Any, Dict, Optional
 
-from pydantic import BaseModel, StrictInt, StrictStr, validator
+from pydantic import BaseModel, StrictInt, StrictStr, validator, UUID4
 
 from dataquality.schemas.metrics import FilterParams
 
@@ -33,8 +33,8 @@ class Edit(BaseModel):
     shift_span_start_num_words: Optional[StrictInt]  # Num words to `shift_span` by
     shift_span_end_num_words: Optional[StrictInt]  # Num words to `shift_span` by
 
-    project_id: Optional[str]
-    run_id: Optional[str]
+    project_id: Optional[UUID4]
+    run_id: Optional[UUID4]
     split: Optional[str]
     task: Optional[str] = None
     inference_name: Optional[str] = None

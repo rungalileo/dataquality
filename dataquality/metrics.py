@@ -47,7 +47,7 @@ def create_edit(
     edit.split = split
     edit.task = task
     edit.inference_name = inference_name
-    edit.filter = filter_params
+    edit.filter = FilterParams(**filter_params)
     return api_client.create_edit(edit)
 
 
