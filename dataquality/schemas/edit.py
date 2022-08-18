@@ -23,14 +23,14 @@ class Edit(BaseModel):
 
     filter: Optional[FilterParams]
 
-    new_label: Optional[StrictStr]  # needed if action==relabel
+    new_label: Optional[StrictStr]
 
-    search_string: Optional[StrictStr]  # needed if action==update_text
-    text_replacement: Optional[StrictStr]  # needed if action==update_text
-    use_regex: bool = False  # relates to the search_string
+    search_string: Optional[StrictStr]
+    text_replacement: Optional[StrictStr]
+    use_regex: bool = False
 
-    shift_span_start_num_words: Optional[StrictInt]  # Num words to `shift_span` by
-    shift_span_end_num_words: Optional[StrictInt]  # Num words to `shift_span` by
+    shift_span_start_num_words: Optional[StrictInt]
+    shift_span_end_num_words: Optional[StrictInt]
 
     project_id: Optional[UUID4]
     run_id: Optional[UUID4]
