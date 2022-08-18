@@ -3,10 +3,12 @@ from typing import Dict, List
 from unittest import mock
 
 import datasets
+import numpy as np
 import pytest
 
 from dataquality.exceptions import GalileoException
 from dataquality.integrations.hf import (
+    _extract_labels_from_ds,
     _validate_dataset,
     get_dataloader,
     infer_schema,
@@ -17,6 +19,7 @@ from dataquality.schemas.ner import TaggingSchema
 from dataquality.utils.hf_tokenizer import extract_gold_spans_at_word_level
 from tests.utils.hf_integration_constants import (
     ADJUSTED_TOKEN_DATA,
+    UNADJUSTED_TOKEN_DATA,
     BILOUSequence,
     BIOESSequence,
     BIOSequence,
@@ -142,3 +145,48 @@ def test_get_dataloader() -> None:
     assert sorted(list(loader.dataset[2].keys())) == sorted(
         ["id", "input_ids", "attention_mask", "labels"]
     )
+
+
+def test_validate_dataset_no_tags() -> None:
+    dataset = UNADJUSTED_TOKEN_DATA.copy()
+    dataset.pop("ner_tags")
+    ds = datasets.Dataset.from_dict(dataset)
+    dd = datasets.DatasetDict({"train": ds})
+    with pytest.raises(GalileoException) as e:
+        _validate_dataset(dd)
+
+    assert str(e.value) == "Each dataset must have either ner_tags or tags"
+
+
+def test_validate_dataset_converts_tags_to_ner_tags() -> None:
+    dataset = UNADJUSTED_TOKEN_DATA.copy()
+    dataset["tags"] = dataset.pop("ner_tags")
+    ds = datasets.Dataset.from_dict(dataset)
+    dd = datasets.DatasetDict({"train": ds})
+    dd = _validate_dataset(dd)
+    assert "tags" not in dd["train"].features
+    assert "ner_tags" in dd["train"].features
+
+
+def test_extract_labels_from_ds_ner_labels() -> None:
+    dataset = UNADJUSTED_TOKEN_DATA.copy()
+    dataset["ner_labels"] = [["A", "B", "C"] for _ in range(len(dataset["ner_tags"]))]
+    ds = datasets.Dataset.from_dict(dataset)
+    dd = datasets.DatasetDict({"train": ds})
+    assert _extract_labels_from_ds(dd) == ["A", "B", "C"]
+
+
+def test_extract_labels_from_ds_no_labels() -> None:
+    dataset = ADJUSTED_TOKEN_DATA.copy()
+    ds = datasets.Dataset.from_dict(dataset)
+    dd = datasets.DatasetDict({"train": ds})
+    with pytest.raises(GalileoException) as e:
+        _extract_labels_from_ds(dd)
+    assert str(e.value).startswith("Could not extract labels from Dataset.")
+
+
+def test_tokenize_and_log_dataset_invalid_labels() -> None:
+    dd = datasets.DatasetDict({"train": mock_ds})
+    with pytest.raises(AssertionError) as e:
+        tokenize_and_log_dataset(dd, mock_tokenizer, np.array(["a", "b", "c"]))
+    assert str(e.value).startswith("label_names must be of type list, but got")
