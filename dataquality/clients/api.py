@@ -10,6 +10,7 @@ from dataquality.core._config import config, url_is_localhost
 from dataquality.exceptions import GalileoException
 from dataquality.schemas import RequestType, Route
 from dataquality.schemas.dataframe import FileType
+from dataquality.schemas.edit import Edit
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import conform_split
 from dataquality.schemas.task_type import TaskType
@@ -304,6 +305,14 @@ class ApiClient:
             f"{config.api_url}/{Route.content_path(project, run, split)}/{Route.epochs}"
         )
         return self.make_request(RequestType.GET, url=url)
+
+    def create_edit(self, edit: Edit) -> Dict:
+        assert all([edit.project_id, edit.run_id, edit.split])
+        split = conform_split(edit.split)
+        url = f"{config.api_url}/{Route.content_path(edit.project_id, edit.run_id, split)}/{Route.edits}"
+        body = edit.dict()
+        params = {"inference_name": edit.inference_name}
+        return self.make_request(RequestType.POST, url=url, body=body, params=params)
 
     def reprocess_run(
         self,

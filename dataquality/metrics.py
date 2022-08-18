@@ -10,6 +10,7 @@ from dataquality.clients.api import ApiClient
 from dataquality.clients.objectstore import ObjectStore
 from dataquality.exceptions import GalileoException, GalileoWarning
 from dataquality.schemas.dataframe import FileType
+from dataquality.schemas.edit import Edit
 from dataquality.schemas.metrics import FilterParams
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split, conform_split
@@ -17,6 +18,37 @@ from dataquality.schemas.task_type import TaskType
 
 api_client = ApiClient()
 object_store = ObjectStore()
+
+
+def create_edit(
+    project_name: str,
+    run_name: str,
+    split: Split,
+    edit: Edit,
+    filter: Union[FilterParams, Dict],
+    task: Optional[str] = None,
+    inference_name: Optional[str] = None,
+) -> Dict:
+    """Creates an edit for a run given a filter
+
+    :param project_name: The project name
+    :param run_name: The run name
+    :param split: The split
+    :param edit: The edit to make. see `help(Edit)` for more information
+    :param task: Required task name if run is MLTC
+    :param inference_name: Required inference name if split is inference
+    """
+    split = conform_split(split)
+    filter_params = _validate_filter(filter)
+    project_id, run_id = api_client._get_project_run_id(project_name, run_name)
+    edit = _conform_edit(edit)
+    edit.project_id = project_id
+    edit.run_id = run_id
+    edit.split = split
+    edit.task = task
+    edit.inference_name = inference_name
+    edit.filter = filter_params
+    return api_client.create_edit(edit)
 
 
 def get_run_summary(
@@ -559,6 +591,12 @@ def _rename_prob_cols(df: DataFrame, tasks: List[str]) -> DataFrame:
 def _validate_filter(filter: Union[FilterParams, Dict] = None) -> Dict:
     # Validate the fields provided with pydantic before making request
     return FilterParams(**dict(filter or {})).dict()
+
+
+def _conform_edit(edit: Union[Edit, Dict]) -> Edit:
+    if isinstance(edit, Edit):
+        return edit
+    return Edit(**edit)
 
 
 def _clean_mltc_df(df: DataFrame) -> DataFrame:
