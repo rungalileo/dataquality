@@ -19,19 +19,40 @@ class EditAction(str, Enum):
 
 
 class Edit(BaseModel):
-    """An extension of the create request where project, run, and split are required"""
+    """A class for help creating edits via dq.metrics
+
+    An edit is a combination of a filter, and some edit action. You can use this
+    class, as well as `dq.metrics.create_edit` and `dq.metrics.get_edited_dataframe`
+    to create automated edits and improved datasets, leading to automated retraining
+    pipelines.
+
+    Args:
+        edit_action: EditAction the type of edit.
+            delete, relabel, relabel_as_pred, update_text, shift_span (ner only), and
+            select_for_label (inference only)
+        new_label: Optional[str] needed if action is relabel, ignored otherwise. The
+            new label to set for the edit
+        search_string: Optional[str] needed when action is text replacement or
+            shift_span. The search string to use for the edit
+        use_regex: bool = False. Used for the search_string. When searching, whether to
+            use regex or not. Default False.
+        shift_span_start_num_words: Optional[int] Needed if action is shift_span.
+            How many words (forward or back) to shift the beginning of the span by
+        shift_span_end_num_words: Optional[int] Needed if action is shift_span.
+            How many words (forward or back) to shift the end of the span by
+    """
 
     edit_action: EditAction
     filter: Optional[FilterParams]
 
-    new_label: Optional[StrictStr]  # needed if action==relabel
+    new_label: Optional[StrictStr]
 
-    search_string: Optional[StrictStr]  # needed if action==update_text
-    text_replacement: Optional[StrictStr]  # needed if action==update_text
-    use_regex: bool = False  # relates to the search_string
+    search_string: Optional[StrictStr]
+    text_replacement: Optional[StrictStr]
+    use_regex: bool = False
 
-    shift_span_start_num_words: Optional[StrictInt]  # Num words to `shift_span` by
-    shift_span_end_num_words: Optional[StrictInt]  # Num words to `shift_span` by
+    shift_span_start_num_words: Optional[StrictInt]
+    shift_span_end_num_words: Optional[StrictInt]
 
     project_id: Optional[UUID4]
     run_id: Optional[UUID4]

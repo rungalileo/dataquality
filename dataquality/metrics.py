@@ -24,7 +24,7 @@ def create_edit(
     project_name: str,
     run_name: str,
     split: Split,
-    edit: Edit,
+    edit: Union[Edit, Dict],
     filter: Union[FilterParams, Dict],
     task: Optional[str] = None,
     inference_name: Optional[str] = None,
