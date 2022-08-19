@@ -89,14 +89,16 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         # global variables (cur_split and cur_epoch) that are subject to change
         # between subsequent threads
         self.set_split_epoch()
-        get_dq_logger().info(
+        get_dq_logger().debug(
             "Starting logging process from thread", split=self.split, epoch=self.epoch
         )
         ThreadPoolManager.add_thread(target=self._add_threaded_log)
 
     def write_model_output(self, data: Dict) -> None:
         """Creates an hdf5 file from the data dict"""
-        get_dq_logger().info("Writing model output", split=self.split, epoch=self.epoch)
+        get_dq_logger().debug(
+            "Writing model output", split=self.split, epoch=self.epoch
+        )
         location = (
             f"{self.LOG_FILE_DIR}/{config.current_project_id}"
             f"/{config.current_run_id}"
@@ -110,7 +112,7 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
             path = f"{location}/{split}/{epoch}"
 
         object_name = f"{str(uuid4()).replace('-', '')[:12]}.hdf5"
-        get_dq_logger().info("Saving hdf5 file", split=self.split)
+        get_dq_logger().debug("Saving hdf5 file", split=self.split)
         _save_hdf5_file(path, object_name, data)
 
     def set_split_epoch(self) -> None:

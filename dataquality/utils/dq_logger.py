@@ -3,6 +3,7 @@ import os
 from typing import Any, Optional, Tuple
 
 from pydantic import UUID4
+from requests import HTTPError
 
 from dataquality.clients.api import ApiClient
 from dataquality.clients.objectstore import ObjectStore
@@ -79,7 +80,7 @@ def upload_dq_log_file() -> None:
 @check_noop
 def get_dq_log_file(
     project_name: Optional[str] = None, run_name: Optional[str] = None
-) -> str:
+) -> Optional[str]:
     pid, rid = ApiClient()._get_project_run_id(
         project_name=project_name, run_name=run_name
     )
@@ -88,6 +89,10 @@ def get_dq_log_file(
     log_file_dir = os.path.split(log_file_path)[0]
     os.makedirs(log_file_dir, exist_ok=True)
     obj_store = ObjectStore()
-    obj_store.download_file(object_name=log_object, file_path=log_file_path)
-    print(f"Your logfile has been written to {log_file_path}")
-    return log_file_path
+    try:
+        obj_store.download_file(object_name=log_object, file_path=log_file_path)
+        print(f"Your logfile has been written to {log_file_path}")
+        return log_file_path
+    except HTTPError:
+        print("No log file found for run")
+        return None

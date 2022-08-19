@@ -122,7 +122,7 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         * embs, probs, and ids must exist and be the same length
         :return:
         """
-        get_dq_logger().info("Handling logits and probs", split=self.split)
+        get_dq_logger().debug("Handling logits and probs", split=self.split)
         has_logits = self._has_len(self.logits)
         has_probs = self._has_len(self.probs)
         if has_logits:
@@ -133,7 +133,7 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
             warnings.warn("Usage of probs is deprecated, use logits instead")
             self.probs = self._convert_tensor_ndarray(self.probs, "Prob")
 
-        get_dq_logger().info("Converting inputs to numpy arrays", split=self.split)
+        get_dq_logger().debug("Converting inputs to numpy arrays", split=self.split)
         self.embs = self._convert_tensor_ndarray(self.embs, "Embedding")
         self.ids = self._convert_tensor_ndarray(self.ids)
 
@@ -141,7 +141,7 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         probs_len = len(self.probs)
         ids_len = len(self.ids)
 
-        get_dq_logger().info("Validating embedding shape", split=self.split)
+        get_dq_logger().debug("Validating embedding shape", split=self.split)
         assert self.embs.ndim == 2, "Only one embedding vector is allowed per input."
 
         assert embs_len and probs_len and ids_len, (
