@@ -29,7 +29,7 @@ def test_wait_for_run(mock_client: MagicMock) -> None:
 @mock.patch.object(
     dataquality.core.init.ApiClient,
     "get_run_status",
-    return_value={"status": "started"},
+    return_value={"status": "in_progress"},
 )
 def test_get_run_status(mock_client: MagicMock) -> None:
     """
@@ -37,7 +37,7 @@ def test_get_run_status(mock_client: MagicMock) -> None:
     """
     status = dataquality.get_run_status(project_name="Carrots", run_name="Rhubarb")
     mock_client.assert_called_once_with(project_name="Carrots", run_name="Rhubarb")
-    assert status.get("status") == "started"
+    assert status.get("status") == "in_progress"
 
 
 @mock.patch.object(dataquality.core.finish, "_version_check")

@@ -154,9 +154,9 @@ def test_get_run_status_project_default_current_run(
         api_url="https://api.fake.com",
     )
     status = api_client.get_run_status()
-    assert status["status"] == "finished"
+    assert status["status"] == "completed"
     mock_make_request.assert_called_once_with(
-        "get", f"https://api.fake.com/projects/{project_id}/runs/{run_id}/jobs/status"
+        "get", f"https://api.fake.com/projects/{project_id}/runs/{run_id}/jobs"
     )
 
 
@@ -168,7 +168,6 @@ def test_get_run_status_project_specified_run(
     set_test_config: Callable,
     statuses_response: Dict[str, List],
 ) -> None:
-    # TODO
     """Happy path: Specifying a project, run different from current run"""
     mock_make_request.return_value = statuses_response
     config_project_id = uuid4()
@@ -183,11 +182,11 @@ def test_get_run_status_project_specified_run(
         api_url="https://api.fake.com",
     )
     status = api_client.get_run_status("Carrot", "Rhubarb")
-    assert status["status"] == "finished"
+    assert status["status"] == "completed"
     assert config_project_id != project_id
     assert config_run_id != run_id
     mock_make_request.assert_called_once_with(
-        "get", f"https://api.fake.com/projects/{project_id}/runs/{run_id}/jobs/status"
+        "get", f"https://api.fake.com/projects/{project_id}/runs/{run_id}/jobs"
     )
 
 
@@ -204,10 +203,10 @@ def test_get_run_status_project_nonexistent_run_fails(
 @mock.patch.object(
     ApiClient,
     "get_run_status",
-    side_effect=[{"status": "started"}, {"status": "finished"}],
+    side_effect=[{"status": "unstarted"}, {"status": "completed"}],
 )
-def test_wait_for_run_started_finished(mock_get_run_status: MagicMock) -> None:
-    """Happy path: Returns after transitioning from started to finished"""
+def test_wait_for_run_unstarted_completed(mock_get_run_status: MagicMock) -> None:
+    """Happy path: Returns after transitioning from unstarted to completed"""
     t_start = time.time()
     api_client.wait_for_run("some_proj", "some_run")
     assert mock_get_run_status.call_count == 2
@@ -275,7 +274,7 @@ def test_reset(
 @patch.object(
     ApiClient,
     "get_run_status",
-    side_effect=[{}, {"status": "finished", "timestamp": 1}],
+    side_effect=[{}, {"status": "completed", "timestamp": 1}],
 )
 def test_get_run_status_no_status(
     mock_get_status: MagicMock, set_test_config: Callable
