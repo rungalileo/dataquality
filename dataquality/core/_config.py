@@ -16,6 +16,9 @@ from dataquality.exceptions import GalileoException
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.helpers import galileo_disabled
 
+# TODO: Update to console.cloud.rungalileo.io before shipping
+CLOUD_URL = "https://console.auth0.rungalileo.io"
+
 
 class GalileoConfigVars(str, Enum):
     API_URL = "GALILEO_API_URL"
@@ -119,7 +122,7 @@ def _check_console_url() -> None:
             set_platform_urls(console_url_str=console_url)
 
 
-def set_config() -> Config:
+def set_config(cloud: bool = True) -> Config:
     if galileo_disabled():
         return Config(api_url="")
     _check_console_url()
@@ -147,12 +150,16 @@ def set_config() -> Config:
         config = Config(**galileo_vars)
 
     else:
-        print(f"Welcome to Galileo {dq_version}!")
-        print(
-            "To skip this prompt in the future, set the following environment "
-            "variable: GALILEO_CONSOLE_URL"
-        )
-        console_url = input("🔭 Enter the url of your Galileo console\n")
+        name = "Galileo Cloud" if cloud else "Galileo"
+        print(f"Welcome to {name} {dq_version}!")
+        if cloud:
+            console_url = CLOUD_URL
+        else:
+            print(
+                "To skip this prompt in the future, set the following environment "
+                "variable: GALILEO_CONSOLE_URL"
+            )
+            console_url = input("🔭 Enter the url of your Galileo console\n")
         set_platform_urls(console_url_str=console_url)
         galileo_vars = GalileoConfigVars.get_config_mapping()
         config = Config(**galileo_vars)
@@ -160,11 +167,11 @@ def set_config() -> Config:
     return config
 
 
-def reset_config() -> Config:
+def reset_config(cloud: bool = True) -> Config:
     """Wipe the config file and reconfigure"""
     if os.path.isfile(ConfigData.DEFAULT_GALILEO_CONFIG_FILE.value):
         os.remove(ConfigData.DEFAULT_GALILEO_CONFIG_FILE.value)
-    return set_config()
+    return set_config(cloud)
 
 
 config = set_config()

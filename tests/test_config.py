@@ -1,11 +1,13 @@
 import os
 from typing import Callable
+from unittest import mock
 from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
 
-from dataquality.core._config import set_config, url_is_localhost
+import dataquality.core._config
+from dataquality.core._config import CLOUD_URL, set_config, url_is_localhost
 from dataquality.exceptions import GalileoException
 
 
@@ -60,3 +62,32 @@ def test_handle_extra_slash_in_console(set_test_config: Callable) -> None:
     os.environ["GALILEO_CONSOLE_URL"] = "https://console.mytest2.rungalileo.io///"
     cfg = set_config()
     assert cfg.api_url == "https://api.mytest2.rungalileo.io"
+
+
+@mock.patch("dataquality.core._config.os.path.exists", return_value=False)
+@mock.patch.object(dataquality.core._config.Config, "update_file_config")
+def test_config_defaults_cloud(
+    mock_update_config: mock.MagicMock, set_test_config: Callable
+) -> None:
+    """Calling set_config without an environment variable should default to CLOUD_URL"""
+    if os.getenv("GALILEO_CONSOLE_URL"):
+        del os.environ["GALILEO_CONSOLE_URL"]
+    if os.getenv("GALILEO_API_URL"):
+        del os.environ["GALILEO_API_URL"]
+    cfg = set_config()
+    assert cfg.api_url == CLOUD_URL.replace("console", "api")
+    mock_update_config.assert_called_once()
+
+
+@mock.patch("dataquality.verify_jwt_token")
+@mock.patch("dataquality.core._config.os.path.isfile", return_value=False)
+@mock.patch.object(dataquality.core._config.Config, "update_file_config")
+def test_configure_does_not_default_cloud(
+    mock_update_config: mock.MagicMock,
+    mock_file: mock.MagicMock,
+    mock_exists: mock.MagicMock,
+    set_test_config: Callable,
+) -> None:
+    os.environ["GALILEO_CONSOLE_URL"] = "https://console.mytest2.rungalileo.io/"
+    dataquality.configure()
+    assert dataquality.config.api_url == "https://api.mytest2.rungalileo.io"

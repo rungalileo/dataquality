@@ -30,8 +30,8 @@ def use_code_for_access_token() -> None:
             "🔐 Authentication code not found in environment. "
             "To skip this prompt in the future "
             "set the GALILEO_AUTH_CODE environment variable.\n\n "
-            "If your browser did not open, please copy and paste the following link into your browser\n\n"
-            f"{token_path}\n\n"
+            "If your browser did not open, please copy and paste the following link "
+            f"into your browser\n\n {token_path}\n\n"
             "Please copy and paste your auth code below: \n"
         )
         print("🔭 Submitting code for access token...\n")
@@ -60,7 +60,7 @@ def verify_jwt_token() -> None:
     except GalileoException:
         print(
             "\n🚨 Invalid token. Make sure to get the latest token from the "
-            "console and run dataquality.configure()\n"
+            "console and run dq.login()\n"
         )
         return
 

@@ -33,6 +33,7 @@ def finish(
     ThreadPoolManager.wait_for_threads()
     assert config.current_project_id, "You must have an active project to call finish"
     assert config.current_run_id, "You must have an active run to call finish"
+    assert config.task_type, "You must have a task type to call finish"
     data_logger = dataquality.get_data_logger()
     data_logger.validate_labels()
 
@@ -49,6 +50,7 @@ def finish(
         project_id=str(config.current_project_id),
         run_id=str(config.current_run_id),
         labels=data_logger.logger_config.labels,
+        task_type=config.task_type.value,
         tasks=data_logger.logger_config.tasks,
     )
     if data_logger.logger_config.inference_logged:
@@ -91,14 +93,15 @@ def get_run_status(
     project_name: Optional[str] = None, run_name: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    Returns the status of a specified project run.
+    Returns the latest job of a specified project run.
     Defaults to the current run if project_name and run_name are empty.
     Raises error if only one of project_name and run_name is passed in.
 
     :param project_name: The project name. Default to current project if not passed in.
     :param run_name: The run name. Default to current run if not passed in.
-    :return: Dict[str, Any]. Response will have key `status` with value corresponding
-      to the status of the run. Other info, such as `timestamp`, may be included.
+    :return: Dict[str, Any]. Response will have key `status` with value
+      corresponding to the status of the latest job for the run.
+      Other info, such as `created_at`, may be included.
     """
     return api_client.get_run_status(project_name=project_name, run_name=run_name)
 

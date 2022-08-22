@@ -21,6 +21,7 @@ class BaseLoggerConfig(BaseModel):
     test_logged: bool = False
     inference_logged: bool = False
     exception: str = ""
+    helper_data: Dict[str, Any] = {}
 
     class Config:
         validate_assignment = True

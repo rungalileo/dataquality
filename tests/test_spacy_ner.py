@@ -134,7 +134,7 @@ def test_watch(set_test_config, cleanup_after_use):
     nlp.initialize(lambda: training_examples)
     watch(nlp)
 
-    assert text_ner_logger_config.user_data["nlp"] == nlp
+    assert text_ner_logger_config.helper_data["nlp"] == nlp
     assert dataquality.get_data_logger().logger_config.labels == NER_CLASS_LABELS
     assert dataquality.get_data_logger().logger_config.tagging_schema == "BILOU"
 

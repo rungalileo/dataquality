@@ -91,12 +91,10 @@ def set_test_config(
 
 @pytest.fixture()
 def statuses_response() -> Dict[str, List]:
-    return {
-        "statuses": [
-            {"status": "started", "timestamp": "2022-02-20"},
-            {"status": "finished", "timestamp": "2022-02-24"},
-        ]
-    }
+    return [
+        {"job_id": "1", "status": "in_progress", "created_at": "2022-02-20"},
+        {"job_id": "2", "status": "completed", "created_at": "2022-02-24"},
+    ]
 
 
 @pytest.fixture()

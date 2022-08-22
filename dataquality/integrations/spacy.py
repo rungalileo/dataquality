@@ -16,7 +16,7 @@ from thinc.api import set_dropout_rate
 from wrapt import CallableObjectProxy
 
 import dataquality
-from dataquality import config
+from dataquality import check_noop, config
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
@@ -30,6 +30,7 @@ from dataquality.utils.spacy_integration import (
 )
 
 
+@check_noop
 def log_input_examples(examples: List[Example], split: Split) -> None:
     """Logs a list of Spacy Examples using the dataquality client"""
     split = conform_split(split)
@@ -71,6 +72,7 @@ def log_input_examples(examples: List[Example], split: Split) -> None:
     )
 
 
+@check_noop
 def watch(nlp: Language) -> None:
     """Stores the nlp object before calling watch on the ner component within it
 
@@ -111,8 +113,8 @@ def watch(nlp: Language) -> None:
             "predictions over."
         )
 
-    text_ner_logger_config.user_data["nlp"] = nlp
-    text_ner_logger_config.user_data["ner_config"] = nlp._pipe_configs["ner"]
+    text_ner_logger_config.helper_data["nlp"] = nlp
+    text_ner_logger_config.helper_data["ner_config"] = nlp._pipe_configs["ner"]
     dataquality.set_labels_for_run(ner.move_names)  # type: ignore
     dataquality.set_tagging_schema(TaggingSchema.BILOU)
 
@@ -121,6 +123,7 @@ def watch(nlp: Language) -> None:
     nlp.rename_pipe("galileo_ner", "ner")
 
 
+@check_noop
 def unwatch(nlp: Language) -> None:
     """Returns spacy nlp Language component to its original unpatched state.
 
@@ -145,7 +148,7 @@ def unwatch(nlp: Language) -> None:
 
     pipe_index = nlp._get_pipe_index(before="galileo_ner")
     nlp._pipe_meta[name] = nlp.get_factory_meta(factory_name)
-    nlp._pipe_configs[name] = text_ner_logger_config.user_data["ner_config"]
+    nlp._pipe_configs[name] = text_ner_logger_config.helper_data["ner_config"]
     nlp._components.insert(pipe_index, (name, pipe_component))
 
     nlp.remove_pipe("galileo_ner")
@@ -404,7 +407,7 @@ class GalileoParserStepModel(ThincModelWrapper):
     ) -> None:
         helper_data = self._self_model_logger.log_helper_data
         logits = scores[..., 1:]  # Throw out the -U token
-        ner = text_ner_logger_config.user_data["nlp"].get_pipe("ner")
+        ner = text_ner_logger_config.helper_data["nlp"].get_pipe("ner")
         for state_idx, state in enumerate(states):
             doc_id = state.doc.user_data["id"]
             state_cur_token_idx = state.queue[0]
@@ -427,7 +430,7 @@ class GalileoParserStepModel(ThincModelWrapper):
 
     def _self_set_annotations(self, docs: Dict[int, Doc]) -> None:
         helper_data = self._self_model_logger.log_helper_data
-        ner = text_ner_logger_config.user_data["nlp"].get_pipe("ner")
+        ner = text_ner_logger_config.helper_data["nlp"].get_pipe("ner")
         for doc_id, doc in docs.items():
             states_for_doc = helper_data["spacy_states"][doc_id]
             ner.set_annotations([doc] * len(states_for_doc), states_for_doc)

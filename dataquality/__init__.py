@@ -1,11 +1,12 @@
 "dataquality"
 
-__version__ = "v0.3.9-alpha0"
+__version__ = "v0.4.0-alpha0"
 
 import os
 import resource
 
 import dataquality.core._config
+import dataquality.integrations
 import dataquality.metrics
 from dataquality.core._config import config
 from dataquality.core.auth import login, verify_jwt_token
@@ -38,7 +39,7 @@ def configure() -> None:
     """
     if "GALILEO_API_URL" in os.environ:
         del os.environ["GALILEO_API_URL"]
-    updated_config = dataquality.core._config.reset_config()
+    updated_config = dataquality.core._config.reset_config(cloud=False)
     for k, v in updated_config.dict().items():
         config.__setattr__(k, v)
     config.token = os.getenv("GALILEO_JWT_TOKEN")

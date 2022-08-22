@@ -11,6 +11,7 @@ from dataquality.core._config import config, url_is_localhost
 from dataquality.exceptions import GalileoException
 from dataquality.schemas import RequestType, Route
 from dataquality.schemas.dataframe import FileType
+from dataquality.schemas.edit import Edit
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import conform_split
 from dataquality.schemas.task_type import TaskType
@@ -263,12 +264,12 @@ class ApiClient:
         project/run will be used. Otherwise you must provide both a project and run name
         If the run is a multi-label run, a task must be provided
         """
-        if not task and config.task_type == TaskType.text_multi_label:
-            raise GalileoException("For multi-label runs, a task name must be provided")
-
         project, run = self._get_project_run_id(
             project_name=project_name, run_name=run_name
         )
+        task_type = self.get_task_type(project, run)
+        if not task and task_type == TaskType.text_multi_label:
+            raise GalileoException("For multi-label runs, a task name must be provided")
 
         url = f"{config.api_url}/{Route.content_path(project, run)}/{Route.labels}"
         params = {"task": task} if task else None
@@ -305,6 +306,15 @@ class ApiClient:
         )
         return self.make_request(RequestType.GET, url=url)
 
+    def create_edit(self, edit: Edit) -> Dict:
+        assert edit.project_id and edit.run_id and edit.split
+        split = conform_split(edit.split)
+        path = Route.content_path(edit.project_id, edit.run_id, split)
+        url = f"{config.api_url}/{path}/{Route.edits}"
+        body = edit.dict()
+        params = {"inference_name": edit.inference_name}
+        return self.make_request(RequestType.POST, url=url, body=body, params=params)
+
     def reprocess_run(
         self,
         project_name: str = None,
@@ -330,9 +340,10 @@ class ApiClient:
         project, run = self._get_project_run_id(project_name, run_name)
         project_name = project_name or self.get_project(project)["name"]
         run_name = run_name or self.get_project_run(project, run)["name"]
+        task_type = self.get_task_type(project, run)
 
         # Multi-label has tasks and List[List] for labels
-        if config.task_type == TaskType.text_multi_label:
+        if task_type == TaskType.text_multi_label:
             tasks = self.get_tasks_for_run(project_name, run_name)
             if not labels:
                 labels = [
@@ -511,31 +522,31 @@ class ApiClient:
         pid, rid = self._get_project_run_id(
             project_name=project_name, run_name=run_name
         )
-        url = f"{config.api_url}/{Route.content_path(pid, rid)}/{Route.jobs}/status"
-        statuses = self.make_request(RequestType.GET, url)["statuses"]
-        status = sorted(statuses, key=lambda row: row["timestamp"], reverse=True)
-        return status[0] if status else {}
+        list_jobs_url = f"{config.api_url}/{Route.content_path(pid, rid)}/{Route.jobs}"
+        jobs = self.make_request(RequestType.GET, list_jobs_url)
+        sorted_jobs = sorted(jobs, key=lambda row: row["created_at"], reverse=True)
+        return sorted_jobs[0] if sorted_jobs else {}
 
     def wait_for_run(
         self, project_name: Optional[str] = None, run_name: Optional[str] = None
     ) -> None:
         print("Waiting for job...")
         while True:
-            status = self.get_run_status(project_name=project_name, run_name=run_name)
-            if status.get("status") == "finished":
-                print(f"Done! Job finished with status {status.get('status')}")
+            job = self.get_run_status(project_name=project_name, run_name=run_name)
+            if job.get("status") == "completed":
+                print(f"Done! Job finished with status {job.get('status')}")
                 return
-            elif status.get("status") == "errored":
+            elif job.get("status") == "failed":
                 raise GalileoException(
                     f"It seems your run failed with status "
-                    f"{status.get('status')}, error {status.get('message')}"
+                    f"{job.get('status')}, error {job.get('error_message')}"
                 )
-            elif not status or status.get("status") == "started":
+            elif not job or job.get("status") in ["unstarted", "in_progress"]:
                 sleep(2)
             else:
                 raise GalileoException(
                     f"It seems there was an issue with your job. Received "
-                    f"an unexpected status {status}"
+                    f"an unexpected status {job.get('status')}"
                 )
 
     def get_presigned_url(

@@ -146,11 +146,11 @@ def test_pred_span_extraction_bio() -> None:
     case_5_seq = ["O", "O", "B-PER", "I-PER", "I-PER", "O", "I-PER"]
     case_5_spans = [{"start": 2, "end": 5, "label": "PER"}]
 
-    assert model_logger._extract_pred_spans_bio(case_1_seq) == case_1_spans
-    assert model_logger._extract_pred_spans_bio(case_2_seq) == case_2_spans
-    assert model_logger._extract_pred_spans_bio(case_3_seq) == case_3_spans
-    assert model_logger._extract_pred_spans_bio(case_4_seq) == case_4_spans
-    assert model_logger._extract_pred_spans_bio(case_5_seq) == case_5_spans
+    assert model_logger._extract_spans_bio(case_1_seq) == case_1_spans
+    assert model_logger._extract_spans_bio(case_2_seq) == case_2_spans
+    assert model_logger._extract_spans_bio(case_3_seq) == case_3_spans
+    assert model_logger._extract_spans_bio(case_4_seq) == case_4_spans
+    assert model_logger._extract_spans_bio(case_5_seq) == case_5_spans
 
 
 def test_pred_span_extraction_bioes() -> None:
@@ -176,11 +176,11 @@ def test_pred_span_extraction_bioes() -> None:
     case_5_seq = ["O", "O", "B-PER", "I-PER", "E-PER", "O", "I-PER"]
     case_5_spans = [{"start": 2, "end": 5, "label": "PER"}]
 
-    assert model_logger._extract_pred_spans_bioes(case_1_seq) == case_1_spans
-    assert model_logger._extract_pred_spans_bioes(case_2_seq) == case_2_spans
-    assert model_logger._extract_pred_spans_bioes(case_3_seq) == case_3_spans
-    assert model_logger._extract_pred_spans_bioes(case_4_seq) == case_4_spans
-    assert model_logger._extract_pred_spans_bioes(case_5_seq) == case_5_spans
+    assert model_logger._extract_spans_token_level(case_1_seq) == case_1_spans
+    assert model_logger._extract_spans_token_level(case_2_seq) == case_2_spans
+    assert model_logger._extract_spans_token_level(case_3_seq) == case_3_spans
+    assert model_logger._extract_spans_token_level(case_4_seq) == case_4_spans
+    assert model_logger._extract_spans_token_level(case_5_seq) == case_5_spans
 
 
 def test_pred_span_extraction_bilou() -> None:
@@ -206,11 +206,11 @@ def test_pred_span_extraction_bilou() -> None:
     case_5_seq = ["O", "O", "B-PER", "I-PER", "L-PER", "O", "I-PER"]
     case_5_spans = [{"start": 2, "end": 5, "label": "PER"}]
 
-    assert model_logger._extract_pred_spans_bilou(case_1_seq) == case_1_spans
-    assert model_logger._extract_pred_spans_bilou(case_2_seq) == case_2_spans
-    assert model_logger._extract_pred_spans_bilou(case_3_seq) == case_3_spans
-    assert model_logger._extract_pred_spans_bilou(case_4_seq) == case_4_spans
-    assert model_logger._extract_pred_spans_bilou(case_5_seq) == case_5_spans
+    assert model_logger._extract_spans_token_level(case_1_seq) == case_1_spans
+    assert model_logger._extract_spans_token_level(case_2_seq) == case_2_spans
+    assert model_logger._extract_spans_token_level(case_3_seq) == case_3_spans
+    assert model_logger._extract_spans_token_level(case_4_seq) == case_4_spans
+    assert model_logger._extract_spans_token_level(case_5_seq) == case_5_spans
 
 
 def test_calculate_dep_score_across_spans() -> None:

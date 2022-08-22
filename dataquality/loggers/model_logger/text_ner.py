@@ -6,6 +6,7 @@ from typing import Any, DefaultDict, Dict, List, Optional, Tuple, Union
 import numpy as np
 from numpy import ndarray
 
+from dataquality.exceptions import LogBatchError
 from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.schemas import __data_schema_version__
@@ -140,7 +141,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         * embs, probs, and ids must exist and be the same length
         :return:
         """
-        get_dq_logger().info(
+        get_dq_logger().debug(
             "Validating the output log.", split=self.split, epoch=self.epoch
         )
         if len(self.logits):
@@ -174,10 +175,11 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 logged_sample_ids.append(sample_id)
 
         self.ids = logged_sample_ids
-        assert self.ids, (
-            "No samples in this batch had any gold or prediction spans. Logging will "
-            "be skipped"
-        )
+        if not self.ids:
+            raise LogBatchError(
+                "No samples in this batch had any gold or prediction spans. "
+                "Logging will be skipped"
+            )
 
     def _process_sample(
         self, sample_id: int, sample_emb: np.ndarray, sample_prob: np.ndarray
@@ -187,7 +189,9 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         A sample should be logged only if there was at least 1 prediction span or 1
         gold span
         """
-        get_dq_logger().info("Processing a sample.", split=self.split, epoch=self.epoch)
+        get_dq_logger().debug(
+            "Processing a sample.", split=self.split, epoch=self.epoch
+        )
         # To extract metadata about the sample we are looking at
         sample_key = self.logger_config.get_sample_key(Split(self.split), sample_id)
 
@@ -228,7 +232,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         We take the average of the token embeddings per span and use that as the span
         level embedding
         """
-        get_dq_logger().info(
+        get_dq_logger().debug(
             "Extracting span embeddings.", split=self.split, epoch=self.epoch
         )
         embeddings = []
@@ -248,7 +252,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         """
         # use length of the tokens stored to strip the pads
         # Drop the spans post first PAD
-        get_dq_logger().info(
+        get_dq_logger().debug(
             "Extracting pred spans.", split=self.split, epoch=self.epoch
         )
         argmax_indices: List[int] = np.array(pred_prob).argmax(axis=1)
@@ -257,14 +261,12 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         ][0:sample_len]
 
         if self.logger_config.tagging_schema == TaggingSchema.BIO:
-            pred_spans = self._extract_pred_spans_bio(pred_sequence)
-        elif self.logger_config.tagging_schema == TaggingSchema.BILOU:
-            pred_spans = self._extract_pred_spans_bilou(pred_sequence)
-        else:  # BIOES
-            pred_spans = self._extract_pred_spans_bioes(pred_sequence)
+            pred_spans = self._extract_spans_bio(pred_sequence)
+        else:  # BIOES or BILOU
+            pred_spans = self._extract_spans_token_level(pred_sequence)
         return pred_spans
 
-    def _extract_pred_spans_bio(self, pred_sequence: List[str]) -> List[Dict]:
+    def _extract_spans_bio(self, pred_sequence: List[str]) -> List[Dict]:
         """
         Converts the prediction sequences into prediction span tokens
 
@@ -328,27 +330,26 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         assert total_b_count == len(pred_spans)
         return pred_spans
 
-    def _extract_pred_spans_bilou(self, pred_sequence: List[str]) -> List[Dict]:
-        """BILOU is a special case for BIO.
+    def _extract_spans_token_level(self, sequence: List[str]) -> List[Dict]:
+        """Extract spans at token or word level for gold or pred spans.
 
-        The presense of I in a sequence does not mean a
-        presence of a span until an L is successfully predicted.
+        This should be called with a BILOU or BIOES sequence
         """
-        pred_spans = []
+        spans = []
         total_b_count = 0
         idx = 0
         found_end = False  # Tracks if there was an end tag predicted for BIOES
 
         # Use a while loop so we can skip rows already scanned in the inner loop
-        while idx < len(pred_sequence):
-            token = pred_sequence[idx]
+        while idx < len(sequence):
+            token = sequence[idx]
             next_idx = idx + 1
 
             if self._is_single_token(token):
                 total_b_count += 1
                 # hit a single token prediction, update and continue
                 token_val, token_label = self._split_token(token)
-                pred_spans.append({"start": idx, "end": next_idx, "label": token_label})
+                spans.append({"start": idx, "end": next_idx, "label": token_label})
                 idx += 1
                 continue
 
@@ -361,63 +362,11 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             # different label
             token_val, token_label = self._split_token(token)
 
-            for next_tok in pred_sequence[idx + 1 :]:
-                if self._is_in_token(next_tok, token_label):
-                    next_idx += 1
-                # next_tok == "L" and the label matches the current B label
-                elif self._is_end_token(next_tok, token_label):
-                    next_idx += 1
-                    found_end = True
-                    total_b_count += 1
-                    break
-                else:
-                    break
-            if found_end:
-                pred_spans.append({"start": idx, "end": next_idx, "label": token_label})
-            idx = next_idx
-            found_end = False
-
-        assert total_b_count == len(pred_spans)
-        return pred_spans
-
-    def _extract_pred_spans_bioes(self, pred_sequence: List[str]) -> List[Dict]:
-        """BIOES is a special case for BIO.
-
-        The presense of I in a sequence does not mean a presence of a span until
-        an E is successfully predicted.
-        """
-        pred_spans = []
-        total_b_count = 0
-        idx = 0
-        found_end = False  # Tracks if there was an end tag predicted for BIOES
-
-        # Use a while loop so we can skip rows already scanned in the inner loop
-        while idx < len(pred_sequence):
-            token = pred_sequence[idx]
-            next_idx = idx + 1
-
-            if self._is_single_token(token):
-                total_b_count += 1
-                # hit a single token prediction , update and continue
-                token_val, token_label = self._split_token(token)
-                pred_spans.append({"start": idx, "end": next_idx, "label": token_label})
-                idx += 1
-                continue
-
-            if not self._is_before_token(token):
-                idx += 1
-                continue
-
-            # We've hit a prediction. Continue until it's invalid
-            # Invalid means we hit a new B or O tag, or the next I tag has a
-            # different label
-            token_val, token_label = self._split_token(token)
-
-            for next_tok in pred_sequence[idx + 1 :]:
+            for next_tok in sequence[idx + 1 :]:
                 # next_tok == "I" and the label matches the current B label
                 if self._is_in_token(next_tok, token_label):
                     next_idx += 1
-                # next_tok == "E" and the label matches the current B label
+                # next_tok == "L"/"E" and the label matches the current B label
                 elif self._is_end_token(next_tok, token_label):
                     next_idx += 1
                     found_end = True
@@ -426,12 +375,12 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 else:
                     break
             if found_end:
-                pred_spans.append({"start": idx, "end": next_idx, "label": token_label})
+                spans.append({"start": idx, "end": next_idx, "label": token_label})
             idx = next_idx
             found_end = False
 
-        assert total_b_count == len(pred_spans)
-        return pred_spans
+        assert total_b_count == len(spans)
+        return spans
 
     def _is_single_token(self, tok: str) -> bool:
         return tok.startswith("U") or tok.startswith("S")
@@ -469,7 +418,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         gold_sequence = [O, O, O, O, O, B-nothing, I-nothing, I-nothing, O, O] for BIO
         gold_sequence = [O, O, O, O, O, B-nothing, I-nothing, L-nothing, O, O] for BILOU
         """
-        get_dq_logger().info(
+        get_dq_logger().debug(
             "Constructing a gold sequence", split=self.split, epoch=self.epoch
         )
         gold_sequence = ["O"] * len_sequence
@@ -505,7 +454,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         dep_scores: DEP scores for every token in a sample, so len(dep_scores) is
             the number of tokens in a sentence
         """
-        get_dq_logger().info(
+        get_dq_logger().debug(
             "Calculating DEP across spans.", split=self.split, epoch=self.epoch
         )
         dep_score_per_span = []
@@ -535,7 +484,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             predicted spans which are padded by the model
         :return: The DEP score per-token for both the gold spans and pred spans
         """
-        get_dq_logger().info("Calculating DEP.", split=self.split, epoch=self.epoch)
+        get_dq_logger().debug("Calculating DEP.", split=self.split, epoch=self.epoch)
         pred_prob = np.array(pred_prob)
         label2idx = {l: i for i, l in enumerate(self.logger_config.labels)}
         argmax_indices: List[int] = pred_prob.argmax(axis=1).tolist()
@@ -580,7 +529,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         """
         data: defaultdict = defaultdict(list)
 
-        get_dq_logger().info("Getting data dict.", split=self.split, epoch=self.epoch)
+        get_dq_logger().debug("Getting data dict.", split=self.split, epoch=self.epoch)
         # Loop through samples
         num_samples = len(self.ids)
         for idx in range(num_samples):
@@ -722,7 +671,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         In this function, we only look at spans that don't have pred/gold alignment,
         so the error can only be span_shift or missed_label.
         """
-        get_dq_logger().info(
+        get_dq_logger().debug(
             "Getting span error type.", split=self.split, epoch=self.epoch
         )
         gold_start, gold_end = gold_span
@@ -753,7 +702,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         """Converts logits to probs via softmax per sample"""
         # axis ensures that in a matrix of probs with dims num_samples x num_classes
         # we take the softmax for each sample
-        get_dq_logger().info(
+        get_dq_logger().debug(
             "Converting logits to probs.", split=self.split, epoch=self.epoch
         )
         token_probs = []

@@ -7,6 +7,7 @@ from typing_extensions import ParamSpec
 T = TypeVar("T")
 P = ParamSpec("P")
 GALILEO_DISABLED = "GALILEO_DISABLED"
+GALILEO_VERBOSE = "GALILEO_VERBOSE"
 
 
 def check_noop(func: Callable[P, T]) -> Callable[P, Optional[T]]:
@@ -27,3 +28,7 @@ def check_noop(func: Callable[P, T]) -> Callable[P, Optional[T]]:
 
 def galileo_disabled() -> bool:
     return os.getenv(GALILEO_DISABLED) in (True, "TRUE", "True", "true", 1)
+
+
+def galileo_verbose_logging() -> bool:
+    return os.getenv("GALILEO_VERBOSE") in (True, "TRUE", "True", "true", 1)
