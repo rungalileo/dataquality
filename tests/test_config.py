@@ -77,17 +77,3 @@ def test_config_defaults_cloud(
     cfg = set_config()
     assert cfg.api_url == CLOUD_URL.replace("console", "api")
     mock_update_config.assert_called_once()
-
-
-@mock.patch("dataquality.verify_jwt_token")
-@mock.patch("dataquality.core._config.os.path.isfile", return_value=False)
-@mock.patch.object(dataquality.core._config.Config, "update_file_config")
-def test_configure_does_not_default_cloud(
-    mock_update_config: mock.MagicMock,
-    mock_file: mock.MagicMock,
-    mock_exists: mock.MagicMock,
-    set_test_config: Callable,
-) -> None:
-    os.environ["GALILEO_CONSOLE_URL"] = "https://console.mytest2.rungalileo.io/"
-    dataquality.configure()
-    assert dataquality.config.api_url == "https://api.mytest2.rungalileo.io"
