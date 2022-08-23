@@ -374,6 +374,8 @@ class ApiClient:
             run_id=str(run),
             labels=labels,
             tasks=tasks or None,
+            task_type=task_type,
+            xray=False,  # Don't recalculate XRay in process
         )
         res = self.make_request(
             RequestType.POST, url=f"{config.api_url}/{Route.jobs}", body=body
@@ -515,10 +517,6 @@ class ApiClient:
     def get_run_status(
         self, project_name: Optional[str] = None, run_name: Optional[str] = None
     ) -> Dict[str, Any]:
-        if url_is_localhost(config.api_url):
-            raise GalileoException(
-                "You cannot check run status when running the server locally"
-            )
         pid, rid = self._get_project_run_id(
             project_name=project_name, run_name=run_name
         )
