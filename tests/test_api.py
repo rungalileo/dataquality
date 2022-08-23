@@ -116,19 +116,6 @@ def test_delete_run_by_name_missing_run(
 
 
 @pytest.mark.parametrize(
-    "api_url",
-    ["http://localhost:8088", "http://127.0.0.1:8088"],
-)
-def test_get_run_status_localhost_fails(
-    set_test_config: Callable, api_url: str
-) -> None:
-    """Raises error if api url is set to localhost"""
-    set_test_config(default_api_url=api_url)
-    with pytest.raises(GalileoException):
-        api_client.get_run_status()
-
-
-@pytest.mark.parametrize(
     "project_name, run_name",
     [("carrots", None), (None, "Rhubarb")],
 )
