@@ -6,7 +6,7 @@ import requests
 from pydantic.types import UUID4
 from requests import Response
 
-from dataquality.core._config import config, url_is_localhost
+from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
 from dataquality.schemas import RequestType, Route
 from dataquality.schemas.dataframe import FileType
