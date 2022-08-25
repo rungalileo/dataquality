@@ -132,6 +132,7 @@ def tokenize_and_log_dataset(
     dd: DatasetDict,
     tokenizer: PreTrainedTokenizerBase,
     label_names: Optional[List[str]] = None,
+    meta: Optional[List[str]] = None,
 ) -> DatasetDict:
     """This function tokenizes a huggingface DatasetDict and aligns the labels to BPE
 
@@ -140,7 +141,14 @@ def tokenize_and_log_dataset(
 
     :param dd: DatasetDict from huggingface to log
     :param tokenizer: The pretrained tokenizer from huggingface
+    :param label_names: Optional list of labels for the dataset. These can typically
+        be extracted automatically (if the dataset came from hf datasets hub or was
+        exported via Galileo dataquality). If they cannot be extracted, an error will
+        be raised requesting label names
+    :param meta: Optional metadata columns to be logged. The columns must be present
+        in at least one of the splits of the dataset.
     """
+    meta = meta or []
     dd = _validate_dataset(dd)
     if label_names is not None and len(label_names):
         assert isinstance(
@@ -166,7 +174,8 @@ def tokenize_and_log_dataset(
         ids = list(range(len(dataset)))
         dataset = dataset.add_column(HFCol.id, ids)
         tokenized_dataset[split] = dataset
-        dq.log_dataset(dataset, split=dq_split)  # type: ignore
+        split_meta = [c for c in meta if c in dataset.features]
+        dq.log_dataset(dataset, split=dq_split, meta=split_meta)  # type: ignore
     return tokenized_dataset
 
 
