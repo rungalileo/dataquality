@@ -190,3 +190,38 @@ def test_tokenize_and_log_dataset_invalid_labels() -> None:
     with pytest.raises(AssertionError) as e:
         tokenize_and_log_dataset(dd, mock_tokenizer, np.array(["a", "b", "c"]))
     assert str(e.value).startswith("label_names must be of type list, but got")
+
+
+@mock.patch("dataquality.log_dataset")
+def test_tokenize_and_log_dataset_with_meta(
+    mock_log_dataset: mock.MagicMock, set_test_config
+) -> None:
+    """Tests that with meta columns, they will be logged"""
+    set_test_config(task_type="text_ner")
+    tokenize_output = tokenize_adjust_labels(mock_ds, mock_tokenizer, tag_names)
+
+    mock_ds_meta = mock_ds.add_column("test_meta_1", ["a", "b", "c", "d", "e"])
+    with mock.patch("dataquality.integrations.hf.tokenize_adjust_labels") as mock_tok:
+        mock_tok.return_value = tokenize_output
+        # Only test and val have meta, make sure they both get logged with meta
+        ds_dict = datasets.DatasetDict(
+            {"train": mock_ds, "test": mock_ds_meta, "validation": mock_ds_meta}
+        )
+        output = tokenize_and_log_dataset(ds_dict, mock_tokenizer, meta=["test_meta_1"])
+    for split in ds_dict.keys():
+        split_output = output[split]
+        for k in ADJUSTED_TOKEN_DATA:
+            token_data = ADJUSTED_TOKEN_DATA[k]
+            if k == "text_token_indices":
+                # We abuse token data because outputs are returning tuples but we want
+                # to compare lists
+                token_data = json.loads(json.dumps(token_data))
+            assert token_data == split_output[k]
+    assert mock_log_dataset.call_count == 3
+    call_args = mock_log_dataset.call_args_list
+
+    # Training has no meta
+    assert call_args[0][-1]["meta"] == []
+    # Test and val do have meta
+    assert call_args[1][-1]["meta"] == ["test_meta_1"]
+    assert call_args[2][-1]["meta"] == ["test_meta_1"]
