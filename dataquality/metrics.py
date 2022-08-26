@@ -350,9 +350,7 @@ def _process_exported_dataframe(
         for i in data_df.get_column_names():
             if i != "sample_id":
                 data_df.rename(i, f"sample_{i}")
-        data_df = data_df.join(
-            span_df, on="sample_id", allow_duplication=True
-        )
+        data_df = data_df.join(span_df, on="sample_id", allow_duplication=True)
 
     tasks = []
     if task_type == TaskType.text_multi_label:
