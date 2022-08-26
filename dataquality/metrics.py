@@ -347,9 +347,10 @@ def _process_exported_dataframe(
         # These are the token (not char) indices, lets make that clear
         span_df.rename("span_start", "span_token_start")
         span_df.rename("span_end", "span_token_end")
-        data_df = data_df[["sample_id", "text", "spans"]].join(
-            span_df, on="sample_id", allow_duplication=True
-        )
+        for i in data_df.get_column_names():
+            if i != "sample_id":
+                data_df.rename(i, f"sample_{i}")
+        data_df = data_df.join(span_df, on="sample_id", allow_duplication=True)
 
     tasks = []
     if task_type == TaskType.text_multi_label:
