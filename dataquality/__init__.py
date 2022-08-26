@@ -1,6 +1,6 @@
 "dataquality"
 
-__version__ = "v0.4.2"
+__version__ = "v0.4.3"
 
 import os
 import resource
@@ -32,15 +32,15 @@ from dataquality.utils.helpers import check_noop
 
 @check_noop
 def configure() -> None:
-    """Update your active config with new env variables.
-    Reset user token on configure and prompt new login.
+    """[Not for cloud users] Update your active config with new information
 
+    You can use environment variables to set the config, or wait for prompts
     Available environment variables to update:
     * GALILEO_CONSOLE_URL
     """
     if "GALILEO_API_URL" in os.environ:
         del os.environ["GALILEO_API_URL"]
-    updated_config = dataquality.core._config.reset_config()
+    updated_config = dataquality.core._config.reset_config(cloud=False)
     for k, v in updated_config.dict().items():
         config.__setattr__(k, v)
     config.token = None
