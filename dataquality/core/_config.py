@@ -87,6 +87,8 @@ def set_platform_urls(console_url_str: str) -> None:
         os.environ[GalileoConfigVars.API_URL] = "http://localhost:8088"
     else:
         api_url = console_url_str.replace("console.", "api.").rstrip("/")
+        api_url = f"https://{api_url}" if not api_url.startswith("http") else api_url
+        api_url = api_url.replace("http://", "https://")
         _validate_api_url(console_url_str, api_url)
         os.environ[GalileoConfigVars.API_URL] = api_url
 
@@ -100,7 +102,7 @@ def _validate_api_url(console_url: str, api_url: str) -> None:
         "and then \n`dq.configure()`"
         "\n\nDetail: {err}"
     )
-    url = f"http://{api_url}" if not api_url.startswith("http") else api_url
+    url = f"https://{api_url}" if not api_url.startswith("http") else api_url
     try:
         r = requests.get(f"{url}/healthcheck")
         if not r.ok:
