@@ -1,15 +1,14 @@
 import pytest
 import vaex
 
-import dataquality as dq
-# import dataquality.checks
+from dataquality import AggregateFunction, Operator, Predicate, PredicateFilter
 
-from dataquality.schemas.predicate import (
-    AggregateFunction,
-    Operator,
-    Predicate,
-    PredicateFilter,
-)
+# from dataquality.schemas.predicate import (
+#     AggregateFunction,
+#     Operator,
+#     Predicate,
+#     PredicateFilter,
+# )
 
 
 def test_evaluate_predicate_1():
@@ -19,14 +18,14 @@ def test_evaluate_predicate_1():
         confidence=[0.1] * 10,
     )
     df = vaex.from_dict(inp)
-    pr = Predicate(
+    p = Predicate(
         filter=None,
         metric="confidence",
         agg=AggregateFunction.avg,
         operator=Operator.lte,
         threshold=0.8,
     )
-    assert dq.checks.evaluate_predicate(df, pr) is True
+    assert p.evaluate(df)
 
 
 def test_evaluate_predicate_2():
@@ -36,14 +35,14 @@ def test_evaluate_predicate_2():
         dep=[0.3] * 9 + [0.4],
     )
     df = vaex.from_dict(inp)
-    pr = Predicate(
+    p = Predicate(
         filter=None,
         metric="dep",
         agg=AggregateFunction.max,
         operator=Operator.gt,
         threshold=0.35,
     )
-    assert dq.checks.evaluate_predicate(df, pr) is True
+    assert p.evaluate(df)
 
 
 def test_evaluate_predicate_3():
@@ -53,14 +52,14 @@ def test_evaluate_predicate_3():
         confidence=[0.2] * 7 + [0.8] * 3,
     )
     df = vaex.from_dict(inp)
-    pr = Predicate(
+    p = Predicate(
         filter=PredicateFilter(operator=Operator.lt, value=0.3),
         metric="confidence",
         agg=AggregateFunction.pct,
         operator=Operator.gt,
         threshold=0.6,
     )
-    assert dq.checks.evaluate_predicate(df, pr) is True
+    assert p.evaluate(df)
 
 
 def test_evaluate_predicate_4():
@@ -70,14 +69,14 @@ def test_evaluate_predicate_4():
         is_drifted=[True] * 5 + [False] * 5,
     )
     df = vaex.from_dict(inp)
-    pr = Predicate(
+    p = Predicate(
         filter=PredicateFilter(operator=Operator.eq, value=True),
         metric="is_drifted",
         agg=AggregateFunction.pct,
         operator=Operator.gt,
         threshold=0.2,
     )
-    assert dq.checks.evaluate_predicate(df, pr) is True
+    assert p.evaluate(df)
 
 
 def test_predicate_pct_agg_requires_filter() -> None:

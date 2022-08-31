@@ -5,7 +5,6 @@ __version__ = "v0.4.3"
 import os
 import resource
 
-import dataquality.checks
 import dataquality.core._config
 import dataquality.integrations
 import dataquality.metrics
@@ -26,6 +25,12 @@ from dataquality.core.log import (
     set_split,
     set_tagging_schema,
     set_tasks_for_run,
+)
+from dataquality.schemas.predicate import (
+    AggregateFunction,
+    Operator,
+    Predicate,
+    PredicateFilter,
 )
 from dataquality.utils.dq_logger import get_dq_log_file
 from dataquality.utils.helpers import check_noop
@@ -71,6 +76,10 @@ __all__ = [
     "log_data_sample",
     "log_dataset",
     "get_dq_log_file",
+    "AggregateFunction",
+    "Operator",
+    "Predicate",
+    "PredicateFilter",
 ]
 
 try:
