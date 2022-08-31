@@ -23,21 +23,6 @@ class AggregateFunction(str, Enum):
     pct = "pct"
 
 
-class PredicateFilter(BaseModel):
-    """A class for representing a metric to be evaluated on a dataframe
-
-    Args:
-        col: The name of the DF column to evaluate on
-        operator: The operator to use for the evaluation
-        value: The value to use for the evaluation
-
-    E.g.
-    """
-
-    operator: Operator
-    value: Union[float, int, str, bool]
-
-
 # Filter a dataframe based on a column value
 FILTER_OPERATORS = {
     Operator.eq: lambda df, col, val: df[df[col] == val],
@@ -69,7 +54,24 @@ AGGREGATE_FUNCTIONS = {
 }
 
 
+class PredicateFilter(BaseModel):
+    """A class for representing a metric to be evaluated on a dataframe
+
+    Args:
+        col: The name of the DF column to evaluate on
+        operator: The operator to use for the evaluation
+        value: The value to use for the evaluation
+
+    E.g.
+    """
+
+    operator: Operator
+    value: Union[float, int, str, bool]
+
+
 class Predicate(BaseModel):
+    """A class for representing a metric to be evaluated on a dataframe"""
+
     metric: str
     agg: AggregateFunction
     operator: Operator
