@@ -1,7 +1,9 @@
 import pytest
 import vaex
 
-from dataquality.checks import evaluate_predicate
+import dataquality as dq
+# import dataquality.checks
+
 from dataquality.schemas.predicate import (
     AggregateFunction,
     Operator,
@@ -24,7 +26,7 @@ def test_evaluate_predicate_1():
         operator=Operator.lte,
         threshold=0.8,
     )
-    assert evaluate_predicate(df, pr) is True
+    assert dq.checks.evaluate_predicate(df, pr) is True
 
 
 def test_evaluate_predicate_2():
@@ -41,7 +43,7 @@ def test_evaluate_predicate_2():
         operator=Operator.gt,
         threshold=0.35,
     )
-    assert evaluate_predicate(df, pr) is True
+    assert dq.checks.evaluate_predicate(df, pr) is True
 
 
 def test_evaluate_predicate_3():
@@ -58,7 +60,7 @@ def test_evaluate_predicate_3():
         operator=Operator.gt,
         threshold=0.6,
     )
-    assert evaluate_predicate(df, pr) is True
+    assert dq.checks.evaluate_predicate(df, pr) is True
 
 
 def test_evaluate_predicate_4():
@@ -75,7 +77,7 @@ def test_evaluate_predicate_4():
         operator=Operator.gt,
         threshold=0.2,
     )
-    assert evaluate_predicate(df, pr) is True
+    assert dq.checks.evaluate_predicate(df, pr) is True
 
 
 def test_predicate_pct_agg_requires_filter() -> None:
