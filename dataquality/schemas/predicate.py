@@ -55,14 +55,13 @@ AGGREGATE_FUNCTIONS = {
 
 
 class PredicateFilter(BaseModel):
-    """A class for representing a metric to be evaluated on a dataframe
+    """Filter a dataframe based on the column value
 
-    Args:
-        col: The name of the DF column to evaluate on
-        operator: The operator to use for the evaluation
-        value: The value to use for the evaluation
+    Note that the column used for filtering is the same as the metric used
+      in the predicate.
 
-    E.g.
+    :param operator: The operator to use for filtering (e.g. >, <, ==, !=)
+    :param value: The value to compare against
     """
 
     operator: Operator
@@ -70,7 +69,78 @@ class PredicateFilter(BaseModel):
 
 
 class Predicate(BaseModel):
-    """A class for representing a metric to be evaluated on a dataframe"""
+    """Class for building custom predicates for data quality checks
+
+    After building a predicate, call `evaluate` to determine the truthiness
+    of the predicate against a given DataFrame.
+
+    With a bit of thought, complex and custom predicates can be built. To gain an
+    intuition for what can be accomplished, consider the following examples:
+
+    1. Is the average confidence less than 0.3?
+        >>> p = Predicate(
+        ...     metric="confidence",
+        ...     agg=AggregateFunction.avg,
+        ...     operator=Operator.lt,
+        ...     threshold=0.3,
+        ... )
+        >>> p.evaluate(df)
+        True
+
+    2. Is the max DEP greater or equal to 0.45?
+        >>> p = Predicate(
+        ...     metric="confidence",
+        ...     agg=AggregateFunction.max,
+        ...     operator=Operator.gte,
+        ...     threshold=0.45,
+        ... )
+        >>> p.evaluate(df)
+        True
+
+    By adding filters, you can further narrow down the scope of the predicate.
+    For example:
+
+    3. Alert if over 80% of the dataset has confidence under 0.1
+        >>> p = Predicate(
+        ...     filter=PredicateFilter(operator=Operator.lt, value=0.1),
+        ...     metric="confidence",
+        ...     agg=AggregateFunction.pct,
+        ...     operator=Operator.gt,
+        ...     threshold=0.8,
+        ... )
+        >>> p.evaluate(df)
+        True
+
+    4. Alert if at least 20% of the dataset has drifted (Inference DataFrames only)
+        >>> p = Predicate(
+        ...     filter=PredicateFilter(operator=Operator.eq, value=True),
+        ...     metric="is_drifted",
+        ...     agg=AggregateFunction.pct,
+        ...     operator=Operator.gte,
+        ...     threshold=0.20,
+        ... )
+        >>> p.evaluate(df)
+        True
+
+    5. Alert 5% or more of the dataset contains PII
+        >>> p = Predicate(
+        ...     filter=PredicateFilter(operator=Operator.neq, value=None),
+        ...     metric="galileo_pii",
+        ...     agg=AggregateFunction.pct,
+        ...     operator=Operator.gte,
+        ...     threshold=0.05,
+        ... )
+        >>> p.evaluate(df)
+        True
+
+    :param metric: The DF column for evaluating the predicate
+    :param agg: An aggregate function to apply to the metric
+    :param operator: The operator to use for comparing the agg to the threshold
+        (e.g. >, <, ==, !=)
+    :param threshold: Threshold value for evaluating the predicate
+    :param filter: Optional filter to apply to the DataFrame before evaluating the
+        predicate
+    """
 
     metric: str
     agg: AggregateFunction
@@ -79,7 +149,7 @@ class Predicate(BaseModel):
     filter: Optional[PredicateFilter] = None
 
     def evaluate(self, df: DataFrame) -> bool:
-        filter_df = self.apply_filter(df)
+        filter_df = self._apply_filter(df)
         if self.agg == AggregateFunction.pct:
             value = AGGREGATE_FUNCTIONS[self.agg](filter_df, df)
         else:
@@ -87,7 +157,7 @@ class Predicate(BaseModel):
 
         return CRITERIA_OPERATORS[self.operator](value, self.threshold)
 
-    def apply_filter(self, df: DataFrame) -> Optional[DataFrame]:
+    def _apply_filter(self, df: DataFrame) -> Optional[DataFrame]:
         df = df.copy()
 
         filter = self.filter
