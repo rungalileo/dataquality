@@ -1,66 +1,55 @@
 from typing import Optional
+
 from vaex.dataframe import DataFrame
 
-from dataquality.schemas.predicate import FILTER_OPERATORS, OPERATORS, Criteria, Operator, Predicate, PredicateFilter
+from dataquality.schemas.predicate import AggregateFunction, Operator, Predicate
+
+# Filter a dataframe based on a column value
+FILTER_OPERATORS = {
+    Operator.eq: lambda df, col, val: df[df[col] == val],
+    Operator.neq: lambda df, col, val: df[df[col] != val],
+    Operator.gt: lambda df, col, val: df[df[col] > val],
+    Operator.lt: lambda df, col, val: df[df[col] < val],
+    Operator.gte: lambda df, col, val: df[df[col] >= val],
+    Operator.lte: lambda df, col, val: df[df[col] <= val],
+}
+
+
+# Returns boolean of a value compared to a threshold
+CRITERIA_OPERATORS = {
+    Operator.eq: lambda val, threshold: bool(val == threshold),
+    Operator.neq: lambda val, threshold: bool(val != threshold),
+    Operator.gt: lambda val, threshold: bool(val > threshold),
+    Operator.lt: lambda val, threshold: bool(val < threshold),
+    Operator.gte: lambda val, threshold: bool(val >= threshold),
+    Operator.lte: lambda val, threshold: bool(val <= threshold),
+}
+
+
+AGGREGATE_FUNCTIONS = {
+    AggregateFunction.avg: lambda df, col: df.mean(col),
+    AggregateFunction.min: lambda df, col: df.min(col),
+    AggregateFunction.max: lambda df, col: df.max(col),
+    AggregateFunction.sum: lambda df, col: df.sum(col),
+    AggregateFunction.pct: lambda df, df2: df.count() / df2.count(),
+}
 
 
 class PredicateManager:
     def apply_filter(self, df: DataFrame, predicate: Predicate) -> Optional[DataFrame]:
-        filter = predicate.filter
+        df = df.copy()
 
+        filter = predicate.filter
         if filter:
-            return FILTER_OPERATORS[filter.operator](df, predicate.col, filter.value)
+            return FILTER_OPERATORS[filter.operator](df, predicate.metric, filter.value)
 
         return df
 
     def evaluate_predicate(self, df: DataFrame, predicate: Predicate) -> bool:
         filter_df = self.apply_filter(df, predicate)
-        return
+        if predicate.agg == AggregateFunction.pct:
+            value = AGGREGATE_FUNCTIONS[predicate.agg](filter_df, df)
+        else:
+            value = AGGREGATE_FUNCTIONS[predicate.agg](filter_df, predicate.metric)
 
-
-"""
-Alert when:
-1. Average confidence is greater than or equal to 0.8
-2. Max DEP is less than 0.35
-3. greater than 0.6 of the rows have confidence less than 0.3
-4. more than 20% of the inference dataset has drifted
-
-pr1 = Predicate(
-    filter=None,
-    col="confidence",
-    type=Operator.avg,
-    criteria_operator=Operator.gte,
-    criteria_threshold=0.8
-)
-
-pr2 = Predicate(
-    filter=None,
-    col="dep",
-    type=Operator.max,
-    criteria_operator=Operator.lt,
-    criteria_threshold=0.35,
-)
-
-pr3 = Predicate(
-    filter=PredicateFilter(
-        operator=Operator.lt,
-        value=0.3
-    ),
-    col="confidence",
-    type=Operator.pct,
-    criteria_operator=Operator.lt,
-    criteria_threshold=0.6
-)
-
-pr4 = Predicate(
-    filter=PredicateFilter(
-        operator=Operator.eq,
-        value=True
-    ),
-    col="is_drifted",
-    type=Operator.pct,
-    criteria_operator=Operator.gt,
-    criteria_threshold=0.2
-)
-
-"""
+        return CRITERIA_OPERATORS[predicate.operator](value, predicate.threshold)

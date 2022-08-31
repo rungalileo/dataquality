@@ -1,9 +1,8 @@
 from enum import Enum
-from typing import Optional, Union
+from typing import Dict, Optional, Union
 
 from pydantic import BaseModel
 from pydantic.class_validators import validator
-from vaex.dataframe import DataFrame
 
 
 class Operator(str, Enum):
@@ -15,44 +14,12 @@ class Operator(str, Enum):
     lte = "lte"
 
 
-# Filter a dataframe based on a column value
-FILTER_OPERATORS = {
-    Operator.eq: lambda df, col, val: df[df[col] == val],
-    Operator.neq: lambda df, col, val: df[df[col] != val],
-    Operator.gt: lambda df, col, val: df[df[col] > val],
-    Operator.lt: lambda df, col, val: df[df[col] < val],
-    Operator.gte: lambda df, col, val: df[df[col] >= val],
-    Operator.lte: lambda df, col, val: df[df[col] <= val],
-}
-
-
-# Returns boolean of a value compared to a threshold
-CRITERIA_OPERATORS = {
-    Operator.eq: lambda val, threshold: val == threshold,
-    Operator.neq: lambda val, threshold: val != threshold,
-    Operator.gt: lambda val, threshold: val > threshold,
-    Operator.lt: lambda val, threshold: val < threshold,
-    Operator.gte: lambda val, threshold: val >= threshold,
-    Operator.lte: lambda val, threshold: val <= threshold,
-}
-
-
-
 class AggregateFunction(str, Enum):
     avg = "avg"
     min = "min"
     max = "max"
     sum = "sum"
     pct = "pct"
-
-
-AGGREGATE_FUNCTIONS = {
-    AggregateFunction.avg: lambda df, col: df.mean(col),
-    AggregateFunction.min: lambda df, col: df.min(col),
-    AggregateFunction.max: lambda df, col: df.max(col),
-    AggregateFunction.sum: lambda df, col: df.sum(col),
-    AggregateFunction.pct: lambda df, df2: df.count() / df2.count(),
-}
 
 
 class PredicateFilter(BaseModel):
@@ -63,20 +30,27 @@ class PredicateFilter(BaseModel):
         operator: The operator to use for the evaluation
         value: The value to use for the evaluation
 
-    E.g. 
+    E.g.
     """
-    operator: Operator
-    value: Union[int, float, str]
 
-    def evaluate(self, df: DataFrame, col: str) -> DataFrame:
-        return FILTER_OPERATORS[self.operator](df, col, self.value)
+    operator: Operator
+    value: Union[float, int, str, bool]
 
 
 class Predicate(BaseModel):
-    filter: Optional[PredicateFilter] = None
-    col: str  # metric
+    metric: str
     agg: AggregateFunction
-    criteria_operator: Operator
-    criteria_threshold: float
+    operator: Operator
+    threshold: float
+    filter: Optional[PredicateFilter] = None
 
+    @validator("filter", pre=True, always=True)
+    def validate_filter(
+        cls, v: Optional[PredicateFilter], values: Dict
+    ) -> Optional[PredicateFilter]:
+        if not v:
+            agg = values["agg"]
+            if agg == AggregateFunction.pct:
+                raise ValueError("Percentage aggregate requires a filter")
 
+        return v
