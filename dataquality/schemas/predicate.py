@@ -89,7 +89,7 @@ class Predicate(BaseModel):
 
     2. Is the max DEP greater or equal to 0.45?
         >>> p = Predicate(
-        ...     metric="confidence",
+        ...     metric="data_error_potential",
         ...     agg=AggregateFunction.max,
         ...     operator=Operator.gte,
         ...     threshold=0.45,
