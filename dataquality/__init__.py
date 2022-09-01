@@ -26,6 +26,12 @@ from dataquality.core.log import (
     set_tagging_schema,
     set_tasks_for_run,
 )
+from dataquality.schemas.predicate import (
+    AggregateFunction,
+    Operator,
+    Predicate,
+    PredicateFilter,
+)
 from dataquality.utils.dq_logger import get_dq_log_file
 from dataquality.utils.helpers import check_noop
 
@@ -70,6 +76,10 @@ __all__ = [
     "log_data_sample",
     "log_dataset",
     "get_dq_log_file",
+    "AggregateFunction",
+    "Operator",
+    "Predicate",
+    "PredicateFilter",
 ]
 
 try:
