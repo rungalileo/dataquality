@@ -239,11 +239,11 @@ def test_predicate_missing_metric_for_pct_agg() -> None:
     ],
 )
 def test_evaluate_predicate_call(operator: Operator, expected: bool) -> None:
-    """Average confidence compared to 0.3 using the predicate call assertion"""
+    """Make sure that on failures, the predicate raises an AssertionError"""
     inp = dict(
         id=range(0, 10),
         confidence=[0.1] * 10,
-    )  # True avg confidence is 0.1
+    )
     df = vaex.from_dict(inp)
     p = Predicate(
         agg=AggregateFunction.avg,
