@@ -188,3 +188,12 @@ def test_predicate_pct_agg_requires_filter() -> None:
             operator=Operator.gt,
             threshold=0.2,
         )
+
+
+def test_predicate_missing_metric_for_pct_agg() -> None:
+    with pytest.raises(ValueError):
+        Predicate(
+            agg=AggregateFunction.avg,
+            operator=Operator.gt,
+            threshold=0.2,
+        )
