@@ -31,7 +31,11 @@ from dataquality.utils.spacy_integration import (
 
 
 @check_noop
-def log_input_examples(examples: List[Example], split: Split) -> None:
+def log_input_examples(
+    examples: List[Example],
+    split: Split,
+    meta: Dict[str, List[Union[str, float, int]]] = None,
+) -> None:
     """Logs a list of Spacy Examples using the dataquality client"""
     split = conform_split(split)
     if not dataquality.get_data_logger().logger_config.labels:
@@ -69,6 +73,7 @@ def log_input_examples(examples: List[Example], split: Split) -> None:
         gold_spans=gold_spans,
         ids=ids,
         split=split,
+        meta=meta,
     )
 
 
