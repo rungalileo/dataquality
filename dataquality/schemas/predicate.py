@@ -174,7 +174,7 @@ class Predicate(BaseModel):
         ...             metric="data_error_potential", operator=Operator.gte, value=0.7
         ...         ),
         ...         PredicateFilter(
-        ...             metric="galileo_pii", operator=Operator.neq, value=None
+        ...             metric="galileo_pii", operator=Operator.neq, value="None"
         ...         ),
         ...     ],
         ... )
