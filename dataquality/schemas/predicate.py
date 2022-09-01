@@ -136,7 +136,7 @@ class Predicate(BaseModel):
     :param metric: The DF column for evaluating the predicate
     :param agg: An aggregate function to apply to the metric
     :param operator: The operator to use for comparing the agg to the threshold
-        (e.g. >, <, ==, !=)
+        (e.g. "gt", "lt", "eq", "neq")
     :param threshold: Threshold value for evaluating the predicate
     :param filter: Optional filter to apply to the DataFrame before evaluating the
         predicate
