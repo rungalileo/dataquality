@@ -87,7 +87,6 @@ class Predicate(BaseModel):
         ...     threshold=0.3,
         ... )
         >>> p.evaluate(df)
-        True
 
     2. Is the max DEP greater or equal to 0.45?
         >>> p = Predicate(
@@ -97,7 +96,6 @@ class Predicate(BaseModel):
         ...     threshold=0.45,
         ... )
         >>> p.evaluate(df)
-        True
 
     By adding filters, you can further narrow down the scope of the predicate.
     If the aggregate function is "pct", you don't need to specify a metric,
@@ -116,12 +114,11 @@ class Predicate(BaseModel):
         ...     ],
         ... )
         >>> p.evaluate(df)
-        True
 
     4. Alert if at least 20% of the dataset has drifted (Inference DataFrames only)
         >>> p = Predicate(
         ...     operator=Operator.gte,
-        ...     threshold=0.20,
+        ...     threshold=0.2,
         ...     agg=AggregateFunction.pct,
         ...     filters=[
         ...         PredicateFilter(
@@ -130,7 +127,6 @@ class Predicate(BaseModel):
         ...     ],
         ... )
         >>> p.evaluate(df)
-        True
 
     5. Alert 5% or more of the dataset contains PII
         >>> p = Predicate(
@@ -139,12 +135,11 @@ class Predicate(BaseModel):
         ...     agg=AggregateFunction.pct,
         ...     filters=[
         ...         PredicateFilter(
-        ...             metric="galileo_pii", operator=Operator.neq, value=None
+        ...             metric="galileo_pii", operator=Operator.neq, value="None"
         ...         ),
         ...     ],
         ... )
         >>> p.evaluate(df)
-        True
 
     Complex predicates can be built when the filter has a different metric
     than the metric used in the predicate. For example:
@@ -162,7 +157,6 @@ class Predicate(BaseModel):
         ...     ],
         ... )
         >>> p.evaluate(df)
-        True
 
     7. Alert if over 50% of high DEP (>=0.7) data contains PII
         >>> p = Predicate(
@@ -179,7 +173,6 @@ class Predicate(BaseModel):
         ...     ],
         ... )
         >>> p.evaluate(df)
-        True
 
 
     :param metric: The DF column for evaluating the predicate

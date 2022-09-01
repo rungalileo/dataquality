@@ -16,7 +16,7 @@ from dataquality import AggregateFunction, Operator, Predicate, PredicateFilter
     ],
 )
 def test_evaluate_predicate_1(operator: Operator, expected: bool) -> None:
-    """Average confidence compared to 0.8"""
+    """Average confidence compared to 0.3"""
     inp = dict(
         id=range(0, 10),
         confidence=[0.1] * 10,
@@ -26,7 +26,7 @@ def test_evaluate_predicate_1(operator: Operator, expected: bool) -> None:
         agg=AggregateFunction.avg,
         metric="confidence",
         operator=operator,
-        threshold=0.8,
+        threshold=0.3,
     )
     assert p.evaluate(df) is expected
 
@@ -43,17 +43,17 @@ def test_evaluate_predicate_1(operator: Operator, expected: bool) -> None:
     ],
 )
 def test_evaluate_predicate_2(operator: Operator, expected: bool) -> None:
-    """Max DEP compared to 0.35"""
+    """Max DEP compared to 0.45"""
     inp = dict(
         id=range(0, 10),
-        dep=[0.3] * 9 + [0.35],
-    )  # True max DEP is 0.35
+        dep=[0.3] * 9 + [0.45],
+    )  # True max DEP is 0.45
     df = vaex.from_dict(inp)
     p = Predicate(
-        operator=operator,
         agg=AggregateFunction.max,
         metric="dep",
-        threshold=0.35,
+        operator=operator,
+        threshold=0.45,
     )
     assert p.evaluate(df) is expected
 
@@ -70,18 +70,18 @@ def test_evaluate_predicate_2(operator: Operator, expected: bool) -> None:
     ],
 )
 def test_evaluate_predicate_3(operator: Operator, expected: bool) -> None:
-    """60% of dataset has confidence less than 0.3"""
+    """80% of dataset has confidence less than 0.1"""
     inp = dict(
         id=range(0, 10),
-        confidence=[0.2] * 7 + [0.8] * 3,
-    )  # True value is 70%
+        confidence=[0.05] * 9 + [0.8],
+    )  # True value is 90%
     df = vaex.from_dict(inp)
     p = Predicate(
         operator=operator,
-        threshold=0.6,
+        threshold=0.8,
         agg=AggregateFunction.pct,
         metric="confidence",
-        filters=[PredicateFilter(metric="confidence", operator=Operator.lt, value=0.3)],
+        filters=[PredicateFilter(metric="confidence", operator=Operator.lt, value=0.1)],
     )
     assert p.evaluate(df) is expected
 
@@ -108,9 +108,37 @@ def test_evaluate_predicate_4(operator: Operator, expected: bool) -> None:
         operator=operator,
         threshold=0.2,
         agg=AggregateFunction.pct,
-        metric="is_drifted",
         filters=[
             PredicateFilter(metric="is_drifted", operator=Operator.eq, value=True)
+        ],
+    )
+    assert p.evaluate(df) is expected
+
+
+@pytest.mark.parametrize(
+    "operator,expected",
+    [
+        (Operator.eq, False),
+        (Operator.neq, True),
+        (Operator.lt, False),
+        (Operator.lte, False),
+        (Operator.gte, True),
+        (Operator.gt, True),
+    ],
+)
+def test_evaluate_predicate_5(operator: Operator, expected: bool) -> None:
+    """Pct of dataset that contains PII"""
+    inp = dict(
+        id=range(0, 10),
+        galileo_pii=["PII"] * 2 + ["None"] * 8,
+    )  # True pct if 20%
+    df = vaex.from_dict(inp)
+    p = Predicate(
+        operator=operator,
+        threshold=0.05,
+        agg=AggregateFunction.pct,
+        filters=[
+            PredicateFilter(metric="galileo_pii", operator=Operator.neq, value="None")
         ],
     )
     assert p.evaluate(df) is expected
@@ -127,7 +155,7 @@ def test_evaluate_predicate_4(operator: Operator, expected: bool) -> None:
         (Operator.gt, False),
     ],
 )
-def test_evaluate_predicate_5(operator: Operator, expected: bool) -> None:
+def test_evaluate_predicate_6(operator: Operator, expected: bool) -> None:
     """Min confidence of drifted data compared to 0.15"""
     inp = dict(
         id=range(0, 10),
@@ -158,7 +186,7 @@ def test_evaluate_predicate_5(operator: Operator, expected: bool) -> None:
         (Operator.gt, False),
     ],
 )
-def test_evaluate_predicate_6(operator: Operator, expected: bool) -> None:
+def test_evaluate_predicate_7(operator: Operator, expected: bool) -> None:
     """Pct of high DEP (>=0.7) dataset that contains PII"""
     inp = dict(
         id=range(0, 10),
