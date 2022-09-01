@@ -79,8 +79,8 @@ class Predicate(BaseModel):
 
     1. Is the average confidence less than 0.3?
         >>> p = Predicate(
-        ...     metric="confidence",
         ...     agg=AggregateFunction.avg,
+        ...     metric="confidence",
         ...     operator=Operator.lt,
         ...     threshold=0.3,
         ... )
@@ -89,8 +89,8 @@ class Predicate(BaseModel):
 
     2. Is the max DEP greater or equal to 0.45?
         >>> p = Predicate(
-        ...     metric="data_error_potential",
         ...     agg=AggregateFunction.max,
+        ...     metric="data_error_potential",
         ...     operator=Operator.gte,
         ...     threshold=0.45,
         ... )
@@ -102,33 +102,33 @@ class Predicate(BaseModel):
 
     3. Alert if over 80% of the dataset has confidence under 0.1
         >>> p = Predicate(
-        ...     filter=PredicateFilter(operator=Operator.lt, value=0.1),
-        ...     metric="confidence",
-        ...     agg=AggregateFunction.pct,
         ...     operator=Operator.gt,
         ...     threshold=0.8,
+        ...     agg=AggregateFunction.pct,
+        ...     metric="confidence",
+        ...     filter=PredicateFilter(operator=Operator.lt, value=0.1),
         ... )
         >>> p.evaluate(df)
         True
 
     4. Alert if at least 20% of the dataset has drifted (Inference DataFrames only)
         >>> p = Predicate(
-        ...     filter=PredicateFilter(operator=Operator.eq, value=True),
-        ...     metric="is_drifted",
-        ...     agg=AggregateFunction.pct,
         ...     operator=Operator.gte,
         ...     threshold=0.20,
+        ...     agg=AggregateFunction.pct,
+        ...     metric="is_drifted",
+        ...     filter=PredicateFilter(operator=Operator.eq, value=True),
         ... )
         >>> p.evaluate(df)
         True
 
     5. Alert 5% or more of the dataset contains PII
         >>> p = Predicate(
-        ...     filter=PredicateFilter(operator=Operator.neq, value=None),
-        ...     metric="galileo_pii",
-        ...     agg=AggregateFunction.pct,
         ...     operator=Operator.gte,
         ...     threshold=0.05,
+        ...     agg=AggregateFunction.pct,
+        ...     metric="galileo_pii",
+        ...     filter=PredicateFilter(operator=Operator.neq, value=None),
         ... )
         >>> p.evaluate(df)
         True
