@@ -174,6 +174,16 @@ class Predicate(BaseModel):
         ... )
         >>> p.evaluate(df)
 
+    You can also call predicates directly, which will assert its truth against a df
+    1. Assert that average confidence less than 0.3
+    >>> p = Predicate(
+    ...     agg=AggregateFunction.avg,
+    ...     metric="confidence",
+    ...     operator=Operator.lt,
+    ...     threshold=0.3,
+    ... )
+    >>> p(df)  # Will raise an AssertionError if False
+
 
     :param metric: The DF column for evaluating the predicate
     :param agg: An aggregate function to apply to the metric
@@ -210,6 +220,10 @@ class Predicate(BaseModel):
             )
 
         return filtered_df
+
+    def __call__(self, df: DataFrame) -> None:
+        """Asserts the predicate"""
+        assert self.evaluate(df)
 
     @validator("filters", pre=True, always=True)
     def validate_filters(
