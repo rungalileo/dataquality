@@ -23,9 +23,8 @@ def test_evaluate_predicate_1(operator: Operator, expected: bool) -> None:
     )
     df = vaex.from_dict(inp)
     p = Predicate(
-        filter=None,
-        metric="confidence",
         agg=AggregateFunction.avg,
+        metric="confidence",
         operator=operator,
         threshold=0.8,
     )
@@ -51,10 +50,9 @@ def test_evaluate_predicate_2(operator: Operator, expected: bool) -> None:
     )
     df = vaex.from_dict(inp)
     p = Predicate(
-        filter=None,
-        metric="dep",
-        agg=AggregateFunction.max,
         operator=operator,
+        agg=AggregateFunction.max,
+        metric="dep",
         threshold=0.35,
     )
     assert p.evaluate(df) is expected
@@ -79,11 +77,11 @@ def test_evaluate_predicate_3(operator: Operator, expected: bool) -> None:
     )
     df = vaex.from_dict(inp)
     p = Predicate(
-        filter=PredicateFilter(operator=Operator.lt, value=0.3),
-        metric="confidence",
-        agg=AggregateFunction.pct,
         operator=operator,
         threshold=0.6,
+        agg=AggregateFunction.pct,
+        metric="confidence",
+        filters=[PredicateFilter(metric="confidence", operator=Operator.lt, value=0.3)],
     )
     assert p.evaluate(df) is expected
 
@@ -107,11 +105,13 @@ def test_evaluate_predicate_4(operator: Operator, expected: bool) -> None:
     )
     df = vaex.from_dict(inp)
     p = Predicate(
-        filter=PredicateFilter(operator=Operator.eq, value=True),
-        metric="is_drifted",
-        agg=AggregateFunction.pct,
         operator=operator,
         threshold=0.2,
+        agg=AggregateFunction.pct,
+        metric="is_drifted",
+        filters=[
+            PredicateFilter(metric="is_drifted", operator=Operator.eq, value=True)
+        ],
     )
     assert p.evaluate(df) is expected
 

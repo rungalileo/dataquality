@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Dict, Optional, Union
+from typing import Dict, List, Optional, Union
 
 from pydantic import BaseModel
 from pydantic.class_validators import validator
@@ -60,10 +60,12 @@ class PredicateFilter(BaseModel):
     Note that the column used for filtering is the same as the metric used
       in the predicate.
 
-    :param operator: The operator to use for filtering (e.g. "gt", "lt", "eq", "neq"). See `Operator`
+    :param operator: The operator to use for filtering (e.g. "gt", "lt", "eq", "neq")
+        See `Operator`
     :param value: The value to compare against
     """
 
+    metric: str
     operator: Operator
     value: Union[float, int, str, bool]
 
@@ -98,6 +100,8 @@ class Predicate(BaseModel):
         True
 
     By adding filters, you can further narrow down the scope of the predicate.
+    If the aggregate function is "pct", you don't need to specify a metric,
+      as the filters will determine the percentage of data.
     For example:
 
     3. Alert if over 80% of the dataset has confidence under 0.1
@@ -105,8 +109,11 @@ class Predicate(BaseModel):
         ...     operator=Operator.gt,
         ...     threshold=0.8,
         ...     agg=AggregateFunction.pct,
-        ...     metric="confidence",
-        ...     filter=PredicateFilter(operator=Operator.lt, value=0.1),
+        ...     filters=[
+        ...         PredicateFilter(
+        ...             metric="confidence", operator=Operator.lt, value=0.1
+        ...         ),
+        ...     ],
         ... )
         >>> p.evaluate(df)
         True
@@ -116,8 +123,11 @@ class Predicate(BaseModel):
         ...     operator=Operator.gte,
         ...     threshold=0.20,
         ...     agg=AggregateFunction.pct,
-        ...     metric="is_drifted",
-        ...     filter=PredicateFilter(operator=Operator.eq, value=True),
+        ...     filters=[
+        ...         PredicateFilter(
+        ...             metric="is_drifted", operator=Operator.eq, value=True
+        ...         ),
+        ...     ],
         ... )
         >>> p.evaluate(df)
         True
@@ -127,11 +137,50 @@ class Predicate(BaseModel):
         ...     operator=Operator.gte,
         ...     threshold=0.05,
         ...     agg=AggregateFunction.pct,
-        ...     metric="galileo_pii",
-        ...     filter=PredicateFilter(operator=Operator.neq, value=None),
+        ...     filters=[
+        ...         PredicateFilter(
+        ...             metric="galileo_pii", operator=Operator.neq, value=None
+        ...         ),
+        ...     ],
         ... )
         >>> p.evaluate(df)
         True
+
+    Complex predicates can be built when the filter has a different metric
+    than the metric used in the predicate. For example:
+
+    6. Alert if the min confidence of drifted data is less than 0.15
+        >>> p = Predicate(
+        ...     agg=AggregateFunction.min,
+        ...     metric="confidence",
+        ...     operator=Operator.lt,
+        ...     threshold=0.15,
+        ...     filters=[
+        ...         PredicateFilter(
+        ...             metric="is_drifted", operator=Operator.eq, value=True
+        ...         )
+        ...     ],
+        ... )
+        >>> p.evaluate(df)
+        True
+
+    7. Alert if over 50% of high DEP (>=0.7) data contains PII
+        >>> p = Predicate(
+        ...     operator=Operator.gt,
+        ...     threshold=0.5,
+        ...     agg=AggregateFunction.pct,
+        ...     filters=[
+        ...         PredicateFilter(
+        ...             metric="data_error_potential", operator=Operator.gte, value=0.7
+        ...         ),
+        ...         PredicateFilter(
+        ...             metric="galileo_pii", operator=Operator.neq, value=None
+        ...         ),
+        ...     ],
+        ... )
+        >>> p.evaluate(df)
+        True
+
 
     :param metric: The DF column for evaluating the predicate
     :param agg: An aggregate function to apply to the metric
@@ -142,37 +191,51 @@ class Predicate(BaseModel):
         predicate
     """
 
-    metric: str
     agg: AggregateFunction
     operator: Operator
     threshold: float
-    filter: Optional[PredicateFilter] = None
+    metric: Optional[str] = None
+    filters: Optional[List[PredicateFilter]] = []
 
     def evaluate(self, df: DataFrame) -> bool:
-        filter_df = self._apply_filter(df)
+        filtered_df = self._apply_filters(df)
+
         if self.agg == AggregateFunction.pct:
-            value = AGGREGATE_FUNCTIONS[self.agg](filter_df, df)
+            value = AGGREGATE_FUNCTIONS[self.agg](filtered_df, df)
         else:
-            value = AGGREGATE_FUNCTIONS[self.agg](filter_df, self.metric)
+            value = AGGREGATE_FUNCTIONS[self.agg](filtered_df, self.metric)
 
         return CRITERIA_OPERATORS[self.operator](value, self.threshold)
 
-    def _apply_filter(self, df: DataFrame) -> Optional[DataFrame]:
-        df = df.copy()
+    def _apply_filters(self, df: DataFrame) -> DataFrame:
+        filtered_df = df.copy()
 
-        filter = self.filter
-        if filter:
-            return FILTER_OPERATORS[filter.operator](df, self.metric, filter.value)
+        filters = self.filters or []
+        for filter in filters:
+            filtered_df = FILTER_OPERATORS[filter.operator](
+                filtered_df, filter.metric, filter.value
+            )
 
-        return df
+        return filtered_df
 
-    @validator("filter", pre=True, always=True)
-    def validate_filter(
-        cls, v: Optional[PredicateFilter], values: Dict
-    ) -> Optional[PredicateFilter]:
+    @validator("filters", pre=True, always=True)
+    def validate_filters(
+        cls, v: Optional[List[PredicateFilter]], values: Dict
+    ) -> Optional[List[PredicateFilter]]:
         if not v:
             agg = values["agg"]
             if agg == AggregateFunction.pct:
                 raise ValueError("Percentage aggregate requires a filter")
+
+        return v
+
+    @validator("metric", pre=True, always=True)
+    def validate_metric(cls, v: Optional[str], values: Dict) -> Optional[str]:
+        if not v:
+            agg = values["agg"]
+            if agg != AggregateFunction.pct:
+                raise ValueError(
+                    f"You must set a metric for non-percentage aggregate function {agg}"
+                )
 
         return v
