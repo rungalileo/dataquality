@@ -184,6 +184,14 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             in_frame_slice = in_frame.copy()
             prob_only = cls.prob_only(epochs_or_infs, split, split_run)
             if split == Split.inference:
+                if not len(in_frame[in_frame["inference_name"] == split_run]):
+                    warnings.warn(
+                        f"There was output data logged for inference_name {split_run} but no input data "
+                        "logged. Skipping upload for this inference run as there are no samples "
+                        "to join to.",
+                        GalileoWarning,
+                    )
+                    continue
                 in_frame_slice = filter_df(in_frame_slice, "inference_name", split_run)
 
             dir_name = f"{split_loc}/{split_run}"
