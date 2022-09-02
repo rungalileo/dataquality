@@ -186,9 +186,9 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             if split == Split.inference:
                 if not len(in_frame[in_frame["inference_name"] == split_run]):
                     warnings.warn(
-                        f"There was output data logged for inference_name {split_run} but no input data "
-                        "logged. Skipping upload for this inference run as there are no samples "
-                        "to join to.",
+                        f"There was output data logged for inference_name {split_run} "
+                        "but no input data logged. Skipping upload for this inference "
+                        "run as there are no samples to join to.",
                         GalileoWarning,
                     )
                     continue
