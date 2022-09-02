@@ -225,3 +225,34 @@ def test_predicate_missing_metric_for_pct_agg() -> None:
             operator=Operator.gt,
             threshold=0.2,
         )
+
+
+@pytest.mark.parametrize(
+    "operator,expected",
+    [
+        (Operator.eq, False),
+        (Operator.neq, True),
+        (Operator.lt, True),
+        (Operator.lte, True),
+        (Operator.gte, False),
+        (Operator.gt, False),
+    ],
+)
+def test_evaluate_predicate_call(operator: Operator, expected: bool) -> None:
+    """Make sure that on failures, the predicate raises an AssertionError"""
+    inp = dict(
+        id=range(0, 10),
+        confidence=[0.1] * 10,
+    )
+    df = vaex.from_dict(inp)
+    p = Predicate(
+        agg=AggregateFunction.avg,
+        metric="confidence",
+        operator=operator,
+        threshold=0.3,
+    )
+    if expected is True:
+        p(df)
+    else:
+        with pytest.raises(AssertionError):
+            p(df)
