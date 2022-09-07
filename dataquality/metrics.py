@@ -184,7 +184,7 @@ def display_distribution(
     fig.show()
 
 
-@lru_cache
+@lru_cache()
 def _download_df(
     project_name: str,
     run_name: str,
@@ -354,7 +354,7 @@ def get_edited_dataframe(
     )
 
 
-@lru_cache
+@lru_cache()
 def _process_exported_dataframe(
     data_df: DataFrame,
     project_name: str,
@@ -446,7 +446,7 @@ def get_epochs(project_name: str, run_name: str, split: Split) -> List[int]:
     return api_client.get_epochs_for_run(project_name, run_name, split)
 
 
-@lru_cache
+@lru_cache()
 def get_embeddings(
     project_name: str,
     run_name: str,
@@ -478,7 +478,7 @@ def get_embeddings(
     )
 
 
-@lru_cache
+@lru_cache()
 def get_probabilities(
     project_name: str,
     run_name: str,
@@ -504,7 +504,7 @@ def get_probabilities(
     )
 
 
-@lru_cache
+@lru_cache()
 def get_raw_data(
     project_name: str,
     run_name: str,
@@ -559,7 +559,7 @@ def get_tasks_for_run(project_name: str, run_name: str) -> List[str]:
     return api_client.get_tasks_for_run(project_name, run_name)
 
 
-@lru_cache
+@lru_cache()
 def _get_hdf5_file_for_epoch(
     project_name: str,
     run_name: str,
