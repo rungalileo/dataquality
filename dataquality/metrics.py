@@ -1,10 +1,11 @@
 import os
 import warnings
-from functools import lru_cache
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 from uuid import uuid4
 
 import vaex
+from cachetools import LRUCache, cached
+from cachetools.keys import hashkey
 from vaex.dataframe import DataFrame
 
 from dataquality.clients.api import ApiClient
@@ -19,6 +20,29 @@ from dataquality.schemas.task_type import TaskType
 
 api_client = ApiClient()
 object_store = ObjectStore()
+
+
+def _cache_key(*args: Tuple, **kwargs: Dict[str, Any]) -> Tuple:
+    """Custom cache key that includes the updated_at timestamp for a run
+
+    https://cachetools.readthedocs.io/en/latest/#cachetools.keys.typedkey
+    """
+    # First 2 arguments are project and run name
+    if isinstance(args[0], str):
+        project_name, run_name = args[0], args[1]
+    # First argument is the dataframe, then project and run name
+    else:
+        project_name, run_name = args[1], args[2]
+    updated_ts = api_client.get_project_run_by_name(
+        str(project_name), str(run_name)
+    ).get("updated_at")
+    key = hashkey(*args, *kwargs.items())
+    key += (updated_ts,)
+    return key
+
+
+def _get_cache() -> LRUCache:
+    return LRUCache(maxsize=128)
 
 
 def create_edit(
@@ -184,7 +208,7 @@ def display_distribution(
     fig.show()
 
 
-@lru_cache()
+@cached(_get_cache(), key=_cache_key)
 def _download_df(
     project_name: str,
     run_name: str,
@@ -354,7 +378,7 @@ def get_edited_dataframe(
     )
 
 
-@lru_cache()
+@cached(_get_cache(), key=_cache_key)
 def _process_exported_dataframe(
     data_df: DataFrame,
     project_name: str,
@@ -446,7 +470,7 @@ def get_epochs(project_name: str, run_name: str, split: Split) -> List[int]:
     return api_client.get_epochs_for_run(project_name, run_name, split)
 
 
-@lru_cache()
+@cached(_get_cache(), key=_cache_key)
 def get_embeddings(
     project_name: str,
     run_name: str,
@@ -478,7 +502,7 @@ def get_embeddings(
     )
 
 
-@lru_cache()
+@cached(_get_cache(), key=_cache_key)
 def get_probabilities(
     project_name: str,
     run_name: str,
@@ -504,7 +528,7 @@ def get_probabilities(
     )
 
 
-@lru_cache()
+@cached(_get_cache(), key=_cache_key)
 def get_raw_data(
     project_name: str,
     run_name: str,
@@ -559,7 +583,7 @@ def get_tasks_for_run(project_name: str, run_name: str) -> List[str]:
     return api_client.get_tasks_for_run(project_name, run_name)
 
 
-@lru_cache()
+@cached(_get_cache(), key=_cache_key)
 def _get_hdf5_file_for_epoch(
     project_name: str,
     run_name: str,
