@@ -1,9 +1,11 @@
 import os
 import warnings
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 from uuid import uuid4
 
 import vaex
+from cachetools import LRUCache, cached
+from cachetools.keys import hashkey
 from vaex.dataframe import DataFrame
 
 from dataquality.clients.api import ApiClient
@@ -18,6 +20,29 @@ from dataquality.schemas.task_type import TaskType
 
 api_client = ApiClient()
 object_store = ObjectStore()
+
+
+def _cache_key(*args: Tuple, **kwargs: Dict[str, Any]) -> Tuple:
+    """Custom cache key that includes the updated_at timestamp for a run
+
+    https://cachetools.readthedocs.io/en/latest/#cachetools.keys.typedkey
+    """
+    # First 2 arguments are project and run name
+    if isinstance(args[0], str):
+        project_name, run_name = args[0], args[1]
+    # First argument is the dataframe, then project and run name
+    else:
+        project_name, run_name = args[1], args[2]
+    updated_ts = api_client.get_project_run_by_name(
+        str(project_name), str(run_name)
+    ).get("updated_at")
+    key = hashkey(*args, *kwargs.items())
+    key += (updated_ts,)
+    return key
+
+
+def _get_cache() -> LRUCache:
+    return LRUCache(maxsize=128)
 
 
 def create_edit(
@@ -183,6 +208,39 @@ def display_distribution(
     fig.show()
 
 
+@cached(_get_cache(), key=_cache_key)
+def _download_df(
+    project_name: str,
+    run_name: str,
+    split: Split,
+    inference_name: str,
+    file_type: FileType,
+    hf_format: bool,
+    tagging_schema: Optional[TaggingSchema],
+    filter_params: FilterParams,
+) -> DataFrame:
+    """Helper function to download the dataframe to take advantage of caching
+
+    The filter_params class FilterParams is hashable (wherein a dict is not) so we
+    force passing that in `get_dataframe`
+    """
+    split = conform_split(split)
+
+    file_name = f"/tmp/{uuid4()}-data.{file_type}"
+    api_client.export_run(
+        project_name,
+        run_name,
+        split,
+        inference_name=inference_name,
+        file_name=file_name,
+        filter_params=filter_params.dict(),
+        hf_format=hf_format,
+        tagging_schema=tagging_schema,
+    )
+    data_df = vaex.open(file_name)
+    return data_df
+
+
 def get_dataframe(
     project_name: str,
     run_name: str,
@@ -227,20 +285,18 @@ def get_dataframe(
     split = conform_split(split)
     project_id, run_id = api_client._get_project_run_id(project_name, run_name)
     task_type = api_client.get_task_type(project_id, run_id)
+    filter_params = FilterParams(**_validate_filter(filter))
 
-    file_name = f"/tmp/{uuid4()}-data.{file_type}"
-    filter_params = _validate_filter(filter)
-    api_client.export_run(
+    data_df = _download_df(
         project_name,
         run_name,
         split,
-        inference_name=inference_name,
-        file_name=file_name,
-        filter_params=filter_params,
-        hf_format=hf_format,
-        tagging_schema=tagging_schema,
+        inference_name,
+        file_type,
+        hf_format,
+        tagging_schema,
+        filter_params,
     )
-    data_df = vaex.open(file_name)
     return _process_exported_dataframe(
         data_df,
         project_name,
@@ -322,6 +378,7 @@ def get_edited_dataframe(
     )
 
 
+@cached(_get_cache(), key=_cache_key)
 def _process_exported_dataframe(
     data_df: DataFrame,
     project_name: str,
@@ -413,6 +470,7 @@ def get_epochs(project_name: str, run_name: str, split: Split) -> List[int]:
     return api_client.get_epochs_for_run(project_name, run_name, split)
 
 
+@cached(_get_cache(), key=_cache_key)
 def get_embeddings(
     project_name: str,
     run_name: str,
@@ -444,6 +502,7 @@ def get_embeddings(
     )
 
 
+@cached(_get_cache(), key=_cache_key)
 def get_probabilities(
     project_name: str,
     run_name: str,
@@ -469,6 +528,7 @@ def get_probabilities(
     )
 
 
+@cached(_get_cache(), key=_cache_key)
 def get_raw_data(
     project_name: str,
     run_name: str,
@@ -523,6 +583,7 @@ def get_tasks_for_run(project_name: str, run_name: str) -> List[str]:
     return api_client.get_tasks_for_run(project_name, run_name)
 
 
+@cached(_get_cache(), key=_cache_key)
 def _get_hdf5_file_for_epoch(
     project_name: str,
     run_name: str,

@@ -3,7 +3,16 @@ from typing import Dict, List, Optional
 from pydantic import BaseModel, StrictStr, root_validator
 
 
-class MetaFilter(BaseModel):
+class HashableBaseModel(BaseModel):
+    """Hashable BaseModel https://github.com/pydantic/pydantic/issues/1303"""
+
+    def __hash__(self) -> int:
+        hashable_vals = [i for i in self.__dict__.values() if not isinstance(i, list)]
+        unhashables = [tuple(i) for i in self.__dict__.values() if isinstance(i, list)]
+        return hash((type(self),) + tuple(hashable_vals + unhashables))
+
+
+class MetaFilter(HashableBaseModel):
     """A class for filtering arbitrary metadata dataframe columns
 
     For example, to filter on a logged metadata column, "is_happy" for values [True],
@@ -20,7 +29,7 @@ class MetaFilter(BaseModel):
     isin: Optional[List[str]] = None
 
 
-class InferenceFilter(BaseModel):
+class InferenceFilter(HashableBaseModel):
     """A class for filtering an inference split
 
     - `is_otb`: Filters samples that are / are not On-The-Boundary
@@ -31,7 +40,7 @@ class InferenceFilter(BaseModel):
     is_drifted: Optional[bool] = None
 
 
-class LassoSelection(BaseModel):
+class LassoSelection(HashableBaseModel):
     """Representation of a lasso selection (used during an embeddings selection)
 
     x and y correspond to the cursor movement while tracing the lasso. This is natively
@@ -50,7 +59,7 @@ class LassoSelection(BaseModel):
         return values
 
 
-class FilterParams(BaseModel):
+class FilterParams(HashableBaseModel):
     """A class for sending filters to the API alongside most any request.
 
     Each field represents things you can filter the dataframe on.
