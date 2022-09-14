@@ -248,8 +248,9 @@ class BaseGalileoLogger:
         split = conform_split(split).value
         if is_galileo_cloud() and split == Split.inference:
             raise GalileoException(
-                "You cannot log inference data in Galileo Cloud. "
-                "Please email us at team@rungalileo.io for more information"
+                "You cannot log inference data from a Galileo Cloud count, only "
+                "enterprise accounts can access this feature. Please email us at "
+                "team@rungalileo.io for more information."
             )
 
     @classmethod
