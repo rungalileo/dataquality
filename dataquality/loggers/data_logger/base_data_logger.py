@@ -419,9 +419,9 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         nrows = BaseGalileoDataLogger.MAX_DATA_SIZE_CLOUD
         if len(df) > nrows:
             warnings.warn(
-                f"⚠️ Hey there! you've logged over {nrows} rows in your input data. "
+                f"⚠️ Hey there! You've logged over {nrows} rows in your input data. "
                 f"We strongly suggest that you log smaller datasets on galileo cloud. "
                 f"If you have to work with larger datasets, "
-                f"please contact us at team@rungalileo.io",
+                f"please email us at team@rungalileo.io",
                 GalileoWarning,
             )
