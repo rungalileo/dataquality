@@ -3,8 +3,6 @@ import pytest
 from dataquality.core._config import config
 from dataquality.utils.cloud import is_galileo_cloud
 
-CLOUD_URL = "https://console.cloud.rungalileo.io"
-
 
 @pytest.mark.parametrize(
     "api_url, expected",

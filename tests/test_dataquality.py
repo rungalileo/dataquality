@@ -730,3 +730,24 @@ def test_validate_data_size_not_cloud(mock_cloud: MagicMock) -> None:
     )
     with pytest.warns(None):
         BaseGalileoDataLogger.validate_data_size(df)
+
+
+@mock.patch(
+    "dataquality.loggers.base_logger.is_galileo_cloud",
+    return_value=True,
+)
+def test_cloud_restricts_inference_mode(mock_cloud: MagicMock) -> None:
+    text_inputs = ["sample1", "sample2", "sample3"] * 30
+    ids = list(range(90))
+
+    dq.set_labels_for_run(["A", "B", "C"])
+    with pytest.raises(GalileoException) as e:
+        dq.log_data_samples(
+            texts=text_inputs, split="inference", ids=ids, inference_name="test"
+        )
+
+    assert str(e.value) == (
+        "You cannot log inference data from a Galileo Cloud account, only enterprise "
+        "accounts can access this feature. Please email us at team@rungalileo.io for "
+        "more information."
+    )
