@@ -420,8 +420,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         if len(df) > nrows:
             warnings.warn(
                 f"⚠️ Hey there! You've logged over {nrows} rows in your input data. "
-                f"We strongly suggest that you log smaller datasets on galileo cloud. "
-                f"If you have to work with larger datasets, "
-                f"please email us at team@rungalileo.io",
+                "We strongly suggest that you log smaller datasets on galileo cloud. "
+                "If you have to work with larger datasets, "
+                "please email us at team@rungalileo.io",
                 GalileoWarning,
             )
