@@ -48,6 +48,14 @@ class _Auth:
 
 @check_noop
 def login() -> None:
+    """Log into your Galileo environment.
+
+    The function will prompt your for an Authorization Token (api key) that you can
+    access from the console.
+
+    To skip the prompt for automated workflows, you can set `GALILEO_USERNAME`
+    (your email) and GALILEO_PASSWORD if you signed up with an email and password
+    """
     print(f"📡 {config.api_url.replace('api.','console.')}")
     print("🔭 Logging you into Galileo\n")
     auth_methods = ",".join([am.value for am in AuthMethod])

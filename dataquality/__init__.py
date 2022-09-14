@@ -43,6 +43,8 @@ def configure() -> None:
     You can use environment variables to set the config, or wait for prompts
     Available environment variables to update:
     * GALILEO_CONSOLE_URL
+    * GALILEO_USERNAME
+    * GALILEO_PASSWORD
     """
     if "GALILEO_API_URL" in os.environ:
         del os.environ["GALILEO_API_URL"]
