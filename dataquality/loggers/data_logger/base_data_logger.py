@@ -18,6 +18,7 @@ from dataquality.schemas.dataframe import BaseLoggerInOutFrames
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
 from dataquality.utils import tqdm
+from dataquality.utils.cloud import is_galileo_cloud
 from dataquality.utils.hdf5_store import HDF5_STORE
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import (
@@ -39,6 +40,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     MAX_META_COLS = 25  # Limit the number of metadata attrs a user can log
     MAX_STR_LEN = 100  # Max characters in a string metadata attribute
     INPUT_DATA_NAME = "input_data.arrow"
+    MAX_DATA_SIZE_CLOUD = 300_000
 
     DATA_FOLDER_EXTENSION = {data_folder: "hdf5" for data_folder in DATA_FOLDERS}
 
@@ -92,6 +94,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         if os.path.isfile(file_path):
             self.append_input_data(df, write_input_dir, file_path)
         else:
+            self.validate_data_size(df)
             if self.log_export_progress:
                 with vaex.progress.tree("vaex", title="Exporting input data"):
                     df.export(file_path)
@@ -109,6 +112,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         # Merge existing data with new data
         existing_df = vaex.open(tmp_name)
         merged_df = vaex.concat([existing_df, df])
+        self.validate_data_size(merged_df)
 
         try:  # Validate there are no duplicated IDs
             validate_ids_for_df(merged_df)
@@ -407,3 +411,17 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     def set_tagging_schema(cls, tagging_schema: TaggingSchema) -> None:
         """Sets the tagging schema, if applicable. Must be implemented by child"""
         raise GalileoException(f"Cannot set tagging schema for {cls.__logger_name__}")
+
+    @classmethod
+    def validate_data_size(cls, df: DataFrame) -> None:
+        if not is_galileo_cloud():
+            return
+        nrows = BaseGalileoDataLogger.MAX_DATA_SIZE_CLOUD
+        if len(df) > nrows:
+            warnings.warn(
+                f"⚠️ Hey there! You've logged over {nrows} rows in your input data. "
+                f"We strongly suggest that you log smaller datasets on galileo cloud. "
+                f"If you have to work with larger datasets, "
+                f"please email us at team@rungalileo.io",
+                GalileoWarning,
+            )
