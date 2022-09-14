@@ -249,7 +249,7 @@ class BaseGalileoLogger:
         if is_galileo_cloud() and split == Split.inference:
             raise GalileoException(
                 "You cannot log inference data in Galileo Cloud. "
-                "Please upgrade to an enterprise account to log inference data."
+                "Please email us at team@rungalileo.io for more information"
             )
 
     @classmethod
