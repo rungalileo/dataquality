@@ -246,7 +246,6 @@ class BaseGalileoLogger:
     @classmethod
     def validate_split(cls, split: Union[str, Split]) -> str:
         split = conform_split(split).value
-        # Validate cloud user can't user inference
         if is_galileo_cloud() and split == Split.inference:
             raise GalileoException(
                 "You cannot log inference data in Galileo Cloud. "
