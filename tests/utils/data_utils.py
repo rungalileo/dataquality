@@ -123,7 +123,7 @@ def _log_text_classification_data(
                 task_labels = [np.random.randint(i) for i in num_labels_in_task]
                 labels.append(task_labels)
             dataquality.set_tasks_for_run(
-                [str(i) for i in range(MULTI_LABEL_NUM_TASKS)]
+                [str(i) for i in range(MULTI_LABEL_NUM_TASKS)], binary=False
             )
         else:
             labels = dataset["label"]
