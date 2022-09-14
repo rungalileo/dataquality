@@ -7,8 +7,8 @@ from dataquality.utils.cloud import is_galileo_cloud
 @pytest.mark.parametrize(
     "api_url, expected",
     [
-        ("https://console.cloud.rungalileo.io", True),
-        ("https://console.fake.rungalileo.io", False),
+        ("https://api.cloud.rungalileo.io", True),
+        ("https://api.fake.rungalileo.io", False),
     ],
 )
 def test_is_galileo_cloud(api_url: str, expected: bool) -> None:
