@@ -1,5 +1,6 @@
 import getpass
 import os
+import webbrowser
 
 import requests
 
@@ -36,12 +37,12 @@ class _Auth:
         config.update_file_config()
 
     def token_login(self) -> None:
-        print(
-            (
-                f"Go to {config.api_url.replace('api.','console.')}/get-token"
-                " to generate a new API Key"
-            )
-        )
+        token_url = config.api_url.replace("api.", "console.") + "/get-token"
+        try:
+            webbrowser.open(token_url)
+        except Exception:
+            pass
+        print(f"Go to {token_url} to generate a new API Key")
         access_token = input("🔐 Enter your API Key:")
         config.token = access_token
         config.update_file_config()
