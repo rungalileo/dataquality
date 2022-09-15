@@ -38,7 +38,7 @@ class _Auth:
     def token_login(self) -> None:
         print(
             (
-                f"Go to {config.api_url.replace('api.','console.')}"
+                f"Go to {config.api_url.replace('api.','console.')}/get-token"
                 " to generate a new API Key"
             )
         )
@@ -49,6 +49,14 @@ class _Auth:
 
 @check_noop
 def login() -> None:
+    """Log into your Galileo environment.
+
+    The function will prompt your for an Authorization Token (api key) that you can
+    access from the console.
+
+    To skip the prompt for automated workflows, you can set `GALILEO_USERNAME`
+    (your email) and GALILEO_PASSWORD if you signed up with an email and password
+    """
     if api_client.valid_current_user():
         print(f"✅ Already logged in as {config.current_user}!")
         print("Use logout() if you want to change users")
@@ -77,4 +85,4 @@ def logout() -> None:
     config.current_user = None
     config.token = None
     config.update_file_config()
-    login()
+    print("👋 You have logged out of Galileo")

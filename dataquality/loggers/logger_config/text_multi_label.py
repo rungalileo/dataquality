@@ -13,7 +13,7 @@ class TextMultiLabelLoggerConfig(BaseLoggerConfig):
     observed_labels: DefaultDict[int, Set] = defaultdict(set)
     tasks: Optional[List[str]] = None
     observed_num_tasks: int = 0
-    binary: bool = False  # For binary multi label
+    binary: bool = True  # For binary multi label
 
     class Config:
         validate_assignment = True

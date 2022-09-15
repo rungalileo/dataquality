@@ -18,6 +18,7 @@ from dataquality.schemas.split import Split
 
 def test_duplicate_rows(set_test_config, cleanup_after_use) -> None:
     set_test_config(task_type="text_multi_label")
+    dq.get_data_logger().logger_config.binary = False
     text_inputs = [
         "what movies star bruce willis",
         "show me films with drew barrymore from the 1980s",
@@ -46,6 +47,7 @@ def test_duplicate_rows(set_test_config, cleanup_after_use) -> None:
 
 def test_duplicate_outputs_rows(set_test_config, cleanup_after_use) -> None:
     set_test_config(task_type="text_multi_label")
+    dq.get_data_logger().logger_config.binary = False
     num_samples = 5
     num_tasks = 4
     classes_per_task = 3
@@ -80,6 +82,7 @@ def test_log_data_sample(
     set_test_config: Callable, cleanup_after_use: Callable
 ) -> None:
     set_test_config(task_type="text_multi_label")
+    dq.get_data_logger().logger_config.binary = False
     logger = TextMultiLabelDataLogger()
     with mock.patch("dataquality.core.log.get_data_logger") as mock_method:
         mock_method.return_value = logger
@@ -121,6 +124,7 @@ def test_log_dataset(
     dataset: DataSet, set_test_config: Callable, cleanup_after_use: Callable
 ) -> None:
     logger = TextMultiLabelDataLogger()
+    logger.logger_config.binary = False
 
     with mock.patch("dataquality.core.log.get_data_logger") as mock_method:
         mock_method.return_value = logger
@@ -139,6 +143,7 @@ def test_log_dataset_tuple(
     set_test_config: Callable, cleanup_after_use: Callable
 ) -> None:
     logger = TextMultiLabelDataLogger()
+    logger.logger_config.binary = False
     dataset = [
         ("sample1", ["A", "A", "B"], 1),
         ("sample2", ["C", "A", "B"], 2),
@@ -189,6 +194,7 @@ def test_log_data_binary_not_setting_binary(
     set_test_config: Callable, cleanup_after_use: Callable
 ) -> None:
     set_test_config(task_type="text_multi_label")
+    dq.get_data_logger().logger_config.binary = False
 
     tasks = ["A", "B", "C", "D"]
     task_labels = [sample(tasks, k=randint(1, 4)) for _ in range(10)]
@@ -212,7 +218,7 @@ def test_set_tasks_not_set_binary(
     set_test_config(task_type="text_multi_label")
 
     tasks = ["A", "B", "C", "D"]
-    dq.set_tasks_for_run(tasks)
+    dq.set_tasks_for_run(tasks, binary=False)
     # We didn't set binary=True above so validation should fail nicely
     with pytest.raises(ValueError) as e:
         dq.set_labels_for_run(tasks)
@@ -283,6 +289,7 @@ def test_logged_labels_dont_match_set_labels(
 ) -> None:
     """An error should be thrown when the set labels dont match the logged labels"""
     set_test_config(task_type="text_multi_label")
+    dq.get_data_logger().logger_config.binary = False
     labels = [["A", "NOT_A"], ["B", "NOT_B"], ["C", "NOT_C"]]
     # labels are the index, not the actual labels. No good
     dataset = pd.DataFrame(
