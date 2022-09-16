@@ -1,4 +1,5 @@
 import os
+import sys
 import threading
 from typing import Dict, List
 
@@ -192,7 +193,12 @@ def concat_hdf5_files(location: str, prob_only: bool) -> List[str]:
             str_cols.append(col)
         stores[col] = HDF5Store(f"{location}/{HDF5_STORE}", group, shape, dtype=dtype)
 
-    for file in tqdm(files, leave=False, desc="Combining batches for upload"):
+    for file in tqdm(
+        files,
+        leave=False,
+        desc="Combining batches for upload",
+        file=sys.stdout,
+    ):
         fname = f"{location}/{file}"
         with h5py.File(fname, "r") as f:
             dset = f["table"]["columns"]
