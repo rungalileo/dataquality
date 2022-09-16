@@ -80,7 +80,9 @@ def set_platform_urls(console_url_str: str) -> None:
     if url_is_localhost(console_url_str):
         os.environ[GalileoConfigVars.API_URL] = "http://localhost:8088"
     else:
-        api_url = console_url_str.replace("console.", "api.").rstrip("/")
+        # some urls are set up as "console-xxx.domain instead of console.xxx.domain
+        sfx = "." if "console." in console_url_str else "-"
+        api_url = console_url_str.replace(f"console{sfx}", f"api{sfx}").rstrip("/")
         api_url = f"https://{api_url}" if not api_url.startswith("http") else api_url
         api_url = api_url.replace("http://", "https://")
         _validate_api_url(console_url_str, api_url)
@@ -113,7 +115,11 @@ def _check_console_url() -> None:
     """
     console_url = os.getenv(GalileoConfigVars.CONSOLE_URL)
     if console_url:
-        if "console." not in console_url and not url_is_localhost(console_url):
+        if (
+            "console." not in console_url
+            and "console-" not in console_url
+            and not url_is_localhost(console_url)
+        ):
             warnings.warn(
                 f"It seems your GALILEO_CONSOLE_URL ({console_url}) is invalid. "
                 f"Your console URL should have 'console.' in the url. Ignoring"

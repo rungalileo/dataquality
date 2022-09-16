@@ -17,6 +17,12 @@ def test_console_url(set_test_config: Callable) -> None:
     assert cfg.api_url == "https://api.mytest.rungalileo.io"
 
 
+def test_console_url_dash(set_test_config: Callable) -> None:
+    os.environ["GALILEO_CONSOLE_URL"] = "https://console-mytest.rungalileo.io"
+    cfg = set_config()
+    assert cfg.api_url == "https://api-mytest.rungalileo.io"
+
+
 @pytest.mark.parametrize(
     "console_url",
     ["http://localhost:3000", "http://127.0.0.1:3000"],
