@@ -84,8 +84,8 @@ trainer = Trainer(
     tokenizer=tokenizer,
     compute_metrics=compute_metrics,
     # 🔭🌕 Galileo logging
-    callbacks=[dqcallback]
-    data_collator=dqcallback._collate_fn,
+    callbacks=[dqcallback],
+    data_collator=dqcallback._collate_fn
 )
 
 trainer.train()
