@@ -110,7 +110,7 @@ class TextMultiLabelModelLogger(TextClassificationModelLogger):
     def _get_data_dict_binary(self) -> Dict[str, Any]:
         """In the binary ML case, we can optimize this operation
 
-        Because all probs are of the same dimension, we can create a number array and
+        Because all probs are of the same dimension, we can create a numpy array and
         not loop through every row input
         """
         num_samples = len(self.ids)
