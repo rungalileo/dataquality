@@ -1,4 +1,3 @@
-import getpass
 import os
 import webbrowser
 
@@ -17,9 +16,6 @@ class _Auth:
     def email_login(self) -> None:
         username = os.getenv("GALILEO_USERNAME")
         password = os.getenv("GALILEO_PASSWORD")
-        if not username or not password:
-            username = input("📧 Enter your email:")
-            password = getpass.getpass("🤫 Enter your password:")
         res = requests.post(
             f"{config.api_url}/login",
             data={
@@ -30,7 +26,13 @@ class _Auth:
             headers={"X-Galileo-Request-Source": "dataquality_python_client"},
         )
         if res.status_code != 200:
-            raise GalileoException(f"Issue authenticating: {res.json()['detail']}")
+            raise GalileoException(
+                (
+                    f"Issue authenticating: {res.json()['detail']} "
+                    "If you need to reset your password, "
+                    f"go to {config.api_url.replace('api', 'console')}/forgot-password"
+                )
+            )
 
         access_token = res.json().get("access_token")
         config.token = access_token
@@ -64,7 +66,7 @@ def login() -> None:
 
         return
 
-    print(f"📡 {config.api_url.replace('api.','console.')}")
+    print(f"📡 {config.api_url.replace('api','console')}")
     print("🔭 Logging you into Galileo\n")
 
     _auth = _Auth()
