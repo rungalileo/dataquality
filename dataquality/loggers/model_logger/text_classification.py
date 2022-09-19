@@ -1,5 +1,4 @@
 import warnings
-from collections import defaultdict
 from enum import Enum, unique
 from typing import Any, Dict, List, Optional, Union
 
@@ -177,23 +176,22 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         super().write_model_output(model_output)
 
     def _get_data_dict(self) -> Dict[str, Any]:
-        data = defaultdict(list)
-        for record_id, prob, emb in zip(self.ids, self.probs, self.embs):
-            # Handle binary classification by making it 2-class classification
-            p = [1 - prob[0], prob[0]] if len(prob) == 1 else prob
-            record = {
-                "id": record_id,
-                "epoch": self.epoch,
-                "split": Split[self.split].value,
-                "emb": emb,
-                "prob": p,
-                "pred": int(np.argmax(prob)),
-                "data_schema_version": __data_schema_version__,
-            }
-            if self.split == Split.inference:
-                record.update(inference_name=self.inference_name)
-            for k in record.keys():
-                data[k].append(record[k])
+        # Handle the binary case by converting it to 2-class classification
+        probs = np.array(self.probs)
+        if probs.shape[-1] == 1:
+            self.probs = np.column_stack((1 - probs, probs))
+        num_samples_in_batch = len(self.ids)
+        data = {
+            "id": self.ids,
+            "emb": self.embs,
+            "prob": self.probs,
+            "pred": np.argmax(self.probs, axis=1),
+            "split": [Split[self.split].value] * num_samples_in_batch,
+            "data_schema_version": [__data_schema_version__] * num_samples_in_batch,
+            "epoch": [self.epoch] * num_samples_in_batch,
+        }
+        if self.split == Split.inference:
+            data["inference_name"] = [self.inference_name] * num_samples_in_batch
         return data
 
     def _set_num_labels(self, data: Dict) -> None:
