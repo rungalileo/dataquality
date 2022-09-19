@@ -1,4 +1,5 @@
 import os
+import sys
 import warnings
 from abc import abstractmethod
 from typing import Any, Dict, Iterable, List, Optional, Tuple, TypeVar, Union
@@ -184,7 +185,12 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         epochs_or_infs = epochs_or_infs[:last_epoch]
 
         # For each inference name or epoch of the given split
-        for split_run in tqdm(epochs_or_infs, total=len(epochs_or_infs), desc=split):
+        for split_run in tqdm(
+            epochs_or_infs,
+            total=len(epochs_or_infs),
+            desc=split,
+            file=sys.stdout,
+        ):
             in_frame_slice = in_frame.copy()
             prob_only = cls.prob_only(epochs_or_infs, split, split_run)
             if split == Split.inference:
@@ -283,7 +289,11 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         name = "inf_name" if split == Split.inference else "epoch"
         desc = f"{split} ({name}={epoch_inf})"
         for data_folder, df_obj in tqdm(
-            zip(DATA_FOLDERS, [emb, prob, data_df]), total=3, desc=desc, leave=False
+            zip(DATA_FOLDERS, [emb, prob, data_df]),
+            total=3,
+            desc=desc,
+            leave=False,
+            file=sys.stdout,
         ):
             if df_obj.variables.get("skip_upload"):
                 continue
