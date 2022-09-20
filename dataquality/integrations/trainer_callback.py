@@ -11,7 +11,7 @@ from dataquality.exceptions import GalileoException
 from dataquality.schemas.split import Split
 from dataquality.utils.hf_datasets import load_pandas_df
 
-
+from datasets import Dataset 
 # Trainer callback for Huggingface transformers Trainer library
 class DQCallback(TrainerCallback):
     """
@@ -28,38 +28,26 @@ class DQCallback(TrainerCallback):
         self.helper_data["logits"] = None
 
     def setup(
-        self, args: TrainingArguments, state: TrainerState, model: Module, **kwargs: Any
+        self, args: TrainingArguments, state: TrainerState, model: Module, kwargs: Any
     ) -> None:
         if args.remove_unused_columns is None or args.remove_unused_columns:
             raise GalileoException(
                 "TrainerArgument remove_unused_columns must be false"
             )
         self._dq = dq
-        # 🔭🌕 Galileo logging
-        self._dq.init(
-            task_type="text_classification",
-            project_name="text_classification_pytorch_hook_beta",
-            run_name=f"example_run_emotion_idx_1",
-        )
-        # dq.init(
-        # project=os.getenv("DQ_PROJECT", "huggingface"),
-        # name=run_name,
-        # **init_args
-        #   )
-
         self._attach_hooks_to_model(model)
         eval_dataloader = kwargs["eval_dataloader"]
         train_dataloader = kwargs["train_dataloader"]
         self.tokenizer = kwargs["tokenizer"]
 
         # 🔭🌕 Galileo logging
-        dq.log_dataset(load_pandas_df(train_dataloader.dataset), split=Split.train)
+
+        dq.log_dataset(train_dataloader.dataset,split=Split.train) #id=train_dataloader.dataset["idx"]
         # convert to pandas not needed
         if getattr(eval_dataloader, "dataset", False):
             dq.log_dataset(
                 load_pandas_df(eval_dataloader.dataset), split=Split.validation
             )
-
         dq.set_labels_for_run(train_dataloader.dataset.features["label"].names)
         self._initialized = True
 
@@ -71,8 +59,7 @@ class DQCallback(TrainerCallback):
         **kwargs: Any,
     ) -> None:
         if not self._initialized:
-
-            self.setup(args, state, kwargs["model"], **kwargs)
+            self.setup(args, state, kwargs["model"], kwargs)
         self._dq.set_split(Split.train)  # 🔭🌕 Galileo logging
 
     def on_epoch_begin(
@@ -116,13 +103,13 @@ class DQCallback(TrainerCallback):
         Perform a training step on a batch of inputs.
         """
         # Log only if embedding exists
-        if (
-            self.helper_data["embs"] != None
-            and self.helper_data["logits"] != None
-            and self.helper_data["ids"] != None
-        ):
-            # 🔭🌕 Galileo logging
-            self._dq.log_model_outputs(**self.helper_data)
+
+        assert(self.helper_data.get("embs",None) is not None,"Embedding passed to the logger can not be logged")
+        assert(self.helper_data.get("logits",None) is not None,"Logits passed to the logger can not be logged")
+        assert(self.helper_data.get("idx",None) is not None,"idx column missing in dataset (needed to map rows to the indices/ids)")
+
+        # 🔭🌕 Galileo logging
+        self._dq.log_model_outputs(**self.helper_data)
 
     def _attach_hooks_to_model(self, model: Module) -> None:
         next(model.children()).register_forward_hook(self._embedding_hook)
@@ -131,17 +118,28 @@ class DQCallback(TrainerCallback):
     def _embedding_hook(
         self, model: Module, model_input: Any, model_output: Any
     ) -> None:
-        output_detached = model_input.last_hidden_state.detach()
+        #TODO EMBEDDING CHECK
+        if hasattr(model_input,"last_hidden_state"):
+            output_detached = model_input.last_hidden_state.detach()
+        else:
+            output_detached = model_output.last_hidden_state.detach()
+
+
         self.helper_data["embs"] = output_detached[:, 0]
 
     def _logit_hook(self, model: Module, model_input: Any, model_output: Any) -> None:
         # log the output logits
         self.helper_data["logits"] = model_output.logits.detach()
 
+    def add_idx_col(self, dataset:Dataset) -> None:
+       dataset  = dataset.add_column("idx",list(range(len(dataset))))
+       dataset  = dataset.add_column("id",list(range(len(dataset))))
+       return dataset
+
     # workaround to save the idx
     # TODO: find cleaner way
     # ADD arguments
-    def _collate_fn(self, rows: List[Dict]) -> Dict[str, Any]:
+    def collate_fn(self, rows: List[Dict]) -> Dict[str, Any]:
         # in: ['text', 'label', 'idx', 'input_ids', 'attention_mask']
         indices = [row.get("idx") for row in rows]
         self.helper_data["ids"] = indices
