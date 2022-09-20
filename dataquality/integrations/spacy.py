@@ -151,8 +151,12 @@ def unwatch(nlp: Language) -> None:
     name = factory_name  # for consistency with spacy code
 
     pipe_index = nlp._get_pipe_index(before="galileo_ner")
-    nlp._pipe_meta[name] = nlp.get_factory_meta(factory_name) # TODO: Do we need to keep this the same as well from before
-    nlp._pipe_configs[name] = text_ner_logger_config.helper_data["ner_config"] # TODO: Why do we do this?
+    nlp._pipe_meta[name] = nlp.get_factory_meta(
+        factory_name
+    )  # TODO: Do we need to keep this the same as well from before
+    nlp._pipe_configs[name] = text_ner_logger_config.helper_data[
+        "ner_config"
+    ]  # TODO: Why do we do this?
     nlp._components.insert(pipe_index, (name, pipe_component))
 
     nlp.remove_pipe("galileo_ner")
@@ -184,7 +188,7 @@ class GalileoEntityRecognizer(CallableObjectProxy):
 
         ner.model = GalileoTransitionBasedParserModel(ner.model)
 
-    def _self_get_unwrapt(self):
+    def _self_get_unwrapt(self) -> EntityRecognizer:
         self.__wrapped__.model = self.__wrapped__.model._self_get_unwrapt()
         return self.__wrapped__
 
@@ -294,7 +298,7 @@ class ThincModelWrapper(CallableObjectProxy):
         # https://github.com/python/mypy/issues/2427
         model._func = self._self_forward  # type: ignore
 
-    def _self_get_unwrapt(self):
+    def _self_get_unwrapt(self) -> thinc.model.Model:
         self.__wrapped__._func = self._self_orig_forward
         return self.__wrapped__
 
