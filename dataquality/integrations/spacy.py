@@ -147,13 +147,14 @@ def unwatch(nlp: Language) -> None:
     # Spacy does not expose an easy way to add a pipeline component from an existing
     # one, so we use the internal nlp methods from `nlp.add_pipe` for it
     pipe_component = galileo_ner.__wrapped__
-    pipe_component.model = galileo_ner._self_old_model
+    # pipe_component.model = galileo_ner._self_old_model # TODO: Why do we do this?
+    pipe_component.model = galileo_ner.model.__wrapped__ # TODO: Currently this almost works, but fails because of a pickling thing
     factory_name = "ner"
     name = factory_name  # for consistency with spacy code
 
     pipe_index = nlp._get_pipe_index(before="galileo_ner")
-    nlp._pipe_meta[name] = nlp.get_factory_meta(factory_name)
-    nlp._pipe_configs[name] = text_ner_logger_config.helper_data["ner_config"]
+    nlp._pipe_meta[name] = nlp.get_factory_meta(factory_name) # TODO: Do we need to keep this the same as well from before
+    nlp._pipe_configs[name] = text_ner_logger_config.helper_data["ner_config"] # TODO: Why do we do this?
     nlp._components.insert(pipe_index, (name, pipe_component))
 
     nlp.remove_pipe("galileo_ner")
