@@ -186,6 +186,11 @@ class BaseGalileoLogger:
         if TORCH_AVAILABLE:
             if isinstance(v, Tensor):
                 v = int(v.numpy())  # Torch tensors cannot hold strings
+        if isinstance(v, np.ndarray):
+            if np.issubdtype(v, np.integer):
+                v = int(v)
+            else:
+                v = str(int(v))
         if not isinstance(v, (int, str)):
             raise GalileoException(
                 f"Logged data should be of type int, string, pytorch tensor, "
