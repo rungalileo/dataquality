@@ -162,3 +162,5 @@ tmp/
 *.ann
 tests/notebooks/dev/
 
+#Huggingface
+finetuned

@@ -1,66 +1,64 @@
-#Custom Callback to save our embeddings, logits, idx_ids and epoch
-import os
+from unittest.mock import MagicMock, patch
+from typing import Callable
+import copy
 
-import pandas as pd
- 
-from transformers import AutoModelForSequenceClassification, TrainingArguments, Trainer
-from transformers import AutoTokenizer
-from datasets import load_metric, load_dataset,Dataset
-from transformers import AutoModelForSequenceClassification, TrainingArguments, Trainer
-from transformers import AutoTokenizer
-import numpy as np
-from dataquality.integrations.trainer_callback import DQCallback
-import dataquality as dq
+import pytest
 
-import os 
-os.environ["GALILEO_CONSOLE_URL"] = "https://console.dev.rungalileo.io/"
+import dataquality
+from transformers import (
+    AutoModelForSequenceClassification,
+    AutoTokenizer,
+    Trainer,
+    TrainingArguments,
+)
+from tests.utils.mock_request import (
+    EXISTING_PROJECT,
+    EXISTING_RUN,
+    mocked_create_project_run,
+    mocked_get_project_run,
+    mocked_login,
+    mocked_login_requests,
+    mocked_missing_project_run,
+    mocked_missing_run,
+)
+from dataquality import config
 
-# 🔭🌕 Galileo logging
-dq.login()
+from datasets import Dataset, load_metric
+from .utils.hf_datasets_mock import mock_dataset
 
 
-
-dataset_name="emotion"
-ds = load_dataset(dataset_name)
-num_labels = len(ds["train"].features["label"].names)
-
-model_checkpoint = "distilbert-base-uncased"
-
-tokenizer = AutoTokenizer.from_pretrained(model_checkpoint, use_fast=True)
-
-model = AutoModelForSequenceClassification.from_pretrained(model_checkpoint, num_labels=num_labels)
-
+tokenizer = AutoTokenizer.from_pretrained("hf-internal-testing/tiny-random-distilbert")
+model = AutoModelForSequenceClassification.from_pretrained(
+    "hf-internal-testing/tiny-random-distilbert"
+)
 metric = load_metric("accuracy")
 
-
 def preprocess_function(examples, tokenizer):
-    return tokenizer(examples["text"],
-                   padding="max_length",max_length=201 ,
-                   truncation=True)
+    return tokenizer(
+        examples["text"], padding="max_length", max_length=201, truncation=True
+    )
 
 def compute_metrics(eval_pred):
     predictions, labels = eval_pred
-    predictions = np.argmax(predictions, axis=1)
+    predictions = predictions.argmax( axis=1)
     return metric.compute(predictions=predictions, references=labels)
 
+encoded_train_dataset = mock_dataset.map(
+    lambda x: preprocess_function(x, tokenizer), batched=True
+)
 
-#We are gonna work on a subset for faster training
-train_dataset=ds["train"]
-test_dataset=ds["test"]
+encoded_test_dataset = mock_dataset.map(
+    lambda x: preprocess_function(x, tokenizer), batched=True
+)
 
-#'input_ids', 'attention_mask'
-encoded_train_dataset = train_dataset.select(range(4000)).map(lambda x: preprocess_function(x,tokenizer),batched=True) 
-encoded_test_dataset =  test_dataset.select(range(2000)).map(lambda x: preprocess_function(x,tokenizer),batched=True) 
-
-#Training arguments and training part
+# Training arguments and training part
 metric_name = "accuracy"
-batch_size= 16
+batch_size = 16
 
-
-args = TrainingArguments(
+args_default = TrainingArguments(
     f"finetuned",
-    evaluation_strategy = "epoch",
-    save_strategy = "epoch",
+    evaluation_strategy="epoch",
+    save_strategy="epoch",
     learning_rate=3e-4,
     per_device_train_batch_size=batch_size,
     per_device_eval_batch_size=batch_size,
@@ -69,26 +67,62 @@ args = TrainingArguments(
     load_best_model_at_end=True,
     metric_for_best_model=metric_name,
     push_to_hub=False,
-    report_to="galileo",
-    # 🔭🌕 Galileo logging
-    remove_unused_columns=False,
-    )
-
-# 🔭🌕 Galileo logging
-dqcallback = DQCallback()
-trainer = Trainer(
-    model,
-    args,
-    train_dataset=encoded_train_dataset,
-    eval_dataset=encoded_test_dataset,
-    tokenizer=tokenizer,
-    compute_metrics=compute_metrics,
-    # 🔭🌕 Galileo logging
-    callbacks=[dqcallback],
-    data_collator=dqcallback._collate_fn
+   
 )
 
-trainer.train()
+
+@patch("requests.post", side_effect=mocked_create_project_run)
+@patch("requests.get", side_effect=mocked_get_project_run)
+@patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=True)
+def test_end_to_end_without_callback(
+    mock_valid_user: MagicMock,
+    mock_requests_get: MagicMock,
+    mock_requests_post: MagicMock,
+    set_test_config: Callable,
+) -> None:
+    """Base case: Training on a dataset"""    
+    args =  copy.deepcopy(args_default)
+
+   
+    trainer = Trainer(
+        model,
+        args,
+        train_dataset=encoded_train_dataset,
+        eval_dataset=encoded_test_dataset,
+        tokenizer=tokenizer,
+        compute_metrics=compute_metrics,
+       
+    )
+
+    trainer.train()
 
 
-dq.finish() # 🔭🌕 Galileo logging
+@patch("requests.post", side_effect=mocked_create_project_run)
+@patch("requests.get", side_effect=mocked_get_project_run)
+@patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=True)
+def test_end_to_end_with_callback(
+    mock_valid_user: MagicMock,
+    mock_requests_get: MagicMock,
+    mock_requests_post: MagicMock,
+    set_test_config: Callable,
+) -> None:
+    """Base case: Tests creating a new project and run"""
+    dataquality.init(task_type="text_classification")
+    assert config.current_run_id
+    assert config.current_project_id
+    dataquality.set_labels_for_run(mock_dataset.features["label"].names)
+    dataquality.init(task_type="text_classification")
+    logger = dataquality.get_data_logger()
+    args =  copy.deepcopy(args_default)
+    #TODO add callback
+    trainer = Trainer(
+        model,
+        args,
+        train_dataset=encoded_train_dataset,
+        eval_dataset=encoded_test_dataset,
+        tokenizer=tokenizer,
+        compute_metrics=compute_metrics,
+    )
+
+    trainer.train()
+

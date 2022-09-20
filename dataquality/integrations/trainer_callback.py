@@ -1,12 +1,15 @@
-from transformers.trainer_callback import TrainerCallback, TrainerControl, TrainerState  # noqa: E402
-from transformers.training_args import TrainingArguments  # noqa: E402
-from transformers.data.data_collator import DataCollator, DataCollatorWithPadding, default_data_collator
-import dataquality as dq
-import os
-from dataquality.utils.hf_datasets import load_pandas_df
+from typing import Any, Dict, List
+
 from torch.nn import Module
-from typing import List, Dict, Any
+from transformers.data.data_collator import DataCollatorWithPadding
+from transformers.trainer_callback import TrainerCallback  # noqa: E402
+from transformers.trainer_callback import TrainerControl, TrainerState
+from transformers.training_args import TrainingArguments  # noqa: E402
+
+import dataquality as dq
+from dataquality.exceptions import GalileoException
 from dataquality.schemas.split import Split
+from dataquality.utils.hf_datasets import load_pandas_df
 
 
 # Trainer callback for Huggingface transformers Trainer library
@@ -24,14 +27,22 @@ class DQCallback(TrainerCallback):
         self.helper_data["probs"] = None
         self.helper_data["logits"] = None
 
-    def setup(self, args: TrainingArguments,  state: TrainerState, model: Module, **kwargs: Any) ->None:
+    def setup(
+        self, args: TrainingArguments, state: TrainerState, model: Module, **kwargs: Any
+    ) -> None:
+        if args.remove_unused_columns is None or args.remove_unused_columns:
+            raise GalileoException(
+                "TrainerArgument remove_unused_columns must be false"
+            )
         self._dq = dq
         # 🔭🌕 Galileo logging
-        self._dq.init(task_type="text_classification",
-                      project_name="text_classification_pytorch_hook_beta",
-                      run_name=f"example_run_emotion_idx_1")
+        self._dq.init(
+            task_type="text_classification",
+            project_name="text_classification_pytorch_hook_beta",
+            run_name=f"example_run_emotion_idx_1",
+        )
         # dq.init(
-        #project=os.getenv("DQ_PROJECT", "huggingface"),
+        # project=os.getenv("DQ_PROJECT", "huggingface"),
         # name=run_name,
         # **init_args
         #   )
@@ -43,49 +54,87 @@ class DQCallback(TrainerCallback):
 
         # 🔭🌕 Galileo logging
         dq.log_dataset(load_pandas_df(train_dataloader.dataset), split=Split.train)
-
+        # convert to pandas not needed
         if getattr(eval_dataloader, "dataset", False):
-            dq.log_dataset(load_pandas_df(eval_dataloader.dataset), split=Split.validation)
+            dq.log_dataset(
+                load_pandas_df(eval_dataloader.dataset), split=Split.validation
+            )
 
-        dq.set_labels_for_run(train_dataloader.dataset.features['label'].names)
+        dq.set_labels_for_run(train_dataloader.dataset.features["label"].names)
         self._initialized = True
 
-    def on_train_begin(self, args: TrainingArguments, state: TrainerState, control: TrainerControl,  **kwargs: Any)->None:
+    def on_train_begin(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs: Any,
+    ) -> None:
         if not self._initialized:
 
-            self.setup(args,state, kwargs["model"], **kwargs )
+            self.setup(args, state, kwargs["model"], **kwargs)
         self._dq.set_split(Split.train)  # 🔭🌕 Galileo logging
 
-    def on_epoch_begin(self,  args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs: Any)->None:
-        state_epoch = state.epoch  
+    def on_epoch_begin(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs: Any,
+    ) -> None:
+        state_epoch = state.epoch
         if state_epoch is not None:
-            state_epoch = int(state_epoch)  
-            self._dq.set_epoch(state_epoch )  # 🔭🌕 Galileo logging
+            state_epoch = int(state_epoch)
+            self._dq.set_epoch(state_epoch)  # 🔭🌕 Galileo logging
 
-    def on_train_end(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs: Any)->None:
+    def on_train_end(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs: Any,
+    ) -> None:
         self._dq.set_split(Split.validation)  # 🔭🌕 Galileo logging
 
-    def on_step_begin(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs: Any)->None:
+    def on_step_begin(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs: Any,
+    ) -> None:
         pass
 
-    def on_step_end(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs: Any)->None:
+    def on_step_end(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs: Any,
+    ) -> None:
         """
         Perform a training step on a batch of inputs.
         """
         # Log only if embedding exists
-        if self.helper_data["embs"] != None and self.helper_data["logits"] != None and self.helper_data["ids"] != None:
+        if (
+            self.helper_data["embs"] != None
+            and self.helper_data["logits"] != None
+            and self.helper_data["ids"] != None
+        ):
             # 🔭🌕 Galileo logging
             self._dq.log_model_outputs(**self.helper_data)
 
-    def _attach_hooks_to_model(self, model: Module)->None:
+    def _attach_hooks_to_model(self, model: Module) -> None:
         next(model.children()).register_forward_hook(self._embedding_hook)
         model.register_forward_hook(self._logit_hook)
 
-    def _embedding_hook(self, model: Module, model_input:Any, model_output:Any)->None:
+    def _embedding_hook(
+        self, model: Module, model_input: Any, model_output: Any
+    ) -> None:
         output_detached = model_input.last_hidden_state.detach()
         self.helper_data["embs"] = output_detached[:, 0]
 
-    def _logit_hook(self, model: Module, model_input:Any, model_output:Any)->None:
+    def _logit_hook(self, model: Module, model_input: Any, model_output: Any) -> None:
         # log the output logits
         self.helper_data["logits"] = model_output.logits.detach()
 
@@ -96,11 +145,14 @@ class DQCallback(TrainerCallback):
         # in: ['text', 'label', 'idx', 'input_ids', 'attention_mask']
         indices = [row.get("idx") for row in rows]
         self.helper_data["ids"] = indices
-        cleaned_rows = [{
-            "label": row.get("label"),
-            "input_ids": row.get("input_ids"),
-            "attention_mask": row.get("attention_mask"),
-        } for row in rows]
+        cleaned_rows = [
+            {
+                "label": row.get("label"),
+                "input_ids": row.get("input_ids"),
+                "attention_mask": row.get("attention_mask"),
+            }
+            for row in rows
+        ]
 
-        #out: ['label', 'input_ids', 'attention_mask']
+        # out: ['label', 'input_ids', 'attention_mask']
         return DataCollatorWithPadding(self.tokenizer)(cleaned_rows)
