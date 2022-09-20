@@ -151,12 +151,8 @@ def unwatch(nlp: Language) -> None:
     name = factory_name  # for consistency with spacy code
 
     pipe_index = nlp._get_pipe_index(before="galileo_ner")
-    nlp._pipe_meta[name] = nlp.get_factory_meta(
-        factory_name
-    )  # TODO: Do we need to keep this the same as well from before
-    nlp._pipe_configs[name] = text_ner_logger_config.helper_data[
-        "ner_config"
-    ]  # TODO: Why do we do this?
+    nlp._pipe_meta[name] = nlp.get_factory_meta(factory_name)
+    nlp._pipe_configs[name] = text_ner_logger_config.helper_data["ner_config"]
     nlp._components.insert(pipe_index, (name, pipe_component))
 
     nlp.remove_pipe("galileo_ner")
