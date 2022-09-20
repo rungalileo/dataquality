@@ -156,6 +156,10 @@ def test_unwatch(set_test_config):
 
     # This should be possible here
     pickle.dumps(nlp)
+    # and this
+    pickle.loads(pickle.dumps(nlp.get_pipe("ner")))
+    # and this
+    pickle.loads(pickle.dumps(nlp))
 
     for _ in range(3):  # This should be possible multiple times
         watch(nlp)

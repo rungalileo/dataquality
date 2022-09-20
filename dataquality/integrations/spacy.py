@@ -146,8 +146,7 @@ def unwatch(nlp: Language) -> None:
 
     # Spacy does not expose an easy way to add a pipeline component from an existing
     # one, so we use the internal nlp methods from `nlp.add_pipe` for it
-    pipe_component = galileo_ner.__wrapped__
-    pipe_component.model = galileo_ner._self_old_model
+    pipe_component = galileo_ner._self_get_unwrapt()
     factory_name = "ner"
     name = factory_name  # for consistency with spacy code
 
@@ -183,8 +182,11 @@ class GalileoEntityRecognizer(CallableObjectProxy):
                 f"expects a beam width of 1 (the 'ner' default)."
             )
 
-        self._self_old_model = ner.model.copy()
         ner.model = GalileoTransitionBasedParserModel(ner.model)
+
+    def _self_get_unwrapt(self) -> EntityRecognizer:
+        self.__wrapped__.model = self.__wrapped__.model._self_get_unwrapt()
+        return self.__wrapped__
 
     def greedy_parse(self, docs: List[Doc], drop: float = 0.0) -> List:
         """Python-land implementation of the greedy_parse method in the ner component
@@ -291,6 +293,10 @@ class ThincModelWrapper(CallableObjectProxy):
         self._self_orig_forward = model._func
         # https://github.com/python/mypy/issues/2427
         model._func = self._self_forward  # type: ignore
+
+    def _self_get_unwrapt(self) -> thinc.model.Model:
+        self.__wrapped__._func = self._self_orig_forward
+        return self.__wrapped__
 
     def _self_forward(
         self, model: thinc.model.Model, X: Any, is_train: bool
