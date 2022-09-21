@@ -129,7 +129,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
         file_path = self.input_data_file()
         if self.log_export_progress:
-            with vaex.progress.tree("vaex", title="Exporting input data"):
+            with vaex.progress.tree("vaex", title=f"Logging {len(df)} samples"):
                 df.export(file_path)
         else:
             df.export(file_path)
