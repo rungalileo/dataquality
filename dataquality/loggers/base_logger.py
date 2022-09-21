@@ -87,6 +87,19 @@ class BaseGalileoLogger:
 
     def __init__(self) -> None:
         self.split: Optional[str] = None
+        self.inference_name: Optional[str] = None
+
+    def write_output_dir(self) -> str:
+        return (
+            f"{BaseGalileoLogger.LOG_FILE_DIR}/{config.current_project_id}/"
+            f"{config.current_run_id}"
+        )
+
+    def split_name(self) -> str:
+        split = self.split
+        if split == Split.inference:
+            split = f"{split}_{self.inference_name}"
+        return str(split)
 
     @staticmethod
     def get_valid_attributes() -> List[str]:
@@ -224,8 +237,7 @@ class BaseGalileoLogger:
             else:
                 shutil.rmtree(path)
 
-    @classmethod
-    def upload(cls) -> None:
+    def upload(self) -> None:
         ...
 
     @classmethod

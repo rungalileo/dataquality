@@ -30,5 +30,21 @@ def galileo_disabled() -> bool:
     return os.getenv(GALILEO_DISABLED) in (True, "TRUE", "True", "true", 1)
 
 
+def disable_galileo() -> None:
+    os.environ[GALILEO_DISABLED] = "True"
+
+
+def enable_galileo() -> None:
+    os.environ[GALILEO_DISABLED] = "False"
+
+
 def galileo_verbose_logging() -> bool:
-    return os.getenv("GALILEO_VERBOSE") in (True, "TRUE", "True", "true", 1)
+    return os.getenv(GALILEO_VERBOSE) in (True, "TRUE", "True", "true", 1)
+
+
+def enable_galileo_verbose() -> None:
+    os.environ[GALILEO_VERBOSE] = "True"
+
+
+def disable_galileo_verbose() -> None:
+    os.environ[GALILEO_VERBOSE] = "False"

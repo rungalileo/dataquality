@@ -2,6 +2,7 @@ import os
 import sys
 import warnings
 from abc import abstractmethod
+from collections import Counter
 from typing import Any, Dict, Iterable, List, Optional, Tuple, TypeVar, Union
 from uuid import uuid4
 
@@ -19,8 +20,8 @@ from dataquality.schemas.dataframe import BaseLoggerInOutFrames
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
 from dataquality.utils import tqdm
-from dataquality.utils.cloud import is_galileo_cloud
 from dataquality.utils.hdf5_store import HDF5_STORE
+from dataquality.utils.helpers import galileo_verbose_logging
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import (
     _join_in_out_frames,
@@ -40,7 +41,8 @@ ITER_CHUNK_SIZE = 100_000
 class BaseGalileoDataLogger(BaseGalileoLogger):
     MAX_META_COLS = 25  # Limit the number of metadata attrs a user can log
     MAX_STR_LEN = 100  # Max characters in a string metadata attribute
-    INPUT_DATA_NAME = "input_data.arrow"
+    INPUT_DATA_BASE = "input_data"
+    INPUT_DATA_NAME = f"{INPUT_DATA_BASE}.arrow"
     MAX_DATA_SIZE_CLOUD = 300_000
 
     DATA_FOLDER_EXTENSION = {data_folder: "hdf5" for data_folder in DATA_FOLDERS}
@@ -49,6 +51,14 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         super().__init__()
         self.meta: Dict = meta or {}
         self.log_export_progress = True
+
+    def input_data_path(self) -> str:
+        return f"{self.write_output_dir()}/{BaseGalileoDataLogger.INPUT_DATA_BASE}"
+
+    def input_data_file(self, input_num: int = None) -> str:
+        if input_num is None:
+            input_num = self.logger_config.input_data_logged
+        return f"{self.input_data_path()}_{input_num}.arrow"
 
     @abstractmethod
     def log_data_sample(self, *, text: str, id: int, **kwargs: Any) -> None:
@@ -76,32 +86,63 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
         Provide the dataset and the keys to index into it. See child for details"""
 
+    def validate_ids_for_split(self, ids: List[int]) -> None:
+        exc = (
+            "If you've re-run a block of code or notebook cell that logs model "
+            "outputs, that could be the cause. Try reinitializing with `dq.init` "
+            "to clear your local environment, and then logging your data again. Call "
+            "`dq.enable_galileo_verbose()` to see the duplicate IDs"
+        )
+        split = self.split_name()
+        if len(set(ids)) != len(ids):
+            exc = "It seems you do not have unique ids in this logged data. " + exc
+            dups = {k: v for k, v in Counter(ids).items() if v > 1}
+            if galileo_verbose_logging():
+                exc += f"split:{split}, dup ids and counts: {dups}"
+            raise GalileoException(exc)
+        if split not in self.logger_config.logged_input_ids:
+            self.logger_config.logged_input_ids[split] = set(ids)
+        # This means some logged ids were already logged!
+        elif len(set(ids) - self.logger_config.logged_input_ids[split]) != len(ids):
+            extra = [i for i in ids if i in self.logger_config.logged_input_ids[split]]
+            exc = "Some ids in this dataset were already logged for this split. " + exc
+            if galileo_verbose_logging():
+                exc += f"split:{split}, overlapping ids: {extra}"
+        else:
+            self.logger_config.logged_input_ids[split].update(ids)
+
     def log(self) -> None:
         """Writes input data to disk in .galileo/logs
 
         If input data already exist, append new data to existing input file
         """
         self.validate()
-        write_input_dir = (
-            f"{BaseGalileoLogger.LOG_FILE_DIR}/{config.current_project_id}/"
-            f"{config.current_run_id}"
-        )
+        write_input_dir = self.write_output_dir()
         if not os.path.exists(write_input_dir):
             os.makedirs(write_input_dir)
 
         df = self._get_input_df()
-        file_path = f"{write_input_dir}/{BaseGalileoDataLogger.INPUT_DATA_NAME}"
+        self.validate_data_size(df)
+        self.validate_ids_for_split(df["id"].tolist())
 
-        if os.path.isfile(file_path):
-            self.append_input_data(df, write_input_dir, file_path)
-        else:
-            self.validate_data_size(df)
-            if self.log_export_progress:
-                with vaex.progress.tree("vaex", title="Exporting input data"):
-                    df.export(file_path)
-            else:
+        file_path = self.input_data_file()
+        if self.log_export_progress:
+            with vaex.progress.tree("vaex", title="Exporting input data"):
                 df.export(file_path)
+        else:
+            df.export(file_path)
+
+        # if os.path.isfile(file_path):
+        #     self.append_input_data(df, write_input_dir, file_path)
+        # else:
+        #     self.validate_data_size(df)
+        #     if self.log_export_progress:
+        #         with vaex.progress.tree("vaex", title="Exporting input data"):
+        #             df.export(file_path)
+        #     else:
+        #         df.export(file_path)
         df.close()
+        self.logger_config.input_data_logged += 1
 
     def append_input_data(
         self, df: DataFrame, write_input_dir: str, file_path: str
@@ -131,28 +172,29 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         # Cleanup temporary file after appending input data
         os.remove(tmp_name)
 
-    @classmethod
-    def upload(cls, last_epoch: Optional[int] = None) -> None:
+    def upload(self, last_epoch: Optional[int] = None) -> None:
         """
         Iterates through all of each splits children folders [data/emb/prob] for each
         inference name / epoch, concatenates all of the files with vaex, and uploads
         them to a single file in minio
         """
         ThreadPoolManager.wait_for_threads()
-        cls.check_for_logging_failures()
+        self.check_for_logging_failures()
         print("☁️ Uploading Data")
         object_store = ObjectStore()
         proj_run = f"{config.current_project_id}/{config.current_run_id}"
-        location = f"{cls.LOG_FILE_DIR}/{proj_run}"
+        location = f"{self.LOG_FILE_DIR}/{proj_run}"
 
-        in_frame = vaex.open(
-            f"{location}/{BaseGalileoDataLogger.INPUT_DATA_NAME}"
-        ).copy()
+        in_frame = vaex.open(f"{self.input_data_path()}*.arrow")
+        # in_frame = vaex.open(
+        #     f"{location}/{BaseGalileoDataLogger.INPUT_DATA_NAME}"
+        # ).copy()
+        unique_splits = set(in_frame["split"].unique())
         for split in Split.get_valid_attributes():
             split_loc = f"{location}/{split}"
             if not os.path.exists(split_loc):
                 continue
-            if not len(in_frame[in_frame["split"] == split]):
+            if split not in unique_splits:
                 warnings.warn(
                     f"There was output data logged for split {split} but no input data "
                     "logged. Skipping upload for this split as there are no samples "
@@ -162,7 +204,9 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                 continue
 
             in_frame_split = filter_df(in_frame, "split", split)
-            cls.upload_split(object_store, in_frame_split, split, split_loc, last_epoch)
+            self.upload_split(
+                object_store, in_frame_split, split, split_loc, last_epoch
+            )
 
     @classmethod
     def upload_split(
@@ -422,12 +466,28 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         """Sets the tagging schema, if applicable. Must be implemented by child"""
         raise GalileoException(f"Cannot set tagging schema for {cls.__logger_name__}")
 
-    @classmethod
-    def validate_data_size(cls, df: DataFrame) -> None:
-        if not is_galileo_cloud():
-            return
+    # @classmethod
+    # def validate_data_size(cls, df: DataFrame) -> None:
+    #     if not is_galileo_cloud():
+    #         return
+    #     nrows = BaseGalileoDataLogger.MAX_DATA_SIZE_CLOUD
+    #     if len(df) > nrows:
+    #         warnings.warn(
+    #             f"⚠️ Hey there! You've logged over {nrows} rows in your input data. "
+    #             f"Galileo Cloud only supports up to {nrows} rows. "
+    #             "If you are using larger datasets, you may see degraded performance. "
+    #             "Please email us at team@rungalileo.io if you have any questions.",
+    #             GalileoWarning,
+    #         )
+
+    def validate_data_size(self, df: DataFrame) -> None:
+        num_inputs = self.logger_config.input_data_logged
+        samples_logged = [
+            len(vaex.open(self.input_data_file(num))) for num in range(num_inputs)
+        ]
+        num_samples_logged = sum(samples_logged) + len(df)
         nrows = BaseGalileoDataLogger.MAX_DATA_SIZE_CLOUD
-        if len(df) > nrows:
+        if num_samples_logged > nrows:
             warnings.warn(
                 f"⚠️ Hey there! You've logged over {nrows} rows in your input data. "
                 f"Galileo Cloud only supports up to {nrows} rows. "

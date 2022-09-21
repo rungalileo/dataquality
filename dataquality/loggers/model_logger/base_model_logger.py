@@ -137,10 +137,9 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
                     "`dataquality.set_epoch` to set the epoch"
                 )
 
-    @classmethod
-    def upload(cls) -> None:
+    def upload(self) -> None:
         """The upload function is implemented in the sister DataConfig class"""
-        BaseGalileoDataLogger.get_logger(TaskType[cls.__logger_name__]).upload()
+        BaseGalileoDataLogger.get_logger(TaskType[self.__logger_name__])().upload()
 
     @staticmethod
     def get_model_logger_attr(cls: object) -> str:
