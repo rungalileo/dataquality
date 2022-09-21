@@ -4,7 +4,6 @@ import warnings
 from abc import abstractmethod
 from collections import Counter
 from typing import Any, Dict, Iterable, List, Optional, Tuple, TypeVar, Union
-from uuid import uuid4
 
 import numpy as np
 import pandas as pd
@@ -20,6 +19,7 @@ from dataquality.schemas.dataframe import BaseLoggerInOutFrames
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
 from dataquality.utils import tqdm
+from dataquality.utils.cloud import is_galileo_cloud
 from dataquality.utils.hdf5_store import HDF5_STORE
 from dataquality.utils.helpers import galileo_verbose_logging
 from dataquality.utils.thread_pool import ThreadPoolManager
@@ -27,7 +27,6 @@ from dataquality.utils.vaex import (
     _join_in_out_frames,
     concat_hdf5_files,
     filter_df,
-    validate_ids_for_df,
     validate_unique_ids,
 )
 
@@ -87,13 +86,15 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         Provide the dataset and the keys to index into it. See child for details"""
 
     def validate_ids_for_split(self, ids: List[int]) -> None:
+        split = self.split_name()
+        print("HERE", split, ids, self.logger_config.logged_input_ids.get(split))
         exc = (
             "If you've re-run a block of code or notebook cell that logs model "
             "outputs, that could be the cause. Try reinitializing with `dq.init` "
             "to clear your local environment, and then logging your data again. Call "
             "`dq.enable_galileo_verbose()` to see the duplicate IDs"
         )
-        split = self.split_name()
+
         if len(set(ids)) != len(ids):
             exc = "It seems you do not have unique ids in this logged data. " + exc
             dups = {k: v for k, v in Counter(ids).items() if v > 1}
@@ -108,6 +109,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             exc = "Some ids in this dataset were already logged for this split. " + exc
             if galileo_verbose_logging():
                 exc += f"split:{split}, overlapping ids: {extra}"
+            raise GalileoException(exc)
         else:
             self.logger_config.logged_input_ids[split].update(ids)
 
@@ -132,45 +134,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         else:
             df.export(file_path)
 
-        # if os.path.isfile(file_path):
-        #     self.append_input_data(df, write_input_dir, file_path)
-        # else:
-        #     self.validate_data_size(df)
-        #     if self.log_export_progress:
-        #         with vaex.progress.tree("vaex", title="Exporting input data"):
-        #             df.export(file_path)
-        #     else:
-        #         df.export(file_path)
         df.close()
         self.logger_config.input_data_logged += 1
-
-    def append_input_data(
-        self, df: DataFrame, write_input_dir: str, file_path: str
-    ) -> None:
-        # Create a temporary file for existing input data
-        tmp_name = f"{write_input_dir}/{str(uuid4()).replace('-', '')[:12]}.arrow"
-        os.rename(file_path, tmp_name)
-
-        # Merge existing data with new data
-        existing_df = vaex.open(tmp_name)
-        merged_df = vaex.concat([existing_df, df])
-        self.validate_data_size(merged_df)
-
-        try:  # Validate there are no duplicated IDs
-            validate_ids_for_df(merged_df)
-        except GalileoException as e:  # Cleanup and raise on error
-            merged_df.close()
-            os.rename(tmp_name, file_path)  # Revert name, we aren't logging
-            raise e
-
-        if self.log_export_progress:
-            with vaex.progress.tree("vaex", title="Appending input data"):
-                merged_df.export(file_path)
-        else:
-            merged_df.export(file_path)
-
-        # Cleanup temporary file after appending input data
-        os.remove(tmp_name)
 
     def upload(self, last_epoch: Optional[int] = None) -> None:
         """
@@ -186,9 +151,6 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         location = f"{self.LOG_FILE_DIR}/{proj_run}"
 
         in_frame = vaex.open(f"{self.input_data_path()}*.arrow")
-        # in_frame = vaex.open(
-        #     f"{location}/{BaseGalileoDataLogger.INPUT_DATA_NAME}"
-        # ).copy()
         unique_splits = set(in_frame["split"].unique())
         for split in Split.get_valid_attributes():
             split_loc = f"{location}/{split}"
@@ -466,21 +428,9 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         """Sets the tagging schema, if applicable. Must be implemented by child"""
         raise GalileoException(f"Cannot set tagging schema for {cls.__logger_name__}")
 
-    # @classmethod
-    # def validate_data_size(cls, df: DataFrame) -> None:
-    #     if not is_galileo_cloud():
-    #         return
-    #     nrows = BaseGalileoDataLogger.MAX_DATA_SIZE_CLOUD
-    #     if len(df) > nrows:
-    #         warnings.warn(
-    #             f"⚠️ Hey there! You've logged over {nrows} rows in your input data. "
-    #             f"Galileo Cloud only supports up to {nrows} rows. "
-    #             "If you are using larger datasets, you may see degraded performance. "
-    #             "Please email us at team@rungalileo.io if you have any questions.",
-    #             GalileoWarning,
-    #         )
-
     def validate_data_size(self, df: DataFrame) -> None:
+        if not is_galileo_cloud():
+            return
         num_inputs = self.logger_config.input_data_logged
         samples_logged = [
             len(vaex.open(self.input_data_file(num))) for num in range(num_inputs)

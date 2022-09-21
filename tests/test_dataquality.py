@@ -202,7 +202,7 @@ def test_logging_duplicate_ids(
             c.upload()
 
         assert str(e.value).startswith(
-            "It seems as though you do not have unique ids in split training"
+            "It seems your logged output data has duplicate ids"
         )
     finally:
         # Mock finish() call without calling the API
@@ -705,7 +705,7 @@ def test_validate_data_size_cloud(mock_cloud: MagicMock) -> None:
         text=["text" for _ in range(BaseGalileoDataLogger.MAX_DATA_SIZE_CLOUD + 1)],
     )
     with pytest.warns(GalileoWarning):
-        BaseGalileoDataLogger.validate_data_size(df)
+        BaseGalileoDataLogger().validate_data_size(df)
 
 
 @mock.patch("dataquality.loggers.data_logger.base_data_logger.is_galileo_cloud")
@@ -717,7 +717,7 @@ def test_validate_under_data_size_cloud(mock_cloud: MagicMock) -> None:
         text=["text" for _ in range(BaseGalileoDataLogger.MAX_DATA_SIZE_CLOUD)],
     )
     with pytest.warns(None):
-        BaseGalileoDataLogger.validate_data_size(df)
+        BaseGalileoDataLogger().validate_data_size(df)
 
 
 @mock.patch("dataquality.loggers.data_logger.base_data_logger.is_galileo_cloud")
@@ -729,7 +729,7 @@ def test_validate_data_size_not_cloud(mock_cloud: MagicMock) -> None:
         text=["text" for _ in range(BaseGalileoDataLogger.MAX_DATA_SIZE_CLOUD + 1)],
     )
     with pytest.warns(None):
-        BaseGalileoDataLogger.validate_data_size(df)
+        BaseGalileoDataLogger().validate_data_size(df)
 
 
 @mock.patch(

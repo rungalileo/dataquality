@@ -96,7 +96,7 @@ def test_log_input_examples(set_test_config, cleanup_after_use):
         ]
     )
 
-    logged_data = vaex.open(f"{LOCATION}/input_data.arrow")
+    logged_data = vaex.open(f"{LOCATION}/input_data_0.arrow")
 
     assert logged_data["id"].tolist() == [0, 1, 2, 3, 4]
     assert logged_data["split"].tolist() == ["training"] * len(training_examples)

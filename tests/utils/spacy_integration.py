@@ -36,6 +36,7 @@ def train_model(
 
     # Galileo code
     watch(nlp)
+    print("First call to log input")
     log_input_examples(training_examples, "training")
     log_input_examples(training_examples, "test")
 

@@ -222,7 +222,7 @@ class BaseGalileoLogger:
     @classmethod
     def _cleanup(cls) -> None:
         """
-        Cleans up the current run data locally
+        Cleans up the current run data and metadata locally
         """
         assert config.current_project_id
         assert config.current_run_id
@@ -236,6 +236,7 @@ class BaseGalileoLogger:
                 os.remove(path)
             else:
                 shutil.rmtree(path)
+        cls.logger_config.reset()
 
     def upload(self) -> None:
         ...

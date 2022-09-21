@@ -11,7 +11,6 @@ from vaex.dataframe import DataFrame
 
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.base_logger import BaseLoggerAttributes
-from dataquality.schemas.split import Split
 from dataquality.utils import tqdm
 from dataquality.utils.hdf5_store import HDF5_STORE, HDF5Store
 from dataquality.utils.helpers import galileo_verbose_logging
@@ -89,9 +88,10 @@ def validate_unique_ids(df: DataFrame, epoch_or_inf_name: str) -> None:
         epoch_or_inf_value, split = df[[epoch_or_inf_name, "split"]][0]
         dups = get_dup_ids(df)
         exc = (
-            f"It seems as though you do not have unique ids in split {split}. If "
+            f"It seems your logged output data has duplicate ids in split {split}. If "
             f"you've re-run a block of code or notebook cell that logs model outputs, "
-            f"that could be the cause. Try reinitializing with `dq.init` to clear your "
+            f"that could be the cause. It could also be a misconfiguration in your "
+            f"model architecture. Try reinitializing with `dq.init` to clear your "
             f"local environment, and then logging your data again. "
         )
         if galileo_verbose_logging():
@@ -100,42 +100,6 @@ def validate_unique_ids(df: DataFrame, epoch_or_inf_name: str) -> None:
                 f"dup ids and counts: {dups}"
             )
         raise GalileoException(exc)
-
-
-def validate_ids_for_slice(df: DataFrame, col_name: str, value: str) -> None:
-    """Helper function to validate a slice of the logged df has unique ids
-
-    Slice data on the value of a vaex df column. This helper function only
-    validates ids for slice equal to "epoch" or "inference_name".
-
-    Fail gracefully on invalid ids or invalid slice
-    """
-    sliced_df = df[df[col_name] == value]
-    if col_name == "inference_name":
-        validate_unique_ids(sliced_df, "inference_name")
-    elif col_name == "split":
-        validate_unique_ids(sliced_df, "split")
-    else:
-        raise GalileoException(
-            f"Invalid data slice. Column: {col_name}, Value: {value}"
-        )
-
-
-def validate_ids_for_df(df: DataFrame) -> None:
-    """Helper function to validate the logged df has no duplicates
-
-    For each split and inference name, validate that the sliced
-    df has unique ids.
-
-    Raises GalileoExcpetion on invalid df
-    """
-    for split in df["split"].unique():
-        if split == Split.inference:
-            inf_df = df[df["split"] == split]
-            for inference_name in inf_df["inference_name"].unique():
-                validate_ids_for_slice(inf_df, "inference_name", inference_name)
-        else:
-            validate_ids_for_slice(df, "split", split)
 
 
 def get_dup_ids(df: DataFrame) -> List:
