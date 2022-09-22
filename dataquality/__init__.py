@@ -1,6 +1,6 @@
 "dataquality"
 
-__version__ = "v0.5.3"
+__version__ = "v0.5.4"
 
 import os
 import resource
@@ -33,7 +33,13 @@ from dataquality.schemas.predicate import (
     PredicateFilter,
 )
 from dataquality.utils.dq_logger import get_dq_log_file
-from dataquality.utils.helpers import check_noop
+from dataquality.utils.helpers import (
+    check_noop,
+    disable_galileo,
+    disable_galileo_verbose,
+    enable_galileo,
+    enable_galileo_verbose,
+)
 
 
 @check_noop
@@ -82,6 +88,10 @@ __all__ = [
     "Operator",
     "Predicate",
     "PredicateFilter",
+    "disable_galileo",
+    "disable_galileo_verbose",
+    "enable_galileo_verbose",
+    "enable_galileo",
 ]
 
 try:

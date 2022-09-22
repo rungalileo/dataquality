@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from enum import Enum, unique
 
 from pydantic import BaseModel
@@ -21,3 +22,9 @@ class FileType(str, Enum):
     parquet = "parquet"
     json = "json"
     csv = "csv"
+
+
+@dataclass
+class DFVar:
+    skip_upload: str = "skip_upload"
+    progress_name: str = "progress_name"
