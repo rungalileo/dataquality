@@ -106,7 +106,7 @@ class DQCallback(TrainerCallback):
 
         assert self.helper_data.get("embs") is not None,"Embedding passed to the logger can not be logged"
         assert self.helper_data.get("logits") is not None,"Logits passed to the logger can not be logged"
-        assert self.helper_data.get("id") is not None,"id column missing in dataset (needed to map rows to the indices/ids)"
+        assert self.helper_data.get("ids") is not None,"id column missing in dataset (needed to map rows to the indices/ids)"
 
         # 🔭🌕 Galileo logging
         self._dq.log_model_outputs(**self.helper_data)
