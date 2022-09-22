@@ -18,7 +18,7 @@ from dataquality.loggers.data_logger.base_data_logger import (
 )
 from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
 from dataquality.schemas import __data_schema_version__
-from dataquality.schemas.dataframe import BaseLoggerInOutFrames
+from dataquality.schemas.dataframe import BaseLoggerInOutFrames, DFVar
 from dataquality.schemas.ner import NERColumns as NERCols
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
@@ -586,6 +586,11 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         """
         cls._validate_duplicate_spans(out_frame, epoch_or_inf_name)
         prob, emb, _ = cls.split_dataframe(out_frame, prob_only)
+        # These df vars will be used in upload_in_out_frames
+        emb.set_variable(DFVar.skip_upload, prob_only)
+        in_frame.set_variable(DFVar.skip_upload, prob_only)
+        epoch_inf_val = out_frame[[epoch_or_inf_name]][0][0]
+        prob.set_variable(DFVar.progress_name, str(epoch_inf_val))
         return BaseLoggerInOutFrames(prob=prob, emb=emb, data=in_frame)
 
     @classmethod

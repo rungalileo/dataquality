@@ -21,7 +21,7 @@ class ObjectStore:
         object_name: str,
         file_path: str,
         content_type: str = "application/octet-stream",
-        progress: bool = True
+        progress: bool = True,
     ) -> None:
         url = api_client.get_presigned_url(
             project_id=object_name.split("/")[0],
@@ -34,7 +34,11 @@ class ObjectStore:
         )
 
     def _upload_file_from_local(
-        self, url: str, file_path: str, content_type: str = "application/octet-stream", progress: bool = True
+        self,
+        url: str,
+        file_path: str,
+        content_type: str = "application/octet-stream",
+        progress: bool = True,
     ) -> None:
         """_upload_file_from_local
 
@@ -66,7 +70,6 @@ class ObjectStore:
                     put_req(data=wrapped_file)
             else:
                 put_req(data=f)
-
 
     def create_project_run_object_from_df(
         self, df: DataFrame, object_name: str

@@ -17,7 +17,7 @@ from dataquality.clients.objectstore import ObjectStore
 from dataquality.core._config import config
 from dataquality.exceptions import GalileoException, GalileoWarning
 from dataquality.loggers.base_logger import BaseGalileoLogger, BaseLoggerAttributes
-from dataquality.schemas.dataframe import BaseLoggerInOutFrames
+from dataquality.schemas.dataframe import BaseLoggerInOutFrames, DFVar
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
 from dataquality.utils import tqdm
@@ -312,7 +312,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         emb = in_out_frames.emb
         data_df = in_out_frames.data
 
-        epoch_inf = prob.variables.pop("progress_name", "")
+        epoch_inf = prob.variables.pop(DFVar.progress_name, "")
 
         name = "inf_name" if split == Split.inference else "epoch"
         desc = f"{split} ({name}={epoch_inf})"
@@ -323,7 +323,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             leave=False,
             file=sys.stdout,
         ):
-            if df_obj.variables.get("skip_upload"):
+            if df_obj.variables.get(DFVar.skip_upload):
                 continue
 
             ext = cls.DATA_FOLDER_EXTENSION[data_folder]

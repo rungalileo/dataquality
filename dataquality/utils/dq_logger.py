@@ -72,7 +72,10 @@ def upload_dq_log_file() -> None:
     file_path = dq_log_file_path()
     if os.path.isfile(file_path):
         obj_store.create_project_run_object(
-            object_name=obj_name, file_path=file_path, content_type="text/plain", progress=False
+            object_name=obj_name,
+            file_path=file_path,
+            content_type="text/plain",
+            progress=False,
         )
         remove_dq_log_file()
 
