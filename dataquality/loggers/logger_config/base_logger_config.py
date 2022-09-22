@@ -1,4 +1,5 @@
-from typing import Any, Dict, Optional, Set
+from collections import defaultdict
+from typing import Any, DefaultDict, Dict, Optional, Set
 
 from pydantic import BaseModel, validator
 
@@ -22,8 +23,8 @@ class BaseLoggerConfig(BaseModel):
     inference_logged: bool = False
     exception: str = ""
     helper_data: Dict[str, Any] = {}
-    input_data_logged: int = 0
-    logged_input_ids: Dict[str, Set] = {}
+    input_data_logged: DefaultDict[str, int] = defaultdict(int)
+    logged_input_ids: DefaultDict[str, Set] = defaultdict(set)
 
     class Config:
         validate_assignment = True

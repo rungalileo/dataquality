@@ -1,3 +1,4 @@
+import glob
 import os
 import sys
 import warnings
@@ -54,10 +55,13 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     def input_data_path(self) -> str:
         return f"{self.write_output_dir()}/{BaseGalileoDataLogger.INPUT_DATA_BASE}"
 
-    def input_data_file(self, input_num: int = None) -> str:
+    def input_data_file(self, input_num: int = None, split: str = None) -> str:
+        if not split:
+            assert self.split
+            split = str(self.split)
         if input_num is None:
-            input_num = self.logger_config.input_data_logged
-        return f"{self.input_data_path()}_{input_num}.arrow"
+            input_num = self.logger_config.input_data_logged[split]
+        return f"{self.input_data_path()}/{split}/data_{input_num}.arrow"
 
     @abstractmethod
     def log_data_sample(self, *, text: str, id: int, **kwargs: Any) -> None:
@@ -87,7 +91,6 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
     def validate_ids_for_split(self, ids: List[int]) -> None:
         split = self.split_name()
-        print("HERE", split, ids, self.logger_config.logged_input_ids.get(split))
         exc = (
             "If you've re-run a block of code or notebook cell that logs model "
             "outputs, that could be the cause. Try reinitializing with `dq.init` "
@@ -101,17 +104,14 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             if galileo_verbose_logging():
                 exc += f"split:{split}, dup ids and counts: {dups}"
             raise GalileoException(exc)
-        if split not in self.logger_config.logged_input_ids:
-            self.logger_config.logged_input_ids[split] = set(ids)
         # This means some logged ids were already logged!
-        elif len(set(ids) - self.logger_config.logged_input_ids[split]) != len(ids):
+        if len(set(ids) - self.logger_config.logged_input_ids[split]) != len(ids):
             extra = [i for i in ids if i in self.logger_config.logged_input_ids[split]]
             exc = "Some ids in this dataset were already logged for this split. " + exc
             if galileo_verbose_logging():
                 exc += f"split:{split}, overlapping ids: {extra}"
             raise GalileoException(exc)
-        else:
-            self.logger_config.logged_input_ids[split].update(ids)
+        self.logger_config.logged_input_ids[split].update(ids)
 
     def log(self) -> None:
         """Writes input data to disk in .galileo/logs
@@ -120,8 +120,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         """
         self.validate()
         write_input_dir = self.write_output_dir()
-        if not os.path.exists(write_input_dir):
-            os.makedirs(write_input_dir)
+        os.makedirs(write_input_dir, exist_ok=True)
+        os.makedirs(f"{self.input_data_path()}/{self.split}", exist_ok=True)
 
         df = self._get_input_df()
         self.validate_data_size(df)
@@ -135,7 +135,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             df.export(file_path)
 
         df.close()
-        self.logger_config.input_data_logged += 1
+        self.logger_config.input_data_logged[str(self.split)] += 1
 
     def upload(self, last_epoch: Optional[int] = None) -> None:
         """
@@ -150,13 +150,15 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         proj_run = f"{config.current_project_id}/{config.current_run_id}"
         location = f"{self.LOG_FILE_DIR}/{proj_run}"
 
-        in_frame = vaex.open(f"{self.input_data_path()}*.arrow")
-        unique_splits = set(in_frame["split"].unique())
+        # in_frame = vaex.open(f"{self.input_data_path()}*.arrow")
+        # unique_splits = set(in_frame["split"].unique())
         for split in Split.get_valid_attributes():
             split_loc = f"{location}/{split}"
-            if not os.path.exists(split_loc):
+            input_logged = os.path.exists(f"{self.input_data_path()}/{split}")
+            output_logged = os.path.exists(split_loc)
+            if not output_logged:
                 continue
-            if split not in unique_splits:
+            if not input_logged:
                 warnings.warn(
                     f"There was output data logged for split {split} but no input data "
                     "logged. Skipping upload for this split as there are no samples "
@@ -164,8 +166,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                     GalileoWarning,
                 )
                 continue
-
-            in_frame_split = filter_df(in_frame, "split", split)
+            in_frame_split = vaex.open(f"{self.input_data_path()}/{split}/*.arrow")
             self.upload_split(
                 object_store, in_frame_split, split, split_loc, last_epoch
             )
@@ -191,30 +192,30 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         epochs_or_infs = epochs_or_infs[:last_epoch]
 
         # For each inference name or epoch of the given split
-        for split_run in tqdm(
+        for epoch_or_inf in tqdm(
             epochs_or_infs,
             total=len(epochs_or_infs),
             desc=split,
             file=sys.stdout,
         ):
-            in_frame_slice = in_frame.copy()
-            prob_only = cls.prob_only(epochs_or_infs, split, split_run)
+            input_batch = in_frame.copy()
+            prob_only = cls.prob_only(epochs_or_infs, split, epoch_or_inf)
             if split == Split.inference:
-                if not len(in_frame[in_frame["inference_name"] == split_run]):
+                if not len(in_frame[in_frame["inference_name"] == epoch_or_inf]):
                     warnings.warn(
-                        f"There was output data logged for inference_name {split_run} "
-                        "but no input data logged. Skipping upload for this inference "
-                        "run as there are no samples to join to.",
+                        "There was output data logged for inference_name "
+                        f"{epoch_or_inf} but no input data logged. Skipping upload for "
+                        "this inference run as there are no samples to join to.",
                         GalileoWarning,
                     )
                     continue
-                in_frame_slice = filter_df(in_frame_slice, "inference_name", split_run)
+                input_batch = filter_df(input_batch, "inference_name", epoch_or_inf)
 
-            dir_name = f"{split_loc}/{split_run}"
+            dir_name = f"{split_loc}/{epoch_or_inf}"
             in_out_frames = cls.create_in_out_frames(
-                in_frame_slice, dir_name, prob_only, split, split_run
+                input_batch, dir_name, prob_only, split, epoch_or_inf
             )
-            cls.upload_in_out_frames(object_store, in_out_frames, split, split_run)
+            cls.upload_in_out_frames(object_store, in_out_frames, split, epoch_or_inf)
 
     @classmethod
     def create_in_out_frames(
@@ -223,8 +224,22 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         dir_name: str,
         prob_only: bool,
         split: str,
-        split_run: Union[str, int],
+        epoch_or_inf: Union[str, int],
     ) -> BaseLoggerInOutFrames:
+        """Formats the input data and model output data
+
+        In this step, we concatenate the many hdf5 files created during model training
+        and logging. We log those in threaded processes, and here we combine them
+        into a single hdf5 file that vaex can read into a dataframe
+
+        :param in_frame: the input dataframe
+        :param dir_name: The directory of all of the output hdf5 files
+        :param prob_only: If we are only uploading probability data. We only upload
+            probability data for all epochs expect the last one (we dont use cross-epoch
+            embeddings currently, so we dont log them)
+        :param split: The split we are logging for
+        :param epoch_or_inf: The epoch or inference name we are logging for
+        """
         str_cols = concat_hdf5_files(dir_name, prob_only)
         out_frame = vaex.open(f"{dir_name}/{HDF5_STORE}")
 
@@ -243,7 +258,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                 split, length=len(out_frame), dtype="str"
             )
             out_frame[epoch_or_inf_name] = vaex.vconstant(
-                split_run, length=len(out_frame), dtype=dtype
+                epoch_or_inf, length=len(out_frame), dtype=dtype
             )
 
         return cls.process_in_out_frames(
@@ -260,9 +275,14 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     ) -> BaseLoggerInOutFrames:
         """Processes input and output dataframes from logging
 
-        Validates uniqueness of IDs in the dataframes
+        Validates uniqueness of IDs in the output dataframe
         Joins inputs and outputs
         Splits the dataframes into prob, emb, and data for uploading to minio
+
+        :param in_frame: The input dataframe
+        :param out_frame: The model output dataframe
+        :param prob_only: If we are only uploading probabilities, or everything
+        :param epoch_or_inf_name: The epoch or inference name we are uploading for
         """
         validate_unique_ids(out_frame, epoch_or_inf_name)
         in_out = _join_in_out_frames(in_frame, out_frame)
@@ -282,7 +302,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         object_store: ObjectStore,
         in_out_frames: BaseLoggerInOutFrames,
         split: str,
-        split_run: Union[str, int],
+        epoch_or_inf: Union[str, int],
     ) -> None:
         proj_run = f"{config.current_project_id}/{config.current_run_id}"
 
@@ -306,7 +326,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
             ext = cls.DATA_FOLDER_EXTENSION[data_folder]
             minio_file = (
-                f"{proj_run}/{split}/{split_run}/{data_folder}/{data_folder}.{ext}"
+                f"{proj_run}/{split}/{epoch_or_inf}/{data_folder}/{data_folder}.{ext}"
             )
             object_store.create_project_run_object_from_df(
                 df=df_obj, object_name=minio_file
@@ -314,13 +334,13 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
     @classmethod
     def prob_only(
-        cls, epochs: List[str], split: str, split_run: Union[int, str]
+        cls, epochs: List[str], split: str, epoch_or_inf_name: Union[int, str]
     ) -> bool:
         if split == Split.inference:
             return False
 
-        # If split is not inference, split_run must be epoch
-        epoch = int(split_run)
+        # If split is not inference, epoch_or_inf must be epoch
+        epoch = int(epoch_or_inf_name)
         # For all epochs that aren't the last 2 (early stopping), we only
         # want to upload the probabilities (for DEP calculation).
         max_epoch_for_split = max([int(i) for i in epochs])
@@ -431,13 +451,12 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     def validate_data_size(self, df: DataFrame) -> None:
         if not is_galileo_cloud():
             return
-        num_inputs = self.logger_config.input_data_logged
-        samples_logged = [
-            len(vaex.open(self.input_data_file(num))) for num in range(num_inputs)
-        ]
-        num_samples_logged = sum(samples_logged) + len(df)
+        samples_logged = len(df)
+        path_to_logged_data = f"{self.input_data_path()}/*/*arrow"
+        if glob.glob(path_to_logged_data):
+            samples_logged += len(vaex.open(f"{self.input_data_path()}/*/*arrow"))
         nrows = BaseGalileoDataLogger.MAX_DATA_SIZE_CLOUD
-        if num_samples_logged > nrows:
+        if samples_logged > nrows:
             warnings.warn(
                 f"⚠️ Hey there! You've logged over {nrows} rows in your input data. "
                 f"Galileo Cloud only supports up to {nrows} rows. "
