@@ -120,7 +120,7 @@ It tries to do this as quickly as possible in as lightweight a way as possible. 
 
 First, note that all logged data is written to disk until the user calls `dq.finish` at which point the input data is joined with the output data, validated, and uploaded to Galileo's data store
 
-The input and output data are logged separately, and logged differently.
+The input and output data are logged separately, and stored differently.
 
 ### Input data
 The input data is much more straightforward, because it's logged upfront and synchronously, before the model training begins.
@@ -132,7 +132,7 @@ The user has 3 ways of logging input data
 The input data varies depending on what you're doing, but generally contains the following
 * ids
 * text
-* labels (if inference)
+* labels (if not doing inference)
 * token indices (if NER)
 * input spans (if NER)
 
