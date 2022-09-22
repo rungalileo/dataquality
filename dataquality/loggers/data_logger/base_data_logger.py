@@ -97,16 +97,16 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             "to clear your local environment, and then logging your data again. Call "
             "`dq.enable_galileo_verbose()` to see the duplicate IDs"
         )
-
-        if len(set(ids)) != len(ids):
+        id_set = set(ids)
+        if len(id_set) != len(ids):
             exc = "It seems you do not have unique ids in this logged data. " + exc
             dups = {k: v for k, v in Counter(ids).items() if v > 1}
             if galileo_verbose_logging():
                 exc += f"split:{split}, dup ids and counts: {dups}"
             raise GalileoException(exc)
         # This means some logged ids were already logged!
-        if len(set(ids) - self.logger_config.logged_input_ids[split]) != len(ids):
-            extra = [i for i in ids if i in self.logger_config.logged_input_ids[split]]
+        if len(id_set - self.logger_config.logged_input_ids[split]) != len(ids):
+            extra = self.logger_config.logged_input_ids[split].intersection(id_set)
             exc = "Some ids in this dataset were already logged for this split. " + exc
             if galileo_verbose_logging():
                 exc += f"split:{split}, overlapping ids: {extra}"
