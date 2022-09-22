@@ -1,3 +1,4 @@
+import getpass
 import os
 import webbrowser
 
@@ -45,7 +46,7 @@ class _Auth:
         except Exception:
             pass
         print(f"Go to {token_url} to generate a new API Key")
-        access_token = input("🔐 Enter your API Key:")
+        access_token = getpass.getpass("🔐 Enter your API Key:")
         config.token = access_token
         config.update_file_config()
 
