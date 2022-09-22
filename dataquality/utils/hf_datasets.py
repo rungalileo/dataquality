@@ -11,5 +11,6 @@ def load_pandas_df(data: Dataset) -> pd.DataFrame:
     # Load the train data into a frame
     data_df = pd.DataFrame.from_dict(data)
     data_df["label"] = data_df["label"].map(labels)
-    data_df["id"] = data_df.index
+    if not data_df.get("id"):
+        data_df["id"] = data_df.index
     return data_df

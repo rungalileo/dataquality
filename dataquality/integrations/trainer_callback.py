@@ -41,8 +41,8 @@ class DQCallback(TrainerCallback):
         self.tokenizer = kwargs["tokenizer"]
 
         # 🔭🌕 Galileo logging
-        assert("id" in train_dataloader.dataset.column_names, "id column is needed for logging")
-        dq.log_dataset(train_dataloader.dataset,split=Split.train) #id=train_dataloader.dataset["idx"]
+        assert "id" in train_dataloader.dataset.column_names, "id column is needed for logging"
+        dq.log_dataset(load_pandas_df(train_dataloader.dataset),split=Split.train) #id=train_dataloader.dataset["idx"]
         # convert to pandas not needed
         if getattr(eval_dataloader, "dataset", False):
             dq.log_dataset(
@@ -104,9 +104,9 @@ class DQCallback(TrainerCallback):
         """
         # Log only if embedding exists
 
-        assert(self.helper_data.get("embs") is not None,"Embedding passed to the logger can not be logged")
-        assert(self.helper_data.get("logits") is not None,"Logits passed to the logger can not be logged")
-        assert(self.helper_data.get("id") is not None,"id column missing in dataset (needed to map rows to the indices/ids)")
+        assert self.helper_data.get("embs") is not None,"Embedding passed to the logger can not be logged"
+        assert self.helper_data.get("logits") is not None,"Logits passed to the logger can not be logged"
+        assert self.helper_data.get("id") is not None,"id column missing in dataset (needed to map rows to the indices/ids)"
 
         # 🔭🌕 Galileo logging
         self._dq.log_model_outputs(**self.helper_data)
