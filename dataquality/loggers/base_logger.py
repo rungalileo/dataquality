@@ -87,6 +87,19 @@ class BaseGalileoLogger:
 
     def __init__(self) -> None:
         self.split: Optional[str] = None
+        self.inference_name: Optional[str] = None
+
+    def write_output_dir(self) -> str:
+        return (
+            f"{BaseGalileoLogger.LOG_FILE_DIR}/{config.current_project_id}/"
+            f"{config.current_run_id}"
+        )
+
+    def split_name(self) -> str:
+        split = self.split
+        if split == Split.inference:
+            split = f"{split}_{self.inference_name}"
+        return str(split)
 
     @staticmethod
     def get_valid_attributes() -> List[str]:
@@ -186,6 +199,11 @@ class BaseGalileoLogger:
         if TORCH_AVAILABLE:
             if isinstance(v, Tensor):
                 v = int(v.numpy())  # Torch tensors cannot hold strings
+        if isinstance(v, np.ndarray):
+            if np.issubdtype(v, np.integer):
+                v = int(v)
+            else:
+                v = str(int(v))
         if not isinstance(v, (int, str)):
             raise GalileoException(
                 f"Logged data should be of type int, string, pytorch tensor, "
@@ -204,7 +222,7 @@ class BaseGalileoLogger:
     @classmethod
     def _cleanup(cls) -> None:
         """
-        Cleans up the current run data locally
+        Cleans up the current run data and metadata locally
         """
         assert config.current_project_id
         assert config.current_run_id
@@ -218,9 +236,9 @@ class BaseGalileoLogger:
                 os.remove(path)
             else:
                 shutil.rmtree(path)
+        cls.logger_config.reset()
 
-    @classmethod
-    def upload(cls) -> None:
+    def upload(self) -> None:
         ...
 
     @classmethod

@@ -75,7 +75,7 @@ def test_duplicate_outputs_rows(set_test_config, cleanup_after_use) -> None:
     with pytest.raises(GalileoException) as e:
         dq.get_data_logger().upload()
 
-    assert str(e.value).startswith("It seems as though you do not have unique ids")
+    assert str(e.value).startswith("It seems your logged output data has duplicate ids")
 
 
 def test_log_data_sample(

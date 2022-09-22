@@ -244,7 +244,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
             )
         else:
             raise GalileoException(
-                f"Dataset must be one of pandas, vaex, or Iterable, "
+                f"Dataset must be one of pandas, vaex, HF, or Iterable, "
                 f"but got {type(dataset)}"
             )
 
