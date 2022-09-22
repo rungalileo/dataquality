@@ -20,7 +20,7 @@ lock = threading.Lock()
 
 def _save_hdf5_file(location: str, file_name: str, data: Dict) -> None:
     """
-    Helper function to save a dictionary as an hdf5 file
+    Helper function to save a dictionary as an hdf5 file that can be read by vaex
     """
     if not os.path.isdir(location):
         with lock:
@@ -160,7 +160,7 @@ def concat_hdf5_files(location: str, prob_only: bool) -> List[str]:
     for file in tqdm(
         files,
         leave=False,
-        desc="Combining batches for upload",
+        desc="Processing data for upload",
         file=sys.stdout,
     ):
         fname = f"{location}/{file}"
@@ -187,12 +187,17 @@ def concat_hdf5_files(location: str, prob_only: bool) -> List[str]:
 
 def drop_empty_columns(df: DataFrame) -> DataFrame:
     """Drops any columns that have no values"""
+    if len(df) == 0:
+        return df
+    df_copy = df.copy()
     cols = df.get_column_names()
     # Don't need to check the default columns, they've already been validated
     cols = [c for c in cols if c not in list(BaseLoggerAttributes)]
     col_counts = df.count(cols)
     empty_cols = [col for col, col_count in zip(cols, col_counts) if col_count == 0]
-    return df.drop(*empty_cols) if empty_cols else df
+    for c in empty_cols:
+        df_copy = df_copy.drop(c)
+    return df_copy
 
 
 def filter_df(df: DataFrame, col_name: str, value: str) -> DataFrame:

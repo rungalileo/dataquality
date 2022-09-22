@@ -1,6 +1,11 @@
+import os
+import sys
+from functools import partial
 from tempfile import NamedTemporaryFile
 
 import requests
+from tqdm.auto import tqdm
+from tqdm.utils import CallbackIOWrapper
 from vaex.dataframe import DataFrame
 
 from dataquality.core.auth import api_client
@@ -16,6 +21,7 @@ class ObjectStore:
         object_name: str,
         file_path: str,
         content_type: str = "application/octet-stream",
+        progress: bool = True
     ) -> None:
         url = api_client.get_presigned_url(
             project_id=object_name.split("/")[0],
@@ -24,11 +30,11 @@ class ObjectStore:
             object_name=object_name,
         )
         self._upload_file_from_local(
-            url=url, file_path=file_path, content_type=content_type
+            url=url, file_path=file_path, content_type=content_type, progress=progress
         )
 
     def _upload_file_from_local(
-        self, url: str, file_path: str, content_type: str = "application/octet-stream"
+        self, url: str, file_path: str, content_type: str = "application/octet-stream", progress: bool = True
     ) -> None:
         """_upload_file_from_local
 
@@ -40,9 +46,27 @@ class ObjectStore:
         Returns:
             None
         """
-        requests.put(
-            url=url, data=open(file_path, "rb"), headers={"content-type": content_type}
-        )
+        # https://gist.github.com/tyhoff/b757e6af83c1fd2b7b83057adf02c139
+        open_type = "r" if content_type.startswith("text") else "rb"
+
+        put_req = partial(requests.put, url, headers={"content-type": content_type})
+        with open(file_path, open_type) as f:
+            if progress:
+                file_size = os.stat(file_path).st_size
+                with tqdm(
+                    total=file_size,
+                    unit="B",
+                    unit_scale=True,
+                    unit_divisor=1024,
+                    file=sys.stdout,
+                    desc="Uploading data to Galileo",
+                    leave=False,
+                ) as t:
+                    wrapped_file = CallbackIOWrapper(t.update, f, "read")
+                    put_req(data=wrapped_file)
+            else:
+                put_req(data=f)
+
 
     def create_project_run_object_from_df(
         self, df: DataFrame, object_name: str

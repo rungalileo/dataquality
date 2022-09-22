@@ -1,5 +1,6 @@
 import glob
 import os
+import shutil
 import sys
 import warnings
 from abc import abstractmethod
@@ -164,10 +165,13 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                     GalileoWarning,
                 )
                 continue
-            in_frame_split = vaex.open(f"{self.input_data_path()}/{split}/*.arrow")
+            in_frame_path = f"{self.input_data_path()}/{split}"
+            in_frame_split = vaex.open(f"{in_frame_path}/*.arrow")
             self.upload_split(
                 object_store, in_frame_split, split, split_loc, last_epoch
             )
+            in_frame_split.close()
+            shutil.rmtree(in_frame_path)
 
     @classmethod
     def upload_split(
@@ -199,7 +203,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             input_batch = in_frame.copy()
             prob_only = cls.prob_only(epochs_or_infs, split, epoch_or_inf)
             if split == Split.inference:
-                if not len(in_frame[in_frame["inference_name"] == epoch_or_inf]):
+                input_batch = filter_df(input_batch, "inference_name", epoch_or_inf)
+                if not len(input_batch):
                     warnings.warn(
                         "There was output data logged for inference_name "
                         f"{epoch_or_inf} but no input data logged. Skipping upload for "
@@ -207,7 +212,6 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                         GalileoWarning,
                     )
                     continue
-                input_batch = filter_df(input_batch, "inference_name", epoch_or_inf)
 
             dir_name = f"{split_loc}/{epoch_or_inf}"
             in_out_frames = cls.create_in_out_frames(
