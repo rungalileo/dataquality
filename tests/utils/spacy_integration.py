@@ -36,14 +36,11 @@ def train_model(
 
     # Galileo code
     watch(nlp)
-    print("First call to log input")
     log_input_examples(training_examples, "training")
     log_input_examples(training_examples, "test")
 
     training_losses = []
-    # with nlp.disable_pipes(*[pipe for pipe in nlp.pipe_names if pipe != "ner"]):
     for itn in range(num_epochs):
-        print(f"Starting epoch {itn}")
         dataquality.set_epoch(itn)
         batches = minibatch(training_examples, minibatch_size)
 
@@ -51,7 +48,6 @@ def train_model(
         for batch in tqdm(batches):
             training_loss = nlp.update(batch, drop=0.5, sgd=optimizer)
             training_losses.append(training_loss["ner"])
-        print(training_loss["ner"])
 
         dataquality.set_split("test")
         nlp.evaluate(training_examples, batch_size=minibatch_size)

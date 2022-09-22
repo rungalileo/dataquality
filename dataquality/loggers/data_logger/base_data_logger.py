@@ -150,8 +150,6 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         proj_run = f"{config.current_project_id}/{config.current_run_id}"
         location = f"{self.LOG_FILE_DIR}/{proj_run}"
 
-        # in_frame = vaex.open(f"{self.input_data_path()}*.arrow")
-        # unique_splits = set(in_frame["split"].unique())
         for split in Split.get_valid_attributes():
             split_loc = f"{location}/{split}"
             input_logged = os.path.exists(f"{self.input_data_path()}/{split}")
