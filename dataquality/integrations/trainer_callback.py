@@ -41,7 +41,7 @@ class DQCallback(TrainerCallback):
         self.tokenizer = kwargs["tokenizer"]
 
         # 🔭🌕 Galileo logging
-
+        assert(train_dataloader.dataset.get("id",None) is not None,"id column is needed for logging")
         dq.log_dataset(train_dataloader.dataset,split=Split.train) #id=train_dataloader.dataset["idx"]
         # convert to pandas not needed
         if getattr(eval_dataloader, "dataset", False):
@@ -106,7 +106,7 @@ class DQCallback(TrainerCallback):
 
         assert(self.helper_data.get("embs",None) is not None,"Embedding passed to the logger can not be logged")
         assert(self.helper_data.get("logits",None) is not None,"Logits passed to the logger can not be logged")
-        assert(self.helper_data.get("idx",None) is not None,"idx column missing in dataset (needed to map rows to the indices/ids)")
+        assert(self.helper_data.get("id",None) is not None,"id column missing in dataset (needed to map rows to the indices/ids)")
 
         # 🔭🌕 Galileo logging
         self._dq.log_model_outputs(**self.helper_data)
@@ -131,17 +131,16 @@ class DQCallback(TrainerCallback):
         # log the output logits
         self.helper_data["logits"] = model_output.logits.detach()
 
-    def add_idx_col(self, dataset:Dataset) -> None:
-       dataset  = dataset.add_column("idx",list(range(len(dataset))))
-       dataset  = dataset.add_column("id",list(range(len(dataset))))
-       return dataset
+    def add_id_col(self, dataset:Dataset) -> None:
+        dataset  = dataset.add_column("id",list(range(len(dataset))))
+        return dataset
 
     # workaround to save the idx
     # TODO: find cleaner way
     # ADD arguments
     def collate_fn(self, rows: List[Dict]) -> Dict[str, Any]:
         # in: ['text', 'label', 'idx', 'input_ids', 'attention_mask']
-        indices = [row.get("idx") for row in rows]
+        indices = [row.get("id") for row in rows]
         self.helper_data["ids"] = indices
         cleaned_rows = [
             {
