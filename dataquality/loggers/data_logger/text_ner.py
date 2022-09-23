@@ -565,6 +565,14 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         df = vaex.from_dict(inp)
         return df
 
+    def convert_large_string(self, df: DataFrame) -> DataFrame:
+        """NER writes the input data to an arrow file, not hdf5, so we don't cast
+
+        vaex cannot write large_string columns to arrow files:
+        https://github.com/vaexio/vaex/issues/2217
+        """
+        return df
+
     @classmethod
     def process_in_out_frames(
         cls,

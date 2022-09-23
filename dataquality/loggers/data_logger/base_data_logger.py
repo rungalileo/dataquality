@@ -1,7 +1,9 @@
+import gc
 import glob
 import os
 import shutil
 import sys
+import time
 import warnings
 from abc import abstractmethod
 from collections import Counter
@@ -44,6 +46,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     MAX_STR_LEN = 100  # Max characters in a string metadata attribute
     INPUT_DATA_BASE = "input_data"
     MAX_DATA_SIZE_CLOUD = 300_000
+    # 2GB max size for arrow strings. We use 1.5GB for some buffer
+    STRING_MAX_SIZE_B = 1.5e9
 
     DATA_FOLDER_EXTENSION = {data_folder: "hdf5" for data_folder in DATA_FOLDERS}
 
@@ -166,11 +170,32 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                 continue
             in_frame_path = f"{self.input_data_path()}/{split}"
             in_frame_split = vaex.open(f"{in_frame_path}/*.arrow")
+            in_frame_split = self.convert_large_string(in_frame_split)
             self.upload_split(
                 object_store, in_frame_split, split, split_loc, last_epoch
             )
             in_frame_split.close()
+            del in_frame_split
             shutil.rmtree(in_frame_path)
+            gc.collect()
+        # TODO Remove
+        print("Done uploading. Sleeping for 10 seconds...")
+        time.sleep(10)
+
+    def convert_large_string(self, df: DataFrame) -> DataFrame:
+        """Cast regular string to large_string for the text column
+
+        Arrow strings have a max size of 2GB, so in order to export to hdf5 and
+        join the strings in the text column, we upcast to a large string.
+
+        We only do this for types that write to HDF5 files
+        """
+        df_copy = df.copy()
+        # Characters are each 1 byte. If more bytes than max, it needs to be large_string
+        text_bytes = df_copy["text"].str.len().sum()
+        if text_bytes > self.STRING_MAX_SIZE_B:
+            df_copy["text"] = df_copy["text"].to_arrow().cast(pa.large_string())
+        return df_copy
 
     @classmethod
     def upload_split(
@@ -322,7 +347,9 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             leave=False,
             file=sys.stdout,
         ):
+            print(f"about to upload {data_folder}")
             if df_obj.variables.get(DFVar.skip_upload):
+                print("fskipping upload for {data_folder}")
                 continue
 
             ext = cls.DATA_FOLDER_EXTENSION[data_folder]
