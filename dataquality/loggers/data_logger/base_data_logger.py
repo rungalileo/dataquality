@@ -347,9 +347,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             leave=False,
             file=sys.stdout,
         ):
-            print(f"about to upload {data_folder}")
             if df_obj.variables.get(DFVar.skip_upload):
-                print("fskipping upload for {data_folder}")
                 continue
 
             ext = cls.DATA_FOLDER_EXTENSION[data_folder]
