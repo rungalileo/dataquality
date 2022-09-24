@@ -204,4 +204,4 @@ def init(
             overwrite_local=overwrite_local,
         )
     # Reset all config variables
-    dataquality.get_data_logger().logger_config.reset(hard=True)
+    dataquality.get_data_logger().logger_config.reset(factory=True)
