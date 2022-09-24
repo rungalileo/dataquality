@@ -27,8 +27,10 @@ class TextNERLoggerConfig(BaseLoggerConfig):
             labels = [labels[0], f"NOT_{labels[0]}"]
         return labels
 
-    def reset(self) -> None:
+    def reset(self, hard: bool = False) -> None:
         """Don't clear the "ner" or "ner_config" variables if they are set"""
+        if hard:
+            return super().reset()
         nlp = None
         ner_config = None
         if self.helper_data.get("nlp") is not None:
