@@ -10,6 +10,5 @@ except ImportError:
 
 def is_tf_2() -> bool:
     if TF_AVAILABLE:
-        print("HERE cehcking", __version__)
         return version.parse(__version__).major == 2  # type: ignore
     return False
