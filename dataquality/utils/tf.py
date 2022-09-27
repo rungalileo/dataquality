@@ -1,4 +1,4 @@
-from pkg_resources import parse_version  # type: ignore
+from packaging import version
 
 try:
     from tensorflow import __version__
@@ -10,5 +10,5 @@ except ImportError:
 
 def is_tf_2() -> bool:
     if TF_AVAILABLE:
-        return parse_version(__version__) == 2
+        return version.parse(__version__).major == 2
     return False
