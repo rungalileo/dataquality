@@ -1,3 +1,4 @@
+import inspect
 from typing import Any, Dict, List
 
 from torch.nn import Module
@@ -6,12 +7,21 @@ from transformers.trainer_callback import TrainerCallback  # noqa: E402
 from transformers.trainer_callback import TrainerControl, TrainerState
 from transformers.training_args import TrainingArguments  # noqa: E402
 
+from datasets import Dataset 
+
+
 import dataquality as dq
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.split import Split
 from dataquality.utils.hf_datasets import load_pandas_df
 
-from datasets import Dataset 
+
+# Imports for the hook manager
+from queue import PriorityQueue
+from queue import Queue
+
+
+
 # Trainer callback for Huggingface transformers Trainer library
 class DQCallback(TrainerCallback):
     """
@@ -21,11 +31,20 @@ class DQCallback(TrainerCallback):
     def __init__(self) -> None:
         self.helper_data = dq.get_model_logger().logger_config.helper_data
         self._initialized = False
+        self.hook_manager = HookManager()
 
     def _clear_logger_config_helper_data(self) -> None:
         self.helper_data["embs"] = None
         self.helper_data["probs"] = None
         self.helper_data["logits"] = None
+
+    def on_init_end(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
+        """
+        Event called at the end of the initialization of the [`Trainer`].
+        """
+        pass
+        
+
 
     def setup(
         self, args: TrainingArguments, state: TrainerState, model: Module, kwargs: Any
@@ -112,45 +131,170 @@ class DQCallback(TrainerCallback):
         self._dq.log_model_outputs(**self.helper_data)
 
     def _attach_hooks_to_model(self, model: Module) -> None:
-        next(model.children()).register_forward_hook(self._embedding_hook)
-        model.register_forward_hook(self._logit_hook)
-
+      self.hook_manager.attach_embedding_hook(model,None,self._embedding_hook)
+      self.hook_manager.attach_hook(model,self._logit_hook)
+      
     def _embedding_hook(
         self, model: Module, model_input: Any, model_output: Any
     ) -> None:
         #TODO EMBEDDING CHECK
-        if hasattr(model_input,"last_hidden_state"):
-            output_detached = model_input.last_hidden_state.detach()
-        else:
+        #TODO optional number embedding check
+        if hasattr(model_output,"last_hidden_state"):
             output_detached = model_output.last_hidden_state.detach()
-
-
+        else:
+            output_detached = model_output.detach()
+        if len(output_detached.shape) == 3:
+          print("initial_embedding shape",output_detached.shape)
+          output_detached = output_detached[:, 0]
         self.helper_data["embs"] = output_detached[:, 0]
 
     def _logit_hook(self, model: Module, model_input: Any, model_output: Any) -> None:
         # log the output logits
-        self.helper_data["logits"] = model_output.logits.detach()
+        if hasattr(model_output,"logits"):
+          logits = model_output.logits
+        else:
+          logits = model_output
+        self.helper_data["logits"] = logits.detach()
 
     def add_id_col(self, dataset:Dataset) -> None:
         dataset  = dataset.add_column("id",list(range(len(dataset))))
         return dataset
 
-    # workaround to save the idx
-    # TODO: find cleaner way
-    # ADD arguments
-    def collate_fn(self, rows: List[Dict]) -> Dict[str, Any]:
-        # in: ['text', 'label', 'idx', 'input_ids', 'attention_mask']
-        #assert (rows[0].get("id") is not None,"id column is missing ")
-        indices = [row.get("id") for row in rows]
-        self.helper_data["ids"] = indices
-        cleaned_rows = [
-            {
-                "label": row.get("label"),
-                "input_ids": row.get("input_ids"),
-                "attention_mask": row.get("attention_mask"),
-            }
-            for row in rows
-        ]
 
-        # out: ['label', 'input_ids', 'attention_mask']
-        return DataCollatorWithPadding(self.tokenizer)(cleaned_rows)
+class HookManager:
+  """
+  Manages hooks for models. Has the ability to find the layer automatically.
+  Otherwise the layer or the layer name needs to be provided.
+  """
+  hooks = []
+
+  def scoring_algorithm(self, layer_pos,level,model_name,layer_name):
+    """
+    The higher the score the more likely it is the embedding layer
+    inputs are:
+    layer_pos is the number of the layer
+    level is the depth of the layer
+    model_name is the name of the class
+    layer_name is the name of the layer
+    """
+    score = 0
+    embed = False
+    if "embed" in layer_name.lower():
+      embed = True
+      score +=1.5
+    if "embed" in model_name.lower():
+      embed = True
+      score +=1
+    if "embedding" == model_name.lower():
+      embed = True
+      score +=1/8
+    if "embedding" == layer_name.lower():
+      embed = True
+      score +=1/8
+    # workaround to reduce impact of level / position scoriing
+    if embed and level  / 5.5 > score:
+      score -= level  / 7.5
+    elif embed:
+      score = score - level /  5.5
+    if embed:
+      score -=  layer_pos/2.53
+    # to avoid collision in the priorityqueue 
+    # TODO: test with a model that doesn't have an embedding layer
+    return score - (level*10 + layer_pos) /1000
+
+
+  def get_embedding_layer_auto(self, model):
+    """
+    Use the scoring algorithm in our breadth first search on the model.
+    """
+    # keeps track of model layers
+    queue: Queue = Queue()
+    # the start is the name / children of the model + the current layer level
+    start = (model.named_children(),0)
+    queue.put(start)
+    #find the top choices for the embeddinglayer
+    embeddings_layers = PriorityQueue()
+
+    while not queue.empty():
+      named_children,level = queue.get()
+      layer_pos = 0
+      for layer_name,layer_model in named_children:
+        model_name = layer_model._get_name()
+        score = self.scoring_algorithm(layer_pos,level,model_name,layer_name)
+        if score > 0:
+          #negative score because priorityqueue is reverse
+          embeddings_layers.put((-score,(layer_model,level)))
+        queue.put((layer_model.named_children(),level+1))
+        layer_pos+=1
+    print("Complete")
+    el = embeddings_layers.get()
+    return el[1]
+
+
+  def get_embedding_layer_by_name(self, model,name):
+    """
+    Iterate over each layer and stop once the the layer name matches
+    """
+    queue: Queue = Queue()
+    start = model.named_children()
+    queue.put(start)
+    while not queue.empty():
+      named_children = queue.get()
+      for layer_name,layer_model in named_children:
+        if layer_name == name:
+          return layer_model
+        model_name = layer_model._get_name()
+        queue.put(layer_model.named_children())
+    # TODO: raise found layers
+    # TODO: use galileo exception
+    raise "Layer could not be found, make sure to check capitalization"
+
+  def attach_embedding_hook(self,model,model_layer=None,embedding_hook=print):
+    """attach hook and save it in our hook list"""
+    if model_layer == None:
+      selected_layer = self.get_embedding_layer_auto(model)
+    elif type(model_layer) == str:
+      selected_layer = self.get_embedding_layer_by_name(model_layer)
+    else:
+      selected_layer = model_layer
+    h = self.attach_hook(selected_layer,embedding_hook)
+    return h
+
+  def attach_hook(self,selected_layer,hook):
+    h = selected_layer.register_forward_hook(hook)
+    self.hooks.append(h)
+    return h
+
+  def remove_hook(self):
+    for h in self.hooks:
+      h.remove()
+
+
+def add_signature_columns(trainer):
+  if trainer._signature_columns is None:
+    # Inspect model forward signature to keep only the arguments it accepts.
+    signature = inspect.signature(trainer.model.forward)
+    trainer._signature_columns = list(signature.parameters.keys())
+    # Labels may be named label or label_ids, the default data collator handles that.
+    trainer._signature_columns += ["label", "label_ids"]
+  if "id" not in trainer._signature_columns:
+    trainer._signature_columns.append("id")
+
+def remove_id_collate(function,store):
+  """Removes the id from dict and passes it on.
+    Simulates our logging of the id"""
+  def remove_id(rows):
+      "wrapper function"
+      store["ids"] = [row.pop("id",None) for row in rows]
+      return function(rows)
+
+  return remove_id
+
+
+def watch(trainer):
+  dqcallback = DQCallback()
+  add_signature_columns(trainer)
+  trainer.data_collator = remove_id_collate(trainer.data_collator,dqcallback.helper_data) 
+  trainer.add_callback(dqcallback)
+
+  

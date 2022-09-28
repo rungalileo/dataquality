@@ -119,6 +119,7 @@ def test_end_to_end_with_callback(
     args =  copy.deepcopy(args_default)
     # 🔭🌕 Galileo logging
     dqcallback = DQCallback()
+    #TODO: double check the labels 
     encoded_train_dataset = dqcallback.add_idx_col(encoded_train_dataset)
     encoded_test_dataset = dqcallback.add_idx_col(encoded_test_dataset)
     args.remove_unused_columns = False
@@ -135,6 +136,8 @@ def test_end_to_end_with_callback(
     )
 
     trainer.train()
+    # TODO: test with finish
+    dq.finish()
 
 @patch("requests.post", side_effect=mocked_create_project_run)
 @patch("requests.get", side_effect=mocked_get_project_run)
@@ -152,7 +155,11 @@ def test_remove_unused_columns(
     dq.init(task_type="text_classification")
     logger = dq.get_data_logger()
     args =  copy.deepcopy(args_default)
-    dqcallback = DQCallback()
+
+    callback_args = {"embedding_layer":"str|layer?"}
+    #optional, default search layer is there
+    #log found layer xyz
+    dqcallback = DQCallback(**callback_args)
     trainer = Trainer(
         model,
         args,
