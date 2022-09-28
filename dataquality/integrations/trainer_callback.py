@@ -49,10 +49,6 @@ class DQCallback(TrainerCallback):
     def setup(
         self, args: TrainingArguments, state: TrainerState, model: Module, kwargs: Any
     ) -> None:
-        if args.remove_unused_columns is None or args.remove_unused_columns:
-            raise GalileoException(
-                "TrainerArgument remove_unused_columns must be false"
-            )
         self._dq = dq
         self._attach_hooks_to_model(model)
         eval_dataloader = kwargs["eval_dataloader"]
@@ -60,7 +56,9 @@ class DQCallback(TrainerCallback):
         self.tokenizer = kwargs["tokenizer"]
 
         # 🔭🌕 Galileo logging
-        assert "id" in train_dataloader.dataset.column_names, "id column is needed for logging"
+        assert "id" in train_dataloader.dataset.column_names, GalileoException(
+                "id column is needed for logging"
+            )
         dq.log_dataset(load_pandas_df(train_dataloader.dataset),split=Split.train) #id=train_dataloader.dataset["idx"]
         # convert to pandas not needed
         if getattr(eval_dataloader, "dataset", False):
@@ -123,9 +121,9 @@ class DQCallback(TrainerCallback):
         """
         # Log only if embedding exists
 
-        assert self.helper_data.get("embs") is not None,"Embedding passed to the logger can not be logged"
-        assert self.helper_data.get("logits") is not None,"Logits passed to the logger can not be logged"
-        assert self.helper_data.get("ids") is not None,"id column missing in dataset (needed to map rows to the indices/ids)"
+        assert self.helper_data.get("embs") is not None,GalileoException("Embedding passed to the logger can not be logged")
+        assert self.helper_data.get("logits") is not None,GalileoException("Logits passed to the logger can not be logged")
+        assert self.helper_data.get("ids") is not None,GalileoException("id column missing in dataset (needed to map rows to the indices/ids)")
 
         # 🔭🌕 Galileo logging
         self._dq.log_model_outputs(**self.helper_data)
