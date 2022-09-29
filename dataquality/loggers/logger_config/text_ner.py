@@ -34,15 +34,20 @@ class TextNERLoggerConfig(BaseLoggerConfig):
             return super().reset()
         nlp = None
         ner_config = None
+        sample_span_content = None
         if self.helper_data.get("nlp") is not None:
             nlp = self.helper_data["nlp"]
         if self.helper_data.get("ner_config") is not None:
             ner_config = self.helper_data["ner_config"]
+        if self.sample_span_content:
+            sample_span_content = self.sample_span_content
         super().reset()
         if nlp is not None:
             self.helper_data["nlp"] = nlp
         if ner_config is not None:
             self.helper_data["ner_config"] = ner_config
+        if sample_span_content is not None:
+            self.sample_span_content = sample_span_content
 
 
 text_ner_logger_config = TextNERLoggerConfig()
