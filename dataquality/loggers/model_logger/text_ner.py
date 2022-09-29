@@ -173,6 +173,11 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             sample_emb = self._convert_tensor_ndarray(sample_emb)
             if self._process_sample(sample_id, sample_emb, sample_prob):
                 logged_sample_ids.append(sample_id)
+                self.logger_config.sample_span_content[sample_id] = {
+                    "span_gold_deps": self.gold_dep[-1],
+                    "span_pred_deps": self.pred_dep[-1],
+                    "span_probs": sample_prob,
+                }
 
         self.ids = logged_sample_ids
         if not self.ids:
