@@ -171,13 +171,16 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         for sample_id, sample_emb, sample_prob in zip(self.ids, self.embs, self.probs):
             # This will return True if there was a prediction or gold span
             sample_emb = self._convert_tensor_ndarray(sample_emb)
+            self.logger_config.cur_sample_id = sample_id
             if self._process_sample(sample_id, sample_emb, sample_prob):
                 logged_sample_ids.append(sample_id)
-                self.logger_config.sample_span_content[sample_id] = {
-                    "span_gold_deps": self.gold_dep[-1],
-                    "span_pred_deps": self.pred_dep[-1],
-                    "span_probs": sample_prob,
-                }
+                self.logger_config.sample_span_content[sample_id].update(
+                    {
+                        "span_gold_deps": self.gold_dep[-1],
+                        "span_pred_deps": self.pred_dep[-1],
+                        "span_probs": sample_prob,
+                    }
+                )
 
         self.ids = logged_sample_ids
         if not self.ids:
@@ -211,6 +214,13 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             dict(start=start, end=end, label=label)
             for start, end, label in gold_span_tup
         ]
+        # Save the pred and gold spans at token level here
+        self.logger_config.sample_span_content[sample_id].update(
+            {
+                "gold_spans_boundaries": sample_gold_spans,
+                "pred_spans_boundaries": sample_pred_spans,
+            }
+        )
         # If there were no golds and no preds for a sample, don't log this sample
         if not sample_pred_spans and not sample_gold_spans:
             return False
@@ -497,6 +507,11 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             self.logger_config.labels[x] for x in argmax_indices
         ][0:sample_token_len]
         gold_sequence = self._construct_gold_sequence(len(pred_sequence), gold_spans)
+
+        # Save the gold sequence for the sample id
+        sid = self.logger_config.cur_sample_id
+        self.logger_config.sample_span_content[sid]["gold_sequence"] = gold_sequence
+
         # Store dep scores for every token in the sample
         dep_scores_tokens = []
         for idx, token in enumerate(gold_sequence):

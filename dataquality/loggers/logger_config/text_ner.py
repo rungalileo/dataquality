@@ -1,4 +1,5 @@
-from typing import Dict, List, Tuple
+from collections import defaultdict
+from typing import DefaultDict, Dict, List, Tuple
 
 import numpy as np
 from pydantic import validator
@@ -9,7 +10,8 @@ from dataquality.loggers.logger_config.base_logger_config import BaseLoggerConfi
 class TextNERLoggerConfig(BaseLoggerConfig):
     gold_spans: Dict[str, List[Tuple[int, int, str]]] = {}
     sample_length: Dict[str, int] = {}
-    sample_span_content: Dict = {}
+    sample_span_content: DefaultDict[int, Dict] = defaultdict(dict)
+    cur_sample_id: int = 0
 
     class Config:
         validate_assignment = True
