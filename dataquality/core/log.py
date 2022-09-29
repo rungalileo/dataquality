@@ -224,7 +224,7 @@ def log_model_outputs(
     ), "You must provide either logits or probs"
     assert (embs is None and exclude_embs) or (
         embs is not None and not exclude_embs
-    ), "embs can be None if and only if exclude_embs is True"
+    ), "embs can be omitted if and only if exclude_embs is True"
     if embs is None and exclude_embs:
         embs = np.random.rand(len(ids), DEFAULT_RANDOM_EMB_DIM)
     model_logger = get_model_logger()(

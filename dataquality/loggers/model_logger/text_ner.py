@@ -188,6 +188,8 @@ class TextNERModelLogger(BaseGalileoModelLogger):
 
         A sample should be logged only if there was at least 1 prediction span or 1
         gold span
+
+        For inference mode, only prediction spans should be logged.
         """
         get_dq_logger().debug(
             "Processing a sample.", split=self.split, epoch=self.epoch
@@ -201,27 +203,34 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         # Get prediction spans
         sample_pred_spans = self._extract_pred_spans(sample_prob, sample_token_len)
         # Get gold (ground truth) spans
-        gold_span_tup = self.logger_config.gold_spans.get(sample_key, [])
-        sample_gold_spans: List[Dict] = [
-            dict(start=start, end=end, label=label)
-            for start, end, label in gold_span_tup
-        ]
+        sample_gold_spans = None
+        if self.split != Split.inference:
+            gold_span_tup = self.logger_config.gold_spans.get(sample_key, [])
+            sample_gold_spans: List[Dict] = [
+                dict(start=start, end=end, label=label)
+                for start, end, label in gold_span_tup
+            ]
+
         # If there were no golds and no preds for a sample, don't log this sample
         if not sample_pred_spans and not sample_gold_spans:
             return False
 
-        gold_dep, pred_dep = self._calculate_dep_scores(
-            sample_prob, sample_gold_spans, sample_pred_spans, sample_token_len
-        )
-        gold_emb = self._extract_span_embeddings(sample_gold_spans, sample_emb)
         pred_emb = self._extract_span_embeddings(sample_pred_spans, sample_emb)
-
         self.pred_spans.append(sample_pred_spans)
-        self.gold_spans.append(sample_gold_spans)
-        self.pred_dep.append(pred_dep)
-        self.gold_dep.append(gold_dep)
-        self.gold_emb.append(gold_emb)
         self.pred_emb.append(pred_emb)
+
+        if self.split != Split.inference:
+            # If we are in inference mode, we don't have gold spans or DEP
+            gold_emb = self._extract_span_embeddings(sample_gold_spans, sample_emb)
+            self.gold_spans.append(sample_gold_spans)
+            self.gold_emb.append(gold_emb)
+
+            gold_dep, pred_dep = self._calculate_dep_scores(
+                sample_prob, sample_gold_spans, sample_pred_spans, sample_token_len
+            )
+            self.gold_dep.append(gold_dep)
+            self.pred_dep.append(pred_dep)
+
         return True
 
     def _extract_span_embeddings(
@@ -508,6 +517,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             dep = (1 - aum) / 2  # normalize aum to dep
             assert 1.0 >= dep >= 0.0, f"DEP score is out of bounds with value {dep}"
             dep_scores_tokens.append(dep)
+
         assert sample_token_len == len(
             dep_scores_tokens
         ), "misalignment between total tokens and DEP scores"
@@ -519,17 +529,20 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         return gold_dep, pred_dep
 
     def _get_data_dict(self) -> Dict[str, Any]:
-        """Format row data for storage with vaex/hdf5
+        """Format row data for inference NER
 
-        In NER, rows are stored at the span level, not the sentence level, so we
-        will have repeating "sentence_id" values, which is OK. We will also loop
-        through the data twice, once for prediction span information
-        (one of pred_span, pred_emb, pred_dep per span) and once for gold span
-        information (one of gold_span, gold_emb, gold_dep per span)
+        In inference NER, we don't have gold spans so we only need to
+        assemble the data for pred spans.
+
+        NOTE: All spans are at the token level in this fn
         """
+        get_dq_logger().debug("Getting data dict.", split=self.split, epoch=self.epoch)
+
+        if self.split == Split.inference:
+            return self._get_data_dict_inference()
+
         data: defaultdict = defaultdict(list)
 
-        get_dq_logger().debug("Getting data dict.", split=self.split, epoch=self.epoch)
         # Loop through samples
         num_samples = len(self.ids)
         for idx in range(num_samples):
@@ -583,7 +596,42 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             # Loop through the remaining pred spans
             for pred_span, pred_emb, pred_dep in zip(pred_spans, pred_embs, pred_deps):
                 data = self._construct_pred_span_row(
-                    data, sample_id, pred_span, pred_emb, pred_dep, gold_spans
+                    data,
+                    sample_id,
+                    pred_span,
+                    pred_emb,
+                    gold_spans,
+                    pred_dep=pred_dep,
+                )
+        return data
+
+    def _get_data_dict_inference(self) -> Dict[str, Any]:
+        """Format row data for storage with vaex/hdf5
+
+        In NER, rows are stored at the span level, not the sentence level, so we
+        will have repeating "sentence_id" values, which is OK. We will also loop
+        through the data twice, once for prediction span information
+        (one of pred_span, pred_emb, pred_dep per span) and once for gold span
+        information (one of gold_span, gold_emb, gold_dep per span)
+
+        NOTE: All spans are at the token level in this fn
+        """
+        data: defaultdict = defaultdict(list)
+
+        # Loop through samples
+        num_samples = len(self.ids)
+        for idx in range(num_samples):
+            sample_id = self.ids[idx]
+            pred_spans = self.pred_spans[idx]
+            pred_embs = self.pred_emb[idx]
+
+            # Loop through the remaining pred spans
+            for pred_span, pred_emb in zip(pred_spans, pred_embs):
+                data = self._construct_pred_span_row(
+                    data,
+                    sample_id,
+                    pred_span,
+                    pred_emb,
                 )
         return data
 
@@ -597,7 +645,12 @@ class TextNERModelLogger(BaseGalileoModelLogger):
     ) -> DefaultDict:
         span_ind = (gold_span["start"], gold_span["end"])
         data = self._construct_span_row(
-            data, sample_id, span_ind[0], span_ind[1], gold_dep, gold_emb
+            d=data,
+            id=sample_id,
+            start=span_ind[0],
+            end=span_ind[1],
+            emb=gold_emb,
+            dep=gold_dep,
         )
         data["is_gold"].append(True)
         data["gold"].append(gold_span["label"])
@@ -609,22 +662,34 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         sample_id: int,
         pred_span: Dict,
         pred_emb: np.ndarray,
-        pred_dep: float,
-        gold_spans: List[Dict],
+        gold_spans: Optional[List[Dict]] = None,
+        pred_dep: Optional[float] = None,
     ) -> DefaultDict:
         start, end = pred_span["start"], pred_span["end"]
-        data = self._construct_span_row(data, sample_id, start, end, pred_dep, pred_emb)
-        data["is_gold"].append(False)
+        data = self._construct_span_row(
+            d=data,
+            id=sample_id,
+            start=start,
+            end=end,
+            emb=pred_emb,
+            dep=pred_dep,
+        )
         data["is_pred"].append(True)
         data["pred"].append(pred_span["label"])
-        data["gold"].append("")
-        # Pred only spans are known as "ghost" spans (hallucinated) or no error
-        err = (
-            NERErrorType.ghost_span.value
-            if self._is_ghost_span(pred_span, gold_spans)
-            else NERErrorType.none.value
-        )
-        data["galileo_error_type"].append(err)
+
+        if self.split == Split.inference and self.inference_name:
+            data["inference_name"].append(self.inference_name)
+        else:
+            data["is_gold"].append(False)
+            data["gold"].append("")
+            # Pred only spans are known as "ghost" spans (hallucinated) or no error
+            err = (
+                NERErrorType.ghost_span.value
+                if self._is_ghost_span(pred_span, gold_spans)
+                else NERErrorType.none.value
+            )
+            data["galileo_error_type"].append(err)
+
         return data
 
     def _is_ghost_span(self, pred_span: Dict, gold_spans: List[Dict]) -> bool:
@@ -647,7 +712,13 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         return True
 
     def _construct_span_row(
-        self, d: DefaultDict, id: int, start: int, end: int, dep: float, emb: ndarray
+        self,
+        d: DefaultDict,
+        id: int,
+        start: int,
+        end: int,
+        emb: ndarray,
+        dep: Optional[float] = None,
     ) -> DefaultDict:
         d["sample_id"].append(id)
         d["epoch"].append(self.epoch)
@@ -655,8 +726,9 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         d["data_schema_version"].append(__data_schema_version__)
         d["span_start"].append(start)
         d["span_end"].append(end)
-        d["data_error_potential"].append(dep)
         d["emb"].append(emb)
+        if dep:
+            d["data_error_potential"].append(dep)
         return d
 
     def _get_span_error_type(

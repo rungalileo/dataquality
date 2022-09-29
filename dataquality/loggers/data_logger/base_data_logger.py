@@ -24,7 +24,6 @@ from dataquality.utils import tqdm
 from dataquality.utils.cloud import is_galileo_cloud
 from dataquality.utils.hdf5_store import HDF5_STORE
 from dataquality.utils.helpers import galileo_verbose_logging
-from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import (
     _join_in_out_frames,
     concat_hdf5_files,
@@ -143,8 +142,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         inference name / epoch, concatenates all of the files with vaex, and uploads
         them to a single file in minio
         """
-        ThreadPoolManager.wait_for_threads()
-        self.check_for_logging_failures()
+        # ThreadPoolManager.wait_for_threads()
+        # self.check_for_logging_failures()
         print("☁️ Uploading Data")
         object_store = ObjectStore()
         proj_run = f"{config.current_project_id}/{config.current_run_id}"

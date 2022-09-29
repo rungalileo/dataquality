@@ -159,10 +159,11 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         text_token_indices: List[List[Tuple[int, int]]] = None,
         gold_spans: List[List[Dict]] = None,
         split: Optional[Split] = None,
+        inference_name: Optional[str] = None,
         meta: Optional[MetasType] = None,
         **kwargs: Any,  # For typing
     ) -> None:
-        """Log input samples for text classification
+        """Log input samples for text NER
 
         :param texts: List[str] text samples
         :param ids: List[int,str] IDs for each text sample
@@ -178,6 +179,8 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         :param ids: Optional unique indexes for each record. If not provided, will
         :param split: train/test/validation/inference. Can be set here or via
             dq.set_split
+        :param inference_name: If logging inference data, a name for this inference
+            data is required. Can be set here or via dq.set_split
         :param meta: Dict[str, List[str, int, float]]. Metadata for each text sample
             Format is the {"metadata_field_name": [metdata value per sample]}
         """
@@ -185,6 +188,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         self.texts = texts
         self.ids = ids
         self.split = split
+        self.inference_name = inference_name
         self.text_token_indices = (
             text_token_indices if text_token_indices is not None else []
         )
@@ -396,7 +400,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         """
         Validates that the current config is correct.
         * Text and Labels must both exist (unless split is 'inference' in which case
-        labels must be None)
+        gold_spans must be None)
         * Text and Labels must be the same length
         * If ids exist, it must be the same length as text/labels
         :return: None
@@ -419,11 +423,13 @@ class TextNERDataLogger(BaseGalileoDataLogger):
 
         assert id_len == text_len, (
             f"Ids exists but are not the same length as text and labels. "
-            f"(ids, text) ({id_len}, {text_len})"
+            f"(ids len, text len) ({id_len}, {text_len})"
         )
 
         if self.split == Split.inference.value:
-            assert not gold_span_len, "You cannot have labels in your inference split!"
+            assert (
+                not gold_span_len
+            ), "You cannot have gold spans in your inference split!"
         else:
             assert gold_span_len and text_len, (
                 f"You must log both text and gold_spans for split {self.split}."
@@ -436,17 +442,23 @@ class TextNERDataLogger(BaseGalileoDataLogger):
                 f"({gold_span_len},{text_len},{text_tokenized_len})"
             )
 
+        # TODO: This needs a comment, should be a helper fn
         for sample_id, sample_spans, sample_indices, sample_text in zip(
-            self.ids, self.gold_spans, self.text_token_indices, self.texts
+            self.ids,
+            self.gold_spans or [None] * id_len,
+            self.text_token_indices,
+            self.texts,
         ):
-            self._validate_sample_spans(sample_spans, sample_indices, sample_text)
-
-            updated_spans = self._extract_gold_spans(sample_spans, sample_indices)
-
             sample_key = self.logger_config.get_sample_key(Split(self.split), sample_id)
-            self.logger_config.gold_spans[sample_key] = [
-                (span["start"], span["end"], span["label"]) for span in updated_spans
-            ]
+
+            if self.split != Split.inference:
+                self._validate_sample_spans(sample_spans, sample_indices, sample_text)
+                updated_spans = self._extract_gold_spans(sample_spans, sample_indices)
+                self.logger_config.gold_spans[sample_key] = [
+                    (span["start"], span["end"], span["label"])
+                    for span in updated_spans
+                ]
+
             # Unpadded length of the sample. Used to extract true predicted spans
             # which are padded by the model
             self.logger_config.sample_length[sample_key] = len(sample_indices)
@@ -465,7 +477,15 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         sample_indices: List[Tuple[int, int]],
         sample_text: str,
     ) -> None:
-        """Validates spans of a sample"""
+        """Validates spans of a sample
+
+        Validates the following:
+        - All span labels are in the provided labels
+        - All spans are dictionaries
+        - All spans have a start, end, and label
+        - All spans have start < end
+        - All spans are within the bounds of the sample text
+        """
         clean_labels = self._clean_labels()
         max_end_idx, max_start_idx = 0, 0
         for span in sample_spans:
@@ -554,14 +574,22 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         `log()` function to behave exactly as expected.
         """
         df_len = len(self.texts)
+        text_token_indices = (
+            pa.array(self.text_token_indices_flat)
+            if self.split != Split.inference.value
+            else [None] * df_len
+        )
         inp = dict(
             id=self.ids,
             split=[Split(self.split).value] * df_len,
             text=self.texts,
-            text_token_indices=pa.array(self.text_token_indices_flat),
+            text_token_indices=text_token_indices,
             data_schema_version=[__data_schema_version__] * df_len,
             **self.meta,
         )
+        if self.split == Split.inference:
+            inp["inference_name"] = [self.inference_name] * df_len
+
         df = vaex.from_dict(inp)
         return df
 
@@ -646,7 +674,12 @@ class TextNERDataLogger(BaseGalileoDataLogger):
 
     @classmethod
     def validate_labels(cls) -> None:
-        """Validates and cleans labels
+        """Validates and cleans labels, see _clean_labels"""
+        cls.logger_config.labels = cls._clean_labels()
+
+    @classmethod
+    def _clean_labels(cls) -> List[str]:
+        """Clean NER labels
 
         For NER, labels will come with their tags and internal values, such as:
         ['[PAD]', '[CLS]', '[SEP]', 'O', 'B-ACTOR', 'I-ACTOR', 'B-YEAR', 'B-TITLE',
@@ -659,10 +692,6 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         ['ACTOR', 'YEAR', 'TITLE', 'GENRE', 'DIRECTOR', 'SONG', 'PLOT', 'REVIEW',
         'CHARACTER', 'RATING', 'RATINGS_AVERAGE', 'TRAILER']
         """
-        cls.logger_config.labels = cls._clean_labels()
-
-    @classmethod
-    def _clean_labels(cls) -> List[str]:
         assert cls.logger_config.labels, (
             "You must set your config labels before calling finish. "
             "See `dataquality.set_labels_for_run`"
