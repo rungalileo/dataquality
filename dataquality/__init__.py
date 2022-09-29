@@ -1,6 +1,6 @@
 "dataquality"
 
-__version__ = "v0.5.5"
+__version__ = "v0.6.0"
 
 import os
 import resource
@@ -9,7 +9,7 @@ import dataquality.core._config
 import dataquality.integrations
 import dataquality.metrics
 from dataquality.core._config import config
-from dataquality.core.auth import login
+from dataquality.core.auth import login, logout
 from dataquality.core.finish import finish, get_run_status, wait_for_run
 from dataquality.core.init import init
 from dataquality.core.log import (
@@ -65,6 +65,7 @@ def configure() -> None:
 __all__ = [
     "__version__",
     "login",
+    "logout",
     "init",
     "log_data_samples",
     "log_model_outputs",

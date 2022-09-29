@@ -1,7 +1,7 @@
 import json
 import os
 import warnings
-from enum import Enum, unique
+from enum import Enum
 from pathlib import Path
 from typing import Dict, Optional
 
@@ -45,14 +45,8 @@ class ConfigData(str, Enum):
     DEFAULT_GALILEO_CONFIG_FILE = f"{DEFAULT_GALILEO_CONFIG_DIR}/config.json"
 
 
-@unique
-class AuthMethod(str, Enum):
-    email = "email"
-
-
 class Config(BaseModel):
     api_url: str
-    auth_method: AuthMethod = AuthMethod.email
     token: Optional[str] = None
     current_user: Optional[str] = None
     current_project_id: Optional[UUID4] = None
