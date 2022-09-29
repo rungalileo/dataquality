@@ -22,6 +22,7 @@ def _indices_for_ids(arr: np.ndarray) -> Tuple:
 def add_ids_to_numpy_arr(
     orig_arr: np.ndarray, ids: Union[List[int], np.ndarray]
 ) -> np.ndarray:
+    """Deprecated, use add_sample_ids"""
     warnings.warn("Deprecated, use add_sample_ids", DeprecationWarning, stacklevel=2)
     return add_sample_ids(orig_arr, ids)
 
@@ -29,6 +30,15 @@ def add_ids_to_numpy_arr(
 def add_sample_ids(
     orig_arr: np.ndarray, ids: Union[List[int], np.ndarray]
 ) -> np.ndarray:
+    """Add sample IDs to the training/test data before training begins
+
+    This is necessary to call before training a Keras model with the
+    Galileo DataQualityCallback
+
+    :param orig_arr: The numpy array to be passed into model.train
+    :param ids: The ids for each sample to append. These are the same IDs that are
+    logged for the input data. They must match 1-1
+    """
     arr = np.concatenate([orig_arr, np.zeros(orig_arr.shape[:-1] + (1,))], axis=-1)
     arr[_indices_for_ids(arr)] = ids
     return arr
@@ -59,6 +69,9 @@ class DataQualityLoggingLayer(tf.keras.layers.Layer):
             else:
                 is_input_symbolic = inputs.shape[0].value is None
 
+            # Sometimes a "symbolic" input is fed in for testing. This is not a real
+            # sample. We don't want to save that sample as real IDs, just pass it
+            # through and extract out the ID layer
             if is_input_symbolic:
                 inputs = inputs[..., :-1]
             else:
