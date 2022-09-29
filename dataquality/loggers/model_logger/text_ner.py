@@ -174,13 +174,14 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             self.logger_config.cur_sample_id = sample_id
             if self._process_sample(sample_id, sample_emb, sample_prob):
                 logged_sample_ids.append(sample_id)
-                self.logger_config.sample_span_content[sample_id].update(
-                    {
-                        "span_gold_deps": self.gold_dep[-1],
-                        "span_pred_deps": self.pred_dep[-1],
-                        "span_probs": sample_prob,
-                    }
-                )
+                if self.split == Split.training:
+                    self.logger_config.sample_span_content[sample_id].update(
+                        {
+                            "span_gold_deps": self.gold_dep[-1],
+                            "span_pred_deps": self.pred_dep[-1],
+                            "span_probs": sample_prob,
+                        }
+                    )
 
         self.ids = logged_sample_ids
         if not self.ids:
@@ -215,12 +216,13 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             for start, end, label in gold_span_tup
         ]
         # Save the pred and gold spans at token level here
-        self.logger_config.sample_span_content[sample_id].update(
-            {
-                "gold_spans_boundaries": sample_gold_spans,
-                "pred_spans_boundaries": sample_pred_spans,
-            }
-        )
+        if self.split == Split.training:
+            self.logger_config.sample_span_content[sample_id].update(
+                {
+                    "gold_spans_boundaries": sample_gold_spans,
+                    "pred_spans_boundaries": sample_pred_spans,
+                }
+            )
         # If there were no golds and no preds for a sample, don't log this sample
         if not sample_pred_spans and not sample_gold_spans:
             return False
@@ -510,7 +512,8 @@ class TextNERModelLogger(BaseGalileoModelLogger):
 
         # Save the gold sequence for the sample id
         sid = self.logger_config.cur_sample_id
-        self.logger_config.sample_span_content[sid]["gold_sequence"] = gold_sequence
+        if self.split == Split.training:
+            self.logger_config.sample_span_content[sid]["gold_sequence"] = gold_sequence
 
         # Store dep scores for every token in the sample
         dep_scores_tokens = []
