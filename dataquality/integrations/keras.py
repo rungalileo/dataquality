@@ -1,3 +1,4 @@
+import warnings
 from typing import Any, Dict, List, Tuple, Union
 
 import numpy as np
@@ -19,6 +20,13 @@ def _indices_for_ids(arr: np.ndarray) -> Tuple:
 
 
 def add_ids_to_numpy_arr(
+    orig_arr: np.ndarray, ids: Union[List[int], np.ndarray]
+) -> np.ndarray:
+    warnings.warn("Deprecated, use add_sample_ids", DeprecationWarning, stacklevel=2)
+    return add_sample_ids(orig_arr, ids)
+
+
+def add_sample_ids(
     orig_arr: np.ndarray, ids: Union[List[int], np.ndarray]
 ) -> np.ndarray:
     arr = np.concatenate([orig_arr, np.zeros(orig_arr.shape[:-1] + (1,))], axis=-1)
@@ -67,31 +75,24 @@ class DataQualityCallback(keras.callbacks.Callback):
         self.helper_data = dq.get_model_logger().logger_config.helper_data
         # In the future we could maybe insert the layers into sequential or something
 
-    def on_train_begin(self, logs: Dict) -> None:
-        dq.set_split(Split.train)
-
-    def on_test_begin(self, logs: Dict) -> None:
-        # TODO: Somehow we should figure out whether this is in .fit
-        #  (so really this should be val) or .evaluate (so this should be test)
-        dq.set_split(Split.test)
-
     def on_epoch_begin(self, epoch: int, logs: Dict) -> None:
         dq.set_epoch(epoch)
-        print(f"Starting with epoch {epoch}")
 
     def _clear_logger_config_helper_data(self) -> None:
-        self.helper_data["embs"] = None
-        self.helper_data["probs"] = None
-        self.helper_data["logits"] = None
+        self.helper_data.clear()
 
     def on_train_batch_begin(self, batch: Any, logs: Dict = None) -> None:
         self._clear_logger_config_helper_data()
+        dq.set_split(Split.train)
 
     def on_train_batch_end(self, batch: Any, logs: Dict = None) -> None:
-        dq.get_model_logger()(**self.helper_data).log()
+        dq.log_model_outputs(**self.helper_data)
 
     def on_test_batch_begin(self, batch: Any, logs: Dict = None) -> None:
+        # TODO: Somehow we should figure out whether this is in .fit
+        #  (so really this should be val) or .evaluate (so this should be test)
         self._clear_logger_config_helper_data()
+        dq.set_split(Split.test)
 
     def on_test_batch_end(self, batch: Any, logs: Dict = None) -> None:
-        dq.get_model_logger()(**self.helper_data).log()
+        dq.log_model_outputs(**self.helper_data)
