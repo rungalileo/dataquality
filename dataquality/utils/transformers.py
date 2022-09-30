@@ -18,12 +18,12 @@ def pre_process_dataset(data: Dataset) -> pd.DataFrame:
     # Load the train data into a frame
     data_df = pd.DataFrame.from_dict(data)
     data_df["label"] = data_df["label"].map(labels)
-    if not "id" in data_df.columns:
+    if "id" not in data_df.columns:
         data_df["id"] = data_df.index
     return data_df
 
 
-def remove_id_collate_fn_wrapper(collate_fn: Callable, store: Any)-> Callable:
+def remove_id_collate_fn_wrapper(collate_fn: Any, store: Any) -> Callable:
     """Removes the id from each row and pass the cleaned version on.
     Will be used as a wrapper for the collate function.
     :param collate_fn: The collate function to wrap
@@ -62,9 +62,11 @@ def add_id_to_signature_columns(trainer: Trainer) -> None:
     if trainer._signature_columns is None:
         # Inspect model forward signature to keep only the arguments it accepts.
         signature = inspect.signature(trainer.model.forward)
-        trainer._signature_columns = list(signature.parameters.keys())
-        # Labels may be named label or label_ids, the default data collator handles that.
-        trainer._signature_columns += ["label", "label_ids"]
+        trainer._signature_columns = list(signature.parameters.keys())  # type: ignore
+        # Labels may be named label or label_ids,
+        # the default data collator handles that.
+        trainer._signature_columns += ["label", "label_ids"]  # type: ignore
     # Here we add the ids so they won't get removed
-    if "id" not in trainer._signature_columns and trainer._signature_columns:
-        trainer._signature_columns.append("id")
+    if type(trainer._signature_columns) is list:
+        if "id" not in trainer._signature_columns:  # type: ignore
+            trainer._signature_columns.append("id")  # type: ignore

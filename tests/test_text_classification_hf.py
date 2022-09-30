@@ -1,5 +1,5 @@
 import copy
-from typing import Callable
+from typing import Callable, Generator
 from unittest.mock import MagicMock, patch
 
 from datasets import load_metric
@@ -13,6 +13,7 @@ from transformers import (
 import dataquality as dq
 from dataquality import config
 from dataquality.integrations.transformers_trainer import watch
+from dataquality.schemas.task_type import TaskType
 from dataquality.utils.transformers import add_id_col_to_dataset, pre_process_dataset
 from tests.utils.mock_request import mocked_create_project_run, mocked_get_project_run
 
@@ -36,12 +37,14 @@ def compute_metrics(eval_pred):
     predictions = predictions.argmax(axis=1)
     return metric.compute(predictions=predictions, references=labels)
 
+# 🔭🌕 Galileo logging
+mock_dataset_with_ids = mock_dataset.map(lambda x,idx: {"id":idx}, with_indices=True)
 
-encoded_train_dataset = mock_dataset.map(
+
+encoded_train_dataset = mock_dataset_with_ids.map(
     lambda x: preprocess_function(x, tokenizer), batched=True
 )
-
-encoded_test_dataset = mock_dataset.map(
+encoded_test_dataset = mock_dataset_with_ids.map(
     lambda x: preprocess_function(x, tokenizer), batched=True
 )
 
@@ -50,7 +53,7 @@ metric_name = "accuracy"
 batch_size = 16
 
 args_default = TrainingArguments(
-    f"finetuned",
+    output_dir="tmp",
     evaluation_strategy="epoch",
     save_strategy="epoch",
     learning_rate=3e-4,
@@ -88,25 +91,34 @@ def test_end_to_end_without_callback(
     trainer.train()
 
 
-@patch("requests.post", side_effect=mocked_create_project_run)
-@patch("requests.get", side_effect=mocked_get_project_run)
 @patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
-def test_end_to_end_with_callback(
+@patch.object(dq.core.finish, "_version_check")
+@patch.object(dq.core.finish, "_reset_run")
+@patch.object(dq.core.finish, "upload_dq_log_file")
+@patch.object(dq.clients.api.ApiClient, "make_request")
+@patch.object(dq.core.finish, "wait_for_run")
+def test_hf_watch_e2e(
+    mock_wait_for_run: MagicMock,
+    mock_make_request: MagicMock,
+    mock_upload_log_file: MagicMock,
+    mock_reset_run: MagicMock,
+    mock_version_check: MagicMock,
     mock_valid_user: MagicMock,
-    mock_requests_get: MagicMock,
-    mock_requests_post: MagicMock,
     set_test_config: Callable,
+    cleanup_after_use: Generator,
 ) -> None:
     """Base case: Tests creating a new project and run"""
     global encoded_train_dataset, encoded_test_dataset
-    dq.init(task_type="text_classification")
-    assert config.current_run_id
-    assert config.current_project_id
+    # dq.init(task_type="text_classification")
+    set_test_config(task_type=TaskType.text_classification)
     # 🔭🌕 Galileo logging
-    dq.init(task_type="text_classification")
-    dq.get_data_logger()
+    dq.set_labels_for_run(mock_dataset.features["label"].names)
+    train_dataset = mock_dataset_with_ids
+    test_dataset = mock_dataset_with_ids
+    dq.log_dataset(train_dataset, split="train")
+    dq.log_dataset(test_dataset, split="test")
+
     args = copy.deepcopy(args_default)
-    args.remove_unused_columns = False
     trainer = Trainer(
         model,
         args,
@@ -115,6 +127,7 @@ def test_end_to_end_with_callback(
         tokenizer=tokenizer,
         compute_metrics=compute_metrics,
     )
+    # 🔭🌕 Galileo logging
     watch(trainer)
     trainer.train()
     dq.finish()
@@ -138,14 +151,14 @@ def test_remove_unused_columns(
     dq.set_labels_for_run(mock_dataset.features["label"].names)
     assert config.current_run_id
     assert config.current_project_id
-    dq.get_data_logger()
+
     args = copy.deepcopy(args_default)
 
     trainer = Trainer(
         model,
         args,
-        train_dataset=encoded_train_dataset,
-        eval_dataset=encoded_test_dataset,
+        train_dataset= encoded_train_dataset,
+        eval_dataset=  encoded_test_dataset,
         tokenizer=tokenizer,
         compute_metrics=compute_metrics,
     )
