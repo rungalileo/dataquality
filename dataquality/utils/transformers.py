@@ -29,9 +29,7 @@ def remove_id_collate_fn_wrapper(collate_fn: Any,signature_columns:List[str], st
         """
         # Remove id by reference
         store["ids"] = [remove_keys(row,signature_columns,"id") for row in rows]
-        print(rows[0].keys())
         return collate_fn(rows)
-
     return remove_id
 
 
