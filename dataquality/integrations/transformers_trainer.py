@@ -169,7 +169,6 @@ class DQCallback(TrainerCallback):
             output_detached = model_output.detach()
         # If embedding has the CLS token, remove it
         if len(output_detached.shape) == 3:
-            print("initial_embedding shape", output_detached.shape)
             # It is assumed that the CLS token is removed through this dimension
             output_detached = output_detached[:, 0]
         self.helper_data["embs"] = output_detached
@@ -321,8 +320,8 @@ def watch(trainer: Trainer) -> None:
     """
 
     dqcallback = DQCallback()
-    add_id_to_signature_columns(trainer)
+    signature_cols  = add_id_to_signature_columns(trainer)
     trainer.data_collator = remove_id_collate_fn_wrapper(
-        trainer.data_collator, dqcallback.helper_data
+        trainer.data_collator, signature_cols , dqcallback.helper_data
     )
     trainer.add_callback(dqcallback)
