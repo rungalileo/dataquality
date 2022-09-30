@@ -5,23 +5,7 @@ import pandas as pd
 from datasets import Dataset
 from transformers import Trainer
 
-
-def pre_process_dataset(data: Dataset) -> pd.DataFrame:
-    """Converts a dataset to a pandas dataframe
-
-    :param data: Dataset (huggingface) to convert
-    """
-    # Load the labels in a dictionary
-    labels = data.features["label"].names
-    labels = {v: k for v, k in enumerate(labels)}
-
-    # Load the train data into a frame
-    data_df = pd.DataFrame.from_dict(data)
-    data_df["label"] = data_df["label"].map(labels)
-    if "id" not in data_df.columns:
-        data_df["id"] = data_df.index
-    return data_df
-
+ 
 
 def remove_id_collate_fn_wrapper(collate_fn: Any, store: Any) -> Callable:
     """Removes the id from each row and pass the cleaned version on.
@@ -42,15 +26,7 @@ def remove_id_collate_fn_wrapper(collate_fn: Any, store: Any) -> Callable:
 
     return remove_id
 
-
-def add_id_col_to_dataset(dataset: Dataset) -> Dataset:
-    """Adds the id column to the dataset. Assumes it is equal to the index.
-    :param dataset: The dataset to add the id column to
-    :return: The dataset with the id column
-    """
-    return dataset.add_column("id", list(range(len(dataset))))
-
-
+ 
 def add_id_to_signature_columns(trainer: Trainer) -> None:
     """Adds the signature columns to the trainer.
     Usually the signature columns are label and label_ids.
