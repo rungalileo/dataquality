@@ -1,8 +1,10 @@
 # Imports for the hook manager
 from queue import PriorityQueue, Queue
-from typing import Any
+from typing import Any, Callable, List
+from datasets import Dataset
 
 from torch.nn import Module
+from torch.utils.hooks import RemovableHandle
 from transformers import Trainer
 from transformers.trainer_callback import TrainerCallback  # noqa: E402
 from transformers.trainer_callback import TrainerControl, TrainerState
@@ -21,7 +23,8 @@ from dataquality.utils.transformers import (
 # Trainer callback for Huggingface transformers Trainer library
 class DQCallback(TrainerCallback):
     """
-    [`TrainerCallback`] that sends the logs to [Galileo](https://www.rungalileo.io/) each training training step.
+    [`TrainerCallback`] that sends the logs to [Galileo](https://www.rungalileo.io/)
+    for each training training step.
     """
 
     def __init__(self) -> None:
@@ -41,8 +44,8 @@ class DQCallback(TrainerCallback):
         args: TrainingArguments,
         state: TrainerState,
         control: TrainerControl,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         """
         Event called at the end of the initialization of the [`Trainer`].
         """
@@ -55,22 +58,19 @@ class DQCallback(TrainerCallback):
         :param args: Training arguments
         :param state: Trainer state
         :param model: Model
-        :param kwargs: Keyword arguments (including the eval_dataloader, train_dataloader, tokenizer)
+        :param kwargs: Keyword arguments (eval_dataloader, train_dataloader, tokenizer)
         :return: None"""
         self._dq = dq
         # Attach hooks to the model
         self._attach_hooks_to_model(model)
-
         train_dataloader = kwargs["train_dataloader"]
-        test_dataloader = kwargs["eval_dataloader"]
-
-        for columns in [
-            train_dataloader.dataset.column_names,
-            test_dataloader.dataset.column_names,
-        ]:
-            assert "id" in columns, GalileoException(
+        train_dataloader_ds = train_dataloader.dataset
+        if type(train_dataloader_ds) is Dataset:
+            assert "id" in train_dataloader_ds.column_names, GalileoException(
                 "id (index) column is needed in the dataset for logging"
             )
+        else:
+            raise GalileoException(f"Unknown dataset type {type(train_dataloader_ds)}")
         self._initialized = True
 
     def on_train_begin(
@@ -85,7 +85,7 @@ class DQCallback(TrainerCallback):
         :param args: Training arguments
         :param state: Trainer state
         :param control: Trainer control
-        :param kwargs: Keyword arguments (including the model, eval_dataloader, train_dataloader, tokenizer)
+        :param kwargs: Keyword arguments (model, eval_dataloader, tokenizer...)
         :return: None
         """
         if not self._initialized:
@@ -121,7 +121,8 @@ class DQCallback(TrainerCallback):
         **kwargs: Any,
     ) -> None:
         """
-        Perform a training step on a batch of inputs. Log the embeddings, ids and logits.
+        Perform a training step on a batch of inputs.
+        Log the embeddings, ids and logits.
         :param args: Training arguments
         :param state: Trainer state
         :param control: Trainer control
@@ -195,9 +196,11 @@ class HookManager:
     """
 
     # Stores all hooks to remove them from the model later.
-    hooks = []
+    hooks: List[RemovableHandle] = []
 
-    def scoring_algorithm(self, layer_pos, level, model_name, layer_name) -> float:
+    def scoring_algorithm(
+        self, layer_pos: float, level: float, model_name: str, layer_name: str
+    ) -> float:
         """
         The higher the score the more likely it is the embedding layer
         :param layer_pos: Position of the layer in the model
@@ -205,7 +208,7 @@ class HookManager:
         :param model_name: Name of the class of the model
         :param layer_name: Name of the layer
         """
-        score = 0
+        score: float = 0
         embed = False
         if "embed" in layer_name.lower():
             embed = True
@@ -231,15 +234,16 @@ class HookManager:
 
     def get_embedding_layer_auto(self, model: Any) -> Any:
         """
-        Use the scoring algorithm in our breadth first search on the model to find an embedding layer.
+        Use a scoring algorithm to find the embedding layer automatically
+        given a model. The higher the score the more likely it is the embedding layer.
         """
         # keeps track of model layers
         queue: Queue = Queue()
         # the start is the name / children of the model + the current layer level
-        start = (model.named_children(), 0)
+        start: tuple[Any, int] = (model.named_children(), 0)
         queue.put(start)
         # find the top choices for the embeddinglayer
-        embeddings_layers = PriorityQueue()
+        embeddings_layers: PriorityQueue = PriorityQueue()
 
         while not queue.empty():
             named_children, level = queue.get()
@@ -266,6 +270,7 @@ class HookManager:
         start = model.named_children()
         queue.put(start)
         layer_names = []
+        layer_names_str: str = ""
         while not queue.empty():
             named_children = queue.get()
             for layer_name, layer_model in named_children:
@@ -279,32 +284,42 @@ class HookManager:
                 layer_model._get_name()
                 queue.put(layer_model.named_children())
         raise GalileoException(
-            f"Layer could not be found in {layer_names_str}, make sure to check capitalization"
+            f"Layer could not be found in { layer_names_str }, "  # noqa: E501
+            "make sure to check capitalization"
         )
 
-    def attach_embedding_hook(self, model, model_layer=None, embedding_hook=print):
+    def attach_embedding_hook(
+        self, model: Any, model_layer: Any = None, embedding_hook: Callable = print
+    ) -> RemovableHandle:
         """attach hook and save it in our hook list"""
-        if model_layer == None:
+        if model_layer is None:
             selected_layer = self.get_embedding_layer_auto(model)
-        elif type(model_layer) == str:
-            selected_layer = self.get_embedding_layer_by_name(model_layer)
+        elif type(model_layer) is str:
+            selected_layer = self.get_embedding_layer_by_name(model, model_layer)
         else:
             selected_layer = model_layer
         h = self.attach_hook(selected_layer, embedding_hook)
         return h
 
-    def attach_hook(self, selected_layer, hook):
+    def attach_hook(self, selected_layer: Any, hook: Callable) -> RemovableHandle:
         h = selected_layer.register_forward_hook(hook)
         self.hooks.append(h)
         return h
 
-    def remove_hook(self):
+    def remove_hook(self) -> None:
         for h in self.hooks:
             h.remove()
 
 
 @check_noop
-def watch(trainer: Trainer):
+def watch(trainer: Trainer) -> None:
+    """
+    [`watch`] is used to hook into to the trainer
+    to log to [Galileo](https://www.rungalileo.io/)
+    :param trainer: Trainer object
+    :return: None
+    """
+
     dqcallback = DQCallback()
     add_id_to_signature_columns(trainer)
     trainer.data_collator = remove_id_collate_fn_wrapper(
