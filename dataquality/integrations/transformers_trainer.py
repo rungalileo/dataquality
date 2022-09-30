@@ -318,7 +318,7 @@ def watch(trainer: Trainer) -> None:
     :param trainer: Trainer object
     :return: None
     """
-
+    print("Attaching dataquality to trainer")
     dqcallback = DQCallback()
     signature_cols  = add_id_to_signature_columns(trainer)
     trainer.data_collator = remove_id_collate_fn_wrapper(
