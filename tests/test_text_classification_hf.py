@@ -14,7 +14,6 @@ import dataquality as dq
 from dataquality import config
 from dataquality.integrations.transformers_trainer import watch
 from dataquality.schemas.task_type import TaskType
-from dataquality.utils.transformers import add_id_col_to_dataset, pre_process_dataset
 from tests.utils.mock_request import mocked_create_project_run, mocked_get_project_run
 
 from .utils.hf_datasets_mock import mock_dataset
@@ -144,10 +143,10 @@ def test_remove_unused_columns(
 ) -> None:
     """Base case: Tests watch function to pass"""
     dq.init(task_type="text_classification")
-    train_dataset = add_id_col_to_dataset(mock_dataset)
-    test_dataset = add_id_col_to_dataset(mock_dataset)
-    dq.log_dataset(pre_process_dataset(train_dataset), split="train")
-    dq.log_dataset(pre_process_dataset(test_dataset), split="test")
+    train_dataset = mock_dataset_with_ids
+    test_dataset = mock_dataset_with_ids
+    dq.log_dataset(train_dataset, split="train")
+    dq.log_dataset(test_dataset, split="test")
     dq.set_labels_for_run(mock_dataset.features["label"].names)
     assert config.current_run_id
     assert config.current_project_id

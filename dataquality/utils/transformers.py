@@ -5,10 +5,13 @@ import pandas as pd
 from datasets import Dataset
 from transformers import Trainer
 
-def remove_keys(row,remove_cols,return_col):
-    for remove_col in remove_cols:
-        row.pop(remove_col)
-    return row.pop(return_col)
+def remove_keys(row:dict,keep_cols:List[str],id_col:str)->dict:
+    id = row.pop(id_col,None)
+    # Remove all keys that are not in the keep_cols from the row
+    for key in list(row.keys()):
+        if key not in keep_cols:
+            row.pop(key)
+    return id
 
 def remove_id_collate_fn_wrapper(collate_fn: Any,signature_columns:List[str], store: Any) -> Callable:
     """Removes the id from each row and pass the cleaned version on.
@@ -31,12 +34,6 @@ def remove_id_collate_fn_wrapper(collate_fn: Any,signature_columns:List[str], st
     return remove_id
 
 
-def add_id_col_to_dataset(dataset: Dataset) -> Dataset:
-    """Adds the id column to the dataset. Assumes it is equal to the index.
-    :param dataset: The dataset to add the id column to
-    :return: The dataset with the id column
-    """
-    return dataset.add_column("id", list(range(len(dataset))))
 
 
 def add_id_to_signature_columns(trainer: Trainer) -> None:
