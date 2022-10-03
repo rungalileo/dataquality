@@ -28,8 +28,19 @@ def remove_id_collate_fn_wrapper(collate_fn: Any,signature_columns:List[str], st
         :return: The cleaned rows
         """
         # Remove id by reference
-        store["ids"] = [remove_keys(row,signature_columns,"id") for row in rows]
-        return collate_fn(rows)
+        ids = []
+        clean_rows = []
+        for row in rows:
+            clean_row = {}
+            for key,value in row.items():
+                if key == "id":
+                    ids.append(value)
+                elif key  in signature_columns:
+                    clean_row[key] = value
+            clean_rows.append(clean_row)
+        store["ids"] = ids #[remove_keys(row,signature_columns,"id") for row in rows]
+        #print(clean_rows[0].keys())
+        return collate_fn(clean_rows)
     return remove_id
 
 

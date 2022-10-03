@@ -65,6 +65,7 @@ class DQCallback(TrainerCallback):
         self._attach_hooks_to_model(model)
         train_dataloader = kwargs["train_dataloader"]
         train_dataloader_ds = train_dataloader.dataset
+        
         if type(train_dataloader_ds) is Dataset:
             assert "id" in train_dataloader_ds.column_names, GalileoException(
                 "id (index) column is needed in the dataset for logging"
@@ -130,6 +131,7 @@ class DQCallback(TrainerCallback):
         :return: None
         """
         # Log only if embedding exists
+        print(self.helper_data.keys())
 
         assert self.helper_data.get("embs") is not None, GalileoException(
             "Embedding passed to the logger can not be logged"
@@ -171,6 +173,7 @@ class DQCallback(TrainerCallback):
         if len(output_detached.shape) == 3:
             # It is assumed that the CLS token is removed through this dimension
             output_detached = output_detached[:, 0]
+        
         self.helper_data["embs"] = output_detached
 
     def _logit_hook(self, model: Module, model_input: Any, model_output: Any) -> None:
@@ -321,6 +324,8 @@ def watch(trainer: Trainer) -> None:
     print("Attaching dataquality to trainer")
     dqcallback = DQCallback()
     signature_cols  = add_id_to_signature_columns(trainer)
+    print(signature_cols)
+    trainer._signature_columns = signature_cols
     trainer.data_collator = remove_id_collate_fn_wrapper(
         trainer.data_collator, signature_cols , dqcallback.helper_data
     )
