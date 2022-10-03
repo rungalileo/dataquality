@@ -13,10 +13,10 @@ import dataquality
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.base_logger import BaseGalileoLogger, T
 from dataquality.loggers.data_logger.base_data_logger import DataSet
+from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.loggers.data_logger.text_ner import (
     TextNERDataLogger,
 )
-from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.schemas.split import Split
 
 
