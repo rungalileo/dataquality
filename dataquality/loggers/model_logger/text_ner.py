@@ -203,13 +203,14 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         # Get prediction spans
         sample_pred_spans = self._extract_pred_spans(sample_prob, sample_token_len)
         # Get gold (ground truth) spans
-        sample_gold_spans = None
+        gold_span_tup = []
         if self.split != Split.inference:
             gold_span_tup = self.logger_config.gold_spans.get(sample_key, [])
-            sample_gold_spans = [
-                dict(start=start, end=end, label=label)
-                for start, end, label in gold_span_tup
-            ]
+
+        sample_gold_spans = [
+            dict(start=start, end=end, label=label)
+            for start, end, label in gold_span_tup
+        ]
 
         # If there were no golds and no preds for a sample, don't log this sample
         if not sample_pred_spans and not sample_gold_spans:
@@ -679,6 +680,9 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         if self.split == Split.inference and self.inference_name:
             data["inference_name"].append(self.inference_name)
         else:
+            assert (
+                gold_spans is not None
+            ), f"gold_spans must be provided for split {self.split}"
             data["data_error_potential"].append(pred_dep)
             data["is_gold"].append(False)
             data["gold"].append("")
