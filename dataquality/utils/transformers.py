@@ -38,8 +38,7 @@ def remove_id_collate_fn_wrapper(collate_fn: Any,signature_columns:List[str], st
                 elif key  in signature_columns:
                     clean_row[key] = value
             clean_rows.append(clean_row)
-        store["ids"] = ids #[remove_keys(row,signature_columns,"id") for row in rows]
-        #print(clean_rows[0].keys())
+        store["ids"] = ids 
         return collate_fn(clean_rows)
     return remove_id
 

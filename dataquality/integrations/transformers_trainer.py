@@ -131,7 +131,6 @@ class DQCallback(TrainerCallback):
         :return: None
         """
         # Log only if embedding exists
-        print(self.helper_data.keys())
 
         assert self.helper_data.get("embs") is not None, GalileoException(
             "Embedding passed to the logger can not be logged"
@@ -324,7 +323,6 @@ def watch(trainer: Trainer) -> None:
     print("Attaching dataquality to trainer")
     dqcallback = DQCallback()
     signature_cols  = add_id_to_signature_columns(trainer)
-    print(signature_cols)
     trainer._signature_columns = signature_cols
     trainer.data_collator = remove_id_collate_fn_wrapper(
         trainer.data_collator, signature_cols , dqcallback.helper_data
