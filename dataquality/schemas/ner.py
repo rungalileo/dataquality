@@ -34,3 +34,4 @@ class NERColumns(str, Enum):
     data_error_potential = "data_error_potential"
     galileo_error_type = "galileo_error_type"
     emb = "emb"
+    inference_name = "inference_name"

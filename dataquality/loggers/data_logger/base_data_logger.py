@@ -262,7 +262,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             )
 
         return cls.process_in_out_frames(
-            in_frame, out_frame, prob_only, epoch_or_inf_name
+            in_frame, out_frame, prob_only, epoch_or_inf_name, split
         )
 
     @classmethod
@@ -272,6 +272,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         out_frame: DataFrame,
         prob_only: bool,
         epoch_or_inf_name: str,
+        split: str,
     ) -> BaseLoggerInOutFrames:
         """Processes input and output dataframes from logging
 
@@ -287,7 +288,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         validate_unique_ids(out_frame, epoch_or_inf_name)
         in_out = _join_in_out_frames(in_frame, out_frame)
 
-        prob, emb, data_df = cls.split_dataframe(in_out, prob_only)
+        prob, emb, data_df = cls.split_dataframe(in_out, prob_only, split)
         # These df vars will be used in upload_in_out_frames
         emb.set_variable("skip_upload", prob_only)
         data_df.set_variable("skip_upload", prob_only)
@@ -336,13 +337,16 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     def prob_only(
         cls, epochs: List[str], split: str, epoch_or_inf_name: Union[int, str]
     ) -> bool:
-        if split == Split.inference:
+        """Determines if we are only uploading probabilities
+
+        For all epochs that aren't the last 2 (early stopping), we only want to
+        upload the probabilities (for DEP calculation).
+        """
+        if split == Split.inference:  # Inference doesn't have DEP
             return False
 
         # If split is not inference, epoch_or_inf must be epoch
         epoch = int(epoch_or_inf_name)
-        # For all epochs that aren't the last 2 (early stopping), we only
-        # want to upload the probabilities (for DEP calculation).
         max_epoch_for_split = max([int(i) for i in epochs])
         return bool(epoch < max_epoch_for_split - 1)
 
@@ -430,7 +434,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     @classmethod
     @abstractmethod
     def split_dataframe(
-        cls, df: DataFrame, prob_only: bool
+        cls, df: DataFrame, prob_only: bool, split: str
     ) -> Tuple[DataFrame, DataFrame, DataFrame]:
         ...
 

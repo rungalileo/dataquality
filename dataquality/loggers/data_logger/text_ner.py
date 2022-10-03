@@ -600,6 +600,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         out_frame: DataFrame,
         prob_only: bool,
         epoch_or_inf_name: str,
+        split: str,
     ) -> BaseLoggerInOutFrames:
         """Processes input and output dataframes from logging
 
@@ -613,7 +614,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         Splits the dataframes into prob, emb, and input data for uploading to minio
         """
         cls._validate_duplicate_spans(out_frame, epoch_or_inf_name)
-        prob, emb, _ = cls.split_dataframe(out_frame, prob_only)
+        prob, emb, _ = cls.split_dataframe(out_frame, prob_only, split)
         # These df vars will be used in upload_in_out_frames
         emb.set_variable(DFVar.skip_upload, prob_only)
         in_frame.set_variable(DFVar.skip_upload, prob_only)
@@ -639,7 +640,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
 
     @classmethod
     def split_dataframe(
-        cls, df: DataFrame, prob_only: bool
+        cls, df: DataFrame, prob_only: bool, split: str
     ) -> Tuple[DataFrame, DataFrame, DataFrame]:
         """Splits the dataframe into logical grouping for minio storage
 
@@ -655,16 +656,22 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             NERCols.id.value,
             NERCols.sample_id.value,
             NERCols.split.value,
-            NERCols.epoch.value,
-            NERCols.is_gold.value,
             NERCols.is_pred.value,
             NERCols.span_start.value,
             NERCols.span_end.value,
-            NERCols.gold.value,
             NERCols.pred.value,
-            NERCols.data_error_potential.value,
-            NERCols.galileo_error_type.value,
         ]
+        if split == Split.inference:
+            prob_cols += [NERCols.inference_name.value]
+        else:
+            prob_cols += [
+                NERCols.epoch.value,
+                NERCols.data_error_potential.value,
+                NERCols.is_gold.value,
+                NERCols.gold.value,
+                NERCols.galileo_error_type.value,
+            ]
+
         prob = df_copy[prob_cols]
         emb_cols = (
             [NERCols.id.value] if prob_only else [NERCols.id.value, NERCols.emb.value]

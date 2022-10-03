@@ -206,7 +206,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         sample_gold_spans = None
         if self.split != Split.inference:
             gold_span_tup = self.logger_config.gold_spans.get(sample_key, [])
-            sample_gold_spans: List[Dict] = [
+            sample_gold_spans = [
                 dict(start=start, end=end, label=label)
                 for start, end, label in gold_span_tup
             ]
@@ -650,8 +650,8 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             start=span_ind[0],
             end=span_ind[1],
             emb=gold_emb,
-            dep=gold_dep,
         )
+        data["data_error_potential"].append(gold_dep)
         data["is_gold"].append(True)
         data["gold"].append(gold_span["label"])
         return data
@@ -672,7 +672,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             start=start,
             end=end,
             emb=pred_emb,
-            dep=pred_dep,
         )
         data["is_pred"].append(True)
         data["pred"].append(pred_span["label"])
@@ -680,6 +679,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         if self.split == Split.inference and self.inference_name:
             data["inference_name"].append(self.inference_name)
         else:
+            data["data_error_potential"].append(pred_dep)
             data["is_gold"].append(False)
             data["gold"].append("")
             # Pred only spans are known as "ghost" spans (hallucinated) or no error
@@ -718,7 +718,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         start: int,
         end: int,
         emb: ndarray,
-        dep: Optional[float] = None,
     ) -> DefaultDict:
         d["sample_id"].append(id)
         d["epoch"].append(self.epoch)
@@ -727,8 +726,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         d["span_start"].append(start)
         d["span_end"].append(end)
         d["emb"].append(emb)
-        if dep:
-            d["data_error_potential"].append(dep)
         return d
 
     def _get_span_error_type(
