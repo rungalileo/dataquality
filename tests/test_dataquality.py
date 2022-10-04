@@ -616,7 +616,7 @@ def test_log_model_outputs_missing_embs_exclude_emb_false(
 
     with pytest.raises(AssertionError) as e:
         dataquality.log_model_outputs(**output_data)
-    assert str(e.value) == "embs can be None if and only if exclude_embs is True"
+    assert str(e.value) == "embs can be omitted if and only if exclude_embs is True"
 
 
 def test_log_model_outputs_with_embs_exclude_emb_true(
@@ -636,7 +636,7 @@ def test_log_model_outputs_with_embs_exclude_emb_true(
     with pytest.raises(AssertionError) as e:
         dataquality.log_model_outputs(**output_data)
 
-    assert str(e.value) == "embs can be None if and only if exclude_embs is True"
+    assert str(e.value) == "embs can be omitted if and only if exclude_embs is True"
 
 
 @mock.patch.object(
