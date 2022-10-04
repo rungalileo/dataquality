@@ -530,10 +530,13 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         return gold_dep, pred_dep
 
     def _get_data_dict(self) -> Dict[str, Any]:
-        """Format row data for inference NER
+        """Format row data for storage with vaex/hdf5
 
-        In inference NER, we don't have gold spans so we only need to
-        assemble the data for pred spans.
+        In NER, rows are stored at the span level, not the sentence level, so we
+        will have repeating "sentence_id" values, which is OK. We will also loop
+        through the data twice, once for prediction span information
+        (one of pred_span, pred_emb, pred_dep per span) and once for gold span
+        information (one of gold_span, gold_emb, gold_dep per span)
 
         NOTE: All spans are at the token level in this fn
         """
@@ -607,13 +610,10 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         return data
 
     def _get_data_dict_inference(self) -> Dict[str, Any]:
-        """Format row data for storage with vaex/hdf5
+        """Format row data for inference NER
 
-        In NER, rows are stored at the span level, not the sentence level, so we
-        will have repeating "sentence_id" values, which is OK. We will also loop
-        through the data twice, once for prediction span information
-        (one of pred_span, pred_emb, pred_dep per span) and once for gold span
-        information (one of gold_span, gold_emb, gold_dep per span)
+        In inference NER, we don't have gold spans so we only need to
+        assemble the data for pred spans.
 
         NOTE: All spans are at the token level in this fn
         """
