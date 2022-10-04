@@ -13,6 +13,7 @@ from dataquality.loggers.data_logger import BaseGalileoDataLogger
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.dq_logger import get_dq_logger
+from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import _save_hdf5_file
 
 
@@ -91,8 +92,7 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         get_dq_logger().debug(
             "Starting logging process from thread", split=self.split, epoch=self.epoch
         )
-        self._add_threaded_log()
-        # ThreadPoolManager.add_thread(target=self._add_threaded_log)
+        ThreadPoolManager.add_thread(target=self._add_threaded_log)
 
     def write_model_output(self, data: Dict) -> None:
         """Creates an hdf5 file from the data dict"""
