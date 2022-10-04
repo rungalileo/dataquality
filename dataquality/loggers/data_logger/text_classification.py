@@ -270,16 +270,22 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         if isinstance(dataset[0][label], int):
             try:
                 parse_label = lambda x: dataset.features[label].int2str(x)
-            except Exception as e:
+            except Exception:
                 # TODO: Simplify this logic with mapping the int label to string ticket
-                raise GalileoException("Your dataset does not have label names. Please include them")
+                raise GalileoException(
+                    "Your dataset does not have label names. Please include them"
+                )
 
-        assert dataset[0].get(id) is not None, GalileoException(f"id ({id}) field must be present in dataset")
+        assert dataset[0].get(id) is not None, GalileoException(
+            f"id ({id}) field must be present in dataset"
+        )
 
         for i in range(0, len(dataset), batch_size):
             chunk = dataset[i : i + batch_size]
             data = dict(
-                text=chunk[text], id=chunk[id], label=parse_label(chunk[label]) if label else None
+                text=chunk[text],
+                id=chunk[id],
+                label=parse_label(chunk[label]) if label else None,
             )
             chunk_meta = {col: chunk[col] for col in meta}
             self._log_dict(data, chunk_meta, split, inference_name)

@@ -1,12 +1,11 @@
 import inspect
 from typing import Any, Callable, List
 
-import pandas as pd
-from datasets import Dataset
 from transformers import Trainer
 
-def remove_keys(row:dict,keep_cols:List[str],id_col:str)->dict:
-    id = row.pop(id_col,None)
+
+def remove_keys(row: dict, keep_cols: List[str], id_col: str) -> dict:
+    id = row.pop(id_col, None)
     # Remove all keys that are not in the keep_cols from the row
     if len(keep_cols) > 0:
         for key in list(row.keys()):
@@ -14,7 +13,10 @@ def remove_keys(row:dict,keep_cols:List[str],id_col:str)->dict:
                 row.pop(key)
     return id
 
-def remove_id_collate_fn_wrapper(collate_fn: Any,signature_columns:List[str], store: Any) -> Callable:
+
+def remove_id_collate_fn_wrapper(
+    collate_fn: Any, signature_columns: List[str], store: Any
+) -> Callable:
     """Removes the id from each row and pass the cleaned version on.
     Will be used as a wrapper for the collate function.
     :param collate_fn: The collate function to wrap
@@ -32,17 +34,16 @@ def remove_id_collate_fn_wrapper(collate_fn: Any,signature_columns:List[str], st
         clean_rows = []
         for row in rows:
             clean_row = {}
-            for key,value in row.items():
+            for key, value in row.items():
                 if key == "id":
                     ids.append(value)
-                elif key  in signature_columns:
+                elif key in signature_columns:
                     clean_row[key] = value
             clean_rows.append(clean_row)
-        store["ids"] = ids 
+        store["ids"] = ids
         return collate_fn(clean_rows)
+
     return remove_id
-
-
 
 
 def add_id_to_signature_columns(trainer: Trainer) -> None:
@@ -62,7 +63,9 @@ def add_id_to_signature_columns(trainer: Trainer) -> None:
         signature = inspect.signature(trainer.model.forward)
         trainer._signature_columns = list(signature.parameters.keys())
         # Labels may be named label or label_ids, the default data collator handles that.
-        trainer._signature_columns += list(set(["label", "label_ids"] + trainer.label_names))
+        trainer._signature_columns += list(
+            set(["label", "label_ids"] + trainer.label_names)
+        )
 
     # Here we add the ids so they won't get removed
     if type(trainer._signature_columns) is list:

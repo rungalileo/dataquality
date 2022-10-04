@@ -36,8 +36,9 @@ def compute_metrics(eval_pred):
     predictions = predictions.argmax(axis=1)
     return metric.compute(predictions=predictions, references=labels)
 
+
 # 🔭🌕 Galileo logging
-mock_dataset_with_ids = mock_dataset.map(lambda x,idx: {"id":idx}, with_indices=True)
+mock_dataset_with_ids = mock_dataset.map(lambda x, idx: {"id": idx}, with_indices=True)
 
 
 encoded_train_dataset = mock_dataset_with_ids.map(
@@ -156,9 +157,13 @@ def test_remove_unused_columns(
     trainer = Trainer(
         model,
         args,
-        train_dataset= encoded_train_dataset,
-        eval_dataset=  encoded_test_dataset,
+        train_dataset=encoded_train_dataset,
+        eval_dataset=encoded_test_dataset,
         tokenizer=tokenizer,
         compute_metrics=compute_metrics,
     )
     watch(trainer)
+
+
+def test_embedding_layer():
+    pass

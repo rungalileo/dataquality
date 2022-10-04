@@ -1,8 +1,8 @@
 # Imports for the hook manager
-from queue import PriorityQueue, Queue
-from typing import Any, Callable, List
-from datasets import Dataset
+from queue import Queue
+from typing import Any, Callable, List, Union
 
+from datasets import Dataset
 from torch.nn import Module
 from torch.utils.hooks import RemovableHandle
 from transformers import Trainer
@@ -27,12 +27,16 @@ class DQCallback(TrainerCallback):
     for each training training step.
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self, layer: Union[Module, str, None] = None, embedding_dim: Any = None
+    ) -> None:
         # Access the dq logger helper data
         self.helper_data = dq.get_model_logger().logger_config.helper_data
         self._initialized = False
         # Hook manager for attaching hooks to the model
         self.hook_manager = HookManager()
+        self.layer = layer
+        self.embedding_dim = embedding_dim
 
     def _clear_logger_config_helper_data(self) -> None:
         self.helper_data["embs"] = None
@@ -62,10 +66,10 @@ class DQCallback(TrainerCallback):
         :return: None"""
         self._dq = dq
         # Attach hooks to the model
-        self._attach_hooks_to_model(model)
+        self._attach_hooks_to_model(model, self.layer)
         train_dataloader = kwargs["train_dataloader"]
         train_dataloader_ds = train_dataloader.dataset
-        
+
         if type(train_dataloader_ds) is Dataset:
             assert "id" in train_dataloader_ds.column_names, GalileoException(
                 "id (index) column is needed in the dataset for logging"
@@ -145,13 +149,15 @@ class DQCallback(TrainerCallback):
         # 🔭🌕 Galileo logging
         self._dq.log_model_outputs(**self.helper_data)
 
-    def _attach_hooks_to_model(self, model: Module) -> None:
+    def _attach_hooks_to_model(
+        self, model: Module, layer: Union[Module, str, None]
+    ) -> None:
         """
         Method to attach hooks to the model by using the hook manager
         :param model: Model
         :return: None
         """
-        self.hook_manager.attach_embedding_hook(model, None, self._embedding_hook)
+        self.hook_manager.attach_embedding_hook(model, layer, self._embedding_hook)
         self.hook_manager.attach_hook(model, self._logit_hook)
 
     def _embedding_hook(
@@ -169,10 +175,11 @@ class DQCallback(TrainerCallback):
         else:
             output_detached = model_output.detach()
         # If embedding has the CLS token, remove it
-        if len(output_detached.shape) == 3:
+        if self.embedding_dim is not None:
+            output_detached = output_detached.select(self.embedding_dim)
+        elif len(output_detached.shape) == 3:
             # It is assumed that the CLS token is removed through this dimension
             output_detached = output_detached[:, 0]
-        
         self.helper_data["embs"] = output_detached
 
     def _logit_hook(self, model: Module, model_input: Any, model_output: Any) -> None:
@@ -199,67 +206,14 @@ class HookManager:
     # Stores all hooks to remove them from the model later.
     hooks: List[RemovableHandle] = []
 
-    def scoring_algorithm(
-        self, layer_pos: float, level: float, model_name: str, layer_name: str
-    ) -> float:
-        """
-        The higher the score the more likely it is the embedding layer
-        :param layer_pos: Position of the layer in the model
-        :param level: Level of the layer (depth) in the model
-        :param model_name: Name of the class of the model
-        :param layer_name: Name of the layer
-        """
-        score: float = 0
-        embed = False
-        if "embed" in layer_name.lower():
-            embed = True
-            score += 1.5
-        if "embed" in model_name.lower():
-            embed = True
-            score += 1
-        if "embedding" == model_name.lower():
-            embed = True
-            score += 1 / 8
-        if "embedding" == layer_name.lower():
-            embed = True
-            score += 1 / 8
-        # workaround to reduce impact of level / position scoriing
-        if embed and level / 5.5 > score:
-            score -= level / 7.5
-        elif embed:
-            score = score - level / 5.5
-        if embed:
-            score -= layer_pos / 2.53
-        # to avoid collision in the priorityqueue
-        return score - (level * 10 + layer_pos) / 1000
-
     def get_embedding_layer_auto(self, model: Any) -> Any:
         """
         Use a scoring algorithm to find the embedding layer automatically
         given a model. The higher the score the more likely it is the embedding layer.
         """
-        # keeps track of model layers
-        queue: Queue = Queue()
-        # the start is the name / children of the model + the current layer level
-        start: tuple[Any, int] = (model.named_children(), 0)
-        queue.put(start)
-        # find the top choices for the embeddinglayer
-        embeddings_layers: PriorityQueue = PriorityQueue()
+        print("selecting embedding layer", next(model.named_children())[0])
 
-        while not queue.empty():
-            named_children, level = queue.get()
-            layer_pos = 0
-            # iterate over all children of the current layer and rate each layer
-            for layer_name, layer_model in named_children:
-                model_name = layer_model._get_name()
-                score = self.scoring_algorithm(layer_pos, level, model_name, layer_name)
-                if score > 0:
-                    # negative score because priorityqueue is reverse
-                    embeddings_layers.put((-score, (layer_model, level)))
-                queue.put((layer_model.named_children(), level + 1))
-                layer_pos += 1
-        el = embeddings_layers.get()
-        return el[1][0]
+        return next(model.children())
 
     def get_embedding_layer_by_name(self, model: Any, name: str) -> Any:
         """
@@ -313,7 +267,9 @@ class HookManager:
 
 
 @check_noop
-def watch(trainer: Trainer) -> None:
+def watch(
+    trainer: Trainer, layer: Union[Module, str, None] = None, embedding_dim: Any = None
+) -> None:
     """
     [`watch`] is used to hook into to the trainer
     to log to [Galileo](https://www.rungalileo.io/)
@@ -321,10 +277,10 @@ def watch(trainer: Trainer) -> None:
     :return: None
     """
     print("Attaching dataquality to trainer")
-    dqcallback = DQCallback()
-    signature_cols  = add_id_to_signature_columns(trainer)
+    dqcallback = DQCallback(layer=layer, embedding_dim=embedding_dim)
+    signature_cols = add_id_to_signature_columns(trainer)
     trainer._signature_columns = signature_cols
     trainer.data_collator = remove_id_collate_fn_wrapper(
-        trainer.data_collator, signature_cols , dqcallback.helper_data
+        trainer.data_collator, signature_cols, dqcallback.helper_data
     )
     trainer.add_callback(dqcallback)
