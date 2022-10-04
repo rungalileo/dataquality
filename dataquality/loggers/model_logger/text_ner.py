@@ -601,8 +601,8 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                     sample_id,
                     pred_span,
                     pred_emb,
-                    gold_spans,
                     pred_dep=pred_dep,
+                    gold_spans=gold_spans,
                 )
         return data
 
@@ -663,8 +663,8 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         sample_id: int,
         pred_span: Dict,
         pred_emb: np.ndarray,
-        gold_spans: Optional[List[Dict]] = None,
         pred_dep: Optional[float] = None,
+        gold_spans: Optional[List[Dict]] = None,
     ) -> DefaultDict:
         start, end = pred_span["start"], pred_span["end"]
         data = self._construct_span_row(
