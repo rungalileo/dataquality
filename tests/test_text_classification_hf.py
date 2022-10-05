@@ -1,9 +1,12 @@
-import copy
 from typing import Callable, Generator
 from unittest.mock import MagicMock, patch
 
+import numpy as np
+import torch
 from datasets import load_metric
+from torch.utils.data import DataLoader
 from transformers import (
+    AutoModel,
     AutoModelForSequenceClassification,
     AutoTokenizer,
     Trainer,
@@ -13,15 +16,17 @@ from transformers import (
 import dataquality as dq
 from dataquality import config
 from dataquality.integrations.transformers_trainer import watch
+from dataquality.loggers import model_logger
 from dataquality.schemas.task_type import TaskType
 from tests.utils.mock_request import mocked_create_project_run, mocked_get_project_run
 
-from .utils.hf_datasets_mock import mock_dataset
+from .utils.hf_datasets_mock import mock_dataset,mock_dataset_repeat
 
 tokenizer = AutoTokenizer.from_pretrained("hf-internal-testing/tiny-random-distilbert")
 model = AutoModelForSequenceClassification.from_pretrained(
     "hf-internal-testing/tiny-random-distilbert"
 )
+amodel = AutoModel.from_pretrained("hf-internal-testing/tiny-random-distilbert")
 metric = load_metric("accuracy")
 
 
@@ -39,6 +44,9 @@ def compute_metrics(eval_pred):
 
 # 🔭🌕 Galileo logging
 mock_dataset_with_ids = mock_dataset.map(lambda x, idx: {"id": idx}, with_indices=True)
+mock_dataset_with_ids_repeat = mock_dataset_repeat.map(
+    lambda x, idx: {"id": idx}, with_indices=True
+)
 
 
 encoded_train_dataset = mock_dataset_with_ids.map(
@@ -48,9 +56,17 @@ encoded_test_dataset = mock_dataset_with_ids.map(
     lambda x: preprocess_function(x, tokenizer), batched=True
 )
 
+encoded_train_dataset_repeat = mock_dataset_with_ids.map(
+    lambda x: preprocess_function(x, tokenizer), batched=True
+)
+encoded_test_dataset_repeat = mock_dataset_with_ids.map(
+    lambda x: preprocess_function(x, tokenizer), batched=True
+)
+
+
 # Training arguments and training part
 metric_name = "accuracy"
-batch_size = 16
+batch_size = 4
 
 args_default = TrainingArguments(
     output_dir="tmp",
@@ -59,7 +75,7 @@ args_default = TrainingArguments(
     learning_rate=3e-4,
     per_device_train_batch_size=batch_size,
     per_device_eval_batch_size=batch_size,
-    num_train_epochs=2,
+    num_train_epochs=1,
     weight_decay=0.01,
     load_best_model_at_end=True,
     metric_for_best_model=metric_name,
@@ -77,18 +93,17 @@ def test_end_to_end_without_callback(
     set_test_config: Callable,
 ) -> None:
     """Base case: Training on a dataset"""
-    args = copy.deepcopy(args_default)
 
     trainer = Trainer(
         model,
-        args,
+        args_default,
         train_dataset=encoded_train_dataset,
         eval_dataset=encoded_test_dataset,
         tokenizer=tokenizer,
         compute_metrics=compute_metrics,
     )
 
-    trainer.train()
+    # trainer.train()
 
 
 @patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
@@ -109,7 +124,6 @@ def test_hf_watch_e2e(
 ) -> None:
     """Base case: Tests creating a new project and run"""
     global encoded_train_dataset, encoded_test_dataset
-    # dq.init(task_type="text_classification")
     set_test_config(task_type=TaskType.text_classification)
     # 🔭🌕 Galileo logging
     dq.set_labels_for_run(mock_dataset.features["label"].names)
@@ -118,10 +132,9 @@ def test_hf_watch_e2e(
     dq.log_dataset(train_dataset, split="train")
     dq.log_dataset(test_dataset, split="test")
 
-    args = copy.deepcopy(args_default)
     trainer = Trainer(
         model,
-        args,
+        args_default,
         train_dataset=encoded_train_dataset,
         eval_dataset=encoded_test_dataset,
         tokenizer=tokenizer,
@@ -152,11 +165,9 @@ def test_remove_unused_columns(
     assert config.current_run_id
     assert config.current_project_id
 
-    args = copy.deepcopy(args_default)
-
     trainer = Trainer(
         model,
-        args,
+        args_default,
         train_dataset=encoded_train_dataset,
         eval_dataset=encoded_test_dataset,
         tokenizer=tokenizer,
@@ -165,5 +176,94 @@ def test_remove_unused_columns(
     watch(trainer)
 
 
-def test_embedding_layer():
-    pass
+@patch("requests.post", side_effect=mocked_create_project_run)
+@patch("requests.get", side_effect=mocked_get_project_run)
+@patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
+def test_training_run(
+    mock_valid_user: MagicMock,
+    mock_requests_get: MagicMock,
+    mock_requests_post: MagicMock,
+    set_test_config: Callable,
+) -> None:
+    """Base case: Tests watch function to pass"""
+
+    trainer = Trainer(
+        model,
+        args_default,
+        train_dataset=encoded_train_dataset_repeat,
+        eval_dataset=encoded_test_dataset_repeat,
+        tokenizer=tokenizer,
+        compute_metrics=compute_metrics,
+    )
+    trainer.train()
+
+
+def test_embedding_layer_indexing():
+    """Tests that the embedding layer can be indexed with select"""
+    arr = np.array([[[1], [2], [3]], [[4], [5], [6]]])
+    tensor = torch.tensor(arr)
+    arr_sliced = arr[:, 0]
+    arr_sliced.shape
+    tensor_sliced = tensor.select(*(1, 0))
+    assert arr.shape == tensor.shape, "shape must match"
+    assert np.array_equal(arr, tensor.numpy()), "values must match"
+    assert tensor_sliced.shape == arr_sliced.shape, "sliced shape must match"
+    assert np.array_equal(arr_sliced, tensor_sliced.numpy()), "shape must be same"
+
+@patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
+@patch.object(dq.core.finish, "_version_check")
+@patch.object(dq.core.finish, "_reset_run")
+@patch.object(dq.core.finish, "upload_dq_log_file")
+@patch.object(dq.clients.api.ApiClient, "make_request")
+@patch.object(dq.core.finish, "wait_for_run")
+def test_embedding_layer_equality_in_logger(
+    mock_wait_for_run: MagicMock,
+    mock_make_request: MagicMock,
+    mock_upload_log_file: MagicMock,
+    mock_reset_run: MagicMock,
+    mock_version_check: MagicMock,
+    mock_valid_user: MagicMock,
+    set_test_config: Callable,
+    cleanup_after_use: Generator,
+) -> None:
+    """Tests that the embedding layer is correctly logged"""
+    model = AutoModelForSequenceClassification.from_pretrained(
+    "hf-internal-testing/tiny-random-distilbert"
+)
+    amodel = AutoModel.from_pretrained("hf-internal-testing/tiny-random-distilbert")
+    train_sample = mock_dataset_with_ids_repeat.map(
+        lambda x: preprocess_function(x, tokenizer), batched=True
+    ).with_format("torch", columns=["attention_mask", "input_ids", "id"])
+    dataloader = DataLoader(
+        train_sample,
+        batch_size=4,
+        # collate_fn=collate_fn
+    )
+    for batch in dataloader:
+        ids = batch.pop("id").detach().numpy()
+        pred = amodel(**batch)
+        embeddings = pred[0][:,0].detach().numpy()[0]
+        break
+    set_test_config(task_type=TaskType.text_classification)
+    dq.log_dataset(mock_dataset_with_ids_repeat, split="train")
+    dq.log_dataset(mock_dataset_with_ids_repeat, split="test")
+    dq.set_labels_for_run(mock_dataset.features["label"].names)
+    trainer = Trainer(
+        model,
+        args_default,
+        train_dataset=encoded_train_dataset_repeat,
+        eval_dataset=encoded_test_dataset_repeat,
+        tokenizer=tokenizer,
+        compute_metrics=compute_metrics,
+    )
+    watch(trainer)
+    trainer.train()
+    helper_data = dq.get_model_logger().logger_config.helper_data
+    model_logger = dq.get_model_logger()
+    print(dir(model_logger))
+    helper_embeddings = helper_data["embs"].detach().numpy()[0]
+    print("helper_embeddings")
+    print(helper_embeddings)
+    print("embeddings")
+    print(embeddings)
+    assert np.array_equal(embeddings,helper_embeddings ) , "Embeddings must be same"

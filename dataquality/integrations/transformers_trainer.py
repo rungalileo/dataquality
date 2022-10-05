@@ -176,7 +176,7 @@ class DQCallback(TrainerCallback):
             output_detached = model_output.detach()
         # If embedding has the CLS token, remove it
         if self.embedding_dim is not None:
-            output_detached = output_detached.select(self.embedding_dim)
+            output_detached = output_detached.select(*self.embedding_dim)
         elif len(output_detached.shape) == 3:
             # It is assumed that the CLS token is removed through this dimension
             output_detached = output_detached[:, 0]
