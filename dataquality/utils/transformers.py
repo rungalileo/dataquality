@@ -46,7 +46,7 @@ def remove_id_collate_fn_wrapper(
     return remove_id
 
 
-def add_id_to_signature_columns(trainer: Trainer) -> None:
+def add_id_to_signature_columns(trainer: Trainer) -> Any:
     """Adds the signature columns to the trainer.
     Usually the signature columns are label and label_ids.
     This function will add them if they are not already present.
@@ -61,9 +61,10 @@ def add_id_to_signature_columns(trainer: Trainer) -> None:
     if trainer._signature_columns is None:
         # Inspect model forward signature to keep only the arguments it accepts.
         signature = inspect.signature(trainer.model.forward)
-        trainer._signature_columns = list(signature.parameters.keys())
-        # Labels may be named label or label_ids, the default data collator handles that.
-        trainer._signature_columns += list(
+        trainer._signature_columns = list(signature.parameters.keys())  # type: ignore
+        # Labels may be named label or label_ids,
+        # the default data collator handles that.
+        trainer._signature_columns += list(  # type: ignore
             set(["label", "label_ids"] + trainer.label_names)
         )
 

@@ -265,11 +265,11 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         format to log directly.
         """
 
-        parse_label = lambda x: x
-        # If label is integer, convert to string
+        parse_label = lambda x: x  # noqa: E731
+        # If label is integer, convert to string #
         if isinstance(dataset[0][label], int):
             try:
-                parse_label = lambda x: dataset.features[label].int2str(x)
+                parse_label = lambda x: dataset.features[label].int2str(x)  # noqa: E731
             except Exception:
                 # TODO: Simplify this logic with mapping the int label to string ticket
                 raise GalileoException(

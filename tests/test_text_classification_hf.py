@@ -16,11 +16,10 @@ from transformers import (
 import dataquality as dq
 from dataquality import config
 from dataquality.integrations.transformers_trainer import watch
-from dataquality.loggers import model_logger
 from dataquality.schemas.task_type import TaskType
 from tests.utils.mock_request import mocked_create_project_run, mocked_get_project_run
 
-from .utils.hf_datasets_mock import mock_dataset,mock_dataset_repeat
+from .utils.hf_datasets_mock import mock_dataset, mock_dataset_repeat
 
 tokenizer = AutoTokenizer.from_pretrained("hf-internal-testing/tiny-random-distilbert")
 model = AutoModelForSequenceClassification.from_pretrained(
@@ -103,7 +102,7 @@ def test_end_to_end_without_callback(
         compute_metrics=compute_metrics,
     )
 
-    # trainer.train()
+    trainer.train()
 
 
 @patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
@@ -210,6 +209,7 @@ def test_embedding_layer_indexing():
     assert tensor_sliced.shape == arr_sliced.shape, "sliced shape must match"
     assert np.array_equal(arr_sliced, tensor_sliced.numpy()), "shape must be same"
 
+
 @patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
 @patch.object(dq.core.finish, "_version_check")
 @patch.object(dq.core.finish, "_reset_run")
@@ -228,8 +228,8 @@ def test_embedding_layer_equality_in_logger(
 ) -> None:
     """Tests that the embedding layer is correctly logged"""
     model = AutoModelForSequenceClassification.from_pretrained(
-    "hf-internal-testing/tiny-random-distilbert"
-)
+        "hf-internal-testing/tiny-random-distilbert"
+    )
     amodel = AutoModel.from_pretrained("hf-internal-testing/tiny-random-distilbert")
     train_sample = mock_dataset_with_ids_repeat.map(
         lambda x: preprocess_function(x, tokenizer), batched=True
@@ -240,9 +240,9 @@ def test_embedding_layer_equality_in_logger(
         # collate_fn=collate_fn
     )
     for batch in dataloader:
-        ids = batch.pop("id").detach().numpy()
+        batch.pop("id").detach().numpy()
         pred = amodel(**batch)
-        embeddings = pred[0][:,0].detach().numpy()[0]
+        embeddings = pred[0][:, 0].detach().numpy()[0]
         break
     set_test_config(task_type=TaskType.text_classification)
     dq.log_dataset(mock_dataset_with_ids_repeat, split="train")
@@ -259,11 +259,9 @@ def test_embedding_layer_equality_in_logger(
     watch(trainer)
     trainer.train()
     helper_data = dq.get_model_logger().logger_config.helper_data
-    model_logger = dq.get_model_logger()
-    print(dir(model_logger))
     helper_embeddings = helper_data["embs"].detach().numpy()[0]
     print("helper_embeddings")
     print(helper_embeddings)
     print("embeddings")
     print(embeddings)
-    assert np.array_equal(embeddings,helper_embeddings ) , "Embeddings must be same"
+    assert np.array_equal(embeddings, helper_embeddings), "Embeddings must be same"
