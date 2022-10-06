@@ -422,7 +422,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
 
     @classmethod
     def split_dataframe(
-        cls, df: DataFrame, prob_only: bool
+        cls, df: DataFrame, prob_only: bool, split: str
     ) -> Tuple[DataFrame, DataFrame, DataFrame]:
         """Splits the singular dataframe into its 3 components
 

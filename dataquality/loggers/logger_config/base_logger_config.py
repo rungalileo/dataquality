@@ -29,7 +29,7 @@ class BaseLoggerConfig(BaseModel):
     class Config:
         validate_assignment = True
 
-    def reset(self) -> None:
+    def reset(self, factory: bool = False) -> None:
         """Reset all class vars"""
         self.__init__()  # type: ignore
 

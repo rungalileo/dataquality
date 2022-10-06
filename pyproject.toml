@@ -25,6 +25,7 @@ requires = [
     "wrapt==1.13.3",
     "scipy>=1.7.0",
     "cachetools==5.2.0",
+    "importlib-metadata==4.12.0",
 ]
 
 [tool.flit.metadata.urls]
