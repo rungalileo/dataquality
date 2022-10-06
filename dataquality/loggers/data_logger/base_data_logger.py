@@ -175,11 +175,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                 object_store, in_frame_split, split, split_loc, last_epoch
             )
             in_frame_split.close()
-            del in_frame_split
             shutil.rmtree(in_frame_path)
             gc.collect()
-        # TODO Remove
-        print("Done uploading. Sleeping for 10 seconds...")
         time.sleep(10)
 
     def convert_large_string(self, df: DataFrame) -> DataFrame:
