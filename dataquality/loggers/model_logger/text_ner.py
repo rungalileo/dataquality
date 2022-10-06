@@ -176,11 +176,9 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 logged_sample_ids.append(sample_id)
                 if self.split == Split.training:
                     if sample_id == 1:
-                        get_dq_logger().info("-"*50, split=self.split, epoch=self.epoch)
-                        get_dq_logger().info(f"HERE saving stuff for epoch {self.epoch}", split=self.split, epoch=self.epoch)
-                        get_dq_logger().info(sample_prob[0][:5], split=self.split, epoch=self.epoch)
-                        get_dq_logger().info(self.gold_dep[-1], split=self.split, epoch=self.epoch)
-                        get_dq_logger().info(self.pred_dep[-1], split=self.split, epoch=self.epoch)
+                        get_dq_logger().info(f"sample span probs: {sample_prob[0][:5]}", split=self.split, epoch=self.epoch)
+                        get_dq_logger().info(f"gold_deps: {self.gold_dep[-1]}", split=self.split, epoch=self.epoch)
+                        get_dq_logger().info(f"pred_deps: {self.pred_dep[-1]}", split=self.split, epoch=self.epoch)
                         get_dq_logger().info("-"*50, split=self.split, epoch=self.epoch)
                     self.logger_config.sample_span_content[sample_id].update(
                         {
@@ -208,6 +206,8 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         get_dq_logger().debug(
             "Processing a sample.", split=self.split, epoch=self.epoch
         )
+        get_dq_logger().info("-"*50, split=self.split, epoch=self.epoch)
+        get_dq_logger().info(f"HERE saving stuff for epoch {self.epoch}", split=self.split, epoch=self.epoch)
         # To extract metadata about the sample we are looking at
         sample_key = self.logger_config.get_sample_key(Split(self.split), sample_id)
 
@@ -224,6 +224,9 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         ]
         # Save the pred and gold spans at token level here
         if self.split == Split.training:
+            if sample_id == 1:
+                get_dq_logger().info(f"gold_spans_boundaries: {sample_gold_spans}", split=self.split, epoch=self.epoch)
+                get_dq_logger().info(f"pred_spans_boundaries: {sample_pred_spans}", split=self.split, epoch=self.epoch)
             self.logger_config.sample_span_content[sample_id].update(
                 {
                     "gold_spans_boundaries": sample_gold_spans,
@@ -520,6 +523,8 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         if self.split == Split.training:
             # Save the gold sequence for the sample id
             sid = self.cur_sample_id
+            if sid == 1:
+                get_dq_logger().info(f"gold_sequence: {gold_sequence}", split=self.split, epoch=self.epoch)
             self.logger_config.sample_span_content[sid]["gold_sequence"] = gold_sequence
 
         # Store dep scores for every token in the sample
