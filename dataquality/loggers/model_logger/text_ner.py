@@ -718,13 +718,13 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 break
         return error_type
 
-    def __setattr__(self, key: Any, value: Any) -> None:
-        if key not in self.get_valid_attributes():
-            raise AttributeError(
-                f"{key} is not a valid attribute of {self.__logger_name__} logger. "
-                f"Only {self.get_valid_attributes()}"
-            )
-        super().__setattr__(key, value)
+    # def __setattr__(self, key: Any, value: Any) -> None:
+    #     if key not in self.get_valid_attributes():
+    #         raise AttributeError(
+    #             f"{key} is not a valid attribute of {self.__logger_name__} logger. "
+    #             f"Only {self.get_valid_attributes()}"
+    #         )
+    #     super().__setattr__(key, value)
 
     def convert_logits_to_probs(
         self, sample_logits: Union[List, np.ndarray]
