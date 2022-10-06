@@ -171,10 +171,17 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         for sample_id, sample_emb, sample_prob in zip(self.ids, self.embs, self.probs):
             # This will return True if there was a prediction or gold span
             sample_emb = self._convert_tensor_ndarray(sample_emb)
-            self.logger_config.cur_sample_id = sample_id
             if self._process_sample(sample_id, sample_emb, sample_prob):
                 logged_sample_ids.append(sample_id)
                 if self.split == Split.training:
+                    self.cur_sample_id = sample_id
+                    if sample_id == 1:
+                        get_dq_logger().info("-"*50, split=self.split, epoch=self.epoch)
+                        get_dq_logger().info(f"HERE saving stuff for epoch {self.epoch}", split=self.split, epoch=self.epoch)
+                        get_dq_logger().info(sample_prob[0][:5], split=self.split, epoch=self.epoch)
+                        get_dq_logger().info(self.gold_dep[-1], split=self.split, epoch=self.epoch)
+                        get_dq_logger().info(self.pred_dep[-1], split=self.split, epoch=self.epoch)
+                        get_dq_logger().info("-"*50, split=self.split, epoch=self.epoch)
                     self.logger_config.sample_span_content[sample_id].update(
                         {
                             "span_gold_deps": self.gold_dep[-1],
@@ -510,9 +517,9 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         ][0:sample_token_len]
         gold_sequence = self._construct_gold_sequence(len(pred_sequence), gold_spans)
 
-        # Save the gold sequence for the sample id
-        sid = self.logger_config.cur_sample_id
         if self.split == Split.training:
+            # Save the gold sequence for the sample id
+            sid = self.cur_sample_id
             self.logger_config.sample_span_content[sid]["gold_sequence"] = gold_sequence
 
         # Store dep scores for every token in the sample
