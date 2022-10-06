@@ -187,7 +187,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         We only do this for types that write to HDF5 files
         """
         df_copy = df.copy()
-        # Characters are each 1 byte. If more bytes than max, it needs to be large_string
+        # Characters are each 1 byte. If more bytes > max, it needs to be large_string
         text_bytes = df_copy["text"].str.len().sum()
         if text_bytes > self.STRING_MAX_SIZE_B:
             df_copy["text"] = df_copy["text"].to_arrow().cast(pa.large_string())
