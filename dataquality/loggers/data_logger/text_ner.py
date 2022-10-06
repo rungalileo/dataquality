@@ -613,7 +613,6 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         df = vaex.from_dict(inp)
         return df
 
-
     @classmethod
     def process_in_out_frames(
         cls,
