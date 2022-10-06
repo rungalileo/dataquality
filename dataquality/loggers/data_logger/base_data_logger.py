@@ -3,7 +3,6 @@ import glob
 import os
 import shutil
 import sys
-import time
 import warnings
 from abc import abstractmethod
 from collections import Counter
@@ -177,7 +176,6 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             in_frame_split.close()
             shutil.rmtree(in_frame_path)
             gc.collect()
-        time.sleep(10)
 
     def convert_large_string(self, df: DataFrame) -> DataFrame:
         """Cast regular string to large_string for the text column
