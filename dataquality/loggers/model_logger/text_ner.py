@@ -171,10 +171,10 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         for sample_id, sample_emb, sample_prob in zip(self.ids, self.embs, self.probs):
             # This will return True if there was a prediction or gold span
             sample_emb = self._convert_tensor_ndarray(sample_emb)
+            self.cur_sample_id = sample_id
             if self._process_sample(sample_id, sample_emb, sample_prob):
                 logged_sample_ids.append(sample_id)
                 if self.split == Split.training:
-                    self.cur_sample_id = sample_id
                     if sample_id == 1:
                         get_dq_logger().info("-"*50, split=self.split, epoch=self.epoch)
                         get_dq_logger().info(f"HERE saving stuff for epoch {self.epoch}", split=self.split, epoch=self.epoch)
