@@ -46,6 +46,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     INPUT_DATA_BASE = "input_data"
     MAX_DATA_SIZE_CLOUD = 300_000
     # 2GB max size for arrow strings. We use 1.5GB for some buffer
+    # https://issues.apache.org/jira/browse/ARROW-17828
     STRING_MAX_SIZE_B = 1.5e9
 
     DATA_FOLDER_EXTENSION = {data_folder: "hdf5" for data_folder in DATA_FOLDERS}
