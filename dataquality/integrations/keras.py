@@ -80,9 +80,7 @@ class DataQualityCallback(keras.callbacks.Callback):
         print(f"Starting with epoch {epoch}")
 
     def _clear_logger_config_helper_data(self) -> None:
-        self.helper_data["embs"] = None
-        self.helper_data["probs"] = None
-        self.helper_data["logits"] = None
+        self.helper_data.clear()
 
     def on_train_batch_begin(self, batch: Any, logs: Dict = None) -> None:
         self._clear_logger_config_helper_data()

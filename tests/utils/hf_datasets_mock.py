@@ -61,7 +61,7 @@ mock_dataset_repeat = Dataset.from_dict(
             "i didnt feel humiliated",
             "i didnt feel humiliated",
         ],
-        "label": [0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 1],
+        "label": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     },
     features,
 )

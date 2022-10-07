@@ -6,18 +6,20 @@ from datasets import Dataset
 from torch.nn import Module
 from torch.utils.hooks import RemovableHandle
 from transformers import Trainer
-from transformers.trainer_callback import TrainerCallback  # noqa: E402
-from transformers.trainer_callback import TrainerControl, TrainerState
-from transformers.training_args import TrainingArguments  # noqa: E402
+from transformers.trainer_callback import TrainerCallback, TrainerControl, TrainerState
+from transformers.training_args import TrainingArguments
 
 import dataquality as dq
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.split import Split
+from dataquality.schemas.task_type import TaskType
 from dataquality.utils.helpers import check_noop
 from dataquality.utils.transformers import (
     add_id_to_signature_columns,
     remove_id_collate_fn_wrapper,
 )
+
+Layer = Union[Module, str, None]
 
 
 # Trainer callback for Huggingface transformers Trainer library
@@ -28,7 +30,9 @@ class DQCallback(TrainerCallback):
     """
 
     def __init__(
-        self, layer: Union[Module, str, None] = None, embedding_dim: Any = None
+        self,
+        layer: Layer = None,
+        embedding_dim: Union[tuple, None] = None,
     ) -> None:
         # Access the dq logger helper data
         self.helper_data = dq.get_model_logger().logger_config.helper_data
@@ -39,9 +43,7 @@ class DQCallback(TrainerCallback):
         self.embedding_dim = embedding_dim
 
     def _clear_logger_config_helper_data(self) -> None:
-        self.helper_data["embs"] = None
-        self.helper_data["probs"] = None
-        self.helper_data["logits"] = None
+        self.helper_data.clear()
 
     def on_init_end(
         self,
@@ -56,7 +58,11 @@ class DQCallback(TrainerCallback):
         self._clear_logger_config_helper_data()
 
     def setup(
-        self, args: TrainingArguments, state: TrainerState, model: Module, kwargs: Any
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        model: Module,
+        kwargs: Any,
     ) -> None:
         """Setup the callback
         :param args: Training arguments
@@ -64,13 +70,18 @@ class DQCallback(TrainerCallback):
         :param model: Model
         :param kwargs: Keyword arguments (eval_dataloader, train_dataloader, tokenizer)
         :return: None"""
-        self._dq = dq
         # Attach hooks to the model
+        assert dq.config.task_type == TaskType.text_classification, GalileoException(
+            "dq client must be initialized for text classification. "
+            "For example: dq.init(task='text_classification')"
+        )
         self._attach_hooks_to_model(model, self.layer)
         train_dataloader = kwargs["train_dataloader"]
         train_dataloader_ds = train_dataloader.dataset
 
-        if type(train_dataloader_ds) is Dataset:
+        if isinstance(train_dataloader_ds, Dataset):
+            print("train_dataloader_ds.column_names")
+            print(train_dataloader_ds.column_names)
             assert "id" in train_dataloader_ds.column_names, GalileoException(
                 "id (index) column is needed in the dataset for logging"
             )
@@ -95,7 +106,7 @@ class DQCallback(TrainerCallback):
         """
         if not self._initialized:
             self.setup(args, state, kwargs["model"], kwargs)
-        self._dq.set_split(Split.train)  # 🔭🌕 Galileo logging
+        dq.set_split(Split.training)  # 🔭🌕 Galileo logging
 
     def on_epoch_begin(
         self,
@@ -107,7 +118,7 @@ class DQCallback(TrainerCallback):
         state_epoch = state.epoch
         if state_epoch is not None:
             state_epoch = int(state_epoch)
-            self._dq.set_epoch(state_epoch)  # 🔭🌕 Galileo logging
+            dq.set_epoch(state_epoch)  # 🔭🌕 Galileo logging
 
     def on_train_end(
         self,
@@ -116,7 +127,7 @@ class DQCallback(TrainerCallback):
         control: TrainerControl,
         **kwargs: Any,
     ) -> None:
-        self._dq.set_split(Split.validation)  # 🔭🌕 Galileo logging
+        dq.set_split(Split.validation)  # 🔭🌕 Galileo logging
 
     def on_step_end(
         self,
@@ -147,14 +158,13 @@ class DQCallback(TrainerCallback):
         )
 
         # 🔭🌕 Galileo logging
-        self._dq.log_model_outputs(**self.helper_data)
+        dq.log_model_outputs(**self.helper_data)
 
-    def _attach_hooks_to_model(
-        self, model: Module, layer: Union[Module, str, None]
-    ) -> None:
+    def _attach_hooks_to_model(self, model: Module, layer: Layer) -> None:
         """
         Method to attach hooks to the model by using the hook manager
         :param model: Model
+        :param model: pytorch model layer to attach hooks to
         :return: None
         """
         self.hook_manager.attach_embedding_hook(model, layer, self._embedding_hook)
@@ -165,9 +175,15 @@ class DQCallback(TrainerCallback):
     ) -> None:
         """
         Hook to extract the embeddings from the model
-        :param model: Model pytorch model
-        :param model_input: Model input
-        :param model_output: Model output
+        Keyword arguments won't be passed to the hooks and only to the ``forward``.
+        The hook can modify the input. User can either return a tuple or a
+        single modified value in the hook. We will wrap the value into a tuple
+        if a single value is returned(unless that value is already a tuple).
+        The hook will be called every time after :func:`forward` has computed an output.
+
+        :param model: Model pytorch model / layer
+        :param model_input: Input of the current layer
+        :param model_output: Output of the current layer
         :return: None
         """
         if hasattr(model_output, "last_hidden_state"):
@@ -186,8 +202,8 @@ class DQCallback(TrainerCallback):
         """
         Hook to extract the logits from the model.
         :param model: Model pytorch model
-        :param model_input: Model input
-        :param model_output: Model output
+        :param model_input: Model input of the current layer
+        :param model_output: Model output of the current layer
         :return: None
         """
         if hasattr(model_output, "logits"):
@@ -211,9 +227,10 @@ class HookManager:
         Use a scoring algorithm to find the embedding layer automatically
         given a model. The higher the score the more likely it is the embedding layer.
         """
-        print("selecting embedding layer", next(model.named_children())[0])
+        name, layer = next(model.named_children())
+        print(f"Selected layer for the last hidden state embedding {name}")
 
-        return next(model.children())
+        return layer
 
     def get_embedding_layer_by_name(self, model: Any, name: str) -> Any:
         """
@@ -233,28 +250,27 @@ class HookManager:
                 layer_names_str = ", ".join(layer_names)
                 if layer_name == name:
                     print(
-                        f"Found layer {layer_name} in model layers: {layer_names_str}"
+                        f"Found layer {layer_name}" "in model layers: {layer_names_str}"
                     )
                     return layer_model
                 layer_model._get_name()
                 queue.put(layer_model.named_children())
         raise GalileoException(
-            f"Layer could not be found in { layer_names_str }, "  # noqa: E501
+            f"Layer could not be found in {layer_names_str}, "
             "make sure to check capitalization"
         )
 
     def attach_embedding_hook(
         self, model: Any, model_layer: Any = None, embedding_hook: Callable = print
     ) -> RemovableHandle:
-        """attach hook and save it in our hook list"""
+        """Attach hook and save it in our hook list"""
         if model_layer is None:
             selected_layer = self.get_embedding_layer_auto(model)
-        elif type(model_layer) is str:
+        elif isinstance(model_layer, str):
             selected_layer = self.get_embedding_layer_by_name(model, model_layer)
         else:
             selected_layer = model_layer
-        h = self.attach_hook(selected_layer, embedding_hook)
-        return h
+        return self.attach_hook(selected_layer, embedding_hook)
 
     def attach_hook(self, selected_layer: Any, hook: Callable) -> RemovableHandle:
         h = selected_layer.register_forward_hook(hook)
@@ -267,19 +283,18 @@ class HookManager:
 
 
 @check_noop
-def watch(
-    trainer: Trainer, layer: Union[Module, str, None] = None, embedding_dim: Any = None
-) -> None:
+def watch(trainer: Trainer, layer: Layer = None, embedding_dim: Any = None) -> None:
     """
     [`watch`] is used to hook into to the trainer
     to log to [Galileo](https://www.rungalileo.io/)
     :param trainer: Trainer object
     :return: None
     """
-    print("Attaching dataquality to trainer")
+    # Callback which we add to the trainer
     dqcallback = DQCallback(layer=layer, embedding_dim=embedding_dim)
+    # The columns needed for the forward process
     signature_cols = add_id_to_signature_columns(trainer)
-    trainer._signature_columns = signature_cols
+    # We wrap the data collator to remove the id column
     trainer.data_collator = remove_id_collate_fn_wrapper(
         trainer.data_collator, signature_cols, dqcallback.helper_data
     )
