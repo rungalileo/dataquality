@@ -23,9 +23,13 @@ from tests.utils.hf_datasets_mock import mock_dataset, mock_dataset_repeat
 from tests.utils.mock_request import mocked_create_project_run, mocked_get_project_run
 
 tokenizer = AutoTokenizer.from_pretrained("hf-internal-testing/tiny-random-distilbert")
-model = AutoModelForSequenceClassification.from_pretrained(
-    "hf-internal-testing/tiny-random-distilbert"
-)
+try:
+    model = AutoModelForSequenceClassification.from_pretrained(
+        "tmp/testing-random-distilbert-sq")
+except:
+    model = AutoModelForSequenceClassification.from_pretrained(
+        "hf-internal-testing/tiny-random-distilbert")
+    model.save("tmp/testing-random-distilbert-sq")
 metric = load_metric("accuracy")
 
 
@@ -179,19 +183,19 @@ def test_remove_unused_columns(
         model,
         t_args,
         train_dataset=encoded_train_dataset.with_format(
-            "torch", columns=["id","attention_mask", "input_ids", "label"]
+            "torch", columns=["id", "attention_mask", "input_ids", "label"]
         ),
         eval_dataset=encoded_test_dataset.with_format(
-            "torch", columns=["id","attention_mask", "input_ids", "label"]
+            "torch", columns=["id", "attention_mask", "input_ids", "label"]
         ),
         tokenizer=tokenizer,
         compute_metrics=compute_metrics,
     )
-    
-    assert(trainer._signature_columns is None, "Signature columns should be None")
+
+    assert trainer._signature_columns is None, "Signature columns should be None"
     watch(trainer)
-    assert(trainer._signature_columns  is None, "Signature columns should be None")
-    
+    assert trainer._signature_columns is None, "Signature columns should be None"
+
     trainer.train()
 
 

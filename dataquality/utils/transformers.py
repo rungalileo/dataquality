@@ -15,7 +15,6 @@ def remove_id_collate_fn_wrapper(
     :return: The wrapped collate function
     """
 
-
     def remove_id(rows: List[dict]) -> List[dict]:
         """Removes the id from each row and pass the cleaned version on.
         :param rows: The rows to clean
@@ -33,7 +32,7 @@ def remove_id_collate_fn_wrapper(
                 elif key in keep_cols:
                     clean_row[key] = value
                 # If the signature columns are not set, keep all columns
-                elif  len(keep_cols)==0:
+                elif len(keep_cols) == 0:
                     clean_row[key] = value
             clean_rows.append(clean_row)
         store["ids"] = ids
