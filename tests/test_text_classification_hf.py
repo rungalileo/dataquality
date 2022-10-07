@@ -22,14 +22,25 @@ from dataquality.schemas.task_type import TaskType
 from tests.utils.hf_datasets_mock import mock_dataset, mock_dataset_repeat
 from tests.utils.mock_request import mocked_create_project_run, mocked_get_project_run
 
-tokenizer = AutoTokenizer.from_pretrained("hf-internal-testing/tiny-random-distilbert")
+# Load models locally
+try:
+    tokenizer = AutoTokenizer.from_pretrained("tmp/testing-random-distilbert-tokenizer")
+except Exception:
+    tokenizer = AutoTokenizer.from_pretrained(
+        "hf-internal-testing/tiny-random-distilbert"
+    )
+    tokenizer.save_pretrained("tmp/testing-random-distilbert-tokenizer")
 try:
     model = AutoModelForSequenceClassification.from_pretrained(
-        "tmp/testing-random-distilbert-sq")
-except:
+        "tmp/testing-random-distilbert-sq"
+    )
+except Exception:
     model = AutoModelForSequenceClassification.from_pretrained(
-        "hf-internal-testing/tiny-random-distilbert")
-    model.save("tmp/testing-random-distilbert-sq")
+        "hf-internal-testing/tiny-random-distilbert"
+    )
+    model.save_pretrained("tmp/testing-random-distilbert-sq")
+
+
 metric = load_metric("accuracy")
 
 
