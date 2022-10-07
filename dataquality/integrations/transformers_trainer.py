@@ -80,10 +80,9 @@ class DQCallback(TrainerCallback):
         train_dataloader_ds = train_dataloader.dataset
 
         if isinstance(train_dataloader_ds, Dataset):
-            print("train_dataloader_ds.column_names")
-            print(train_dataloader_ds.column_names)
             assert "id" in train_dataloader_ds.column_names, GalileoException(
-                "id (index) column is needed in the dataset for logging"
+                "id (index) column is needed in the dataset for logging\n"
+                "`dataset.map(lambda x, idx: {"id": idx}, with_indices=True)`"
             )
         else:
             raise GalileoException(f"Unknown dataset type {type(train_dataloader_ds)}")
@@ -229,7 +228,6 @@ class HookManager:
         """
         name, layer = next(model.named_children())
         print(f"Selected layer for the last hidden state embedding {name}")
-
         return layer
 
     def get_embedding_layer_by_name(self, model: Any, name: str) -> Any:
@@ -273,11 +271,13 @@ class HookManager:
         return self.attach_hook(selected_layer, embedding_hook)
 
     def attach_hook(self, selected_layer: Any, hook: Callable) -> RemovableHandle:
+        """Register a hook and save it in our hook list"""
         h = selected_layer.register_forward_hook(hook)
         self.hooks.append(h)
         return h
 
     def remove_hook(self) -> None:
+        """Remove all hooks from the model"""
         for h in self.hooks:
             h.remove()
 

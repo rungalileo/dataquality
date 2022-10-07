@@ -5,7 +5,7 @@ from transformers import Trainer
 
 
 def remove_id_collate_fn_wrapper(
-    collate_fn: Any, signature_columns: List[str], store: Dict[str, Any]
+    collate_fn: Any, keep_cols: List[str], store: Dict[str, Any]
 ) -> Callable:
     """Removes the id from each row and pass the cleaned version on.
 
@@ -14,6 +14,7 @@ def remove_id_collate_fn_wrapper(
     :param store: The store to use to save the ids (currently passed by reference)
     :return: The wrapped collate function
     """
+
 
     def remove_id(rows: List[dict]) -> List[dict]:
         """Removes the id from each row and pass the cleaned version on.
@@ -28,7 +29,11 @@ def remove_id_collate_fn_wrapper(
             for key, value in row.items():
                 if key == "id":
                     ids.append(value)
-                elif key in signature_columns:
+                # Only keep the columns that are not in the signature columns
+                elif key in keep_cols:
+                    clean_row[key] = value
+                # If the signature columns are not set, keep all columns
+                elif  len(keep_cols)==0:
                     clean_row[key] = value
             clean_rows.append(clean_row)
         store["ids"] = ids
@@ -45,8 +50,6 @@ def add_id_to_signature_columns(trainer: Trainer) -> List[str]:
     :param trainer: The trainer to add the id column to.
     """
     # Taken from the trainer source code
-    print("trainer.args.remove_unused_columns")
-    print(trainer.args.remove_unused_columns)
     if not trainer.args.remove_unused_columns:
         return []
 
@@ -62,7 +65,6 @@ def add_id_to_signature_columns(trainer: Trainer) -> List[str]:
 
     # Here we add the ids so they won't get removed
     if isinstance(trainer._signature_columns, list):
-        print("Adding id to signature columns")
         if "id" not in trainer._signature_columns:
             trainer._signature_columns.append("id")
         return trainer._signature_columns

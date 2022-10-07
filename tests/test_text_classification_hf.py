@@ -179,15 +179,19 @@ def test_remove_unused_columns(
         model,
         t_args,
         train_dataset=encoded_train_dataset.with_format(
-            "torch", columns=["attention_mask", "input_ids"]
+            "torch", columns=["id","attention_mask", "input_ids", "label"]
         ),
         eval_dataset=encoded_test_dataset.with_format(
-            "torch", columns=["attention_mask", "input_ids"]
+            "torch", columns=["id","attention_mask", "input_ids", "label"]
         ),
         tokenizer=tokenizer,
         compute_metrics=compute_metrics,
     )
-    # watch(trainer)
+    
+    assert(trainer._signature_columns is None, "Signature columns should be None")
+    watch(trainer)
+    assert(trainer._signature_columns  is None, "Signature columns should be None")
+    
     trainer.train()
 
 
