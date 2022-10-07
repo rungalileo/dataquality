@@ -244,7 +244,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
             )
         else:
             raise GalileoException(
-                f"Dataset must be one of pandas, vaex, or Iterable, "
+                f"Dataset must be one of pandas, vaex, HF, or Iterable, "
                 f"but got {type(dataset)}"
             )
 
@@ -440,7 +440,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
 
     @classmethod
     def split_dataframe(
-        cls, df: DataFrame, prob_only: bool
+        cls, df: DataFrame, prob_only: bool, split: str
     ) -> Tuple[DataFrame, DataFrame, DataFrame]:
         """Splits the singular dataframe into its 3 components
 

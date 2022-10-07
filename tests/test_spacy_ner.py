@@ -96,7 +96,7 @@ def test_log_input_examples(set_test_config, cleanup_after_use):
         ]
     )
 
-    logged_data = vaex.open(f"{LOCATION}/input_data.arrow")
+    logged_data = vaex.open(f"{LOCATION}/input_data/training/data_0.arrow")
 
     assert logged_data["id"].tolist() == [0, 1, 2, 3, 4]
     assert logged_data["split"].tolist() == ["training"] * len(training_examples)
@@ -156,6 +156,10 @@ def test_unwatch(set_test_config):
 
     # This should be possible here
     pickle.dumps(nlp)
+    # and this
+    pickle.loads(pickle.dumps(nlp.get_pipe("ner")))
+    # and this
+    pickle.loads(pickle.dumps(nlp))
 
     for _ in range(3):  # This should be possible multiple times
         watch(nlp)

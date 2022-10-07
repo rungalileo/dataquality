@@ -1,6 +1,6 @@
 "dataquality"
 
-__version__ = "v0.5.2"
+__version__ = "v0.6.1"
 
 import os
 import resource
@@ -9,7 +9,7 @@ import dataquality.core._config
 import dataquality.integrations
 import dataquality.metrics
 from dataquality.core._config import config
-from dataquality.core.auth import login
+from dataquality.core.auth import login, logout
 from dataquality.core.finish import finish, get_run_status, wait_for_run
 from dataquality.core.init import init
 from dataquality.core.log import (
@@ -33,7 +33,13 @@ from dataquality.schemas.predicate import (
     PredicateFilter,
 )
 from dataquality.utils.dq_logger import get_dq_log_file
-from dataquality.utils.helpers import check_noop
+from dataquality.utils.helpers import (
+    check_noop,
+    disable_galileo,
+    disable_galileo_verbose,
+    enable_galileo,
+    enable_galileo_verbose,
+)
 
 
 @check_noop
@@ -59,6 +65,7 @@ def configure() -> None:
 __all__ = [
     "__version__",
     "login",
+    "logout",
     "init",
     "log_data_samples",
     "log_model_outputs",
@@ -82,6 +89,10 @@ __all__ = [
     "Operator",
     "Predicate",
     "PredicateFilter",
+    "disable_galileo",
+    "disable_galileo_verbose",
+    "enable_galileo_verbose",
+    "enable_galileo",
 ]
 
 try:

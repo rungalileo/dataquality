@@ -12,6 +12,7 @@ from dataquality.loggers.model_logger.text_classification import (
     TextClassificationModelLogger,
 )
 from dataquality.schemas import __data_schema_version__
+from dataquality.schemas.split import Split
 
 
 class TextMultiLabelModelLogger(TextClassificationModelLogger):
@@ -106,7 +107,33 @@ class TextMultiLabelModelLogger(TextClassificationModelLogger):
                 f"values in its probability vector."
             )
 
+    def _get_data_dict_binary(self) -> Dict[str, Any]:
+        """In the binary ML case, we can optimize this operation
+
+        Because all probs are of the same dimension, we can create a numpy array and
+        not loop through every row input
+        """
+        num_samples = len(self.ids)
+        data = {
+            "id": self.ids,
+            "emb": self.embs,
+            "split": [Split[self.split].value] * num_samples,
+            "epoch": [self.epoch] * num_samples,
+            "data_schema_version": [__data_schema_version__] * num_samples,
+        }
+        task_probs = np.array(self.probs)
+        for task_num in range(self.logger_config.observed_num_tasks):
+            probs = task_probs[:, task_num]
+            # Only the single probability was logged. Add the negative case
+            if probs.shape[-1] == 1:
+                probs = np.column_stack((1 - probs, probs))
+            data[f"prob_{task_num}"] = probs
+            data[f"pred_{task_num}"] = np.argmax(probs, axis=1)
+        return data
+
     def _get_data_dict(self) -> Dict[str, Any]:
+        if self.logger_config.binary:
+            return self._get_data_dict_binary()
         data = defaultdict(list)
         for record_id, prob_per_task, emb in zip(self.ids, self.probs, self.embs):
             # Handle binary classification by making it 2-class classification

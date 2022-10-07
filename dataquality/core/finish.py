@@ -43,7 +43,6 @@ def finish(
         _reset_run(config.current_project_id, config.current_run_id, config.task_type)
 
     data_logger.upload(last_epoch)
-    data_logger._cleanup()
     upload_dq_log_file()
 
     body = dict(
@@ -65,10 +64,10 @@ def finish(
         f"Job {res['job_name']} successfully submitted. Results will be available "
         f"soon at {res['link']}"
     )
-    # Reset all config variables
-    data_logger.logger_config.reset()
     if wait:
         wait_for_run()
+    # Reset the environment
+    data_logger._cleanup()
     return res
 
 

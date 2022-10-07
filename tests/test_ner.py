@@ -489,6 +489,8 @@ def test_ner_logging(
 
     # Test with logits
     c._cleanup()
+    dataquality.set_tagging_schema("BIO")
+    dataquality.set_split(Split.training)
     dataquality.set_labels_for_run(labels)
     dataquality.log_data_samples(
         texts=text_inputs,
