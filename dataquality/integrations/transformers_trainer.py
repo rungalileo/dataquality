@@ -107,7 +107,7 @@ class DQCallback(TrainerCallback):
         :return: None
         """
         if not self._initialized:
-            self.setup(args, state, **kwargs)
+            self.setup(args, state, kwargs)
         dq.set_split(Split.training)  # 🔭🌕 Galileo logging
 
     def on_epoch_begin(
