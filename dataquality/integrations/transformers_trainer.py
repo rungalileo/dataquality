@@ -1,11 +1,13 @@
 # Imports for the hook manager
 from queue import Queue
-from typing import Any, Callable, List, Union
+from typing import Callable, Dict, Iterable, List, Optional, Union
 
 from datasets import Dataset
+from torch import Tensor
 from torch.nn import Module
 from torch.utils.hooks import RemovableHandle
 from transformers import Trainer
+from transformers.modeling_outputs import BaseModelOutput, TokenClassifierOutput
 from transformers.trainer_callback import TrainerCallback, TrainerControl, TrainerState
 from transformers.training_args import TrainingArguments
 
@@ -19,7 +21,8 @@ from dataquality.utils.transformers import (
     remove_id_collate_fn_wrapper,
 )
 
-Layer = Union[Module, str, None]
+Layer = Optional[Union[Module, str]]
+EmbeddingDim = Optional[Iterable[int]]
 
 
 # Trainer callback for Huggingface transformers Trainer library
@@ -32,7 +35,7 @@ class DQCallback(TrainerCallback):
     def __init__(
         self,
         layer: Layer = None,
-        embedding_dim: Union[tuple, None] = None,
+        embedding_dim: EmbeddingDim = None,
     ) -> None:
         # Access the dq logger helper data
         self.helper_data = dq.get_model_logger().logger_config.helper_data
@@ -50,7 +53,7 @@ class DQCallback(TrainerCallback):
         args: TrainingArguments,
         state: TrainerState,
         control: TrainerControl,
-        **kwargs: Any,
+        **kwargs: Dict,
     ) -> None:
         """
         Event called at the end of the initialization of the [`Trainer`].
@@ -61,8 +64,7 @@ class DQCallback(TrainerCallback):
         self,
         args: TrainingArguments,
         state: TrainerState,
-        model: Module,
-        kwargs: Any,
+        kwargs: Dict,
     ) -> None:
         """Setup the callback
         :param args: Training arguments
@@ -75,6 +77,7 @@ class DQCallback(TrainerCallback):
             "dq client must be initialized for text classification. "
             "For example: dq.init(task='text_classification')"
         )
+        model: Module = kwargs["model"]
         self._attach_hooks_to_model(model, self.layer)
         train_dataloader = kwargs["train_dataloader"]
         train_dataloader_ds = train_dataloader.dataset
@@ -93,7 +96,7 @@ class DQCallback(TrainerCallback):
         args: TrainingArguments,
         state: TrainerState,
         control: TrainerControl,
-        **kwargs: Any,
+        **kwargs: Dict,
     ) -> None:
         """
         Event called at the beginning of training. Attaches hooks to model.
@@ -104,7 +107,7 @@ class DQCallback(TrainerCallback):
         :return: None
         """
         if not self._initialized:
-            self.setup(args, state, kwargs["model"], kwargs)
+            self.setup(args, state, **kwargs)
         dq.set_split(Split.training)  # 🔭🌕 Galileo logging
 
     def on_epoch_begin(
@@ -112,7 +115,7 @@ class DQCallback(TrainerCallback):
         args: TrainingArguments,
         state: TrainerState,
         control: TrainerControl,
-        **kwargs: Any,
+        **kwargs: Dict,
     ) -> None:
         state_epoch = state.epoch
         if state_epoch is not None:
@@ -124,7 +127,7 @@ class DQCallback(TrainerCallback):
         args: TrainingArguments,
         state: TrainerState,
         control: TrainerControl,
-        **kwargs: Any,
+        **kwargs: Dict,
     ) -> None:
         dq.set_split(Split.validation)  # 🔭🌕 Galileo logging
 
@@ -133,7 +136,7 @@ class DQCallback(TrainerCallback):
         args: TrainingArguments,
         state: TrainerState,
         control: TrainerControl,
-        **kwargs: Any,
+        **kwargs: Dict,
     ) -> None:
         """
         Perform a training step on a batch of inputs.
@@ -170,7 +173,10 @@ class DQCallback(TrainerCallback):
         self.hook_manager.attach_hook(model, self._logit_hook)
 
     def _embedding_hook(
-        self, model: Module, model_input: Any, model_output: Any
+        self,
+        model: Module,
+        model_input: Tensor,
+        model_output: Union[BaseModelOutput, Tensor],
     ) -> None:
         """
         Hook to extract the embeddings from the model
@@ -185,19 +191,26 @@ class DQCallback(TrainerCallback):
         :param model_output: Output of the current layer
         :return: None
         """
-        if hasattr(model_output, "last_hidden_state"):
-            output_detached = model_output.last_hidden_state.detach()
-        else:
-            output_detached = model_output.detach()
+        if isinstance(model_output, Tensor):
+            output = model_output
+        elif hasattr(model_output, "last_hidden_state"):
+            output = model_output.last_hidden_state
+        output_detached = output.detach()
         # If embedding has the CLS token, remove it
         if self.embedding_dim is not None:
-            output_detached = output_detached.select(*self.embedding_dim)
+            dim, index = self.embedding_dim
+            output_detached = output_detached.select(dim, index)
         elif len(output_detached.shape) == 3:
             # It is assumed that the CLS token is removed through this dimension
             output_detached = output_detached[:, 0]
         self.helper_data["embs"] = output_detached
 
-    def _logit_hook(self, model: Module, model_input: Any, model_output: Any) -> None:
+    def _logit_hook(
+        self,
+        model: Module,
+        model_input: Tensor,
+        model_output: Union[TokenClassifierOutput, Tensor],
+    ) -> None:
         """
         Hook to extract the logits from the model.
         :param model: Model pytorch model
@@ -205,10 +218,10 @@ class DQCallback(TrainerCallback):
         :param model_output: Model output of the current layer
         :return: None
         """
-        if hasattr(model_output, "logits"):
-            logits = model_output.logits
-        else:
+        if isinstance(model_output, Tensor):
             logits = model_output
+        elif hasattr(model_output, "logits"):
+            logits = model_output.logits
         self.helper_data["logits"] = logits.detach()
 
 
@@ -221,7 +234,7 @@ class HookManager:
     # Stores all hooks to remove them from the model later.
     hooks: List[RemovableHandle] = []
 
-    def get_embedding_layer_auto(self, model: Any) -> Any:
+    def get_embedding_layer_auto(self, model: Module) -> Module:
         """
         Use a scoring algorithm to find the embedding layer automatically
         given a model. The higher the score the more likely it is the embedding layer.
@@ -230,7 +243,7 @@ class HookManager:
         print(f"Selected layer for the last hidden state embedding {name}")
         return layer
 
-    def get_embedding_layer_by_name(self, model: Any, name: str) -> Any:
+    def get_embedding_layer_by_name(self, model: Module, name: str) -> Module:
         """
         Iterate over each layer and stop once the the layer name matches
         :param model: Model
@@ -259,7 +272,10 @@ class HookManager:
         )
 
     def attach_embedding_hook(
-        self, model: Any, model_layer: Any = None, embedding_hook: Callable = print
+        self,
+        model: Module,
+        model_layer: Optional[Union[Module, str]] = None,
+        embedding_hook: Callable = print,
     ) -> RemovableHandle:
         """Attach hook and save it in our hook list"""
         if model_layer is None:
@@ -270,7 +286,7 @@ class HookManager:
             selected_layer = model_layer
         return self.attach_hook(selected_layer, embedding_hook)
 
-    def attach_hook(self, selected_layer: Any, hook: Callable) -> RemovableHandle:
+    def attach_hook(self, selected_layer: Module, hook: Callable) -> RemovableHandle:
         """Register a hook and save it in our hook list"""
         h = selected_layer.register_forward_hook(hook)
         self.hooks.append(h)
@@ -283,7 +299,9 @@ class HookManager:
 
 
 @check_noop
-def watch(trainer: Trainer, layer: Layer = None, embedding_dim: Any = None) -> None:
+def watch(
+    trainer: Trainer, layer: Layer = None, embedding_dim: EmbeddingDim = None
+) -> None:
     """
     [`watch`] is used to hook into to the trainer
     to log to [Galileo](https://www.rungalileo.io/)

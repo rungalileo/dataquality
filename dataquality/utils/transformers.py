@@ -1,11 +1,11 @@
 import inspect
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Union
 
 from transformers import Trainer
 
 
 def remove_id_collate_fn_wrapper(
-    collate_fn: Any, keep_cols: List[str], store: Dict[str, Any]
+    collate_fn: Union[Callable, Any], keep_cols: List[str], store: Dict[str, Any]
 ) -> Callable:
     """Removes the id from each row and pass the cleaned version on.
 
