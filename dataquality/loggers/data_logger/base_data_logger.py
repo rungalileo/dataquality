@@ -14,6 +14,7 @@ import pyarrow as pa
 import vaex
 from vaex.dataframe import DataFrame
 
+import dataquality
 from dataquality.clients.objectstore import ObjectStore
 from dataquality.core._config import config
 from dataquality.exceptions import GalileoException, GalileoWarning
@@ -153,7 +154,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         object_store = ObjectStore()
         proj_run = f"{config.current_project_id}/{config.current_run_id}"
         location = f"{self.LOG_FILE_DIR}/{proj_run}"
-
+        dataquality.get_data_logger().logger_config.helper_data["in_data"] = {}
+        
         for split in Split.get_valid_attributes():
             split_loc = f"{location}/{split}"
             input_logged = os.path.exists(f"{self.input_data_path()}/{split}")
@@ -174,6 +176,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             self.upload_split(
                 object_store, in_frame_split, split, split_loc, last_epoch
             )
+            dataquality.get_data_logger().logger_config.helper_data["in_data"][split] = in_frame_split.to_pandas_df()[["id", "text", "gold"]]
             in_frame_split.close()
             shutil.rmtree(in_frame_path)
             gc.collect()

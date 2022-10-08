@@ -52,6 +52,8 @@ class Config(BaseModel):
     current_project_id: Optional[UUID4] = None
     current_run_id: Optional[UUID4] = None
     task_type: Optional[TaskType] = None
+    current_project_name: Optional[str] = None
+    current_run_name: Optional[str] = None
 
     class Config:
         validate_assignment = True

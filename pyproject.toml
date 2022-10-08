@@ -26,6 +26,7 @@ requires = [
     "scipy>=1.7.0",
     "cachetools==5.2.0",
     "importlib-metadata==4.12.0",
+    "sentence_transformers"
 ]
 
 [tool.flit.metadata.urls]

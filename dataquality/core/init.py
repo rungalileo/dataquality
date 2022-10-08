@@ -203,5 +203,7 @@ def init(
             config.current_run_id,
             overwrite_local=overwrite_local,
         )
+        config.current_project_name = project_name
+        config.current_run_name = run_name
     # Reset all config variables
     dataquality.get_data_logger().logger_config.reset(factory=True)

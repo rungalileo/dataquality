@@ -1,3 +1,4 @@
+from cProfile import label
 import os
 from typing import Any, Dict, Optional
 
@@ -19,7 +20,7 @@ api_client = ApiClient()
 
 @check_noop
 def finish(
-    last_epoch: Optional[int] = None, wait: bool = True
+    last_epoch: Optional[int] = None, wait: bool = True, off_the_shelf_embs: bool = False
 ) -> Optional[Dict[str, Any]]:
     """
     Finishes the current run and invokes a job
@@ -64,6 +65,33 @@ def finish(
         f"Job {res['job_name']} successfully submitted. Results will be available "
         f"soon at {res['link']}"
     )
+    
+    if off_the_shelf_embs:
+        original_config = dataquality.config.copy()
+
+        splits_in_data = dataquality.get_data_logger().logger_config.helper_data["in_data"]
+        list_of_labels = dataquality.get_data_logger().logger_config.labels
+
+        dataquality.init(dataquality.config.task_type, dataquality.config.current_project_name, dataquality.config.current_run_name + "_off_the_shelf_embs")
+        dataquality.set_labels_for_run(list_of_labels)
+
+        from sentence_transformers import SentenceTransformer
+        import numpy as np
+        model = SentenceTransformer('all-mpnet-base-v2')
+
+        for split, in_data in splits_in_data.items():
+            dataquality.log_dataset(in_data, label="gold", split=split)
+            
+            train_embs = model.encode(in_data["text"])
+            dataquality.log_model_outputs(ids=in_data["id"], 
+                                logits=np.zeros((train_embs.shape[0], len(list_of_labels))), 
+                                embs=train_embs,
+                                split=split,
+                                epoch=0)
+
+        dataquality.finish(wait=False)
+        dataquality.config = original_config
+
     if wait:
         wait_for_run()
     # Reset the environment
