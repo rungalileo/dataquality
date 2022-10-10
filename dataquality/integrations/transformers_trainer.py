@@ -84,13 +84,11 @@ class DQCallback(TrainerCallback):
 
         if isinstance(train_dataloader_ds, Dataset):
             assert "id" in train_dataloader_ds.column_names, GalileoException(
-                """\
-                Did you map IDs to your dataset before watching the model?
-                You can run:
-                `ds= dataset.map(lambda x, idx: {"id": idx}, with_indices=True)`
-                id (index) column is needed in the dataset for logging
-         """
-            )
+                "Did you map IDs to your dataset before watching the model?\n"
+                "To add the id column with datasets. You can run:\n"
+                """`ds= dataset.map(lambda x, idx: {"id": idx},"""
+                " with_indices=True)`. The id (index) column is needed in "
+                "the dataset for logging")
         else:
             raise GalileoException(f"Unknown dataset type {type(train_dataloader_ds)}")
         self._initialized = True
