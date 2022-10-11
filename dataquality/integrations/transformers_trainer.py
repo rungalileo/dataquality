@@ -263,7 +263,7 @@ class HookManager:
                 layer_names_str = ", ".join(layer_names)
                 if layer_name == name:
                     print(
-                        f"Found layer {layer_name}" "in model layers: {layer_names_str}"
+                        f"Found layer {layer_name} in model layers: {layer_names_str}"
                     )
                     return layer_model
                 layer_model._get_name()
