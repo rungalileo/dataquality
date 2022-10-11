@@ -26,6 +26,14 @@ def _cache_key(*args: Tuple, **kwargs: Dict[str, Any]) -> Tuple:
     """Custom cache key that includes the updated_at timestamp for a run
 
     https://cachetools.readthedocs.io/en/latest/#cachetools.keys.typedkey
+
+    We use this cache only for the heavy functions in metrics (downloading things
+    from the server). We have a modified cache key that includes the last time
+    this run was updated, in case that has changed since the last call.
+
+    NOTE: It is assumed this cache takes the project_name and run_name as either args
+    0 and 1, or 1 and 2 (see comments), never kwargs. As such, this cache is meant to be
+    used for internal (not user facing) functions.
     """
     # First 2 arguments are project and run name
     if isinstance(args[0], str):
@@ -470,7 +478,6 @@ def get_epochs(project_name: str, run_name: str, split: Split) -> List[int]:
     return api_client.get_epochs_for_run(project_name, run_name, split)
 
 
-@cached(_get_cache(), key=_cache_key)
 def get_embeddings(
     project_name: str,
     run_name: str,
@@ -502,7 +509,6 @@ def get_embeddings(
     )
 
 
-@cached(_get_cache(), key=_cache_key)
 def get_probabilities(
     project_name: str,
     run_name: str,
@@ -528,7 +534,6 @@ def get_probabilities(
     )
 
 
-@cached(_get_cache(), key=_cache_key)
 def get_raw_data(
     project_name: str,
     run_name: str,
