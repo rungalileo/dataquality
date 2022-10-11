@@ -158,7 +158,9 @@ class DQCallback(TrainerCallback):
             "Logits passed to the logger can not be logged"
         )
         assert self.helper_data.get("ids") is not None, GalileoException(
-            "id column missing in dataset (needed to map rows to the indices/ids)"
+            "Did you map IDs to your dataset before watching the model? You can run:\n"             
+            "`ds= dataset.map(lambda x, idx: {"id": idx}, with_indices=True)`\n"
+            "id (index) column is needed in the dataset for logging"
         )
 
         # 🔭🌕 Galileo logging
