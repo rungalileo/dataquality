@@ -75,7 +75,7 @@ class DQCallback(TrainerCallback):
         # Attach hooks to the model
         assert dq.config.task_type == TaskType.text_classification, GalileoException(
             "dq client must be initialized for text classification. "
-            "For example: dq.init(task='text_classification')"
+            "For example: dq.init('text_classification')"
         )
         model: Module = kwargs["model"]
         self._attach_hooks_to_model(model, self.layer)
