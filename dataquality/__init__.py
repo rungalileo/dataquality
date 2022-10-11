@@ -5,6 +5,8 @@ __version__ = "v0.6.1"
 import os
 import resource
 
+# from dataquality.analytics import Analytics
+
 import dataquality.core._config
 import dataquality.integrations
 import dataquality.metrics
@@ -99,3 +101,8 @@ try:
     resource.setrlimit(resource.RLIMIT_NOFILE, (65535, 65535))
 except ValueError:  # The users limit is higher than our max, which is OK
     pass
+
+# try:
+#     Analytics(config).log("import", "dataquality")
+# except Exception:
+#     pass

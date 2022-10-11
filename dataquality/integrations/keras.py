@@ -6,6 +6,8 @@ import tensorflow as tf
 from tensorflow import keras
 
 import dataquality as dq
+
+# from dataquality.analytics import Analytics
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.split import Split
 from dataquality.utils.tf import is_tf_2
@@ -109,3 +111,9 @@ class DataQualityCallback(keras.callbacks.Callback):
 
     def on_test_batch_end(self, batch: Any, logs: Dict = None) -> None:
         dq.log_model_outputs(**self.helper_data)
+
+
+# try:
+#     Analytics().log("import", "dataquality.keras")
+# except Exception:
+#     pass
