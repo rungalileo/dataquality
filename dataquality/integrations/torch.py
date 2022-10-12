@@ -1,157 +1,136 @@
-import warnings
-from typing import Any, Union
+from typing import Any, Dict, List, Union
 
-import gorilla
 from torch.nn import Module
-from torch.utils.data import Dataset
-from torch.utils.data.dataloader import DataLoader
+from transformers import Trainer
 
-from dataquality import config
+import dataquality as dq
 from dataquality.exceptions import GalileoException
-from dataquality.loggers.data_logger import BaseGalileoDataLogger
-from dataquality.loggers.model_logger import BaseGalileoModelLogger
-from dataquality.schemas.split import Split
-
-_GORILLA_WATCH_SETTINGS = gorilla.Settings(allow_hit=True, store_hit=True)
-_GORILLA_UNWATCH_SETTINGS = gorilla.Settings(allow_hit=True, store_hit=False)
+from dataquality.integrations.transformers_trainer import Layer
+from dataquality.utils.torch import HookManager, remove_id_collate_fn_wrapper
 
 
-def watch(model: Module) -> None:
-    """
-    Function to instantiate autologging to Galileo into vanilla Pytorch models. Because
-    Pytorch doesn't support hooks or callbacks, we manually patch the apply function
-    of the users Pytorch model, enabling us to force the logging to Galileo.
-
-    NOTE: This will turn on autologging for ALL models of this class
-
-    In order for this function to work, users must utilize the GalileoModelLogger in
-    their Pytorch model class `__init__ or `forward` function, and implement a
-    `forward` function
-
-    :param model: The torch.nn.Module to watch
-    :return: None
-    """
-    assert (
-        config.current_project_id and config.current_run_id
-    ), "You must initialize dataquality before invoking a callback!"
-    if not isinstance(model, Module):
-        raise GalileoException(
-            f"Expected a pytorch model (torch.nn.Module). Received {str(type(model))}"
+class TorchLogger:
+    def __init__(
+        self, model: Module, model_layer: Layer = None, embedding_dim: Any = None
+    ):
+        self.embedding_dim = embedding_dim
+        self.model = model
+        self.model_layer = model_layer
+        self.hook_manager = HookManager()
+        self.hook_manager.attach_embedding_hook(
+            model, model_layer, self._embedding_hook
         )
+        self.hook_manager.attach_hook(model, self._logit_hook)
+        self.helper_data: Dict[str, Any] = {}
 
-    if not hasattr(model, "forward"):
-        raise GalileoException(
-            "Your model must implement a forward function in order "
-            "to enable automated logging to Galileo!"
-        )
-
-    def patch_forward(cls: Module, *args: Any, **kwargs: Any) -> Any:
+    def _embedding_hook(
+        self, model: Module, model_input: Any, model_output: Any
+    ) -> None:
         """
-        A patched forward function
-        :param cls: The model class
+        Hook to extract the embeddings from the model
+        :param model: Model pytorch model
+        :param model_input: Model input
+        :param model_output: Model output
+        :return: None
         """
-        # Run the forward for the model before logging
-        orig = gorilla.get_original_attribute(cls, "forward")
-        res = orig(*args, **kwargs)
-        try:
-            logger_attr = BaseGalileoModelLogger.get_model_logger_attr(cls)
-        except AttributeError:  # User didn't specify a model logger
-            warnings.warn(
-                "Your model must utilize the GalileoModelLogger in order to enable "
-                "automated logging to Galileo! Logging will be skipped."
-            )
-            return res
-        model_logger: BaseGalileoModelLogger = getattr(cls, logger_attr)
-
-        # Compare to None because 0 will be False
-        if model_logger.epoch is None and model_logger.logger_config.cur_epoch is None:
-            warnings.warn(
-                "epoch must be set in your GalileoModelLogger for pytorch models to "
-                "enable autologging to Galileo. If you are using Pytorch Lightning, "
-                "consider using the DataQualityCallback in your trainer instead. "
-                "You can also set the epoch using `dataquality.set_epoch`"
-                "Logging will be skipped."
-            )
-            return res
-
-        if not model_logger.split and not model_logger.logger_config.cur_split:
-            if not model.training:
-                warnings.warn(
-                    "either split must be set in your GalileoModelLogger or your model "
-                    "must be in 'training' mode (calling `model.train()`) for pytorch "
-                    "models to enable autologging to Galileo. If you are using "
-                    "Lightning consider using the DataQualityCallback in your trainer "
-                    "You can also set the split using `dataquality.set_split`"
-                    "instead."
-                )
-                return res
-            else:
-                warnings.warn(
-                    "Model logger split was not set, but training mode is "
-                    "set in your model. Using split=training for logging to "
-                    "Galileo"
-                )
-                model_logger.split = "training"
-
-        try:
-            model_logger.log()
-        except GalileoException as e:
-            warnings.warn(
-                f"Logging model outputs to Galileo could not be "
-                f"completed. See exception: {str(e)}"
-            )
-        return res
-
-    patch = gorilla.Patch(
-        model.__class__, "forward", patch_forward, settings=_GORILLA_WATCH_SETTINGS
-    )
-    gorilla.apply(patch)
-
-
-def unwatch(model: Module) -> None:
-    """
-    Unwatch a model that has previously been watched. This will turn off autologging
-    for all models of this class
-
-    :param model: The model to unwatch
-    :return: None
-    """
-    if not hasattr(model, "forward"):
-        return
-    original = gorilla.get_original_attribute(model, "forward")
-    gorilla.Patch(
-        model.__class__, "forward", original, settings=_GORILLA_UNWATCH_SETTINGS
-    )
-
-
-def log_input_data(data: Union[DataLoader, Dataset], split: str) -> None:
-    """
-    Log input data to Galileo
-
-    :param data: DataSet or DataLoader for training/validation/testing
-    :param split: The data split. One of (training, validation, test, inference)
-    :return: None
-    """
-    if split not in Split.get_valid_attributes():
-        raise GalileoException(
-            f"split must be one of {Split.get_valid_attributes()} but got {split}"
-        )
-
-    try:
-        if isinstance(data, Dataset):
-            logger_attr = BaseGalileoDataLogger.get_data_logger_attr(data)
-            data_logger = getattr(data, logger_attr)
-        elif isinstance(data, DataLoader):
-            logger_attr = BaseGalileoDataLogger.get_data_logger_attr(data.dataset)
-            data_logger = getattr(data.dataset, logger_attr)
+        if hasattr(model_output, "last_hidden_state"):
+            output_detached = model_output.last_hidden_state.detach()
         else:
-            raise GalileoException(
-                f"data must be one of (Dataset, DataLoader) but got {type(data)}"
-            )
-    except AttributeError:
-        raise GalileoException(
-            "Could not find a GalileoDataLogger as a part of your "
-            "Dataset. You must include one to call this function."
+            output_detached = model_output.detach()
+        # If embedding has the CLS token, remove it
+        if self.embedding_dim is not None:
+            output_detached = output_detached.select(*self.embedding_dim)
+        elif len(output_detached.shape) == 3:
+            # It is assumed that the CLS token is removed through this dimension
+            output_detached = output_detached[:, 0]
+        self.helper_data["embs"] = output_detached
+
+    def _logit_hook(self, model: Module, model_input: Any, model_output: Any) -> None:
+        """
+        Hook to extract the logits from the model.
+        :param model: Model pytorch model
+        :param model_input: Model input
+        :param model_output: Model output
+        :return: None
+        """
+        if hasattr(model_output, "logits"):
+            logits = model_output.logits
+        else:
+            logits = model_output
+
+        logits = logits.detach()
+        if self.embedding_dim is not None:
+            output_detached = output_detached.select(*self.logits_dim)
+        self.helper_data["logits"] = logits.detach()
+
+        self._on_step_end()
+
+    def _on_step_end(self) -> None:
+        """
+        Log the embeddings, ids and logits.
+        :return: None
+        """
+        # Log only if embedding exists
+        assert self.helper_data.get("embs") is not None, GalileoException(
+            "Embedding passed to the logger can not be logged"
         )
-    data_logger.split = split
-    data_logger.log()
+        assert self.helper_data.get("logits") is not None, GalileoException(
+            "Logits passed to the logger can not be logged"
+        )
+        assert self.helper_data.get("ids") is not None, GalileoException(
+            "id column missing in dataset (needed to map rows to the indices/ids)"
+        )
+
+        # 🔭🌕 Galileo logging
+        dq.log_model_outputs(**self.helper_data)
+
+
+def watch(
+    model: Module,
+    dataloaders: List[Any] = [],
+    layer: Union[Module, str, None] = None,
+    embedding_dim: Any = None,
+) -> None:
+    """
+    [`watch`] is used to hook into to the trainer
+    to log to [Galileo](https://www.rungalileo.io/)
+    :param trainer: Trainer object
+    :return: None
+    ```
+    class TextDataset(torch.utils.data.Dataset):
+        def __init__(
+            self, dataset, split: str, list_of_labels= None
+        ):
+            self.dataset = dataset
+
+            # 🔭🌕 Logging the dataset with Galileo
+            # Note: this works seamlessly because self.dataset has text, label, and
+            # id columns. See `help(dq.log_dataset)` for more info
+            dq.log_dataset(self.dataset, split=split)
+
+        def __getitem__(self, idx):
+            data = self.dataset[idx]
+            return data, idx
+
+        def __len__(self):
+            return len(self.dataset)
+    train_dataset = TextDataset(train_dataset, split="train")
+    train_dataloader = torch.utils.data.DataLoader()
+    model = TextClassificationModel(num_labels=len(train_dataset.list_of_labels))
+    watch(model, [train_dataloader,test_dataloader])
+    for epoch in range(NUM_EPOCHS):
+        dq.set_epoch_and_split(epoch,"training")
+        train()
+        dq.set_split("validate")
+        validate()
+    dq.finish()
+   
+    ```
+    """
+    print("Attaching dataquality to model and dataloaders")
+    tl = TorchLogger(model, layer, embedding_dim)
+    for dataloader in dataloaders:
+        dataloader.collate_fn = remove_id_collate_fn_wrapper(
+            dataloader.collate_fn, tl.helper_data
+        )
+    tl
