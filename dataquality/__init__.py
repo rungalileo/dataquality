@@ -5,8 +5,6 @@ __version__ = "v0.6.1"
 import os
 import resource
 
-# from dataquality.analytics import Analytics
-
 import dataquality.core._config
 import dataquality.integrations
 import dataquality.metrics
@@ -42,6 +40,8 @@ from dataquality.utils.helpers import (
     enable_galileo,
     enable_galileo_verbose,
 )
+
+# from dataquality.analytics import Analytics
 
 
 @check_noop

@@ -7,15 +7,9 @@ from langcodes import Iterable
 
 
 class Analytics:
-    # Singleton analytics
-    def __new__(cls) -> "Analytics":
-        if not hasattr(cls, "instance"):
-            cls.instance = super(Analytics, cls).__new__(cls)
-        return cls.instance
-
     def __init__(self, config: Any = {}) -> None:
-        from dataquality.schemas.request_type import RequestType
         from dataquality.clients.api import ApiClient
+        from dataquality.schemas.request_type import RequestType
 
         api_client = ApiClient()
         self.api_client = api_client
@@ -28,11 +22,12 @@ class Analytics:
         }
         self._is_initialized = False
 
-    def log(self, type: str, message: str) -> None:
-        self.api_client.make_request(
-            self.RequestType.POST,
-            "/analytics/log",
-            {"type": type, "message": message, "metadata": self.metadata},
+    def log(self, error_message: str, run_task_type: str = "Unknown") -> None:
+        self.api_client.send_analytics(
+            self.config.current_project_id,
+            self.config.current_project_id,
+            error_message,
+            run_task_type,
         )
 
     def _list_sys_modules(self) -> set[str]:
@@ -54,3 +49,6 @@ class Analytics:
 
     def _get_version(self) -> str:
         return sys.version
+
+    def set_config(self, config: Any) -> None:
+        self.config = config

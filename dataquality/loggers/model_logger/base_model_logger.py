@@ -7,6 +7,7 @@ import numpy as np
 from scipy.special import expit, softmax
 
 from dataquality import config
+from dataquality.analytics import Analytics
 from dataquality.exceptions import GalileoException, GalileoWarning, LogBatchError
 from dataquality.loggers.base_logger import BaseGalileoLogger
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
@@ -15,6 +16,8 @@ from dataquality.schemas.task_type import TaskType
 from dataquality.utils.dq_logger import get_dq_logger
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import _save_hdf5_file
+
+analytics = Analytics()
 
 
 class BaseGalileoModelLogger(BaseGalileoLogger):
@@ -80,6 +83,11 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
                 f"{repr(e)}"
             )
             warnings.warn(err_msg)
+            try:
+                analytics.set_config(config)
+                analytics.log(repr(e))
+            except Exception:
+                pass
             self.logger_config.exception = err_msg
 
     def log(self) -> None:
