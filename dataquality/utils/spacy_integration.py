@@ -3,6 +3,7 @@ from typing import DefaultDict, Dict, List
 
 import numpy as np
 import spacy
+import thinc
 from spacy.tokens import Doc
 from spacy.training import offsets_to_biluo_tags
 
@@ -84,4 +85,23 @@ def validate_spacy_version() -> None:
             f"SpaCy. You have version {spacy.__version__}. Please install 3.2.1 using "
             f"the following: 'pip install --upgrade spacy==3.2.1' and then restart your"
             f"IPython kernel"
+        )
+
+
+def is_spacy_using_gpu() -> bool:
+    """Allows us to check if `spacy.prefer_gpu()` has been successfully called
+
+    See the discussion here for more info
+    https://github.com/explosion/spaCy/discussions/11648
+    """
+    return not isinstance(
+        thinc.api.get_current_ops(), thinc.backends.numpy_ops.NumpyOps
+    )
+
+
+def validate_spacy_is_not_using_gpu() -> None:
+    if is_spacy_using_gpu():
+        raise GalileoException(
+            "Currently we do not support SpaCy gpu support. Please consider removing "
+            "spacy.prefer_gpu/spacy.require_gpu or adding spacy.require_cpu."
         )

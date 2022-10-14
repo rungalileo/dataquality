@@ -414,3 +414,11 @@ def test_watch_nlp_with_no_gold_labels(set_test_config, cleanup_after_use):
         "list of examples that include all of the gold spans you plan to make "
         "predictions over."
     )
+
+
+def test_require_cpu(set_test_config, cleanup_after_use) -> None:
+    # TODO: how to actually test we throw an error in gpu usage without having a gpu
+    # this wouldn't work because we don't have a gpu
+    # spacy.prefer_gpu()
+    # train_model(NER_TRAINING_DATA, NER_TEST_DATA)
+    pass
