@@ -8,6 +8,8 @@ from torch.utils.data import Dataset as TorchDataset
 from transformers import BatchEncoding, PreTrainedTokenizerBase
 
 import dataquality as dq
+
+# from dataquality.analytics import Analytics
 from dataquality.exceptions import GalileoException, GalileoWarning
 from dataquality.schemas.hf import HFCol
 from dataquality.schemas.ner import TaggingSchema
@@ -216,3 +218,9 @@ def get_dataloader(dataset: Dataset, **kwargs: Any) -> DataLoader:
     """
     text_dataset = TextDataset(dataset)
     return DataLoader(text_dataset, **kwargs)
+
+
+# try:
+#     Analytics().log("import", "dataquality.hf")
+# except Exception:
+#     pass

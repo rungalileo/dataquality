@@ -17,6 +17,8 @@ from wrapt import CallableObjectProxy
 
 import dataquality
 from dataquality import check_noop, config
+
+# from dataquality.analytics import Analytics
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
@@ -540,3 +542,9 @@ class GalileoState2Vec(CallableObjectProxy):
             ].copy()
 
         return embeddings, embeddings_bp
+
+
+# try:
+#     Analytics().log("import", "dataquality.spacy")
+# except Exception:
+#     pass

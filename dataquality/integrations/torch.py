@@ -7,6 +7,7 @@ from torch.utils.data import Dataset
 from torch.utils.data.dataloader import DataLoader
 
 from dataquality import config
+from dataquality.analytics import Analytics
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
 from dataquality.loggers.model_logger import BaseGalileoModelLogger
@@ -155,3 +156,9 @@ def log_input_data(data: Union[DataLoader, Dataset], split: str) -> None:
         )
     data_logger.split = split
     data_logger.log()
+
+
+# try:
+#     Analytics().log("import", "dataquality.torch")
+# except Exception:
+#     pass
