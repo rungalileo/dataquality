@@ -721,6 +721,20 @@ class ApiClient:
         params = {"inference_name": inference_name}
         self._export_dataframe_request(url, body, params, file_name)
 
+    def send_analytics(
+        self,
+        project_id: str,
+        run_id: str,
+        error_message: str,
+        run_task_type: str = "UNKNOWN",
+    ) -> Dict:
+        """Creates a project given a name and returns the project information"""
+        path = Route.content_path(project_id, run_id)
+        body = {"error_message": str(error_message), "run_task_type": run_task_type}
+        url = f"{config.api_url}/{path}/{Route.ampli}"
+
+        return self.make_request(RequestType.POST, url, body=body)
+
     def _export_dataframe_request(
         self, url: str, body: Dict, params: Dict, file_name: str
     ) -> None:

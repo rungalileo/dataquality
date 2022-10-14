@@ -7,7 +7,6 @@ from torch.utils.data import Dataset
 from torch.utils.data.dataloader import DataLoader
 
 from dataquality import config
-from dataquality.analytics import Analytics
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
 from dataquality.loggers.model_logger import BaseGalileoModelLogger

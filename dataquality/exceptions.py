@@ -1,8 +1,5 @@
 import os
-
-from dataquality.analytics import Analytics
 import traceback
-import sys
 
 
 class GalileoException(Exception):
