@@ -3,6 +3,7 @@ import warnings
 from typing import Any, Dict, List, Optional, Tuple, Union
 from uuid import uuid4
 
+import pandas as pd
 import vaex
 from cachetools import LRUCache, cached
 from cachetools.keys import hashkey
@@ -261,7 +262,8 @@ def get_dataframe(
     hf_format: bool = False,
     tagging_schema: Optional[TaggingSchema] = None,
     filter: Union[FilterParams, Dict] = None,
-) -> DataFrame:
+    as_pandas: bool = True,
+) -> Union[pd.DataFrame, DataFrame]:
     """Gets the dataframe for a run/split
 
     Downloads an arrow (or specified type) file to your machine and returns a loaded
@@ -289,6 +291,11 @@ def get_dataframe(
         If hf_format is True, you must pass a tagging schema
     :param filter: Optional filter to provide to restrict the distribution to only to
         matching rows. See `dq.schemas.metrics.FilterParams`
+    :param as_pandas: Whether to return the dataframe as a pandas df (or vaex if False)
+        If you are having memory issues (the data is too large), set this to False,
+        and vaex will memory map the data. If any columns returned are multi-dimensional
+        (embeddings, probabilities etc), vaex will always be returned, because pandas
+        cannot support multi-dimensional columns. Default True
     """
     split = conform_split(split)
     project_id, run_id = api_client._get_project_run_id(project_name, run_name)
@@ -316,6 +323,7 @@ def get_dataframe(
         include_probs,
         include_token_indices,
         hf_format,
+        as_pandas,
     )
 
 
@@ -330,11 +338,12 @@ def get_edited_dataframe(
     include_token_indices: bool = False,
     hf_format: bool = False,
     tagging_schema: Optional[TaggingSchema] = None,
-) -> DataFrame:
+    as_pandas: bool = True,
+) -> Union[pd.DataFrame, DataFrame]:
     """Gets the edited dataframe for a run/split
 
     Exports a run/split's data with all active edits in the edits cart and returns
-    a vaex dataframe
+    a vaex or pandas dataframe
 
     Special note for NER. By default, the data will be downloaded at a sample level
     (1 row per sample text), with spans for each sample in a `spans` column in a
@@ -356,6 +365,11 @@ def get_edited_dataframe(
         Whether to export the dataframe in a HuggingFace compatible format
     :param tagging_schema: (NER only)
         If hf_format is True, you must pass a tagging schema
+    :param as_pandas: Whether to return the dataframe as a pandas df (or vaex if False)
+        If you are having memory issues (the data is too large), set this to False,
+        and vaex will memory map the data. If any columns returned are multi-dimensional
+        (embeddings, probabilities etc), vaex will always be returned, because pandas
+        cannot support multi-dimensional columns. Default True
     """
     split = conform_split(split)
     project_id, run_id = api_client._get_project_run_id(project_name, run_name)
@@ -383,6 +397,7 @@ def get_edited_dataframe(
         include_probs,
         include_token_indices,
         hf_format,
+        as_pandas,
     )
 
 
@@ -398,7 +413,8 @@ def _process_exported_dataframe(
     include_probs: bool = False,
     include_token_indices: bool = False,
     hf_format: bool = False,
-) -> DataFrame:
+    as_pandas: bool = True,
+) -> Union[pd.DataFrame, DataFrame]:
     """Process dataframe after export of run or edits.
 
     See `get_dataframe` and `get_edited_dataframe` for details"""
@@ -464,6 +480,12 @@ def _process_exported_dataframe(
             if "sample_id" in data_df.get_column_names():
                 data_df.rename("sample_id", "id")
             data_df = data_df.join(raw_tokens, on="id")
+    if as_pandas:
+        # If any columns are multi-dimensional (embeddings, probs etc), must return vaex
+        for col in data_df.get_column_names():
+            if data_df[col].ndim > 1:
+                return data_df
+        return data_df.to_pandas_df()
     return data_df
 
 
