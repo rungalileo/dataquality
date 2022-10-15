@@ -15,7 +15,7 @@ try:
     import dataquality.metrics
 except (FileNotFoundError, AttributeError):
     raise Exception(
-        "It looks like you're running dataquality in a notebook. "
+        "It looks like you've installed dataquality from a notebook. "
         "Please restart the kernel before continuing"
     ) from None
 from dataquality.core._config import config
