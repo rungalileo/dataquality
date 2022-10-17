@@ -26,6 +26,7 @@ from dataquality.utils.spacy_integration import (
     convert_spacy_ents_for_doc_to_predictions,
     convert_spacy_ner_logits_to_valid_logits,
     validate_obj,
+    validate_spacy_is_not_using_gpu,
     validate_spacy_version,
 )
 
@@ -89,6 +90,7 @@ def watch(nlp: Language) -> None:
     :return: None
     """
     validate_spacy_version()
+    validate_spacy_is_not_using_gpu()
     if not (config.current_project_id and config.current_run_id):
         raise GalileoException(
             "You must initialize dataquality first! "
@@ -326,7 +328,7 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
         parser_step_model, backprop_fn = self._self_orig_forward(
             model, X, is_train=is_train
         )
-
+        validate_spacy_is_not_using_gpu()
         model_logger = TextNERModelLogger()
         if model_logger.logger_config.cur_split == Split.inference:
             warnings.warn(
