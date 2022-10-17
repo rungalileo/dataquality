@@ -8,6 +8,7 @@ import spacy
 import vaex
 from spacy.pipeline.ner import EntityRecognizer
 from spacy.training import Example
+from unittest import mock
 
 import dataquality
 from dataquality.exceptions import GalileoException
@@ -416,9 +417,7 @@ def test_watch_nlp_with_no_gold_labels(set_test_config, cleanup_after_use):
     )
 
 
-def test_require_cpu(set_test_config, cleanup_after_use) -> None:
-    # TODO: how to actually test we throw an error in gpu usage without having a gpu
-    # this wouldn't work because we don't have a gpu
-    # spacy.prefer_gpu()
-    # train_model(NER_TRAINING_DATA, NER_TEST_DATA)
-    pass
+@mock.patch("dataquality.utils.spacy_integration.is_spacy_using_gpu", return_value=True)
+def test_require_cpu(mock_spacy_gpu: mock.MagicMock, set_test_config: Callable, cleanup_after_use: Callable) -> None:
+    with pytest.raises(GalileoException):
+        train_model(NER_TRAINING_DATA, NER_TEST_DATA)
