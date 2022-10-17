@@ -1,13 +1,23 @@
 "dataquality"
 
-__version__ = "v0.6.1"
+__version__ = "v0.6.2"
 
 import os
 import resource
 
 import dataquality.core._config
 import dataquality.integrations
-import dataquality.metrics
+
+# We try/catch this in case the user installed dq inside of jupyter. You need to
+# restart the kernel after the install and we want to make that clear. This is because
+# of vaex: https://github.com/vaexio/vaex/pull/2226
+try:
+    import dataquality.metrics
+except (FileNotFoundError, AttributeError):
+    raise Exception(
+        "It looks like you've installed dataquality from a notebook. "
+        "Please restart the kernel before continuing"
+    ) from None
 from dataquality.core._config import config
 from dataquality.core.auth import login, logout
 from dataquality.core.finish import finish, get_run_status, wait_for_run
