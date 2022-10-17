@@ -42,7 +42,7 @@ ITER_CHUNK_SIZE = 100_000
 
 class BaseGalileoDataLogger(BaseGalileoLogger):
     MAX_META_COLS = 25  # Limit the number of metadata attrs a user can log
-    MAX_STR_LEN = 100  # Max characters in a string metadata attribute
+    MAX_STR_LEN = 1000  # Max characters in a string metadata attribute
     INPUT_DATA_BASE = "input_data"
     MAX_DATA_SIZE_CLOUD = 300_000
     # 2GB max size for arrow strings. We use 1.5GB for some buffer
