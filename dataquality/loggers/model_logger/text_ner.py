@@ -197,7 +197,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         For inference mode, only prediction spans should be logged.
 
         This helper fn does the following processing:
-        -
+        - TODO: Add more details here
         """
         get_dq_logger().debug(
             "Processing a sample.", split=self.split, epoch=self.epoch
@@ -238,13 +238,27 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         if self.split != Split.inference:
             # If we are not in inference mode, we also have gold spans and DEP
             gold_emb = self._extract_span_embeddings(sample_gold_spans, sample_emb)
-            # TODO: pass in gold labels
+            gold_sequence = self._construct_gold_sequence(
+                len(sample_prob), sample_gold_spans
+            )
+            gold_prob_conf = self._extract_span_probs(
+                sample_gold_spans, sample_prob, "confidence"
+            )
+            gold_prob_loss = self._extract_span_probs(
+                sample_gold_spans, sample_prob, "loss", gold_sequence
+            )
+            argmax_indices: List[int] = sample_prob.argmax(axis=1).tolist()
+            pred_sequence: List[str] = [
+                self.logger_config.labels[x] for x in argmax_indices
+            ]
             pred_prob_loss = self._extract_span_probs(
-                sample_pred_spans, sample_prob, "loss"
+                sample_pred_spans, sample_prob, "loss", pred_sequence
             )
 
             self.gold_spans.append(sample_gold_spans)
             self.gold_emb.append(gold_emb)
+            self.gold_prob_conf.append(gold_prob_conf)
+            self.gold_prob_loss.append(gold_prob_loss)
             self.pred_prob_loss.append(pred_prob_loss)
 
             # gold_dep, pred_dep = self._calculate_dep_scores(
@@ -276,23 +290,47 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         return embeddings
 
     def _extract_span_probs(
-        self, spans: List[Dict], prob: np.ndarray, method: str
+        self,
+        spans: List[Dict],
+        prob: np.ndarray,
+        method: str,
+        gold_sequence: Optional[List[str]] = None,
     ) -> List[np.ndarray]:
         """Get the probs for each span, on a per-sample basis
 
-        Depending
-        """
+        Parameters
+        ----------
+        spans
+            The spans to extract probs for
+        prob
+            The prob vector for the sample
+        method
+            The method to use to extract the probs. Can be either "confidence" or
+            "loss"
 
+        Returns
+        -------
+        List[np.ndarray]
+            The probs for each span
+        """
         get_dq_logger().debug(
             "Extracting span probs.", split=self.split, epoch=self.epoch
         )
         probs = []
+        gold_sequence_str = gold_sequence or []
+        gold_sequence_idx = self.labels_stoi(gold_sequence_str)
+
         for span in spans:
             start = span["start"]
             end = span["end"]
             span_probs = prob[start:end, :]
+            span_gold_seq = (
+                gold_sequence_idx[start:end] if gold_sequence_idx.size > 0 else None
+            )
             # We select a token prob to represent the span prob
-            span_prob, gold_label = select_span_token_for_prob(span_probs, method)
+            span_prob, gold_label = select_span_token_for_prob(
+                span_probs, method, span_gold_seq
+            )
             probs.append(span_prob)
         return probs
 
@@ -577,8 +615,8 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         In NER, rows are stored at the span level, not the sentence level, so we
         will have repeating "sentence_id" values, which is OK. We will also loop
         through the data twice, once for prediction span information
-        (one of pred_span, pred_emb, pred_dep per span) and once for gold span
-        information (one of gold_span, gold_emb, gold_dep per span)
+        (one of pred_span, pred_emb, pred_prob per span) and once for gold span
+        information (one of gold_span, gold_emb, gold_prob per span)
 
         NOTE: All spans are at the token level in this fn
         """

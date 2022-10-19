@@ -18,12 +18,11 @@ def compute_confidence(probs: np.ndarray) -> np.ndarray:
     return np.max(probs, axis=-1)
 
 
-# TODO: is this string or int?
 def compute_loss(probs: np.ndarray, gold_labels: np.ndarray) -> np.ndarray:
     """Compute the NLLLoss for each token in probs
 
     probs - [n_tokens, C]
-    gold_labels - [n_tokens]
+    gold_labels - [n_tokens], each element is index of gold label for that token
 
     Assumes for now that probs is a matrix of probability vectors per token,
     NOT the logits. Thus we have to we have to take the log since NLLLoss
@@ -41,8 +40,7 @@ def compute_loss(probs: np.ndarray, gold_labels: np.ndarray) -> np.ndarray:
     """
     loss = NLLLoss(reduction="none")
     log_probs = np.log(probs)
-    temp = loss(torch.tensor(log_probs), torch.tensor(gold_labels)).numpy()
-    return temp
+    return loss(torch.tensor(log_probs), torch.tensor(gold_labels)).numpy()
 
 
 def select_span_token_for_prob(
@@ -59,16 +57,13 @@ def select_span_token_for_prob(
         - prob_token: Probability vector for selected token - shape[n_classes]
         - gold_label: The gold label for the selected token
     """
-    import pdb
-
-    pdb.set_trace()
     gold_label = None
     if method == "confidence":
         confidences = compute_confidence(probs)
         selected = np.argmin(confidences)
     elif method == "loss":
         assert (  # Required for linting
-            gold_labels
+            gold_labels is not None and gold_labels.size > 0
         ), "You must include gold_labels to select span probs for prob_loss."
         losses = compute_loss(probs, gold_labels)
         selected = np.argmax(losses)
