@@ -42,7 +42,6 @@ def compute_loss(probs: np.ndarray, gold_labels: np.ndarray) -> np.ndarray:
     loss = NLLLoss(reduction="none")
     log_probs = np.log(probs)
     temp = loss(torch.tensor(log_probs), torch.tensor(gold_labels)).numpy()
-    import pdb; pdb.set_trace()
     return temp
 
 
@@ -60,13 +59,17 @@ def select_span_token_for_prob(
         - prob_token: Probability vector for selected token - shape[n_classes]
         - gold_label: The gold label for the selected token
     """
-    import pdb; pdb.set_trace()
+    import pdb
+
+    pdb.set_trace()
     gold_label = None
     if method == "confidence":
         confidences = compute_confidence(probs)
         selected = np.argmin(confidences)
     elif method == "loss":
-        assert gold_labels, "You must include gold_labels to select span probs for prob_loss."  # Required for linting
+        assert (  # Required for linting
+            gold_labels
+        ), "You must include gold_labels to select span probs for prob_loss."
         losses = compute_loss(probs, gold_labels)
         selected = np.argmax(losses)
         gold_label = gold_labels[selected]

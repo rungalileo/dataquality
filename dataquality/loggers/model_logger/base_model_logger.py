@@ -55,7 +55,6 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
             get_dq_logger().error(
                 "Validation of data failed", split=self.split, epoch=self.epoch
             )
-            import pdb; pdb.set_trace()
             raise GalileoException(
                 f"The provided logged data is invalid: {e}"
             ) from None

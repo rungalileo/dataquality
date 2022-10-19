@@ -434,7 +434,6 @@ def test_ner_logging(
     ThreadPoolManager.wait_for_threads()
     c = dataquality.get_data_logger()
     c.validate_labels()
-    import pdb; pdb.set_trace()
     c.upload()
 
     pred_spans = [
@@ -509,7 +508,6 @@ def test_ner_logging(
     ThreadPoolManager.wait_for_threads()
     c = dataquality.get_data_logger()
     c.validate_labels()
-    import pdb; pdb.set_trace()
     c.upload()
     prob_path = f"{TEST_PATH}/{split}/0/prob/prob.hdf5"
     prob_df = vaex.open(prob_path)
