@@ -33,7 +33,6 @@ class GalileoModelLoggerAttributes(str, Enum):
     # mixin restriction on str (due to "str".split(...))
     split = "split"  # type: ignore
     epoch = "epoch"
-    dep_scores = "dep_scores"
     log_helper_data = "log_helper_data"
     inference_name = "inference_name"
 
@@ -150,7 +149,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             "Validating the output log.", split=self.split, epoch=self.epoch
         )
         if len(self.logits):
-            self.probs = self.convert_logits_to_probs(self.logits)
+            self.probs = self.convert_logits_to_probs(self.logits).tolist()
         elif len(self.probs):
             warnings.warn("Usage of probs is deprecated, use logits instead")
 
@@ -176,6 +175,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         for sample_id, sample_emb, sample_prob in zip(self.ids, self.embs, self.probs):
             # This will return True if there was a prediction or gold span
             sample_emb = self._convert_tensor_ndarray(sample_emb)
+            sample_prob = self._convert_tensor_ndarray(sample_prob)
             if self._process_sample(sample_id, sample_emb, sample_prob):
                 logged_sample_ids.append(sample_id)
 
@@ -292,7 +292,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             end = span["end"]
             span_probs = prob[start:end, :]
             # We select a token prob to represent the span prob
-            span_prob, gold_label = select_span_token_for_prob(prob, method)
+            span_prob, gold_label = select_span_token_for_prob(span_probs, method)
             probs.append(span_prob)
         return probs
 
@@ -831,7 +831,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         super().__setattr__(key, value)
 
     def convert_logits_to_probs(
-        self, sample_logits: Union[List, np.ndarray]
+        self, sample_logits: Union[List[np.ndarray], np.ndarray]
     ) -> np.ndarray:
         """Converts logits to probs via softmax per sample"""
         # axis ensures that in a matrix of probs with dims num_samples x num_classes

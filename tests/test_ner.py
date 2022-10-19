@@ -336,7 +336,7 @@ def test_ner_logging(
 ) -> None:
     """
     To validate:
-    * dep scores are all 0 <= dep <= 1
+    * pred_conf and pred_loss exist in prob df
     * assert correct start and end index for extracted spans
     * spans within gold cannot be nested
     * spans within pred cannot be nested
@@ -434,6 +434,7 @@ def test_ner_logging(
     ThreadPoolManager.wait_for_threads()
     c = dataquality.get_data_logger()
     c.validate_labels()
+    import pdb; pdb.set_trace()
     c.upload()
 
     pred_spans = [
@@ -461,8 +462,7 @@ def test_ner_logging(
 
     prob_path = f"{TEST_PATH}/{split}/0/prob/prob.hdf5"
     prob_df = vaex.open(prob_path)
-    for i in prob_df.data_error_potential.to_numpy():
-        assert 0 <= i <= 1
+    # TODO: assert prob_conf / prob_loss
 
     for i in range(3):
         sample_pred_spans = pred_spans[i]
@@ -509,11 +509,11 @@ def test_ner_logging(
     ThreadPoolManager.wait_for_threads()
     c = dataquality.get_data_logger()
     c.validate_labels()
+    import pdb; pdb.set_trace()
     c.upload()
     prob_path = f"{TEST_PATH}/{split}/0/prob/prob.hdf5"
     prob_df = vaex.open(prob_path)
-    for i in prob_df.data_error_potential.to_numpy():
-        assert 0 <= i <= 1
+    # TODO: assert prob_conf / prob_loss
 
 
 def test_ghost_spans() -> None:

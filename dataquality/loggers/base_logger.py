@@ -51,22 +51,22 @@ class BaseLoggerAttributes(str, Enum):
     split = "split"  # type: ignore
     meta = "meta"  # Metadata columns for logging
     prob = "prob"
+    gold_prob_conf = "gold_prob_conf"
+    gold_prob_loss = "gold_prob_loss"
+    pred_prob_conf = "pred_prob_conf"
+    pred_prob_loss = "pred_prob_loss"
     gold = "gold"
     embs = "embs"
     probs = "probs"
     logits = "logits"
     epoch = "epoch"
-    data_error_potential = "data_error_potential"
     aum = "aum"
     text_tokenized = "text_tokenized"
     gold_spans = "gold_spans"
     pred_emb = "pred_emb"
     gold_emb = "gold_emb"
     pred_spans = "pred_spans"
-    dep_scores = "dep_scores"
     text_token_indices = "text_token_indices"
-    gold_dep = "gold_dep"
-    pred_dep = "pred_dep"
     text_token_indices_flat = "text_token_indices_flat"
     log_helper_data = "log_helper_data"
     inference_name = "inference_name"
@@ -280,6 +280,7 @@ class BaseGalileoLogger:
         """
         # If a currently active thread crashed, check and raise a top level exception
         if cls.logger_config.exception:
+            import pdb; pdb.set_trace()
             upload_dq_log_file()
             raise GalileoException(cls.logger_config.exception)
 
