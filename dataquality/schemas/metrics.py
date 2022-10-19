@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional
 
-from pydantic import BaseModel, StrictStr, root_validator
+from pydantic import BaseModel, Field, StrictStr, root_validator
 
 
 class HashableBaseModel(BaseModel):
@@ -111,3 +111,4 @@ class FilterParams(HashableBaseModel):
     lasso: Optional[LassoSelection] = None
     class_filter: Optional[List[StrictStr]] = None
     likely_mislabeled: Optional[bool] = None
+    likely_mislabeled_dep_percentile: Optional[int] = Field(50, ge=0, le=100)
