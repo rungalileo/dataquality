@@ -680,15 +680,15 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             NERCols.span_start.value,
             NERCols.span_end.value,
             NERCols.pred.value,
-            NERCols.prob_conf.value,
+            NERCols.conf_prob.value,
         ]
         if split == Split.inference:
             prob_cols += [NERCols.inference_name.value]
         else:
             prob_cols += [
                 NERCols.epoch.value,
-                NERCols.prob_loss.value,
-                NERCols.prob_loss_label.value,
+                NERCols.loss_prob.value,
+                NERCols.loss_prob_label.value,
                 NERCols.is_gold.value,
                 NERCols.gold.value,
                 NERCols.galileo_error_type.value,

@@ -64,7 +64,7 @@ def select_span_token_for_prob(
     elif method == "loss":
         assert (  # Required for linting
             gold_labels is not None and gold_labels.size > 0
-        ), "You must include gold_labels to select span probs for prob_loss."
+        ), "You must include gold_labels to select span probs for loss_prob."
         losses = compute_loss(probs, gold_labels)
         selected = np.argmax(losses)
         gold_label = gold_labels[selected]

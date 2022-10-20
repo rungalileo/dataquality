@@ -461,7 +461,7 @@ def test_ner_logging(
 
     prob_path = f"{TEST_PATH}/{split}/0/prob/prob.hdf5"
     prob_df = vaex.open(prob_path)
-    # TODO: assert prob_conf / prob_loss / prob_loss_label
+    # TODO: assert conf_prob / loss_prob / loss_prob_label
 
     for i in range(3):
         sample_pred_spans = pred_spans[i]
@@ -511,7 +511,7 @@ def test_ner_logging(
     c.upload()
     prob_path = f"{TEST_PATH}/{split}/0/prob/prob.hdf5"
     prob_df = vaex.open(prob_path)
-    # TODO: assert prob_conf / prob_loss / prob_loss_label
+    # TODO: assert conf_prob / loss_prob / loss_prob_label
 
 
 def test_ghost_spans() -> None:
