@@ -688,6 +688,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             prob_cols += [
                 NERCols.epoch.value,
                 NERCols.prob_loss.value,
+                NERCols.prob_loss_label.value,
                 NERCols.is_gold.value,
                 NERCols.gold.value,
                 NERCols.galileo_error_type.value,

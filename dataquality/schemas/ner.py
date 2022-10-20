@@ -33,6 +33,7 @@ class NERColumns(str, Enum):
     pred = "pred"
     prob_conf = "prob_conf"
     prob_loss = "prob_loss"
+    prob_loss_label = "prob_loss_label"
     galileo_error_type = "galileo_error_type"
     emb = "emb"
     inference_name = "inference_name"

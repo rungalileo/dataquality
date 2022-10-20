@@ -227,6 +227,7 @@ def log_model_outputs(
     ), "embs can be omitted if and only if exclude_embs is True"
     if embs is None and exclude_embs:
         embs = np.random.rand(len(ids), DEFAULT_RANDOM_EMB_DIM)
+
     model_logger = get_model_logger()(
         embs=embs,
         ids=ids,
