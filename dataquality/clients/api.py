@@ -69,6 +69,7 @@ class ApiClient:
         data: Dict = None,
         params: Dict = None,
         header: Dict = None,
+        timeout: Union[int, None] = None,
     ) -> Any:
         """Makes an HTTP request.
 
@@ -78,7 +79,7 @@ class ApiClient:
         self.__check_login()
         header = header or headers(config.token)
         res = RequestType.get_method(request.value)(
-            url, json=body, params=params, headers=header, data=data
+            url, json=body, params=params, headers=header, data=data, timeout=timeout
         )
         self._validate_response(res)
         return res.json()
@@ -723,17 +724,18 @@ class ApiClient:
 
     def send_analytics(
         self,
-        project_id: str,
-        run_id: str,
-        error_message: str,
+        project_id: str = "UNKNOWN",
+        run_id: str = "UNKNOWN",
         run_task_type: str = "UNKNOWN",
+        payload: Dict = {},
+        scope: str = "dq",
     ) -> Dict:
         """Creates a project given a name and returns the project information"""
         path = Route.content_path(project_id, run_id)
-        body = {"error_message": str(error_message), "run_task_type": run_task_type}
-        url = f"{config.api_url}/{path}/{Route.ampli}"
+        body = {**payload, "run_task_type": run_task_type}
+        url = f"{config.api_url}/{path}/{Route.ampli}/{scope}"
 
-        return self.make_request(RequestType.POST, url, body=body)
+        return self.make_request(RequestType.POST, url, body=body, timeout=1)
 
     def _export_dataframe_request(
         self, url: str, body: Dict, params: Dict, file_name: str

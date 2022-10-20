@@ -8,6 +8,7 @@ import resource
 import dataquality.core._config
 import dataquality.integrations
 import dataquality.metrics
+from dataquality.analytics import Analytics
 from dataquality.core._config import config
 from dataquality.core.auth import login, logout
 from dataquality.core.finish import finish, get_run_status, wait_for_run
@@ -40,6 +41,7 @@ from dataquality.utils.helpers import (
     enable_galileo,
     enable_galileo_verbose,
 )
+from tmp.mock import MockClient
 
 # from dataquality.analytics import Analytics
 
@@ -106,3 +108,6 @@ except ValueError:  # The users limit is higher than our max, which is OK
 #     Analytics(config).log("import", "dataquality")
 # except Exception:
 #     pass
+
+a = Analytics(MockClient, config)
+a.log_import("dataquality")

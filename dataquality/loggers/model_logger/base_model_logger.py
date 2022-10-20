@@ -8,16 +8,18 @@ from scipy.special import expit, softmax
 
 from dataquality import config
 from dataquality.analytics import Analytics
+from dataquality.clients.api import ApiClient
 from dataquality.exceptions import GalileoException, GalileoWarning, LogBatchError
 from dataquality.loggers.base_logger import BaseGalileoLogger
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
+from dataquality.utils.ampli import AmpliMetric
 from dataquality.utils.dq_logger import get_dq_logger
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import _save_hdf5_file
 
-analytics = Analytics()
+analytics = Analytics(ApiClient, config)  # type: ignore
 
 
 class BaseGalileoModelLogger(BaseGalileoLogger):
@@ -85,7 +87,7 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
             warnings.warn(err_msg)
             try:
                 analytics.set_config(config)
-                analytics.log(repr(e))
+                analytics.capture_exception(e, AmpliMetric.dq_validation_error)
             except Exception:
                 pass
             self.logger_config.exception = err_msg

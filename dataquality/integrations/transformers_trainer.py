@@ -12,6 +12,8 @@ from transformers.trainer_callback import TrainerCallback, TrainerControl, Train
 from transformers.training_args import TrainingArguments
 
 import dataquality as dq
+from dataquality.analytics import Analytics
+from dataquality.clients.api import ApiClient
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
@@ -21,6 +23,8 @@ from dataquality.utils.transformers import (
     remove_id_collate_fn_wrapper,
 )
 
+a = Analytics(ApiClient, dq.config)
+a.log_import("transformer_trainer")
 Layer = Optional[Union[Module, str]]
 EmbeddingDim = Optional[Iterable[int]]
 
@@ -312,6 +316,8 @@ def watch(
     :param trainer: Trainer object
     :return: None
     """
+    a.log_function("transformer_trainer/watch")
+
     # Callback which we add to the trainer
     dqcallback = DQCallback(layer=layer, embedding_dim=embedding_dim)
     # The columns needed for the forward process
