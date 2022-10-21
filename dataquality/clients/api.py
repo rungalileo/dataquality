@@ -12,6 +12,7 @@ from dataquality.schemas import RequestType, Route
 from dataquality.schemas.dataframe import FileType
 from dataquality.schemas.edit import Edit
 from dataquality.schemas.ner import TaggingSchema
+from dataquality.schemas.notifier import Notifier
 from dataquality.schemas.split import conform_split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.auth import headers
@@ -731,3 +732,7 @@ class ApiClient:
             with open(file_name, "wb") as f:
                 for chunk in r.iter_content(chunk_size=8192):
                     f.write(chunk)
+
+    def _notify(self, notifier: Notifier) -> None:
+        # TODO!
+        pass

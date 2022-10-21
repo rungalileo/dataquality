@@ -5,6 +5,8 @@ from pydantic import BaseModel
 from pydantic.class_validators import validator
 from vaex.dataframe import DataFrame
 
+from dataquality.schemas.notifier import Email, Slack
+
 
 class Operator(str, Enum):
     eq = "eq"
@@ -200,7 +202,9 @@ class Predicate(BaseModel):
     metric: Optional[str] = None
     filters: Optional[List[PredicateFilter]] = []
 
-    def evaluate(self, df: DataFrame) -> bool:
+    def evaluate(
+        self, df: DataFrame, notify: Optional[List[Union[Slack, Email]]] = None
+    ) -> bool:
         filtered_df = self._apply_filters(df)
 
         if self.agg == AggregateFunction.pct:
@@ -208,7 +212,11 @@ class Predicate(BaseModel):
         else:
             value = AGGREGATE_FUNCTIONS[self.agg](filtered_df, self.metric)
 
-        return CRITERIA_OPERATORS[self.operator](value, self.threshold)
+        result = CRITERIA_OPERATORS[self.operator](value, self.threshold)
+        if not result and notify:
+            api_client.notify(predicate=self, df=df, notify=notify, result=result)
+
+        return result
 
     def _apply_filters(self, df: DataFrame) -> DataFrame:
         filtered_df = df.copy()
