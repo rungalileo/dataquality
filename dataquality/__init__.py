@@ -53,7 +53,7 @@ from dataquality.utils.helpers import (
 
 
 @check_noop
-def configure() -> None:
+def configure(do_login: bool = True) -> None:
     """[Not for cloud users] Update your active config with new information
 
     You can use environment variables to set the config, or wait for prompts
@@ -69,7 +69,23 @@ def configure() -> None:
         config.__setattr__(k, v)
     config.token = None
     config.update_file_config()
-    login()
+    if do_login:
+        login()
+
+
+@check_noop
+def set_console_url(console_url: str = None) -> None:
+    """For Enterprise users. Set the console URL to your Galileo Environment.
+
+    You can also set GALILEO_CONSOLE_URL before importing dataquality to bypass this
+
+    :param console_url: If set, that will be used. Otherwise, if an environment variable
+    GALILEO_CONSOLE_URL is set, that will be used. Otherwise, you will be prompted for
+    a url.
+    """
+    if console_url:
+        os.environ["GALILEO_CONSOLE_URL"] = console_url
+    configure(do_login=False)
 
 
 __all__ = [
@@ -92,6 +108,7 @@ __all__ = [
     "get_run_status",
     "set_epoch",
     "set_split",
+    "set_console_url",
     "log_data_sample",
     "log_dataset",
     "get_dq_log_file",
