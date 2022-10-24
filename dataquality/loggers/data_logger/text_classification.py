@@ -268,7 +268,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         parse_label = lambda x: x  # noqa: E731
         # If label is integer, convert to string #
 
-        if isinstance(dataset[0].get(label, None), int):
+        if isinstance(dataset[0].get(label), int):
             try:
                 parse_label = lambda x: dataset.features[label].int2str(x)  # noqa: E731
             except Exception:
