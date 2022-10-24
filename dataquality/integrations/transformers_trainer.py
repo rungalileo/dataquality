@@ -1,12 +1,9 @@
 # Imports for the hook manager
-from queue import Queue
-from typing import Callable, Dict, Iterable, List, Optional, Union
+from typing import Dict, Iterable, Optional, Union
 
 from datasets import Dataset
 from torch import Tensor
 from torch.nn import Module
-from torch.utils.hooks import RemovableHandle
-from transformers import Trainer
 from transformers.modeling_outputs import BaseModelOutput, TokenClassifierOutput
 from transformers.trainer_callback import TrainerCallback, TrainerControl, TrainerState
 from transformers.training_args import TrainingArguments
@@ -15,11 +12,7 @@ import dataquality as dq
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
-from dataquality.utils.helpers import check_noop
-from dataquality.utils.transformers import (
-    add_id_to_signature_columns,
-    remove_id_collate_fn_wrapper,
-)
+from dataquality.utils.torch import HookManager
 
 Layer = Optional[Union[Module, str]]
 EmbeddingDim = Optional[Iterable[int]]
@@ -227,4 +220,3 @@ class DQCallback(TrainerCallback):
         elif hasattr(model_output, "logits"):
             logits = model_output.logits
         self.helper_data["logits"] = logits.detach()
-

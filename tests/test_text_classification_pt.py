@@ -1,4 +1,3 @@
-import copy
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
@@ -7,6 +6,7 @@ from torchtext.data.functional import to_map_style_dataset
 from torchtext.data.utils import get_tokenizer
 from torchtext.datasets import AG_NEWS
 from torchtext.vocab import build_vocab_from_iterator
+
 import dataquality as dq
 from dataquality.integrations.torch import watch
 
@@ -92,7 +92,7 @@ modeldq = TextClassificationModel(vocab_size, emsize, num_class).to(device)
 """ Define functions to train the model and evaluate results"""
 
 
-def train(dataloader,model):
+def train(dataloader, model):
     model.train()
     total_acc, total_count = 0, 0
     log_interval = 500
@@ -110,13 +110,13 @@ def train(dataloader,model):
             print(
                 "| epoch  | {:5d}/{:5d} batches "
                 "| accuracy {:8.3f}".format(
-                     idx, len(dataloader), total_acc / total_count
+                    idx, len(dataloader), total_acc / total_count
                 )
             )
             total_acc, total_count = 0, 0
 
 
-def evaluate(dataloader,model):
+def evaluate(dataloader, model):
     model.eval()
     total_acc, total_count = 0, 0
 
@@ -160,38 +160,33 @@ test_dataloader = DataLoader(
 )
 
 
-
-
 """ Evaluate the model with test dataset"""
 
 
 def test_dataset() -> None:
     print("Checking the results of test dataset.")
-    accu_test = evaluate(test_dataloader,model)
+    accu_test = evaluate(test_dataloader, model)
     print("test accuracy {:8.3f}".format(accu_test))
 
 
 def test_end_to_end_without_callback():
     global total_accu
     for epoch in range(1, EPOCHS + 1):
-        train(train_dataloader,model)
-        accu_val = evaluate(valid_dataloader,model)
+        train(train_dataloader, model)
+        accu_val = evaluate(valid_dataloader, model)
         if total_accu is not None and total_accu > accu_val:
             scheduler.step()
         else:
             total_accu = accu_val
 
 
-
 class TextDataset(torch.utils.data.Dataset):
-    def __init__(
-        self, dataset, split: str, list_of_labels= None
-    ):
+    def __init__(self, dataset, split: str, list_of_labels=None):
         self.dataset = dataset
         # 🔭🌕 Logging the dataset with Galileo
         # Note: this works seamlessly because self.dataset has text, label, and
         # id columns. See `help(dq.log_dataset)` for more info
-        #dq.log_dataset(self.dataset, split=split)
+        # dq.log_dataset(self.dataset, split=split)
 
     def __getitem__(self, idx):
         data = self.dataset[idx]
@@ -202,32 +197,29 @@ class TextDataset(torch.utils.data.Dataset):
         return len(self.dataset)
 
 
-
-
 def test_end_to_end_with_callback():
     global total_accu
     # Preprocessing
-    ag_train = TextDataset(to_map_style_dataset(AG_NEWS(split="train"))[:500],"train")
-    ag_test = TextDataset(to_map_style_dataset(AG_NEWS(split="test"))[500:800],"test")
+    ag_train = TextDataset(to_map_style_dataset(AG_NEWS(split="train"))[:500], "train")
+    ag_test = TextDataset(to_map_style_dataset(AG_NEWS(split="test"))[500:800], "test")
 
     train_dataloader_dq = DataLoader(
-    ag_train, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_batch
+        ag_train, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_batch
     )
     test_dataloader_dq = DataLoader(
-    ag_test, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_batch
+        ag_test, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_batch
     )
-   
-    # 🔭🌕 Logging the dataset with Galileo
-    watch(modeldq,[train_dataloader_dq,test_dataloader_dq])
 
+    # 🔭🌕 Logging the dataset with Galileo
+    watch(modeldq, [train_dataloader_dq, test_dataloader_dq])
 
     for epoch in range(1, EPOCHS + 1):
         # 🔭🌕 Logging the dataset with Galileo
-        dq.set_epoch_and_split(epoch,"training")
-        train(train_dataloader_dq,modeldq)
+        dq.set_epoch_and_split(epoch, "training")
+        train(train_dataloader_dq, modeldq)
         # 🔭🌕 Logging the dataset with Galileo
         dq.set_split("validation")
-        accu_val = evaluate(test_dataloader_dq,modeldq)
+        accu_val = evaluate(test_dataloader_dq, modeldq)
         if total_accu is not None and total_accu > accu_val:
             scheduler.step()
         else:

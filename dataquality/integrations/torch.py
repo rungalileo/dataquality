@@ -1,27 +1,71 @@
 from typing import Any, Dict, List, Union
 
 from torch.nn import Module
-from transformers import Trainer
 
 import dataquality as dq
 from dataquality.exceptions import GalileoException
 from dataquality.integrations.transformers_trainer import Layer
-from dataquality.utils.torch import HookManager, remove_id_collate_fn_wrapper
+from dataquality.schemas.task_type import TaskType
+from dataquality.utils.torch import (
+    HookManager,
+    convert_fancy_idx_str_to_slice,
+    remove_id_collate_fn_wrapper,
+)
 
 
 class TorchLogger:
+    embedding_dim: Any
+    logits_dim: Any
+    task: TaskType
+    model: Module
+
     def __init__(
-        self, model: Module, model_layer: Layer = None, embedding_dim: Any = None
+        self,
+        model: Module,
+        model_layer: Layer = None,
+        embedding_dim: Any = None,
+        logits_dim: Any = None,
+        task: Union[TaskType, None] = TaskType.text_classification,
     ):
-        self.embedding_dim = embedding_dim
+        assert task is not None, GalileoException(
+            "Dataquality task cannot be None."
+            "Setup with dq.init(task_type='text_classification')"
+        )
+        self.task = task
         self.model = model
         self.model_layer = model_layer
+        self._init_dimension(embedding_dim, logits_dim)
         self.hook_manager = HookManager()
         self.hook_manager.attach_embedding_hook(
             model, model_layer, self._embedding_hook
         )
         self.hook_manager.attach_hook(model, self._logit_hook)
         self.helper_data: Dict[str, Any] = {}
+
+    def _init_dimension(self, embedding_dim: Any, logits_dim: Any) -> None:
+        """
+        Initialize the dimensions of the embeddings and logits
+        :param embedding_dim: Dimension of the embedding
+        :param logits_dim: Dimension of the logits
+        :return: None
+        """
+        # If embedding_dim is a string, convert it to a slice
+        # else assume it is a slice or None
+        if isinstance(embedding_dim, str):
+            self.embedding_dim = convert_fancy_idx_str_to_slice(embedding_dim)
+        elif embedding_dim is not None:
+            self.embedding_dim = embedding_dim
+        else:
+            self.embedding_dim = None
+
+        # If logits_dim is a string, convert it to a slice
+        # else assume it is a slice or None
+        if isinstance(logits_dim, str):
+            self.logits_dim = convert_fancy_idx_str_to_slice(embedding_dim)
+        elif logits_dim is not None:
+            self.logits_dim = logits_dim
+        else:
+            self.logits_dim = None
 
     def _embedding_hook(
         self, model: Module, model_input: Any, model_output: Any
@@ -39,10 +83,17 @@ class TorchLogger:
             output_detached = model_output.detach()
         # If embedding has the CLS token, remove it
         if self.embedding_dim is not None:
-            output_detached = output_detached.select(*self.embedding_dim)
-        elif len(output_detached.shape) == 3:
+            output_detached = output_detached[self.embedding_dim]
+        elif len(output_detached.shape) == 3 and (
+            self.task in [TaskType.text_classification, TaskType.text_multi_label]
+        ):
             # It is assumed that the CLS token is removed through this dimension
+            # for text classification tasks and multi label tasks
             output_detached = output_detached[:, 0]
+        elif len(output_detached.shape) == 3 and self.task == TaskType.text_ner:
+            # It is assumed that the CLS token is removed through this dimension
+            # for NER tasks
+            output_detached = output_detached[:, 1:, :]
         self.helper_data["embs"] = output_detached
 
     def _logit_hook(self, model: Module, model_input: Any, model_output: Any) -> None:
@@ -59,10 +110,13 @@ class TorchLogger:
             logits = model_output
 
         logits = logits.detach()
-        if self.embedding_dim is not None:
-            output_detached = output_detached.select(*self.logits_dim)
+        if self.logits_dim is not None:
+            logits = logits[self.logits_dim]
+        elif len(logits.shape) == 3 and self.task == TaskType.text_ner:
+            # It is assumed that the CLS token is removed
+            # through this dimension for NER tasks
+            logits = logits[:, 1:, :]
         self.helper_data["logits"] = logits.detach()
-
         self._on_step_end()
 
     def _on_step_end(self) -> None:
@@ -90,6 +144,7 @@ def watch(
     dataloaders: List[Any] = [],
     layer: Union[Module, str, None] = None,
     embedding_dim: Any = None,
+    logits_dim: Any = None,
 ) -> None:
     """
     [`watch`] is used to hook into to the trainer
@@ -124,11 +179,13 @@ def watch(
         dq.set_split("validate")
         validate()
     dq.finish()
-   
+
     ```
     """
     print("Attaching dataquality to model and dataloaders")
-    tl = TorchLogger(model, layer, embedding_dim)
+    tl = TorchLogger(
+        model, layer, embedding_dim, logits_dim=logits_dim, task=dq.config.task_type
+    )
     for dataloader in dataloaders:
         dataloader.collate_fn = remove_id_collate_fn_wrapper(
             dataloader.collate_fn, tl.helper_data

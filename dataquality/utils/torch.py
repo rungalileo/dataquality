@@ -1,3 +1,4 @@
+import re
 from queue import Queue
 from typing import Any, Callable, List, Optional, Union
 
@@ -15,9 +16,9 @@ def remove_id_collate_fn_wrapper(collate_fn: Any, store: Any) -> Callable:
     :return: The wrapped collate function
     """
 
-    def remove_id(rows: List)-> List:
+    def remove_id(rows: List) -> List:
         data, idx = rows[0]
-        assert isinstance(idx,int) ,"index tuple is missing"
+        assert isinstance(idx, int), "index tuple is missing"
         indices = []
         cleaned_rows = []
         for row in rows:
@@ -29,6 +30,37 @@ def remove_id_collate_fn_wrapper(collate_fn: Any, store: Any) -> Callable:
         return collate_fn(cleaned_rows)
 
     return remove_id
+
+
+def validate_fancy_index_str(input_str: str = "[:, 1:, :]") -> bool:
+    """Validates a fancy index string.
+    :param input_str: The string to validate for example "[:, 1:, :]"
+    :return: True if the string is valid, False otherwise
+    """
+    valid = re.fullmatch(r"[\s,\[\]\d:\(\)]+", input_str)
+    if valid:
+        return True
+    return False
+
+
+def convert_fancy_idx_str_to_slice(
+    fstr: str = "[:, 1:, :]",
+) -> Union[tuple, slice, int]:
+    """Converts a fancy index string to a slice.
+    :param fstr: The fancy index string to convert for example "[:, 1:, :]"
+    :return: The slice for example:
+    (slice(None, None, None), slice(1, None, None), slice(None, None, None))
+    """
+    clean_str = fstr
+    # Remove outer brackets
+    if fstr[0] == "[" and fstr[-1] == "]":
+        clean_str = clean_str[1:-1]
+    # Validate the string before we eval the fancy index
+    assert validate_fancy_index_str(
+        clean_str
+    ), 'Fancy index string is not valid. Valid format: "[:, 1:, :]"'
+    return eval("np.s_[{}]".format(clean_str))
+
 
 class HookManager:
     """
