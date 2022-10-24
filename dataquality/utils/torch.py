@@ -1,6 +1,7 @@
 import re
 from queue import Queue
 from typing import Any, Callable, List, Optional, Union
+import torch
 
 from torch.nn import Module
 from torch.utils.hooks import RemovableHandle
@@ -17,16 +18,19 @@ def remove_id_collate_fn_wrapper(collate_fn: Any, store: Any) -> Callable:
     """
 
     def remove_id(rows: List) -> List:
+        """Removes the id from each row and pass the cleaned
+        version on."""
         data, idx = rows[0]
-        assert isinstance(idx, int), "index tuple is missing"
+        assert isinstance(idx, int), GalileoException(
+            "id is missing in dataset. Wrap your dataset"
+            "with dq.wrap_dataset(train_dataset)"
+        )
         indices = []
         cleaned_rows = []
         for row in rows:
-            # data, idx = row
             indices.append(row[1])
             cleaned_rows.append(row[0])
         store["ids"] = indices
-        # print(indices)
         return collate_fn(cleaned_rows)
 
     return remove_id
@@ -133,3 +137,16 @@ class HookManager:
         """Remove all hooks from the model"""
         for h in self.hooks:
             h.remove()
+
+
+class WrapDataset(torch.utils.data.Dataset):
+    def __init__(self, dataset):
+        self.dataset = dataset
+
+    def __getitem__(self, idx):
+        # 🔭🌕 Logging the dataset with Galileo
+        data = self.dataset[idx]
+        return data, idx
+
+    def __len__(self):
+        return len(self.dataset)

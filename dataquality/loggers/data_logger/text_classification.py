@@ -346,7 +346,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         self.texts = df["text"].tolist()
         self.ids = df["id"].tolist()
         # Inference case
-        if "label" in df.columns:
+        if "label" in df:
             self.labels = df["label"].tolist()
         for meta_col in meta:
             self.meta[str(meta_col)] = df[meta_col].tolist()
