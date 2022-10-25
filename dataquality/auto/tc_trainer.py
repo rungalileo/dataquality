@@ -69,7 +69,7 @@ def get_trainer(dd: DatasetDict, labels: List[str]) -> Trainer:
         args,
         train_dataset=encoded_datasets["train"],
         eval_dataset=encoded_datasets.get("validation"),
-        test_dataset=encoded_datasets.get("test"),
+        # test_dataset=encoded_datasets.get("test"), TODO: test_dataset goes into predict
         tokenizer=tokenizer,
         compute_metrics=compute_metrics,
     )
