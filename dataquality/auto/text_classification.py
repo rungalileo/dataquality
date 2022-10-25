@@ -108,7 +108,7 @@ def _log_dataset_dict(dd: DatasetDict) -> None:
         ds = dd[key]
         default_cols = ["text", "label", "id"]
         meta = [i for i in ds.features if i not in default_cols]
-        dq.log_dataset(ds, meta=meta)
+        dq.log_dataset(ds, meta=meta, split=key)
 
 
 def auto(
