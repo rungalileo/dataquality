@@ -14,7 +14,10 @@ FAKE_NEW_RUN = uuid4()
 
 class MockResponse:
     def __init__(
-        self, json_data: Union[Dict, List], status_code: int, headers: Dict = None
+        self,
+        json_data: Union[Dict, List],
+        status_code: int,
+        headers: Dict = None,
     ) -> None:
         self.headers = headers or {}
         self.json_data = json_data
@@ -51,6 +54,7 @@ def mocked_login_requests(
     params: Dict = {},
     headers: Dict = {},
     data: Dict = {},
+    timeout: Union[int, None] = None,
 ) -> MockResponse:
     if request_url.endswith("login"):
         return MockResponse(
@@ -70,6 +74,7 @@ def mocked_failed_login_requests(
     params: Dict = {},
     headers: Dict = {},
     data: Dict = {},
+    timeout: Union[int, None] = None,
 ) -> MockResponse:
     if request_url.endswith("login"):
         return MockResponse({"detail": "Incorrect login credentials."}, 404)
@@ -77,7 +82,12 @@ def mocked_failed_login_requests(
 
 
 def mocked_get_project_run(
-    request_url: str, json: Dict, params: Dict, headers: Dict, data: Dict
+    request_url: str,
+    json: Dict,
+    params: Dict,
+    headers: Dict,
+    data: Dict,
+    timeout: Union[int, None] = None,
 ) -> MockResponse:
     if request_url.endswith("current_user"):
         return MockResponse({"id": "user"}, 200)
@@ -90,7 +100,12 @@ def mocked_get_project_run(
 
 
 def mocked_create_project_run(
-    request_url: str, json: Dict, params: Dict, headers: Dict, data: Dict
+    request_url: str,
+    json: Dict,
+    params: Dict,
+    headers: Dict,
+    data: Dict,
+    timeout: Union[int, None] = None,
 ) -> MockResponse:
     global TMP_CREATE_NEW_PROJ_RUN
     TMP_CREATE_NEW_PROJ_RUN = json["name"]
@@ -99,7 +114,12 @@ def mocked_create_project_run(
 
 
 def mocked_missing_run(
-    request_url: str, json: Dict, params: Dict, headers: Dict, data: Dict
+    request_url: str,
+    json: Dict,
+    params: Dict,
+    headers: Dict,
+    data: Dict,
+    timeout: Union[int, None] = None,
 ) -> MockResponse:
     if request_url.endswith("current_user"):
         return MockResponse({"id": "user"}, 200)
@@ -113,7 +133,12 @@ def mocked_missing_run(
 
 
 def mocked_missing_project_run(
-    request_url: str, json: Dict, params: Dict, headers: Dict, data: Dict
+    request_url: str,
+    json: Dict,
+    params: Dict,
+    headers: Dict,
+    data: Dict,
+    timeout: Union[int, None] = None,
 ) -> MockResponse:
     if request_url.endswith("current_user"):
         return MockResponse({"id": "user"}, 200)
@@ -121,7 +146,12 @@ def mocked_missing_project_run(
 
 
 def mocked_missing_project_name(
-    request_url: str, json: Dict, params: Dict, headers: Dict, data: Dict
+    request_url: str,
+    json: Dict,
+    params: Dict,
+    headers: Dict,
+    data: Dict,
+    timeout: Union[int, None] = None,
 ) -> MockResponse:
     if request_url.endswith("current_user"):
         return MockResponse({"id": "user"}, 200)
@@ -129,7 +159,12 @@ def mocked_missing_project_name(
 
 
 def mocked_delete_project_run(
-    request_url: str, json: Dict, params: Dict, headers: Dict, data: Dict
+    request_url: str,
+    json: Dict,
+    params: Dict,
+    headers: Dict,
+    data: Dict,
+    timeout: Union[int, None] = None,
 ) -> MockResponse:
     if request_url.endswith("current_user"):
         return MockResponse({"id": "user"}, 200)
@@ -137,7 +172,12 @@ def mocked_delete_project_run(
 
 
 def mocked_delete_project_not_found(
-    request_url: str, json: Dict, params: Dict, headers: Dict, data: Dict
+    request_url: str,
+    json: Dict,
+    params: Dict,
+    headers: Dict,
+    data: Dict,
+    timeout: Union[int, None] = None,
 ) -> MockResponse:
     if request_url.endswith("current_user"):
         return MockResponse({"id": "user"}, 200)

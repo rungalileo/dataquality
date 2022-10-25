@@ -6,11 +6,16 @@ import tensorflow as tf
 from tensorflow import keras
 
 import dataquality as dq
+from dataquality.analytics import Analytics
+from dataquality.clients.api import ApiClient
 
 # from dataquality.analytics import Analytics
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.split import Split
 from dataquality.utils.tf import is_tf_2
+
+a = Analytics(ApiClient, dq.config)
+a.log_import("keras")
 
 # If this is TF 1.x
 if not is_tf_2():
@@ -86,6 +91,7 @@ class DataQualityLoggingLayer(tf.keras.layers.Layer):
 
 class DataQualityCallback(keras.callbacks.Callback):
     def __init__(self) -> None:
+        a.log_function("keras/dqcallback")
         super(DataQualityCallback, self).__init__()
         self.helper_data = dq.get_model_logger().logger_config.helper_data
         # In the future we could maybe insert the layers into sequential or something

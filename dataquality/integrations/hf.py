@@ -8,13 +8,16 @@ from torch.utils.data import Dataset as TorchDataset
 from transformers import BatchEncoding, PreTrainedTokenizerBase
 
 import dataquality as dq
-
-# from dataquality.analytics import Analytics
+from dataquality.analytics import Analytics
+from dataquality.clients.api import ApiClient
 from dataquality.exceptions import GalileoException, GalileoWarning
 from dataquality.schemas.hf import HFCol
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import conform_split
 from dataquality.utils.hf_tokenizer import LabelTokenizer
+
+a = Analytics(ApiClient, dq.config)
+a.log_import("hf")
 
 
 def _is_bio(schema_tags: Set[str]) -> bool:

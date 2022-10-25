@@ -35,7 +35,7 @@ def test_log_galileo_exception(set_test_config, cleanup_after_use):
 
 def test_log_galileo_import(set_test_config, cleanup_after_use):
     a.last_log = {}
-
+    a.log_import("test")
     assert a.last_log["value"] == "test", "No import detected"
 
 

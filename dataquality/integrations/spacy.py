@@ -17,8 +17,8 @@ from wrapt import CallableObjectProxy
 
 import dataquality
 from dataquality import check_noop, config
-
-# from dataquality.analytics import Analytics
+from dataquality.analytics import Analytics
+from dataquality.clients.api import ApiClient
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
@@ -30,6 +30,9 @@ from dataquality.utils.spacy_integration import (
     validate_obj,
     validate_spacy_version,
 )
+
+a = Analytics(ApiClient, dataquality.config)
+a.log_import("spacy")
 
 
 @check_noop
@@ -90,6 +93,7 @@ def watch(nlp: Language) -> None:
     :param nlp: The spacy nlp Language component.
     :return: None
     """
+    a.log_function("spacy/watch")
     validate_spacy_version()
     if not (config.current_project_id and config.current_run_id):
         raise GalileoException(
