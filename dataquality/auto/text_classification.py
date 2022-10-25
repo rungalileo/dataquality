@@ -7,7 +7,9 @@ import pandas as pd
 from datasets import Dataset, DatasetDict, load_dataset
 
 import dataquality as dq
+from dataquality.auto.tc_trainer import get_trainer
 from dataquality.exceptions import GalileoException
+from dataquality.integrations.transformers_trainer import watch
 from dataquality.schemas.task_type import TaskType
 
 DEMO_DATASETS = [
@@ -117,6 +119,7 @@ def auto(
     labels: Optional[List[str]] = None,
     project_name: str = None,
     run_name: str = None,
+    wait: bool = True,
 ) -> None:
     """Automatically gets insights on a text classification dataset
 
@@ -151,6 +154,7 @@ def auto(
         be generated
     :param run_name: Optional run name for this data. If not set, a random name will
         be generated
+    :param wait: Whether to wait for Galileo to complete processing your run
     """
     dd = _get_dataset_dict(hf_data, train_data, val_data, test_data)
     labels = _get_labels(dd, labels)
@@ -158,3 +162,7 @@ def auto(
     dq.init(TaskType.text_classification, project_name=project_name, run_name=run_name)
     dq.set_labels_for_run(labels)
     _log_dataset_dict(dd)
+    trainer = get_trainer(dd, labels)
+    watch(trainer)
+    trainer.train()
+    dq.finish(wait=wait)
