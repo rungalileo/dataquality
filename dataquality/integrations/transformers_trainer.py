@@ -4,6 +4,7 @@ from typing import Any, Dict, Optional, Union
 from datasets import Dataset
 from torch import Tensor
 from torch.nn import Module
+from transformers import Trainer
 from transformers.modeling_outputs import BaseModelOutput, TokenClassifierOutput
 from transformers.trainer_callback import TrainerCallback, TrainerControl, TrainerState
 from transformers.training_args import TrainingArguments
@@ -13,6 +14,10 @@ from dataquality.exceptions import GalileoException
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.torch import HookManager, convert_fancy_idx_str_to_slice
+from dataquality.utils.transformers import (
+    add_id_to_signature_columns,
+    remove_id_collate_fn_wrapper,
+)
 
 EmbeddingDim = Any
 Layer = Optional[Union[Module, str]]
@@ -266,3 +271,29 @@ class DQCallback(TrainerCallback):
             # through this dimension for NER tasks
             logits = logits[:, 1:, :]
         self.helper_data["logits"] = logits
+
+
+@check_noop
+def watch(
+    trainer: Trainer,
+    layer: Layer = None,
+    embedding_dim: EmbeddingDim = None,
+    logits_dim: LogitsDim = None,
+) -> None:
+    """
+    [`watch`] is used to hook into to the trainer
+    to log to [Galileo](https://www.rungalileo.io/)
+    :param trainer: Trainer object
+    :return: None
+    """
+    # Callback which we add to the trainer
+    dqcallback = DQCallback(
+        layer=layer, embedding_dim=embedding_dim, logits_dim=logits_dim
+    )
+    # The columns needed for the forward process
+    signature_cols = add_id_to_signature_columns(trainer)
+    # We wrap the data collator to remove the id column
+    trainer.data_collator = remove_id_collate_fn_wrapper(
+        trainer.data_collator, signature_cols, dqcallback.helper_data
+    )
+    trainer.add_callback(dqcallback)
