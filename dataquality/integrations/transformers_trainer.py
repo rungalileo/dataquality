@@ -1,5 +1,5 @@
 # Imports for the hook manager
-from typing import Dict, Iterable, Optional, Union
+from typing import Any, Dict, Optional, Union
 
 from datasets import Dataset
 from torch import Tensor
@@ -12,10 +12,10 @@ import dataquality as dq
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
-from dataquality.utils.torch import HookManager
+from dataquality.utils.torch import HookManager, convert_fancy_idx_str_to_slice
 
+EmbeddingDim = Any
 Layer = Optional[Union[Module, str]]
-EmbeddingDim = Optional[Iterable[int]]
 
 
 # Trainer callback for Huggingface transformers Trainer library
@@ -25,10 +25,15 @@ class DQCallback(TrainerCallback):
     for each training training step.
     """
 
+    embedding_dim: EmbeddingDim
+    logits_dim: EmbeddingDim
+    hook_manager: HookManager
+
     def __init__(
         self,
         layer: Layer = None,
         embedding_dim: EmbeddingDim = None,
+        logits_dim: EmbeddingDim = None,
     ) -> None:
         # Access the dq logger helper data
         self.helper_data = dq.get_model_logger().logger_config.helper_data
@@ -36,7 +41,34 @@ class DQCallback(TrainerCallback):
         # Hook manager for attaching hooks to the model
         self.hook_manager = HookManager()
         self.layer = layer
-        self.embedding_dim = embedding_dim
+        self._init_dimension(embedding_dim, logits_dim)
+
+    def _init_dimension(
+        self, embedding_dim: EmbeddingDim, logits_dim: EmbeddingDim
+    ) -> None:
+        """
+        Initialize the dimensions of the embeddings and logits
+        :param embedding_dim: Dimension of the embedding
+        :param logits_dim: Dimension of the logits
+        :return: None
+        """
+        # If embedding_dim is a string, convert it to a slice
+        # else assume it is a slice or None
+        if isinstance(embedding_dim, str):
+            self.embedding_dim = convert_fancy_idx_str_to_slice(embedding_dim)
+        elif embedding_dim is not None:
+            self.embedding_dim = embedding_dim
+        else:
+            self.embedding_dim = None
+
+        # If logits_dim is a string, convert it to a slice
+        # else assume it is a slice or None
+        if isinstance(logits_dim, str):
+            self.logits_dim = convert_fancy_idx_str_to_slice(logits_dim)
+        elif logits_dim is not None:
+            self.logits_dim = logits_dim
+        else:
+            self.logits_dim = None
 
     def _clear_logger_config_helper_data(self) -> None:
         self.helper_data.clear()
@@ -66,10 +98,11 @@ class DQCallback(TrainerCallback):
         :param kwargs: Keyword arguments (eval_dataloader, train_dataloader, tokenizer)
         :return: None"""
         # Attach hooks to the model
-        assert dq.config.task_type == TaskType.text_classification, GalileoException(
-            "dq client must be initialized for text classification. "
-            "For example: dq.init('text_classification')"
-        )
+        # assert dq.config.task_type == TaskType.text_classification, GalileoException(
+        #     "dq client must be initialized for text classification. "
+        #     "For example: dq.init('text_classification')"
+        # )
+        self.task = dq.config.task_type
         model: Module = kwargs["model"]
         self._attach_hooks_to_model(model, self.layer)
         train_dataloader = kwargs["train_dataloader"]
@@ -195,11 +228,17 @@ class DQCallback(TrainerCallback):
         output_detached = output.detach()
         # If embedding has the CLS token, remove it
         if self.embedding_dim is not None:
-            dim, index = self.embedding_dim
-            output_detached = output_detached.select(dim, index)
-        elif len(output_detached.shape) == 3:
+            output_detached = output_detached[self.embedding_dim]
+        elif len(output_detached.shape) == 3 and (
+            self.task in [TaskType.text_classification, TaskType.text_multi_label]
+        ):
             # It is assumed that the CLS token is removed through this dimension
+            # for text classification tasks and multi label tasks
             output_detached = output_detached[:, 0]
+        elif len(output_detached.shape) == 3 and self.task == TaskType.text_ner:
+            # It is assumed that the CLS token is removed through this dimension
+            # for NER tasks
+            output_detached = output_detached[:, 1:, :]
         self.helper_data["embs"] = output_detached
 
     def _logit_hook(
@@ -219,4 +258,11 @@ class DQCallback(TrainerCallback):
             logits = model_output
         elif hasattr(model_output, "logits"):
             logits = model_output.logits
-        self.helper_data["logits"] = logits.detach()
+        logits = logits.detach()
+        if self.logits_dim is not None:
+            logits = logits[self.logits_dim]
+        elif len(logits.shape) == 3 and self.task == TaskType.text_ner:
+            # It is assumed that the CLS token is removed
+            # through this dimension for NER tasks
+            logits = logits[:, 1:, :]
+        self.helper_data["logits"] = logits

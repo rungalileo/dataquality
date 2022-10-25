@@ -6,6 +6,7 @@ import dataquality as dq
 from dataquality.exceptions import GalileoException
 from dataquality.integrations.transformers_trainer import Layer
 from dataquality.schemas.task_type import TaskType
+from dataquality.schemas.torch import EmbeddingDim
 from dataquality.utils.torch import (
     HookManager,
     convert_fancy_idx_str_to_slice,
@@ -14,8 +15,8 @@ from dataquality.utils.torch import (
 
 
 class TorchLogger:
-    embedding_dim: Any
-    logits_dim: Any
+    embedding_dim: Union[None, EmbeddingDim]
+    logits_dim: Union[None, EmbeddingDim]
     task: TaskType
     model: Module
 
@@ -23,8 +24,8 @@ class TorchLogger:
         self,
         model: Module,
         model_layer: Layer = None,
-        embedding_dim: Any = None,
-        logits_dim: Any = None,
+        embedding_dim: EmbeddingDim = None,
+        logits_dim: EmbeddingDim = None,
         task: Union[TaskType, None] = TaskType.text_classification,
     ):
         assert task is not None, GalileoException(
@@ -42,7 +43,9 @@ class TorchLogger:
         self.hook_manager.attach_hook(model, self._logit_hook)
         self.helper_data: Dict[str, Any] = {}
 
-    def _init_dimension(self, embedding_dim: Any, logits_dim: Any) -> None:
+    def _init_dimension(
+        self, embedding_dim: EmbeddingDim, logits_dim: EmbeddingDim
+    ) -> None:
         """
         Initialize the dimensions of the embeddings and logits
         :param embedding_dim: Dimension of the embedding
@@ -61,7 +64,7 @@ class TorchLogger:
         # If logits_dim is a string, convert it to a slice
         # else assume it is a slice or None
         if isinstance(logits_dim, str):
-            self.logits_dim = convert_fancy_idx_str_to_slice(embedding_dim)
+            self.logits_dim = convert_fancy_idx_str_to_slice(logits_dim)
         elif logits_dim is not None:
             self.logits_dim = logits_dim
         else:
@@ -116,7 +119,7 @@ class TorchLogger:
             # It is assumed that the CLS token is removed
             # through this dimension for NER tasks
             logits = logits[:, 1:, :]
-        self.helper_data["logits"] = logits.detach()
+        self.helper_data["logits"] = logits
         self._on_step_end()
 
     def _on_step_end(self) -> None:

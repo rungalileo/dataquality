@@ -1,9 +1,9 @@
 import re
 from queue import Queue
 from typing import Any, Callable, List, Optional, Union
-import torch
 
 from torch.nn import Module
+from torch.utils.data import Dataset
 from torch.utils.hooks import RemovableHandle
 
 from dataquality.exceptions import GalileoException
@@ -139,14 +139,14 @@ class HookManager:
             h.remove()
 
 
-class WrapDataset(torch.utils.data.Dataset):
-    def __init__(self, dataset):
+class WrapDataset(Dataset):
+    def __init__(self, dataset: Any) -> None:
         self.dataset = dataset
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx) -> tuple:
         # 🔭🌕 Logging the dataset with Galileo
         data = self.dataset[idx]
         return data, idx
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.dataset)
