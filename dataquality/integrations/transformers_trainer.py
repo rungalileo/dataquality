@@ -13,6 +13,7 @@ import dataquality as dq
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
+from dataquality.utils.helpers import check_noop
 from dataquality.utils.torch import HookManager, convert_fancy_idx_str_to_slice
 from dataquality.utils.transformers import (
     add_id_to_signature_columns,
@@ -278,7 +279,7 @@ def watch(
     trainer: Trainer,
     layer: Layer = None,
     embedding_dim: EmbeddingDim = None,
-    logits_dim: LogitsDim = None,
+    logits_dim: EmbeddingDim = None,
 ) -> None:
     """
     [`watch`] is used to hook into to the trainer
