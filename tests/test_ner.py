@@ -287,7 +287,8 @@ def test_ner_logging(
 ) -> None:
     """
     To validate:
-    * pred_conf and pred_loss exist in prob df
+    * pred_conf and pred_loss exist in prob df and have correct shape
+    * pred_loss_label exists in prob df
     * assert correct start and end index for extracted spans
     * spans within gold cannot be nested
     * spans within pred cannot be nested
