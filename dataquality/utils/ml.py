@@ -6,14 +6,15 @@ from torch.nn import NLLLoss
 
 
 def compute_confidence(probs: np.ndarray) -> np.ndarray:
-    """Compute the confidence(s)
+    """Compute the confidences for a prob array
 
-    probs - [n_tokens, C]
-    gold_labels - [n_tokens]
+    Where confidence is the max prob for a given token
+
+    probs - [n_tokens, n_classes]
 
     Return:
     -------
-        - confidences [n_tokens]: confidence per token
+      - confidences [n_tokens]: confidence per token
     """
     return np.max(probs, axis=-1)
 
@@ -21,15 +22,15 @@ def compute_confidence(probs: np.ndarray) -> np.ndarray:
 def compute_loss(probs: np.ndarray, gold_labels: np.ndarray) -> np.ndarray:
     """Compute the NLLLoss for each token in probs
 
-    probs - [n_tokens, C]
-    gold_labels - [n_tokens], each element is index of gold label for that token
-
     Assumes for now that probs is a matrix of probability vectors per token,
     NOT the logits. Thus we have to we have to take the log since NLLLoss
     expects log probs.
 
     For the NLLLoss we set reduction = "None" because we want
     a loss per token
+
+    probs - [n_tokens, n_classes]
+    gold_labels - [n_tokens], each element is index of gold label for that token
 
     Return:
     -------
@@ -52,10 +53,14 @@ def select_span_token_for_prob(
     each of the NER tokens and then select the "representative"
     token.
 
+    probs - [n_tokens, n_classes]
+    method - 'confidence' or 'loss'
+    gold_labels - [n_tokens], each element is index of gold label for that token
+
     Return:
     -------
         - prob_token: Probability vector for selected token - shape[n_classes]
-        - gold_label: The gold label for the selected token
+        - gold_label: The gold label for the selected token (if method is loss)
     """
     gold_label = None
     if method == "confidence":

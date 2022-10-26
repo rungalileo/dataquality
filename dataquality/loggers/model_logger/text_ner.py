@@ -124,14 +124,12 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         self.gold_spans: List[List[Dict]] = []
         self.gold_conf_prob: List[List[np.ndarray]] = []
         self.gold_loss_prob: List[List[np.ndarray]] = []
-        # self.gold_loss_prob_label: List[List[np.ndarray]] = []
         self.gold_loss_prob_label: List[List[float]] = []
 
         self.pred_emb: List[List[np.ndarray]] = []
         self.pred_spans: List[List[Dict]] = []
         self.pred_conf_prob: List[List[np.ndarray]] = []
         self.pred_loss_prob: List[List[np.ndarray]] = []
-        # self.pred_loss_prob_label: List[List[np.ndarray]] = []
         self.pred_loss_prob_label: List[List[float]] = []
         # Used for helper data, does not get logged
         self.log_helper_data: Dict[str, Any] = {}
@@ -200,9 +198,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         gold span
 
         For inference mode, only prediction spans should be logged.
-
-        This helper fn does the following processing:
-        - TODO: Add more details here
         """
         get_dq_logger().debug(
             "Processing a sample.", split=self.split, epoch=self.epoch
