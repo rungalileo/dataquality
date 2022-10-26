@@ -1,5 +1,5 @@
 from itertools import chain
-from typing import Callable, List
+from typing import Callable, Generator, List
 from unittest import mock
 
 import datasets
@@ -213,7 +213,7 @@ def test_pred_span_extraction_bilou() -> None:
     assert model_logger._extract_spans_token_level(case_5_seq) == case_5_spans
 
 
-def test_ner_logging_bad_inputs(set_test_config: Callable, cleanup_after_use) -> None:
+def test_ner_logging_bad_inputs(set_test_config: Callable, cleanup_after_use: Generator) -> None:
     set_test_config(task_type=TaskType.text_ner)
     dataquality.set_tagging_schema("BIO")
 
@@ -412,7 +412,9 @@ def test_ner_logging(
 
     prob_path = f"{TEST_PATH}/{split}/0/prob/prob.hdf5"
     prob_df = vaex.open(prob_path)
-    # TODO: assert conf_prob / loss_prob / loss_prob_label
+    assert list(prob_df.loss_prob_label.to_numpy()) == [0, 2, 6, 6, 5, 5, 6, 7]
+    assert prob_df.loss_prob.shape == (8, 9)  # 8 spans, 9 labels
+    assert prob_df.conf_prob.shape == (8, 9)  # 8 spans, 9 labels
 
     for i in range(3):
         sample_pred_spans = pred_spans[i]
@@ -462,7 +464,9 @@ def test_ner_logging(
     c.upload()
     prob_path = f"{TEST_PATH}/{split}/0/prob/prob.hdf5"
     prob_df = vaex.open(prob_path)
-    # TODO: assert conf_prob / loss_prob / loss_prob_label
+    assert list(prob_df.loss_prob_label.to_numpy()) == [0, 2, 6, 6, 5, 5, 6, 7]
+    assert prob_df.loss_prob.shape == (8, 9)  # 8 spans, 9 labels
+    assert prob_df.conf_prob.shape == (8, 9)  # 8 spans, 9 labels
 
 
 def test_ghost_spans() -> None:

@@ -304,7 +304,7 @@ def _get_task_type(task_type: TaskType = None) -> TaskType:
     task = task_type or config.task_type
     if not task:
         raise GalileoException(
-            "You must provide either a task_type or first call"
+            "You must provide either a task_type or first call "
             "dataqualtiy.init and provide one"
         )
     return task
