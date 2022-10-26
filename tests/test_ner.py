@@ -213,7 +213,9 @@ def test_pred_span_extraction_bilou() -> None:
     assert model_logger._extract_spans_token_level(case_5_seq) == case_5_spans
 
 
-def test_ner_logging_bad_inputs(set_test_config: Callable, cleanup_after_use: Generator) -> None:
+def test_ner_logging_bad_inputs(
+    set_test_config: Callable, cleanup_after_use: Generator
+) -> None:
     set_test_config(task_type=TaskType.text_ner)
     dataquality.set_tagging_schema("BIO")
 
