@@ -8,7 +8,7 @@ from pydantic.types import UUID4
 
 import dataquality
 from dataquality.clients.api import ApiClient
-from dataquality.core._config import config
+from dataquality.core._config import _check_dq_version, config
 from dataquality.core.auth import login
 from dataquality.exceptions import GalileoException
 from dataquality.loggers import BaseGalileoLogger
@@ -105,6 +105,8 @@ def init(
     """
     if not api_client.valid_current_user():
         login()
+    # Each time we set config in we ensure the user is running a valid DQ version
+    _check_dq_version()
     _init = _Init()
     BaseGalileoLogger.validate_task(task_type)
     task_type = TaskType[task_type]

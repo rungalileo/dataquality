@@ -83,6 +83,12 @@ class ApiClient:
         self._validate_response(res)
         return res.json()
 
+    def get_dq_healthcheck(self) -> Dict:
+        return self.make_request(
+            RequestType.GET,
+            url=f"{config.api_url}/{Route.healthcheck}/dq",
+        )
+
     def get_project(self, project_id: UUID4) -> Dict:
         return self.make_request(
             RequestType.GET,

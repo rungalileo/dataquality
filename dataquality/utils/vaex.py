@@ -114,7 +114,7 @@ def _valid_prob_col(col: str) -> bool:
         col.endswith("id")
         or "gold" in col
         or "pred" in col
-        or col.startswith("prob")
+        or "prob" in col  # encapsulates prob, conf_prob, and loss_prob
         or col.startswith("span")
         or col.startswith("data_")
         or col.startswith("galileo")

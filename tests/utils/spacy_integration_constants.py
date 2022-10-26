@@ -729,6 +729,7 @@ class TestSpacyNerConstants:
                 0.5092,
             ],
             "galileo_error_type": ["missed_label"] * _num_gold_spans,
+            "loss_prob_label": [0, 5, 3, 6, 11, 14, 12, 17],
         }
     )
 

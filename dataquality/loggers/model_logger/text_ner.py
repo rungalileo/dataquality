@@ -268,12 +268,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             self.gold_loss_prob_label.append(gold_gold_label)
             self.pred_loss_prob_label.append(pred_gold_label)
 
-            # gold_dep, pred_dep = self._calculate_dep_scores(
-            #     sample_prob, sample_gold_spans, sample_pred_spans, sample_token_len
-            # )
-            # self.gold_dep.append(gold_dep)
-            # self.pred_dep.append(pred_dep)
-
         return True
 
     def _extract_span_embeddings(
@@ -546,80 +540,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                     gold_sequence[start] = f"B-{label}"
                     gold_sequence[end - 1] = f"E-{label}"
         return gold_sequence
-
-    def _calculate_dep_score_across_spans(
-        self, spans: List[Dict], dep_scores: List[float]
-    ) -> List[float]:
-        """Computes dep score for all spans in a sample
-
-        spans: All spans in a given sample
-        dep_scores: DEP scores for every token in a sample, so len(dep_scores) is
-            the number of tokens in a sentence
-        """
-        get_dq_logger().debug(
-            "Calculating DEP across spans.", split=self.split, epoch=self.epoch
-        )
-        dep_score_per_span = []
-        for span in spans:
-            start = span["start"]
-            end = span["end"]
-            dep_score_per_span.append(max(dep_scores[start:end]))
-        assert len(dep_score_per_span) == len(spans)
-        return dep_score_per_span
-
-    def _calculate_dep_scores(
-        self,
-        pred_prob: np.ndarray,
-        gold_spans: List[Dict],
-        pred_spans: List[Dict],
-        sample_token_len: int,
-    ) -> Tuple[List[float], List[float]]:
-        """Calculates dep scores for every span in a sample
-
-        Compute DEP score for each token using gold and predicted sequences.
-        Extract DEP score for each span using max of these token-level scores
-        :param gold_spans: gold spans for a sample
-        :param pred_spans: predicted spans for a sample
-        :param pred_prob: seq_len x num_labels probability predictions for
-            every token in a sample
-        :param sample_token_len:  Unpadded length of the sample. Used to extract true
-            predicted spans which are padded by the model
-        :return: The DEP score per-token for both the gold spans and pred spans
-        """
-        get_dq_logger().debug("Calculating DEP.", split=self.split, epoch=self.epoch)
-        pred_prob = np.array(pred_prob)
-        label2idx = {l: i for i, l in enumerate(self.logger_config.labels)}
-        argmax_indices: List[int] = pred_prob.argmax(axis=1).tolist()
-        pred_sequence: List[str] = [
-            self.logger_config.labels[x] for x in argmax_indices
-        ][0:sample_token_len]
-        gold_sequence = self._construct_gold_sequence(len(pred_sequence), gold_spans)
-        # Store dep scores for every token in the sample
-        dep_scores_tokens = []
-        for idx, token in enumerate(gold_sequence):
-            g_label_idx = label2idx[token]  # index of ground truth
-            token_prob_vector = pred_prob[idx]
-            ordered_prob_vector = token_prob_vector.argsort()
-            # We want the index of the highest probability that IS NOT the true label
-            if ordered_prob_vector[-1] == g_label_idx:
-                # Take the second highest probability because the highest was the label
-                second_idx = ordered_prob_vector[-2]
-            else:
-                second_idx = ordered_prob_vector[-1]
-            aum = token_prob_vector[g_label_idx] - token_prob_vector[second_idx]
-            dep = (1 - aum) / 2  # normalize aum to dep
-            assert 1.0 >= dep >= 0.0, f"DEP score is out of bounds with value {dep}"
-            dep_scores_tokens.append(dep)
-
-        assert sample_token_len == len(
-            dep_scores_tokens
-        ), "misalignment between total tokens and DEP scores"
-
-        # Compute dep score of each span, which is effectively max dep score across
-        # all tokens in a span
-        gold_dep = self._calculate_dep_score_across_spans(gold_spans, dep_scores_tokens)
-        pred_dep = self._calculate_dep_score_across_spans(pred_spans, dep_scores_tokens)
-        return gold_dep, pred_dep
 
     def _get_data_dict(self) -> Dict[str, Any]:
         """Format row data for storage with vaex/hdf5
@@ -926,5 +846,5 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         token_probs = []
         for token_logits in sample_logits:
             token_probs.append(super().convert_logits_to_probs(token_logits))
-        # TODO: Why does this need float when the other modalities uses object?
-        return np.array(token_probs, dtype=np.float64)
+
+        return np.array(token_probs, dtype=object)
