@@ -6,8 +6,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import dataquality
+import dataquality.clients.api
 from dataquality import config
 from dataquality.core.auth import GALILEO_AUTH_METHOD
+from dataquality.core.init import _Init
 from dataquality.exceptions import GalileoException
 from tests.exceptions import LoginInvoked
 from tests.utils.mock_request import (
@@ -385,3 +387,39 @@ def test_init_incompatible_dq_version(mock_get: MagicMock) -> None:
     )
     with pytest.raises(GalileoException):
         dataquality.init(task_type="text_classification")
+
+
+@patch("dataquality.login")
+def test_set_console_url_picks_env_vars(mock_login: MagicMock) -> None:
+    os.environ["GALILEO_CONSOLE_URL"] = "https://console.fakecompany.io"
+    dataquality.set_console_url()
+    assert dataquality.config.api_url == config.api_url == "https://api.fakecompany.io"
+    mock_login.assert_not_called()
+
+
+@patch("dataquality.login")
+def test_set_console_url_overwrites_with_param(mock_login: MagicMock) -> None:
+    os.environ["GALILEO_CONSOLE_URL"] = "https://console.newfake.de"
+    dataquality.set_console_url(console_url="https://console.newfake2.com")
+    assert dataquality.config.api_url == config.api_url == "https://api.newfake2.com"
+    mock_login.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "err",
+    [
+        "duplicate key value violates unique constraint",
+        "A project with this name already exists",
+    ],
+)
+@patch.object(dataquality.clients.api.ApiClient, "create_project")
+@patch.object(dataquality.clients.api.ApiClient, "get_project_by_name")
+def test_initialize_new_project_catches_api_errors(
+    mock_get_project: MagicMock,
+    mock_create_project: MagicMock,
+    err: str,
+) -> None:
+    _init = _Init()
+    mock_create_project.side_effect = GalileoException(err)
+    _init._initialize_new_project("test_proj")
+    mock_get_project.assert_called_once_with("test_proj")
