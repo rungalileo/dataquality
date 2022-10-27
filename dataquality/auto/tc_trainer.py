@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 
 import evaluate
 import numpy as np
@@ -31,7 +31,9 @@ def compute_metrics(eval_pred: Tuple[np.ndarray, np.ndarray]) -> float:
     return metric.compute(predictions=predictions, references=labels)
 
 
-def get_trainer(dd: DatasetDict, labels: List[str]) -> Trainer:
+def get_trainer(
+    dd: DatasetDict, labels: List[str]
+) -> Tuple[Trainer, Dict[str, Dataset]]:
     model_checkpoint = "microsoft/xtremedistil-l6-h256-uncased"
     tokenizer = AutoTokenizer.from_pretrained(model_checkpoint, use_fast=True)
     encoded_datasets = {}
@@ -69,8 +71,8 @@ def get_trainer(dd: DatasetDict, labels: List[str]) -> Trainer:
         args,
         train_dataset=encoded_datasets["train"],
         eval_dataset=encoded_datasets.get("validation"),
-        # test_dataset=encoded_datasets.get("test"), TODO: test_dataset goes into predict
+        # test_dataset=encoded_datasets.get("test"), TODO: test_dataset for predict?
         tokenizer=tokenizer,
         compute_metrics=compute_metrics,
     )
-    return trainer
+    return trainer, encoded_datasets

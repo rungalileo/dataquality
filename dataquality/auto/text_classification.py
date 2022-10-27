@@ -162,7 +162,10 @@ def auto(
     dq.init(TaskType.text_classification, project_name=project_name, run_name=run_name)
     dq.set_labels_for_run(labels)
     _log_dataset_dict(dd)
-    trainer = get_trainer(dd, labels)
+    trainer, encoded_data = get_trainer(dd, labels)
     watch(trainer)
     trainer.train()
+    # TODO: What do we do with the test data? Do we call predict here?
+    # if "test" in encoded_data:
+    #     trainer.predict(test_dataset=encoded_data["test"])
     dq.finish(wait=wait)
