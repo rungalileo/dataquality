@@ -133,3 +133,16 @@ def test_check_dq_version_fails_micro(mock_get: mock.MagicMock) -> None:
     )
     with pytest.raises(GalileoException):
         _check_dq_version()
+
+
+@patch("dataquality.core._config.requests.get")
+def test_check_dq_version_404_silent_fail(mock_get: mock.MagicMock) -> None:
+    mock_get.return_value = MockResponse(json_data={}, status_code=404)
+    _check_dq_version()
+
+
+@patch("dataquality.core._config.requests.get")
+def test_check_dq_version_api_error(mock_get: mock.MagicMock) -> None:
+    mock_get.return_value = MockResponse(json_data={}, status_code=422)
+    with pytest.raises(GalileoException):
+        _check_dq_version()
