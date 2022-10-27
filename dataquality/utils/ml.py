@@ -23,7 +23,7 @@ def compute_loss(probs: np.ndarray, gold_labels: np.ndarray) -> np.ndarray:
     """Compute the NLLLoss for each token in probs
 
     Assumes for now that probs is a matrix of probability vectors per token,
-    NOT the logits. Thus we have to we have to take the log since NLLLoss
+    NOT the logits. Thus we have to take the log since NLLLoss
     expects log probs.
 
     For the NLLLoss we set reduction = "None" because we want
