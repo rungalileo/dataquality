@@ -1,7 +1,6 @@
 import os
 import shutil
 from typing import Any, Callable, Dict, Generator, List
-from unittest.mock import MagicMock
 from uuid import UUID
 
 import pytest
