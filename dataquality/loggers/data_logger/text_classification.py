@@ -95,7 +95,8 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         # Need to compare to None because they may be np arrays which cannot be
         # evaluated with bool directly
         self.texts = texts if texts is not None else []
-        self.labels = [str(i) for i in labels] if labels is not None else []
+        # self.labels = [str(i) for i in labels] if labels is not None else []
+        self.labels = labels if labels is not None else []
         self.ids = ids if ids is not None else []
         self.split = split
         self.inference_name = inference_name
@@ -149,7 +150,8 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         self.texts = texts
         self.ids = ids
         self.split = split
-        self.labels = [str(i) for i in labels] if labels is not None else []
+        # self.labels = [str(i) for i in labels] if labels is not None else []
+        self.labels = labels if labels is not None else []
         self.inference_name = inference_name
         self.meta = meta or {}
         self.log()
@@ -265,17 +267,16 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         format to log directly.
         """
 
-        parse_label = lambda x: x  # noqa: E731
-        # If label is integer, convert to string #
-
-        if isinstance(dataset[0].get(label, None), int):
-            try:
-                parse_label = lambda x: dataset.features[label].int2str(x)  # noqa: E731
-            except Exception:
-                # TODO: Simplify this logic with mapping the int label to string ticket
-                raise GalileoException(
-                    "Your dataset does not have label names. Please include them"
-                )
+        # parse_label = lambda x: x  # noqa: E731
+        # # If label is integer, convert to string #
+        # if isinstance(dataset[0].get(label, None), int):
+        #     try:
+        #         parse_label = lambda x: dataset.features[label].int2str(x)  # noqa: E731
+        #     except Exception:
+        #         # TODO: Simplify this logic with mapping the int label to string ticket
+        #         raise GalileoException(
+        #             "Your dataset does not have label names. Please include them"
+        #         )
 
         assert dataset[0].get(id) is not None, GalileoException(
             f"id ({id}) field must be present in dataset"
@@ -286,7 +287,8 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
             data = dict(
                 text=chunk[text],
                 id=chunk[id],
-                label=parse_label(chunk[label]) if label else None,
+                # label=parse_label(chunk[label]) if label else None,
+                label=label
             )
             chunk_meta = {col: chunk[col] for col in meta}
             self._log_dict(data, chunk_meta, split, inference_name)
@@ -370,6 +372,8 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         :return: None
         """
         super().validate()
+        isint = isinstance(self.labels[0], (int, np.number))
+        self.logger_config.int_labels_logged = isint
 
         label_len = len(self.labels)
         text_len = len(self.texts)
@@ -379,11 +383,12 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         clean_labels = self._convert_tensor_ndarray(self.labels, attr="Labels")
         # If the dtype if object, we have a ragged nested sequence, so we need to
         # iterate list by list converting to strings
+        astyp = "int" if isint else "str"
         if clean_labels.dtype == object:
-            self.labels = [np.array(i).astype("str").tolist() for i in clean_labels]
+            self.labels = [np.array(i).astype(astyp).tolist() for i in clean_labels]
         # Normal nparray, can convert to string elements directly
         else:
-            self.labels = clean_labels.astype("str").tolist()
+            self.labels = clean_labels.astype(astyp).tolist()
         self.ids = list(self._convert_tensor_ndarray(self.ids))
 
         if self.split == Split.inference.value:
@@ -420,11 +425,18 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         found_labels = self.logger_config.observed_labels
         if self.logger_config.labels:
             set_labels = set(self.logger_config.labels)
-            assert set_labels.issuperset(found_labels), (
-                f"Labels set to {set_labels} but found logged labels {found_labels}. "
-                f"Logged labels must be the same as labels set during "
-                f"dq.set_labels_for_run. Fix logged data or update labels."
-            )
+            if self.logger_config.int_labels_logged:
+                assert max(set_labels) < len(self.logger_config.labels), (
+                    f"Your label index has a max value of {max(set_labels)} but you've "
+                    f"only set {len(self.logger_config.labels)}. Please check your "
+                    f"data or set more labels."
+                )
+            else:
+                assert set_labels.issuperset(found_labels), (
+                    f"Labels set to {set_labels} but found logged labels "
+                    f"{found_labels}. Logged labels must be the same as labels set "
+                    f"during dq.set_labels_for_run. Fix logged data or update labels."
+                )
 
     def _get_input_df(self) -> DataFrame:
         inp = dict(
@@ -477,7 +489,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
             "See `dataquality.set_labels_for_run`"
         )
 
-        assert len(cls.logger_config.labels) == cls.logger_config.observed_num_labels, (
+        assert len(cls.logger_config.labels) >= cls.logger_config.observed_num_labels, (
             f"You set your labels to be {cls.logger_config.labels} "
             f"({len(cls.logger_config.labels)} labels) but based on training, your "
             f"model is expecting {cls.logger_config.observed_num_labels} labels. "

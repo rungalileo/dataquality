@@ -25,6 +25,7 @@ class BaseLoggerConfig(BaseModel):
     helper_data: Dict[str, Any] = {}
     input_data_logged: DefaultDict[str, int] = defaultdict(int)
     logged_input_ids: DefaultDict[str, Set] = defaultdict(set)
+    int_labels_logged: bool = False
 
     class Config:
         validate_assignment = True

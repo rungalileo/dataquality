@@ -87,12 +87,13 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
         :param split: The split for training/test/validation
         """
         super().__init__(texts=texts, ids=ids, split=split, meta=meta)
-        if labels is not None:
-            self.labels: List[List[str]] = [
-                [str(i) for i in tl] for tl in labels  # type: ignore
-            ]
-        else:
-            self.labels = []
+        self.labels = labels if labels is not None else []
+        # if labels is not None:
+        #     self.labels: List[List[str]] = [
+        #         [str(i) for i in tl] for tl in labels  # type: ignore
+        #     ]
+        # else:
+        #     self.labels = []
 
     def log_data_sample(
         self,
@@ -121,7 +122,8 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
         if label:
             raise GalileoException("In multi-label, use task_labels instead of label")
 
-        task_labels = [str(i) for i in task_labels] if task_labels else []
+        # task_labels = [str(i) for i in task_labels] if task_labels else []
+        task_labels = task_labels or []
 
         self.texts = [text]
         self.ids = [id]
@@ -162,7 +164,8 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
         self.split = split
         self.meta = meta or {}
         if task_labels is not None:
-            self.labels = [[str(i) for i in tl] for tl in task_labels]
+            # self.labels = [[str(i) for i in tl] for tl in task_labels]
+            self.labels = task_labels
         else:
             self.labels = []
         self.log()
