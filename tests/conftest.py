@@ -15,6 +15,7 @@ from dataquality.clients import objectstore
 from dataquality.loggers import BaseGalileoLogger
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.dq_logger import DQ_LOG_FILE_HOME
+from tests.utils.mock_request import MockResponse
 
 DEFAULT_API_URL = "http://localhost:8088"
 DEFAULT_PROJECT_ID = UUID("399057bc-b276-4027-a5cf-48893ac45388")
@@ -36,11 +37,12 @@ def disable_network_calls(request, monkeypatch):
     if "noautofixt" in request.keywords:
         return
 
-    def stunted_get(url: str) -> MagicMock:
+    def stunted_get(url: str) -> MockResponse:
         """Unless it's a mocked call to healthcheck, disable network access"""
-        if url.endswith("healthcheck"):
-            mock = MagicMock(ok=True)
-            return mock
+        if "healthcheck" in url:
+            return MockResponse(
+                json_data={"minimum_dq_version": "0.0.0"}, status_code=200
+            )
         raise RuntimeError("Network access not allowed during testing!")
 
     monkeypatch.setattr(requests, "get", lambda url, *args, **kwargs: stunted_get(url))
