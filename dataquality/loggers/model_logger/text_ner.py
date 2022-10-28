@@ -236,7 +236,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         self.pred_conf_prob.append(pred_conf_prob)
 
         if self.split != Split.inference:
-            # If we are not in inference mode, we also have gold spans and DEP
+            # If we are not in inference mode, we also have gold spans and span probabilities
             gold_emb = self._extract_span_embeddings(sample_gold_spans, sample_emb)
             gold_sequence = self._construct_gold_sequence(
                 len(sample_prob), sample_gold_spans
