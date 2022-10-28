@@ -2,6 +2,12 @@ from enum import Enum, unique
 
 
 @unique
+class NERProbMethod(str, Enum):
+    confidence = "confidence"
+    loss = "loss"
+
+
+@unique
 class NERErrorType(str, Enum):
     wrong_tag = "wrong_tag"
     missed_label = "missed_label"

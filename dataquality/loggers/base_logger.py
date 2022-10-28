@@ -292,25 +292,25 @@ class BaseGalileoLogger:
         return False
 
     @property
-    def labels_to_idx(self) -> Dict[str, int]:
+    def label_idx_map(self) -> Dict[str, int]:
         """Convert a list of labels to a dictionary of label to index
 
         Example:
         --------
         >>> labels = ["O", "B-PER", "I-PER", "B-LOC", "I-LOC"]
-        >>> labels_to_idx(labels)
+        >>> label_idx_map(labels)
         {"O": 0, "B-PER": 1, "I-PER": 2, "B-LOC": 3, "I-LOC": 4}
         """
         return {label: idx for idx, label in enumerate(self.logger_config.labels or [])}
 
-    def labels_stoi(self, gold_sequence: List[str]) -> np.ndarray:
+    def labels_to_idx(self, gold_sequence: List[str]) -> np.ndarray:
         """Convert a list of labels to a np array of indices
 
         Example:
         --------
         # labels = ["O", "B-PER", "I-PER", "B-LOC", "I-LOC"]
         >>> gold_sequence = ["O", "B-LOC", "B-PER", "I-PER", "O"]
-        >>> labels_stoi(gold_sequence)
+        >>> labels_to_idx(gold_sequence)
         [0, 3, 1, 2, 0]
         """
-        return np.array([self.labels_to_idx[s] for s in gold_sequence])
+        return np.array([self.label_idx_map[s] for s in gold_sequence])

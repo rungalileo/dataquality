@@ -4,6 +4,8 @@ import numpy as np
 import torch
 from torch.nn import NLLLoss
 
+from dataquality.schemas.ner import NERProbMethod
+
 
 def compute_confidence(probs: np.ndarray) -> np.ndarray:
     """Compute the confidences for a prob array
@@ -45,7 +47,7 @@ def compute_loss(probs: np.ndarray, gold_labels: np.ndarray) -> np.ndarray:
 
 
 def select_span_token_for_prob(
-    probs: np.ndarray, method: str, gold_labels: Optional[np.ndarray] = None
+    probs: np.ndarray, method: NERProbMethod, gold_labels: Optional[np.ndarray] = None
 ) -> Tuple[np.ndarray, Optional[float]]:
     """Select the representative token for a span's prob vector
 
@@ -54,7 +56,7 @@ def select_span_token_for_prob(
     token.
 
     probs - [n_tokens, n_classes]
-    method - 'confidence' or 'loss'
+    method - NERProbMethod (confidence or loss)
     gold_labels - [n_tokens], each element is index of gold label for that token
 
     Return:
@@ -63,10 +65,10 @@ def select_span_token_for_prob(
         - gold_label: The gold label for the selected token (if method is loss)
     """
     gold_label = None
-    if method == "confidence":
+    if method == NERProbMethod.confidence:
         confidences = compute_confidence(probs)
         selected = np.argmin(confidences)
-    elif method == "loss":
+    elif method == NERProbMethod.loss:
         assert (  # Required for linting
             gold_labels is not None and gold_labels.size > 0
         ), "You must include gold_labels to select span probs for loss_prob."
@@ -76,5 +78,4 @@ def select_span_token_for_prob(
     else:
         raise ValueError(f"Cannot select span token for method {method}")
 
-    # Return the gold_label as well as a single element in an array
     return probs[selected, :], gold_label

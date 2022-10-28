@@ -317,7 +317,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         probs = []
         gold_labels = []
         gold_sequence_str = gold_sequence or []
-        gold_sequence_idx = self.labels_stoi(gold_sequence_str)
+        gold_sequence_idx = self.labels_to_idx(gold_sequence_str)
 
         for span in spans:
             start = span["start"]
