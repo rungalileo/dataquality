@@ -114,7 +114,7 @@ def _check_dq_version() -> None:
 
     Pings backend to check minimum DQ version requirements.
     """
-    r = requests.get(f"{os.environ[GalileoConfigVars.API_URL]}/{Route.healthcheck}/dq")
+    r = requests.get(f"{config.api_url}/{Route.healthcheck}/dq")
     if not r.ok:
         if r.status_code == 404:
             # We don't want to raise error if api doesn't have dq healthcheck yet
