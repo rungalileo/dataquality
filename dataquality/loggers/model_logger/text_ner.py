@@ -10,7 +10,7 @@ from dataquality.exceptions import LogBatchError
 from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.schemas import __data_schema_version__
-from dataquality.schemas.ner import NERErrorType, TaggingSchema
+from dataquality.schemas.ner import NERErrorType, NERProbMethod, TaggingSchema
 from dataquality.schemas.split import Split
 from dataquality.utils.dq_logger import get_dq_logger
 from dataquality.utils.ml import select_span_token_for_prob
@@ -228,7 +228,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
 
         pred_emb = self._extract_span_embeddings(sample_pred_spans, sample_emb)
         pred_conf_prob, _ = self._extract_span_probs(
-            sample_pred_spans, sample_prob, "confidence"
+            sample_pred_spans, sample_prob, NERProbMethod.confidence
         )
 
         self.pred_spans.append(sample_pred_spans)
@@ -236,23 +236,24 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         self.pred_conf_prob.append(pred_conf_prob)
 
         if self.split != Split.inference:
-            # If we are not in inference mode, we also have gold spans and span probabilities
+            # If we are not in inference mode, we also have gold spans and
+            # span probabilities
             gold_emb = self._extract_span_embeddings(sample_gold_spans, sample_emb)
             gold_sequence = self._construct_gold_sequence(
                 len(sample_prob), sample_gold_spans
             )
             gold_conf_prob, _ = self._extract_span_probs(
-                sample_gold_spans, sample_prob, "confidence"
+                sample_gold_spans, sample_prob, NERProbMethod.confidence
             )
             gold_loss_prob, gold_gold_label = self._extract_span_probs(
-                sample_gold_spans, sample_prob, "loss", gold_sequence
+                sample_gold_spans, sample_prob, NERProbMethod.loss, gold_sequence
             )
             argmax_indices: List[int] = sample_prob.argmax(axis=1).tolist()
             pred_sequence: List[str] = [
                 self.logger_config.labels[x] for x in argmax_indices
             ]
             pred_loss_prob, pred_gold_label = self._extract_span_probs(
-                sample_pred_spans, sample_prob, "loss", pred_sequence
+                sample_pred_spans, sample_prob, NERProbMethod.loss, pred_sequence
             )
 
             self.gold_spans.append(sample_gold_spans)
@@ -289,7 +290,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         self,
         spans: List[Dict],
         prob: np.ndarray,
-        method: str,
+        method: NERProbMethod,
         gold_sequence: Optional[List[str]] = None,
     ) -> Tuple[List[np.ndarray], List[float]]:
         """Get the probs for each span, on a per-sample basis
@@ -331,7 +332,12 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 span_probs, method, span_gold_seq
             )
             probs.append(span_prob)
-            gold_labels.append(gold_label)
+            # If method is 'loss' we return a list of gold labels
+            # If method is 'confidence' we return an empty list which
+            # will be ignored by the caller
+            # We do this over returning a list of None's for linting
+            if gold_label:
+                gold_labels.append(gold_label)
         return probs, gold_labels
 
     def _extract_pred_spans(self, pred_prob: np.ndarray) -> List[Dict]:
