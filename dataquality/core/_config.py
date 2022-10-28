@@ -116,16 +116,21 @@ def _check_dq_version() -> None:
     """
     r = requests.get(f"{os.environ[GalileoConfigVars.API_URL]}/{Route.healthcheck}/dq")
     if not r.ok:
+        if r.status_code == 404:
+            # We don't want to raise error if api doesn't have dq healthcheck yet
+            return
         raise GalileoException(r.text) from None
 
     min_version = r.json()["minimum_dq_version"]
     if version.parse(dq_version) < version.parse(min_version):
-        # The user is running an incompatible DQ version, must upgrade
-        raise GalileoException(
+        msg = (
             f"⚠️ You are running an old version of dataquality. Please upgrade to "
             f"version {min_version} or higher (you are running {dq_version})."
             f"  `pip install dataquality --upgrade`"
         )
+
+        # The user is running an incompatible DQ version, must upgrade
+        raise GalileoException(msg)
 
 
 def _check_console_url() -> None:
