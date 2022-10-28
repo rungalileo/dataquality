@@ -227,6 +227,7 @@ def log_model_outputs(
     ), "embs can be omitted if and only if exclude_embs is True"
     if embs is None and exclude_embs:
         embs = np.random.rand(len(ids), DEFAULT_RANDOM_EMB_DIM)
+
     model_logger = get_model_logger()(
         embs=embs,
         ids=ids,
@@ -303,7 +304,7 @@ def _get_task_type(task_type: TaskType = None) -> TaskType:
     task = task_type or config.task_type
     if not task:
         raise GalileoException(
-            "You must provide either a task_type or first call"
+            "You must provide either a task_type or first call "
             "dataqualtiy.init and provide one"
         )
     return task

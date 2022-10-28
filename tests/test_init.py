@@ -15,6 +15,7 @@ from tests.exceptions import LoginInvoked
 from tests.utils.mock_request import (
     EXISTING_PROJECT,
     EXISTING_RUN,
+    MockResponse,
     mocked_create_project_run,
     mocked_get_project_run,
     mocked_login,
@@ -26,9 +27,11 @@ from tests.utils.mock_request import (
 
 @patch("requests.post", side_effect=mocked_create_project_run)
 @patch("requests.get", side_effect=mocked_get_project_run)
+@patch("dataquality.core.init._check_dq_version")
 @patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=True)
 def test_init(
     mock_valid_user: MagicMock,
+    mock_check_dq_version: MagicMock,
     mock_requests_get: MagicMock,
     mock_requests_post: MagicMock,
     set_test_config: Callable,
@@ -41,9 +44,11 @@ def test_init(
 
 @patch("requests.post", side_effect=mocked_create_project_run)
 @patch("requests.get", side_effect=mocked_get_project_run)
+@patch("dataquality.core.init._check_dq_version")
 @patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=True)
 def test_init_reset_logger_config(
     mock_valid_user: MagicMock,
+    mock_check_dq_version: MagicMock,
     mock_requests_get: MagicMock,
     mock_requests_post: MagicMock,
     set_test_config: Callable,
@@ -59,9 +64,11 @@ def test_init_reset_logger_config(
 
 @patch("requests.post", side_effect=mocked_create_project_run)
 @patch("requests.get", side_effect=mocked_get_project_run)
+@patch("dataquality.core.init._check_dq_version")
 @patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=True)
 def test_init_private(
     mock_valid_user: MagicMock,
+    mock_check_dq_version: MagicMock,
     mock_requests_get: MagicMock,
     mock_requests_post: MagicMock,
     set_test_config: Callable,
@@ -76,9 +83,11 @@ def test_init_private(
 
 @patch("requests.post", side_effect=mocked_create_project_run)
 @patch("requests.get", side_effect=mocked_get_project_run)
+@patch("dataquality.core.init._check_dq_version")
 @patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=True)
 def test_init_existing_project(
     mock_valid_user: MagicMock,
+    mock_check_dq_version: MagicMock,
     mock_requests_get: MagicMock,
     mock_requests_post: MagicMock,
     set_test_config: Callable,
@@ -92,9 +101,11 @@ def test_init_existing_project(
 
 @patch("requests.get", side_effect=mocked_missing_project_run)
 @patch("requests.post", side_effect=mocked_create_project_run)
+@patch("dataquality.core.init._check_dq_version")
 @patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=True)
 def test_init_new_project(
     mock_valid_user: MagicMock,
+    mock_check_dq_version: MagicMock,
     mock_requests_get: MagicMock,
     mock_requests_post: MagicMock,
     set_test_config: Callable,
@@ -108,9 +119,11 @@ def test_init_new_project(
 
 @patch("requests.get", side_effect=mocked_missing_run)
 @patch("requests.post", side_effect=mocked_create_project_run)
+@patch("dataquality.core.init._check_dq_version")
 @patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=True)
 def test_init_existing_project_new_run(
     mock_valid_user: MagicMock,
+    mock_check_dq_version: MagicMock,
     mock_requests_get: MagicMock,
     mock_requests_post: MagicMock,
     set_test_config: Callable,
@@ -128,9 +141,11 @@ def test_init_existing_project_new_run(
 
 @patch("requests.get", side_effect=mocked_get_project_run)
 @patch("requests.post", side_effect=mocked_get_project_run)
+@patch("dataquality.core.init._check_dq_version")
 @patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=True)
 def test_init_existing_project_run(
     mock_valid_user: MagicMock,
+    mock_check_dq_version: MagicMock,
     mock_requests_get: MagicMock,
     mock_requests_post: MagicMock,
     set_test_config: Callable,
@@ -148,9 +163,11 @@ def test_init_existing_project_run(
 
 @patch("requests.get", side_effect=mocked_missing_project_run)
 @patch("requests.post", side_effect=mocked_create_project_run)
+@patch("dataquality.core.init._check_dq_version")
 @patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=True)
 def test_init_new_project_run(
     mock_valid_user: MagicMock,
+    mock_check_dq_version: MagicMock,
     mock_requests_get: MagicMock,
     mock_requests_post: MagicMock,
     set_test_config: Callable,
@@ -165,9 +182,13 @@ def test_init_new_project_run(
 
 
 @patch("requests.get", side_effect=mocked_missing_project_run)
+@patch("dataquality.core.init._check_dq_version")
 @patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=True)
 def test_init_only_run(
-    mock_valid_user: MagicMock, mock_requests_get: MagicMock, set_test_config: Callable
+    mock_valid_user: MagicMock,
+    mock_check_dq_version: MagicMock,
+    mock_requests_get: MagicMock,
+    set_test_config: Callable,
 ) -> None:
     """Tests calling init only passing in a run"""
     set_test_config(current_project_id=None, current_run_id=None)
@@ -187,9 +208,11 @@ def test_init_no_token_login(mock_login: MagicMock, set_test_config: Callable) -
 
 @patch("requests.post", side_effect=mocked_create_project_run)
 @patch("requests.get", side_effect=mocked_get_project_run)
+@patch("dataquality.core.init._check_dq_version")
 @patch("dataquality.core.init.login", side_effect=mocked_login)
 def test_init_no_token_login_full(
     mock_login: MagicMock,
+    mock_check_dq_version: MagicMock,
     mock_requests_get: MagicMock,
     mock_requests_post: MagicMock,
     set_test_config: Callable,
@@ -218,6 +241,7 @@ def test_init_expired_token_login(
 
 @patch("requests.post", side_effect=mocked_create_project_run)
 @patch("requests.get", side_effect=mocked_get_project_run)
+@patch("dataquality.core.init._check_dq_version")
 @patch.object(
     dataquality.core.init.ApiClient, "get_current_user", side_effect=GalileoException
 )
@@ -225,6 +249,7 @@ def test_init_expired_token_login(
 def test_init_expired_token_login_full(
     mock_login: MagicMock,
     mock_current_user: MagicMock,
+    mock_check_dq_version: MagicMock,
     mock_requests_get: MagicMock,
     mock_requests_post: MagicMock,
     set_test_config: Callable,
@@ -251,11 +276,13 @@ def test_init_invalid_user_login(
 
 @patch("requests.post", side_effect=mocked_create_project_run)
 @patch("requests.get", side_effect=mocked_get_project_run)
+@patch("dataquality.core.init._check_dq_version")
 @patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=False)
 @patch("dataquality.core.init.login", side_effect=mocked_login)
 def test_init_invalid_user_login_full(
     mock_login: MagicMock,
     mock_valid_user: MagicMock,
+    mock_check_dq_version: MagicMock,
     mock_requests_get: MagicMock,
     mock_requests_post: MagicMock,
     set_test_config: Callable,
@@ -270,9 +297,12 @@ def test_init_invalid_user_login_full(
 
 
 @patch("requests.get", side_effect=mocked_get_project_run)
+@patch("dataquality.core.init._check_dq_version")
 @patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=True)
 def test_init_bad_task(
-    mock_valid_user: MagicMock, mock_requests_get: MagicMock
+    mock_valid_user: MagicMock,
+    mock_check_dq_version: MagicMock,
+    mock_requests_get: MagicMock,
 ) -> None:
     with pytest.raises(GalileoException):
         dataquality.init(task_type="not_text_classification")
@@ -318,6 +348,7 @@ def test_reconfigure_resets_user_token_login_mocked(
 
 @patch("requests.post", side_effect=mocked_create_project_run)
 @patch("requests.get", side_effect=mocked_get_project_run)
+@patch("dataquality.core.init._check_dq_version")
 @patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=True)
 @pytest.mark.parametrize(
     "run_name,exc",
@@ -332,6 +363,7 @@ def test_reconfigure_resets_user_token_login_mocked(
 )
 def test_bad_names(
     mock_valid_user: MagicMock,
+    mock_check_dq_version: MagicMock,
     mock_requests_get: MagicMock,
     mock_requests_post: MagicMock,
     run_name: str,
@@ -346,6 +378,15 @@ def test_bad_names(
             init(run_name=run_name)
     else:
         init(run_name=run_name)
+
+
+@patch("requests.get")
+def test_init_incompatible_dq_version(mock_get: MagicMock) -> None:
+    mock_get.return_value = MockResponse(
+        json_data={"minimum_dq_version": "100.0.0"}, status_code=200
+    )
+    with pytest.raises(GalileoException):
+        dataquality.init(task_type="text_classification")
 
 
 @patch("dataquality.login")

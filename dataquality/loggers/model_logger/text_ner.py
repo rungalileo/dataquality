@@ -753,9 +753,14 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         error_type = NERErrorType.missed_label
         for pred_span in pred_spans:
             pred_start, pred_end = pred_span
+            # We compare to the end of the spans non-inclusive because
+            # at the token level (which these are), the end index won't include a
+            # "space" character like char-level span indices would. So a gold span
+            # {start: 1, end: 5} and a pred span {start: 5, end: 9} should NOT be
+            # considered a span_shift, that is a missed label
             if (
-                gold_start <= pred_start <= gold_end
-                or pred_start <= gold_start <= pred_end
+                gold_start <= pred_start < gold_end
+                or pred_start <= gold_start < pred_end
             ):
                 error_type = NERErrorType.span_shift
                 break
