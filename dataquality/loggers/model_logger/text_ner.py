@@ -331,8 +331,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 span_probs, method, span_gold_seq
             )
             probs.append(span_prob)
-            if gold_label is not None:
-                gold_labels.append(gold_label)
+            gold_labels.append(gold_label)
         return probs, gold_labels
 
     def _extract_pred_spans(self, pred_prob: np.ndarray) -> List[Dict]:
