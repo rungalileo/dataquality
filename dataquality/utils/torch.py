@@ -1,12 +1,12 @@
 import re
 from queue import Queue
-from typing import Any, Callable, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from torch.nn import Module
-from torch.utils.data import Dataset
 from torch.utils.hooks import RemovableHandle
 
 from dataquality.exceptions import GalileoException
+from dataquality.utils.helpers import hook
 
 
 def remove_id_collate_fn_wrapper(collate_fn: Any, store: Any) -> Callable:
@@ -34,6 +34,34 @@ def remove_id_collate_fn_wrapper(collate_fn: Any, store: Any) -> Callable:
         return collate_fn(cleaned_rows)
 
     return remove_id
+
+
+# store indices
+def store_batch_indices(store: Dict) -> Callable:
+    def process_batch_indices(
+        next_index_func: Callable, *args: Tuple, **kwargs: Dict[str, Any]
+    ) -> Callable:
+        """Stores the indices of the batch"""
+        indices = next_index_func(*args, **kwargs)
+        if indices:
+            store["ids"] = indices
+        return indices
+
+    return process_batch_indices
+
+
+# add patch to the dataloader iterator
+def patch_iterator_with_store(store: Dict) -> Callable:
+    """Patches the iterator of the dataloader to return the indices"""
+
+    def patch_iterator(
+        orig_iterator: Callable, *args: Tuple, **kwargs: Dict[str, Any]
+    ) -> Callable:
+        iteraror = orig_iterator(*args, **kwargs)
+        iteraror._next_index = hook(iteraror._next_index, store_batch_indices(store))
+        return iteraror
+
+    return patch_iterator
 
 
 def validate_fancy_index_str(input_str: str = "[:, 1:, :]") -> bool:
@@ -137,16 +165,3 @@ class HookManager:
         """Remove all hooks from the model"""
         for h in self.hooks:
             h.remove()
-
-
-class WrapDataset(Dataset):
-    def __init__(self, dataset: Any) -> None:
-        self.dataset = dataset
-
-    def __getitem__(self, idx) -> tuple:
-        # 🔭🌕 Logging the dataset with Galileo
-        data = self.dataset[idx]
-        return data, idx
-
-    def __len__(self) -> int:
-        return len(self.dataset)

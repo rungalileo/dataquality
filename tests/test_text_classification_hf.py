@@ -2,7 +2,6 @@ from typing import Any, Callable, Generator
 from unittest.mock import MagicMock, patch
 
 import numpy as np
-import pytest
 import torch
 from datasets import load_metric
 from torch.nn import Module
@@ -208,34 +207,6 @@ def test_remove_unused_columns(
     assert trainer._signature_columns is None, "Signature columns should be None"
 
     trainer.train()
-
-
-@patch("requests.post", side_effect=mocked_create_project_run)
-@patch("requests.get", side_effect=mocked_get_project_run)
-@patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
-def test_ner_error(
-    mock_valid_user: MagicMock,
-    mock_requests_get: MagicMock,
-    mock_requests_post: MagicMock,
-    set_test_config: Callable,
-) -> None:
-    """Base case: Tests fail if task is not text_classification"""
-    set_test_config(task_type=TaskType.text_ner)
-
-    trainer = Trainer(
-        model,
-        args_default,
-        train_dataset=encoded_train_dataset,
-        eval_dataset=encoded_test_dataset,
-        tokenizer=tokenizer,
-        compute_metrics=compute_metrics,
-    )
-    watch(trainer)
-    with pytest.raises(AssertionError) as e:
-        trainer.train()
-    assert "text_classification" in str(
-        e.value
-    ), "Task type should be text_classification"
 
 
 @patch("requests.post", side_effect=mocked_create_project_run)

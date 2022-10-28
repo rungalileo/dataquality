@@ -7,10 +7,11 @@ from dataquality.exceptions import GalileoException
 from dataquality.integrations.transformers_trainer import Layer
 from dataquality.schemas.task_type import TaskType
 from dataquality.schemas.torch import EmbeddingDim
+from dataquality.utils.helpers import hook
 from dataquality.utils.torch import (
     HookManager,
     convert_fancy_idx_str_to_slice,
-    remove_id_collate_fn_wrapper,
+    patch_iterator_with_store,
 )
 
 
@@ -42,6 +43,7 @@ class TorchLogger:
         )
         self.hook_manager.attach_hook(model, self._logit_hook)
         self.helper_data: Dict[str, Any] = {}
+        self.logger_config = dq.get_data_logger().logger_config
 
     def _init_dimension(
         self, embedding_dim: EmbeddingDim, logits_dim: EmbeddingDim
@@ -139,6 +141,13 @@ class TorchLogger:
         )
 
         # 🔭🌕 Galileo logging
+        mapped_idx_to_id = []
+        cur_split = dq.get_data_logger().logger_config.cur_split
+        for idx in self.helper_data["ids"]:
+            ID = self.logger_config.idx_to_id_map[str(cur_split)][idx]
+            mapped_idx_to_id.append(ID)
+        self.helper_data["ids"] = mapped_idx_to_id
+
         dq.log_model_outputs(**self.helper_data)
 
 
@@ -155,24 +164,7 @@ def watch(
     :param trainer: Trainer object
     :return: None
     ```
-    class TextDataset(torch.utils.data.Dataset):
-        def __init__(
-            self, dataset, split: str, list_of_labels= None
-        ):
-            self.dataset = dataset
-
-            # 🔭🌕 Logging the dataset with Galileo
-            # Note: this works seamlessly because self.dataset has text, label, and
-            # id columns. See `help(dq.log_dataset)` for more info
-            dq.log_dataset(self.dataset, split=split)
-
-        def __getitem__(self, idx):
-            data = self.dataset[idx]
-            return data, idx
-
-        def __len__(self):
-            return len(self.dataset)
-    train_dataset = TextDataset(train_dataset, split="train")
+    dq.log_dataset(train_dataset, split="train")
     train_dataloader = torch.utils.data.DataLoader()
     model = TextClassificationModel(num_labels=len(train_dataset.list_of_labels))
     watch(model, [train_dataloader,test_dataloader])
@@ -190,7 +182,7 @@ def watch(
         model, layer, embedding_dim, logits_dim=logits_dim, task=dq.config.task_type
     )
     for dataloader in dataloaders:
-        dataloader.collate_fn = remove_id_collate_fn_wrapper(
-            dataloader.collate_fn, tl.helper_data
+        dataloader._get_iterator = hook(
+            dataloader._get_iterator, patch_iterator_with_store(tl.helper_data)
         )
     tl
