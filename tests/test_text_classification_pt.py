@@ -1,3 +1,4 @@
+import pandas as pd
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
@@ -180,28 +181,26 @@ def test_end_to_end_without_callback():
             total_accu = accu_val
 
 
-class TextDataset(torch.utils.data.Dataset):
-    def __init__(self, dataset, split: str, list_of_labels=None):
-        self.dataset = dataset
-        # 🔭🌕 Logging the dataset with Galileo
-        # Note: this works seamlessly because self.dataset has text, label, and
-        # id columns. See `help(dq.log_dataset)` for more info
-        # dq.log_dataset(self.dataset, split=split)
-
-    def __getitem__(self, idx):
-        data = self.dataset[idx]
-        data
-        return data, idx
-
-    def __len__(self):
-        return len(self.dataset)
-
-
 def test_end_to_end_with_callback():
     global total_accu
     # Preprocessing
-    ag_train = TextDataset(to_map_style_dataset(AG_NEWS(split="train"))[:500], "train")
-    ag_test = TextDataset(to_map_style_dataset(AG_NEWS(split="test"))[500:800], "test")
+    ag_train = to_map_style_dataset(AG_NEWS(split="train"))[:500]
+    ag_test = to_map_style_dataset(AG_NEWS(split="test"))[500:800]
+
+    train_df = pd.DataFrame(ag_train)
+    test_df = pd.DataFrame(ag_test)
+    labels = train_df[0].unique()
+    labels.sort()
+    dq.set_labels_for_run(labels)
+    train_df = train_df.reset_index().rename(
+        columns={0: "label", 1: "text", "index": "id"}
+    )
+    train_df["id"] = train_df["id"] + 10000
+    test_df = test_df.reset_index().rename(
+        columns={0: "label", 1: "text", "index": "id"}
+    )
+    dq.log_dataset(train_df, split="train")
+    dq.log_dataset(test_df, split="validation")
 
     train_dataloader_dq = DataLoader(
         ag_train, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_batch

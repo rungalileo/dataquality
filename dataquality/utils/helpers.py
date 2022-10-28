@@ -1,6 +1,6 @@
 import os
 from functools import wraps
-from typing import Any, Callable, Dict, Optional, Tuple, TypeVar
+from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar
 
 from typing_extensions import ParamSpec
 
@@ -76,3 +76,12 @@ def hook(exist_func: Callable, hook_fn: Callable) -> Callable:
         return hook_fn(exist_func, *args, **kwargs)
 
     return run
+
+
+def map_indices_to_ids(id_map: List, indices: List) -> List:
+    """Maps the indices to the ids
+    :param id_map: The list used for mapping indices to ids
+    :param indices: The indices to map
+    :return: The ids
+    """
+    return [id_map[i] for i in indices]

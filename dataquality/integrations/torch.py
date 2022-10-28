@@ -7,7 +7,7 @@ from dataquality.exceptions import GalileoException
 from dataquality.integrations.transformers_trainer import Layer
 from dataquality.schemas.task_type import TaskType
 from dataquality.schemas.torch import EmbeddingDim
-from dataquality.utils.helpers import hook
+from dataquality.utils.helpers import hook, map_indices_to_ids
 from dataquality.utils.torch import (
     HookManager,
     convert_fancy_idx_str_to_slice,
@@ -140,14 +140,11 @@ class TorchLogger:
             "id column missing in dataset (needed to map rows to the indices/ids)"
         )
 
-        # 🔭🌕 Galileo logging
-        mapped_idx_to_id = []
-        cur_split = dq.get_data_logger().logger_config.cur_split
-        for idx in self.helper_data["ids"]:
-            ID = self.logger_config.idx_to_id_map[str(cur_split)][idx]
-            mapped_idx_to_id.append(ID)
-        self.helper_data["ids"] = mapped_idx_to_id
-
+        # Convert the indices to ids
+        cur_split = dq.get_data_logger().logger_config.cur_split.lower()  # type: ignore
+        self.helper_data["ids"] = map_indices_to_ids(
+            self.logger_config.idx_to_id_map[cur_split], self.helper_data["ids"]
+        )
         dq.log_model_outputs(**self.helper_data)
 
 
