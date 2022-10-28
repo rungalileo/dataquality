@@ -1,8 +1,6 @@
 from typing import Optional, Tuple
 
 import numpy as np
-import torch
-from torch.nn import NLLLoss
 
 from dataquality.schemas.ner import NERProbMethod
 
@@ -21,15 +19,12 @@ def compute_confidence(probs: np.ndarray) -> np.ndarray:
     return np.max(probs, axis=-1)
 
 
-def compute_loss(probs: np.ndarray, gold_labels: np.ndarray) -> np.ndarray:
+def compute_nll_loss(probs: np.ndarray, gold_labels: np.ndarray) -> np.ndarray:
     """Compute the NLLLoss for each token in probs
 
     Assumes for now that probs is a matrix of probability vectors per token,
-    NOT the logits. Thus we have to take the log since NLLLoss
-    expects log probs.
-
-    For the NLLLoss we set reduction = "None" because we want
-    a loss per token
+    NOT the logits. Thus we have to take the log since Negative Log-Likelihood
+    Loss expects log probs.
 
     probs - [n_tokens, n_classes]
     gold_labels - [n_tokens], each element is index of gold label for that token
@@ -37,13 +32,10 @@ def compute_loss(probs: np.ndarray, gold_labels: np.ndarray) -> np.ndarray:
     Return:
     -------
         - loss [n_tokens]: The loss per NER token
-
-    !NOTE!: if we pass in logits we can use the more numerically stable
-    CrossEntropyLoss and avoid taking the log
     """
-    loss = NLLLoss(reduction="none")
     log_probs = np.log(probs)
-    return loss(torch.tensor(log_probs), torch.tensor(gold_labels)).numpy()
+    loss = -log_probs[np.arange(log_probs.shape[0]), gold_labels]
+    return loss
 
 
 def select_span_token_for_prob(
@@ -72,7 +64,7 @@ def select_span_token_for_prob(
         assert (  # Required for linting
             gold_labels is not None and gold_labels.size > 0
         ), "You must include gold_labels to select span probs for loss_prob."
-        losses = compute_loss(probs, gold_labels)
+        losses = compute_nll_loss(probs, gold_labels)
         selected = np.argmax(losses)
         gold_label = gold_labels[selected]
     else:
