@@ -1,8 +1,13 @@
+import os
 from typing import Dict
 
 import pytest
 
+from dataquality import config
 from dataquality.analytics import Analytics
+from dataquality.clients.api import ApiClient
+
+os.environ["DQ_DEBUG"] = "1"
 
 
 class MockClient:
@@ -17,10 +22,15 @@ class MockClient:
         pass
 
 
-a = Analytics(MockClient, {})
+def test_mock_log_galileo_import():
+    a = Analytics(MockClient, {"api_url": "https://console.dev.rungalileo.io"})
+    a.last_log = {}
+    a.log_import("test")
+    assert a.last_log["value"] == "test", "No import detected"
 
 
-def test_log_galileo_exception(set_test_config, cleanup_after_use):
+def test_log_galileo_exception():
+    a = Analytics(MockClient, {"api_url": "https://console.dev.rungalileo.io"})
     assert a._is_initialized, "Analytics not initialized"
     try:
         10 / 0
@@ -30,20 +40,22 @@ def test_log_galileo_exception(set_test_config, cleanup_after_use):
         assert a.last_error["error_type"] == "ZeroDivisionError"
     with pytest.raises(Exception):
         10 / "1"
-    # TODO
 
 
-def test_log_galileo_import(set_test_config, cleanup_after_use):
-    a.last_log = {}
-    a.log_import("test")
-    assert a.last_log["value"] == "test", "No import detected"
+def test_log_galileo__import():
+    ac = Analytics(ApiClient, config)
+    config.api_url = "https://console.dev.rungalileo.io"
+    ac.last_log = {}
+    ac.config["current_project_id"] = "test"
+    assert ac._is_initialized, "Analytics not initialized"
+    ac._telemetrics_disabled = False
+    ac.log_import("test")
+    assert ac.last_log["value"] == "test", "No import detected"
 
 
-# def test_import_keys(set_test_config, cleanup_after_use):
-#     modules = set(sys.modules)
-#     assert "dataquality" not in modules
-#     import dataquality as dq
-
-#     modules = set(sys.modules)
-#     assert "dataquality" in modules
-#     dq.__version__
+def test_mock_log_galileo_import_disabled():
+    a_telemetrics_disabled = Analytics(MockClient, {"api_url": "https://customer"})
+    a_telemetrics_disabled.last_log = {}
+    a_telemetrics_disabled.log_import("test")
+    log_result = a_telemetrics_disabled.last_log.get("value", "")
+    assert log_result == "", "There should be no logging"

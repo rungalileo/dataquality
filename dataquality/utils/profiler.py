@@ -151,7 +151,7 @@ def _list_global_imports() -> Iterable[str]:
 
 
 def exception_from_error(error: Union[BaseException, OptExcInfo]) -> OptExcInfo:
-    """Get exception from error object"""
+    """Get stacktrace from an exception"""
     # Inspired by: https://github.com/getsentry/sentry-python/tree/master/sentry_sdk
     # Therefore BSD2 licensed
     if isinstance(error, tuple) and len(error) == 3:

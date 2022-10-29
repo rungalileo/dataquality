@@ -102,10 +102,16 @@ try:
 except ValueError:  # The users limit is higher than our max, which is OK
     pass
 
-# try:
-#     Analytics(config).log("import", "dataquality")
-# except Exception:
-#     pass
-
+#  Logging is optional. If enabled, imports, method calls
+#  and exceptions can be logged by calling the logger.
+#  This is useful for debugging and detecting issues.
+#  Logging is disabled by default for enterprise users.
+#  To enable logging, set the environment variable
+#  DQ_TELEMETRICS=1
+#  To log initiate the Analytics class and pass in the gallileo ApiClient + dq.config
+#  a = Analytics(ApiClient, config)
+#  Once initialized you can start logging
+#  a.log_import("dataquality")
+#  a.log_method_call("dataquality.log_data_samples")
 a = Analytics(ApiClient, config)
 a.log_import("dataquality")

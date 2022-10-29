@@ -1,9 +1,14 @@
+import os
 import sys
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from types import TracebackType
-from typing import Any, Dict, Optional, Type, Union
+from typing import Any, Dict, Optional, Tuple, Type
 
+from pydantic import BaseModel
+
+from dataquality.clients.api import ApiClient
+from dataquality.core._config import Config
 from dataquality.utils.ampli import AmpliMetric
 from dataquality.utils.profiler import (
     _installed_modules,
@@ -13,6 +18,13 @@ from dataquality.utils.profiler import (
     parse_exception,
     parse_exception_ipython,
 )
+
+
+class ProfileModel(BaseModel):
+    """User profile"""
+
+    packages: Optional[Dict[str, str]]
+    uuid: Optional[str]
 
 
 class Borg:
@@ -28,32 +40,65 @@ class Borg:
 class Analytics(Borg):
     """Analytics is used to track errors and logs in the background"""
 
-    def __init__(self, ApiClient: Any, config: Any) -> None:
+    _is_initialized: bool = False
+    _telemetrics_disabled: bool = True
+
+    def __init__(self, ApiClient: Type[ApiClient], config: Config) -> None:
         """To initialize the Analytics class you need to pass in an ApiClient and the dq config.
         :param ApiClient: The ApiClient class
         :param config: The dq config
         """
 
         super().__init__()
-        # initiate the first instance with default state
-        if not hasattr(self, "state"):
 
-            self.api_caller = ThreadPoolExecutor(max_workers=5)
-            self.api_client = ApiClient()
-            self.config = config
-            if not getattr(self, "_is_initializing", False):
-                self.last_error: Dict = {}
-                self.last_log: Dict = {}
-                self.user: Dict = self._setup_user()
-                self._is_initializing = True
-                self._init()
+        try:
+            self._telemetrics_disabled = self._is_telemetrics_disabled(config)
 
-        self._is_initialized = True
+            if self._telemetrics_disabled:
+                return
+            # initiate the first instance with default state
+            if not hasattr(self, "state"):
+                self.api_caller = ThreadPoolExecutor(max_workers=5)
+                self.api_client = ApiClient()
+                self.config = config
+                if not getattr(self, "_is_initializing", False):
+                    self.last_error: Dict = {}
+                    self.last_log: Dict = {}
+                    self.user: ProfileModel = self._setup_user()
+                    self._is_initializing = True
+                    self._init()
+
+            self._is_initialized = True
+        except Exception as e:
+            self.debug_logging(e)
+
+    def _is_telemetrics_disabled(self, config: Config) -> bool:
+        """This function is used to check if the telemetrics are enabled."""
+        api_url = os.environ.get("GALILEO_CONSOLE_URL", "")
+        if hasattr(config, "api_url"):
+            if isinstance(config.api_url, str):
+                api_url = config.api_url
+        elif hasattr(config, "get"):
+            api_url = config.get("api_url", "")  # type: ignore
+        # If dq telemetrics is enabled via env return false
+        if os.environ.get("DQ_TELEMETRICS", False):
+            return os.environ["DQ_TELEMETRICS"] != "1"
+        # else check if galileo is in the api url
+        return "galileo" not in api_url.lower()
+
+    def debug_logging(self, log_message: Any, *args: Tuple) -> None:
+        """This function is used to log debug messages.
+        It will only log if the DQ_DEBUG environment variable is set to True."""
+        # Logging in debugging mode
+        if os.environ.get("DQ_DEBUG", False):
+            print(log_message, *args)
 
     def _init(self) -> None:
         """This function is used to initialize the Exception hook.
         We use a different hook for ipython then normal python.
         """
+        if self._telemetrics_disabled:
+            return
         try:
             from IPython import get_ipython
 
@@ -66,13 +111,13 @@ class Analytics(Borg):
 
             sys.excepthook = new_hook
 
-    def _setup_user(self) -> Dict:
+    def _setup_user(self) -> ProfileModel:
         """This function is used to setup the user information.
         This includes all installed packages.
         """
-        profile: Dict[str, Any] = {"uuid": str(hex(uuid.getnode()))}
+        profile = ProfileModel(**{"uuid": str(hex(uuid.getnode()))})
         try:
-            profile["packages"] = _installed_modules()
+            profile.packages = _installed_modules()
         except Exception:
             pass
         return profile
@@ -86,8 +131,11 @@ class Analytics(Borg):
         tb_offset: Any = None,
     ) -> None:
         """This function is used to handle exceptions in ipython."""
-
-        self.track_exception_ipython(etype, evalue, tb, AmpliMetric.dq_galileo_warning)
+        if self._telemetrics_disabled:
+            return
+        self.track_exception_ipython(
+            etype, evalue, tb, AmpliMetric.dq_general_exception
+        )
         # We need to call the default ipython exception handler to raise the error
         shell.showtraceback((etype, evalue, tb), tb_offset=tb_offset)
 
@@ -96,54 +144,48 @@ class Analytics(Borg):
         etype: Type[BaseException],
         evalue: BaseException,
         tb: TracebackType,
-        scope: AmpliMetric = AmpliMetric.dq_log_batch_error,
+        scope: AmpliMetric = AmpliMetric.dq_general_exception,
     ) -> None:
         """We parse the current environment and send the error to the api."""
+        if self._telemetrics_disabled:
+            return
         data = parse_exception_ipython(etype, evalue, tb)
         self.last_error = data
-        self.track_dq_error(data, scope)
+        self.log(data, scope)
 
     def handle_exception(
         self,
         etype: Optional[Type[BaseException]],
         evalue: Optional[BaseException],
         tb: Optional[TracebackType],
-        scope: AmpliMetric = AmpliMetric.dq_log_batch_error,
+        scope: AmpliMetric = AmpliMetric.dq_general_exception,
     ) -> None:
         """This function is used to handle exceptions in python."""
+        if self._telemetrics_disabled:
+            return
         if etype is not None and evalue is not None and tb is not None:
             try:
                 data = parse_exception(etype, evalue, tb)
                 self.last_error = data
                 self.api_client.send_analytics(
-                    self.config.current_project_id,
-                    self.config.current_run_id,
-                    self.config.task_type,
+                    str(self.config.current_project_id),
+                    str(self.config.current_run_id),
+                    str(self.config.task_type),
                     data,
                     scope,
                 )
             except Exception:
                 pass
 
-    def log(self, error_message: str, run_task_type: str = "Unknown") -> None:
-        """This function is used to log a message to the api."""
-        try:
-            self.api_client.send_analytics(
-                self.config.current_project_id,
-                self.config.current_run_id,
-                run_task_type,
-                error_message,
-            )
-        except Exception:
-            pass
-
     def capture_exception(
         self,
-        error: Union[Exception, None],
-        scope: AmpliMetric = AmpliMetric.dq_general_exception,
+        error: Optional[Exception],
+        scope: AmpliMetric = AmpliMetric.dq_galileo_warning,
     ) -> None:
         """This function is used to take an exception that is passed as an argument."""
-        if error is not None:
+        if self._telemetrics_disabled:
+            return
+        if error:
             exc_info = exception_from_error(error)
         else:
             exc_info = sys.exc_info()
@@ -151,35 +193,41 @@ class Analytics(Borg):
 
     def log_import(self, module: str) -> None:
         """This function is used to log an import of a module."""
+        if self._telemetrics_disabled:
+            return
         data = get_device_info()
         data["method"] = "import"
         data["value"] = module
         data["arguments"] = ""
         self.last_log = data
-        self.track_dq_error(data, AmpliMetric.dq_import)
+        self.log(data, AmpliMetric.dq_import)
 
     def log_function(self, function: str) -> None:
         """This function is used to log an functional call"""
+        if self._telemetrics_disabled:
+            return
         data = get_device_info()
         data["method"] = "function"
         data["value"] = function
         data["arguments"] = ""
         self.last_log = data
-        self.track_dq_error(data, AmpliMetric.dq_function_call)
+        self.log(data, AmpliMetric.dq_function_call)
 
-    def track_dq_error(self, data: Dict, scope: AmpliMetric) -> None:
+    def log(self, data: Dict, scope: AmpliMetric) -> None:
         """This function is used to send the error to the api in a thread."""
+        if self._telemetrics_disabled:
+            return
         try:
             self.api_caller.submit(
                 self.api_client.send_analytics,
-                self.config.current_project_id,
-                self.config.current_run_id,
-                self.config.task_type,
+                str(self.config.current_project_id),
+                str(self.config.current_run_id),
+                str(self.config.task_type),
                 data,
                 scope,
             )
         except Exception as e:
-            print(e)
+            self.debug_logging(e)
 
     def set_config(self, config: Any) -> None:
         """This function is used to set the config post init."""
