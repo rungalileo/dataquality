@@ -1,9 +1,10 @@
 from collections import defaultdict
-from typing import Any, DefaultDict, Dict, Optional, Set
+from typing import Any, DefaultDict, Dict, List, Optional, Set
 
 from pydantic import BaseModel, validator
 
 from dataquality.schemas.ner import TaggingSchema
+from dataquality.schemas.predicate import Predicate
 from dataquality.schemas.split import Split
 
 
@@ -25,6 +26,7 @@ class BaseLoggerConfig(BaseModel):
     helper_data: Dict[str, Any] = {}
     input_data_logged: DefaultDict[str, int] = defaultdict(int)
     logged_input_ids: DefaultDict[str, Set] = defaultdict(set)
+    predicates = List[Predicate] = []
 
     class Config:
         validate_assignment = True

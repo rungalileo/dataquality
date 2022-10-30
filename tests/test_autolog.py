@@ -78,7 +78,7 @@ def test_torch_autolog(cleanup_after_use: Callable, set_test_config: Callable) -
             _ = torch_model(x, attention_mask, x_idxs=x_idxs)
 
         with torch.no_grad():
-            dataquality.set_split(Split.testing)
+            dataquality.set_split(Split.test)
             for data in test_dataloader:
                 x_idxs, x, attention_mask, y = data
 

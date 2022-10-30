@@ -28,7 +28,9 @@ def test_evaluate_predicate_1(operator: Operator, expected: bool) -> None:
         operator=operator,
         threshold=0.3,
     )
-    assert p.evaluate(df) is expected
+    passes, val = p.evaluate(df)
+    assert passes is expected
+    assert val == 0.1
 
 
 @pytest.mark.parametrize(
@@ -55,7 +57,9 @@ def test_evaluate_predicate_2(operator: Operator, expected: bool) -> None:
         operator=operator,
         threshold=0.45,
     )
-    assert p.evaluate(df) is expected
+    passes, val = p.evaluate(df)
+    assert passes is expected
+    assert val == 0.45
 
 
 @pytest.mark.parametrize(
@@ -83,7 +87,9 @@ def test_evaluate_predicate_3(operator: Operator, expected: bool) -> None:
         metric="confidence",
         filters=[PredicateFilter(metric="confidence", operator=Operator.lt, value=0.1)],
     )
-    assert p.evaluate(df) is expected
+    passes, val = p.evaluate(df)
+    assert passes is expected
+    assert val == 0.90
 
 
 @pytest.mark.parametrize(
@@ -112,7 +118,9 @@ def test_evaluate_predicate_4(operator: Operator, expected: bool) -> None:
             PredicateFilter(metric="is_drifted", operator=Operator.eq, value=True)
         ],
     )
-    assert p.evaluate(df) is expected
+    passes, val = p.evaluate(df)
+    assert passes is expected
+    assert val == 0.20
 
 
 @pytest.mark.parametrize(
@@ -141,7 +149,9 @@ def test_evaluate_predicate_5(operator: Operator, expected: bool) -> None:
             PredicateFilter(metric="galileo_pii", operator=Operator.neq, value="None")
         ],
     )
-    assert p.evaluate(df) is expected
+    passes, val = p.evaluate(df)
+    assert passes is expected
+    assert val == 0.20
 
 
 @pytest.mark.parametrize(
@@ -172,7 +182,9 @@ def test_evaluate_predicate_6(operator: Operator, expected: bool) -> None:
             PredicateFilter(metric="is_drifted", operator=Operator.eq, value=True)
         ],
     )
-    assert p.evaluate(df) is expected
+    passes, val = p.evaluate(df)
+    assert passes is expected
+    assert val == 0.1
 
 
 @pytest.mark.parametrize(
@@ -205,7 +217,9 @@ def test_evaluate_predicate_7(operator: Operator, expected: bool) -> None:
             PredicateFilter(metric="galileo_pii", operator=Operator.neq, value="None"),
         ],
     )
-    assert p.evaluate(df) is expected
+    passes, val = p.evaluate(df)
+    assert passes is expected
+    assert val == 0.20
 
 
 def test_predicate_pct_agg_requires_filter() -> None:

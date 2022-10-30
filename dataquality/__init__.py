@@ -2,6 +2,7 @@
 
 __version__ = "v0.7.1"
 
+from distutils import core
 import os
 import resource
 
@@ -36,6 +37,7 @@ from dataquality.core.log import (
     set_tagging_schema,
     set_tasks_for_run,
 )
+from dataquality.core.predicate import register_predicates
 from dataquality.schemas.predicate import (
     AggregateFunction,
     Operator,
@@ -112,6 +114,7 @@ __all__ = [
     "log_data_sample",
     "log_dataset",
     "get_dq_log_file",
+    "register_predicates",
     "AggregateFunction",
     "Operator",
     "Predicate",

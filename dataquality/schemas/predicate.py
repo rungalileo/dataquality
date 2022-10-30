@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 from pydantic import BaseModel
 from pydantic.class_validators import validator
@@ -200,7 +200,7 @@ class Predicate(BaseModel):
     metric: Optional[str] = None
     filters: Optional[List[PredicateFilter]] = []
 
-    def evaluate(self, df: DataFrame) -> bool:
+    def evaluate(self, df: DataFrame) -> Tuple[bool, float]:
         filtered_df = self._apply_filters(df)
 
         if self.agg == AggregateFunction.pct:
@@ -208,7 +208,8 @@ class Predicate(BaseModel):
         else:
             value = AGGREGATE_FUNCTIONS[self.agg](filtered_df, self.metric)
 
-        return CRITERIA_OPERATORS[self.operator](value, self.threshold)
+        passes = CRITERIA_OPERATORS[self.operator](value, self.threshold)
+        return passes, value
 
     def _apply_filters(self, df: DataFrame) -> DataFrame:
         filtered_df = df.copy()
