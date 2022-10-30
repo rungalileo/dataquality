@@ -38,7 +38,7 @@ class TextMultiLabelModelLogger(TextClassificationModelLogger):
     .. code-block:: python
 
         dq.set_epoch(0)
-        dq.set_split("train")
+        dq.set_split("training")
 
         # 3 samples, embedding dim 768. Only 1 embedding vector can be logged for all
         # tasks. Each task CANNOT have it's own embedding vector
