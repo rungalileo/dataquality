@@ -6,10 +6,8 @@ from dataquality.exceptions import GalileoException
 
 class Split(str, Enum):
     training = "training"
-    train = "training"
     validation = "validation"
     test = "test"
-    testing = "test"
     inference = "inference"
 
     @staticmethod
@@ -24,6 +22,8 @@ def conform_split(split: Union[str, Split]) -> Split:
     """
     if isinstance(split, Split):
         return split
+    if split == "train":  # Needed since HF datasets uses "train"
+        return Split.training
     try:
         return Split[split]
     except KeyError:

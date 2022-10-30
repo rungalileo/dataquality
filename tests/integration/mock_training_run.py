@@ -68,7 +68,7 @@ if __name__ == "__main__":
         texts=train_dataset["text"],
         labels=train_dataset["label"],
         ids=train_dataset["id"],
-        split="train",
+        split="training",
     )
     dataquality.log_data_samples(
         texts=test_dataset["text"],
@@ -95,7 +95,7 @@ if __name__ == "__main__":
             dataquality.log_model_outputs(
                 emb=embedding,
                 probs=probs,
-                split="train",
+                split="training",
                 epoch=epoch_idx,
                 ids=batch["id"],
             )

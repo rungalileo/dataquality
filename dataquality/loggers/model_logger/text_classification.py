@@ -61,7 +61,7 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
     .. code-block:: python
 
         dq.set_epoch(0)
-        dq.set_split("train")
+        dq.set_split("training")
 
         embs: np.ndarray = np.random.rand(4, 768)  # 4 samples, embedding dim 768
         logits: np.ndarray = np.random.rand(4, 3)  # 4 samples, 3 classes
@@ -153,8 +153,6 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
             f"length, but got (emb, probs, ids) -> ({embs_len},{probs_len}, {ids_len})"
         )
 
-        # User may manually pass in 'train' instead of 'training' / 'test' vs 'testing'
-        # but we want it to conform
         try:
             self.split = Split[self.split].value
         except KeyError:
