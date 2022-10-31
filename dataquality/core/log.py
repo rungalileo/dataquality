@@ -350,10 +350,5 @@ def set_epoch_and_split(
     When set, logging data inputs/model outputs will use this if not logged explicitly
     When setting split to inference, inference_name must be included
     """
-    logger_config = get_data_logger().logger_config
-    logger_config.cur_epoch = epoch
-    logger_config.cur_inference_name = inference_name
-    split = Split[split]
-    setattr(get_data_logger().logger_config, f"{split}_logged", True)
-    # Set cur_inference_name before split for pydantic validation
-    logger_config.cur_split = split
+    set_epoch(epoch)
+    set_split(split, inference_name)

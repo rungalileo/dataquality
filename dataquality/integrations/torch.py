@@ -36,11 +36,12 @@ class TorchLogger(TorchBaseInstance):
         logits_dim: Optional[Union[str, EmbeddingDim]] = None,
         task: Union[TaskType, None] = TaskType.text_classification,
     ):
-        assert task is not None, GalileoException(
+        task_type = task or dq.config.task_type
+        assert task_type is not None, GalileoException(
             "Dataquality task cannot be None."
             "Setup with dq.init(task_type='text_classification')"
         )
-        self.task = task
+        self.task = task_type
         self.model = model
         self.model_layer = model_layer
         self._init_dimension(embedding_dim, logits_dim)
@@ -95,7 +96,7 @@ class TorchLogger(TorchBaseInstance):
 
 def watch(
     model: Module,
-    dataloaders: List[DataLoader] = [],
+    dataloaders: List[DataLoader],
     layer: Union[Module, str, None] = None,
     embedding_dim: Any = None,
     logits_dim: Any = None,

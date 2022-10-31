@@ -2,6 +2,7 @@ import re
 from queue import Queue
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
+import numpy as np  # noqa: F401
 from torch import Tensor
 from torch.nn import Module
 from torch.utils.hooks import RemovableHandle
@@ -149,6 +150,8 @@ def validate_fancy_index_str(input_str: str = "[:, 1:, :]") -> bool:
     """
     valid = re.fullmatch(r"[\s,\[\]\d:\(\)]+", input_str)
     if valid:
+        if input_str.count("[") != input_str.count("]"):
+            return False
         return True
     return False
 
@@ -161,6 +164,7 @@ def convert_fancy_idx_str_to_slice(
     :return: The slice for example:
     (slice(None, None, None), slice(1, None, None), slice(None, None, None))
     """
+
     clean_str = fstr
     # Remove outer brackets
     if fstr[0] == "[" and fstr[-1] == "]":
