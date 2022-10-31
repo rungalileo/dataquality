@@ -733,6 +733,6 @@ class ApiClient:
                 for chunk in r.iter_content(chunk_size=8192):
                     f.write(chunk)
 
-    def _notify(self, notifier: Notifier) -> None:
+    def notify(self, notifier: Notifier) -> None:
         # TODO!
         pass
