@@ -14,6 +14,7 @@ from dataquality.exceptions import GalileoException, GalileoWarning
 from dataquality.schemas.hf import HFCol
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import conform_split
+from dataquality.utils.helpers import check_noop
 from dataquality.utils.hf_tokenizer import LabelTokenizer
 
 a = Analytics(ApiClient, dq.config)
@@ -95,9 +96,11 @@ def _validate_dataset(dd: DatasetDict) -> DatasetDict:
         )
     for key in dd.keys():
         ds = dd[key]
+        # Filter out the samples with no tokens
+        ds = ds.filter(lambda row: len(row[HFCol.tokens]) != 0)
         if HFCol.ner_tags not in ds.features:
             if HFCol.tags in ds.features:
-                dd[key] = ds.rename_column(HFCol.tags, HFCol.ner_tags)
+                ds = ds.rename_column(HFCol.tags, HFCol.ner_tags)
                 warnings.warn(
                     f"{HFCol.tags} column found, it will be "
                     f"renamed to {HFCol.ner_tags}",
@@ -106,10 +109,11 @@ def _validate_dataset(dd: DatasetDict) -> DatasetDict:
             else:
                 raise GalileoException("Each dataset must have either ner_tags or tags")
         if HFCol.id in ds.features:
-            dd[key] = ds.remove_columns(HFCol.id)
+            ds = ds.remove_columns(HFCol.id)
             warnings.warn(
                 f"{HFCol.id} column found, it will be replaced", GalileoWarning
             )
+        dd[key] = ds
     return dd
 
 
@@ -133,6 +137,7 @@ def _extract_labels_from_ds(dd: DatasetDict) -> List[str]:
     )
 
 
+@check_noop
 def tokenize_and_log_dataset(
     dd: DatasetDict,
     tokenizer: PreTrainedTokenizerBase,

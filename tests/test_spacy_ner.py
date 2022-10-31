@@ -1,5 +1,6 @@
 import pickle
 from typing import Callable, Dict, List, Tuple
+from unittest import mock
 from unittest.mock import patch
 
 import numpy as np
@@ -414,3 +415,13 @@ def test_watch_nlp_with_no_gold_labels(set_test_config, cleanup_after_use):
         "list of examples that include all of the gold spans you plan to make "
         "predictions over."
     )
+
+
+@mock.patch("dataquality.utils.spacy_integration.is_spacy_using_gpu", return_value=True)
+def test_require_cpu(
+    mock_spacy_gpu: mock.MagicMock,
+    set_test_config: Callable,
+    cleanup_after_use: Callable,
+) -> None:
+    with pytest.raises(GalileoException):
+        train_model(NER_TRAINING_DATA, NER_TEST_DATA)

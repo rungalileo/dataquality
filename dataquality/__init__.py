@@ -1,15 +1,25 @@
 "dataquality"
 
-__version__ = "v0.6.1"
+__version__ = "v0.7.1a0"
 
 import os
 import resource
 
 import dataquality.core._config
 import dataquality.integrations
-import dataquality.metrics
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
+
+# We try/catch this in case the user installed dq inside of jupyter. You need to
+# restart the kernel after the install and we want to make that clear. This is because
+# of vaex: https://github.com/vaexio/vaex/pull/2226
+try:
+    import dataquality.metrics
+except (FileNotFoundError, AttributeError):
+    raise Exception(
+        "It looks like you've installed dataquality from a notebook. "
+        "Please restart the kernel before continuing"
+    ) from None
 from dataquality.core._config import config
 from dataquality.core.auth import login, logout
 from dataquality.core.finish import finish, get_run_status, wait_for_run
@@ -45,7 +55,7 @@ from dataquality.utils.helpers import (
 
 
 @check_noop
-def configure() -> None:
+def configure(do_login: bool = True) -> None:
     """[Not for cloud users] Update your active config with new information
 
     You can use environment variables to set the config, or wait for prompts
@@ -61,7 +71,23 @@ def configure() -> None:
         config.__setattr__(k, v)
     config.token = None
     config.update_file_config()
-    login()
+    if do_login:
+        login()
+
+
+@check_noop
+def set_console_url(console_url: str = None) -> None:
+    """For Enterprise users. Set the console URL to your Galileo Environment.
+
+    You can also set GALILEO_CONSOLE_URL before importing dataquality to bypass this
+
+    :param console_url: If set, that will be used. Otherwise, if an environment variable
+    GALILEO_CONSOLE_URL is set, that will be used. Otherwise, you will be prompted for
+    a url.
+    """
+    if console_url:
+        os.environ["GALILEO_CONSOLE_URL"] = console_url
+    configure(do_login=False)
 
 
 __all__ = [
@@ -84,6 +110,7 @@ __all__ = [
     "get_run_status",
     "set_epoch",
     "set_split",
+    "set_console_url",
     "log_data_sample",
     "log_dataset",
     "get_dq_log_file",
