@@ -731,3 +731,22 @@ class ApiClient:
             with open(file_name, "wb") as f:
                 for chunk in r.iter_content(chunk_size=8192):
                     f.write(chunk)
+
+    def notify_predicates(self, results: List[Dict], emails: List[str]) -> None:
+        self.make_request(
+            RequestType.POST,
+            url=f"{config.api_url}/{Route.notify}",
+            body={"results": results, "emails": emails},
+        )
+
+    def get_splits(self, project_id: UUID4, run_id: UUID4) -> List[str]:
+        return self.make_request(
+            RequestType.GET,
+            url=f"{config.api_url}/{Route.projects}/{project_id}/{Route.runs}/{run_id}/{Route.splits}",
+        )
+
+    def get_inference_names(self, project_id: UUID4, run_id: UUID4) -> List[str]:
+        return self.make_request(
+            RequestType.GET,
+            url=f"{config.api_url}/{Route.projects}/{project_id}/{Route.runs}/{run_id}/{Route.inference_names}",
+        )

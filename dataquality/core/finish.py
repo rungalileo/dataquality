@@ -6,6 +6,7 @@ from pydantic import UUID4
 import dataquality
 from dataquality.clients.api import ApiClient
 from dataquality.core._config import config
+from dataquality.core.predicate import evaluate_predicates
 from dataquality.schemas import RequestType, Route
 from dataquality.schemas.job import JobName
 from dataquality.schemas.task_type import TaskType
@@ -64,8 +65,22 @@ def finish(
         f"Job {res['job_name']} successfully submitted. Results will be available "
         f"soon at {res['link']}"
     )
-    if wait:
+    if data_logger.logger_config.predicates:
+        print(
+            "Waiting for run to process before evaluating predicates... "
+            "Don't close laptop or terminate shell."
+        )
         wait_for_run()
+        # By passing in `None` we default to the current proj / run
+        evaluate_predicates(
+            data_logger.logger_config.predicates,
+            data_logger.logger_config.predicate_emails,
+            project_id=config.current_project_id,
+            run_id=config.current_run_id,
+        )
+    elif wait:
+        wait_for_run()
+
     # Reset the environment
     data_logger._cleanup()
     return res

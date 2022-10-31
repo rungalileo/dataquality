@@ -26,7 +26,8 @@ class BaseLoggerConfig(BaseModel):
     helper_data: Dict[str, Any] = {}
     input_data_logged: DefaultDict[str, int] = defaultdict(int)
     logged_input_ids: DefaultDict[str, Set] = defaultdict(set)
-    predicates = List[Predicate] = []
+    predicates: List[Predicate] = []
+    predicate_emails: List[str] = []
 
     class Config:
         validate_assignment = True
