@@ -2,6 +2,8 @@ from typing import Any, Dict, List, Optional, Type, Union
 
 import numpy as np
 
+from dataquality.analytics import Analytics
+from dataquality.clients.api import ApiClient
 from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
@@ -16,6 +18,7 @@ from dataquality.schemas.task_type import TaskType
 from dataquality.utils.helpers import check_noop
 
 DEFAULT_RANDOM_EMB_DIM = 2
+a = Analytics(ApiClient, config)  # type: ignore
 
 
 @check_noop
@@ -173,6 +176,7 @@ def log_dataset(
     :param kwargs: See help(dq.get_data_logger().log_dataset) for more details here
     or dq.docs() for more general task details
     """
+    a.log_function("dq/log_dataset")
     assert all(
         [config.task_type, config.current_project_id, config.current_run_id]
     ), "You must call dataquality.init before logging data"
@@ -254,6 +258,8 @@ def set_labels_for_run(labels: Union[List[List[str]], List[str]]) -> None:
     In the multi-label case, the outer order (order of the tasks) must match the
     task-order of the task-probabilities logged as well.
     """
+    a.log_function("dq/set_labels_for_run")
+
     get_data_logger().logger_config.labels = labels
 
 

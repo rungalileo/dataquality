@@ -1,6 +1,6 @@
 "dataquality"
 
-__version__ = "v0.7.1a0"
+__version__ = "v0.7.1a5"
 
 import os
 import resource
@@ -65,6 +65,8 @@ def configure(do_login: bool = True) -> None:
     * GALILEO_USERNAME
     * GALILEO_PASSWORD
     """
+    a.log_function("dq/configure")
+
     if "GALILEO_API_URL" in os.environ:
         del os.environ["GALILEO_API_URL"]
     updated_config = dataquality.core._config.reset_config(cloud=False)
@@ -86,6 +88,7 @@ def set_console_url(console_url: str = None) -> None:
     GALILEO_CONSOLE_URL is set, that will be used. Otherwise, you will be prompted for
     a url.
     """
+    a.log_function("dq/set_console_url")
     if console_url:
         os.environ["GALILEO_CONSOLE_URL"] = console_url
     configure(do_login=False)

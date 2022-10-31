@@ -3,13 +3,13 @@ import sys
 import traceback
 from functools import wraps
 from types import ModuleType, TracebackType
-from typing import Any, Callable, Dict, Iterable, List, Type, Union
+from typing import Any, Callable, Dict, Iterable, List, Set, Tuple, Type, Union
 
 from dataquality.exceptions import GalileoException
 from dataquality.utils.ampli import AmpliMetric
 
-OptExcInfo = tuple[
-    Union[type[BaseException], None],
+OptExcInfo = Tuple[
+    Union[Type[BaseException], None],
     Union[BaseException, None],
     Union[TracebackType, None],
 ]
@@ -132,7 +132,7 @@ def _installed_modules() -> Dict[str, str]:
     return {info.key: info.version for info in pkg_resources.working_set}
 
 
-def _list_sys_modules() -> set[str]:
+def _list_sys_modules() -> Set[str]:
     """Get all modules in sys.modules"""
     modules = set()
     for k in set(sys.modules):
