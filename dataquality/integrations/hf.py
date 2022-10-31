@@ -153,6 +153,7 @@ def tokenize_and_log_dataset(
     :param meta: Optional metadata columns to be logged. The columns must be present
         in at least one of the splits of the dataset.
     """
+    a.log_function("hf/tokenize_and_log_dataset")
     meta = meta or []
     dd = _validate_dataset(dd)
     if label_names is not None and len(label_names):
@@ -219,6 +220,7 @@ def get_dataloader(dataset: Dataset, **kwargs: Any) -> DataLoader:
     :param kwargs: Any additional keyword arguments to be passed into the DataLoader
         Things like batch_size or shuffle
     """
+    a.log_function("hf/get_dataloader")
     text_dataset = TextDataset(dataset)
     return DataLoader(text_dataset, **kwargs)
 
