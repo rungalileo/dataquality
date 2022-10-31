@@ -5,20 +5,29 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import requests
 from pydantic.types import UUID4
 from requests import Response
+from vaex.dataframe import DataFrame
 
 from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
 from dataquality.schemas import RequestType, Route
+from dataquality.schemas.actions import ActionType
 from dataquality.schemas.dataframe import FileType
 from dataquality.schemas.edit import Edit
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.notifier import Notifier
+from dataquality.schemas.predicate import Predicate
 from dataquality.schemas.split import conform_split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.auth import headers
 
 
 class ApiClient:
+    def __init__(self) -> None:
+        self.notifier_content_formatter = {
+            ActionType.send_email: self._format_email_content,
+            ActionType.send_slack_message: self._format_slack_content,
+        }
+
     def __check_login(self) -> None:
         if not config.token:
             raise GalileoException("You are not logged in. Call dataquality.login()")
@@ -733,6 +742,53 @@ class ApiClient:
                 for chunk in r.iter_content(chunk_size=8192):
                     f.write(chunk)
 
-    def notify(self, notifier: Notifier) -> None:
+    def notify(
+        self,
+        notifier: Notifier,
+        predicate: Optional[Predicate] = None,
+        df: Optional[DataFrame] = None,
+        result: Optional[bool] = None,
+    ) -> None:
+        _json = self.set_notifier_content(
+            predicate=predicate, df=df, notifier=notifier, result=result
+        )
+        with requests.post(
+            f"{config.api_url}/{Route.actions}",
+            json=_json,
+            headers=headers(config.token),
+        ) as r:
+            self._validate_response(r)
+
+    def set_notifier_content(
+        self,
+        notifier: Notifier,
+        predicate: Optional[Predicate] = None,
+        df: Optional[DataFrame] = None,
+        result: Optional[bool] = None,
+    ) -> Dict:
+        return self.notifier_content_formatter[notifier.action_type](
+            predicate=predicate,
+            df=df,
+            notifier=notifier,
+            result=result,
+        )
+
+    def _format_email_content(
+        self,
+        notifier: Notifier,
+        predicate: Optional[Predicate] = None,
+        df: Optional[DataFrame] = None,
+        result: Optional[bool] = None,
+    ) -> Dict:
+        # TODO!
+        pass
+
+    def _format_slack_content(
+        self,
+        notifier: Notifier,
+        predicate: Optional[Predicate] = None,
+        df: Optional[DataFrame] = None,
+        result: Optional[bool] = None,
+    ) -> Dict:
         # TODO!
         pass
