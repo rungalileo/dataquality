@@ -2,37 +2,31 @@
 from typing import Dict, Optional, Union
 
 from datasets import Dataset
-from torch import Tensor
 from torch.nn import Module
 from transformers import Trainer
-from transformers.modeling_outputs import BaseModelOutput, TokenClassifierOutput
 from transformers.trainer_callback import TrainerCallback, TrainerControl, TrainerState
 from transformers.training_args import TrainingArguments
 
 import dataquality as dq
 from dataquality.exceptions import GalileoException
+from dataquality.integrations.torch import TorchBaseInstance
 from dataquality.schemas.split import Split
-from dataquality.schemas.task_type import TaskType
-from dataquality.schemas.torch import EmbeddingDim
+from dataquality.schemas.torch import EmbeddingDim, Layer
 from dataquality.utils.helpers import check_noop
-from dataquality.utils.torch import HookManager, convert_fancy_idx_str_to_slice
+from dataquality.utils.torch import HookManager
 from dataquality.utils.transformers import (
     add_id_to_signature_columns,
     remove_id_collate_fn_wrapper,
 )
 
-Layer = Optional[Union[Module, str]]
-
 
 # Trainer callback for Huggingface transformers Trainer library
-class DQCallback(TrainerCallback):
+class DQCallback(TrainerCallback, TorchBaseInstance):
     """
     [`TrainerCallback`] that sends the logs to [Galileo](https://www.rungalileo.io/)
     for each training training step.
     """
 
-    embedding_dim: Optional[EmbeddingDim]
-    logits_dim: Optional[EmbeddingDim]
     hook_manager: HookManager
 
     def __init__(
@@ -48,35 +42,6 @@ class DQCallback(TrainerCallback):
         self.hook_manager = HookManager()
         self.layer = layer
         self._init_dimension(embedding_dim, logits_dim)
-
-    def _init_dimension(
-        self,
-        embedding_dim: Optional[Union[str, EmbeddingDim]],
-        logits_dim: Optional[Union[str, EmbeddingDim]],
-    ) -> None:
-        """
-        Initialize the dimensions of the embeddings and logits
-        :param embedding_dim: Dimension of the embedding
-        :param logits_dim: Dimension of the logits
-        :return: None
-        """
-        # If embedding_dim is a string, convert it to a slice
-        # else assume it is a slice or None
-        if isinstance(embedding_dim, str):
-            self.embedding_dim = convert_fancy_idx_str_to_slice(embedding_dim)
-        elif embedding_dim is not None:
-            self.embedding_dim = embedding_dim
-        else:
-            self.embedding_dim = None
-
-        # If logits_dim is a string, convert it to a slice
-        # else assume it is a slice or None
-        if isinstance(logits_dim, str):
-            self.logits_dim = convert_fancy_idx_str_to_slice(logits_dim)
-        elif logits_dim is not None:
-            self.logits_dim = logits_dim
-        else:
-            self.logits_dim = None
 
     def _clear_logger_config_helper_data(self) -> None:
         self.helper_data.clear()
@@ -211,71 +176,6 @@ class DQCallback(TrainerCallback):
         self.hook_manager.attach_embedding_hook(model, layer, self._embedding_hook)
         self.hook_manager.attach_hook(model, self._logit_hook)
 
-    def _embedding_hook(
-        self,
-        model: Module,
-        model_input: Tensor,
-        model_output: Union[BaseModelOutput, Tensor],
-    ) -> None:
-        """
-        Hook to extract the embeddings from the model
-        Keyword arguments won't be passed to the hooks and only to the ``forward``.
-        The hook can modify the input. User can either return a tuple or a
-        single modified value in the hook. We will wrap the value into a tuple
-        if a single value is returned(unless that value is already a tuple).
-        The hook will be called every time after :func:`forward` has computed an output.
-
-        :param model: Model pytorch model / layer
-        :param model_input: Input of the current layer
-        :param model_output: Output of the current layer
-        :return: None
-        """
-        if isinstance(model_output, Tensor):
-            output = model_output
-        elif hasattr(model_output, "last_hidden_state"):
-            output = model_output.last_hidden_state
-        output_detached = output.detach()
-        # If embedding has the CLS token, remove it
-        if self.embedding_dim is not None:
-            output_detached = output_detached[self.embedding_dim]
-        elif len(output_detached.shape) == 3 and (
-            self.task in [TaskType.text_classification, TaskType.text_multi_label]
-        ):
-            # It is assumed that the CLS token is removed through this dimension
-            # for text classification tasks and multi label tasks
-            output_detached = output_detached[:, 0]
-        elif len(output_detached.shape) == 3 and self.task == TaskType.text_ner:
-            # It is assumed that the CLS token is removed through this dimension
-            # for NER tasks
-            output_detached = output_detached[:, 1:, :]
-        self.helper_data["embs"] = output_detached
-
-    def _logit_hook(
-        self,
-        model: Module,
-        model_input: Tensor,
-        model_output: Union[TokenClassifierOutput, Tensor],
-    ) -> None:
-        """
-        Hook to extract the logits from the model.
-        :param model: Model pytorch model
-        :param model_input: Model input of the current layer
-        :param model_output: Model output of the current layer
-        :return: None
-        """
-        if isinstance(model_output, Tensor):
-            logits = model_output
-        elif hasattr(model_output, "logits"):
-            logits = model_output.logits
-        logits = logits.detach()
-        if self.logits_dim is not None:
-            logits = logits[self.logits_dim]
-        elif len(logits.shape) == 3 and self.task == TaskType.text_ner:
-            # It is assumed that the CLS token is removed
-            # through this dimension for NER tasks
-            logits = logits[:, 1:, :]
-        self.helper_data["logits"] = logits
-
 
 @check_noop
 def watch(
@@ -296,6 +196,11 @@ def watch(
     )
     # The columns needed for the forward process
     signature_cols = add_id_to_signature_columns(trainer)
+
+    assert trainer.args.dataloader_num_workers == 0, GalileoException(
+        "Parallel Dataloader workers are not supported."
+        "TrainingArgs.dataloader_num_workers should be set to 0"
+    )
     # We wrap the data collator to remove the id column
     trainer.data_collator = remove_id_collate_fn_wrapper(
         trainer.data_collator, signature_cols, dqcallback.helper_data

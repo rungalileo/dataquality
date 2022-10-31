@@ -2,25 +2,30 @@ from typing import Any, Dict, List, Optional, Union
 
 from torch import Tensor
 from torch.nn import Module
-from transformers.modeling_outputs import BaseModelOutput, TokenClassifierOutput
+from torch.utils.data import DataLoader
+from transformers.modeling_outputs import TokenClassifierOutput
 
 import dataquality as dq
 from dataquality.exceptions import GalileoException
-from dataquality.integrations.transformers_trainer import Layer
 from dataquality.schemas.task_type import TaskType
-from dataquality.schemas.torch import EmbeddingDim
+from dataquality.schemas.torch import EmbeddingDim, Layer
 from dataquality.utils.helpers import hook, map_indices_to_ids
 from dataquality.utils.torch import (
     HookManager,
-    convert_fancy_idx_str_to_slice,
+    TorchBaseInstance,
     patch_iterator_with_store,
 )
 
 
-class TorchLogger:
+class TorchLogger(TorchBaseInstance):
+    """
+    [`TorchLogger`] that sends the logs to [Galileo](https://www.rungalileo.io/)
+    for each training training step.
+    """
+
     embedding_dim: Optional[EmbeddingDim]
     logits_dim: Optional[EmbeddingDim]
-    task: TaskType
+
     model: Module
 
     def __init__(
@@ -43,73 +48,11 @@ class TorchLogger:
         self.hook_manager.attach_embedding_hook(
             model, model_layer, self._embedding_hook
         )
-        self.hook_manager.attach_hook(model, self._logit_hook)
+        self.hook_manager.attach_hook(model, self._logit_hook_step_end)
         self.helper_data: Dict[str, Any] = {}
         self.logger_config = dq.get_data_logger().logger_config
 
-    def _init_dimension(
-        self,
-        embedding_dim: Optional[Union[str, EmbeddingDim]],
-        logits_dim: Optional[Union[str, EmbeddingDim]],
-    ) -> None:
-        """
-        Initialize the dimensions of the embeddings and logits
-        :param embedding_dim: Dimension of the embedding
-        :param logits_dim: Dimension of the logits
-        :return: None
-        """
-        # If embedding_dim is a string, convert it to a slice
-        # else assume it is a slice or None
-        if isinstance(embedding_dim, str):
-            self.embedding_dim = convert_fancy_idx_str_to_slice(embedding_dim)
-        elif embedding_dim is not None:
-            self.embedding_dim = embedding_dim
-        else:
-            self.embedding_dim = None
-
-        # If logits_dim is a string, convert it to a slice
-        # else assume it is a slice or None
-        if isinstance(logits_dim, str):
-            self.logits_dim = convert_fancy_idx_str_to_slice(logits_dim)
-        elif logits_dim is not None:
-            self.logits_dim = logits_dim
-        else:
-            self.logits_dim = None
-
-    def _embedding_hook(
-        self,
-        model: Module,
-        model_input: Tensor,
-        model_output: Union[BaseModelOutput, Tensor],
-    ) -> None:
-        """
-        Hook to extract the embeddings from the model
-        :param model: Model pytorch model
-        :param model_input: Model input
-        :param model_output: Model output
-        :return: None
-        """
-        if isinstance(model_output, Tensor):
-            output = model_output
-        elif hasattr(model_output, "last_hidden_state"):
-            output = model_output.last_hidden_state
-        output_detached = output.detach()
-        # If embedding has the CLS token, remove it
-        if self.embedding_dim is not None:
-            output_detached = output_detached[self.embedding_dim]
-        elif len(output_detached.shape) == 3 and (
-            self.task in [TaskType.text_classification, TaskType.text_multi_label]
-        ):
-            # It is assumed that the CLS token is removed through this dimension
-            # for text classification tasks and multi label tasks
-            output_detached = output_detached[:, 0]
-        elif len(output_detached.shape) == 3 and self.task == TaskType.text_ner:
-            # It is assumed that the CLS token is removed through this dimension
-            # for NER tasks
-            output_detached = output_detached[:, 1:, :]
-        self.helper_data["embs"] = output_detached
-
-    def _logit_hook(
+    def _logit_hook_step_end(
         self,
         model: Module,
         model_input: Tensor,
@@ -122,18 +65,7 @@ class TorchLogger:
         :param model_output: Model output
         :return: None
         """
-        if isinstance(model_output, Tensor):
-            logits = model_output
-        elif hasattr(model_output, "logits"):
-            logits = model_output.logits
-        logits = logits.detach()
-        if self.logits_dim is not None:
-            logits = logits[self.logits_dim]
-        elif len(logits.shape) == 3 and self.task == TaskType.text_ner:
-            # It is assumed that the CLS token is removed
-            # through this dimension for NER tasks
-            logits = logits[:, 1:, :]
-        self.helper_data["logits"] = logits
+        self._logit_hook(model, model_input, model_output)
         self._on_step_end()
 
     def _on_step_end(self) -> None:
@@ -158,11 +90,12 @@ class TorchLogger:
             self.logger_config.idx_to_id_map[cur_split], self.helper_data["ids"]
         )
         dq.log_model_outputs(**self.helper_data)
+        self.helper_data.clear()
 
 
 def watch(
     model: Module,
-    dataloaders: List[Any] = [],
+    dataloaders: List[DataLoader] = [],
     layer: Union[Module, str, None] = None,
     embedding_dim: Any = None,
     logits_dim: Any = None,
@@ -195,7 +128,19 @@ def watch(
     tl = TorchLogger(
         model, layer, embedding_dim, logits_dim=logits_dim, task=dq.config.task_type
     )
+    if len(dataloaders) == 0:
+        raise GalileoException("No dataloaders passed to watch")
+
     for dataloader in dataloaders:
-        dataloader._get_iterator = hook(
+        assert isinstance(dataloader, DataLoader), GalileoException(
+            "Invalid dataloader. Must be a pytorch dataloader"
+            "from torch.utils.data import DataLoader..."
+            "train_dataloader = DataLoader(dataset)"
+        )
+        assert dataloader.num_workers == 0, GalileoException(
+            "Dataloaders passed to watch must have num_workers=0."
+            "Parralelization is not yet supported"
+        )
+        dataloader._get_iterator = hook(  # type: ignore
             dataloader._get_iterator, patch_iterator_with_store(tl.helper_data)
         )
