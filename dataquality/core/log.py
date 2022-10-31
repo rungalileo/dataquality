@@ -340,3 +340,15 @@ def set_split(split: Split, inference_name: Optional[str] = None) -> None:
     setattr(get_data_logger().logger_config, f"{split}_logged", True)
     # Set cur_inference_name before split for pydantic validation
     get_data_logger().logger_config.cur_split = split
+
+
+@check_noop
+def set_epoch_and_split(
+    epoch: int, split: Split, inference_name: Optional[str] = None
+) -> None:
+    """Set the current epoch and set the current split.
+    When set, logging data inputs/model outputs will use this if not logged explicitly
+    When setting split to inference, inference_name must be included
+    """
+    set_epoch(epoch)
+    set_split(split, inference_name)

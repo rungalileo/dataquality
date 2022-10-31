@@ -1,6 +1,6 @@
 import os
 from functools import wraps
-from typing import Callable, Optional, TypeVar
+from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar
 
 from typing_extensions import ParamSpec
 
@@ -48,3 +48,40 @@ def enable_galileo_verbose() -> None:
 
 def disable_galileo_verbose() -> None:
     os.environ[GALILEO_VERBOSE] = "False"
+
+
+# generic hook for adding a debugger to a function
+def hook(exist_func: Callable, hook_fn: Callable) -> Callable:
+    """Hook a function to a function call
+    :param exist_func: The function to hook
+    :param hook_fn: The hook function
+    :return: The hooked function
+
+    Example:
+    # example debugger
+    def myobserver(orig_func, *args, **kwargs):
+        # -----------------------
+        # Your logic goes here
+        # -----------------------
+        print("debugging xyz")
+        return orig_func(*args, **kwargs)
+
+    # hook the function
+
+    example_class.func = hook(example_class.func, myobserver)
+    """
+
+    @wraps(exist_func)
+    def run(*args: Tuple, **kwargs: Dict[str, Any]) -> Callable:
+        return hook_fn(exist_func, *args, **kwargs)
+
+    return run
+
+
+def map_indices_to_ids(id_map: List, indices: List) -> List:
+    """Maps the indices to the ids
+    :param id_map: The list used for mapping indices to ids
+    :param indices: The indices to map
+    :return: The ids
+    """
+    return [id_map[i] for i in indices]
