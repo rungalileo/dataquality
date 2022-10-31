@@ -566,12 +566,12 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             gold_spans = self.gold_spans[idx]
             gold_embs = self.gold_emb[idx]
             gold_conf_probs = self.gold_conf_prob[idx]
-            gold_loss_probes = self.gold_loss_prob[idx]
+            gold_loss_probs = self.gold_loss_prob[idx]
             gold_loss_prob_labels = self.gold_loss_prob_label[idx]
             pred_spans = self.pred_spans[idx]
             pred_embs = self.pred_emb[idx]
             pred_conf_probs = self.pred_conf_prob[idx]
-            pred_loss_probes = self.pred_loss_prob[idx]
+            pred_loss_probs = self.pred_loss_prob[idx]
             pred_loss_prob_labels = self.pred_loss_prob_label[idx]
 
             # We want to dedup gold and prediction spans, as many will match on
@@ -590,7 +590,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 gold_spans,
                 gold_embs,
                 gold_conf_probs,
-                gold_loss_probes,
+                gold_loss_probs,
                 gold_loss_prob_labels,
             ):
                 data = self._construct_gold_span_row(
@@ -610,7 +610,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                     ps = pred_spans.pop(ind)
                     pred_embs.pop(ind)
                     pred_conf_probs.pop(ind)
-                    pred_loss_probes.pop(ind)
+                    pred_loss_probs.pop(ind)
                     pred_loss_prob_labels.pop(ind)
                     pred_span_inds.pop(ind)
 
@@ -644,7 +644,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 pred_spans,
                 pred_embs,
                 pred_conf_probs,
-                pred_loss_probes,
+                pred_loss_probs,
                 pred_loss_prob_labels,
             ):
                 data = self._construct_pred_span_row(
