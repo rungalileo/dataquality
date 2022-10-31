@@ -1,5 +1,5 @@
 # Imports for the hook manager
-from typing import Any, Dict, Optional, Union
+from typing import Dict, Optional, Union
 
 from datasets import Dataset
 from torch import Tensor
@@ -13,6 +13,7 @@ import dataquality as dq
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
+from dataquality.schemas.torch import EmbeddingDim
 from dataquality.utils.helpers import check_noop
 from dataquality.utils.torch import HookManager, convert_fancy_idx_str_to_slice
 from dataquality.utils.transformers import (
@@ -20,7 +21,6 @@ from dataquality.utils.transformers import (
     remove_id_collate_fn_wrapper,
 )
 
-EmbeddingDim = Any
 Layer = Optional[Union[Module, str]]
 
 
@@ -31,15 +31,15 @@ class DQCallback(TrainerCallback):
     for each training training step.
     """
 
-    embedding_dim: EmbeddingDim
-    logits_dim: EmbeddingDim
+    embedding_dim: Optional[EmbeddingDim]
+    logits_dim: Optional[EmbeddingDim]
     hook_manager: HookManager
 
     def __init__(
         self,
         layer: Layer = None,
-        embedding_dim: EmbeddingDim = None,
-        logits_dim: EmbeddingDim = None,
+        embedding_dim: Optional[Union[str, EmbeddingDim]] = None,
+        logits_dim: Optional[Union[str, EmbeddingDim]] = None,
     ) -> None:
         # Access the dq logger helper data
         self.helper_data = dq.get_model_logger().logger_config.helper_data
@@ -50,7 +50,9 @@ class DQCallback(TrainerCallback):
         self._init_dimension(embedding_dim, logits_dim)
 
     def _init_dimension(
-        self, embedding_dim: EmbeddingDim, logits_dim: EmbeddingDim
+        self,
+        embedding_dim: Optional[Union[str, EmbeddingDim]],
+        logits_dim: Optional[Union[str, EmbeddingDim]],
     ) -> None:
         """
         Initialize the dimensions of the embeddings and logits
@@ -103,13 +105,14 @@ class DQCallback(TrainerCallback):
         :param model: Model
         :param kwargs: Keyword arguments (eval_dataloader, train_dataloader, tokenizer)
         :return: None"""
-        # Attach hooks to the model
-        # assert dq.config.task_type == TaskType.text_classification, GalileoException(
-        #     "dq client must be initialized for text classification. "
-        #     "For example: dq.init('text_classification')"
-        # )
+
+        assert dq.config.task_type, GalileoException(
+            "dq client must be initialized. "
+            "For example: dq.init('text_classification')"
+        )
         self.task = dq.config.task_type
         model: Module = kwargs["model"]
+        # Attach hooks to the model
         self._attach_hooks_to_model(model, self.layer)
         train_dataloader = kwargs["train_dataloader"]
         train_dataloader_ds = train_dataloader.dataset
@@ -278,8 +281,8 @@ class DQCallback(TrainerCallback):
 def watch(
     trainer: Trainer,
     layer: Layer = None,
-    embedding_dim: EmbeddingDim = None,
-    logits_dim: EmbeddingDim = None,
+    embedding_dim: Optional[EmbeddingDim] = None,
+    logits_dim: Optional[EmbeddingDim] = None,
 ) -> None:
     """
     [`watch`] is used to hook into to the trainer

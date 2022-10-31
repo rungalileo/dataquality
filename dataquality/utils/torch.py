@@ -9,35 +9,8 @@ from dataquality.exceptions import GalileoException
 from dataquality.utils.helpers import hook
 
 
-def remove_id_collate_fn_wrapper(collate_fn: Any, store: Any) -> Callable:
-    """Removes the id from each row and pass the cleaned version on.
-    Will be used as a wrapper for the collate function.
-    :param collate_fn: The collate function to wrap
-    :param store: The store to use to save the ids (currently passed by reference)
-    :return: The wrapped collate function
-    """
-
-    def remove_id(rows: List) -> List:
-        """Removes the id from each row and pass the cleaned
-        version on."""
-        data, idx = rows[0]
-        assert isinstance(idx, int), GalileoException(
-            "id is missing in dataset. Wrap your dataset"
-            "with dq.wrap_dataset(train_dataset)"
-        )
-        indices = []
-        cleaned_rows = []
-        for row in rows:
-            indices.append(row[1])
-            cleaned_rows.append(row[0])
-        store["ids"] = indices
-        return collate_fn(cleaned_rows)
-
-    return remove_id
-
-
 # store indices
-def store_batch_indices(store: Dict) -> Callable:
+def store_batch_indices(store: Dict[str, List[int]]) -> Callable:
     def process_batch_indices(
         next_index_func: Callable, *args: Tuple, **kwargs: Dict[str, Any]
     ) -> Callable:
@@ -51,7 +24,7 @@ def store_batch_indices(store: Dict) -> Callable:
 
 
 # add patch to the dataloader iterator
-def patch_iterator_with_store(store: Dict) -> Callable:
+def patch_iterator_with_store(store: Dict[str, List[int]]) -> Callable:
     """Patches the iterator of the dataloader to return the indices"""
 
     def patch_iterator(
@@ -77,7 +50,7 @@ def validate_fancy_index_str(input_str: str = "[:, 1:, :]") -> bool:
 
 def convert_fancy_idx_str_to_slice(
     fstr: str = "[:, 1:, :]",
-) -> Union[tuple, slice, int]:
+) -> Union[Tuple, slice, int]:
     """Converts a fancy index string to a slice.
     :param fstr: The fancy index string to convert for example "[:, 1:, :]"
     :return: The slice for example:

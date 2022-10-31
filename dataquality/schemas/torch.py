@@ -1,3 +1,5 @@
-from typing import Iterable, Optional
+from typing import List, Tuple, Union
 
-EmbeddingDim = Optional[Iterable[int]]
+from torch import Tensor
+
+EmbeddingDim = Union[int, slice, Tensor, List, Tuple]

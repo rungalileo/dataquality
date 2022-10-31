@@ -1,6 +1,8 @@
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
+from torch import Tensor
 from torch.nn import Module
+from transformers.modeling_outputs import BaseModelOutput, TokenClassifierOutput
 
 import dataquality as dq
 from dataquality.exceptions import GalileoException
@@ -16,8 +18,8 @@ from dataquality.utils.torch import (
 
 
 class TorchLogger:
-    embedding_dim: Union[None, EmbeddingDim]
-    logits_dim: Union[None, EmbeddingDim]
+    embedding_dim: Optional[EmbeddingDim]
+    logits_dim: Optional[EmbeddingDim]
     task: TaskType
     model: Module
 
@@ -25,8 +27,8 @@ class TorchLogger:
         self,
         model: Module,
         model_layer: Layer = None,
-        embedding_dim: EmbeddingDim = None,
-        logits_dim: EmbeddingDim = None,
+        embedding_dim: Optional[Union[str, EmbeddingDim]] = None,
+        logits_dim: Optional[Union[str, EmbeddingDim]] = None,
         task: Union[TaskType, None] = TaskType.text_classification,
     ):
         assert task is not None, GalileoException(
@@ -46,7 +48,9 @@ class TorchLogger:
         self.logger_config = dq.get_data_logger().logger_config
 
     def _init_dimension(
-        self, embedding_dim: EmbeddingDim, logits_dim: EmbeddingDim
+        self,
+        embedding_dim: Optional[Union[str, EmbeddingDim]],
+        logits_dim: Optional[Union[str, EmbeddingDim]],
     ) -> None:
         """
         Initialize the dimensions of the embeddings and logits
@@ -73,7 +77,10 @@ class TorchLogger:
             self.logits_dim = None
 
     def _embedding_hook(
-        self, model: Module, model_input: Any, model_output: Any
+        self,
+        model: Module,
+        model_input: Tensor,
+        model_output: Union[BaseModelOutput, Tensor],
     ) -> None:
         """
         Hook to extract the embeddings from the model
@@ -82,10 +89,11 @@ class TorchLogger:
         :param model_output: Model output
         :return: None
         """
-        if hasattr(model_output, "last_hidden_state"):
-            output_detached = model_output.last_hidden_state.detach()
-        else:
-            output_detached = model_output.detach()
+        if isinstance(model_output, Tensor):
+            output = model_output
+        elif hasattr(model_output, "last_hidden_state"):
+            output = model_output.last_hidden_state
+        output_detached = output.detach()
         # If embedding has the CLS token, remove it
         if self.embedding_dim is not None:
             output_detached = output_detached[self.embedding_dim]
@@ -101,7 +109,12 @@ class TorchLogger:
             output_detached = output_detached[:, 1:, :]
         self.helper_data["embs"] = output_detached
 
-    def _logit_hook(self, model: Module, model_input: Any, model_output: Any) -> None:
+    def _logit_hook(
+        self,
+        model: Module,
+        model_input: Tensor,
+        model_output: Union[TokenClassifierOutput, Tensor],
+    ) -> None:
         """
         Hook to extract the logits from the model.
         :param model: Model pytorch model
@@ -109,11 +122,10 @@ class TorchLogger:
         :param model_output: Model output
         :return: None
         """
-        if hasattr(model_output, "logits"):
-            logits = model_output.logits
-        else:
+        if isinstance(model_output, Tensor):
             logits = model_output
-
+        elif hasattr(model_output, "logits"):
+            logits = model_output.logits
         logits = logits.detach()
         if self.logits_dim is not None:
             logits = logits[self.logits_dim]
@@ -174,6 +186,11 @@ def watch(
 
     ```
     """
+
+    assert dq.config.task_type, GalileoException(
+        "dq client must be initialized. " "For example: dq.init('text_classification')"
+    )
+
     print("Attaching dataquality to model and dataloaders")
     tl = TorchLogger(
         model, layer, embedding_dim, logits_dim=logits_dim, task=dq.config.task_type
@@ -182,4 +199,3 @@ def watch(
         dataloader._get_iterator = hook(
             dataloader._get_iterator, patch_iterator_with_store(tl.helper_data)
         )
-    tl
