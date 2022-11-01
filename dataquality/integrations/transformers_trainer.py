@@ -48,6 +48,24 @@ class DQCallback(TrainerCallback):
     def _clear_logger_config_helper_data(self) -> None:
         self.helper_data.clear()
 
+    def _do_log(self) -> None:
+        # Log only if embedding exists
+        assert self.helper_data.get("embs") is not None, GalileoException(
+            "Embedding passed to the logger can not be logged"
+        )
+        assert self.helper_data.get("logits") is not None, GalileoException(
+            "Logits passed to the logger can not be logged"
+        )
+        assert self.helper_data.get("ids") is not None, GalileoException(
+            "Did you map IDs to your dataset before watching the model? You can run:\n"
+            "`ds= dataset.map(lambda x, idx: {'id': idx}, with_indices=True)`\n"
+            "id (index) column is needed in the dataset for logging"
+        )
+
+        # 🔭🌕 Galileo logging
+        dq.log_model_outputs(**self.helper_data)
+        self._clear_logger_config_helper_data()
+
     def on_init_end(
         self,
         args: TrainingArguments,
@@ -112,6 +130,15 @@ class DQCallback(TrainerCallback):
             self.setup(args, state, kwargs)
         dq.set_split(Split.training)  # 🔭🌕 Galileo logging
 
+    def on_evaluate(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs: Dict,
+    ) -> None:
+        dq.set_split(Split.validation)
+
     def on_epoch_begin(
         self,
         args: TrainingArguments,
@@ -123,6 +150,16 @@ class DQCallback(TrainerCallback):
         if state_epoch is not None:
             state_epoch = int(state_epoch)
             dq.set_epoch(state_epoch)  # 🔭🌕 Galileo logging
+        dq.set_split(Split.training)
+
+    def on_epoch_end(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs: Dict,
+    ) -> None:
+        dq.set_split(Split.validation)
 
     def on_train_end(
         self,
@@ -131,7 +168,16 @@ class DQCallback(TrainerCallback):
         control: TrainerControl,
         **kwargs: Dict,
     ) -> None:
-        dq.set_split(Split.validation)  # 🔭🌕 Galileo logging
+        dq.set_split(Split.test)
+
+    def on_prediction_step(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs: Dict,
+    ) -> None:
+        self._do_log()
 
     def on_step_end(
         self,
@@ -149,22 +195,7 @@ class DQCallback(TrainerCallback):
         :param kwargs: Keyword arguments (including the model, inputs, outputs)
         :return: None
         """
-        # Log only if embedding exists
-
-        assert self.helper_data.get("embs") is not None, GalileoException(
-            "Embedding passed to the logger can not be logged"
-        )
-        assert self.helper_data.get("logits") is not None, GalileoException(
-            "Logits passed to the logger can not be logged"
-        )
-        assert self.helper_data.get("ids") is not None, GalileoException(
-            "Did you map IDs to your dataset before watching the model? You can run:\n"
-            "`ds= dataset.map(lambda x, idx: {'id': idx}, with_indices=True)`\n"
-            "id (index) column is needed in the dataset for logging"
-        )
-
-        # 🔭🌕 Galileo logging
-        dq.log_model_outputs(**self.helper_data)
+        self._do_log()
 
     def _attach_hooks_to_model(self, model: Module, layer: Layer) -> None:
         """
@@ -173,7 +204,7 @@ class DQCallback(TrainerCallback):
         :param model: pytorch model layer to attach hooks to
         :return: None
         """
-        self.hook_manager.attach_embedding_hook(model, layer, self._embedding_hook)
+        self.hook_manager.attach_embedding_hook(model, self._embedding_hook, layer)
         self.hook_manager.attach_hook(model, self._logit_hook)
 
     def _embedding_hook(
@@ -278,8 +309,8 @@ class HookManager:
     def attach_embedding_hook(
         self,
         model: Module,
+        embedding_hook: Callable,
         model_layer: Optional[Union[Module, str]] = None,
-        embedding_hook: Callable = print,
     ) -> RemovableHandle:
         """Attach hook and save it in our hook list"""
         if model_layer is None:

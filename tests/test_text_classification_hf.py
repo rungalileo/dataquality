@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 import torch
+import vaex
 from datasets import load_metric
 from torch.nn import Module
 from torch.utils.data import DataLoader
@@ -19,6 +20,8 @@ import dataquality as dq
 from dataquality import config
 from dataquality.integrations.transformers_trainer import watch
 from dataquality.schemas.task_type import TaskType
+from dataquality.utils.thread_pool import ThreadPoolManager
+from tests.conftest import LOCATION
 from tests.utils.hf_datasets_mock import mock_dataset, mock_dataset_repeat
 from tests.utils.mock_request import mocked_create_project_run, mocked_get_project_run
 
@@ -139,8 +142,10 @@ def test_hf_watch_e2e(
     # 🔭🌕 Galileo logging
     dq.set_labels_for_run(mock_dataset.features["label"].names)
     train_dataset = mock_dataset_with_ids
+    val_dataset = mock_dataset_with_ids
     test_dataset = mock_dataset_with_ids
     dq.log_dataset(train_dataset, split="train")
+    dq.log_dataset(val_dataset, split="validation")
     dq.log_dataset(test_dataset, split="test")
 
     trainer = Trainer(
@@ -154,6 +159,13 @@ def test_hf_watch_e2e(
     # 🔭🌕 Galileo logging
     watch(trainer)
     trainer.train()
+    trainer.predict(encoded_test_dataset)
+    ThreadPoolManager.wait_for_threads()
+    # All data for splits should be logged
+    assert len(vaex.open(f"{LOCATION}/training/0/*.hdf5")) == len(train_dataset)
+    assert len(vaex.open(f"{LOCATION}/validation/0/*.hdf5")) == len(val_dataset)
+    assert len(vaex.open(f"{LOCATION}/test/0/*.hdf5")) == len(test_dataset)
+    # Should upload without failing on data validation or otherwise
     dq.finish()
 
 
