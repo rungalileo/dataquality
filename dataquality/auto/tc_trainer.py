@@ -16,6 +16,9 @@ from transformers import (
 # Taken from the docs of the trainer module:
 # https://github.com/huggingface/transformers/blob/main/examples/pytorch/
 # text-classification/run_glue.py#L434
+from dataquality.schemas.split import Split
+
+
 def preprocess_function(
     input_data: Dataset, tokenizer: PreTrainedTokenizerBase
 ) -> BatchEncoding:
@@ -73,8 +76,8 @@ def get_trainer(
     trainer = Trainer(
         model,
         args,
-        train_dataset=encoded_datasets["train"],
-        eval_dataset=encoded_datasets.get("validation"),
+        train_dataset=encoded_datasets[Split.train],
+        eval_dataset=encoded_datasets.get(Split.validation),
         # test_dataset=encoded_datasets.get("test"), TODO: test_dataset for predict?
         tokenizer=tokenizer,
         compute_metrics=compute_metrics,
