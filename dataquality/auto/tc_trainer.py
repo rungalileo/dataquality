@@ -7,11 +7,12 @@ from transformers import (
     AutoModelForSequenceClassification,
     AutoTokenizer,
     BatchEncoding,
+    EvalPrediction,
+    IntervalStrategy,
     PreTrainedTokenizerBase,
     Trainer,
     TrainingArguments,
 )
-
 
 # Taken from the docs of the trainer module:
 # https://github.com/huggingface/transformers/blob/main/examples/pytorch/
@@ -27,9 +28,9 @@ def preprocess_function(
     )
 
 
-def compute_metrics(eval_pred: Tuple[np.ndarray, np.ndarray]) -> float:
+def compute_metrics(eval_pred: EvalPrediction) -> Dict:
     metric = evaluate.load("accuracy")
-    predictions, labels = eval_pred
+    predictions, labels = np.array(eval_pred.predictions), np.array(eval_pred.label_ids)
     predictions = predictions.argmax(axis=1)
     return metric.compute(predictions=predictions, references=labels)
 
@@ -53,8 +54,8 @@ def get_trainer(
     batch_size = 64
     args = TrainingArguments(
         "finetuned",
-        evaluation_strategy="epoch",
-        save_strategy="epoch",
+        evaluation_strategy=IntervalStrategy.EPOCH,
+        save_strategy=IntervalStrategy.EPOCH,
         learning_rate=3e-4,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
@@ -63,21 +64,16 @@ def get_trainer(
         load_best_model_at_end=True,
         metric_for_best_model=metric_name,
         push_to_hub=False,
-        report_to="all",
+        report_to=["all"],
         seed=42,
-        data_seed=42,
     )
 
-    print(
-        "Creating trainer",
-        encoded_datasets.keys(),
-        f"has val: {'validation' in encoded_datasets}",
-    )
+    # We pass huggingface datasets here but typing expects torch datasets, so we ignore
     trainer = Trainer(
         model,
         args,
-        train_dataset=encoded_datasets[Split.train],
-        eval_dataset=encoded_datasets.get(Split.validation),
+        train_dataset=encoded_datasets[Split.train],  # type: ignore
+        eval_dataset=encoded_datasets.get(Split.validation),  # type: ignore
         tokenizer=tokenizer,
         compute_metrics=compute_metrics,
     )

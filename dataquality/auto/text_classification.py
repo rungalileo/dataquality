@@ -172,5 +172,6 @@ def auto(
     trainer.train()
     # TODO: What do we do with the test data? Do we call predict here?
     if Split.test in encoded_data:
-        trainer.predict(test_dataset=encoded_data[Split.test])
+        # We pass in a huggingface dataset but typing wise they expect a torch dataset
+        trainer.predict(test_dataset=encoded_data[Split.test])  # type: ignore
     dq.finish(wait=wait)
