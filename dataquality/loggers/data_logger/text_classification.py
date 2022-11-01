@@ -379,8 +379,10 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         id_len = len(self.ids)
 
         t0 = time()
+        print("Before text convert", type(self.texts))
         self.texts = list(self._convert_tensor_ndarray(self.texts))
         print(f"_convert_tensor_ndarray text data split {self.split} took {round(time()-t0, 2)} sec")
+        print("After text convert", type(self.texts))
         t0 = time()
         clean_labels = self._convert_tensor_ndarray(self.labels, attr="Labels")
         # If the dtype if object, we have a ragged nested sequence, so we need to
