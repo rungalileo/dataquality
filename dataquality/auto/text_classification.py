@@ -61,7 +61,8 @@ def _validate_dataset_dict(dd: DatasetDict) -> DatasetDict:
         assert "text" in ds.features, "Dataset must have column `text`"
         assert "label" in ds.features, "Dataset must have column `label`"
         if "id" not in ds.features:
-            dd[Split[key]] = ds.add_column("id", list(range(ds.num_rows)))
+            dd[key] = ds.add_column("id", list(range(ds.num_rows)))
+        dd[Split[key]] = dd[key]
     return dd
 
 
