@@ -380,7 +380,8 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
 
         t0 = time()
         print("Before text convert", type(self.texts))
-        self.texts = list(self._convert_tensor_ndarray(self.texts))
+        if not isinstance(self.texts, list):
+            self.texts = list(self._convert_tensor_ndarray(self.texts))
         print(f"_convert_tensor_ndarray text data split {self.split} took {round(time()-t0, 2)} sec")
         print("After text convert", type(self.texts))
         t0 = time()
