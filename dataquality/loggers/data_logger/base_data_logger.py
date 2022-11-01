@@ -1,3 +1,4 @@
+import gc
 import glob
 import os
 import shutil
@@ -41,9 +42,12 @@ ITER_CHUNK_SIZE = 100_000
 
 class BaseGalileoDataLogger(BaseGalileoLogger):
     MAX_META_COLS = 25  # Limit the number of metadata attrs a user can log
-    MAX_STR_LEN = 100  # Max characters in a string metadata attribute
+    MAX_STR_LEN = 1000  # Max characters in a string metadata attribute
     INPUT_DATA_BASE = "input_data"
     MAX_DATA_SIZE_CLOUD = 300_000
+    # 2GB max size for arrow strings. We use 1.5GB for some buffer
+    # https://issues.apache.org/jira/browse/ARROW-17828
+    STRING_MAX_SIZE_B = 1.5e9
 
     DATA_FOLDER_EXTENSION = {data_folder: "hdf5" for data_folder in DATA_FOLDERS}
 
@@ -166,11 +170,28 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                 continue
             in_frame_path = f"{self.input_data_path()}/{split}"
             in_frame_split = vaex.open(f"{in_frame_path}/*.arrow")
+            in_frame_split = self.convert_large_string(in_frame_split)
             self.upload_split(
                 object_store, in_frame_split, split, split_loc, last_epoch
             )
             in_frame_split.close()
             shutil.rmtree(in_frame_path)
+            gc.collect()
+
+    def convert_large_string(self, df: DataFrame) -> DataFrame:
+        """Cast regular string to large_string for the text column
+
+        Arrow strings have a max size of 2GB, so in order to export to hdf5 and
+        join the strings in the text column, we upcast to a large string.
+
+        We only do this for types that write to HDF5 files
+        """
+        df_copy = df.copy()
+        # Characters are each 1 byte. If more bytes > max, it needs to be large_string
+        text_bytes = df_copy["text"].str.len().sum()
+        if text_bytes > self.STRING_MAX_SIZE_B:
+            df_copy["text"] = df_copy["text"].to_arrow().cast(pa.large_string())
+        return df_copy
 
     @classmethod
     def upload_split(
@@ -263,7 +284,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             )
 
         return cls.process_in_out_frames(
-            in_frame, out_frame, prob_only, epoch_or_inf_name
+            in_frame, out_frame, prob_only, epoch_or_inf_name, split
         )
 
     @classmethod
@@ -273,6 +294,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         out_frame: DataFrame,
         prob_only: bool,
         epoch_or_inf_name: str,
+        split: str,
     ) -> BaseLoggerInOutFrames:
         """Processes input and output dataframes from logging
 
@@ -288,7 +310,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         validate_unique_ids(out_frame, epoch_or_inf_name)
         in_out = _join_in_out_frames(in_frame, out_frame)
 
-        prob, emb, data_df = cls.split_dataframe(in_out, prob_only)
+        prob, emb, data_df = cls.split_dataframe(in_out, prob_only, split)
         # These df vars will be used in upload_in_out_frames
         emb.set_variable("skip_upload", prob_only)
         data_df.set_variable("skip_upload", prob_only)
@@ -337,13 +359,16 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     def prob_only(
         cls, epochs: List[str], split: str, epoch_or_inf_name: Union[int, str]
     ) -> bool:
-        if split == Split.inference:
+        """Determines if we are only uploading probabilities
+
+        For all epochs that aren't the last 2 (early stopping), we only want to
+        upload the probabilities (for DEP calculation).
+        """
+        if split == Split.inference:  # Inference doesn't have DEP
             return False
 
         # If split is not inference, epoch_or_inf must be epoch
         epoch = int(epoch_or_inf_name)
-        # For all epochs that aren't the last 2 (early stopping), we only
-        # want to upload the probabilities (for DEP calculation).
         max_epoch_for_split = max([int(i) for i in epochs])
         return bool(epoch < max_epoch_for_split - 1)
 
@@ -431,7 +456,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     @classmethod
     @abstractmethod
     def split_dataframe(
-        cls, df: DataFrame, prob_only: bool
+        cls, df: DataFrame, prob_only: bool, split: str
     ) -> Tuple[DataFrame, DataFrame, DataFrame]:
         ...
 

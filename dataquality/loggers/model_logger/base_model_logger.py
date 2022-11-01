@@ -77,7 +77,7 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
             err_msg = (
                 f"An issue occurred while logging model outputs. Address any issues in "
                 f"your logging and make sure to call dq.init before restarting:\n"
-                f"{str(e)}"
+                f"{repr(e)}"
             )
             warnings.warn(err_msg)
             self.logger_config.exception = err_msg
@@ -103,12 +103,13 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
             f"{self.LOG_FILE_DIR}/{config.current_project_id}"
             f"/{config.current_run_id}"
         )
-        epoch, split = data["epoch"][0], data["split"][0]
+        split = data["split"][0]
 
         if split == Split.inference:
             inference_name = data["inference_name"][0]
             path = f"{location}/{split}/{inference_name}"
         else:
+            epoch = data["epoch"][0]
             path = f"{location}/{split}/{epoch}"
 
         object_name = f"{str(uuid4()).replace('-', '')[:12]}.hdf5"
@@ -117,7 +118,7 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
 
     def set_split_epoch(self) -> None:
         super().set_split_epoch()
-        # Inference split much have inference name
+        # Inference split must have inference name
         if self.split == Split.inference and self.inference_name is None:
             if self.logger_config.cur_inference_name is not None:
                 self.inference_name = self.logger_config.cur_inference_name
@@ -127,6 +128,7 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
                     "or set it before logging. Use `dataquality.set_split` to set"
                     "inference_name"
                 )
+
         # Non-inference split must have an epoch
         if self.split != Split.inference and self.epoch is None:
             if self.logger_config.cur_epoch is not None:

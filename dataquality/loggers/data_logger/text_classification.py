@@ -264,10 +264,29 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         HuggingFace datasets can be sliced, returning a dict that is in the correct
         format to log directly.
         """
+
+        parse_label = lambda x: x  # noqa: E731
+        # If label is integer, convert to string #
+
+        if isinstance(dataset[0].get(label, None), int):
+            try:
+                parse_label = lambda x: dataset.features[label].int2str(x)  # noqa: E731
+            except Exception:
+                # TODO: Simplify this logic with mapping the int label to string ticket
+                raise GalileoException(
+                    "Your dataset does not have label names. Please include them"
+                )
+
+        assert dataset[0].get(id) is not None, GalileoException(
+            f"id ({id}) field must be present in dataset"
+        )
+
         for i in range(0, len(dataset), batch_size):
             chunk = dataset[i : i + batch_size]
             data = dict(
-                text=chunk[text], id=chunk[id], label=chunk[label] if label else None
+                text=chunk[text],
+                id=chunk[id],
+                label=parse_label(chunk[label]) if label else None,
             )
             chunk_meta = {col: chunk[col] for col in meta}
             self._log_dict(data, chunk_meta, split, inference_name)
@@ -327,7 +346,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         self.texts = df["text"].tolist()
         self.ids = df["id"].tolist()
         # Inference case
-        if "label" in df.columns:
+        if "label" in df:
             self.labels = df["label"].tolist()
         for meta_col in meta:
             self.meta[str(meta_col)] = df[meta_col].tolist()
@@ -422,7 +441,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
 
     @classmethod
     def split_dataframe(
-        cls, df: DataFrame, prob_only: bool
+        cls, df: DataFrame, prob_only: bool, split: str
     ) -> Tuple[DataFrame, DataFrame, DataFrame]:
         """Splits the singular dataframe into its 3 components
 

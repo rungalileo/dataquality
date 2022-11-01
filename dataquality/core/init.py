@@ -8,7 +8,7 @@ from pydantic.types import UUID4
 
 import dataquality
 from dataquality.clients.api import ApiClient
-from dataquality.core._config import config
+from dataquality.core._config import _check_dq_version, config
 from dataquality.core.auth import login
 from dataquality.exceptions import GalileoException
 from dataquality.loggers import BaseGalileoLogger
@@ -32,14 +32,22 @@ class _Init:
     def _initialize_new_project(
         self, project_name: str, is_public: bool = True
     ) -> Dict:
-        visability = "public" if is_public else "private"
-        print(f"✨ Initializing {visability} project {project_name}")
+        visibility = "public" if is_public else "private"
+        print(f"✨ Initializing {visibility} project {project_name}")
         try:
             return api_client.create_project(
                 project_name=project_name, is_public=is_public
             )
         except GalileoException as e:
-            if "A project with this name already exists" in str(e):
+            # There is a unique constraint on the project_name+user_id (a user cannot
+            # create 2 projects with the same name. We check this in the API and throw
+            # an error if it occurs, but if the user makes the request twice in parallel
+            # we won't be able to catch it and the unique constraint in the DB will
+            # throw. These are the 2 errors thrown. In either case, simply "setting"
+            # the project will now work since the project was created
+            unique_key = "duplicate key value violates unique constraint"
+            proj_exists = "A project with this name already exists"
+            if proj_exists in str(e) or unique_key in str(e):
                 return api_client.get_project_by_name(project_name)
             else:
                 raise e
@@ -87,6 +95,10 @@ def init(
     Initialize a new run and new project, initialize a new run in an existing project,
     or reinitialize an existing run in an existing project.
 
+    Before creating the project, check:
+    - The user is valid, login if not
+    - The DQ client version is compatible with API version
+
     Optionally provide project and run names to create a new project/run or restart
     existing ones.
 
@@ -105,6 +117,7 @@ def init(
     """
     if not api_client.valid_current_user():
         login()
+    _check_dq_version()
     _init = _Init()
     BaseGalileoLogger.validate_task(task_type)
     task_type = TaskType[task_type]

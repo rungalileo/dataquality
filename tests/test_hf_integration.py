@@ -1,5 +1,5 @@
 import json
-from typing import Dict, List
+from typing import Callable, Dict, List
 from unittest import mock
 
 import datasets
@@ -225,3 +225,15 @@ def test_tokenize_and_log_dataset_with_meta(
     # Test and val do have meta
     assert call_args[1][-1]["meta"] == ["test_meta_1"]
     assert call_args[2][-1]["meta"] == ["test_meta_1"]
+
+
+def test_validate_dataset_filters_empty_tokens(set_test_config: Callable) -> None:
+    set_test_config(task_type="text_ner")
+    empty_example = {
+        "tokens": [["Swansea", "1", "Lincoln", "2"], []],
+        "ner_tags": [[3, 0, 3, 0], []],
+    }
+    dd = datasets.DatasetDict({"train": datasets.Dataset.from_dict(empty_example)})
+    assert dd["train"].num_rows == 2
+    dd = _validate_dataset(dd)
+    assert dd["train"].num_rows == 1
