@@ -66,6 +66,7 @@ def get_trainer(
         data_seed=42,
     )
 
+    print("Creating trainer", encoded_datasets.keys(), f"has val: {'validation' in encoded_datasets}")
     trainer = Trainer(
         model,
         args,

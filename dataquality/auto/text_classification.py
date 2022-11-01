@@ -167,6 +167,7 @@ def auto(
     dq.init(TaskType.text_classification, project_name=project_name, run_name=run_name)
     dq.set_labels_for_run(labels)
     _log_dataset_dict(dd)
+    print("HERE", dd.keys())
     trainer, encoded_data = get_trainer(dd, labels)
     watch(trainer)
     trainer.train()
