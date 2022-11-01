@@ -52,7 +52,6 @@ def cleanup_after_use() -> Generator:
     for task_type in list(TaskType):
         dataquality.get_model_logger(task_type).logger_config.reset()
     try:
-        dataquality.get_model_logger().logger_config.reset()
         if os.path.isdir(BaseGalileoLogger.LOG_FILE_DIR):
             shutil.rmtree(BaseGalileoLogger.LOG_FILE_DIR)
         if not os.path.isdir(TEST_PATH):
@@ -63,9 +62,10 @@ def cleanup_after_use() -> Generator:
             os.makedirs(DQ_LOG_FILE_LOCATION)
         yield
     finally:
-        shutil.rmtree(BaseGalileoLogger.LOG_FILE_DIR)
-        shutil.rmtree(DQ_LOG_FILE_LOCATION)
-        dataquality.get_model_logger().logger_config.reset()
+        if os.path.exists(BaseGalileoLogger.LOG_FILE_DIR):
+            shutil.rmtree(BaseGalileoLogger.LOG_FILE_DIR)
+        if os.path.exists(DQ_LOG_FILE_LOCATION):
+            shutil.rmtree(DQ_LOG_FILE_LOCATION)
 
 
 @pytest.fixture()
