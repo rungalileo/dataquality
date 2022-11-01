@@ -30,7 +30,7 @@ requires = [
 ]
 
 [tool.flit.metadata.urls]
-Documentation = "https://www.github.com/rungalileo/dataquality/docs"
+Documentation = "https://rungalileo.gitbook.io/galileo"
 
 [tool.flit.metadata.requires-extra]
 doc = [
