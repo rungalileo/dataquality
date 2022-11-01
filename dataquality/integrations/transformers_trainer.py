@@ -124,16 +124,6 @@ class DQCallback(TrainerCallback):
         print("ON_EVALUATE CALLED")
         dq.set_split(Split.validation)
 
-    def on_prediction_step(
-        self,
-        args: TrainingArguments,
-        state: TrainerState,
-        control: TrainerControl,
-        **kwargs: Dict,
-    ) -> None:
-        print("PREDICTION STEP CALLED")
-        dq.set_split(Split.test)
-
 
     def on_epoch_begin(
         self,
@@ -149,6 +139,11 @@ class DQCallback(TrainerCallback):
             print(f"EPOCH {state_epoch} STARTING")
         dq.set_split(Split.training)
 
+    def on_epoch_end(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
+        dq.set_split(Split.validation)
+
+    def on_train_end(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
+        dq.set_split(Split.test)
 
     def on_step_end(
         self,
