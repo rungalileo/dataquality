@@ -140,9 +140,11 @@ class DQCallback(TrainerCallback):
         dq.set_split(Split.training)
 
     def on_epoch_end(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
+        print(f"EPOCH {state.epoch} OVER")
         dq.set_split(Split.validation)
 
     def on_train_end(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
+        print("TRAIN END")
         dq.set_split(Split.test)
 
     def on_step_end(
