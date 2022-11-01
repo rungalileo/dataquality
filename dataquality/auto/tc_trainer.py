@@ -78,7 +78,6 @@ def get_trainer(
         args,
         train_dataset=encoded_datasets[Split.train],
         eval_dataset=encoded_datasets.get(Split.validation),
-        # test_dataset=encoded_datasets.get("test"), TODO: test_dataset for predict?
         tokenizer=tokenizer,
         compute_metrics=compute_metrics,
     )

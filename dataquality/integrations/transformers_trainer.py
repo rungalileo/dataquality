@@ -108,9 +108,11 @@ class DQCallback(TrainerCallback):
         :param kwargs: Keyword arguments (model, eval_dataloader, tokenizer...)
         :return: None
         """
+        print("TRAIN BEGIN")
         if not self._initialized:
             self.setup(args, state, kwargs)
         dq.set_split(Split.training)  # 🔭🌕 Galileo logging
+
 
     def on_evaluate(
         self,
@@ -119,6 +121,7 @@ class DQCallback(TrainerCallback):
         control: TrainerControl,
         **kwargs: Dict,
     ) -> None:
+        print("ON_EVALUATE CALLED")
         dq.set_split(Split.validation)
 
     def on_prediction_step(
@@ -128,7 +131,9 @@ class DQCallback(TrainerCallback):
         control: TrainerControl,
         **kwargs: Dict,
     ) -> None:
+        print("PREDICTION STEP CALLED")
         dq.set_split(Split.test)
+
 
     def on_epoch_begin(
         self,
@@ -141,6 +146,9 @@ class DQCallback(TrainerCallback):
         if state_epoch is not None:
             state_epoch = int(state_epoch)
             dq.set_epoch(state_epoch)  # 🔭🌕 Galileo logging
+            print(f"EPOCH {state_epoch} STARTING")
+        dq.set_split(Split.training)
+
 
     def on_step_end(
         self,
