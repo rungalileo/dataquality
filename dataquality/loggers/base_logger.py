@@ -153,7 +153,6 @@ class BaseGalileoLogger:
         arr: Union[List, np.ndarray], attr: Optional[str] = None
     ) -> np.ndarray:
         """Handles numpy arrays and tensors conversions"""
-        from time import time
         if TORCH_AVAILABLE:
             if isinstance(arr, Tensor):
                 arr = arr.detach().cpu().numpy()

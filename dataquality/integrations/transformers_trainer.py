@@ -112,6 +112,24 @@ class DQCallback(TrainerCallback):
             self.setup(args, state, kwargs)
         dq.set_split(Split.training)  # 🔭🌕 Galileo logging
 
+    def on_evaluate(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs: Dict,
+    ) -> None:
+        dq.set_split(Split.validation)
+
+    def on_prediction_step(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs: Dict,
+    ) -> None:
+        dq.set_split(Split.test)
+
     def on_epoch_begin(
         self,
         args: TrainingArguments,
@@ -123,15 +141,6 @@ class DQCallback(TrainerCallback):
         if state_epoch is not None:
             state_epoch = int(state_epoch)
             dq.set_epoch(state_epoch)  # 🔭🌕 Galileo logging
-
-    def on_train_end(
-        self,
-        args: TrainingArguments,
-        state: TrainerState,
-        control: TrainerControl,
-        **kwargs: Dict,
-    ) -> None:
-        dq.set_split(Split.validation)  # 🔭🌕 Galileo logging
 
     def on_step_end(
         self,

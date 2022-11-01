@@ -10,6 +10,7 @@ import dataquality as dq
 from dataquality.auto.tc_trainer import get_trainer
 from dataquality.exceptions import GalileoException
 from dataquality.integrations.transformers_trainer import watch
+from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 
 DEMO_DATASETS = [
@@ -60,7 +61,7 @@ def _validate_dataset_dict(dd: DatasetDict) -> DatasetDict:
         assert "text" in ds.features, "Dataset must have column `text`"
         assert "label" in ds.features, "Dataset must have column `label`"
         if "id" not in ds.features:
-            dd[key] = ds.add_column("id", list(range(ds.num_rows)))
+            dd[Split[key]] = ds.add_column("id", list(range(ds.num_rows)))
     return dd
 
 
@@ -82,11 +83,11 @@ def _get_dataset_dict(
         )
         dd = ds
     else:
-        dd["train"] = _get_dataset(train_data)
+        dd[Split.train] = _get_dataset(train_data)
         if val_data:
-            dd["validation"] = _get_dataset(val_data)
+            dd[Split.validation] = _get_dataset(val_data)
         if test_data:
-            dd["test"] = _get_dataset(test_data)
+            dd[Split.test] = _get_dataset(test_data)
     return _validate_dataset_dict(dd)
 
 
@@ -97,14 +98,15 @@ def _get_labels(dd: DatasetDict, labels: Optional[List[str]] = None) -> List[str
     """
     if labels and isinstance(labels, (list, np.ndarray)):
         return list(labels)
-    train_labels = dd["train"].features["label"]
+    train_labels = dd[Split.train].features["label"]
     if hasattr(train_labels, "names"):
         return train_labels.names
-    return sorted(set(dd["train"]["label"]))
+    return sorted(set(dd[Split.train]["label"]))
 
 
 def _log_dataset_dict(dd: DatasetDict) -> None:
     from time import time
+
     for key in dd:
         ds = dd[key]
         default_cols = ["text", "label", "id"]
@@ -174,6 +176,6 @@ def auto(
     watch(trainer)
     trainer.train()
     # TODO: What do we do with the test data? Do we call predict here?
-    # if "test" in encoded_data:
-    #     trainer.predict(test_dataset=encoded_data["test"])
+    if Split.test in encoded_data:
+        trainer.predict(test_dataset=encoded_data[Split.test])
     dq.finish(wait=wait)

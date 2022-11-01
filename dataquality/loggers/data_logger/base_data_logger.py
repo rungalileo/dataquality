@@ -123,6 +123,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         If input data already exist, append new data to existing input file
         """
         from time import time
+
         t0 = time()
         self.validate()
         print(f"Validating split {self.split} took {round(time()-t0, 2)} sec")
@@ -138,7 +139,9 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         print(f"validate_data_size split {self.split} took {round(time()-t0, 2)} sec")
         t0 = time()
         self.validate_ids_for_split(df["id"].tolist())
-        print(f"validate_ids_for_split split {self.split} took {round(time()-t0, 2)} sec")
+        print(
+            f"validate_ids_for_split split {self.split} took {round(time()-t0, 2)} sec"
+        )
 
         file_path = self.input_data_file()
         if self.log_export_progress:
