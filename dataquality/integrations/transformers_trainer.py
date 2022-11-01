@@ -147,6 +147,9 @@ class DQCallback(TrainerCallback):
         print("TRAIN END")
         dq.set_split(Split.test)
 
+    def on_prediction_step(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
+        print("PREDICTION STEP CALLED")
+
     def on_step_end(
         self,
         args: TrainingArguments,
@@ -164,7 +167,6 @@ class DQCallback(TrainerCallback):
         :return: None
         """
         # Log only if embedding exists
-
         assert self.helper_data.get("embs") is not None, GalileoException(
             "Embedding passed to the logger can not be logged"
         )
