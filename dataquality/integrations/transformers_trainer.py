@@ -108,7 +108,6 @@ class DQCallback(TrainerCallback):
         :param kwargs: Keyword arguments (model, eval_dataloader, tokenizer...)
         :return: None
         """
-        print("TRAIN BEGIN")
         if not self._initialized:
             self.setup(args, state, kwargs)
         dq.set_split(Split.training)  # 🔭🌕 Galileo logging
@@ -121,7 +120,6 @@ class DQCallback(TrainerCallback):
         control: TrainerControl,
         **kwargs: Dict,
     ) -> None:
-        print("ON_EVALUATE CALLED")
         dq.set_split(Split.validation)
 
 
@@ -136,19 +134,31 @@ class DQCallback(TrainerCallback):
         if state_epoch is not None:
             state_epoch = int(state_epoch)
             dq.set_epoch(state_epoch)  # 🔭🌕 Galileo logging
-            print(f"EPOCH {state_epoch} STARTING")
         dq.set_split(Split.training)
 
     def on_epoch_end(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
-        print(f"EPOCH {state.epoch} OVER")
         dq.set_split(Split.validation)
 
     def on_train_end(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
-        print("TRAIN END")
         dq.set_split(Split.test)
 
     def on_prediction_step(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
-        print("PREDICTION STEP CALLED")
+        # Log only if embedding exists
+        assert self.helper_data.get("embs") is not None, GalileoException(
+            "Embedding passed to the logger can not be logged"
+        )
+        assert self.helper_data.get("logits") is not None, GalileoException(
+            "Logits passed to the logger can not be logged"
+        )
+        assert self.helper_data.get("ids") is not None, GalileoException(
+            "Did you map IDs to your dataset before watching the model? You can run:\n"
+            "`ds= dataset.map(lambda x, idx: {'id': idx}, with_indices=True)`\n"
+            "id (index) column is needed in the dataset for logging"
+        )
+
+        # 🔭🌕 Galileo logging
+        dq.log_model_outputs(**self.helper_data)
+        self._clear_logger_config_helper_data()
 
     def on_step_end(
         self,
@@ -181,6 +191,7 @@ class DQCallback(TrainerCallback):
 
         # 🔭🌕 Galileo logging
         dq.log_model_outputs(**self.helper_data)
+        self._clear_logger_config_helper_data()
 
     def _attach_hooks_to_model(self, model: Module, layer: Layer) -> None:
         """
