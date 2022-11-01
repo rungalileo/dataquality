@@ -32,9 +32,8 @@ def compute_metrics(eval_pred: Tuple[np.ndarray, np.ndarray]) -> float:
 
 
 def get_trainer(
-    dd: DatasetDict, labels: List[str]
+    dd: DatasetDict, labels: List[str], model_checkpoint: str
 ) -> Tuple[Trainer, Dict[str, Dataset]]:
-    model_checkpoint = "microsoft/xtremedistil-l6-h256-uncased"
     tokenizer = AutoTokenizer.from_pretrained(model_checkpoint, use_fast=True)
     encoded_datasets = {}
     for key in dd:

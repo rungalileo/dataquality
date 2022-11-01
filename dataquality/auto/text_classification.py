@@ -121,6 +121,7 @@ def auto(
     train_data: Union[pd.DataFrame, Dataset, str] = None,
     val_data: Union[pd.DataFrame, Dataset, str] = None,
     test_data: Union[pd.DataFrame, Dataset, str] = None,
+    hf_model: str = "distilbert-base-uncased",
     labels: Optional[List[str]] = None,
     project_name: str = None,
     run_name: str = None,
@@ -153,6 +154,7 @@ def auto(
         * Huggingface dataset
         * Path to a local file
         * Huggingface dataset hub name
+    :param hf_model: The automodel from huggingface. Default distilbert-base-uncased
     :param labels: Optional list of labels for this dataset. If not provided, they
         will be extracted from the data provided
     :param project_name: Optional project name. If not set, a random name will
@@ -168,7 +170,7 @@ def auto(
     dq.set_labels_for_run(labels)
     _log_dataset_dict(dd)
     print("HERE", dd.keys())
-    trainer, encoded_data = get_trainer(dd, labels)
+    trainer, encoded_data = get_trainer(dd, labels, hf_model)
     watch(trainer)
     trainer.train()
     # TODO: What do we do with the test data? Do we call predict here?
