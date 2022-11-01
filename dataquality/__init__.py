@@ -1,6 +1,6 @@
 "dataquality"
 
-__version__ = "v0.7.1b7"
+__version__ = "v0.7.1b8"
 
 import os
 import resource
