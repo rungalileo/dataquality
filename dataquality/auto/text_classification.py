@@ -53,7 +53,7 @@ def _get_dataset(data: Union[pd.DataFrame, Dataset, str]) -> Dataset:
 
 def _validate_dataset_dict(dd: DatasetDict) -> DatasetDict:
     valid_keys = ["train", "training", "test", "testing", "validation"]
-    for key in dd:
+    for key in list(dd.keys()):
         assert (
             key in valid_keys
         ), f"All keys of dataset must be one of {valid_keys}. Found {list(dd.keys())}"
@@ -62,7 +62,8 @@ def _validate_dataset_dict(dd: DatasetDict) -> DatasetDict:
         assert "label" in ds.features, "Dataset must have column `label`"
         if "id" not in ds.features:
             dd[key] = ds.add_column("id", list(range(ds.num_rows)))
-        dd[Split[key]] = dd[key]
+        # Use the split Enums
+        dd[Split[key]] = dd.pop(key)
     return dd
 
 
@@ -106,17 +107,11 @@ def _get_labels(dd: DatasetDict, labels: Optional[List[str]] = None) -> List[str
 
 
 def _log_dataset_dict(dd: DatasetDict) -> None:
-    from time import time
-
     for key in dd:
         ds = dd[key]
         default_cols = ["text", "label", "id"]
         meta = [i for i in ds.features if i not in default_cols]
-        t0 = time()
-        print(f"Starting log of {key}")
         dq.log_dataset(ds, meta=meta, split=key)
-        t1 = time()
-        print(f"Done logging {key} in {round(t1-t0, 2)} sec")
 
 
 def auto(
@@ -172,7 +167,6 @@ def auto(
     dq.init(TaskType.text_classification, project_name=project_name, run_name=run_name)
     dq.set_labels_for_run(labels)
     _log_dataset_dict(dd)
-    print("HERE", dd.keys())
     trainer, encoded_data = get_trainer(dd, labels, hf_model)
     watch(trainer)
     trainer.train()

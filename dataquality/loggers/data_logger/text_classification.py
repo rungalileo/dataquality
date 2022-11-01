@@ -369,25 +369,13 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         * If ids exist, it must be the same length as text/labels
         :return: None
         """
-        from time import time
-
-        t0 = time()
         super().validate()
-        print(f"super().validate() split {self.split} took {round(time()-t0, 2)} sec")
-
         label_len = len(self.labels)
         text_len = len(self.texts)
         id_len = len(self.ids)
 
-        t0 = time()
-        print("Before text convert", type(self.texts))
         if not isinstance(self.texts, list):
             self.texts = list(self._convert_tensor_ndarray(self.texts))
-        print(
-            f"_convert_tensor_ndarray text data split {self.split} took {round(time()-t0, 2)} sec"
-        )
-        print("After text convert", type(self.texts))
-        t0 = time()
         clean_labels = self._convert_tensor_ndarray(self.labels, attr="Labels")
         # If the dtype if object, we have a ragged nested sequence, so we need to
         # iterate list by list converting to strings
@@ -397,9 +385,6 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         else:
             self.labels = clean_labels.astype("str").tolist()
         self.ids = list(self._convert_tensor_ndarray(self.ids))
-        print(
-            f"_convert_tensor_ndarray split {self.split} took {round(time()-t0, 2)} sec"
-        )
 
         if self.split == Split.inference.value:
             assert not label_len, "You cannot have labels in your inference split!"
@@ -426,14 +411,8 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
             f"(ids, text) ({id_len}, {text_len})"
         )
 
-        t0 = time()
         self.validate_logged_labels()
-        print(
-            f"validate_logged_labels split {self.split} took {round(time()-t0, 2)} sec"
-        )
-        t0 = time()
         self.validate_metadata(batch_size=text_len)
-        print(f"validate_metadata split {self.split} took {round(time()-t0, 2)} sec")
 
     def validate_logged_labels(self) -> None:
         """Validates that the labels logged match the labels set"""
