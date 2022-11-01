@@ -104,11 +104,16 @@ def _get_labels(dd: DatasetDict, labels: Optional[List[str]] = None) -> List[str
 
 
 def _log_dataset_dict(dd: DatasetDict) -> None:
+    from time import time
     for key in dd:
         ds = dd[key]
         default_cols = ["text", "label", "id"]
         meta = [i for i in ds.features if i not in default_cols]
+        t0 = time()
+        print(f"Starting log of {key}")
         dq.log_dataset(ds, meta=meta, split=key)
+        t1 = time()
+        print(f"Done logging {key} in {round(t1-t0, 2)} sec")
 
 
 def auto(
