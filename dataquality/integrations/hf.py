@@ -11,6 +11,9 @@ import dataquality as dq
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
 from dataquality.exceptions import GalileoException, GalileoWarning
+
+# We add this here so users can `from dataquality.integrations.hf import watch`
+from dataquality.integrations.transformers_trainer import watch  # noqa: F401
 from dataquality.schemas.hf import HFCol
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import conform_split
