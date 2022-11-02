@@ -5,7 +5,7 @@ from transformers import Trainer
 
 
 def remove_id_collate_fn_wrapper(
-    collate_fn: Union[Callable, Any], keep_cols: List[str], store: Dict[str, Any]
+    collate_fn: Union[Callable, Any], keep_cols: List[str], store: Dict[str, List[int]]
 ) -> Callable:
     """Removes the id from each row and pass the cleaned version on.
 

@@ -117,10 +117,16 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             raise GalileoException(exc)
         self.logger_config.logged_input_ids[split].update(ids)
 
+    def add_ids_to_split(self, ids: List) -> None:
+        if self.split:
+            self.logger_config.idx_to_id_map[str(self.split)].extend(ids)
+
     def log(self) -> None:
         """Writes input data to disk in .galileo/logs
 
-        If input data already exist, append new data to existing input file
+        If input data already exist, append new data to existing input file.
+        If the dataset is very large this function will be called multiple
+        times for a given split.
         """
         self.validate()
         write_input_dir = self.write_output_dir()
@@ -129,7 +135,9 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
         df = self._get_input_df()
         self.validate_data_size(df)
-        self.validate_ids_for_split(df["id"].tolist())
+        ids = df["id"].tolist()
+        self.validate_ids_for_split(ids)
+        self.add_ids_to_split(ids)
 
         file_path = self.input_data_file()
         if self.log_export_progress:

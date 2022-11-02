@@ -17,6 +17,8 @@ from wrapt import CallableObjectProxy
 
 import dataquality
 from dataquality import check_noop, config
+from dataquality.analytics import Analytics
+from dataquality.clients.api import ApiClient
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
@@ -29,6 +31,9 @@ from dataquality.utils.spacy_integration import (
     validate_spacy_is_not_using_gpu,
     validate_spacy_version,
 )
+
+a = Analytics(ApiClient, dataquality.config)
+a.log_import("spacy")
 
 
 @check_noop
@@ -89,6 +94,7 @@ def watch(nlp: Language) -> None:
     :param nlp: The spacy nlp Language component.
     :return: None
     """
+    a.log_function("spacy/watch")
     validate_spacy_version()
     validate_spacy_is_not_using_gpu()
     if not (config.current_project_id and config.current_run_id):
@@ -542,3 +548,9 @@ class GalileoState2Vec(CallableObjectProxy):
             ].copy()
 
         return embeddings, embeddings_bp
+
+
+# try:
+#     Analytics().log("import", "dataquality.spacy")
+# except Exception:
+#     pass
