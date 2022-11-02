@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List, Type
+from typing import Callable, List, Type
 from unittest import mock
 
 import pytest
@@ -13,7 +13,9 @@ from dataquality.schemas.split import Split
 
 
 class TestSetSplitInference:
-    def test_set_split_inference(self) -> None:
+    def test_set_split_inference(
+        self, set_test_config: Callable, cleanup_after_use: Callable
+    ) -> None:
         assert not dataquality.get_data_logger().logger_config.inference_logged
         dataquality.set_split("inference", "all-customers")
         assert dataquality.get_data_logger().logger_config.cur_split == "inference"
@@ -22,7 +24,9 @@ class TestSetSplitInference:
             == "all-customers"
         )
 
-    def test_set_split_inference_missing_inference_name(self) -> None:
+    def test_set_split_inference_missing_inference_name(
+        self, set_test_config: Callable, cleanup_after_use: Callable
+    ) -> None:
         with pytest.raises(ValidationError) as e:
             dataquality.set_split("inference")
 
@@ -89,7 +93,11 @@ class TestBaseLoggersInference:
         return_value="1234-abcd-5678",
     )
     def test_write_model_output_inference(
-        self, mock_uuid: mock.MagicMock, mock_save_file: mock.MagicMock
+        self,
+        mock_uuid: mock.MagicMock,
+        mock_save_file: mock.MagicMock,
+        set_test_config: Callable,
+        cleanup_after_use: Callable,
     ) -> None:
         inference_data = {
             "epoch": [None, None, None],

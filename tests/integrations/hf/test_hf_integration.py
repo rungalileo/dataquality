@@ -17,7 +17,7 @@ from dataquality.integrations.hf import (
 )
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.utils.hf_tokenizer import extract_gold_spans_at_word_level
-from tests.utils.hf_integration_constants import (
+from tests.test_utils.hf_integration_constants import (
     ADJUSTED_TOKEN_DATA,
     UNADJUSTED_TOKEN_DATA,
     BILOUSequence,

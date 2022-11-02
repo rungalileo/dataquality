@@ -24,8 +24,8 @@ from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.conftest import LOCATION
-from tests.utils.spacy_integration import load_ner_data_from_local, train_model
-from tests.utils.spacy_integration_constants import (
+from tests.test_utils.spacy_integration import load_ner_data_from_local, train_model
+from tests.test_utils.spacy_integration_constants import (
     LONG_SHORT_DATA,
     LONG_TRAIN_DATA,
     MISALIGNED_SPAN_DATA,

@@ -16,7 +16,7 @@ from dataquality.core._config import (
     url_is_localhost,
 )
 from dataquality.exceptions import GalileoException
-from tests.utils.mock_request import MockResponse
+from tests.test_utils.mock_request import MockResponse
 
 
 def test_console_url(set_test_config: Callable) -> None:
