@@ -7,6 +7,8 @@ import resource
 
 import dataquality.core._config
 import dataquality.integrations
+from dataquality.analytics import Analytics
+from dataquality.clients.api import ApiClient
 
 # We try/catch this in case the user installed dq inside of jupyter. You need to
 # restart the kernel after the install and we want to make that clear. This is because
@@ -31,6 +33,7 @@ from dataquality.core.log import (
     log_dataset,
     log_model_outputs,
     set_epoch,
+    set_epoch_and_split,
     set_labels_for_run,
     set_split,
     set_tagging_schema,
@@ -62,6 +65,8 @@ def configure(do_login: bool = True) -> None:
     * GALILEO_USERNAME
     * GALILEO_PASSWORD
     """
+    a.log_function("dq/configure")
+
     if "GALILEO_API_URL" in os.environ:
         del os.environ["GALILEO_API_URL"]
     updated_config = dataquality.core._config.reset_config(cloud=False)
@@ -83,6 +88,7 @@ def set_console_url(console_url: str = None) -> None:
     GALILEO_CONSOLE_URL is set, that will be used. Otherwise, you will be prompted for
     a url.
     """
+    a.log_function("dq/set_console_url")
     if console_url:
         os.environ["GALILEO_CONSOLE_URL"] = console_url
     configure(do_login=False)
@@ -108,6 +114,7 @@ __all__ = [
     "get_run_status",
     "set_epoch",
     "set_split",
+    "set_epoch_and_split",
     "set_console_url",
     "log_data_sample",
     "log_dataset",
@@ -126,3 +133,17 @@ try:
     resource.setrlimit(resource.RLIMIT_NOFILE, (65535, 65535))
 except ValueError:  # The users limit is higher than our max, which is OK
     pass
+
+#  Logging is optional. If enabled, imports, method calls
+#  and exceptions can be logged by calling the logger.
+#  This is useful for debugging and detecting issues.
+#  Logging is disabled by default for enterprise users.
+#  To enable logging, set the environment variable
+#  DQ_TELEMETRICS=1
+#  To log initiate the Analytics class and pass in the gallileo ApiClient + dq.config
+#  a = Analytics(ApiClient, config)
+#  Once initialized you can start logging
+#  a.log_import("dataquality")
+#  a.log_method_call("dataquality.log_data_samples")
+a = Analytics(ApiClient, config)
+a.log_import("dataquality")
