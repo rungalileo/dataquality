@@ -8,12 +8,17 @@ from torch.utils.data import Dataset as TorchDataset
 from transformers import BatchEncoding, PreTrainedTokenizerBase
 
 import dataquality as dq
+from dataquality.analytics import Analytics
+from dataquality.clients.api import ApiClient
 from dataquality.exceptions import GalileoException, GalileoWarning
 from dataquality.schemas.hf import HFCol
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import conform_split
 from dataquality.utils.helpers import check_noop
 from dataquality.utils.hf_tokenizer import LabelTokenizer
+
+a = Analytics(ApiClient, dq.config)
+a.log_import("hf")
 
 
 def _is_bio(schema_tags: Set[str]) -> bool:
@@ -153,6 +158,7 @@ def tokenize_and_log_dataset(
     :param meta: Optional metadata columns to be logged. The columns must be present
         in at least one of the splits of the dataset.
     """
+    a.log_function("hf/tokenize_and_log_dataset")
     meta = meta or []
     dd = _validate_dataset(dd)
     if label_names is not None and len(label_names):
@@ -219,5 +225,12 @@ def get_dataloader(dataset: Dataset, **kwargs: Any) -> DataLoader:
     :param kwargs: Any additional keyword arguments to be passed into the DataLoader
         Things like batch_size or shuffle
     """
+    a.log_function("hf/get_dataloader")
     text_dataset = TextDataset(dataset)
     return DataLoader(text_dataset, **kwargs)
+
+
+# try:
+#     Analytics().log("import", "dataquality.hf")
+# except Exception:
+#     pass

@@ -1,3 +1,4 @@
+import json
 import os
 import warnings
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -9,8 +10,10 @@ from cachetools import LRUCache, cached
 from cachetools.keys import hashkey
 from vaex.dataframe import DataFrame
 
+from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
 from dataquality.clients.objectstore import ObjectStore
+from dataquality.core._config import config
 from dataquality.exceptions import GalileoException, GalileoWarning
 from dataquality.schemas.dataframe import FileType
 from dataquality.schemas.edit import Edit
@@ -21,6 +24,8 @@ from dataquality.schemas.task_type import TaskType
 
 api_client = ApiClient()
 object_store = ObjectStore()
+a = Analytics(ApiClient, config)
+a.log_import("dq/metrics")
 
 
 def _cache_key(*args: Tuple, **kwargs: Dict[str, Any]) -> Tuple:
@@ -138,6 +143,8 @@ def get_metrics(
     :param filter: Optional filter to provide to restrict the metrics to only to
         matching rows. See `dq.schemas.metrics.FilterParams`
     """
+    a.log_function("dq/metrics/get_metrics")
+
     split = conform_split(split)
     metrics = api_client.get_run_metrics(
         project_name,
@@ -485,7 +492,10 @@ def _process_exported_dataframe(
         for col in data_df.get_column_names():
             if data_df[col].ndim > 1:
                 return data_df
-        return data_df.to_pandas_df()
+        pdf = data_df.to_pandas_df()
+        if task_type == TaskType.text_ner and "spans" in pdf.columns:
+            pdf["spans"] = pdf["spans"].apply(json.loads)
+        return pdf
     return data_df
 
 
