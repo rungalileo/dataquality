@@ -10,20 +10,20 @@ from transformers.modeling_outputs import BaseModelOutput, TokenClassifierOutput
 
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.task_type import TaskType
-from dataquality.schemas.torch import EmbeddingDim, Layer
-from dataquality.utils.helpers import hook
+from dataquality.schemas.torch import DimensionSlice, Layer
+from dataquality.utils.helpers import wrap_fn
 
 
 class TorchBaseInstance:
-    embedding_dim: Optional[EmbeddingDim]
-    logits_dim: Optional[EmbeddingDim]
+    embedding_dim: Optional[DimensionSlice]
+    logits_dim: Optional[DimensionSlice]
     task: TaskType
     helper_data: Dict[str, Any]
 
     def _init_dimension(
         self,
-        embedding_dim: Optional[Union[str, EmbeddingDim]],
-        logits_dim: Optional[Union[str, EmbeddingDim]],
+        embedding_dim: Optional[Union[str, DimensionSlice]],
+        logits_dim: Optional[Union[str, DimensionSlice]],
     ) -> None:
         """
         Initialize the dimensions of the embeddings and logits
@@ -137,7 +137,7 @@ def patch_iterator_with_store(store: Dict[str, List[int]]) -> Callable:
         orig_iterator: Callable, *args: Tuple, **kwargs: Dict[str, Any]
     ) -> Callable:
         iteraror = orig_iterator(*args, **kwargs)
-        iteraror._next_index = hook(iteraror._next_index, store_batch_indices(store))
+        iteraror._next_index = wrap_fn(iteraror._next_index, store_batch_indices(store))
         return iteraror
 
     return patch_iterator
@@ -176,7 +176,7 @@ def convert_fancy_idx_str_to_slice(
     return eval("np.s_[{}]".format(clean_str))
 
 
-class HookManager:
+class ModelHookManager:
     """
     Manages hooks for models. Has the ability to find the layer automatically.
     Otherwise the layer or the layer name needs to be provided.
@@ -225,8 +225,8 @@ class HookManager:
     def attach_embedding_hook(
         self,
         model: Module,
+        embedding_hook: Callable,
         model_layer: Layer = None,
-        embedding_hook: Callable = print,
     ) -> RemovableHandle:
         """Attach hook and save it in our hook list"""
         if model_layer is None:

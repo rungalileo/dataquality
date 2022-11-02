@@ -10,10 +10,10 @@ from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.task_type import TaskType
-from dataquality.schemas.torch import EmbeddingDim, Layer
-from dataquality.utils.helpers import hook, map_indices_to_ids
+from dataquality.schemas.torch import DimensionSlice, InputDim, Layer
+from dataquality.utils.helpers import map_indices_to_ids, wrap_fn
 from dataquality.utils.torch import (
-    HookManager,
+    ModelHookManager,
     TorchBaseInstance,
     patch_iterator_with_store,
 )
@@ -28,8 +28,8 @@ class TorchLogger(TorchBaseInstance):
     for each training training step.
     """
 
-    embedding_dim: Optional[EmbeddingDim]
-    logits_dim: Optional[EmbeddingDim]
+    embedding_dim: Optional[DimensionSlice]
+    logits_dim: Optional[DimensionSlice]
 
     model: Module
 
@@ -37,8 +37,8 @@ class TorchLogger(TorchBaseInstance):
         self,
         model: Module,
         model_layer: Layer = None,
-        embedding_dim: Optional[Union[str, EmbeddingDim]] = None,
-        logits_dim: Optional[Union[str, EmbeddingDim]] = None,
+        embedding_dim: Optional[Union[str, DimensionSlice]] = None,
+        logits_dim: Optional[Union[str, DimensionSlice]] = None,
         task: Union[TaskType, None] = TaskType.text_classification,
     ):
         task_type = task or dq.config.task_type
@@ -50,9 +50,9 @@ class TorchLogger(TorchBaseInstance):
         self.model = model
         self.model_layer = model_layer
         self._init_dimension(embedding_dim, logits_dim)
-        self.hook_manager = HookManager()
+        self.hook_manager = ModelHookManager()
         self.hook_manager.attach_embedding_hook(
-            model, model_layer, self._embedding_hook
+            model, self._embedding_hook, model_layer
         )
         self.hook_manager.attach_hook(model, self._logit_hook_step_end)
         self.helper_data: Dict[str, Any] = {}
@@ -103,13 +103,19 @@ def watch(
     model: Module,
     dataloaders: List[DataLoader],
     layer: Union[Module, str, None] = None,
-    embedding_dim: Any = None,
-    logits_dim: Any = None,
+    embedding_dim: InputDim = None,
+    logits_dim: InputDim = None,
 ) -> None:
     """
-    [`watch`] is used to hook into to the trainer
-    to log to [Galileo](https://www.rungalileo.io/)
-    :param trainer: Trainer object
+    [`watch`] is a function that wraps the model and dataloaders to log the
+    embeddings and logits to [Galileo](https://www.rungalileo.io/).
+    :param model: Pytorch model
+    :param dataloaders: List of dataloaders
+    :param layer: Layer to extract the embeddings from
+    :param embedding_dim: Embedding dimension to for example "[:, 0]"
+    to remove the cls token
+    :param logits_dim: Dimension to extract the logits for example in NER
+    "[:,1:,:]"
     :return: None
     ```
     dq.log_dataset(train_dataset, split="train")
@@ -147,6 +153,6 @@ def watch(
             "Dataloaders passed to watch must have num_workers=0."
             "Parralelization is not yet supported"
         )
-        dataloader._get_iterator = hook(  # type: ignore
+        dataloader._get_iterator = wrap_fn(  # type: ignore
             dataloader._get_iterator, patch_iterator_with_store(tl.helper_data)
         )

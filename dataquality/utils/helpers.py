@@ -51,7 +51,7 @@ def disable_galileo_verbose() -> None:
 
 
 # generic hook for adding a debugger to a function
-def hook(exist_func: Callable, hook_fn: Callable) -> Callable:
+def wrap_fn(exist_func: Callable, hook_fn: Callable) -> Callable:
     """Hook a function to a function call
     :param exist_func: The function to hook
     :param hook_fn: The hook function

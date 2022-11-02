@@ -1,5 +1,5 @@
 # Imports for the hook manager
-from typing import Dict, Optional, Union
+from typing import Dict, Optional
 
 from datasets import Dataset
 from torch.nn import Module
@@ -13,9 +13,9 @@ from dataquality.clients.api import ApiClient
 from dataquality.exceptions import GalileoException
 from dataquality.integrations.torch import TorchBaseInstance
 from dataquality.schemas.split import Split
-from dataquality.schemas.torch import EmbeddingDim, Layer
+from dataquality.schemas.torch import DimensionSlice, InputDim, Layer
 from dataquality.utils.helpers import check_noop
-from dataquality.utils.torch import HookManager
+from dataquality.utils.torch import ModelHookManager
 from dataquality.utils.transformers import (
     add_id_to_signature_columns,
     remove_id_collate_fn_wrapper,
@@ -33,24 +33,42 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
     transformers Trainer library.
     """
 
-    hook_manager: HookManager
+    hook_manager: ModelHookManager
 
     def __init__(
         self,
         layer: Layer = None,
-        embedding_dim: Optional[Union[str, EmbeddingDim]] = None,
-        logits_dim: Optional[Union[str, EmbeddingDim]] = None,
+        embedding_dim: InputDim = None,
+        logits_dim: InputDim = None,
     ) -> None:
         # Access the dq logger helper data
         self.helper_data = dq.get_model_logger().logger_config.helper_data
         self._initialized = False
         # Hook manager for attaching hooks to the model
-        self.hook_manager = HookManager()
+        self.hook_manager = ModelHookManager()
         self.layer = layer
         self._init_dimension(embedding_dim, logits_dim)
 
     def _clear_logger_config_helper_data(self) -> None:
         self.helper_data.clear()
+
+    def _do_log(self) -> None:
+        # Log only if embedding exists
+        assert self.helper_data.get("embs") is not None, GalileoException(
+            "Embedding passed to the logger can not be logged"
+        )
+        assert self.helper_data.get("logits") is not None, GalileoException(
+            "Logits passed to the logger can not be logged"
+        )
+        assert self.helper_data.get("ids") is not None, GalileoException(
+            "Did you map IDs to your dataset before watching the model? You can run:\n"
+            "`ds= dataset.map(lambda x, idx: {'id': idx}, with_indices=True)`\n"
+            "id (index) column is needed in the dataset for logging"
+        )
+
+        # 🔭🌕 Galileo logging
+        dq.log_model_outputs(**self.helper_data)
+        self._clear_logger_config_helper_data()
 
     def on_init_end(
         self,
@@ -118,6 +136,15 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
             self.setup(args, state, kwargs)
         dq.set_split(Split.training)  # 🔭🌕 Galileo logging
 
+    def on_evaluate(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs: Dict,
+    ) -> None:
+        dq.set_split(Split.validation)
+
     def on_epoch_begin(
         self,
         args: TrainingArguments,
@@ -129,6 +156,16 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
         if state_epoch is not None:
             state_epoch = int(state_epoch)
             dq.set_epoch(state_epoch)  # 🔭🌕 Galileo logging
+        dq.set_split(Split.training)
+
+    def on_epoch_end(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs: Dict,
+    ) -> None:
+        dq.set_split(Split.validation)
 
     def on_train_end(
         self,
@@ -137,7 +174,16 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
         control: TrainerControl,
         **kwargs: Dict,
     ) -> None:
-        dq.set_split(Split.validation)  # 🔭🌕 Galileo logging
+        dq.set_split(Split.test)
+
+    def on_prediction_step(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs: Dict,
+    ) -> None:
+        self._do_log()
 
     def on_step_end(
         self,
@@ -155,22 +201,7 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
         :param kwargs: Keyword arguments (including the model, inputs, outputs)
         :return: None
         """
-        # Log only if embedding exists
-
-        assert self.helper_data.get("embs") is not None, GalileoException(
-            "Embedding passed to the logger can not be logged"
-        )
-        assert self.helper_data.get("logits") is not None, GalileoException(
-            "Logits passed to the logger can not be logged"
-        )
-        assert self.helper_data.get("ids") is not None, GalileoException(
-            "Did you map IDs to your dataset before watching the model? You can run:\n"
-            "`ds= dataset.map(lambda x, idx: {'id': idx}, with_indices=True)`\n"
-            "id (index) column is needed in the dataset for logging"
-        )
-
-        # 🔭🌕 Galileo logging
-        dq.log_model_outputs(**self.helper_data)
+        self._do_log()
 
     def _attach_hooks_to_model(self, model: Module, layer: Layer) -> None:
         """
@@ -179,7 +210,7 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
         :param model: pytorch model layer to attach hooks to
         :return: None
         """
-        self.hook_manager.attach_embedding_hook(model, layer, self._embedding_hook)
+        self.hook_manager.attach_embedding_hook(model, self._embedding_hook, layer)
         self.hook_manager.attach_hook(model, self._logit_hook)
 
 
@@ -187,8 +218,8 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
 def watch(
     trainer: Trainer,
     layer: Layer = None,
-    embedding_dim: Optional[EmbeddingDim] = None,
-    logits_dim: Optional[EmbeddingDim] = None,
+    embedding_dim: Optional[DimensionSlice] = None,
+    logits_dim: Optional[DimensionSlice] = None,
 ) -> None:
     """
     [`watch`] is used to hook into to the trainer
