@@ -493,6 +493,8 @@ def _process_exported_dataframe(
             if data_df[col].ndim > 1:
                 return data_df
         pdf = data_df.to_pandas_df()
+        # The spans come back as json.dumps string data, we can load it for our users
+        # Back into JSON data so they get the actual span objects
         if task_type == TaskType.text_ner and "spans" in pdf.columns:
             pdf["spans"] = pdf["spans"].apply(json.loads)
         return pdf

@@ -21,8 +21,11 @@ from dataquality.integrations.transformers_trainer import watch
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.conftest import LOCATION
-from tests.utils.hf_datasets_mock import mock_dataset, mock_dataset_repeat
-from tests.utils.mock_request import mocked_create_project_run, mocked_get_project_run
+from tests.test_utils.hf_datasets_mock import mock_dataset, mock_dataset_repeat
+from tests.test_utils.mock_request import (
+    mocked_create_project_run,
+    mocked_get_project_run,
+)
 
 # Load models locally
 try:
