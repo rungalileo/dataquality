@@ -1,3 +1,4 @@
+import json
 import os
 import warnings
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -485,7 +486,10 @@ def _process_exported_dataframe(
         for col in data_df.get_column_names():
             if data_df[col].ndim > 1:
                 return data_df
-        return data_df.to_pandas_df()
+        pdf = data_df.to_pandas_df()
+        if task_type == TaskType.text_ner and "spans" in pdf.columns:
+            pdf["spans"] = pdf["spans"].apply(json.loads)
+        return pdf
     return data_df
 
 
