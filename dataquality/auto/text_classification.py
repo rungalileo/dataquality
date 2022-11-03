@@ -4,8 +4,8 @@ from typing import List, Optional, Union
 
 import numpy as np
 import pandas as pd
+from datasets import ClassLabel, Dataset, DatasetDict, load_dataset
 from pandas.api.types import is_string_dtype
-from datasets import Dataset, DatasetDict, load_dataset, ClassLabel
 
 import dataquality as dq
 from dataquality.auto.tc_trainer import get_trainer
@@ -36,6 +36,7 @@ def _process_pandas_df(df: pd.DataFrame, labels: List[str] = None) -> Dataset:
     ds = ds.cast_column("label", class_label)
     return ds
 
+
 def _add_class_label_to_dataset(ds: Dataset, labels: List[str] = None) -> Dataset:
     """Map a not ClassLabel 'label' column to a ClassLabel"""
     if ds.features["label"].dtype == "string":
@@ -46,7 +47,9 @@ def _add_class_label_to_dataset(ds: Dataset, labels: List[str] = None) -> Datase
     return ds
 
 
-def _get_dataset(data: Union[pd.DataFrame, Dataset, str], labels: List[str] = None) -> Dataset:
+def _get_dataset(
+    data: Union[pd.DataFrame, Dataset, str], labels: List[str] = None
+) -> Dataset:
     """Loads the data into (hf) Dataset format"""
     if isinstance(data, Dataset):
         return data
@@ -98,7 +101,7 @@ def _get_dataset_dict(
     train_data: Union[pd.DataFrame, Dataset, str] = None,
     val_data: Union[pd.DataFrame, Dataset, str] = None,
     test_data: Union[pd.DataFrame, Dataset, str] = None,
-    labels: List[str] = None
+    labels: List[str] = None,
 ) -> DatasetDict:
     dd = DatasetDict()
     if not any([hf_data is not None, train_data is not None]):
@@ -154,31 +157,31 @@ def auto(
 ) -> None:
     """Automatically gets insights on a text classification dataset
 
-    Given either a pandas dataframe, file_path, or huggingface dataset url, this
+    Given either a pandas dataframe, file_path, or huggingface dataset path, this
     function will load the data, train a huggingface transformer model, and
     provide Galileo insights via a link to the Galileo Console
 
     One of `hf_data`, `train_data` should be provided. If neither of those are, a
     demo dataset will be loaded by Galileo for training.
 
-    :param hf_data: Use this param if you have huggingface data in the hub
-        or in memory. Otherwise see `train_data`, `val_data`, and `test_data`. If
-        provided, train_data, val_data, and test_data will be ignored
+    :param hf_data: Union[DatasetDict, str] Use this param if you have huggingface
+        data in the hub or in memory. Otherwise see `train_data`, `val_data`,
+        and `test_data`. If provided, train_data, val_data, and test_data are ignored
     :param train_data: Optional training data to use. Can be one of
         * Pandas dataframe
         * Huggingface dataset
         * Path to a local file
-        * Huggingface dataset hub name
+        * Huggingface dataset hub path
     :param val_data: Optional validation data to use. Can be one of
         * Pandas dataframe
         * Huggingface dataset
         * Path to a local file
-        * Huggingface dataset hub name
+        * Huggingface dataset hub path
     :param test_data: Optional test data to use. Can be one of
         * Pandas dataframe
         * Huggingface dataset
         * Path to a local file
-        * Huggingface dataset hub name
+        * Huggingface dataset hub path
     :param hf_model: The pretrained AutoModel from huggingface that will be used to
         tokenize and train on the provided data. Default distilbert-base-uncased
     :param labels: Optional list of labels for this dataset. If not provided, they
@@ -225,6 +228,20 @@ def auto(
              run_name="run_1_raw_data"
         )
     ```
+
+    An example of using `auto` with a local CSV file with `text` and `label` columns
+    ```python
+    import pandas as pd
+    from dataquality.auto.text_classification import auto
+
+    auto(
+         train_data="train.csv",
+         test_data="test.csv",
+         labels=newsgroups_train.target_names,
+         project_name="newsgroups_work",
+         run_name="run_1_raw_data"
+    )
+    ```
     """
     dd = _get_dataset_dict(hf_data, train_data, val_data, test_data, labels)
     labels = _get_labels(dd, labels)
@@ -235,7 +252,6 @@ def auto(
     trainer, encoded_data = get_trainer(dd, labels, hf_model)
     watch(trainer)
     trainer.train()
-    # TODO: What do we do with the test data? Do we call predict here?
     if Split.test in encoded_data:
         # We pass in a huggingface dataset but typing wise they expect a torch dataset
         trainer.predict(test_dataset=encoded_data[Split.test])  # type: ignore

@@ -2,13 +2,15 @@ import os
 import re
 import shutil
 import warnings
-from typing import Dict, Optional
+from typing import Dict
+from typing import Optional
 
 from pydantic.types import UUID4
 
 import dataquality
 from dataquality.clients.api import ApiClient
-from dataquality.core._config import _check_dq_version, config
+from dataquality.core._config import _check_dq_version
+from dataquality.core._config import config
 from dataquality.core.auth import login
 from dataquality.exceptions import GalileoException
 from dataquality.loggers import BaseGalileoLogger
@@ -206,7 +208,7 @@ def init(
         # The user provided a run name and no project name. No good
         warnings.warn(
             "⚠️ You must specify a project name to initialize or create a new Galileo "
-            "run. Add a project name, or simply run dataquality.init()."
+            "run. Add a project name, or simply run dq.init()."
         )
         return
     config.update_file_config()

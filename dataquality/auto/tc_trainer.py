@@ -54,7 +54,7 @@ def get_trainer(
     batch_size = 64
     has_val = Split.validation in encoded_datasets
     eval_strat = IntervalStrategy.EPOCH if has_val else IntervalStrategy.NO
-    load_best_model = has_val # Can only load the best model if we have validation data
+    load_best_model = has_val  # Can only load the best model if we have validation data
     args = TrainingArguments(
         "finetuned",
         evaluation_strategy=eval_strat,
