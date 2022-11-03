@@ -594,11 +594,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         `log()` function to behave exactly as expected.
         """
         df_len = len(self.texts)
-        text_token_indices = (
-            pa.array(self.text_token_indices_flat)
-            if self.split != Split.inference.value
-            else [None] * df_len
-        )
+        text_token_indices = pa.array(self.text_token_indices_flat)
         inp = dict(
             id=self.ids,
             split=[Split(self.split).value] * df_len,
