@@ -196,9 +196,6 @@ def auto(
     _log_dataset_dict(dd)
     trainer, encoded_data = get_trainer(dd, labels, hf_model)
     watch(trainer)
-    print("Starting training")
-    print("encoded data")
-    print(encoded_data)
     trainer.train()
     # TODO: What do we do with the test data? Do we call predict here?
     if Split.test in encoded_data:
