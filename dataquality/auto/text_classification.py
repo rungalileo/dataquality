@@ -179,9 +179,10 @@ def auto(
         * Huggingface dataset
         * Path to a local file
         * Huggingface dataset hub name
-    :param hf_model: The automodel from huggingface. Default distilbert-base-uncased
+    :param hf_model: The pretrained AutoModel from huggingface that will be used to
+        tokenize and train on the provided data. Default distilbert-base-uncased
     :param labels: Optional list of labels for this dataset. If not provided, they
-        will be extracted from the data provided
+        will attempt to be extracted from the data
     :param project_name: Optional project name. If not set, a random name will
         be generated
     :param run_name: Optional run name for this data. If not set, a random name will
