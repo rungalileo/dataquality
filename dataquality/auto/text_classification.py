@@ -74,7 +74,7 @@ def _get_dataset_dict(
     test_data: Union[pd.DataFrame, Dataset, str] = None,
 ) -> DatasetDict:
     dd = DatasetDict()
-    if not any([hf_data, train_data]):
+    if not any([hf_data is not None, train_data is not None]):
         hf_data = choice(DEMO_DATASETS)
         print(f"No dataset provided, using {hf_data} for run")
     if hf_data:
@@ -86,9 +86,9 @@ def _get_dataset_dict(
         dd = ds
     else:
         dd[Split.train] = _get_dataset(train_data)
-        if val_data:
+        if val_data is not None:
             dd[Split.validation] = _get_dataset(val_data)
-        if test_data:
+        if test_data is not None:
             dd[Split.test] = _get_dataset(test_data)
     return _validate_dataset_dict(dd)
 
@@ -98,7 +98,7 @@ def _get_labels(dd: DatasetDict, labels: Optional[List[str]] = None) -> List[str
 
     TODO: Is there any validation we need here?
     """
-    if labels and isinstance(labels, (list, np.ndarray)):
+    if labels is not None and isinstance(labels, (list, np.ndarray)):
         return list(labels)
     train_labels = dd[Split.train].features["label"]
     if hasattr(train_labels, "names"):
