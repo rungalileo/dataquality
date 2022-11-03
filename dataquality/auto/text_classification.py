@@ -186,7 +186,37 @@ def auto(
         be generated
     :param run_name: Optional run name for this data. If not set, a random name will
         be generated
-    :param wait: Whether to wait for Galileo to complete processing your run
+    :param wait: Whether to wait for Galileo to complete processing your run.
+        Default True
+
+    Using `auto` with a hosted huggingface dataset
+    ```python
+        from dataquality.auto.text_classification import auto
+
+        auto(hf_data="rungalileo/trec6")
+    ```
+
+    An example using `auto` with sklearn data as pandas dataframes
+    ```python
+        import pandas as pd
+        from sklearn.datasets import fetch_20newsgroups
+        from dataquality.auto.text_classification import auto
+
+        # Load the newsgroups dataset from sklearn
+        newsgroups_train = fetch_20newsgroups(subset='train')
+        newsgroups_test = fetch_20newsgroups(subset='test')
+        # Convert to pandas dataframes
+        df_train = pd.DataFrame({"text": newsgroups_train.data, "label": newsgroups_train.target})
+        df_test = pd.DataFrame({"text": newsgroups_test.data, "label": newsgroups_test.target})
+
+        auto(
+             train_data=df_train,
+             test_data=df_test,
+             labels=newsgroups_train.target_names,
+             project_name="newsgroups_work",
+             run_name="run_1_raw_data"
+        )
+    ```
     """
     dd = _get_dataset_dict(hf_data, train_data, val_data, test_data, labels)
     labels = _get_labels(dd, labels)
