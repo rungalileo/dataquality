@@ -1,20 +1,20 @@
 "dataquality"
 
-__version__ = "v0.7.3"
+__version__ = "v0.7.4"
 
 import os
 import resource
 
 import dataquality.core._config
 import dataquality.integrations
-from dataquality.analytics import Analytics
-from dataquality.clients.api import ApiClient
 
 # We try/catch this in case the user installed dq inside of jupyter. You need to
 # restart the kernel after the install and we want to make that clear. This is because
 # of vaex: https://github.com/vaexio/vaex/pull/2226
 try:
     import dataquality.metrics
+    from dataquality.analytics import Analytics
+    from dataquality.clients.api import ApiClient
 except (FileNotFoundError, AttributeError):
     raise Exception(
         "It looks like you've installed dataquality from a notebook. "
