@@ -16,14 +16,16 @@ import dataquality.clients.api
 import dataquality.core._config
 import dataquality.core.finish
 from dataquality.exceptions import GalileoException, GalileoWarning, LogBatchError
+from dataquality.loggers import BaseGalileoLogger
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
+from dataquality.loggers.model_logger import BaseGalileoModelLogger
 from dataquality.loggers.model_logger.text_classification import (
     TextClassificationModelLogger,
 )
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.conftest import TEST_PATH
-from tests.utils.data_utils import (
+from tests.test_utils.data_utils import (
     NUM_LOGS,
     NUM_RECORDS,
     _log_text_classification_data,
@@ -751,3 +753,36 @@ def test_cloud_restricts_inference_mode(mock_cloud: MagicMock) -> None:
         "accounts can access this feature. Please email us at team@rungalileo.io for "
         "more information."
     )
+
+
+def test_attribute_subsets() -> None:
+    """All potential logging fields used by all subclass loggers should be encapsulated
+
+    Any new logger that is created has a set of attributes that it expects from users.
+    The `BaseLoggerAttributes` from the BaseGalileoLogger should be the superset of
+    all child loggers.
+    """
+    all_attrs = set(BaseGalileoLogger.get_valid_attributes())
+    sub_data_loggers = BaseGalileoDataLogger.__subclasses__()
+    data_logger_attrs = set(
+        [j for i in sub_data_loggers for j in i.get_valid_attributes()]
+    )
+    sub_model_loggers = BaseGalileoModelLogger.__subclasses__()
+    model_logger_attrs = set(
+        [j for i in sub_model_loggers for j in i.get_valid_attributes()]
+    )
+    all_sub_attrs = data_logger_attrs.union(model_logger_attrs)
+    assert all_attrs.issuperset(
+        all_sub_attrs
+    ), f"Missing attrs: {all_sub_attrs - all_attrs}"
+
+
+def test_int_labels(set_test_config: Callable) -> None:
+    dataquality.set_labels_for_run(labels=[1, 2, 3, 4, 5])  # type: ignore
+    assert dataquality.get_data_logger().logger_config.labels == [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+    ]
