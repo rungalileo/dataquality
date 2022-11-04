@@ -14,17 +14,17 @@ from transformers import (
     TrainingArguments,
 )
 
-# Taken from the docs of the trainer module:
-# https://github.com/huggingface/transformers/blob/main/examples/pytorch/
-# text-classification/run_glue.py#L434
 from dataquality.schemas.split import Split
 
 
+# Taken from the docs of the trainer module:
+# https://github.com/huggingface/transformers/blob/main/examples/pytorch/
+# text-classification/run_glue.py#L434
 def preprocess_function(
     input_data: Dataset, tokenizer: PreTrainedTokenizerBase
 ) -> BatchEncoding:
     return tokenizer(
-        input_data["text"], padding="max_length", max_length=201, truncation=True
+        input_data["text"], padding="max_length", max_length=128, truncation=True
     )
 
 
