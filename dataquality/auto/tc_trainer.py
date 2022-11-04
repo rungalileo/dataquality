@@ -24,7 +24,7 @@ def preprocess_function(
     input_data: Dataset, tokenizer: PreTrainedTokenizerBase
 ) -> BatchEncoding:
     return tokenizer(
-        input_data["text"], padding="max_length", max_length=128, truncation=True
+        input_data["text"], padding="max_length", max_length=200, truncation=True
     )
 
 
