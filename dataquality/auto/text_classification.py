@@ -25,12 +25,16 @@ DEMO_DATASETS = [
 
 
 def _process_pandas_df(df: pd.DataFrame, labels: List[str] = None) -> Dataset:
-    label_is_str = is_string_dtype(df["label"]) if "label" in df else False
-    if not label_is_str:
+    if "label" not in df:
+        return Dataset.from_pandas(df)
+
+    label_is_str = is_string_dtype(df["label"])
+    if labels is None and not label_is_str:
         return Dataset.from_pandas(df)
     labels = labels if labels is not None else sorted(set(df["label"].tolist()))
-    label_to_idx = dict(zip(labels, list(range(len(labels)))))
-    df["label"] = df["label"].apply(lambda label: label_to_idx[label])
+    if label_is_str:
+        label_to_idx = dict(zip(labels, list(range(len(labels)))))
+        df["label"] = df["label"].apply(lambda label: label_to_idx[label])
     class_label = ClassLabel(num_classes=len(labels), names=labels)
     ds = Dataset.from_pandas(df)
     ds = ds.cast_column("label", class_label)
@@ -39,6 +43,8 @@ def _process_pandas_df(df: pd.DataFrame, labels: List[str] = None) -> Dataset:
 
 def _add_class_label_to_dataset(ds: Dataset, labels: List[str] = None) -> Dataset:
     """Map a not ClassLabel 'label' column to a ClassLabel"""
+    if "label" not in ds.features or isinstance(ds.features["label"], ClassLabel):
+        return ds
     if ds.features["label"].dtype == "string":
         return ds.class_encode_column("label", include_nulls=True)
     labels = labels if labels is not None else sorted(set(ds["label"]))
@@ -60,10 +66,11 @@ def _get_dataset(
         if not ext:
             ds = load_dataset(data)
         else:
-            func = f"read_{ext}"
-            if not hasattr(Dataset, func):
+            # .csv -> read_csv, .parquet -> read_parquet
+            func = f"read_{ext.lstrip('.')}"
+            if not hasattr(pd, func):
                 raise GalileoException(
-                    "Local file path extension must be readable by pandas."
+                    "Local file path extension must be readable by panda. "
                     f"Found {ext} which is not"
                 )
             df = getattr(pd, func)(data)
