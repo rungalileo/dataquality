@@ -24,19 +24,32 @@ DEMO_DATASETS = [
 ]
 
 
-def _process_pandas_df(df: pd.DataFrame, labels: List[str] = None) -> Dataset:
-    if "label" not in df:
-        return Dataset.from_pandas(df)
+def _convert_pandas_object_dtype(df: pd.DataFrame) -> pd.DataFrame:
+    """Converts columns of object type to string type for huggingface
 
-    label_is_str = is_string_dtype(df["label"])
+    Huggingface DataSets cannot handle mixed-type columns as columns due to Arrow. This
+    casts those columns to strings
+    """
+    for c in df.columns:
+        if df[c].dtype == object:
+            df[c] = df[c].astype("str")
+    return df
+
+
+def _process_pandas_df(df: pd.DataFrame, labels: List[str] = None) -> Dataset:
+    df_copy = _convert_pandas_object_dtype(df.copy())
+    if "label" not in df_copy:
+        return Dataset.from_pandas(df_copy)
+
+    label_is_str = is_string_dtype(df_copy["label"])
     if labels is None and not label_is_str:
-        return Dataset.from_pandas(df)
-    labels = labels if labels is not None else sorted(set(df["label"].tolist()))
+        return Dataset.from_pandas(df_copy)
+    labels = labels if labels is not None else sorted(set(df_copy["label"].tolist()))
     if label_is_str:
         label_to_idx = dict(zip(labels, list(range(len(labels)))))
-        df["label"] = df["label"].apply(lambda label: label_to_idx[label])
+        df_copy["label"] = df_copy["label"].apply(lambda label: label_to_idx[label])
     class_label = ClassLabel(num_classes=len(labels), names=labels)
-    ds = Dataset.from_pandas(df)
+    ds = Dataset.from_pandas(df_copy)
     ds = ds.cast_column("label", class_label)
     return ds
 

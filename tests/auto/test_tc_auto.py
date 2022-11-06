@@ -1,16 +1,22 @@
 from tempfile import NamedTemporaryFile
 from unittest import mock
 
+import numpy as np
 import pandas as pd
 import pytest
 import vaex
 from datasets import ClassLabel, Dataset, DatasetDict
 
 from dataquality.auto.text_classification import (
+    DEMO_DATASETS,
     _add_class_label_to_dataset,
     _get_dataset,
+    _get_dataset_dict,
+    _get_labels,
+    _log_dataset_dict,
     _process_pandas_df,
     _validate_dataset_dict,
+    auto,
 )
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.split import Split
@@ -208,3 +214,171 @@ def test_validate_dataset_dict_no_text() -> None:
     with pytest.raises(AssertionError) as e:
         _validate_dataset_dict(dd)
     assert str(e.value) == "Dataset must have column `text`"
+
+
+@mock.patch("dataquality.auto.text_classification.load_dataset")
+def test_get_dataset_dict_no_dataset(mock_load_dataset: mock.MagicMock) -> None:
+    dd = DatasetDict(
+        {
+            "train": Dataset.from_dict(
+                {"text": ["sample1", "sample2", "sample3"], "label": [1, 0, 1]}
+            )
+        }
+    )
+    mock_load_dataset.return_value = dd
+    get_dd = _get_dataset_dict()
+    assert isinstance(get_dd, DatasetDict)
+    assert get_dd is dd
+    assert mock_load_dataset.call_args_list[0][0][0] in DEMO_DATASETS
+
+
+@mock.patch("dataquality.auto.text_classification.load_dataset")
+def test_get_dataset_dict_not_dataset_dict(mock_load_dataset: mock.MagicMock) -> None:
+    ds = Dataset.from_dict(
+        {"text": ["sample1", "sample2", "sample3"], "label": [1, 0, 1]}
+    )
+    mock_load_dataset.return_value = ds
+    with pytest.raises(AssertionError) as e:
+        _get_dataset_dict()
+    assert str(e.value).startswith(
+        "hf_data must be a path to a huggingface DatasetDict"
+    )
+
+
+def test_get_dataset_dict() -> None:
+    dd = DatasetDict(
+        {
+            "train": Dataset.from_dict(
+                {"text": ["sample1", "sample2", "sample3"], "label": [1, 0, 1]}
+            )
+        }
+    )
+    assert _get_dataset_dict(hf_data=dd) is dd
+
+
+def test_get_dataset_dict_no_hf_data() -> None:
+    ds_train = Dataset.from_dict(
+        {"text": ["sample1", "sample2", "sample3"], "label": [1, 0, 1]}
+    )
+    ds_test = Dataset.from_dict(
+        {"text": ["sample4", "sample5", "sample6"], "label": [0, 0, 0]}
+    )
+    ds_val = Dataset.from_dict(
+        {"text": ["sample7", "sample8", "sample9"], "label": [1, 1, 0]}
+    )
+    dd = _get_dataset_dict(train_data=ds_train, val_data=ds_val, test_data=ds_test)
+    for key in dd:
+        assert key in list(Split)
+    assert dd[Split.train]["text"] == ds_train["text"]
+    assert dd[Split.validation]["text"] == ds_val["text"]
+    assert dd[Split.test]["text"] == ds_test["text"]
+
+
+@pytest.mark.parametrize("as_numpy", [True, False])
+def test_get_labels(as_numpy: bool) -> None:
+    dd = DatasetDict(
+        {
+            "train": Dataset.from_dict(
+                {"text": ["sample1", "sample2", "sample3"], "label": [1, 0, 1]}
+            )
+        }
+    )
+    labels = np.array(["a", "b", "c"]) if as_numpy else ["a", "b", "c"]
+    assert _get_labels(dd, labels) == list(labels)
+
+
+def test_get_labels_no_labels() -> None:
+    dd = DatasetDict(
+        {
+            Split.train: Dataset.from_dict(
+                {"text": ["sample1", "sample2", "sample3"], "label": [1, 0, 1]}
+            )
+        }
+    )
+    assert _get_labels(dd) == [0, 1]
+
+
+def test_get_labels_class_label() -> None:
+    dd = DatasetDict(
+        {
+            Split.train: Dataset.from_dict(
+                {"text": ["sample1", "sample2", "sample3"], "label": [1, 0, 1]}
+            )
+        }
+    )
+    class_label = ClassLabel(num_classes=3, names=["red", "green", "blue"])
+    dd[Split.train] = dd[Split.train].cast_column("label", class_label)
+    dd[Split.train] = dd[Split.train]
+    assert _get_labels(dd) == ["red", "green", "blue"]
+
+
+@mock.patch("dataquality.log_dataset")
+def test_log_dataset_dict(mock_log_ds: mock.MagicMock) -> None:
+    ds_train = Dataset.from_dict(
+        {
+            "text": ["sample1", "sample2", "sample3"],
+            "label": [1, 0, 1],
+            "id": [0, 1, 2],
+            "meta_0": ["cat", "dog", "55"],
+        }
+    )
+    ds_test = Dataset.from_dict(
+        {"text": ["sample4", "sample5", "sample6"], "label": [0, 0, 0], "id": [0, 1, 2]}
+    )
+    ds_val = Dataset.from_dict(
+        {
+            "text": ["sample7", "sample8", "sample9"],
+            "label": [1, 1, 0],
+            "id": [0, 1, 2],
+            "my_meta": [0.55, -1, 33],
+        }
+    )
+    dd = DatasetDict(
+        {
+            Split.train: ds_train,
+            Split.test: ds_test,
+            Split.validation: ds_val,
+        }
+    )
+    _log_dataset_dict(dd)
+    assert mock_log_ds.call_count == 3
+    for arg_list in mock_log_ds.call_args_list:
+        kwargs = arg_list[1]
+        if kwargs["split"] == Split.train:
+            assert kwargs["meta"] == ["meta_0"]
+        if kwargs["split"] == Split.test:
+            assert kwargs["meta"] == []
+        if kwargs["split"] == Split.validation:
+            assert kwargs["meta"] == ["my_meta"]
+
+
+@mock.patch("dataquality.finish")
+@mock.patch("dataquality.auto.text_classification.watch")
+@mock.patch("dataquality.auto.text_classification.get_trainer")
+@mock.patch("dataquality.log_dataset")
+@mock.patch("dataquality.set_labels_for_run")
+@mock.patch("dataquality.init")
+@mock.patch("dataquality.login")
+def test_call_auto_pandas_train_df_mixed_meta(
+    mock_login: mock.MagicMock,
+    mock_init: mock.MagicMock,
+    mock_set_labels: mock.MagicMock,
+    mock_log_dataset: mock.MagicMock,
+    mock_get_trainer: mock.MagicMock,
+    mock_watch: mock.MagicMock,
+    mock_finish: mock.MagicMock,
+) -> None:
+    df_train = pd.DataFrame(
+        {
+            "text": ["sample4", "sample5", "sample6"],
+            "label": ["red", "green", "blue"],
+            "id": [0, 1, 2],
+            "meta_1": [0, "apple", 5.42],
+        }
+    )
+    trainer = mock.MagicMock()
+    encoded_data = {}
+    mock_get_trainer.return_value = trainer, encoded_data
+    auto(train_data=df_train)
+    mock_log_dataset.assert_called_once()
+    assert mock_log_dataset.call_args_list[0][1]["meta"] == ["meta_1"]
