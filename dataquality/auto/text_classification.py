@@ -5,7 +5,6 @@ from typing import List, Optional, Union
 import numpy as np
 import pandas as pd
 from datasets import ClassLabel, Dataset, DatasetDict, load_dataset
-from pandas.api.types import is_string_dtype
 
 import dataquality as dq
 from dataquality.auto.tc_trainer import get_trainer
@@ -36,18 +35,21 @@ def _convert_pandas_object_dtype(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def _process_pandas_df(df: pd.DataFrame, labels: List[str] = None) -> Dataset:
+def _convert_df_to_dataset(df: pd.DataFrame, labels: List[str] = None) -> Dataset:
+    """Converts a pandas dataframe to a well-formed huggingface dataset
+
+    The main thing happening here is that we are taking the pandas label column and
+    mapping it to a Dataset ClassLabel if possible. If not, it will get parsed later
+    or a validation error will be thrown if not possible in `_validate_dataset_dict`
+    """
     df_copy = _convert_pandas_object_dtype(df.copy())
+    # If there's no label column, we can't do any ClassLabel conversions. Validation
+    # of the huggingface DatasetDict will handle this missing label column if it's an
+    # issue. See `_validate_dataset_dict`
     if "label" not in df_copy:
         return Dataset.from_pandas(df_copy)
 
-    label_is_str = is_string_dtype(df_copy["label"])
-    if labels is None and not label_is_str:
-        return Dataset.from_pandas(df_copy)
     labels = labels if labels is not None else sorted(set(df_copy["label"].tolist()))
-    if label_is_str:
-        label_to_idx = dict(zip(labels, list(range(len(labels)))))
-        df_copy["label"] = df_copy["label"].apply(lambda label: label_to_idx[label])
     # https://github.com/python/mypy/issues/6239
     class_label = ClassLabel(num_classes=len(labels), names=labels)  # type: ignore
     ds = Dataset.from_pandas(df_copy)
@@ -56,7 +58,7 @@ def _process_pandas_df(df: pd.DataFrame, labels: List[str] = None) -> Dataset:
 
 
 def _add_class_label_to_dataset(ds: Dataset, labels: List[str] = None) -> Dataset:
-    """Map a not ClassLabel 'label' column to a ClassLabel"""
+    """Map a not ClassLabel 'label' column to a ClassLabel, if possible"""
     if "label" not in ds.features or isinstance(ds.features["label"], ClassLabel):
         return ds
     if ds.features["label"].dtype == "string":
@@ -68,15 +70,21 @@ def _add_class_label_to_dataset(ds: Dataset, labels: List[str] = None) -> Datase
     return ds
 
 
-def _get_dataset(
+def _convert_to_hf_dataset(
     data: Union[pd.DataFrame, Dataset, str], labels: List[str] = None
 ) -> Dataset:
-    """Loads the data into (hf) Dataset format"""
+    """Loads the data into (hf) Dataset format.
+
+    Data can be one of Dataset, pandas df, str. If str, it's either a path to a local
+    file or a path to a remote huggingface Dataset that we load with `load_dataset`
+    """
     if isinstance(data, Dataset):
         return data
     if isinstance(data, pd.DataFrame):
-        return _process_pandas_df(data, labels)
+        return _convert_df_to_dataset(data, labels)
     if isinstance(data, str):
+        # If there is no file extension, it's a huggingface Dataset, so we load it from
+        # huggingface hub
         ext = os.path.splitext(data)[-1]
         if not ext:
             ds = load_dataset(data)
@@ -89,7 +97,7 @@ def _get_dataset(
                     f"Found {ext} which is not"
                 )
             df = getattr(pd, func)(data)
-            ds = _process_pandas_df(df, labels)
+            ds = _convert_df_to_dataset(df, labels)
         assert isinstance(ds, Dataset), (
             f"Loaded data should be of type Dataset, but found {type(ds)}. If ds is a "
             f"DatasetDict, consider passing it to `hf_data` (dq.auto(hf_data=data))"
@@ -101,7 +109,19 @@ def _get_dataset(
 
 
 def _validate_dataset_dict(dd: DatasetDict, labels: List[str] = None) -> DatasetDict:
-    valid_keys = ["train", "training", "test", "testing", "validation"]
+    """Validates the core components of the provided (or created) DatasetDict)
+
+    The DatasetDict that the user provides or that we create from the provided
+    train/test/val data must have the following:
+        * all keys must be one of our valid key names
+        * it must have a `text` column
+        * it must have a `label` column
+            * if the `label` column isn't a ClassLabel, we convert it to one
+
+    We then also convert the keys of the DatasetDict to our `Split` key enum so
+    we can access it easier in the future
+    """
+    valid_keys = Split.get_valid_keys()
     for key in list(dd.keys()):
         assert (
             key in valid_keys
@@ -125,8 +145,14 @@ def _get_dataset_dict(
     test_data: Union[pd.DataFrame, Dataset, str] = None,
     labels: List[str] = None,
 ) -> DatasetDict:
+    """Creates and/or validates the DatasetDict provided by the user.
+
+    If the user provides a DatasetDict, we simply validate it. Otherwise, we
+    parse a combination of the parameters provided, generate a DatasetDict of their
+    training data, and validate that.
+    """
     dd = DatasetDict()
-    if not any([hf_data is not None, train_data is not None]):
+    if all([hf_data is None, train_data is None]):
         hf_data = choice(DEMO_DATASETS)
         print(f"No dataset provided, using {hf_data} for run")
     if hf_data:
@@ -137,19 +163,16 @@ def _get_dataset_dict(
         )
         dd = ds
     else:
-        dd[Split.train] = _get_dataset(train_data, labels)
+        dd[Split.train] = _convert_to_hf_dataset(train_data, labels)
         if val_data is not None:
-            dd[Split.validation] = _get_dataset(val_data, labels)
+            dd[Split.validation] = _convert_to_hf_dataset(val_data, labels)
         if test_data is not None:
-            dd[Split.test] = _get_dataset(test_data, labels)
+            dd[Split.test] = _convert_to_hf_dataset(test_data, labels)
     return _validate_dataset_dict(dd, labels)
 
 
 def _get_labels(dd: DatasetDict, labels: Optional[List[str]] = None) -> List[str]:
-    """Gets the labels for this dataset from the dataset if not provided.
-
-    TODO: Is there any validation we need here?
-    """
+    """Gets the labels for this dataset from the dataset if not provided."""
     if labels is not None and isinstance(labels, (list, np.ndarray)):
         return list(labels)
     train_labels = dd[Split.train].features["label"]
@@ -171,11 +194,13 @@ def auto(
     train_data: Union[pd.DataFrame, Dataset, str] = None,
     val_data: Union[pd.DataFrame, Dataset, str] = None,
     test_data: Union[pd.DataFrame, Dataset, str] = None,
+    max_padding_length: int = 200,
     hf_model: str = "distilbert-base-uncased",
     labels: List[str] = None,
     project_name: str = None,
     run_name: str = None,
     wait: bool = True,
+    _evaluation_metric: str = "accuracy",
 ) -> None:
     """Automatically gets insights on a text classification dataset
 
@@ -204,6 +229,8 @@ def auto(
         * Huggingface dataset
         * Path to a local file
         * Huggingface dataset hub path
+    :param max_padding_length: The max length for padding the input text
+        during tokenization. Default 200
     :param hf_model: The pretrained AutoModel from huggingface that will be used to
         tokenize and train on the provided data. Default distilbert-base-uncased
     :param labels: Optional list of labels for this dataset. If not provided, they
@@ -214,6 +241,9 @@ def auto(
         be generated
     :param wait: Whether to wait for Galileo to complete processing your run.
         Default True
+    :param _evaluation_metric: The metric to set for huggingface evaluation.
+        This will simply control the metric huggingface uses to evaluate model
+        performance.
 
     To see auto insights on a random, pre-selected dataset, simply run
     ```python
@@ -275,7 +305,9 @@ def auto(
     dq.init(TaskType.text_classification, project_name=project_name, run_name=run_name)
     dq.set_labels_for_run(labels)
     _log_dataset_dict(dd)
-    trainer, encoded_data = get_trainer(dd, labels, hf_model)
+    trainer, encoded_data = get_trainer(
+        dd, labels, hf_model, max_padding_length, _evaluation_metric
+    )
     watch(trainer)
     trainer.train()
     if Split.test in encoded_data:

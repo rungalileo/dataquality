@@ -10,11 +10,11 @@ from datasets import ClassLabel, Dataset, DatasetDict
 from dataquality.auto.text_classification import (
     DEMO_DATASETS,
     _add_class_label_to_dataset,
-    _get_dataset,
+    _convert_df_to_dataset,
+    _convert_to_hf_dataset,
     _get_dataset_dict,
     _get_labels,
     _log_dataset_dict,
-    _process_pandas_df,
     _validate_dataset_dict,
     auto,
 )
@@ -27,7 +27,7 @@ def test_process_pandas_df() -> None:
     df = pd.DataFrame(
         {"text": ["sample1", "sample2", "sample3"], "label": ["green", "blue", "green"]}
     )
-    ds = _process_pandas_df(df, labels)
+    ds = _convert_df_to_dataset(df, labels)
     assert isinstance(ds, Dataset)
     assert isinstance(ds.features["label"], ClassLabel)
     assert ds["label"] == [2, 1, 2]
@@ -37,7 +37,7 @@ def test_process_pandas_df_no_labels_provided() -> None:
     df = pd.DataFrame(
         {"text": ["sample1", "sample2", "sample3"], "label": ["green", "blue", "green"]}
     )
-    ds = _process_pandas_df(df)
+    ds = _convert_df_to_dataset(df)
     assert isinstance(ds, Dataset)
     assert isinstance(ds.features["label"], ClassLabel)
     assert ds["label"] == [1, 0, 1]
@@ -45,7 +45,7 @@ def test_process_pandas_df_no_labels_provided() -> None:
 
 def test_process_pandas_df_labels_are_ints() -> None:
     df = pd.DataFrame({"text": ["sample1", "sample2", "sample3"], "label": [0, 0, 1]})
-    ds = _process_pandas_df(df)
+    ds = _convert_df_to_dataset(df)
     assert isinstance(ds, Dataset)
     # Cant crete class label because we dont have string labels available
     assert not isinstance(ds.features["label"], ClassLabel)
@@ -55,7 +55,7 @@ def test_process_pandas_df_labels_are_ints() -> None:
 def test_process_pandas_df_labels_are_ints_labels_provided() -> None:
     df = pd.DataFrame({"text": ["sample1", "sample2", "sample3"], "label": [0, 0, 1]})
     labels = ["red", "green", "blue"]
-    ds = _process_pandas_df(df, labels)
+    ds = _convert_df_to_dataset(df, labels)
     assert isinstance(ds, Dataset)
     # Cant crete class label because we dont have string labels available
     assert isinstance(ds.features["label"], ClassLabel)
@@ -70,7 +70,7 @@ def test_process_pandas_df_labels_no_label_col() -> None:
         }
     )
     labels = ["red", "green", "blue"]
-    ds = _process_pandas_df(df, labels)
+    ds = _convert_df_to_dataset(df, labels)
     assert isinstance(ds, Dataset)
     assert "label" not in ds.features
 
@@ -119,7 +119,7 @@ def test_get_dataset() -> None:
     ds = Dataset.from_dict(
         {"text": ["sample1", "sample2", "sample3"], "label": [1, 0, 1]}
     )
-    get_ds = _get_dataset(ds)
+    get_ds = _convert_to_hf_dataset(ds)
     assert isinstance(get_ds, Dataset)
     assert get_ds is ds
 
@@ -129,7 +129,7 @@ def test_get_dataset_from_pandas() -> None:
     df = pd.DataFrame(
         {"text": ["sample1", "sample2", "sample3"], "label": ["green", "blue", "green"]}
     )
-    ds = _get_dataset(df, labels)
+    ds = _convert_to_hf_dataset(df, labels)
     assert isinstance(ds, Dataset)
     assert ds["label"] == [2, 1, 2]
 
@@ -139,12 +139,12 @@ def test_get_dataset_from_file() -> None:
     df = pd.DataFrame(
         {"text": ["sample1", "sample2", "sample3"], "label": ["green", "blue", "green"]}
     )
-    ds = _get_dataset(df, labels)
+    ds = _convert_to_hf_dataset(df, labels)
     assert isinstance(ds, Dataset)
     assert ds["label"] == [2, 1, 2]
     with NamedTemporaryFile(suffix=".csv") as f:
         df.to_csv(f.name)
-        ds = _get_dataset(f.name, labels)
+        ds = _convert_to_hf_dataset(f.name, labels)
         assert isinstance(ds, Dataset)
         assert ds["label"] == [2, 1, 2]
 
@@ -155,7 +155,7 @@ def test_get_dataset_from_vaex() -> None:
     )
     df = vaex.from_pandas(df)
     with pytest.raises(GalileoException) as e:
-        _get_dataset(df)
+        _convert_to_hf_dataset(df)
     assert str(e.value) == (
         "Dataset must be one of pandas df, huggingface Dataset, or string path"
     )
@@ -167,7 +167,7 @@ def test_get_dataset_from_huggingface(mock_load_dataset: mock.MagicMock) -> None
         {"text": ["sample1", "sample2", "sample3"], "label": [1, 0, 1]}
     )
     mock_load_dataset.return_value = ds
-    get_ds = _get_dataset("huggingface/path")
+    get_ds = _convert_to_hf_dataset("huggingface/path")
     assert isinstance(get_ds, Dataset)
     assert get_ds is ds
 
@@ -183,7 +183,7 @@ def test_get_dataset_from_huggingface_not_dataset(
     # It can't return this. Must be a dataset in this function
     mock_load_dataset.return_value = dd
     with pytest.raises(AssertionError) as e:
-        _get_dataset("huggingface_path")
+        _convert_to_hf_dataset("huggingface_path")
     assert str(e.value).startswith("Loaded data should be of type Dataset, but found")
 
 
@@ -352,6 +352,7 @@ def test_log_dataset_dict(mock_log_ds: mock.MagicMock) -> None:
             assert kwargs["meta"] == ["my_meta"]
 
 
+@pytest.mark.parametrize("use_ids", [True, False])
 @mock.patch("dataquality.finish")
 @mock.patch("dataquality.auto.text_classification.watch")
 @mock.patch("dataquality.auto.text_classification.get_trainer")
@@ -367,18 +368,22 @@ def test_call_auto_pandas_train_df_mixed_meta(
     mock_get_trainer: mock.MagicMock,
     mock_watch: mock.MagicMock,
     mock_finish: mock.MagicMock,
+    use_ids: bool,
 ) -> None:
     df_train = pd.DataFrame(
         {
             "text": ["sample4", "sample5", "sample6"],
             "label": ["red", "green", "blue"],
-            "id": [0, 1, 2],
             "meta_1": [0, "apple", 5.42],
         }
     )
+    if use_ids:
+        df_train["id"] = list(range(len(df_train)))
     trainer = mock.MagicMock()
     encoded_data = {}
     mock_get_trainer.return_value = trainer, encoded_data
     auto(train_data=df_train)
     mock_log_dataset.assert_called_once()
     assert mock_log_dataset.call_args_list[0][1]["meta"] == ["meta_1"]
+    # Whether or not we provided the index IDs, they should be added and logged
+    assert mock_log_dataset.call_args_list[0][0]["id"] == [0, 1, 2]

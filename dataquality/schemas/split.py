@@ -16,6 +16,10 @@ class Split(str, Enum):
     def get_valid_attributes() -> List[str]:
         return list(map(lambda x: x.value, Split))
 
+    @staticmethod
+    def get_valid_keys() -> List[str]:
+        return ["train", "training", "test", "testing", "validation"]
+
 
 def conform_split(split: Union[str, Split]) -> Split:
     """Conforms split name to our naming conventions
