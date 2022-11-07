@@ -51,7 +51,8 @@ test = [
     "types-cachetools==5.2.1",
     "torch<=1.12.1",
     "torchtext<=0.13.1",
-    "torchdata<=0.4.1"
+    "torchdata<=0.4.1",
+    "datasets<2.6"
 ]
 dev = [
     "flake8==3.9.2",
@@ -59,7 +60,7 @@ dev = [
     "isort==5.9.3",
     "autoflake==1.4",
     "jupyter==1.0.0",
- 
+
 ]
 
 [tool.isort]
