@@ -138,9 +138,7 @@ def test_tokenize_and_log_dataset(
 
     assert mock_log_dataset.call_count == 3
     for split in [Split.train, Split.test, Split.validation]:
-        mock_log_dataset.assert_any_call(
-            mock.ANY, split=split, meta=[]
-        )
+        mock_log_dataset.assert_any_call(mock.ANY, split=split, meta=[])
 
 
 def test_get_dataloader() -> None:
