@@ -14,7 +14,7 @@ from dataquality.clients import objectstore
 from dataquality.loggers import BaseGalileoLogger
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.dq_logger import DQ_LOG_FILE_HOME
-from tests.utils.mock_request import MockResponse
+from tests.test_utils.mock_request import MockResponse
 
 DEFAULT_API_URL = "http://localhost:8088"
 DEFAULT_PROJECT_ID = UUID("399057bc-b276-4027-a5cf-48893ac45388")
@@ -62,11 +62,12 @@ def cleanup_after_use() -> Generator:
             os.makedirs(DQ_LOG_FILE_LOCATION)
         yield
     finally:
-        if os.path.isdir(BaseGalileoLogger.LOG_FILE_DIR):
+        if os.path.exists(BaseGalileoLogger.LOG_FILE_DIR):
             shutil.rmtree(BaseGalileoLogger.LOG_FILE_DIR)
-        if os.path.isdir(DQ_LOG_FILE_LOCATION):
+        if os.path.exists(DQ_LOG_FILE_LOCATION):
             shutil.rmtree(DQ_LOG_FILE_LOCATION)
-        dataquality.get_model_logger().logger_config.reset()
+        for task_type in list(TaskType):
+            dataquality.get_model_logger(task_type).logger_config.reset()
 
 
 @pytest.fixture()

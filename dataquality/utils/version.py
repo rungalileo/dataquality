@@ -1,5 +1,5 @@
 import requests
-from setuptools.version import pkg_resources
+from setuptools.version import pkg_resources  # type: ignore
 
 from dataquality import __version__ as dq_client_version
 from dataquality.core._config import config

@@ -12,7 +12,7 @@ from dataquality.core.auth import GALILEO_AUTH_METHOD
 from dataquality.core.init import _Init
 from dataquality.exceptions import GalileoException
 from tests.exceptions import LoginInvoked
-from tests.utils.mock_request import (
+from tests.test_utils.mock_request import (
     EXISTING_PROJECT,
     EXISTING_RUN,
     MockResponse,

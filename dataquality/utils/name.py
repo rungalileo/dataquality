@@ -1298,7 +1298,6 @@ ANIMALS = [
     "goldfish",
     "goose",
     "gopher",
-    "gorilla",
     "grasshopper",
     "grouse",
     "guan",

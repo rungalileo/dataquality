@@ -8,11 +8,20 @@ from torch.utils.data import Dataset as TorchDataset
 from transformers import BatchEncoding, PreTrainedTokenizerBase
 
 import dataquality as dq
+from dataquality.analytics import Analytics
+from dataquality.clients.api import ApiClient
 from dataquality.exceptions import GalileoException, GalileoWarning
+
+# We add this here so users can `from dataquality.integrations.hf import watch`
+from dataquality.integrations.transformers_trainer import watch  # noqa: F401
 from dataquality.schemas.hf import HFCol
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import conform_split
+from dataquality.utils.helpers import check_noop
 from dataquality.utils.hf_tokenizer import LabelTokenizer
+
+a = Analytics(ApiClient, dq.config)
+a.log_import("hf")
 
 
 def _is_bio(schema_tags: Set[str]) -> bool:
@@ -90,9 +99,11 @@ def _validate_dataset(dd: DatasetDict) -> DatasetDict:
         )
     for key in dd.keys():
         ds = dd[key]
+        # Filter out the samples with no tokens
+        ds = ds.filter(lambda row: len(row[HFCol.tokens]) != 0)
         if HFCol.ner_tags not in ds.features:
             if HFCol.tags in ds.features:
-                dd[key] = ds.rename_column(HFCol.tags, HFCol.ner_tags)
+                ds = ds.rename_column(HFCol.tags, HFCol.ner_tags)
                 warnings.warn(
                     f"{HFCol.tags} column found, it will be "
                     f"renamed to {HFCol.ner_tags}",
@@ -101,10 +112,11 @@ def _validate_dataset(dd: DatasetDict) -> DatasetDict:
             else:
                 raise GalileoException("Each dataset must have either ner_tags or tags")
         if HFCol.id in ds.features:
-            dd[key] = ds.remove_columns(HFCol.id)
+            ds = ds.remove_columns(HFCol.id)
             warnings.warn(
                 f"{HFCol.id} column found, it will be replaced", GalileoWarning
             )
+        dd[key] = ds
     return dd
 
 
@@ -128,6 +140,7 @@ def _extract_labels_from_ds(dd: DatasetDict) -> List[str]:
     )
 
 
+@check_noop
 def tokenize_and_log_dataset(
     dd: DatasetDict,
     tokenizer: PreTrainedTokenizerBase,
@@ -148,6 +161,7 @@ def tokenize_and_log_dataset(
     :param meta: Optional metadata columns to be logged. The columns must be present
         in at least one of the splits of the dataset.
     """
+    a.log_function("hf/tokenize_and_log_dataset")
     meta = meta or []
     dd = _validate_dataset(dd)
     if label_names is not None and len(label_names):
@@ -214,5 +228,12 @@ def get_dataloader(dataset: Dataset, **kwargs: Any) -> DataLoader:
     :param kwargs: Any additional keyword arguments to be passed into the DataLoader
         Things like batch_size or shuffle
     """
+    a.log_function("hf/get_dataloader")
     text_dataset = TextDataset(dataset)
     return DataLoader(text_dataset, **kwargs)
+
+
+# try:
+#     Analytics().log("import", "dataquality.hf")
+# except Exception:
+#     pass
