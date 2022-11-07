@@ -46,13 +46,13 @@ test = [
     "scikit-learn==1.0",
     "tensorflow==2.9.1",
     "pytest-env==0.6.2",
+    "datasets==2.2.2",
     "spacy==3.2.1",
     "types-setuptools==65.5.0.2",
     "types-cachetools==5.2.1",
     "torch<=1.12.1",
     "torchtext<=0.13.1",
     "torchdata<=0.4.1",
-    "datasets==2.2.2"
 ]
 dev = [
     "flake8==3.9.2",
