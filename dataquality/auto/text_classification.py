@@ -48,7 +48,8 @@ def _process_pandas_df(df: pd.DataFrame, labels: List[str] = None) -> Dataset:
     if label_is_str:
         label_to_idx = dict(zip(labels, list(range(len(labels)))))
         df_copy["label"] = df_copy["label"].apply(lambda label: label_to_idx[label])
-    class_label = ClassLabel(num_classes=len(labels), names=labels)
+    # https://github.com/python/mypy/issues/6239
+    class_label = ClassLabel(num_classes=len(labels), names=labels)  # type: ignore
     ds = Dataset.from_pandas(df_copy)
     ds = ds.cast_column("label", class_label)
     return ds
@@ -61,7 +62,8 @@ def _add_class_label_to_dataset(ds: Dataset, labels: List[str] = None) -> Datase
     if ds.features["label"].dtype == "string":
         return ds.class_encode_column("label", include_nulls=True)
     labels = labels if labels is not None else sorted(set(ds["label"]))
-    class_label = ClassLabel(num_classes=len(labels), names=labels)
+    # https://github.com/python/mypy/issues/6239
+    class_label = ClassLabel(num_classes=len(labels), names=labels)  # type: ignore
     ds = ds.cast_column("label", class_label)
     return ds
 
