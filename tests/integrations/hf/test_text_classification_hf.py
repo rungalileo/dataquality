@@ -2,8 +2,8 @@ from typing import Any, Callable, Generator
 from unittest.mock import MagicMock, patch
 
 import numpy as np
-import pytest
 import torch
+import vaex
 from datasets import load_metric
 from torch.nn import Module
 from torch.utils.data import DataLoader
@@ -19,8 +19,13 @@ import dataquality as dq
 from dataquality import config
 from dataquality.integrations.transformers_trainer import watch
 from dataquality.schemas.task_type import TaskType
-from tests.utils.hf_datasets_mock import mock_dataset, mock_dataset_repeat
-from tests.utils.mock_request import mocked_create_project_run, mocked_get_project_run
+from dataquality.utils.thread_pool import ThreadPoolManager
+from tests.conftest import LOCATION
+from tests.test_utils.hf_datasets_mock import mock_dataset, mock_dataset_repeat
+from tests.test_utils.mock_request import (
+    mocked_create_project_run,
+    mocked_get_project_run,
+)
 
 # Load models locally
 try:
@@ -139,8 +144,10 @@ def test_hf_watch_e2e(
     # 🔭🌕 Galileo logging
     dq.set_labels_for_run(mock_dataset.features["label"].names)
     train_dataset = mock_dataset_with_ids
+    val_dataset = mock_dataset_with_ids
     test_dataset = mock_dataset_with_ids
     dq.log_dataset(train_dataset, split="training")
+    dq.log_dataset(val_dataset, split="validation")
     dq.log_dataset(test_dataset, split="test")
 
     trainer = Trainer(
@@ -154,6 +161,13 @@ def test_hf_watch_e2e(
     # 🔭🌕 Galileo logging
     watch(trainer)
     trainer.train()
+    trainer.predict(encoded_test_dataset)
+    ThreadPoolManager.wait_for_threads()
+    # All data for splits should be logged
+    assert len(vaex.open(f"{LOCATION}/training/0/*.hdf5")) == len(train_dataset)
+    assert len(vaex.open(f"{LOCATION}/validation/0/*.hdf5")) == len(val_dataset)
+    assert len(vaex.open(f"{LOCATION}/test/0/*.hdf5")) == len(test_dataset)
+    # Should upload without failing on data validation or otherwise
     dq.finish()
 
 
@@ -208,34 +222,6 @@ def test_remove_unused_columns(
     assert trainer._signature_columns is None, "Signature columns should be None"
 
     trainer.train()
-
-
-@patch("requests.post", side_effect=mocked_create_project_run)
-@patch("requests.get", side_effect=mocked_get_project_run)
-@patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
-def test_ner_error(
-    mock_valid_user: MagicMock,
-    mock_requests_get: MagicMock,
-    mock_requests_post: MagicMock,
-    set_test_config: Callable,
-) -> None:
-    """Base case: Tests fail if task is not text_classification"""
-    set_test_config(task_type=TaskType.text_ner)
-
-    trainer = Trainer(
-        model,
-        args_default,
-        train_dataset=encoded_train_dataset,
-        eval_dataset=encoded_test_dataset,
-        tokenizer=tokenizer,
-        compute_metrics=compute_metrics,
-    )
-    watch(trainer)
-    with pytest.raises(AssertionError) as e:
-        trainer.train()
-    assert "text_classification" in str(
-        e.value
-    ), "Task type should be text_classification"
 
 
 @patch("requests.post", side_effect=mocked_create_project_run)

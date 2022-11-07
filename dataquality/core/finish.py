@@ -4,6 +4,7 @@ from typing import Any, Dict, Optional
 from pydantic import UUID4
 
 import dataquality
+from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
 from dataquality.core._config import config
 from dataquality.core.predicate import evaluate_predicates
@@ -16,6 +17,7 @@ from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.version import _version_check
 
 api_client = ApiClient()
+a = Analytics(ApiClient, config)  # type: ignore
 
 
 @check_noop
@@ -31,6 +33,7 @@ def finish(
         run to be processed by the Galileo server. If false, you can manually wait
         for the run by calling `dq.wait_for_run()` Default True
     """
+    a.log_function("dq/finish")
     ThreadPoolManager.wait_for_threads()
     assert config.current_project_id, "You must have an active project to call finish"
     assert config.current_run_id, "You must have an active run to call finish"

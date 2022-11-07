@@ -18,7 +18,7 @@ from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.conftest import TEST_PATH
-from tests.utils.ner_constants import (
+from tests.test_utils.ner_constants import (
     GOLD_SPANS,
     LABELS,
     NER_INPUT_DATA,

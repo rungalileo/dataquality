@@ -26,6 +26,7 @@ class BaseLoggerConfig(BaseModel):
     helper_data: Dict[str, Any] = {}
     input_data_logged: DefaultDict[str, int] = defaultdict(int)
     logged_input_ids: DefaultDict[str, Set] = defaultdict(set)
+    idx_to_id_map: DefaultDict[str, List] = defaultdict(list)
     predicates: List[Predicate] = []
     predicate_emails: List[str] = []
 

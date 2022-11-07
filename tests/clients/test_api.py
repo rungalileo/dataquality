@@ -11,7 +11,7 @@ from dataquality import config
 from dataquality.clients.api import ApiClient
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.task_type import TaskType
-from tests.utils.mock_request import (
+from tests.test_utils.mock_request import (
     EXISTING_PROJECT,
     EXISTING_RUN,
     FAKE_NEW_RUN,

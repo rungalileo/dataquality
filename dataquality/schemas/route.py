@@ -34,6 +34,7 @@ class Route(str, Enum):
     export = "export"
     edits = "edits"
     export_edits = "edits/export"
+    ampli = "ampli"
     notify = "notify"
 
     @staticmethod
