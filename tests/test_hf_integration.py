@@ -16,6 +16,7 @@ from dataquality.integrations.hf import (
     tokenize_and_log_dataset,
 )
 from dataquality.schemas.ner import TaggingSchema
+from dataquality.schemas.split import Split
 from dataquality.utils.hf_tokenizer import extract_gold_spans_at_word_level
 from tests.utils.hf_integration_constants import (
     ADJUSTED_TOKEN_DATA,
@@ -124,6 +125,7 @@ def test_tokenize_and_log_dataset(
             {"train": mock_ds, "test": mock_ds, "validation": mock_ds}
         )
         output = tokenize_and_log_dataset(ds_dict, mock_tokenizer)
+
     for split in ds_dict.keys():
         split_output = output[split]
         for k in ADJUSTED_TOKEN_DATA:
@@ -133,7 +135,12 @@ def test_tokenize_and_log_dataset(
                 # to compare lists
                 token_data = json.loads(json.dumps(token_data))
             assert token_data == split_output[k]
+
     assert mock_log_dataset.call_count == 3
+    for split in [Split.train, Split.test, Split.validation]:
+        mock_log_dataset.assert_any_call(
+            mock.ANY, split=split, meta=[]
+        )
 
 
 def test_get_dataloader() -> None:
