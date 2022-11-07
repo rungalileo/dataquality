@@ -237,8 +237,12 @@ def auto(
         newsgroups_train = fetch_20newsgroups(subset='train')
         newsgroups_test = fetch_20newsgroups(subset='test')
         # Convert to pandas dataframes
-        df_train = pd.DataFrame({"text": newsgroups_train.data, "label": newsgroups_train.target})
-        df_test = pd.DataFrame({"text": newsgroups_test.data, "label": newsgroups_test.target})
+        df_train = pd.DataFrame(
+            {"text": newsgroups_train.data, "label": newsgroups_train.target}
+        )
+        df_test = pd.DataFrame(
+            {"text": newsgroups_test.data, "label": newsgroups_test.target}
+        )
 
         auto(
              train_data=df_train,
