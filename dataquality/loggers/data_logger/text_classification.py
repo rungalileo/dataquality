@@ -268,7 +268,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         parse_label = lambda x: x  # noqa: E731
         # If label is integer, convert to string #
 
-        if isinstance(dataset[0].get(label, None), int):
+        if isinstance(dataset[0].get(label), int):
             try:
                 parse_label = lambda x: dataset.features[label].int2str(x)  # noqa: E731
             except Exception:
@@ -370,12 +370,12 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         :return: None
         """
         super().validate()
-
         label_len = len(self.labels)
         text_len = len(self.texts)
         id_len = len(self.ids)
 
-        self.texts = list(self._convert_tensor_ndarray(self.texts))
+        if not isinstance(self.texts, list):
+            self.texts = list(self._convert_tensor_ndarray(self.texts))
         clean_labels = self._convert_tensor_ndarray(self.labels, attr="Labels")
         # If the dtype if object, we have a ragged nested sequence, so we need to
         # iterate list by list converting to strings
