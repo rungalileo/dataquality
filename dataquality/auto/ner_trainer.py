@@ -66,7 +66,7 @@ def get_trainer(
     )
 
     # Training arguments and training part
-    metric = evaluate.load(evaluation_metric)
+    metric = evaluate.load("seqeval")
     # We use the users chosen evaluation metric by preloading it into the partial
     compute_metrics_partial = partial(compute_metrics, metric)
     batch_size = 64
@@ -81,7 +81,7 @@ def get_trainer(
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
         load_best_model_at_end=load_best_model,
-        metric_for_best_model="f1",
+        metric_for_best_model=evaluation_metric,
         num_train_epochs=3,
         weight_decay=0.01,
         save_strategy="epoch",
