@@ -1,4 +1,5 @@
 import os
+import webbrowser
 from random import choice
 from typing import List, Optional, Union
 
@@ -46,24 +47,20 @@ def _convert_df_to_dataset(df: pd.DataFrame, labels: List[str] = None) -> Datase
     # If there's no label column, we can't do any ClassLabel conversions. Validation
     # of the huggingface DatasetDict will handle this missing label column if it's an
     # issue. See `_validate_dataset_dict`
-    if "label" not in df_copy:
-        return Dataset.from_pandas(df_copy)
-
-    labels = labels if labels is not None else sorted(set(df_copy["label"].tolist()))
-    # https://github.com/python/mypy/issues/6239
-    class_label = ClassLabel(num_classes=len(labels), names=labels)  # type: ignore
     ds = Dataset.from_pandas(df_copy)
-    ds = ds.cast_column("label", class_label)
-    return ds
+    return _add_class_label_to_dataset(ds, labels)
 
 
 def _add_class_label_to_dataset(ds: Dataset, labels: List[str] = None) -> Dataset:
     """Map a not ClassLabel 'label' column to a ClassLabel, if possible"""
     if "label" not in ds.features or isinstance(ds.features["label"], ClassLabel):
         return ds
-    if ds.features["label"].dtype == "string":
-        return ds.class_encode_column("label", include_nulls=True)
     labels = labels if labels is not None else sorted(set(ds["label"]))
+    # For string columns, map the label2idx so we can cast to ClassLabel
+    if ds.features["label"].dtype == "string":
+        label_to_idx = dict(zip(labels, range(len(labels))))
+        ds = ds.map(lambda row: {"label": label_to_idx[row["label"]]})
+
     # https://github.com/python/mypy/issues/6239
     class_label = ClassLabel(num_classes=len(labels), names=labels)  # type: ignore
     ds = ds.cast_column("label", class_label)
@@ -313,4 +310,11 @@ def auto(
     if Split.test in encoded_data:
         # We pass in a huggingface dataset but typing wise they expect a torch dataset
         trainer.predict(test_dataset=encoded_data[Split.test])  # type: ignore
-    dq.finish(wait=wait)
+    res = dq.finish(wait=wait) or {}
+    # Try to open the console URL for them (won't work in colab)
+    link = res.get("link")
+    if link:
+        try:
+            webbrowser.open(link)
+        except Exception:
+            print(f"Click here to see your run! {link}")

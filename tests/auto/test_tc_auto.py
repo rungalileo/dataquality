@@ -22,7 +22,7 @@ from dataquality.exceptions import GalileoException
 from dataquality.schemas.split import Split
 
 
-def test_process_pandas_df() -> None:
+def test_convert_df_to_dataset() -> None:
     labels = ["red", "blue", "green"]
     df = pd.DataFrame(
         {"text": ["sample1", "sample2", "sample3"], "label": ["green", "blue", "green"]}
@@ -33,7 +33,7 @@ def test_process_pandas_df() -> None:
     assert ds["label"] == [2, 1, 2]
 
 
-def test_process_pandas_df_no_labels_provided() -> None:
+def test_convert_df_to_dataset_no_labels_provided() -> None:
     df = pd.DataFrame(
         {"text": ["sample1", "sample2", "sample3"], "label": ["green", "blue", "green"]}
     )
@@ -43,16 +43,15 @@ def test_process_pandas_df_no_labels_provided() -> None:
     assert ds["label"] == [1, 0, 1]
 
 
-def test_process_pandas_df_labels_are_ints() -> None:
+def test_convert_df_to_dataset_labels_are_ints() -> None:
     df = pd.DataFrame({"text": ["sample1", "sample2", "sample3"], "label": [0, 0, 1]})
     ds = _convert_df_to_dataset(df)
     assert isinstance(ds, Dataset)
-    # Cant crete class label because we dont have string labels available
-    assert not isinstance(ds.features["label"], ClassLabel)
+    assert isinstance(ds.features["label"], ClassLabel)
     assert ds["label"] == [0, 0, 1]
 
 
-def test_process_pandas_df_labels_are_ints_labels_provided() -> None:
+def test_convert_df_to_dataset_labels_are_ints_labels_provided() -> None:
     df = pd.DataFrame({"text": ["sample1", "sample2", "sample3"], "label": [0, 0, 1]})
     labels = ["red", "green", "blue"]
     ds = _convert_df_to_dataset(df, labels)
@@ -63,7 +62,7 @@ def test_process_pandas_df_labels_are_ints_labels_provided() -> None:
     assert ds["label"] == [0, 0, 1]
 
 
-def test_process_pandas_df_labels_no_label_col() -> None:
+def test_convert_df_to_dataset_labels_no_label_col() -> None:
     df = pd.DataFrame(
         {
             "text": ["sample1", "sample2", "sample3"],
@@ -383,7 +382,10 @@ def test_call_auto_pandas_train_df_mixed_meta(
     encoded_data = {}
     mock_get_trainer.return_value = trainer, encoded_data
     auto(train_data=df_train)
+
     mock_log_dataset.assert_called_once()
-    assert mock_log_dataset.call_args_list[0][1]["meta"] == ["meta_1"]
+    args, kwargs = mock_log_dataset.call_args_list[0]
+    assert kwargs["meta"] == ["meta_1"]
     # Whether or not we provided the index IDs, they should be added and logged
-    assert mock_log_dataset.call_args_list[0][0]["id"] == [0, 1, 2]
+    ds_logged_arg = args[0]
+    assert ds_logged_arg["id"] == [0, 1, 2]
