@@ -1,11 +1,9 @@
-import os
 import webbrowser
-from random import choice
 from typing import List, Optional, Union
 
 import numpy as np
 import pandas as pd
-from datasets import ClassLabel, Dataset, DatasetDict, load_dataset
+from datasets import ClassLabel, Dataset, DatasetDict
 
 import dataquality as dq
 from dataquality.auto.tc_trainer import get_trainer
@@ -13,6 +11,7 @@ from dataquality.exceptions import GalileoException
 from dataquality.integrations.transformers_trainer import watch
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
+from dataquality.utils.auto import load_data_from_str, try_load_dataset_dict
 
 DEMO_DATASETS = [
     "rungalileo/newsgroups",
@@ -80,25 +79,9 @@ def _convert_to_hf_dataset(
     if isinstance(data, pd.DataFrame):
         return _convert_df_to_dataset(data, labels)
     if isinstance(data, str):
-        # If there is no file extension, it's a huggingface Dataset, so we load it from
-        # huggingface hub
-        ext = os.path.splitext(data)[-1]
-        if not ext:
-            ds = load_dataset(data)
-        else:
-            # .csv -> read_csv, .parquet -> read_parquet
-            func = f"read_{ext.lstrip('.')}"
-            if not hasattr(pd, func):
-                raise GalileoException(
-                    "Local file path extension must be readable by panda. "
-                    f"Found {ext} which is not"
-                )
-            df = getattr(pd, func)(data)
-            ds = _convert_df_to_dataset(df, labels)
-        assert isinstance(ds, Dataset), (
-            f"Loaded data should be of type Dataset, but found {type(ds)}. If ds is a "
-            f"DatasetDict, consider passing it to `hf_data` (dq.auto(hf_data=data))"
-        )
+        ds = load_data_from_str(data)
+        if isinstance(ds, pd.DataFrame):
+            ds = _convert_df_to_dataset(ds, labels)
         return ds
     raise GalileoException(
         "Dataset must be one of pandas df, huggingface Dataset, or string path"
@@ -148,18 +131,8 @@ def _get_dataset_dict(
     parse a combination of the parameters provided, generate a DatasetDict of their
     training data, and validate that.
     """
-    dd = DatasetDict()
-    if all([hf_data is None, train_data is None]):
-        hf_data = choice(DEMO_DATASETS)
-        print(f"No dataset provided, using {hf_data} for run")
-    if hf_data:
-        ds = load_dataset(hf_data) if isinstance(hf_data, str) else hf_data
-        assert isinstance(ds, DatasetDict), (
-            "hf_data must be a path to a huggingface DatasetDict in the hf hub or a "
-            "DatasetDict object. If this is just a Dataset, pass it to `train_data`"
-        )
-        dd = ds
-    else:
+    dd = try_load_dataset_dict(DEMO_DATASETS, hf_data, train_data) or DatasetDict()
+    if not dd:
         dd[Split.train] = _convert_to_hf_dataset(train_data, labels)
         if val_data is not None:
             dd[Split.validation] = _convert_to_hf_dataset(val_data, labels)
@@ -284,14 +257,12 @@ def auto(
 
     An example of using `auto` with a local CSV file with `text` and `label` columns
     ```python
-    import pandas as pd
     from dataquality.auto.text_classification import auto
 
     auto(
          train_data="train.csv",
          test_data="test.csv",
-         labels=newsgroups_train.target_names,
-         project_name="newsgroups_work",
+         project_name="data_from_local",
          run_name="run_1_raw_data"
     )
     ```
