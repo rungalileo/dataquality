@@ -27,7 +27,8 @@ requires = [
     "importlib-metadata==4.12.0",
     "evaluate",
     "datasets>=2.2.2",
-    "transformers>=4.11.3"
+    "transformers>=4.11.3",
+    "seqeval"
 ]
 
 [tool.flit.metadata.urls]

@@ -22,19 +22,26 @@ from dataquality.schemas.split import Split
 
 
 def compute_metrics(metric: EvaluationModule, eval_pred: EvalPrediction) -> Dict:
+    str_labels = dq.get_model_logger().logger_config.labels
     predictions, labels = np.array(eval_pred.predictions), np.array(eval_pred.label_ids)
     predictions = predictions.argmax(axis=2)
 
     # Remove ignored index (special tokens)
     true_predictions = [
-        [labels[pred] for (pred, lbl) in zip(prediction, label) if lbl != -100]
+        [str_labels[pred] for (pred, lbl) in zip(prediction, label) if lbl != -100]
         for prediction, label in zip(predictions, labels)
     ]
     true_labels = [
-        [labels[lbl] for (pred, lbl) in zip(prediction, label) if lbl != -100]
+        [str_labels[lbl] for (pred, lbl) in zip(prediction, label) if lbl != -100]
         for prediction, label in zip(predictions, labels)
     ]
-    return metric.compute(predictions=true_predictions, references=true_labels)
+    results = metric.compute(predictions=true_predictions, references=true_labels)
+    return {
+        "precision": results["overall_precision"],
+        "recall": results["overall_recall"],
+        "f1": results["overall_f1"],
+        "accuracy": results["overall_accuracy"],
+    }
 
 
 def get_trainer(
@@ -74,7 +81,7 @@ def get_trainer(
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
         load_best_model_at_end=load_best_model,
-        metric_for_best_model=evaluation_metric,
+        metric_for_best_model="f1",
         num_train_epochs=3,
         weight_decay=0.01,
         save_strategy="epoch",

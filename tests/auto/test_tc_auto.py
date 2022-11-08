@@ -160,7 +160,7 @@ def test_get_dataset_from_vaex() -> None:
     )
 
 
-@mock.patch("dataquality.auto.text_classification.load_dataset")
+@mock.patch("dataquality.utils.auto.load_dataset")
 def test_get_dataset_from_huggingface(mock_load_dataset: mock.MagicMock) -> None:
     ds = Dataset.from_dict(
         {"text": ["sample1", "sample2", "sample3"], "label": [1, 0, 1]}
@@ -171,7 +171,7 @@ def test_get_dataset_from_huggingface(mock_load_dataset: mock.MagicMock) -> None
     assert get_ds is ds
 
 
-@mock.patch("dataquality.auto.text_classification.load_dataset")
+@mock.patch("dataquality.utils.auto.load_dataset")
 def test_get_dataset_from_huggingface_not_dataset(
     mock_load_dataset: mock.MagicMock,
 ) -> None:
@@ -215,7 +215,7 @@ def test_validate_dataset_dict_no_text() -> None:
     assert str(e.value) == "Dataset must have column `text`"
 
 
-@mock.patch("dataquality.auto.text_classification.load_dataset")
+@mock.patch("dataquality.utils.auto.load_dataset")
 def test_get_dataset_dict_no_dataset(mock_load_dataset: mock.MagicMock) -> None:
     dd = DatasetDict(
         {
@@ -231,7 +231,7 @@ def test_get_dataset_dict_no_dataset(mock_load_dataset: mock.MagicMock) -> None:
     assert mock_load_dataset.call_args_list[0][0][0] in DEMO_DATASETS
 
 
-@mock.patch("dataquality.auto.text_classification.load_dataset")
+@mock.patch("dataquality.utils.auto.load_dataset")
 def test_get_dataset_dict_not_dataset_dict(mock_load_dataset: mock.MagicMock) -> None:
     ds = Dataset.from_dict(
         {"text": ["sample1", "sample2", "sample3"], "label": [1, 0, 1]}
