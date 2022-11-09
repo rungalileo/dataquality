@@ -40,12 +40,12 @@ from dataquality.core.log import (
     set_tagging_schema,
     set_tasks_for_run,
 )
-from dataquality.core.report import evaluate_predicates, register_predicates
+from dataquality.core.report import build_run_report, register_run_report
 from dataquality.schemas.condition import (
     AggregateFunction,
-    Operator,
     Condition,
     ConditionFilter,
+    Operator,
 )
 from dataquality.utils.dq_logger import get_dq_log_file
 from dataquality.utils.helpers import (
@@ -121,8 +121,8 @@ __all__ = [
     "log_data_sample",
     "log_dataset",
     "get_dq_log_file",
-    "evaluate_predicates",
-    "register_predicates",
+    "build_run_report",
+    "register_run_report",
     "AggregateFunction",
     "Operator",
     "Condition",

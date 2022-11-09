@@ -3,8 +3,8 @@ from typing import Any, DefaultDict, Dict, List, Optional, Set
 
 from pydantic import BaseModel, validator
 
-from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.condition import Condition
+from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
 
 

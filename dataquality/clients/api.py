@@ -12,6 +12,7 @@ from dataquality.schemas import RequestType, Route
 from dataquality.schemas.dataframe import FileType
 from dataquality.schemas.edit import Edit
 from dataquality.schemas.ner import TaggingSchema
+from dataquality.schemas.report import RunReportData
 from dataquality.schemas.split import conform_split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.auth import headers
@@ -748,7 +749,9 @@ class ApiClient:
                 for chunk in r.iter_content(chunk_size=8192):
                     f.write(chunk)
 
-    def notify_email(self, data: Dict, template: str, emails: Optional[List[str]] = None) -> None:
+    def notify_email(
+        self, data: RunReportData, template: str, emails: Optional[List[str]] = None
+    ) -> None:
         self.make_request(
             RequestType.POST,
             url=f"{config.api_url}/{Route.notify}",

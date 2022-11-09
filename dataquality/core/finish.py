@@ -7,7 +7,7 @@ import dataquality
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
 from dataquality.core._config import config
-from dataquality.core.report import evaluate_predicates
+from dataquality.core.report import build_run_report
 from dataquality.schemas import RequestType, Route
 from dataquality.schemas.job import JobName
 from dataquality.schemas.task_type import TaskType
@@ -70,16 +70,16 @@ def finish(
     )
     if data_logger.logger_config.conditions:
         print(
-            "Waiting for run to process before evaluating conditions... "
+            "Waiting for run to process before building run report... "
             "Don't close laptop or terminate shell."
         )
         wait_for_run()
-        # By passing in `None` we default to the current proj / run
-        evaluate_predicates(
+        build_run_report(
             data_logger.logger_config.conditions,
             data_logger.logger_config.report_emails,
             project_id=config.current_project_id,
             run_id=config.current_run_id,
+            link=res["link"],
         )
     elif wait:
         wait_for_run()
