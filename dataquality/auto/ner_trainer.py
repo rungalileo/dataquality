@@ -101,6 +101,6 @@ def get_trainer(
         tokenizer=tokenizer,
         compute_metrics=compute_metrics,
         data_collator=DataCollatorForTokenClassification(tokenizer),
-        callbacks=[EarlyStoppingCallback(early_stopping_patience=2)],
+        callbacks=[EarlyStoppingCallback(early_stopping_patience=1)],
     )
     return trainer, encoded_datasets
