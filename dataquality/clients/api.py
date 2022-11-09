@@ -748,11 +748,11 @@ class ApiClient:
                 for chunk in r.iter_content(chunk_size=8192):
                     f.write(chunk)
 
-    def notify_predicates(self, results: List[Dict], emails: List[str]) -> None:
+    def notify_email(self, data: Dict, template: str, emails: Optional[List[str]] = None) -> None:
         self.make_request(
             RequestType.POST,
             url=f"{config.api_url}/{Route.notify}",
-            body={"results": results, "emails": emails},
+            body={"data": data, "template": template, "emails": emails},
         )
 
     def get_splits(self, project_id: UUID4, run_id: UUID4) -> List[str]:

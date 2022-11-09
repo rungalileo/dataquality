@@ -7,7 +7,7 @@ import dataquality
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
 from dataquality.core._config import config
-from dataquality.core.predicate import evaluate_predicates
+from dataquality.core.report import evaluate_predicates
 from dataquality.schemas import RequestType, Route
 from dataquality.schemas.job import JobName
 from dataquality.schemas.task_type import TaskType
@@ -68,16 +68,16 @@ def finish(
         f"Job {res['job_name']} successfully submitted. Results will be available "
         f"soon at {res['link']}"
     )
-    if data_logger.logger_config.predicates:
+    if data_logger.logger_config.conditions:
         print(
-            "Waiting for run to process before evaluating predicates... "
+            "Waiting for run to process before evaluating conditions... "
             "Don't close laptop or terminate shell."
         )
         wait_for_run()
         # By passing in `None` we default to the current proj / run
         evaluate_predicates(
-            data_logger.logger_config.predicates,
-            data_logger.logger_config.predicate_emails,
+            data_logger.logger_config.conditions,
+            data_logger.logger_config.report_emails,
             project_id=config.current_project_id,
             run_id=config.current_run_id,
         )
