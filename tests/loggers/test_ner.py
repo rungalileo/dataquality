@@ -679,7 +679,7 @@ def test_log_dataset(
             gold_spans="my_spans",
             id="my_id",
             text_token_indices="text_tokens",
-            split="training",
+            split="train",
         )
 
         assert logger.texts == TEXT_INPUTS
@@ -710,7 +710,7 @@ def test_log_dataset_tuple(
         mock_method.return_value = logger
 
         dataquality.log_dataset(
-            dataset, text=0, gold_spans=1, id=2, text_token_indices=3, split="training"
+            dataset, text=0, gold_spans=1, id=2, text_token_indices=3, split="train"
         )
 
         assert logger.texts == TEXT_INPUTS

@@ -129,7 +129,7 @@ def test_log_dataset(
     with mock.patch("dataquality.core.log.get_data_logger") as mock_method:
         mock_method.return_value = logger
         dq.log_dataset(
-            dataset, text="my_text", label="my_labels", id="my_id", split="training"
+            dataset, text="my_text", label="my_labels", id="my_id", split="train"
         )
 
         assert logger.texts == ["sample1", "sample2", "sample3"]
@@ -152,7 +152,7 @@ def test_log_dataset_tuple(
 
     with mock.patch("dataquality.core.log.get_data_logger") as mock_method:
         mock_method.return_value = logger
-        dq.log_dataset(dataset, text=0, label=1, id=2, split="training")
+        dq.log_dataset(dataset, text=0, label=1, id=2, split="train")
 
         assert logger.texts == ["sample1", "sample2", "sample3"]
         log_labels = [list(i) for i in logger.labels]
@@ -302,12 +302,12 @@ def test_logged_labels_dont_match_set_labels(
     if set_labels_first:
         dataquality.set_labels_for_run(labels)
         with pytest.raises(AssertionError) as e:
-            dataquality.log_dataset(dataset, split="training")
+            dataquality.log_dataset(dataset, split="train")
         assert str(e.value).startswith(
             "The input labels you log must be exactly the same"
         )
     else:
-        dataquality.log_dataset(dataset, split="training")
+        dataquality.log_dataset(dataset, split="train")
         dataquality.get_data_logger().logger_config.observed_num_labels = [2, 2, 2]
         dataquality.set_labels_for_run(labels)
         with pytest.raises(AssertionError) as e:

@@ -146,7 +146,7 @@ def test_hf_watch_e2e(
     train_dataset = mock_dataset_with_ids
     val_dataset = mock_dataset_with_ids
     test_dataset = mock_dataset_with_ids
-    dq.log_dataset(train_dataset, split="training")
+    dq.log_dataset(train_dataset, split="train")
     dq.log_dataset(val_dataset, split="validation")
     dq.log_dataset(test_dataset, split="test")
 
@@ -185,7 +185,7 @@ def test_remove_unused_columns(
 
     train_dataset = mock_dataset_with_ids
     test_dataset = mock_dataset_with_ids
-    dq.log_dataset(train_dataset, split="training")
+    dq.log_dataset(train_dataset, split="train")
     dq.log_dataset(test_dataset, split="test")
     dq.set_labels_for_run(mock_dataset.features["label"].names)
     assert config.current_run_id
