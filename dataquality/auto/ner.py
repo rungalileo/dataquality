@@ -67,7 +67,7 @@ def auto(
     project_name: str = "auto_ner",
     run_name: str = None,
     wait: bool = True,
-    _evaluation_metric: str = "f1",
+    _evaluation_metric: str = "loss",
 ) -> None:
     """Automatically gets insights on an NER or Token Classification dataset
 
