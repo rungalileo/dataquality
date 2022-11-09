@@ -72,7 +72,6 @@ def get_trainer(
         num_train_epochs=10,
         weight_decay=0.01,
         load_best_model_at_end=load_best_model,
-        metric_for_best_model=evaluation_metric,
         push_to_hub=False,
         report_to=["all"],
         seed=42,

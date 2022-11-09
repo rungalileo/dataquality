@@ -67,7 +67,6 @@ def auto(
     project_name: str = "auto_ner",
     run_name: str = None,
     wait: bool = True,
-    _evaluation_metric: str = "loss",
 ) -> None:
     """Automatically gets insights on an NER or Token Classification dataset
 
@@ -192,5 +191,5 @@ def auto(
     dd = manager.get_dataset_dict(hf_data, train_data, val_data, test_data)
     dq.login()
     dq.init(TaskType.text_ner, project_name=project_name, run_name=run_name)
-    trainer, encoded_data = get_trainer(dd, hf_model, _evaluation_metric, labels)
+    trainer, encoded_data = get_trainer(dd, hf_model, labels)
     do_train(trainer, encoded_data, wait)
