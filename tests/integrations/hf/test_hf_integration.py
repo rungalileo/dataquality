@@ -1,3 +1,4 @@
+from copy import copy
 import json
 from typing import Callable, Dict, List
 from unittest import mock
@@ -122,7 +123,11 @@ def test_tokenize_and_log_dataset(
     with mock.patch("dataquality.integrations.hf.tokenize_adjust_labels") as mock_tok:
         mock_tok.return_value = tokenize_output
         ds_dict = datasets.DatasetDict(
-            {"train": mock_ds, "test": mock_ds, "validation": mock_ds}
+            {
+                "train": mock_ds,
+                "test": mock_ds,
+                "validation": mock_ds,
+            }
         )
         output = tokenize_and_log_dataset(ds_dict, mock_tokenizer)
 
@@ -139,6 +144,42 @@ def test_tokenize_and_log_dataset(
     assert mock_log_dataset.call_count == 3
     for split in [Split.train, Split.test, Split.validation]:
         mock_log_dataset.assert_any_call(mock.ANY, split=split, meta=[])
+
+
+@mock.patch("dataquality.log_dataset")
+def test_tokenize_and_log_dataset(
+    mock_log_dataset: mock.MagicMock, set_test_config
+) -> None:
+    """Tests the e2e function call, passing in a DatasetDict and receiving a
+
+    new DatasetDict, and that the datasets per split were logged correctly.
+    """
+    set_test_config(task_type="text_ner")
+    tokenize_output = tokenize_adjust_labels(mock_ds, mock_tokenizer, tag_names)
+    with mock.patch("dataquality.integrations.hf.tokenize_adjust_labels") as mock_tok:
+        ds_dict = datasets.DatasetDict(
+            {
+                "train": mock_ds,
+                "inference:inf1": copy(mock_ds),
+                "inference:inf2": copy(mock_ds),
+            }
+        )
+        output = tokenize_and_log_dataset(ds_dict, mock_tokenizer)
+
+    for split in ds_dict.keys():
+        split_output = output[split]
+        for k in ADJUSTED_TOKEN_DATA:
+            token_data = ADJUSTED_TOKEN_DATA[k]
+            if k == "text_token_indices":
+                # We abuse token data because outputs are returning tuples but we want
+                # to compare lists
+                token_data = json.loads(json.dumps(token_data))
+            assert token_data == split_output[k]
+
+    assert mock_log_dataset.call_count == 3
+    mock_log_dataset.assert_any_call(mock.ANY, split=Split.training, meta=[])
+    mock_log_dataset.assert_any_call(mock.ANY, split=Split.inference, meta=[], inference_name="inf1")
+    mock_log_dataset.assert_any_call(mock.ANY, split=Split.inference, meta=[], inference_name="inf2")
 
 
 def test_get_dataloader() -> None:
