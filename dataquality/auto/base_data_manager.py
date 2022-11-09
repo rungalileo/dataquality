@@ -16,9 +16,10 @@ class BaseDatasetManager:
     ) -> DatasetDict:
         valid_keys = Split.get_valid_keys()
         for key in list(dd.keys()):
-            assert (
-                key in valid_keys
-            ), f"All keys of dataset must be one of {valid_keys}. Found {list(dd.keys())}"
+            assert key in valid_keys, (
+                f"All keys of dataset must be one of {valid_keys}. "
+                f"Found {list(dd.keys())}"
+            )
         return dd
 
     def _convert_df_to_dataset(
@@ -33,7 +34,7 @@ class BaseDatasetManager:
     ) -> Dataset:
         """Loads the data into (hf) Dataset format.
 
-        Data can be one of Dataset, pandas df, str. If str, it's either a path to a local
+        Data can be one of Dataset, pandas df, str. If str, it's either a path to a
         file or a path to a remote huggingface Dataset that we load with `load_dataset`
         """
         if isinstance(data, Dataset):

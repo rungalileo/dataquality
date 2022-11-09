@@ -25,8 +25,8 @@ class TCDatasetManager(BaseDatasetManager):
     def _convert_pandas_object_dtype(self, df: pd.DataFrame) -> pd.DataFrame:
         """Converts columns of object type to string type for huggingface
 
-        Huggingface DataSets cannot handle mixed-type columns as columns due to Arrow. This
-        casts those columns to strings
+        Huggingface DataSets cannot handle mixed-type columns as columns due to Arrow.
+        This casts those columns to strings
         """
         for c in df.columns:
             if df[c].dtype == object:
@@ -61,7 +61,7 @@ class TCDatasetManager(BaseDatasetManager):
         """
         df_copy = self._convert_pandas_object_dtype(df.copy())
         # If there's no label column, we can't do any ClassLabel conversions. Validation
-        # of the huggingface DatasetDict will handle this missing label column if it's an
+        # of the hf DatasetDict will handle this missing label column if it's an
         # issue. See `_validate_dataset_dict`
         ds = Dataset.from_pandas(df_copy)
         return self._add_class_label_to_dataset(ds, labels)

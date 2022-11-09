@@ -25,8 +25,8 @@ class NERDatasetManager(BaseDatasetManager):
         if "text" not in ds.features or "spans" not in ds.features:
             raise GalileoException(
                 "Data must be in either huggingface format "
-                "(`tokens` and `tags`/`ner_tags`) or spacy format (`text` and `spans`). "
-                "See help(auto) for more details and examples"
+                "(`tokens` and `tags`/`ner_tags`) or spacy format "
+                "(`text` and `spans`). See help(auto) for more details and examples"
             )
         raise GalileoException("TODO support spacy format")
         # TODO: get code from @nikita-galileo for spacy -> huggingface
