@@ -76,8 +76,5 @@ def test_call_auto_pandas_train_df(
     mock_get_trainer.assert_called_once()
     dd = mock_get_trainer.call_args_list[0][0][0]
     assert Split.train in dd and Split.validation in dd
-    print("HERE")
-    print(dd[Split.train])
-    print(dd[Split.validation])
     assert dd[Split.train].num_rows == 3
     assert dd[Split.validation].num_rows == 1
