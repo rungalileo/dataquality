@@ -4,7 +4,6 @@ __version__ = "v0.7.5"
 
 import os
 import resource
-from distutils import core
 
 import dataquality.core._config
 import dataquality.integrations
