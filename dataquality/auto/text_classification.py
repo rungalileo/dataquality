@@ -124,7 +124,6 @@ def auto(
     project_name: str = "auto_tc",
     run_name: str = None,
     wait: bool = True,
-    _evaluation_metric: str = "f1",
 ) -> None:
     """Automatically gets insights on a text classification dataset
 
@@ -236,7 +235,5 @@ def auto(
     dq.init(TaskType.text_classification, project_name=project_name, run_name=run_name)
     dq.set_labels_for_run(labels)
     _log_dataset_dict(dd)
-    trainer, encoded_data = get_trainer(
-        dd, labels, hf_model, max_padding_length, _evaluation_metric
-    )
+    trainer, encoded_data = get_trainer(dd, labels, hf_model, max_padding_length)
     do_train(trainer, encoded_data, wait)
