@@ -141,9 +141,6 @@ def auto(
         be generated
     :param wait: Whether to wait for Galileo to complete processing your run.
         Default True
-    :param _evaluation_metric: The metric to set for huggingface evaluation.
-        This will simply control the metric huggingface uses to evaluate model
-        performance.
 
     To see auto insights on a random, pre-selected dataset, simply run
     ```python
