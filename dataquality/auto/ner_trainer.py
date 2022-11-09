@@ -1,10 +1,8 @@
-from functools import partial
 from typing import Dict, List, Optional, Tuple
 
 import evaluate
 import numpy as np
 from datasets import DatasetDict
-from evaluate import EvaluationModule
 from transformers import (
     AutoModelForTokenClassification,
     AutoTokenizer,
@@ -26,7 +24,12 @@ from dataquality.schemas.split import Split
 metric = evaluate.load("seqeval")
 
 
-def compute_metrics(metric: EvaluationModule, eval_pred: EvalPrediction) -> Dict:
+def compute_metrics(eval_pred: EvalPrediction) -> Dict:
+    """Metrics computation for token classification
+
+    Taken directly from the docs https://huggingface.co/course/chapter7/2#metrics
+    and updated for typing
+    """
     str_labels = dq.get_model_logger().logger_config.labels
     predictions, labels = np.array(eval_pred.predictions), np.array(eval_pred.label_ids)
     predictions = predictions.argmax(axis=2)
@@ -70,8 +73,6 @@ def get_trainer(
         model_checkpoint, num_labels=len(dq.get_model_logger().logger_config.labels)
     )
 
-    # We use the users chosen evaluation metric by preloading it into the partial
-    compute_metrics_partial = partial(compute_metrics, metric)
     batch_size = 64
     has_val = Split.validation in encoded_datasets
     eval_strat = IntervalStrategy.EPOCH if has_val else IntervalStrategy.NO
@@ -100,7 +101,7 @@ def get_trainer(
         train_dataset=encoded_datasets[Split.train],  # type: ignore
         eval_dataset=encoded_datasets.get(Split.validation),  # type: ignore
         tokenizer=tokenizer,
-        compute_metrics=compute_metrics_partial,
+        compute_metrics=compute_metrics,
         data_collator=DataCollatorForTokenClassification(tokenizer),
         callbacks=[EarlyStoppingCallback(early_stopping_patience=2)],
     )

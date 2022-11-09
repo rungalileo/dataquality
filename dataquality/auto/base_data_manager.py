@@ -47,7 +47,8 @@ class BaseDatasetManager:
                 ds = self._convert_df_to_dataset(ds, labels)
             return ds
         raise GalileoException(
-            "Dataset must be one of pandas df, huggingface Dataset, or string path"
+            "Dataset must be one of pandas DataFrame, "
+            "huggingface Dataset, or string path"
         )
 
     def get_dataset_dict(
@@ -69,6 +70,8 @@ class BaseDatasetManager:
             or DatasetDict()
         )
         if not dd:
+            # We don't need to check for train because `try_load_dataset_dict` validates
+            # that it exists already. One of hf_data or train_data must exist
             dd[Split.train] = self._convert_to_hf_dataset(train_data, labels)
             if val_data is not None:
                 dd[Split.validation] = self._convert_to_hf_dataset(val_data, labels)
