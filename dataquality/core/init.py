@@ -206,7 +206,7 @@ def init(
         # The user provided a run name and no project name. No good
         warnings.warn(
             "⚠️ You must specify a project name to initialize or create a new Galileo "
-            "run. Add a project name, or simply run dataquality.init()."
+            "run. Add a project name, or simply run dq.init()."
         )
         return
     config.update_file_config()
