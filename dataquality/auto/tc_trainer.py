@@ -9,6 +9,7 @@ from transformers import (
     AutoModelForSequenceClassification,
     AutoTokenizer,
     BatchEncoding,
+    EarlyStoppingCallback,
     EvalPrediction,
     IntervalStrategy,
     PreTrainedTokenizerBase,
@@ -68,7 +69,7 @@ def get_trainer(
         learning_rate=3e-4,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
-        num_train_epochs=3,
+        num_train_epochs=10,
         weight_decay=0.01,
         load_best_model_at_end=load_best_model,
         metric_for_best_model=evaluation_metric,
@@ -85,5 +86,6 @@ def get_trainer(
         eval_dataset=encoded_datasets.get(Split.validation),  # type: ignore
         tokenizer=tokenizer,
         compute_metrics=compute_metrics_partial,
+        callbacks=[EarlyStoppingCallback(early_stopping_patience=2)],
     )
     return trainer, encoded_datasets

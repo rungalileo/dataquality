@@ -1,4 +1,3 @@
-import webbrowser
 from typing import List, Optional, Union
 
 import numpy as np
@@ -6,139 +5,94 @@ import pandas as pd
 from datasets import ClassLabel, Dataset, DatasetDict
 
 import dataquality as dq
+from dataquality.auto.base_data_manager import BaseDatasetManager
 from dataquality.auto.tc_trainer import get_trainer
-from dataquality.exceptions import GalileoException
-from dataquality.integrations.transformers_trainer import watch
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
-from dataquality.utils.auto import load_data_from_str, try_load_dataset_dict
-
-DEMO_DATASETS = [
-    "rungalileo/newsgroups",
-    "rungalileo/trec6",
-    "rungalileo/conv_intent",
-    "rungalileo/emotion",
-    "rungalileo/amazon_polarity_30k",
-    "rungalileo/sst2",
-]
+from dataquality.utils.auto import add_val_data_if_missing, do_train
 
 
-def _convert_pandas_object_dtype(df: pd.DataFrame) -> pd.DataFrame:
-    """Converts columns of object type to string type for huggingface
+class TCDatasetManager(BaseDatasetManager):
+    DEMO_DATASETS = [
+        "rungalileo/newsgroups",
+        "rungalileo/trec6",
+        "rungalileo/conv_intent",
+        "rungalileo/emotion",
+        "rungalileo/amazon_polarity_30k",
+        "rungalileo/sst2",
+    ]
 
-    Huggingface DataSets cannot handle mixed-type columns as columns due to Arrow. This
-    casts those columns to strings
-    """
-    for c in df.columns:
-        if df[c].dtype == object:
-            df[c] = df[c].astype("str")
-    return df
+    def _convert_pandas_object_dtype(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Converts columns of object type to string type for huggingface
 
+        Huggingface DataSets cannot handle mixed-type columns as columns due to Arrow. This
+        casts those columns to strings
+        """
+        for c in df.columns:
+            if df[c].dtype == object:
+                df[c] = df[c].astype("str")
+        return df
 
-def _convert_df_to_dataset(df: pd.DataFrame, labels: List[str] = None) -> Dataset:
-    """Converts a pandas dataframe to a well-formed huggingface dataset
+    def _add_class_label_to_dataset(
+        self, ds: Dataset, labels: List[str] = None
+    ) -> Dataset:
+        """Map a not ClassLabel 'label' column to a ClassLabel, if possible"""
+        if "label" not in ds.features or isinstance(ds.features["label"], ClassLabel):
+            return ds
+        labels = labels if labels is not None else sorted(set(ds["label"]))
+        # For string columns, map the label2idx so we can cast to ClassLabel
+        if ds.features["label"].dtype == "string":
+            label_to_idx = dict(zip(labels, range(len(labels))))
+            ds = ds.map(lambda row: {"label": label_to_idx[row["label"]]})
 
-    The main thing happening here is that we are taking the pandas label column and
-    mapping it to a Dataset ClassLabel if possible. If not, it will get parsed later
-    or a validation error will be thrown if not possible in `_validate_dataset_dict`
-    """
-    df_copy = _convert_pandas_object_dtype(df.copy())
-    # If there's no label column, we can't do any ClassLabel conversions. Validation
-    # of the huggingface DatasetDict will handle this missing label column if it's an
-    # issue. See `_validate_dataset_dict`
-    ds = Dataset.from_pandas(df_copy)
-    return _add_class_label_to_dataset(ds, labels)
-
-
-def _add_class_label_to_dataset(ds: Dataset, labels: List[str] = None) -> Dataset:
-    """Map a not ClassLabel 'label' column to a ClassLabel, if possible"""
-    if "label" not in ds.features or isinstance(ds.features["label"], ClassLabel):
+        # https://github.com/python/mypy/issues/6239
+        class_label = ClassLabel(num_classes=len(labels), names=labels)  # type: ignore
+        ds = ds.cast_column("label", class_label)
         return ds
-    labels = labels if labels is not None else sorted(set(ds["label"]))
-    # For string columns, map the label2idx so we can cast to ClassLabel
-    if ds.features["label"].dtype == "string":
-        label_to_idx = dict(zip(labels, range(len(labels))))
-        ds = ds.map(lambda row: {"label": label_to_idx[row["label"]]})
 
-    # https://github.com/python/mypy/issues/6239
-    class_label = ClassLabel(num_classes=len(labels), names=labels)  # type: ignore
-    ds = ds.cast_column("label", class_label)
-    return ds
+    def _convert_df_to_dataset(
+        self, df: pd.DataFrame, labels: List[str] = None
+    ) -> Dataset:
+        """Converts a pandas dataframe to a well-formed huggingface dataset
 
+        The main thing happening here is that we are taking the pandas label column and
+        mapping it to a Dataset ClassLabel if possible. If not, it will get parsed later
+        or a validation error will be thrown if not possible in `_validate_dataset_dict`
+        """
+        df_copy = self._convert_pandas_object_dtype(df.copy())
+        # If there's no label column, we can't do any ClassLabel conversions. Validation
+        # of the huggingface DatasetDict will handle this missing label column if it's an
+        # issue. See `_validate_dataset_dict`
+        ds = Dataset.from_pandas(df_copy)
+        return self._add_class_label_to_dataset(ds, labels)
 
-def _convert_to_hf_dataset(
-    data: Union[pd.DataFrame, Dataset, str], labels: List[str] = None
-) -> Dataset:
-    """Loads the data into (hf) Dataset format.
+    def _validate_dataset_dict(
+        self, dd: DatasetDict, labels: List[str] = None
+    ) -> DatasetDict:
+        """Validates the core components of the provided (or created) DatasetDict)
 
-    Data can be one of Dataset, pandas df, str. If str, it's either a path to a local
-    file or a path to a remote huggingface Dataset that we load with `load_dataset`
-    """
-    if isinstance(data, Dataset):
-        return data
-    if isinstance(data, pd.DataFrame):
-        return _convert_df_to_dataset(data, labels)
-    if isinstance(data, str):
-        ds = load_data_from_str(data)
-        if isinstance(ds, pd.DataFrame):
-            ds = _convert_df_to_dataset(ds, labels)
-        return ds
-    raise GalileoException(
-        "Dataset must be one of pandas df, huggingface Dataset, or string path"
-    )
+        The DatasetDict that the user provides or that we create from the provided
+        train/test/val data must have the following:
+            * all keys must be one of our valid key names
+            * it must have a `text` column
+            * it must have a `label` column
+                * if the `label` column isn't a ClassLabel, we convert it to one
 
-
-def _validate_dataset_dict(dd: DatasetDict, labels: List[str] = None) -> DatasetDict:
-    """Validates the core components of the provided (or created) DatasetDict)
-
-    The DatasetDict that the user provides or that we create from the provided
-    train/test/val data must have the following:
-        * all keys must be one of our valid key names
-        * it must have a `text` column
-        * it must have a `label` column
-            * if the `label` column isn't a ClassLabel, we convert it to one
-
-    We then also convert the keys of the DatasetDict to our `Split` key enum so
-    we can access it easier in the future
-    """
-    valid_keys = Split.get_valid_keys()
-    for key in list(dd.keys()):
-        assert (
-            key in valid_keys
-        ), f"All keys of dataset must be one of {valid_keys}. Found {list(dd.keys())}"
-        ds = dd.pop(key)
-        assert "text" in ds.features, "Dataset must have column `text`"
-        assert "label" in ds.features, "Dataset must have column `label`"
-        if "id" not in ds.features:
-            ds = ds.add_column("id", list(range(ds.num_rows)))
-        if not isinstance(ds.features["label"], ClassLabel):
-            ds = _add_class_label_to_dataset(ds, labels)
-        # Use the split Enums
-        dd[Split[key]] = ds
-    return dd
-
-
-def _get_dataset_dict(
-    hf_data: Union[DatasetDict, str] = None,
-    train_data: Union[pd.DataFrame, Dataset, str] = None,
-    val_data: Union[pd.DataFrame, Dataset, str] = None,
-    test_data: Union[pd.DataFrame, Dataset, str] = None,
-    labels: List[str] = None,
-) -> DatasetDict:
-    """Creates and/or validates the DatasetDict provided by the user.
-
-    If the user provides a DatasetDict, we simply validate it. Otherwise, we
-    parse a combination of the parameters provided, generate a DatasetDict of their
-    training data, and validate that.
-    """
-    dd = try_load_dataset_dict(DEMO_DATASETS, hf_data, train_data) or DatasetDict()
-    if not dd:
-        dd[Split.train] = _convert_to_hf_dataset(train_data, labels)
-        if val_data is not None:
-            dd[Split.validation] = _convert_to_hf_dataset(val_data, labels)
-        if test_data is not None:
-            dd[Split.test] = _convert_to_hf_dataset(test_data, labels)
-    return _validate_dataset_dict(dd, labels)
+        We then also convert the keys of the DatasetDict to our `Split` key enum so
+        we can access it easier in the future
+        """
+        dd = super()._validate_dataset_dict(dd, labels)
+        for key in list(dd.keys()):
+            ds = dd.pop(key)
+            assert "text" in ds.features, "Dataset must have column `text`"
+            assert "label" in ds.features, "Dataset must have column `label`"
+            if "id" not in ds.features:
+                ds = ds.add_column("id", list(range(ds.num_rows)))
+            if not isinstance(ds.features["label"], ClassLabel):
+                ds = self._add_class_label_to_dataset(ds, labels)
+            # Use the split Enums
+            dd[Split[key]] = ds
+        return add_val_data_if_missing(dd)
 
 
 def _get_labels(dd: DatasetDict, labels: Optional[List[str]] = None) -> List[str]:
@@ -167,10 +121,10 @@ def auto(
     max_padding_length: int = 200,
     hf_model: str = "distilbert-base-uncased",
     labels: List[str] = None,
-    project_name: str = None,
+    project_name: str = "auto_tc",
     run_name: str = None,
     wait: bool = True,
-    _evaluation_metric: str = "accuracy",
+    _evaluation_metric: str = "f1",
 ) -> None:
     """Automatically gets insights on a text classification dataset
 
@@ -189,12 +143,20 @@ def auto(
         * Huggingface dataset
         * Path to a local file
         * Huggingface dataset hub path
-    :param val_data: Optional validation data to use. Can be one of
+    :param val_data: Optional validation data to use. The validation data is what is
+        used for the evaluation dataset in huggingface, and what is used for early
+        stopping. If not provided, but test_data is, that will be used as the evaluation
+        set. If neither val nor test are available, the train data will be randomly
+        split 80/20 for use as evaluation data.
+        Can be one of
         * Pandas dataframe
         * Huggingface dataset
         * Path to a local file
         * Huggingface dataset hub path
-    :param test_data: Optional test data to use. Can be one of
+    :param test_data: Optional test data to use. The test data, if provided with val,
+        will be used after training is complete, as the held-out set. If no validation
+        data is provided, this will instead be used as the evaluation set.
+        Can be one of
         * Pandas dataframe
         * Huggingface dataset
         * Path to a local file
@@ -267,7 +229,8 @@ def auto(
     )
     ```
     """
-    dd = _get_dataset_dict(hf_data, train_data, val_data, test_data, labels)
+    manager = TCDatasetManager()
+    dd = manager.get_dataset_dict(hf_data, train_data, val_data, test_data, labels)
     labels = _get_labels(dd, labels)
     dq.login()
     dq.init(TaskType.text_classification, project_name=project_name, run_name=run_name)
@@ -276,16 +239,4 @@ def auto(
     trainer, encoded_data = get_trainer(
         dd, labels, hf_model, max_padding_length, _evaluation_metric
     )
-    watch(trainer)
-    trainer.train()
-    if Split.test in encoded_data:
-        # We pass in a huggingface dataset but typing wise they expect a torch dataset
-        trainer.predict(test_dataset=encoded_data[Split.test])  # type: ignore
-    res = dq.finish(wait=wait) or {}
-    # Try to open the console URL for them (won't work in colab)
-    link = res.get("link")
-    if link:
-        try:
-            webbrowser.open(link)
-        except Exception:
-            print(f"Click here to see your run! {link}")
+    do_train(trainer, encoded_data, wait)

@@ -9,6 +9,7 @@ from transformers import (
     AutoModelForTokenClassification,
     AutoTokenizer,
     DataCollatorForTokenClassification,
+    EarlyStoppingCallback,
     EvalPrediction,
     IntervalStrategy,
     Trainer,
@@ -19,6 +20,10 @@ import dataquality as dq
 from dataquality.integrations.hf import tokenize_and_log_dataset
 from dataquality.schemas.hf import HFCol
 from dataquality.schemas.split import Split
+
+# For NER training, there is only 1 evaluation tool
+# https://huggingface.co/course/chapter7/2#metrics
+metric = evaluate.load("seqeval")
 
 
 def compute_metrics(metric: EvaluationModule, eval_pred: EvalPrediction) -> Dict:
@@ -65,8 +70,6 @@ def get_trainer(
         model_checkpoint, num_labels=len(dq.get_model_logger().logger_config.labels)
     )
 
-    # Training arguments and training part
-    metric = evaluate.load("seqeval")
     # We use the users chosen evaluation metric by preloading it into the partial
     compute_metrics_partial = partial(compute_metrics, metric)
     batch_size = 64
@@ -82,15 +85,14 @@ def get_trainer(
         per_device_eval_batch_size=batch_size,
         load_best_model_at_end=load_best_model,
         metric_for_best_model=evaluation_metric,
-        num_train_epochs=3,
+        num_train_epochs=10,
         weight_decay=0.01,
-        save_strategy="epoch",
-        logging_strategy="epoch",
+        save_strategy=IntervalStrategy.EPOCH,
+        logging_strategy=IntervalStrategy.EPOCH,
         logging_dir="./logs",
         seed=42,
     )
 
-    data_collator = DataCollatorForTokenClassification(tokenizer)
     # We pass huggingface datasets here but typing expects torch datasets, so we ignore
     trainer = Trainer(
         model,
@@ -99,6 +101,7 @@ def get_trainer(
         eval_dataset=encoded_datasets.get(Split.validation),  # type: ignore
         tokenizer=tokenizer,
         compute_metrics=compute_metrics_partial,
-        data_collator=data_collator,
+        data_collator=DataCollatorForTokenClassification(tokenizer),
+        callbacks=[EarlyStoppingCallback(early_stopping_patience=2)],
     )
     return trainer, encoded_datasets

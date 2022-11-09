@@ -1,103 +1,60 @@
-import webbrowser
-from typing import List, Union
+from typing import List, Optional, Union
 
 import pandas as pd
 from datasets import Dataset, DatasetDict
 
 import dataquality as dq
+from dataquality.auto.base_data_manager import BaseDatasetManager
 from dataquality.auto.ner_trainer import get_trainer
 from dataquality.exceptions import GalileoException
-from dataquality.integrations.transformers_trainer import watch
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
-from dataquality.utils.auto import load_data_from_str, try_load_dataset_dict
-
-DEMO_DATASETS = ["rungalileo/mit_movies", "rungalileo/wikiner_it", "wnut_17"]
+from dataquality.utils.auto import add_val_data_if_missing, do_train
 
 
-def _convert_dataset_to_hf_format(ds: Dataset) -> Dataset:
-    """Converts the dataset to huggingface if necessary"""
-    # Already in hf format
-    if "tokens" in ds.features and ("tags" in ds.features or "ner_tags" in ds.features):
-        return ds
-    if "text" not in ds.features or "spans" not in ds.features:
-        raise GalileoException(
-            "Data must be in either huggingface format "
-            "(`tokens` and `tags`/`ner_tags`) or spacy format (`text` and `spans`). "
-            "See help(auto) for more details and examples"
-        )
-    raise GalileoException("TODO support spacy format")
-    # TODO: get code from @nikita-galileo for spacy -> huggingface
+class NERDatasetManager(BaseDatasetManager):
+    DEMO_DATASETS = ["rungalileo/mit_movies", "rungalileo/wikiner_it", "wnut_17"]
 
+    def _convert_dataset_to_hf_format(self, ds: Dataset) -> Dataset:
+        """Converts the dataset to huggingface if necessary"""
+        # Already in hf format
+        if "tokens" in ds.features and (
+            "tags" in ds.features or "ner_tags" in ds.features
+        ):
+            return ds
+        if "text" not in ds.features or "spans" not in ds.features:
+            raise GalileoException(
+                "Data must be in either huggingface format "
+                "(`tokens` and `tags`/`ner_tags`) or spacy format (`text` and `spans`). "
+                "See help(auto) for more details and examples"
+            )
+        raise GalileoException("TODO support spacy format")
+        # TODO: get code from @nikita-galileo for spacy -> huggingface
 
-def _convert_to_hf_dataset(data: Union[pd.DataFrame, Dataset, str]) -> Dataset:
-    """Loads the data into a huggingface DataSet.
+    def _validate_dataset_dict(
+        self, dd: DatasetDict, labels: Optional[List[str]] = None
+    ) -> DatasetDict:
+        """Validates the core components of the provided (or created) DatasetDict)
 
-    Data can be one of Dataset, pandas df, str. If str, it's either a path to a local
-    file or a path to a remote huggingface Dataset that we load with `load_dataset`
-    """
-    if isinstance(data, Dataset):
-        ds = data
-    elif isinstance(data, pd.DataFrame):
-        ds = Dataset.from_pandas(data)
-    elif isinstance(data, str):
-        ds = load_data_from_str(data)
-        if isinstance(ds, pd.DataFrame):
-            ds = Dataset.from_pandas(ds)
-    else:
-        raise GalileoException(
-            "Dataset must be one of pandas df, huggingface Dataset, or string path"
-        )
-    return ds
+        If in spacy format, this will convert it to huggingface format. See `auto` for
+        details.
 
+        The DatasetDict that the user provides or that we create from the provided
+        train/test/val data must have the following:
+            * all keys must be one of our valid key names
+            * it must have a `tokens` column
+            * it must have a `tags` or `ner_tags column
 
-def _validate_dataset_dict(dd: DatasetDict) -> DatasetDict:
-    """Validates the core components of the provided (or created) DatasetDict)
-
-    If in spacy format, this will convert it to huggingface format. See `auto` for
-    details.
-
-    The DatasetDict that the user provides or that we create from the provided
-    train/test/val data must have the following:
-        * all keys must be one of our valid key names
-        * it must have a `tokens` column
-        * it must have a `tags` or `ner_tags column
-
-    We then also convert the keys of the DatasetDict to our `Split` key enum so
-    we can access it easier in the future
-    """
-    valid_keys = Split.get_valid_keys()
-    for key in list(dd.keys()):
-        assert (
-            key in valid_keys
-        ), f"All keys of dataset must be one of {valid_keys}. Found {list(dd.keys())}"
-        ds = dd.pop(key)
-        ds = _convert_dataset_to_hf_format(ds)
-        # Use the split Enums
-        dd[Split[key]] = ds
-    return dd
-
-
-def _get_dataset_dict(
-    hf_data: Union[DatasetDict, str] = None,
-    train_data: Union[pd.DataFrame, Dataset, str] = None,
-    val_data: Union[pd.DataFrame, Dataset, str] = None,
-    test_data: Union[pd.DataFrame, Dataset, str] = None,
-) -> DatasetDict:
-    """Creates and/or validates the DatasetDict provided by the user.
-
-    If the user provides a DatasetDict, we simply validate it. Otherwise, we
-    parse a combination of the parameters provided, generate a DatasetDict of their
-    training data, and validate that.
-    """
-    dd = try_load_dataset_dict(DEMO_DATASETS, hf_data, train_data) or DatasetDict()
-    if not dd:
-        dd[Split.train] = _convert_to_hf_dataset(train_data)
-        if val_data is not None:
-            dd[Split.validation] = _convert_to_hf_dataset(val_data)
-        if test_data is not None:
-            dd[Split.test] = _convert_to_hf_dataset(test_data)
-    return _validate_dataset_dict(dd)
+        We then also convert the keys of the DatasetDict to our `Split` key enum so
+        we can access it easier in the future
+        """
+        super()._validate_dataset_dict(dd, labels)
+        for key in list(dd.keys()):
+            ds = dd.pop(key)
+            ds = self._convert_dataset_to_hf_format(ds)
+            # Use the split Enums
+            dd[Split[key]] = ds
+        return add_val_data_if_missing(dd)
 
 
 def auto(
@@ -107,7 +64,7 @@ def auto(
     test_data: Union[pd.DataFrame, Dataset, str] = None,
     hf_model: str = "distilbert-base-uncased",
     labels: List[str] = None,
-    project_name: str = None,
+    project_name: str = "auto_ner",
     run_name: str = None,
     wait: bool = True,
     _evaluation_metric: str = "f1",
@@ -157,12 +114,20 @@ def auto(
         * Huggingface dataset
         * Path to a local file
         * Huggingface dataset hub path
-    :param val_data: Optional validation data to use. Can be one of
+    :param val_data: Optional validation data to use. The validation data is what is
+        used for the evaluation dataset in huggingface, and what is used for early
+        stopping. If not provided, but test_data is, that will be used as the evaluation
+        set. If neither val nor test are available, the train data will be randomly
+        split 80/20 for use as evaluation data.
+        Can be one of
         * Pandas dataframe
         * Huggingface dataset
         * Path to a local file
         * Huggingface dataset hub path
-    :param test_data: Optional test data to use. Can be one of
+    :param test_data: Optional test data to use. The test data, if provided with val,
+        will be used after training is complete, as the held-out set. If no validation
+        data is provided, this will instead be used as the evaluation set.
+        Can be one of
         * Pandas dataframe
         * Huggingface dataset
         * Path to a local file
@@ -223,20 +188,9 @@ def auto(
     )
     ```
     """
-    dd = _get_dataset_dict(hf_data, train_data, val_data, test_data)
+    manager = NERDatasetManager()
+    dd = manager.get_dataset_dict(hf_data, train_data, val_data, test_data)
     dq.login()
     dq.init(TaskType.text_ner, project_name=project_name, run_name=run_name)
     trainer, encoded_data = get_trainer(dd, hf_model, _evaluation_metric, labels)
-    watch(trainer)
-    trainer.train()
-    if Split.test in encoded_data:
-        # We pass in a huggingface dataset but typing wise they expect a torch dataset
-        trainer.predict(test_dataset=encoded_data[Split.test])  # type: ignore
-    res = dq.finish(wait=wait) or {}
-    # Try to open the console URL for them (won't work in colab)
-    link = res.get("link")
-    if link:
-        try:
-            webbrowser.open(link)
-        except Exception:
-            print(f"Click here to see your run! {link}")
+    do_train(trainer, encoded_data, wait)
