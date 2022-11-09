@@ -153,7 +153,7 @@ def test_get_dataset_from_vaex() -> None:
     with pytest.raises(GalileoException) as e:
         manager._convert_to_hf_dataset(df)
     assert str(e.value) == (
-        "Dataset must be one of pandas df, huggingface Dataset, or string path"
+        "Dataset must be one of pandas DataFrame, huggingface Dataset, or string path"
     )
 
 
