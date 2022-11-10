@@ -10,6 +10,7 @@ import dataquality.clients.api
 from dataquality import config
 from dataquality.clients.api import ApiClient
 from dataquality.exceptions import GalileoException
+from dataquality.schemas import RequestType
 from dataquality.schemas.task_type import TaskType
 from tests.test_utils.mock_request import (
     EXISTING_PROJECT,
@@ -287,3 +288,17 @@ def test_export_run_no_data(
     with pytest.raises(GalileoException) as e:
         api_client.export_run("project", "run", "training", "file.csv")
     assert str(e.value).startswith("It seems there is no data for this request")
+
+
+@mock.patch.object(ApiClient, "make_request")
+def test_notify_email(mock_make_request: MagicMock, set_test_config: Callable) -> None:
+    api_client.notify_email({"foo": "bar"}, "template", ["foo@bar.com"])
+    mock_make_request.assert_called_once_with(
+        RequestType.POST,
+        url="http://localhost:8088/notify/email",
+        body={
+            "data": {"foo": "bar"},
+            "template": "template",
+            "emails": ["foo@bar.com"],
+        },
+    )

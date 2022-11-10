@@ -747,3 +747,30 @@ class ApiClient:
             with open(file_name, "wb") as f:
                 for chunk in r.iter_content(chunk_size=8192):
                     f.write(chunk)
+
+    def notify_email(
+        self, data: Dict, template: str, emails: Optional[List[str]] = None
+    ) -> None:
+        self.make_request(
+            RequestType.POST,
+            url=f"{config.api_url}/{Route.notify}",
+            body={"data": data, "template": template, "emails": emails},
+        )
+
+    def get_splits(self, project_id: UUID4, run_id: UUID4) -> Dict:
+        return self.make_request(
+            RequestType.GET,
+            url=(
+                f"{config.api_url}/{Route.projects}/{project_id}/{Route.runs}/{run_id}/"
+                f"{Route.splits}"
+            ),
+        )
+
+    def get_inference_names(self, project_id: UUID4, run_id: UUID4) -> Dict:
+        return self.make_request(
+            RequestType.GET,
+            url=(
+                f"{config.api_url}/{Route.projects}/{project_id}/{Route.runs}/{run_id}/"
+                f"{Route.inference_names}"
+            ),
+        )
