@@ -12,7 +12,6 @@ from dataquality.schemas import RequestType, Route
 from dataquality.schemas.dataframe import FileType
 from dataquality.schemas.edit import Edit
 from dataquality.schemas.ner import TaggingSchema
-from dataquality.schemas.report import RunReportData
 from dataquality.schemas.split import conform_split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.auth import headers
@@ -750,7 +749,7 @@ class ApiClient:
                     f.write(chunk)
 
     def notify_email(
-        self, data: RunReportData, template: str, emails: Optional[List[str]] = None
+        self, data: Dict, template: str, emails: Optional[List[str]] = None
     ) -> None:
         self.make_request(
             RequestType.POST,
@@ -758,7 +757,7 @@ class ApiClient:
             body={"data": data, "template": template, "emails": emails},
         )
 
-    def get_splits(self, project_id: UUID4, run_id: UUID4) -> List[str]:
+    def get_splits(self, project_id: UUID4, run_id: UUID4) -> Dict:
         return self.make_request(
             RequestType.GET,
             url=(
@@ -767,7 +766,7 @@ class ApiClient:
             ),
         )
 
-    def get_inference_names(self, project_id: UUID4, run_id: UUID4) -> List[str]:
+    def get_inference_names(self, project_id: UUID4, run_id: UUID4) -> Dict:
         return self.make_request(
             RequestType.GET,
             url=(

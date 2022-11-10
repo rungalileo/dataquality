@@ -7,20 +7,20 @@ from vaex.dataframe import DataFrame
 
 
 class Operator(str, Enum):
-    eq = "eq"
-    neq = "neq"
-    gt = "gt"
-    lt = "lt"
-    gte = "gte"
-    lte = "lte"
+    eq = "is equal to"
+    neq = "is not equal to"
+    gt = "is greater than"
+    lt = "is less than"
+    gte = "is greater than or equal to"
+    lte = "is less than or equal to"
 
 
 class AggregateFunction(str, Enum):
-    avg = "avg"
-    min = "min"
-    max = "max"
-    sum = "sum"
-    pct = "pct"
+    avg = "Average"
+    min = "Minimum"
+    max = "Maximum"
+    sum = "Sum"
+    pct = "Percentage"
 
 
 # Filter a dataframe based on a column value

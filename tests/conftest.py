@@ -9,7 +9,7 @@ import spacy
 from vaex.dataframe import DataFrame
 
 import dataquality
-from dataquality import config
+from dataquality import AggregateFunction, Condition, Operator, config
 from dataquality.clients import objectstore
 from dataquality.loggers import BaseGalileoLogger
 from dataquality.schemas.task_type import TaskType
@@ -123,6 +123,16 @@ def input_data() -> Callable:
         return data
 
     return curry
+
+
+@pytest.fixture()
+def condition() -> Condition:
+    return Condition(
+        agg=AggregateFunction.avg,
+        metric="confidence",
+        operator=Operator.lt,
+        threshold=0.3,
+    )
 
 
 def patch_object_upload(self: Any, df: DataFrame, object_name: str) -> None:

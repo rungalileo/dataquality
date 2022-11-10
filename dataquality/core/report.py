@@ -28,6 +28,18 @@ def register_run_report(conditions: List[Condition], emails: List[str]) -> None:
     get_data_logger().logger_config.report_emails = emails
 
 
+def _get_email_datetime() -> str:
+    """Get the current datetime in a human readable format."""
+    return datetime.now().strftime("%A %m/%d/%Y, %H:%M:%S")
+
+
+def _condition_to_verbose_string(condition: Condition) -> str:
+    """Convert a condition to a verbose string."""
+    return (
+        f"{condition.agg} {condition.metric} {condition.operator} {condition.threshold}"
+    )
+
+
 def _get_report_results_for_split(
     condition: Condition,
     df: DataFrame,
@@ -38,8 +50,8 @@ def _get_report_results_for_split(
     return SplitConditionData(
         split=split.value,
         inference_name=inference_name,
-        passes=ConditionStatus.passed if passes else ConditionStatus.failed,
-        ground_truth=val,
+        status=ConditionStatus.passed if passes else ConditionStatus.failed,
+        ground_truth=round(val, 3),
         link=None,  # TODO: add deep link, v2 of reports
     )
 
@@ -67,7 +79,7 @@ def _get_report_results_for_condition(
 
     return ReportConditionData(
         condition=condition.metric,
-        criteria=condition.threshold,
+        criteria=_condition_to_verbose_string(condition),
         splits=split_data,
     )
 
@@ -82,15 +94,17 @@ def build_run_report(
     """Build a run report and send it to the specified emails."""
     project_name = api_client.get_project(project_id)["name"]
     run_name = api_client.get_project_run(project_id, run_id)["name"]
-    logged_splits = api_client.get_splits(project_id, run_id)
-    inference_names = api_client.get_inference_names(project_id, run_id)
+    logged_splits = api_client.get_splits(project_id, run_id)["splits"]
+    inference_names = api_client.get_inference_names(project_id, run_id)[
+        "inference_names"
+    ]
 
     report_data = RunReportData(
         email_subject=f"Run Report: {run_name}",
         template="run_report",
         project_name=project_name,
         run_name=run_name,
-        created_at=datetime.now(),
+        created_at=_get_email_datetime(),
         link=link,
         conditions=[],
     )
@@ -102,4 +116,4 @@ def build_run_report(
             )
         )
 
-    api_client.notify_email(report_data, "run_report", emails)
+    api_client.notify_email(report_data.dict(), "run_report", emails)
