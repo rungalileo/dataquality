@@ -761,11 +761,17 @@ class ApiClient:
     def get_splits(self, project_id: UUID4, run_id: UUID4) -> List[str]:
         return self.make_request(
             RequestType.GET,
-            url=f"{config.api_url}/{Route.projects}/{project_id}/{Route.runs}/{run_id}/{Route.splits}",
+            url=(
+                f"{config.api_url}/{Route.projects}/{project_id}/{Route.runs}/{run_id}/"
+                f"{Route.splits}"
+            ),
         )
 
     def get_inference_names(self, project_id: UUID4, run_id: UUID4) -> List[str]:
         return self.make_request(
             RequestType.GET,
-            url=f"{config.api_url}/{Route.projects}/{project_id}/{Route.runs}/{run_id}/{Route.inference_names}",
+            url=(
+                f"{config.api_url}/{Route.projects}/{project_id}/{Route.runs}/{run_id}/"
+                f"{Route.inference_names}"
+            ),
         )

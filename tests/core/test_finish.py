@@ -63,7 +63,9 @@ def test_finish_waits_default(
     set_test_config,
 ) -> None:
     set_test_config(task_type=TaskType.text_classification)
-    mock_get_data_logger.return_value = MagicMock(logger_config=MagicMock(conditions=None))
+    mock_get_data_logger.return_value = MagicMock(
+        logger_config=MagicMock(conditions=None)
+    )
     dataquality.finish()
     mock_wait_for_run.assert_called_once()
 
@@ -87,7 +89,9 @@ def test_finish_no_waits_when_false(
     set_test_config,
 ) -> None:
     set_test_config(task_type=TaskType.text_classification)
-    mock_get_data_logger.return_value = MagicMock(logger_config=MagicMock(conditions=None))
+    mock_get_data_logger.return_value = MagicMock(
+        logger_config=MagicMock(conditions=None)
+    )
     dataquality.finish(wait=False)
     mock_wait_for_run.assert_not_called()
 
