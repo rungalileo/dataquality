@@ -104,7 +104,7 @@ class DataQualityCallback(keras.callbacks.Callback):
 
     def on_train_batch_begin(self, batch: Any, logs: Dict = None) -> None:
         self._clear_logger_config_helper_data()
-        dq.set_split(Split.training)
+        dq.set_split(Split.train)
 
     def on_train_batch_end(self, batch: Any, logs: Dict = None) -> None:
         dq.log_model_outputs(**self.helper_data)
