@@ -5,11 +5,19 @@ import pandas as pd
 from datasets import ClassLabel, Dataset, DatasetDict
 
 import dataquality as dq
+from dataquality import Analytics, ApiClient
 from dataquality.auto.base_data_manager import BaseDatasetManager
 from dataquality.auto.tc_trainer import get_trainer
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
-from dataquality.utils.auto import add_val_data_if_missing, do_train
+from dataquality.utils.auto import (
+    add_val_data_if_missing,
+    do_train,
+    run_name_from_hf_dataset,
+)
+
+a = Analytics(ApiClient, dq.config)
+a.log_import("auto_ner")
 
 
 class TCDatasetManager(BaseDatasetManager):
@@ -228,10 +236,13 @@ def auto(
     )
     ```
     """
+    a.log_function("auto/tc")
     manager = TCDatasetManager()
     dd = manager.get_dataset_dict(hf_data, train_data, val_data, test_data, labels)
     labels = _get_labels(dd, labels)
     dq.login()
+    if not run_name and isinstance(hf_data, str):
+        run_name = run_name_from_hf_dataset(hf_data)
     dq.init(TaskType.text_classification, project_name=project_name, run_name=run_name)
     dq.set_labels_for_run(labels)
     _log_dataset_dict(dd)
