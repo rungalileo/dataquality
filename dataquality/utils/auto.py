@@ -15,6 +15,7 @@ from dataquality.core.init import BAD_CHARS_REGEX
 from dataquality.exceptions import GalileoException, GalileoWarning
 from dataquality.integrations.transformers_trainer import watch
 from dataquality.schemas.split import Split
+from dataquality.schemas.task_type import TaskType
 
 
 def load_data_from_str(data: str) -> Union[pd.DataFrame, Dataset]:
@@ -131,3 +132,58 @@ def do_train(trainer: Trainer, encoded_data: DatasetDict, wait: bool) -> None:
 def run_name_from_hf_dataset(name: str) -> str:
     name_today = f"{name}_{datetime.today()}"
     return re.sub(BAD_CHARS_REGEX, "_", name_today)
+
+
+def _get_task_type_from_cols(cols: List[str]) -> TaskType:
+    if "text" in cols and "label" in cols:
+        return TaskType.text_classification
+    elif "tokens" in cols and ("tags" in cols or "ner_tags" in cols):
+        return TaskType.text_ner
+    else:
+        raise GalileoException(
+            "Data must either have `text` and `label` for text classification or "
+            f"`tokens` and `tags` (or `ner_tags`) for NER. Yours had {cols}"
+        )
+
+
+def _get_task_type_from_hf(data: Union[DatasetDict, str]) -> TaskType:
+    """Gets the task type from the huggingface data
+
+    We get down to a Dataset object so we can inspect the columns
+    """
+    # If it's a string, download from huggingface
+    hf_data = load_dataset(data) if isinstance(data, str) else data
+    # DatasetDict is just a child of dict
+    assert isinstance(hf_data, dict), (
+        "hf_data should be a DatasetDict (or path to one). If this is a Dataset, pass "
+        "it to train_data"
+    )
+    ds = hf_data[next(iter(hf_data))]
+    return _get_task_type_from_cols(list(ds.features))
+
+
+def _get_task_type_from_train(
+    train_data: Union[pd.DataFrame, Dataset, str]
+) -> TaskType:
+    data = load_data_from_str(train_data) if isinstance(train_data, str) else train_data
+    if isinstance(data, Dataset):
+        return _get_task_type_from_cols(list(data.features))
+    else:
+        return _get_task_type_from_cols(list(data.columns))
+
+
+def get_task_type_from_data(
+    hf_data: Union[DatasetDict, str] = None,
+    train_data: Union[pd.DataFrame, Dataset, str] = None,
+) -> TaskType:
+    """Determines the task type of the dataset by the dataset contents
+
+    Text classification will have `text` and `label` and NER will have `tokens` and
+    `tags`/`ner_tags`
+
+    We know that one of these two parameters will be not None because that is validated
+    before calling this function. See `dq.auto`
+    """
+    if hf_data is not None:
+        return _get_task_type_from_hf(hf_data)
+    return _get_task_type_from_train(train_data)

@@ -1,6 +1,6 @@
 "dataquality"
 
-__version__ = "v0.7.5"
+__version__ = "v0.7.6"
 
 import os
 import resource
@@ -20,6 +20,7 @@ except (FileNotFoundError, AttributeError):
         "It looks like you've installed dataquality from a notebook. "
         "Please restart the kernel before continuing"
     ) from None
+from dataquality.auto.auto import auto
 from dataquality.core._config import config
 from dataquality.core.auth import login, logout
 from dataquality.core.finish import finish, get_run_status, wait_for_run
@@ -127,6 +128,7 @@ __all__ = [
     "disable_galileo_verbose",
     "enable_galileo_verbose",
     "enable_galileo",
+    "auto",
 ]
 
 try:
