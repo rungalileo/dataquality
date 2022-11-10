@@ -17,7 +17,7 @@ from dataquality.utils.auto import (
 )
 
 a = Analytics(ApiClient, dq.config)
-a.log_import("auto_ner")
+a.log_import("auto_tc")
 
 
 class TCDatasetManager(BaseDatasetManager):
@@ -126,12 +126,12 @@ def auto(
     train_data: Union[pd.DataFrame, Dataset, str] = None,
     val_data: Union[pd.DataFrame, Dataset, str] = None,
     test_data: Union[pd.DataFrame, Dataset, str] = None,
-    max_padding_length: int = 200,
     hf_model: str = "distilbert-base-uncased",
     labels: List[str] = None,
     project_name: str = "auto_tc",
     run_name: str = None,
     wait: bool = True,
+    max_padding_length: int = 200,
 ) -> None:
     """Automatically gets insights on a text classification dataset
 

@@ -1,17 +1,11 @@
-from typing import Callable, Dict, List, Union
+from typing import List, Union
 
 import pandas as pd
 from datasets import Dataset, DatasetDict
 
-from dataquality.auto.ner import auto as auto_ner
-from dataquality.auto.text_classification import auto as auto_tc
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.auto import get_task_type_from_data
 
-AUTO_MAPPING: Dict[TaskType, Callable] = {
-    TaskType.text_classification: auto_tc,
-    TaskType.text_ner: auto_ner,
-}
 AUTO_PROJECT_NAME = {
     TaskType.text_classification: "auto_tc",
     TaskType.text_ner: "auto_ner",
@@ -157,20 +151,45 @@ def auto(
     )
     ```
     """
+    # We need to import auto down here instead of at the top of the file like normal
+    # because we simultaneously want analytic tracking on the files we import while
+    # wanting dq.auto as a top level function. If we have these imports at the top,
+    # and make dq.auto() available, then auto_tc and auto_ner will both always be
+    # imported as soon as dataquality is imported. Also, transformers_trainer and
+    # pytorch (which auto depends on) will be immediately imported. The only way to
+    # avoid that is by having the imports only be made selectively when auto is called
     if hf_data is None and train_data is None:
+        from dataquality.auto.text_classification import auto as auto_tc
+
         auto_tc()
     task_type = get_task_type_from_data(hf_data, train_data)
-    kwargs = dict(
-        hf_data=hf_data,
-        train_data=train_data,
-        val_data=val_data,
-        test_data=test_data,
-        hf_model=hf_model,
-        labels=labels,
-        project_name=project_name or AUTO_PROJECT_NAME[task_type],
-        run_name=run_name,
-        wait=wait,
-    )
+    # We cannot use a common list of *args or **kwargs here because mypy screams :(
     if task_type == TaskType.text_classification:
-        kwargs["max_padding_length"] = max_padding_length
-    AUTO_MAPPING[task_type](**kwargs)
+        from dataquality.auto.text_classification import auto as auto_tc
+
+        auto_tc(
+            hf_data=hf_data,
+            train_data=train_data,
+            val_data=val_data,
+            test_data=test_data,
+            max_padding_length=max_padding_length,
+            hf_model=hf_model,
+            labels=labels,
+            project_name=project_name or AUTO_PROJECT_NAME[task_type],
+            run_name=run_name,
+            wait=wait,
+        )
+    else:
+        from dataquality.auto.ner import auto as auto_ner
+
+        auto_ner(
+            hf_data=hf_data,
+            train_data=train_data,
+            val_data=val_data,
+            test_data=test_data,
+            hf_model=hf_model,
+            labels=labels,
+            project_name=project_name or AUTO_PROJECT_NAME[task_type],
+            run_name=run_name,
+            wait=wait,
+        )
