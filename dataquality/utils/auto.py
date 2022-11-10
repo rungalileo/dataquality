@@ -129,5 +129,5 @@ def do_train(trainer: Trainer, encoded_data: DatasetDict, wait: bool) -> None:
 
 
 def run_name_from_hf_dataset(name: str) -> str:
-    name_today = f"{name}_datetime.today()"
+    name_today = f"{name}_{datetime.today()}"
     return re.sub(BAD_CHARS_REGEX, "_", name_today)
