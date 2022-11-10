@@ -89,4 +89,4 @@ def test_open_console_raises_exc(mock_browser: mock.MagicMock):
     ],
 )
 def test_run_name_from_hf_dataset(hf_data: str, name: str) -> None:
-    assert run_name_from_hf_dataset(hf_data) == name
+    assert run_name_from_hf_dataset(hf_data).startswith(name)

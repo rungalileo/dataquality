@@ -14,6 +14,7 @@ from dataquality.core.init import BAD_CHARS_REGEX
 from dataquality.exceptions import GalileoException, GalileoWarning
 from dataquality.integrations.transformers_trainer import watch
 from dataquality.schemas.split import Split
+from datetime import datetime
 
 
 def load_data_from_str(data: str) -> Union[pd.DataFrame, Dataset]:
@@ -128,4 +129,5 @@ def do_train(trainer: Trainer, encoded_data: DatasetDict, wait: bool) -> None:
 
 
 def run_name_from_hf_dataset(name: str) -> str:
-    return re.sub(BAD_CHARS_REGEX, "_", name)
+    name_today = f"{name}_datetime.today()"
+    return re.sub(BAD_CHARS_REGEX, "_", name_today)
