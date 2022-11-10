@@ -18,6 +18,7 @@ from dataquality.utils.helpers import check_noop
 from dataquality.utils.name import random_name
 
 api_client = ApiClient()
+BAD_CHARS_REGEX = r"[^\w -]+"
 
 
 class _Init:
@@ -73,7 +74,7 @@ class _Init:
         """Validates project/run name ensuring only letters, numbers, space, - and _"""
         if not name:
             return
-        badchars = re.findall(r"[^\w -]+", name)
+        badchars = re.findall(BAD_CHARS_REGEX, name)
         if badchars:
             raise GalileoException(
                 "Only letters, numbers, whitespace, - and _ are allowed in a project "
