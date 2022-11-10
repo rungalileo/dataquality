@@ -24,7 +24,7 @@ from dataquality.schemas.task_type import TaskType
 
 api_client = ApiClient()
 object_store = ObjectStore()
-a = Analytics(ApiClient, config)
+a = Analytics(ApiClient, config)  # type: ignore
 a.log_import("dq/metrics")
 
 

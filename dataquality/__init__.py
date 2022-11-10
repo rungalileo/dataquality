@@ -40,11 +40,12 @@ from dataquality.core.log import (
     set_tagging_schema,
     set_tasks_for_run,
 )
-from dataquality.schemas.predicate import (
+from dataquality.core.report import build_run_report, register_run_report
+from dataquality.schemas.condition import (
     AggregateFunction,
+    Condition,
+    ConditionFilter,
     Operator,
-    Predicate,
-    PredicateFilter,
 )
 from dataquality.utils.dq_logger import get_dq_log_file
 from dataquality.utils.helpers import (
@@ -120,10 +121,12 @@ __all__ = [
     "log_data_sample",
     "log_dataset",
     "get_dq_log_file",
+    "build_run_report",
+    "register_run_report",
     "AggregateFunction",
     "Operator",
-    "Predicate",
-    "PredicateFilter",
+    "Condition",
+    "ConditionFilter",
     "disable_galileo",
     "disable_galileo_verbose",
     "enable_galileo_verbose",
