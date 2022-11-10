@@ -1,4 +1,5 @@
 import os
+import re
 import warnings
 import webbrowser
 from random import choice
@@ -9,6 +10,7 @@ from datasets import Dataset, DatasetDict, load_dataset
 from transformers import Trainer
 
 import dataquality as dq
+from dataquality.core.init import BAD_CHARS_REGEX
 from dataquality.exceptions import GalileoException, GalileoWarning
 from dataquality.integrations.transformers_trainer import watch
 from dataquality.schemas.split import Split
@@ -123,3 +125,7 @@ def do_train(trainer: Trainer, encoded_data: DatasetDict, wait: bool) -> None:
         trainer.predict(test_dataset=encoded_data[Split.test])  # type: ignore
     res = dq.finish(wait=wait) or {}
     open_console_url(res.get("link"))
+
+
+def run_name_from_hf_dataset(name: str) -> str:
+    return re.sub(BAD_CHARS_REGEX, "_", name)

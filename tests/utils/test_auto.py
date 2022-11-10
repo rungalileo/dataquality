@@ -10,6 +10,7 @@ from dataquality.utils.auto import (
     add_val_data_if_missing,
     load_data_from_str,
     open_console_url,
+    run_name_from_hf_dataset,
 )
 
 
@@ -77,3 +78,15 @@ def test_open_console_raises_exc(mock_browser: mock.MagicMock):
     mock_browser.open = mock_open
     open_console_url("https://console.cloud.rungalileo.io")
     mock_open.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "hf_data,name",
+    [
+        ["rungalileo/my-data.set 1", "rungalileo_my-data_set 1"],
+        ["connll 203", "connll 203"],
+        ["data 1 f1 0.23", "data 1 f1 0_23"],
+    ],
+)
+def test_run_name_from_hf_dataset(hf_data: str, name: str) -> None:
+    assert run_name_from_hf_dataset(hf_data) == name

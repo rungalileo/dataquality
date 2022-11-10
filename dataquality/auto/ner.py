@@ -9,7 +9,11 @@ from dataquality.auto.ner_trainer import get_trainer
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
-from dataquality.utils.auto import add_val_data_if_missing, do_train
+from dataquality.utils.auto import (
+    add_val_data_if_missing,
+    do_train,
+    run_name_from_hf_dataset,
+)
 
 
 class NERDatasetManager(BaseDatasetManager):
@@ -187,6 +191,8 @@ def auto(
     manager = NERDatasetManager()
     dd = manager.get_dataset_dict(hf_data, train_data, val_data, test_data)
     dq.login()
+    if not run_name and isinstance(hf_data, str):
+        run_name = run_name_from_hf_dataset(hf_data)
     dq.init(TaskType.text_ner, project_name=project_name, run_name=run_name)
     trainer, encoded_data = get_trainer(dd, hf_model, labels)
     do_train(trainer, encoded_data, wait)
