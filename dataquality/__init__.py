@@ -16,10 +16,48 @@ try:
     from dataquality.analytics import Analytics
     from dataquality.clients.api import ApiClient
 except (FileNotFoundError, AttributeError):
-    raise Exception(
-        "It looks like you've installed dataquality from a notebook. "
-        "Please restart the kernel before continuing"
-    ) from None
+
+    try:
+        from IPython import get_ipython
+        from IPython.display import display
+
+        try:
+            import ipywidgets as widgets
+
+            HAS_IPYWIDGETS = True
+        except ImportError:
+            HAS_IPYWIDGETS = False
+
+        if HAS_IPYWIDGETS:
+            restart_kernel_button = widgets.Button(description="Restart kernel now...")
+            restart_button_output = widgets.Output(layout={"border": "1px solid black"})
+        else:
+            restart_kernel_button = restart_button_output = None
+
+        def _on_button_clicked(b):
+            with restart_button_output:
+                get_ipython().kernel.do_shutdown(True)
+                print("Kernel restarted!")
+                restart_kernel_button.close()
+
+        if HAS_IPYWIDGETS:
+            print("🔁 Please restart kernel...")
+            restart_kernel_button.on_click(_on_button_clicked)
+            display(restart_kernel_button, restart_button_output)
+        else:
+            try:
+                print("🔁 Restarting kernel...")
+                get_ipython().kernel.do_shutdown(True)
+            except Exception:
+                print(
+                    "🔁 Please restart kernel by clicking on Runtime > Restart runtime."
+                )
+    except Exception:
+        raise Exception(
+            "It looks like you've installed dataquality from a notebook. "
+            "Please restart the kernel before continuing"
+        ) from None
+
 from dataquality.core._config import config
 from dataquality.core.auth import login, logout
 from dataquality.core.finish import finish, get_run_status, wait_for_run
