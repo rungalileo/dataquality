@@ -4,6 +4,7 @@ import pandas as pd
 from datasets import Dataset, DatasetDict
 
 import dataquality as dq
+from dataquality import Analytics, ApiClient
 from dataquality.auto.base_data_manager import BaseDatasetManager
 from dataquality.auto.ner_trainer import get_trainer
 from dataquality.exceptions import GalileoException
@@ -14,6 +15,9 @@ from dataquality.utils.auto import (
     do_train,
     run_name_from_hf_dataset,
 )
+
+a = Analytics(ApiClient, dq.config)
+a.log_import("auto_ner")
 
 
 class NERDatasetManager(BaseDatasetManager):
@@ -188,6 +192,7 @@ def auto(
     )
     ```
     """
+    a.log_function("auto/ner")
     manager = NERDatasetManager()
     dd = manager.get_dataset_dict(hf_data, train_data, val_data, test_data)
     dq.login()
