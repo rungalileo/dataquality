@@ -19,6 +19,8 @@ from transformers import (
 
 from dataquality.schemas.split import Split
 
+EVAL_METRIC = "f1"
+
 
 # Taken from the docs of the trainer module:
 # https://github.com/huggingface/transformers/blob/main/examples/pytorch/
@@ -34,7 +36,9 @@ def preprocess_function(
 def compute_metrics(metric: EvaluationModule, eval_pred: EvalPrediction) -> Dict:
     predictions, labels = np.array(eval_pred.predictions), np.array(eval_pred.label_ids)
     predictions = predictions.argmax(axis=1)
-    return metric.compute(predictions=predictions, references=labels)
+    return metric.compute(
+        predictions=predictions, references=labels, average="weighted"
+    )
 
 
 def get_trainer(
@@ -42,7 +46,6 @@ def get_trainer(
     labels: List[str],
     model_checkpoint: str,
     max_padding_length: int,
-    evaluation_metric: str,
 ) -> Tuple[Trainer, DatasetDict]:
     tokenizer = AutoTokenizer.from_pretrained(model_checkpoint, use_fast=True)
 
@@ -55,7 +58,7 @@ def get_trainer(
     )
 
     # Training arguments and training part
-    metric = evaluate.load(evaluation_metric)
+    metric = evaluate.load(EVAL_METRIC)
     # We use the users chosen evaluation metric by preloading it into the partial
     compute_metrics_partial = partial(compute_metrics, metric)
     batch_size = 64
@@ -72,7 +75,6 @@ def get_trainer(
         num_train_epochs=10,
         weight_decay=0.01,
         load_best_model_at_end=load_best_model,
-        metric_for_best_model=evaluation_metric,
         push_to_hub=False,
         report_to=["all"],
         seed=42,
@@ -86,6 +88,6 @@ def get_trainer(
         eval_dataset=encoded_datasets.get(Split.validation),  # type: ignore
         tokenizer=tokenizer,
         compute_metrics=compute_metrics_partial,
-        callbacks=[EarlyStoppingCallback(early_stopping_patience=2)],
+        callbacks=[EarlyStoppingCallback(early_stopping_patience=1)],
     )
     return trainer, encoded_datasets
