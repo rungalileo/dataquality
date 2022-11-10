@@ -13,7 +13,7 @@ class SplitConditionData(BaseModel):
     split: str
     inference_name: Optional[str]
     status: ConditionStatus
-    link: str
+    link: Optional[str]
     ground_truth: float
 
 

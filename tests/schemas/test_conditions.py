@@ -1,3 +1,4 @@
+import numpy as np
 import pytest
 import vaex
 
@@ -28,9 +29,9 @@ def test_evaluate_condition_1(operator: Operator, expected: bool) -> None:
         operator=operator,
         threshold=0.3,
     )
-    passes, val = p.evaluate(df)
+    passes, val = c.evaluate(df)
     assert passes is expected
-    assert val == 0.1
+    assert np.isclose(val, 0.1)
 
 
 @pytest.mark.parametrize(
@@ -57,7 +58,7 @@ def test_evaluate_condition_2(operator: Operator, expected: bool) -> None:
         operator=operator,
         threshold=0.45,
     )
-    passes, val = p.evaluate(df)
+    passes, val = c.evaluate(df)
     assert passes is expected
     assert val == 0.45
 
@@ -87,7 +88,7 @@ def test_evaluate_condition_3(operator: Operator, expected: bool) -> None:
         metric="confidence",
         filters=[ConditionFilter(metric="confidence", operator=Operator.lt, value=0.1)],
     )
-    passes, val = p.evaluate(df)
+    passes, val = c.evaluate(df)
     assert passes is expected
     assert val == 0.90
 
@@ -118,7 +119,7 @@ def test_evaluate_condition_4(operator: Operator, expected: bool) -> None:
             ConditionFilter(metric="is_drifted", operator=Operator.eq, value=True)
         ],
     )
-    passes, val = p.evaluate(df)
+    passes, val = c.evaluate(df)
     assert passes is expected
     assert val == 0.20
 
@@ -149,7 +150,7 @@ def test_evaluate_condition_5(operator: Operator, expected: bool) -> None:
             ConditionFilter(metric="galileo_pii", operator=Operator.neq, value="None")
         ],
     )
-    passes, val = p.evaluate(df)
+    passes, val = c.evaluate(df)
     assert passes is expected
     assert val == 0.20
 
@@ -182,7 +183,7 @@ def test_evaluate_condition_6(operator: Operator, expected: bool) -> None:
             ConditionFilter(metric="is_drifted", operator=Operator.eq, value=True)
         ],
     )
-    passes, val = p.evaluate(df)
+    passes, val = c.evaluate(df)
     assert passes is expected
     assert val == 0.1
 
@@ -217,7 +218,7 @@ def test_evaluate_condition_7(operator: Operator, expected: bool) -> None:
             ConditionFilter(metric="galileo_pii", operator=Operator.neq, value="None"),
         ],
     )
-    passes, val = p.evaluate(df)
+    passes, val = c.evaluate(df)
     assert passes is expected
     assert val == 0.20
 
@@ -266,7 +267,7 @@ def test_evaluate_condition_call(operator: Operator, expected: bool) -> None:
         threshold=0.3,
     )
     if expected is True:
-        p(df)
+        c(df)
     else:
         with pytest.raises(AssertionError):
-            p(df)
+            c(df)

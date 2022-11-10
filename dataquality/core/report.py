@@ -40,7 +40,7 @@ def _get_report_results_for_split(
         inference_name=inference_name,
         passes=ConditionStatus.passed if passes else ConditionStatus.failed,
         ground_truth=val,
-        link="https://app.dataquality.ai",
+        link=None,  # TODO: add deep link, v2 of reports
     )
 
 
@@ -73,7 +73,11 @@ def _get_report_results_for_condition(
 
 
 def build_run_report(
-    conditions: List[Condition], emails: List[str], project_id: UUID, run_id: UUID, link: str
+    conditions: List[Condition],
+    emails: List[str],
+    project_id: UUID,
+    run_id: UUID,
+    link: str,
 ) -> None:
     """Build a run report and send it to the specified emails."""
     project_name = api_client.get_project(project_id)["name"]
