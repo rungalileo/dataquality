@@ -95,8 +95,7 @@ class TCDatasetManager(BaseDatasetManager):
                 ds = ds.add_column("id", list(range(ds.num_rows)))
             if not isinstance(ds.features["label"], ClassLabel):
                 ds = self._add_class_label_to_dataset(ds, labels)
-            # Use the split Enums
-            dd[Split[key]] = ds
+            dd[key] = ds
         return add_val_data_if_missing(dd)
 
 
