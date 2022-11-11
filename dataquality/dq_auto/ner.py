@@ -5,8 +5,8 @@ from datasets import Dataset, DatasetDict
 
 import dataquality as dq
 from dataquality import Analytics, ApiClient
-from dataquality.auto.base_data_manager import BaseDatasetManager
-from dataquality.auto.ner_trainer import get_trainer
+from dataquality.dq_auto.base_data_manager import BaseDatasetManager
+from dataquality.dq_auto.ner_trainer import get_trainer
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.auto import add_val_data_if_missing, run_name_from_hf_dataset

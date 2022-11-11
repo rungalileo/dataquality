@@ -20,7 +20,6 @@ except (FileNotFoundError, AttributeError):
         "It looks like you've installed dataquality from a notebook. "
         "Please restart the kernel before continuing"
     ) from None
-from dataquality.auto.auto import auto
 from dataquality.core._config import config
 from dataquality.core.auth import login, logout
 from dataquality.core.finish import finish, get_run_status, wait_for_run
@@ -41,6 +40,7 @@ from dataquality.core.log import (
     set_tasks_for_run,
 )
 from dataquality.core.report import build_run_report, register_run_report
+from dataquality.dq_auto.auto import auto
 from dataquality.schemas.condition import (
     AggregateFunction,
     Condition,

@@ -82,7 +82,7 @@ def test_open_console_url_no_url():
     open_console_url()
 
 
-@mock.patch("dataquality.utils.auto.webbrowser")
+@mock.patch("dataquality.utils.auto_trainer.webbrowser")
 def test_open_console_raises_exc(mock_browser: mock.MagicMock):
     """Should catch the exception silently"""
     mock_open = mock.MagicMock()
