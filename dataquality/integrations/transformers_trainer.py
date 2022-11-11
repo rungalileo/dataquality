@@ -21,7 +21,7 @@ from dataquality.utils.transformers import (
     remove_id_collate_fn_wrapper,
 )
 
-a = Analytics(ApiClient, dq.config)
+a = Analytics(ApiClient, dq.config)  # type: ignore
 a.log_import("transformers_trainer")
 
 

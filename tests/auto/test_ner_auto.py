@@ -5,8 +5,7 @@ import pandas as pd
 import pytest
 from datasets import Dataset, DatasetDict
 
-from dataquality.auto.ner import NERDatasetManager, auto
-from dataquality.exceptions import GalileoException
+from dataquality.dq_auto.ner import NERDatasetManager, auto
 from dataquality.schemas.split import Split
 
 base_df = df = pd.DataFrame(
@@ -15,25 +14,9 @@ base_df = df = pd.DataFrame(
 manager = NERDatasetManager()
 
 
-@pytest.mark.parametrize("key", ["tags", "ner_tags"])
-def test_convert_to_hf_format(key: str) -> None:
-    df[key] = base_df.copy().pop("tags")
-    ds = Dataset.from_pandas(df)
-    ds_convert = manager._convert_dataset_to_hf_format(ds)
-    assert ds_convert == ds
-
-
-def test_convert_to_hf_format_bad_cols() -> None:
-    df = base_df[["tokens"]]
-    ds = Dataset.from_pandas(df)
-    with pytest.raises(GalileoException) as e:
-        manager._convert_dataset_to_hf_format(ds)
-    assert str(e.value).startswith("Data must be in either huggingface format")
-
-
 @pytest.mark.parametrize("data", [Dataset.from_pandas(base_df), base_df, "testdata"])
 @mock.patch(
-    "dataquality.auto.base_data_manager.load_data_from_str", return_value=base_df
+    "dataquality.dq_auto.base_data_manager.load_data_from_str", return_value=base_df
 )
 def test_convert_to_hf_dataset(
     mock_load: mock.MagicMock, data: Union[pd.DataFrame, Dataset, str]
@@ -51,8 +34,8 @@ def test_validate_dataset_dict() -> None:
 
 
 @mock.patch("dataquality.finish")
-@mock.patch("dataquality.utils.auto.watch")
-@mock.patch("dataquality.auto.ner.get_trainer")
+@mock.patch("dataquality.utils.auto_trainer.watch")
+@mock.patch("dataquality.dq_auto.ner.get_trainer")
 @mock.patch("dataquality.log_dataset")
 @mock.patch("dataquality.set_labels_for_run")
 @mock.patch("dataquality.init")
