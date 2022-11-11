@@ -179,7 +179,7 @@ def auto(
             run_name=run_name,
             wait=wait,
         )
-    else:
+    elif task_type == TaskType.text_ner:
         from dataquality.auto.ner import auto as auto_ner
 
         auto_ner(
@@ -193,3 +193,5 @@ def auto(
             run_name=run_name,
             wait=wait,
         )
+    else:
+        raise Exception("auto is only supported for text classification and NER!")
