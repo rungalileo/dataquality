@@ -13,9 +13,9 @@ from dataquality.utils.auto import (
     add_val_data_if_missing,
     get_task_type_from_data,
     load_data_from_str,
-    open_console_url,
     run_name_from_hf_dataset,
 )
+from dataquality.utils.auto_trainer import open_console_url
 
 TC_DATA = pd.DataFrame(
     {"text": ["sample1", "sample2", "sample3"], "label": ["green", "blue", "green"]}
