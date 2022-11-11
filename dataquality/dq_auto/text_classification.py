@@ -72,7 +72,7 @@ class TCDatasetManager(BaseDatasetManager):
         return self._add_class_label_to_dataset(ds, labels)
 
     def _validate_dataset_dict(
-        self, dd: DatasetDict, labels: List[str] = None
+        self, clean_dd: DatasetDict, labels: List[str] = None
     ) -> DatasetDict:
         """Validates the core components of the provided (or created) DatasetDict)
 
@@ -86,17 +86,17 @@ class TCDatasetManager(BaseDatasetManager):
         We then also convert the keys of the DatasetDict to our `Split` key enum so
         we can access it easier in the future
         """
-        dd = super()._validate_dataset_dict(dd, labels)
-        for key in list(dd.keys()):
-            ds = dd.pop(key)
+        clean_dd = super()._validate_dataset_dict(clean_dd, labels)
+        for key in list(clean_dd.keys()):
+            ds = clean_dd.pop(key)
             assert "text" in ds.features, "Dataset must have column `text`"
             assert "label" in ds.features, "Dataset must have column `label`"
             if "id" not in ds.features:
                 ds = ds.add_column("id", list(range(ds.num_rows)))
             if not isinstance(ds.features["label"], ClassLabel):
                 ds = self._add_class_label_to_dataset(ds, labels)
-            dd[key] = ds
-        return add_val_data_if_missing(dd)
+            clean_dd[key] = ds
+        return add_val_data_if_missing(clean_dd)
 
 
 def _get_labels(dd: DatasetDict, labels: Optional[List[str]] = None) -> List[str]:

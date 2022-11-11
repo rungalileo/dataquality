@@ -32,13 +32,13 @@ class NERDatasetManager(BaseDatasetManager):
         We then also convert the keys of the DatasetDict to our `Split` key enum so
         we can access it easier in the future
         """
-        super()._validate_dataset_dict(dd, labels)
-        for ds in dd.values():
+        clean_dd = super()._validate_dataset_dict(dd, labels)
+        for ds in clean_dd.values():
             assert "tokens" in ds.features, "Dataset must have column `tokens`"
             assert (
                 "tags" in ds.features or "ner_tags" in ds.features
             ), "Dataset must have column `tags` or `ner_tags`"
-        return add_val_data_if_missing(dd)
+        return add_val_data_if_missing(clean_dd)
 
 
 def auto(
