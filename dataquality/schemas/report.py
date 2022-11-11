@@ -24,7 +24,6 @@ class ReportConditionData(BaseModel):
 
 
 class RunReportData(BaseModel):
-    template: str
     email_subject: str
     project_name: str
     run_name: str

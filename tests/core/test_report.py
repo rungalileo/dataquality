@@ -144,7 +144,6 @@ def test_build_run_report_e2e(
     )
 
     expected_report_data = {
-        "template": "run_report",
         "email_subject": "Run Report: test_run",
         "project_name": "test_project",
         "run_name": "test_run",

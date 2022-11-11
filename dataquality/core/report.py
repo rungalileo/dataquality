@@ -172,7 +172,6 @@ def build_run_report(
 
     report_data = RunReportData(
         email_subject=f"Run Report: {run_name}",
-        template="run_report",
         project_name=project_name,
         run_name=run_name,
         created_at=_get_email_datetime(),
