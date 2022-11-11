@@ -2,8 +2,8 @@ from typing import Callable
 from unittest import mock
 from uuid import uuid4
 
+import freezegun
 import vaex
-from freezegun import freeze_time
 
 from dataquality import (
     AggregateFunction,
@@ -21,6 +21,9 @@ from dataquality.core.report import (
 )
 from dataquality.schemas.report import ConditionStatus
 
+# https://stackoverflow.com/questions/73007409/freezeguns-freeze-time-throws-odd-transformers-error-when-used
+freezegun.configure(extend_ignore_list=["transformers"])
+
 
 def test_register_run_report(
     set_test_config: Callable, test_condition: Callable
@@ -34,7 +37,7 @@ def test_register_run_report(
     assert get_data_logger().logger_config.report_emails == ["foo@bar.com"]
 
 
-@freeze_time("2021-09-14 15:00:00")
+@freezegun.freeze_time("2021-09-14 15:00:00")
 def test_get_email_datetime() -> None:
     assert _get_email_datetime() == "Tuesday 09/14/2021, 15:00:00"
 
@@ -70,7 +73,7 @@ def test_condition_valid_for_df(test_condition: Callable) -> None:
     assert _condition_valid_for_df(df, condition) is False
 
 
-@freeze_time("2021-09-14 15:00:00")
+@freezegun.freeze_time("2021-09-14 15:00:00")
 @mock.patch("dataquality.core.report.get_dataframe")
 @mock.patch.object(ApiClient, "notify_email")
 @mock.patch.object(ApiClient, "get_inference_names")
