@@ -1,4 +1,6 @@
+import dataclasses
 from dataclasses import dataclass
+from typing import List
 
 
 @dataclass
@@ -14,6 +16,10 @@ class HFCol:
     labels: str = "labels"
     ner_labels: str = "ner_labels"
     tags: str = "tags"
+
+    @staticmethod
+    def get_fields() -> List[str]:
+        return [field.name for field in dataclasses.fields(HFCol)]
 
 
 @dataclass
