@@ -10,21 +10,20 @@ home-page = "https://www.github.com/rungalileo/dataquality"
 description-file = "README.md"
 requires-python = ">=3.7"
 requires = [
-    "pydantic==1.8.2",
-    "requests==2.26.0",
-    "types-requests==2.25.2",
+    "pydantic>=1.8.2",
+    "requests>=2.23.0",
+    "types-requests>=2.25.2",
     "pandas>=0.20.0",
     "pyarrow>=5.0.0",
-    "vaex-core==4.12.0",
-    "vaex-hdf5>=0.12.0,<0.13.0",
+    "vaex-core>=4.12.0",
+    "vaex-hdf5>=0.12.0",
     "diskcache==5.2.1",
     "resource==0.2.1",
-    "tqdm==4.62.3",
-    "blake3==0.2.1",
+    "tqdm>=4.62.3",
     "wrapt==1.13.3",
     "scipy>=1.7.0",
     "cachetools==5.2.0",
-    "importlib-metadata==4.12.0",
+    "importlib-metadata>=4.12.0",
     "evaluate",
     "datasets>=2.2.2",
     "transformers>=4.11.3"
