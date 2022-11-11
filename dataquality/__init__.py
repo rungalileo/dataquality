@@ -1,6 +1,6 @@
 "dataquality"
 
-__version__ = "v0.7.5"
+__version__ = "v0.7.6"
 
 import os
 import resource
@@ -40,6 +40,7 @@ from dataquality.core.log import (
     set_tasks_for_run,
 )
 from dataquality.core.report import build_run_report, register_run_report
+from dataquality.dq_auto.auto import auto
 from dataquality.schemas.condition import (
     AggregateFunction,
     Condition,
@@ -130,6 +131,7 @@ __all__ = [
     "disable_galileo_verbose",
     "enable_galileo_verbose",
     "enable_galileo",
+    "auto",
 ]
 
 try:

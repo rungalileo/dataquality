@@ -1,3 +1,4 @@
+from typing import Any
 from unittest import mock
 
 import pandas as pd
@@ -6,18 +7,29 @@ from datasets import Dataset, DatasetDict
 
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.split import Split
+from dataquality.schemas.task_type import TaskType
 from dataquality.utils.auto import (
+    _get_task_type_from_cols,
     add_val_data_if_missing,
+    get_task_type_from_data,
     load_data_from_str,
-    open_console_url,
     run_name_from_hf_dataset,
+)
+from dataquality.utils.auto_trainer import open_console_url
+
+TC_DATA = pd.DataFrame(
+    {"text": ["sample1", "sample2", "sample3"], "label": ["green", "blue", "green"]}
+)
+NER_DATA = pd.DataFrame(
+    {"tokens": ["the", "thing", "is", "blue"], "tags": [0, 1, 1, 2]}
+)
+NER_DATA2 = pd.DataFrame(
+    {"tokens": ["the", "thing", "is", "blue"], "ner_tags": [0, 1, 1, 2]}
 )
 
 
 def test_add_val_data_if_missing() -> None:
-    df = pd.DataFrame(
-        {"text": ["sample1", "sample2", "sample3"], "label": ["green", "blue", "green"]}
-    )
+    df = TC_DATA.copy()
     dd = DatasetDict({Split.train: Dataset.from_pandas(df)})
     split_dd = add_val_data_if_missing(dd)
     assert Split.train in split_dd and Split.validation in split_dd
@@ -70,7 +82,7 @@ def test_open_console_url_no_url():
     open_console_url()
 
 
-@mock.patch("dataquality.utils.auto.webbrowser")
+@mock.patch("dataquality.utils.auto_trainer.webbrowser")
 def test_open_console_raises_exc(mock_browser: mock.MagicMock):
     """Should catch the exception silently"""
     mock_open = mock.MagicMock()
@@ -90,3 +102,45 @@ def test_open_console_raises_exc(mock_browser: mock.MagicMock):
 )
 def test_run_name_from_hf_dataset(hf_data: str, name: str) -> None:
     assert run_name_from_hf_dataset(hf_data).startswith(name)
+
+
+@pytest.mark.parametrize(
+    "data,task_type",
+    [
+        [TC_DATA, TaskType.text_classification],
+        [Dataset.from_pandas(TC_DATA), TaskType.text_classification],
+        [NER_DATA, TaskType.text_ner],
+        [Dataset.from_pandas(NER_DATA2), TaskType.text_ner],
+    ],
+)
+def test_get_task_type_from_data(data: Any, task_type: TaskType) -> None:
+    assert get_task_type_from_data(train_data=data) == task_type
+
+
+def test_get_task_type_from_cols_invalid() -> None:
+    with pytest.raises(GalileoException):
+        _get_task_type_from_cols(["text", "tags"])
+
+
+@pytest.mark.parametrize(
+    "data,task_type",
+    [
+        [
+            DatasetDict({"train": Dataset.from_pandas(TC_DATA)}),
+            TaskType.text_classification,
+        ],
+        [DatasetDict({"train": Dataset.from_pandas(NER_DATA)}), TaskType.text_ner],
+    ],
+)
+def test_get_task_type_from_data_hf_data(data: Any, task_type: TaskType) -> None:
+    assert get_task_type_from_data(hf_data=data) == task_type
+
+
+@mock.patch("dataquality.utils.auto.load_dataset")
+def test_get_task_type_from_data_hf_data_wrong_type(
+    mock_load_ds: mock.MagicMock,
+) -> None:
+    dd = Dataset.from_pandas(TC_DATA)
+    mock_load_ds.return_value = dd
+    with pytest.raises(AssertionError):
+        get_task_type_from_data(hf_data="dataset_in_hf")

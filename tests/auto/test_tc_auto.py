@@ -7,7 +7,7 @@ import pytest
 import vaex
 from datasets import ClassLabel, Dataset, DatasetDict
 
-from dataquality.auto.text_classification import (
+from dataquality.dq_auto.text_classification import (
     TCDatasetManager,
     _get_labels,
     _log_dataset_dict,
@@ -356,8 +356,8 @@ def test_log_dataset_dict(mock_log_ds: mock.MagicMock) -> None:
 
 @pytest.mark.parametrize("use_ids", [True, False])
 @mock.patch("dataquality.finish")
-@mock.patch("dataquality.utils.auto.watch")
-@mock.patch("dataquality.auto.text_classification.get_trainer")
+@mock.patch("dataquality.utils.auto_trainer.watch")
+@mock.patch("dataquality.dq_auto.text_classification.get_trainer")
 @mock.patch("dataquality.log_dataset")
 @mock.patch("dataquality.set_labels_for_run")
 @mock.patch("dataquality.init")
