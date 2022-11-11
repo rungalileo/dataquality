@@ -159,13 +159,13 @@ def auto(
     # pytorch (which auto depends on) will be immediately imported. The only way to
     # avoid that is by having the imports only be made selectively when auto is called
     if hf_data is None and train_data is None:
-        from dataquality.auto.text_classification import auto as auto_tc
+        from dataquality.dq_auto.text_classification import auto as auto_tc
 
         auto_tc()
     task_type = get_task_type_from_data(hf_data, train_data)
     # We cannot use a common list of *args or **kwargs here because mypy screams :(
     if task_type == TaskType.text_classification:
-        from dataquality.auto.text_classification import auto as auto_tc
+        from dataquality.dq_auto.text_classification import auto as auto_tc
 
         auto_tc(
             hf_data=hf_data,
@@ -180,7 +180,7 @@ def auto(
             wait=wait,
         )
     elif task_type == TaskType.text_ner:
-        from dataquality.auto.ner import auto as auto_ner
+        from dataquality.dq_auto.ner import auto as auto_ner
 
         auto_ner(
             hf_data=hf_data,
