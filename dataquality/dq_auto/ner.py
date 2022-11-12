@@ -7,7 +7,6 @@ import dataquality as dq
 from dataquality import Analytics, ApiClient
 from dataquality.dq_auto.base_data_manager import BaseDatasetManager
 from dataquality.dq_auto.ner_trainer import get_trainer
-from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.auto import add_val_data_if_missing, run_name_from_hf_dataset
 from dataquality.utils.auto_trainer import do_train
@@ -33,16 +32,13 @@ class NERDatasetManager(BaseDatasetManager):
         We then also convert the keys of the DatasetDict to our `Split` key enum so
         we can access it easier in the future
         """
-        super()._validate_dataset_dict(dd, labels)
-        for key in list(dd.keys()):
-            ds = dd.pop(key)
+        clean_dd = super()._validate_dataset_dict(dd, labels)
+        for ds in clean_dd.values():
             assert "tokens" in ds.features, "Dataset must have column `tokens`"
             assert (
                 "tags" in ds.features or "ner_tags" in ds.features
             ), "Dataset must have column `tags` or `ner_tags`"
-            # Use the split Enums
-            dd[Split[key]] = ds
-        return add_val_data_if_missing(dd)
+        return add_val_data_if_missing(clean_dd)
 
 
 def auto(
