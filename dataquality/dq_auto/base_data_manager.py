@@ -14,13 +14,14 @@ class BaseDatasetManager:
     def _validate_dataset_dict(
         self, dd: DatasetDict, labels: Optional[List[str]] = None
     ) -> DatasetDict:
+        """Makes sure at `train` or `training` are in dict, removes invalid keys"""
         valid_keys = Split.get_valid_keys()
-        for key in list(dd.keys()):
-            assert key in valid_keys, (
-                f"All keys of dataset must be one of {valid_keys}. "
-                f"Found {list(dd.keys())}"
-            )
-        return dd
+        assert (
+            "train" in dd or "training" in dd
+        ), f"Must have `train` or `training` split in data, found {dd.keys()}"
+        # Only keep valid split keys. Convert splits to enum Split
+        dd_clean = DatasetDict({Split[k]: v for k, v in dd.items() if k in valid_keys})
+        return dd_clean
 
     def _convert_df_to_dataset(
         self, df: pd.DataFrame, labels: Optional[List[str]] = None
