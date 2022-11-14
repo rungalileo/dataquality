@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Tuple, Union
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
+from tensorflow.python.training.tracking.data_structures import NoDependency
 
 import dataquality as dq
 from dataquality.analytics import Analytics
@@ -66,7 +67,7 @@ class DataQualityLoggingLayer(tf.keras.layers.Layer):
         if what_to_log not in ["ids", "probs", "embs"]:
             raise GalileoException("What to log must be one of ids, probs or embs")
         self.what_to_log = what_to_log
-        self.helper_data = dq.get_model_logger().logger_config.helper_data
+        self.helper_data = NoDependency(dq.get_model_logger().logger_config.helper_data)
 
     def call(self, inputs: tf.Tensor) -> tf.Tensor:
         if self.what_to_log == "ids":
