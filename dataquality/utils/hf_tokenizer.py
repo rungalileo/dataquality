@@ -6,6 +6,7 @@ from transformers import PreTrainedTokenizerBase
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
 from dataquality.schemas.hf import HFCol, SpanKey
 from dataquality.schemas.ner import TaggingSchema
+from dataquality.schemas.split import Split
 
 
 def extract_gold_spans_at_word_level(
@@ -41,9 +42,11 @@ class LabelTokenizer:
         tokenizer: PreTrainedTokenizerBase,
         schema: TaggingSchema,
         label_names: List[str],
+        split: Split,
     ) -> None:
         self.ds = ds
         self.schema = schema
+        self.split = split
         self.tokenized_samples = tokenizer.batch_encode_plus(
             ds[HFCol.tokens], is_split_into_words=True
         )
@@ -74,12 +77,15 @@ class LabelTokenizer:
     def initialize_sample(self, k: int) -> None:
         self.previous_word_id = -1
         self.word_ids = self.tokenized_samples.word_ids(batch_index=k)
-        existing_labels = [
-            self.idx_2_labels[label] for label in self.ds[HFCol.ner_tags][k]
-        ]
-        self.word_gold_spans = extract_gold_spans_at_word_level(
-            existing_labels, self.schema
-        )
+        if self.split == Split.inference:
+            self.word_gold_spans = []
+        else:
+            existing_labels = [
+                self.idx_2_labels[label] for label in self.ds[HFCol.ner_tags][k]
+            ]
+            self.word_gold_spans = extract_gold_spans_at_word_level(
+                existing_labels, self.schema
+            )
         self.original_word_idx = -1
         self.char_seen = -len(self.ds[HFCol.tokens][k][0])
         self.adjusted_label_indices = [self.labels_2_idx["O"]] * len(self.word_ids)
