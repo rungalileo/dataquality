@@ -1,19 +1,18 @@
-import warnings
 from typing import Any, Dict, List, Tuple, Union
+from dataquality import config
 
-import numpy as np
 import tensorflow as tf
 from tensorflow import keras
+from keras.engine import data_adapter
 import inspect
 import dataquality as dq
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
 from functools import partial
 
-
-# from dataquality.analytics import Analytics
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.split import Split
+from dataquality.utils.helpers import wrap_fn
 from dataquality.utils.tf import is_tf_2
 
 # If this is TF 1.x
@@ -24,20 +23,42 @@ import tensorflow as tf
 from keras.callbacks import Callback
 from keras.layers import Layer
 
-# Inspiration:
-# https://pytorch.org/vision/stable/feature_extraction.html
-# https://github.com/archinetai/surgeon-pytorch/blob/main/surgeon_pytorch/inspect.py
+a = Analytics(ApiClient, config)
+a.log_import("integrations/experimental/keras")
 
 
-# Clues:
-# https://github.com/tensorflow/tensorflow/issues/33129
-# earlyPredictor = tf.keras.Model(dcnn.inputs,dcnn.get_layer(theNameYouWant).output).
-# model_output = mobilenet_model.get_layer("conv_pw_13_relu").output
-# m = Model(inputs=mobilenet_model.input, outputs=model_output)
-# https://stackoverflow.com/questions/49492255/how-to-replace-or-insert-intermediate-layer-in-keras-model
-# https://github.com/tensorflow/tensorflow/issues/33478
-# https://stackoverflow.com/questions/46526869/keras-tensors-get-values-with-indices-coming-from-another-tensor
-# https://stackoverflow.com/questions/72503769/is-there-a-tensorflow-function-for-finding-the-indices-next-to-a-condition
+def pass_on(*args, **kwargs):
+    return None
+
+
+def hook_layer_call(layers, before_call=None, after_call=None):
+    len_layers = len(layers)
+    for i, layer in enumerate(layers):
+        if i == 1:
+            layer._before_call = before_call
+            layer._after_call = pass_on
+            layer._old_call = layer.call
+            layer.call = partial(proxy_call, obj=layer)
+        if i == len_layers - 1:
+            layer._before_call = pass_on
+            layer._after_call = after_call
+            layer._old_call = layer.call
+            layer.call = partial(proxy_call, obj=layer)
+
+
+def save_input(store, layer: Any, input: Any, *args, **kwargs):
+    if input is not None:
+        store["input"] = input
+
+
+def save_output(
+    store, layer: tf.keras.layers.Layer, input: tf.Tensor, output: tf.Tensor
+):
+
+    if output is not None:
+        store["output"] = output
+
+
 class ModelHooker(Callback):
     """
     ```python
@@ -77,55 +98,30 @@ class ModelHooker(Callback):
         self.index_model = tf.keras.Sequential()
 
 
-class DataQualityLoggingLayer(tf.keras.layers.Layer):
-    store: Any
-
-    def __init__(self, store: Any):
-        super(DataQualityLoggingLayer, self).__init__()
-        self.store = store
-        self.helper_data = dq.get_model_logger().logger_config.helper_data
-
-    def call(self, inputs: tf.Tensor) -> tf.Tensor:
-        if self.what_to_log == "ids":
-            is_input_symbolic = False
-            if is_tf_2():
-                is_input_symbolic = inputs.shape[0] is None
-            else:
-                is_input_symbolic = inputs.shape[0].value is None
-
-            # Sometimes a "symbolic" input is fed in for testing. This is not a real
-            # sample. We don't want to save that sample as real IDs, just pass it
-            # through and extract out the ID layer
-            if is_input_symbolic:
-                inputs = inputs[..., :-1]
-            else:
-                inputs, ids = split_into_ids_and_numpy_arr(inputs)
-                self.helper_data[self.what_to_log] = ids
-        else:
-            self.helper_data[self.what_to_log] = inputs
-        return inputs
-
-
 class DataQualityCallback(keras.callbacks.Callback):
-    store: Any
+    helper_data: Any
     model: Any
 
-    def __init__(self, store, *args, **kwargs) -> None:
-        self.store = store
+    def __init__(self, store, model, *args, **kwargs) -> None:
+        self.helper_data = store
         a.log_function("keras/dqcallback")
+        self.model = model
         super(DataQualityCallback, self).__init__()
-        self.helper_data = dq.get_model_logger().logger_config.helper_data
-        # In the future we could maybe insert the layers into sequential or something
 
     def set_params(self, params):
-        print(params)
-        self.store["params"] = params
+        self.helper_data["params"] = params
         self.params = params
 
     def on_train_begin(self, logs=None):
-        e_model = keras.Sequential([DataQualityLoggingLayer(logger_data["quiet"])])
+        e_model = keras.Sequential([])
         e_model.compile(loss="mse", run_eagerly=True)
-        x = tf.range(len(self.store["kwargs"]["x"]))
+        assert self.model.run_eagerly, GalileoException(
+            "Model must be compiled with run_eagerly=True"
+        )
+        X_values = self.helper_data["fit_kwargs"].get(
+            "x", self.helper_data["fit_args"][0]
+        )
+        x = tf.range(len(X_values))
         signature = inspect.signature(self.model.fit)
         default_params = {
             k: v.default
@@ -133,11 +129,11 @@ class DataQualityCallback(keras.callbacks.Callback):
             if v.default is not inspect.Parameter.empty
         }
         kwargs = {**default_params}
-        kwargs.update(logger_data["kwargs"])
+        kwargs.update(self.helper_data["fit_kwargs"])
         data_handler = data_adapter.get_data_handler(
             x=x,
             model=e_model,
-            steps_per_execution=vg16._steps_per_execution,
+            steps_per_execution=self.model._steps_per_execution,
             **{
                 key: value
                 for key, value in kwargs.items()
@@ -155,20 +151,31 @@ class DataQualityCallback(keras.callbacks.Callback):
             },
         )
         for epoch, iterator in data_handler.enumerate_epochs():
-            self.store[f"epoch_{epoch}"] = iterator.get_next()
+            iterator_data = iterator.get_next()
+            self.helper_data[f"epoch_{epoch}"] = iterator_data
 
     def on_epoch_begin(self, epoch: int, logs: Dict) -> None:
         dq.set_epoch(epoch)
 
     def _clear_logger_config_helper_data(self) -> None:
-        self.helper_data.clear()
+        self.helper_data.pop("input", None)
+        self.helper_data.pop("output", None)
 
     def on_train_batch_begin(self, batch: Any, logs: Dict = None) -> None:
         self._clear_logger_config_helper_data()
         dq.set_split(Split.train)
 
     def on_train_batch_end(self, batch: Any, logs: Dict = None) -> None:
-        dq.log_model_outputs(**self.helper_data)
+        logger_config = dq.get_data_logger().logger_config
+        ids = self.helper_data.get("indices_ids")
+        if ids is None:
+            ids = self.helper_data[f"epoch_{logger_config.last_epoch}"]
+
+        dq.log_model_outputs(
+            embs=self.helper_data["input"],
+            logits=self.helper_data["output"][:, : len(logger_config.labels)],
+            ids=ids,
+        )
 
     def on_test_batch_begin(self, batch: Any, logs: Dict = None) -> None:
         # TODO: Somehow we should figure out whether this is in .fit
@@ -180,8 +187,7 @@ class DataQualityCallback(keras.callbacks.Callback):
         dq.log_model_outputs(**self.helper_data)
 
 
-def proxy_call(input, obj):
-    print("proxy call")
+def proxy_call(input, obj, *args, **kwargs):
     if obj._before_call is not None:
         obj._before_call(obj, input)
     output = obj._old_call(input)
@@ -192,95 +198,40 @@ def proxy_call(input, obj):
     return output
 
 
-def pass_on(*args, **kwargs):
-    return None
-
-
-def hook_layer_call(layers, before_call=None, after_call=None):
-    len_layers = len(layers)
-    for i, layer in enumerate(layers):
-        if i == 1:
-            layer._before_call = before_call
-            layer._after_call = pass_on
-            layer._old_call = layer.call
-            layer.call = partial(proxy_call, obj=layer)
-        if i == len_layers - 1:
-            layer._before_call = pass_on
-            layer._after_call = after_call
-            layer._old_call = layer.call
-            layer.call = partial(proxy_call, obj=layer)
-
-
-def print_input(store, layer: tf.keras.layers.Layer, input: tf.Tensor):
-    print(input.shape)
-    store["input"]
-    if store["input"] is not None:
-        print("saving input")
-        store["input"].append(input)
-
-
-def print_input_output(
-    store, layer: tf.keras.layers.Layer, input: tf.Tensor, output: tf.Tensor
-):
-    print(input.shape, output.shape)
-    store["output"]
-    if store["output"] is not None:
-        print("saving outpu")
-        store["output"].append(output)
-
-
-# suppose you have a model(such as a tf.keras.Sequential instance)
-hook_layer_call(
-    vg16.layers,
-    before_call=partial(print_input, logger_data),
-    after_call=partial(print_input_output, logger_data),
-)
-
-
-def store_batch_indices(store):
-    def process_batch_indices(next_index_func, *args, **kwargs):
+def store_model_args_kwargs(store, callback):
+    def fit_wrapper(orig_func, *args, **kwargs):
         """Stores the indices of the batch"""
-
-        store["args"] = args
-        store["kwargs"] = kwargs
-        indices = next_index_func(*args, **kwargs)
+        store["fit_args"] = args
+        store["fit_kwargs"] = kwargs
+        if kwargs.get("callbacks"):
+            kwargs["callbacks"].append(callback)
+        else:
+            kwargs["callbacks"] = [callback]
+        indices = orig_func(*args, **kwargs)
         if indices:
             store["ids"] = indices
         return indices
 
-    return process_batch_indices
+    return fit_wrapper
 
 
-# %%
+def store_model_ids(store):
+    def train_step_wrapper(orig_func, *args, **kwargs):
+        """Stores the indices of the batch"""
+        store["indices_ids"] = args[0][0].get("id")
+        return orig_func(*args, **kwargs)
+
+    return train_step_wrapper
 
 
-my_callbacks = [DataQualityCallback(logger_data)]
-vg16 = tf.keras.applications.VGG16()
-vg16.compile(optimizer="adam", loss="categorical_crossentropy", run_eagerly=True)
-vg16.fit = wrap_fn(vg16.fit, store_batch_indices(logger_data))
-
-# multiply X_ones by X_range to get different values
-
-# https://stackoverflow.com/questions/10093293/is-there-a-python-equivalent-of-rangen-for-multidimensional-ranges
-X_ones = tf.ones((64, 224, 224, 3), dtype=tf.float32)
-X_range = tf.range(len(X_ones), dtype=tf.float32)
-X_range = X_ones * tf.expand_dims(
-    tf.expand_dims(tf.expand_dims(X_range, axis=-1), axis=-1), axis=-1
-)
-
-
-# save append in store for key beer
-
-tf.random.set_seed(42)
-vg16.fit(
-    x=X_range,
-    y=tf.ones((len(X_range), 1000)),
-    epochs=2,
-    batch_size=32,
-    callbacks=my_callbacks,
-)
-# %%
-logger_data["input"][1][:, 0, 0, 0]
-# %%
-logger_data["epoch_0"][0]
-logger_data["epoch_1"][0]
+def watch(model, seed=42):
+    tf.random.set_seed(seed)
+    logger_data = dq.get_model_logger().logger_config.helper_data
+    callback = DataQualityCallback(logger_data, model)
+    model.fit = wrap_fn(model.fit, store_model_args_kwargs(logger_data, callback))
+    model.train_step = wrap_fn(model.train_step, store_model_ids(logger_data))
+    hook_layer_call(
+        model.layers,
+        before_call=partial(save_input, logger_data),
+        after_call=partial(save_output, logger_data),
+    )
