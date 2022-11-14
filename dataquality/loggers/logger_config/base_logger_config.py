@@ -3,6 +3,7 @@ from typing import Any, DefaultDict, Dict, List, Optional, Set
 
 from pydantic import BaseModel, validator
 
+from dataquality.schemas.condition import Condition
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
 
@@ -26,6 +27,8 @@ class BaseLoggerConfig(BaseModel):
     input_data_logged: DefaultDict[str, int] = defaultdict(int)
     logged_input_ids: DefaultDict[str, Set] = defaultdict(set)
     idx_to_id_map: DefaultDict[str, List] = defaultdict(list)
+    conditions: List[Condition] = []
+    report_emails: List[str] = []
 
     class Config:
         validate_assignment = True
