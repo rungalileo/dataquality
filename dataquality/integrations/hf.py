@@ -230,7 +230,7 @@ class TextDataset(TorchDataset):
             "id": row["id"],
             "input_ids": row["input_ids"],
             "attention_mask": row["attention_mask"],
-            "labels": row["labels"],
+            "labels": row.get("labels"),
         }
 
     def __len__(self) -> int:
