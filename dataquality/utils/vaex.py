@@ -5,7 +5,9 @@ from typing import Dict, List
 
 import h5py
 import numpy as np
+import pyarrow as pa
 import vaex
+from sentence_transformers import SentenceTransformer
 from vaex.arrow.convert import arrow_string_array_from_buffers as convert_bytes
 from vaex.dataframe import DataFrame
 
@@ -16,6 +18,7 @@ from dataquality.utils.hdf5_store import HDF5_STORE, HDF5Store
 from dataquality.utils.helpers import galileo_verbose_logging
 
 lock = threading.Lock()
+OTS_MODEL = SentenceTransformer("all-mpnet-base-v2")
 
 
 def _save_hdf5_file(location: str, file_name: str, data: Dict) -> None:
@@ -218,3 +221,15 @@ def rename_df(df: DataFrame, columns: Dict) -> DataFrame:
     for old, new in columns.items():
         df_copy.rename(old, new)
     return df_copy
+
+
+def get_off_the_shelf_embs(df: DataFrame) -> DataFrame:
+    """Runs sentence transformer on raw text to get off the shelf embeddings"""
+    df_copy = df.copy()
+
+    @vaex.register_function()
+    def apply_sentence_transformer(text: pa.array) -> np.ndarray:
+        return OTS_MODEL.encode(text.to_pylist(), show_progress_bar=False)
+
+    df_copy["ots_embs"] = df_copy["text"].apply_sentence_transformer()
+    return df_copy[["id", "ots_embs"]]

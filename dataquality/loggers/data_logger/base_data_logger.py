@@ -30,6 +30,7 @@ from dataquality.utils.vaex import (
     _join_in_out_frames,
     concat_hdf5_files,
     filter_df,
+    get_off_the_shelf_embs,
     validate_unique_ids,
 )
 
@@ -149,11 +150,16 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         df.close()
         self.logger_config.input_data_logged[str(self.split)] += 1
 
-    def upload(self, last_epoch: Optional[int] = None) -> None:
+    def upload(
+        self, last_epoch: Optional[int] = None, off_the_shelf_embs: bool = True
+    ) -> None:
         """
         Iterates through all of each splits children folders [data/emb/prob] for each
         inference name / epoch, concatenates all of the files with vaex, and uploads
         them to a single file in minio
+
+        If off_the_shelf_embs is True, this will also run an off the shelf transformer
+        and upload those text embeddings alongside the models finetuned embeddings
         """
         ThreadPoolManager.wait_for_threads()
         self.check_for_logging_failures()
@@ -179,12 +185,27 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             in_frame_path = f"{self.input_data_path()}/{split}"
             in_frame_split = vaex.open(f"{in_frame_path}/*.arrow")
             in_frame_split = self.convert_large_string(in_frame_split)
+            if off_the_shelf_embs:
+                print(
+                    f"Calculating off the shelf embeddings for split {split}...", end=""
+                )
+                self._upload_ots_embs(in_frame_split, split)
+                print(" Done.")
             self.upload_split(
                 object_store, in_frame_split, split, split_loc, last_epoch
             )
             in_frame_split.close()
             shutil.rmtree(in_frame_path)
             gc.collect()
+
+    def _upload_ots_embs(self, df: DataFrame, split: str) -> None:
+        """Uploads off the shelf embeddings for a split"""
+        object_store = ObjectStore()
+        df_copy = df.copy()
+        df_ots = get_off_the_shelf_embs(df_copy)
+        proj_run_split = f"{config.current_project_id}/{config.current_run_id}/{split}"
+        minio_file = f"{proj_run_split}/ots_emb/ots_emb.hdf5"
+        object_store.create_project_run_object_from_df(df_ots, minio_file)
 
     def convert_large_string(self, df: DataFrame) -> DataFrame:
         """Cast regular string to large_string for the text column
