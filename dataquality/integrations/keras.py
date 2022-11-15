@@ -8,7 +8,6 @@ from tensorflow import keras
 import dataquality as dq
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
-
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.split import Split
 from dataquality.utils.tf import is_tf_2
