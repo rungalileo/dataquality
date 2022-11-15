@@ -16,7 +16,7 @@ from dataquality.exceptions import GalileoException, GalileoWarning
 from dataquality.integrations.transformers_trainer import watch  # noqa: F401
 from dataquality.schemas.hf import HFCol
 from dataquality.schemas.ner import TaggingSchema
-from dataquality.schemas.split import conform_split
+from dataquality.schemas.split import Split, conform_split
 from dataquality.utils.helpers import check_noop
 from dataquality.utils.hf_tokenizer import LabelTokenizer
 
@@ -89,7 +89,7 @@ def _validate_dataset(dd: DatasetDict) -> DatasetDict:
     """Validates that the dataset passed in is a DatasetDict
 
     Also removes the id column if one is found (and replaces it) and validates
-    that `tags` or `ner_tags` is present
+    that `tags` or `ner_tags` is present if dataset is not inference
     """
     if not isinstance(dd, DatasetDict):
         raise GalileoException(
@@ -101,7 +101,7 @@ def _validate_dataset(dd: DatasetDict) -> DatasetDict:
         ds = dd[key]
         # Filter out the samples with no tokens
         ds = ds.filter(lambda row: len(row[HFCol.tokens]) != 0)
-        if HFCol.ner_tags not in ds.features:
+        if HFCol.ner_tags not in ds.features and key in Split.get_valid_keys():
             if HFCol.tags in ds.features:
                 ds = ds.rename_column(HFCol.tags, HFCol.ner_tags)
                 warnings.warn(
@@ -174,23 +174,36 @@ def tokenize_and_log_dataset(
     dq.set_tagging_schema(infer_schema(label_names))
     dq.set_labels_for_run(label_names)
 
-    tokenized_dataset = dd.map(
+    tokenized_datasets = dd.map(
         tokenize_adjust_labels,
         batched=True,
         fn_kwargs={"tokenizer": tokenizer, "label_names": label_names},
     )
-    splits = tokenized_dataset.keys()
-    for split in splits:
-        dq_split = conform_split(split)
-        dataset: Dataset = tokenized_dataset[split]
-        # Filter out rows with no gold spans
-        dataset = dataset.filter(lambda row: len(row[HFCol.gold_spans]) != 0)
+    dd_keys = tokenized_datasets.keys()
+    for ds_key in dd_keys:
+        inference_name = ""
+        kwargs = {}
+        dataset: Dataset = tokenized_datasets[ds_key]
+        # We assume the key is inference name if it is not a valid split
+        if ds_key not in Split.get_valid_keys():
+            dq_split = Split.inference
+            inference_name = ds_key
+            kwargs = {"inference_name": inference_name}
+            dataset = dataset.remove_columns([HFCol.gold_spans])
+        else:
+            dq_split = conform_split(ds_key)
+            # Filter out rows with no gold spans
+            dataset = dataset.filter(lambda row: len(row[HFCol.gold_spans]) != 0)
+
         ids = list(range(len(dataset)))
         dataset = dataset.add_column(HFCol.id, ids)
-        tokenized_dataset[split] = dataset
+        tokenized_datasets[ds_key] = dataset
         split_meta = [c for c in meta if c in dataset.features]
-        dq.log_dataset(dataset, split=dq_split, meta=split_meta)  # type: ignore
-    return tokenized_dataset
+        dq.log_dataset(
+            dataset, split=dq_split, meta=split_meta, **kwargs  # type: ignore
+        )
+
+    return tokenized_datasets
 
 
 class TextDataset(TorchDataset):
@@ -203,12 +216,14 @@ class TextDataset(TorchDataset):
 
     def __getitem__(self, idx: int) -> Dict:
         row = self.dataset[idx]
-        return {
+        resp = {
             "id": row["id"],
             "input_ids": row["input_ids"],
             "attention_mask": row["attention_mask"],
-            "labels": row["labels"],
         }
+        if "labels" in row:  # Safely handle inference case
+            resp["labels"] = row["labels"]
+        return resp
 
     def __len__(self) -> int:
         return len(self.dataset)
