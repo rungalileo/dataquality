@@ -179,30 +179,26 @@ def tokenize_and_log_dataset(
         batched=True,
         fn_kwargs={"tokenizer": tokenizer, "label_names": label_names},
     )
-    inference_name = ""
     dd_keys = tokenized_datasets.keys()
     for ds_key in dd_keys:
+        inference_name = ""
+        kwargs = {}
+        dataset: Dataset = tokenized_datasets[ds_key]
         # We assume the key is inference name if it is not a valid split
         if ds_key not in Split.get_valid_keys():
             dq_split = Split.inference
             inference_name = ds_key
+            kwargs = {"inference_name": inference_name}
+            dataset = dataset.remove_columns([HFCol.gold_spans])
         else:
             dq_split = conform_split(ds_key)
-
-        dataset: Dataset = tokenized_datasets[ds_key]
-        if dq_split != Split.inference:
             # Filter out rows with no gold spans
             dataset = dataset.filter(lambda row: len(row[HFCol.gold_spans]) != 0)
-        else:
-            dataset = dataset.remove_columns([HFCol.gold_spans])
 
         ids = list(range(len(dataset)))
         dataset = dataset.add_column(HFCol.id, ids)
         tokenized_datasets[ds_key] = dataset
         split_meta = [c for c in meta if c in dataset.features]
-        kwargs = (
-            {"inference_name": inference_name} if dq_split == Split.inference else {}
-        )
         dq.log_dataset(
             dataset, split=dq_split, meta=split_meta, **kwargs  # type: ignore
         )
@@ -220,12 +216,14 @@ class TextDataset(TorchDataset):
 
     def __getitem__(self, idx: int) -> Dict:
         row = self.dataset[idx]
-        return {
+        resp = {
             "id": row["id"],
             "input_ids": row["input_ids"],
             "attention_mask": row["attention_mask"],
-            "labels": row.get("labels"),
         }
+        if "labels" in row:  # Safely handle inference case
+            resp["labels"] = row["labels"]
+        return resp
 
     def __len__(self) -> int:
         return len(self.dataset)
