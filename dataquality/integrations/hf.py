@@ -220,10 +220,6 @@ class TextDataset(TorchDataset):
             "id": row["id"],
             "input_ids": row["input_ids"],
             "attention_mask": row["attention_mask"],
-<<<<<<< HEAD
-            "labels": row.get("labels"),
-=======
->>>>>>> main
         }
         if "labels" in row:  # Safely handle inference case
             resp["labels"] = row["labels"]
