@@ -124,9 +124,7 @@ def test_tokenize_and_log_dataset(
     new DatasetDict, and that the datasets per split were logged correctly.
     """
     set_test_config(task_type="text_ner")
-    tokenize_output = tokenize_adjust_labels(
-        mock_ds, mock_tokenizer, tag_names
-    )
+    tokenize_output = tokenize_adjust_labels(mock_ds, mock_tokenizer, tag_names)
     with mock.patch("dataquality.integrations.hf.tokenize_adjust_labels") as mock_tok:
         mock_tok.return_value = tokenize_output
         ds_dict = datasets.DatasetDict(
@@ -162,9 +160,7 @@ def test_tokenize_and_log_dataset_inference(
     new DatasetDict, and that the datasets per split were logged correctly.
     """
     set_test_config(task_type="text_ner")
-    tokenize_output = tokenize_adjust_labels(
-        mock_ds, mock_tokenizer, tag_names
-    )
+    tokenize_output = tokenize_adjust_labels(mock_ds, mock_tokenizer, tag_names)
     tokenize_output_inf = tokenize_adjust_labels(
         mock_ds_inf, mock_tokenizer_inf, label_names
     )
@@ -260,9 +256,7 @@ def test_tokenize_and_log_dataset_with_meta(
 ) -> None:
     """Tests that with meta columns, they will be logged"""
     set_test_config(task_type="text_ner")
-    tokenize_output = tokenize_adjust_labels(
-        mock_ds, mock_tokenizer, tag_names
-    )
+    tokenize_output = tokenize_adjust_labels(mock_ds, mock_tokenizer, tag_names)
 
     mock_ds_meta = mock_ds.add_column("test_meta_1", ["a", "b", "c", "d", "e"])
     with mock.patch("dataquality.integrations.hf.tokenize_adjust_labels") as mock_tok:

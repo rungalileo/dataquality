@@ -192,9 +192,7 @@ def tokenize_and_log_dataset(
         dataset: Dataset = tokenized_datasets[ds_key]
         if dq_split != Split.inference:
             # Filter out rows with no gold spans
-            dataset = dataset.filter(
-                lambda row: len(row[HFCol.gold_spans]) != 0
-            )
+            dataset = dataset.filter(lambda row: len(row[HFCol.gold_spans]) != 0)
         else:
             dataset = dataset.remove_columns([HFCol.gold_spans])
 
