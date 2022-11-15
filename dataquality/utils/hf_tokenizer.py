@@ -76,15 +76,15 @@ class LabelTokenizer:
         self.word_ids = self.tokenized_samples.word_ids(batch_index=k)
         # If ner_tags is not present, we know split must be 'inference'
         # See hf.py `_validate_dataset` for more details
-        if HFCol.ner_tags not in self.ds.features:
-            self.word_gold_spans = []
-        else:
+        if HFCol.ner_tags in self.ds or HFCol.ner_tags in self.ds.features:
             existing_labels = [
                 self.idx_2_labels[label] for label in self.ds[HFCol.ner_tags][k]
             ]
             self.word_gold_spans = extract_gold_spans_at_word_level(
                 existing_labels, self.schema
             )
+        else:
+            self.word_gold_spans = []
         self.original_word_idx = -1
         self.char_seen = -len(self.ds[HFCol.tokens][k][0])
         self.adjusted_label_indices = [self.labels_2_idx["O"]] * len(self.word_ids)
