@@ -4,7 +4,6 @@ from typing import Any, Dict, List, Tuple, Union
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.python.training.tracking.data_structures import NoDependency
 
 import dataquality as dq
 from dataquality.analytics import Analytics
