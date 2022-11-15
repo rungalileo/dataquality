@@ -160,16 +160,18 @@ class DataQualityCallback(keras.callbacks.Callback):
     def _clear_logger_config_helper_data(self) -> None:
         self.helper_data.pop("input", None)
         self.helper_data.pop("output", None)
+        self.helper_data.pop("indices_ids", None)
 
     def on_train_batch_begin(self, batch: Any, logs: Dict = None) -> None:
         self._clear_logger_config_helper_data()
         dq.set_split(Split.train)
 
     def on_train_batch_end(self, batch: Any, logs: Dict = None) -> None:
+        dq.set_split(Split.train)
         logger_config = dq.get_data_logger().logger_config
         ids = self.helper_data.get("indices_ids")
         if ids is None:
-            ids = self.helper_data[f"epoch_{logger_config.last_epoch}"]
+            ids = self.helper_data[f"epoch_{logger_config.cur_epoch}"]
 
         dq.log_model_outputs(
             embs=self.helper_data["input"],
@@ -184,7 +186,17 @@ class DataQualityCallback(keras.callbacks.Callback):
         dq.set_split(Split.test)
 
     def on_test_batch_end(self, batch: Any, logs: Dict = None) -> None:
-        dq.log_model_outputs(**self.helper_data)
+        dq.set_split(Split.test)
+        logger_config = dq.get_data_logger().logger_config
+        ids = self.helper_data.get("indices_ids")
+        if ids is None:
+            ids = self.helper_data[f"epoch_{logger_config.cur_epoch}"]
+
+        dq.log_model_outputs(
+            embs=self.helper_data["input"],
+            logits=self.helper_data["output"][:, : len(logger_config.labels)],
+            ids=ids,
+        )
 
 
 def proxy_call(input, obj, *args, **kwargs):
@@ -218,7 +230,8 @@ def store_model_args_kwargs(store, callback):
 def store_model_ids(store):
     def train_step_wrapper(orig_func, *args, **kwargs):
         """Stores the indices of the batch"""
-        store["indices_ids"] = args[0][0].get("id")
+        store["indices_ids"] = args[0][0].pop("id", None)
+
         return orig_func(*args, **kwargs)
 
     return train_step_wrapper
@@ -230,6 +243,9 @@ def watch(model, seed=42):
     callback = DataQualityCallback(logger_data, model)
     model.fit = wrap_fn(model.fit, store_model_args_kwargs(logger_data, callback))
     model.train_step = wrap_fn(model.train_step, store_model_ids(logger_data))
+    model.test_step = wrap_fn(model.test_step, store_model_ids(logger_data))
+    model.predict_step = wrap_fn(model.predict_step, store_model_ids(logger_data))
+    model.__call__ = wrap_fn(model.__call__, store_model_ids(logger_data))
     hook_layer_call(
         model.layers,
         before_call=partial(save_input, logger_data),

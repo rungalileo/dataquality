@@ -111,10 +111,10 @@ def test_tf_watch_e2e(
         batch_size=batch_size,
     )
     num_epochs = 1
-    model.compile(
-        metrics=["accuracy"], optimizer="adam", loss="sparse_categorical_crossentropy"
-    )
-    model.fit(train_dataset, epochs=num_epochs)
+    # model.compile(
+    # metrics=["accuracy"], optimizer="adam", loss="sparse_categorical_crossentropy"
+    # )
+    # model.fit(train_dataset, epochs=num_epochs)
     model_h = TFAutoModelForSequenceClassification.from_pretrained(checkpoint)
 
     num_epochs = 2
@@ -126,7 +126,7 @@ def test_tf_watch_e2e(
     )
     watch(model_h)
 
-    model_h.fit(train_dataset, epochs=num_epochs)
+    model_h.fit(train_dataset, validation_data=test_dataset, epochs=num_epochs)
 
     ThreadPoolManager.wait_for_threads()
     # All data for splits should be logged
