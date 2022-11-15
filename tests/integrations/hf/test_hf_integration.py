@@ -29,6 +29,7 @@ from tests.test_utils.hf_integration_constants import (
     tag_names,
 )
 from tests.test_utils.hf_integration_constants_inference import (
+    ADJUSTED_TOKEN_DATA_INF,
     label_names,
     mock_ds_inf,
     mock_tokenizer_inf,
@@ -175,18 +176,20 @@ def test_tokenize_and_log_dataset_inference(
                 "inf1": mock_ds_inf,
             }
         )
-        tokenize_and_log_dataset(ds_dict, mock_tokenizer, label_names)
-        # output = tokenize_and_log_dataset(ds_dict, mock_tokenizer, label_names)
+        output = tokenize_and_log_dataset(ds_dict, mock_tokenizer, label_names)
 
-    # for split in ds_dict.keys():
-    #     split_output = output[split]
-    #     for k in ADJUSTED_TOKEN_DATA:
-    #         token_data = ADJUSTED_TOKEN_DATA[k]
-    #         if k == "text_token_indices":
-    #             # We abuse token data because outputs are returning tuples but we want
-    #             # to compare lists
-    #             token_data = json.loads(json.dumps(token_data))
-    #         assert token_data == split_output[k]
+    for split in ds_dict.keys():
+        expected_data = (
+            ADJUSTED_TOKEN_DATA_INF if split == "inf1" else ADJUSTED_TOKEN_DATA
+        )
+        split_output = output[split]
+        for k in expected_data:
+            token_data = expected_data[k]
+            if k == "text_token_indices":
+                # We abuse token data because outputs are returning tuples but we want
+                # to compare lists
+                token_data = json.loads(json.dumps(token_data))
+            assert token_data == split_output[k]
 
     assert mock_log_dataset.call_count == 2
     mock_log_dataset.assert_any_call(mock.ANY, split=Split.training, meta=[])
