@@ -231,6 +231,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         self.texts = [text]
         self.ids = [id]
         self.split = split
+        self.inference_name = inference_name
         self.text_token_indices = (
             [text_token_indices] if text_token_indices is not None else []
         )

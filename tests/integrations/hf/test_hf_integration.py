@@ -16,6 +16,7 @@ from dataquality.integrations.hf import (
     tokenize_and_log_dataset,
 )
 from dataquality.schemas.ner import TaggingSchema
+from dataquality.schemas.split import Split
 from dataquality.utils.hf_tokenizer import extract_gold_spans_at_word_level
 from tests.test_utils.hf_integration_constants import (
     ADJUSTED_TOKEN_DATA,
@@ -26,6 +27,11 @@ from tests.test_utils.hf_integration_constants import (
     mock_ds,
     mock_tokenizer,
     tag_names,
+)
+from tests.test_utils.hf_integration_constants_inference import (
+    label_names,
+    mock_ds_inf,
+    mock_tokenizer_inf,
 )
 
 
@@ -47,7 +53,7 @@ def test_infer_schema(labels: List[str], schema: TaggingSchema) -> None:
 
 
 def test_tokenize_adjust_labels() -> None:
-    output = tokenize_adjust_labels(mock_ds, mock_tokenizer, tag_names)
+    output = tokenize_adjust_labels(mock_ds, mock_tokenizer, tag_names, Split.train)
     for k in ADJUSTED_TOKEN_DATA:
         assert ADJUSTED_TOKEN_DATA[k] == output[k]
 
@@ -117,13 +123,20 @@ def test_tokenize_and_log_dataset(
     new DatasetDict, and that the datasets per split were logged correctly.
     """
     set_test_config(task_type="text_ner")
-    tokenize_output = tokenize_adjust_labels(mock_ds, mock_tokenizer, tag_names)
+    tokenize_output = tokenize_adjust_labels(
+        mock_ds, mock_tokenizer, tag_names, Split.train
+    )
     with mock.patch("dataquality.integrations.hf.tokenize_adjust_labels") as mock_tok:
         mock_tok.return_value = tokenize_output
         ds_dict = datasets.DatasetDict(
-            {"train": mock_ds, "test": mock_ds, "validation": mock_ds}
+            {
+                "train": mock_ds,
+                "test": mock_ds,
+                "validation": mock_ds,
+            }
         )
         output = tokenize_and_log_dataset(ds_dict, mock_tokenizer)
+
     for split in ds_dict.keys():
         split_output = output[split]
         for k in ADJUSTED_TOKEN_DATA:
@@ -133,7 +146,53 @@ def test_tokenize_and_log_dataset(
                 # to compare lists
                 token_data = json.loads(json.dumps(token_data))
             assert token_data == split_output[k]
+
     assert mock_log_dataset.call_count == 3
+    for split in [Split.train, Split.test, Split.validation]:
+        mock_log_dataset.assert_any_call(mock.ANY, split=split, meta=[])
+
+
+@mock.patch("dataquality.log_dataset")
+def test_tokenize_and_log_dataset_inference(
+    mock_log_dataset: mock.MagicMock, set_test_config
+) -> None:
+    """Tests the e2e function call, passing in a DatasetDict and receiving a
+
+    new DatasetDict, and that the datasets per split were logged correctly.
+    """
+    set_test_config(task_type="text_ner")
+    tokenize_output = tokenize_adjust_labels(
+        mock_ds, mock_tokenizer, tag_names, Split.train
+    )
+    tokenize_output_inf = tokenize_adjust_labels(
+        mock_ds_inf, mock_tokenizer_inf, label_names, Split.inference
+    )
+    with mock.patch("dataquality.integrations.hf.tokenize_adjust_labels") as mock_tok:
+        mock_tok.side_effect = [tokenize_output, tokenize_output_inf]
+        ds_dict = datasets.DatasetDict(
+            {
+                "train": mock_ds,
+                "inf1": mock_ds_inf,
+            }
+        )
+        tokenize_and_log_dataset(ds_dict, mock_tokenizer, label_names)
+        # output = tokenize_and_log_dataset(ds_dict, mock_tokenizer, label_names)
+
+    # for split in ds_dict.keys():
+    #     split_output = output[split]
+    #     for k in ADJUSTED_TOKEN_DATA:
+    #         token_data = ADJUSTED_TOKEN_DATA[k]
+    #         if k == "text_token_indices":
+    #             # We abuse token data because outputs are returning tuples but we want
+    #             # to compare lists
+    #             token_data = json.loads(json.dumps(token_data))
+    #         assert token_data == split_output[k]
+
+    assert mock_log_dataset.call_count == 2
+    mock_log_dataset.assert_any_call(mock.ANY, split=Split.training, meta=[])
+    mock_log_dataset.assert_any_call(
+        mock.ANY, split=Split.inference, meta=[], inference_name="inf1"
+    )
 
 
 def test_get_dataloader() -> None:
@@ -198,7 +257,9 @@ def test_tokenize_and_log_dataset_with_meta(
 ) -> None:
     """Tests that with meta columns, they will be logged"""
     set_test_config(task_type="text_ner")
-    tokenize_output = tokenize_adjust_labels(mock_ds, mock_tokenizer, tag_names)
+    tokenize_output = tokenize_adjust_labels(
+        mock_ds, mock_tokenizer, tag_names, Split.train
+    )
 
     mock_ds_meta = mock_ds.add_column("test_meta_1", ["a", "b", "c", "d", "e"])
     with mock.patch("dataquality.integrations.hf.tokenize_adjust_labels") as mock_tok:
