@@ -111,6 +111,7 @@ def _validate_api_url(console_url: str, api_url: str) -> None:
 
 def _check_dq_version() -> None:
     """Check that user is running valid version of DQ client
+
     Pings backend to check minimum DQ version requirements.
     """
     r = requests.get(f"{config.api_url}/{Route.healthcheck}/dq")
@@ -127,6 +128,7 @@ def _check_dq_version() -> None:
             f"version {min_version} or higher (you are running {dq_version})."
             f"  `pip install dataquality --upgrade`"
         )
+
         # The user is running an incompatible DQ version, must upgrade
         raise GalileoException(msg)
 

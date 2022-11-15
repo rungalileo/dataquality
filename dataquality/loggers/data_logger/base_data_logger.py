@@ -265,7 +265,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         :param in_frame: the input dataframe
         :param dir_name: The directory of all of the output hdf5 files
         :param prob_only: If we are only uploading probability data. We only upload
-            probability data for all epochs expect the last one (we dont use cross-epoch
+            probability data for all epochs except the last one (we dont use cross-epoch
             embeddings currently, so we dont log them)
         :param split: The split we are logging for
         :param epoch_or_inf: The epoch or inference name we are logging for
