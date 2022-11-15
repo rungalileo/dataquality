@@ -201,6 +201,9 @@ def tokenize_and_log_dataset(
             tokenized_dataset = tokenized_dataset.filter(
                 lambda row: len(row[HFCol.gold_spans]) != 0
             )
+        else:
+            tokenized_dataset = tokenized_dataset.remove_columns([HFCol.gold_spans])
+            tokenized_dataset = tokenized_dataset.remove_columns([HFCol.labels])
 
         ids = list(range(len(tokenized_dataset)))
         tokenized_dataset = tokenized_dataset.add_column(HFCol.id, ids)
