@@ -181,7 +181,6 @@ def tokenize_and_log_dataset(
     )
     dd_keys = tokenized_datasets.keys()
     for ds_key in dd_keys:
-        inference_name = ""
         kwargs = {}
         dataset: Dataset = tokenized_datasets[ds_key]
         # We assume the key is inference name if it is not a valid split
