@@ -56,11 +56,10 @@ def tokenize_adjust_labels(
     all_samples_per_split: Dataset,
     tokenizer: PreTrainedTokenizerBase,
     label_names: List[str],
-    split: Split,
 ) -> BatchEncoding:
     schema = infer_schema(label_names)
     label_tokenizer = LabelTokenizer(
-        all_samples_per_split, tokenizer, schema, label_names, split
+        all_samples_per_split, tokenizer, schema, label_names
     )
 
     for k in range(label_tokenizer.num_samples):
@@ -175,9 +174,14 @@ def tokenize_and_log_dataset(
     dq.set_tagging_schema(infer_schema(label_names))
     dq.set_labels_for_run(label_names)
 
-    result = {}
+    tokenized_datasets = dd.map(
+        tokenize_adjust_labels,
+        batched=True,
+        fn_kwargs={"tokenizer": tokenizer, "label_names": label_names},
+    )
     inference_name = ""
-    for ds_key in dd.keys():
+    dd_keys = tokenized_datasets.keys()
+    for ds_key in dd_keys:
         # We assume the key is inference name if it is not a valid split
         if ds_key not in Split.get_valid_keys():
             dq_split = Split.inference
@@ -185,37 +189,27 @@ def tokenize_and_log_dataset(
         else:
             dq_split = conform_split(ds_key)
 
-        dataset: Dataset = dd[ds_key]
-        tokenized_dataset = dataset.map(
-            tokenize_adjust_labels,
-            batched=True,
-            fn_kwargs={
-                "tokenizer": tokenizer,
-                "label_names": label_names,
-                "split": dq_split,
-            },
-        )
-
+        dataset: Dataset = tokenized_datasets[ds_key]
         if dq_split != Split.inference:
             # Filter out rows with no gold spans
-            tokenized_dataset = tokenized_dataset.filter(
+            dataset = dataset.filter(
                 lambda row: len(row[HFCol.gold_spans]) != 0
             )
         else:
-            tokenized_dataset = tokenized_dataset.remove_columns([HFCol.gold_spans])
+            dataset = dataset.remove_columns([HFCol.gold_spans])
 
-        ids = list(range(len(tokenized_dataset)))
-        tokenized_dataset = tokenized_dataset.add_column(HFCol.id, ids)
-        result[ds_key] = tokenized_dataset
-        split_meta = [c for c in meta if c in tokenized_dataset.features]
+        ids = list(range(len(dataset)))
+        dataset = dataset.add_column(HFCol.id, ids)
+        tokenized_datasets[ds_key] = dataset
+        split_meta = [c for c in meta if c in dataset.features]
         kwargs = (
             {"inference_name": inference_name} if dq_split == Split.inference else {}
         )
         dq.log_dataset(
-            tokenized_dataset, split=dq_split, meta=split_meta, **kwargs  # type: ignore
+            dataset, split=dq_split, meta=split_meta, **kwargs  # type: ignore
         )
 
-    return DatasetDict(result)
+    return tokenized_datasets
 
 
 class TextDataset(TorchDataset):
