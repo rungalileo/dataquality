@@ -43,6 +43,7 @@ doc = [
 test = [
     "pytest==6.2.5",
     "mypy==0.971",
+    "freezegun==1.2.2",
     "coverage==6.1.1",
     "pytest-cov==3.0.0",
     "scikit-learn==1.0",
@@ -62,7 +63,6 @@ dev = [
     "isort==5.9.3",
     "autoflake==1.4",
     "jupyter==1.0.0",
-
 ]
 
 [tool.isort]
