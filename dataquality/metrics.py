@@ -478,6 +478,7 @@ def _process_exported_dataframe(
             )
         else:
             emb_df = get_data_embeddings(project_name, run_name, split, inference_name)
+            emb_df.rename("emb", "data_emb")
             data_df = data_df.join(emb_df, on="id")
     if include_probs:
         if task_type == task_type.text_ner:
