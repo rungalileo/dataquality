@@ -1,6 +1,6 @@
 import os
 import shutil
-from typing import Any, Callable, Dict, Generator, List
+from typing import Any, Callable, Dict, Generator, List, Optional
 from uuid import UUID
 
 import pytest
@@ -9,7 +9,7 @@ import spacy
 from vaex.dataframe import DataFrame
 
 import dataquality
-from dataquality import AggregateFunction, Condition, Operator, config
+from dataquality import AggregateFunction, Condition, ConditionFilter, Operator, config
 from dataquality.clients import objectstore
 from dataquality.loggers import BaseGalileoLogger
 from dataquality.schemas.task_type import TaskType
@@ -126,13 +126,23 @@ def input_data() -> Callable:
 
 
 @pytest.fixture()
-def condition() -> Condition:
-    return Condition(
-        agg=AggregateFunction.avg,
-        metric="confidence",
-        operator=Operator.lt,
-        threshold=0.3,
-    )
+def test_condition() -> Callable:
+    def curry(
+        agg: AggregateFunction = AggregateFunction.avg,
+        metric: Optional[str] = "confidence",
+        operator: Operator = Operator.lt,
+        threshold: float = 0.5,
+        filters: Optional[List[ConditionFilter]] = [],
+    ) -> Condition:
+        return Condition(
+            agg=agg,
+            metric=metric,
+            operator=operator,
+            threshold=threshold,
+            filters=filters,
+        )
+
+    return curry
 
 
 def patch_object_upload(self: Any, df: DataFrame, object_name: str) -> None:
