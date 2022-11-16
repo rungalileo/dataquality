@@ -32,7 +32,7 @@ def register_run_report(conditions: List[Condition], emails: List[str]) -> None:
 
 def _get_email_datetime() -> str:
     """Get the current datetime in a human readable format.
-    
+
     Example:
         >>> _get_email_datetime()
         "Tuesday 09/14/2021, 15:00:00"
@@ -42,7 +42,7 @@ def _get_email_datetime() -> str:
 
 def _get_metric(condition: Condition) -> str:
     """Get the metric name for a condition.
-    
+
     If the condition does not have a metric, we use the metric of the first filter.
     TODO: Extend to support multiple filters.
     """
@@ -77,7 +77,7 @@ def _condition_to_verbose_string(condition: Condition) -> str:
         ... )
         >>> _condition_to_verbose_string(condition)
         "Percentgage  (likely_mislabeled == 1.0) is greater than or equal to 0.5"
-    
+
     TODO: This solution currently works when the condition has a metric and no filters.
     The filter solution works for one filter but we will need to have a follow up that
     can support more complex conditions, including multiple filters.
