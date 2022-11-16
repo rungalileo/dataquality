@@ -46,7 +46,33 @@ def _get_metric(condition: Condition) -> str:
 
 
 def _condition_to_verbose_string(condition: Condition) -> str:
-    """Convert a condition to a verbose string."""
+    """Convert a condition to a verbose string.
+
+    Takes a `Condition` object and returns a string that describes the condition.
+
+    Examples:
+        >>> condition = Condition(
+        ...     agg="avg",
+        ...     metric="confidence",
+        ...     operator="lt",
+        ...     threshold=0.4,
+        ... )
+        >>> _condition_to_verbose_string(condition)
+        "Average confidence is less than 0.4"
+
+        >>> condition = Condition(
+        ...     agg="pct",
+        ...     operator="gte",
+        ...     threshold="0.5",
+        ...     filters=[Filter(metric="likely_mislabeled", operator="eq", value=True)],
+        ... )
+        >>> _condition_to_verbose_string(condition)
+        "Percentgage  (likely_mislabeled == 1.0) is greater than or equal to 0.5"
+    
+    TODO: This solution currently works when the condition has a metric and no filters.
+    The filter solution works for one filter but we will need to have a follow up that
+    can support more complex conditions, including multiple filters.
+    """
     metric_str = condition.metric
     if not metric_str and condition.filters:
         f = condition.filters[0]
