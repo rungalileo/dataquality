@@ -31,19 +31,12 @@ def pass_on(*args, **kwargs):
     return None
 
 
-def hook_layer_call(layers, before_call=None, after_call=None):
-    len_layers = len(layers)
-    for i, layer in enumerate(layers):
-        if i == 1:
-            layer._before_call = before_call
-            layer._after_call = pass_on
-            layer._old_call = layer.call
-            layer.call = partial(proxy_call, obj=layer)
-        if i == len_layers - 1:
-            layer._before_call = pass_on
-            layer._after_call = after_call
-            layer._old_call = layer.call
-            layer.call = partial(proxy_call, obj=layer)
+def hook_layer(layer, before_call=None, after_call=None):
+
+    layer._before_call = before_call
+    layer._after_call = after_call
+    layer._old_call = layer.call
+    layer.call = partial(proxy_call, obj=layer)
 
 
 def save_input(store, layer: Any, input: Any, *args, **kwargs):
@@ -175,7 +168,7 @@ class DataQualityCallback(keras.callbacks.Callback):
 
         dq.log_model_outputs(
             embs=self.helper_data["input"],
-            logits=self.helper_data["output"][:, : len(logger_config.labels)],
+            logits=self.helper_data["output"],
             ids=ids,
         )
 
@@ -199,7 +192,8 @@ class DataQualityCallback(keras.callbacks.Callback):
         )
 
 
-def proxy_call(input, obj, *args, **kwargs):
+# https://github.com/tensorflow/tensorflow/issues/33478#issuecomment-843720638
+def proxy_call(input: tf.Tensor, obj: tf.keras.layers.Layer, *args, **kwargs):
     if obj._before_call is not None:
         obj._before_call(obj, input)
     output = obj._old_call(input)
@@ -219,10 +213,7 @@ def store_model_args_kwargs(store, callback):
             kwargs["callbacks"].append(callback)
         else:
             kwargs["callbacks"] = [callback]
-        indices = orig_func(*args, **kwargs)
-        if indices:
-            store["ids"] = indices
-        return indices
+        return orig_func(*args, **kwargs)
 
     return fit_wrapper
 
@@ -237,7 +228,22 @@ def store_model_ids(store):
     return train_step_wrapper
 
 
-def watch(model, seed=42):
+def select_model_layer(model, layer):
+    choosen_layer = layer
+    if isinstance(choosen_layer, str) is None:
+        for model_layer in model.layers:
+            if model_layer.name == layer:
+                choosen_layer = model_layer
+                break
+    else:
+        for model_layer in model.layers:
+            if model_layer.name == "classifier":
+                choosen_layer = model_layer
+                break
+    return choosen_layer
+
+
+def watch(model: tf.keras.layers.Layer, layer=None, seed=42):
     tf.random.set_seed(seed)
     logger_data = dq.get_model_logger().logger_config.helper_data
     callback = DataQualityCallback(logger_data, model)
@@ -246,8 +252,9 @@ def watch(model, seed=42):
     model.test_step = wrap_fn(model.test_step, store_model_ids(logger_data))
     model.predict_step = wrap_fn(model.predict_step, store_model_ids(logger_data))
     model.__call__ = wrap_fn(model.__call__, store_model_ids(logger_data))
-    hook_layer_call(
-        model.layers,
+    choosen_layer = select_model_layer(model, layer)
+    hook_layer(
+        choosen_layer,
         before_call=partial(save_input, logger_data),
         after_call=partial(save_output, logger_data),
     )
