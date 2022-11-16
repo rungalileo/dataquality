@@ -543,6 +543,31 @@ def get_embeddings(
     )
 
 
+def get_data_embeddings(
+    project_name: str,
+    run_name: str,
+    split: Split,
+    inference_name: str = "",
+) -> DataFrame:
+    """Downloads the data (off the shelf) embeddings for a run/split
+
+    An hdf5 file will be downloaded to local and a Vaex dataframe will be returned
+
+    :param project_name: The project name
+    :param run_name: The run name
+    :param split: The split (training/test/validation/inference)
+    :param inference_name: Required if split is inference
+    """
+    split = conform_split(split)
+    return _get_hdf5_file_for_epoch(
+        project_name,
+        run_name,
+        split,
+        "data_emb/data_emb.hdf5",
+        inference_name,
+    )
+
+
 def get_probabilities(
     project_name: str,
     run_name: str,
