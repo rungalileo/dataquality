@@ -17,6 +17,8 @@ from dataquality.schemas.report import (
 from dataquality.schemas.split import Split
 
 api_client = ApiClient()
+# Build a cache of dataframes to avoid making multiple requests to the server
+DF_CACHE: Dict[Tuple, DataFrame] = {}
 
 
 def register_run_report(conditions: List[Condition], emails: List[str]) -> None:
@@ -58,17 +60,16 @@ def _get_dataframe_from_cache_or_server(
     run_name: str,
     split: Split,
     inference_name: str = "",
-    split_cache: Dict[Tuple, DataFrame] = None,
 ) -> DataFrame:
     """Get a dataframe from the cache or the server."""
-    if split_cache is None:
-        split_cache = {}
+    # Inference name as 'None' or empty string is the same
+    inference_name = inference_name or ""
 
-    if (project_name, run_name, split, inference_name) in split_cache:
-        return split_cache[(project_name, run_name, split, inference_name)]
+    if (project_name, run_name, split, inference_name) in DF_CACHE:
+        return DF_CACHE[(project_name, run_name, split, inference_name)]
 
     df = get_dataframe(project_name, run_name, split, inference_name, as_pandas=False)
-    split_cache[(project_name, run_name, split, inference_name)] = df
+    DF_CACHE[(project_name, run_name, split, inference_name)] = df
     return df
 
 
@@ -97,11 +98,10 @@ def _add_split_data_for_condition(
     run_name: str,
     split: Split,
     split_data: List[SplitConditionData],
-    split_cache: Dict[Tuple, DataFrame] = None,
     inference_name: str = "",
 ) -> List[SplitConditionData]:
     df = _get_dataframe_from_cache_or_server(
-        project_name, run_name, split, inference_name, split_cache
+        project_name, run_name, split, inference_name
     )
     if not _condition_valid_for_df(df, condition):
         return split_data
@@ -125,7 +125,6 @@ def _get_report_results_for_condition(
     inference_names: List[str],
     project_name: str,
     run_name: str,
-    split_cache: Dict[Tuple, DataFrame] = None,
 ) -> ReportConditionData:
     """Get the results for a condition."""
     split_data: List[SplitConditionData] = []
@@ -140,12 +139,11 @@ def _get_report_results_for_condition(
                     run_name,
                     split,
                     split_data,
-                    split_cache,
                     inference_name=inf_name,
                 )
         else:
             split_data = _add_split_data_for_condition(
-                condition, project_name, run_name, split, split_data, split_cache
+                condition, project_name, run_name, split, split_data
             )
 
     return ReportConditionData(
@@ -179,12 +177,10 @@ def build_run_report(
         conditions=[],
     )
 
-    # Build a cache of dataframes to avoid making multiple requests to the server
-    split_cache: Dict[Tuple, DataFrame] = {}
     for c in conditions:
         report_data.conditions.append(
             _get_report_results_for_condition(
-                c, logged_splits, inference_names, project_name, run_name, split_cache
+                c, logged_splits, inference_names, project_name, run_name
             )
         )
 
