@@ -31,12 +31,21 @@ def register_run_report(conditions: List[Condition], emails: List[str]) -> None:
 
 
 def _get_email_datetime() -> str:
-    """Get the current datetime in a human readable format."""
+    """Get the current datetime in a human readable format.
+    
+    Example:
+        >>> _get_email_datetime()
+        "Tuesday 09/14/2021, 15:00:00"
+    """
     return datetime.now().strftime("%A %m/%d/%Y, %H:%M:%S")
 
 
 def _get_metric(condition: Condition) -> str:
-    """Get the metric name for a condition."""
+    """Get the metric name for a condition.
+    
+    If the condition does not have a metric, we use the metric of the first filter.
+    TODO: Extend to support multiple filters.
+    """
     if condition.metric:
         return condition.metric
     elif condition.filters:
