@@ -8,8 +8,6 @@ from tensorflow import keras
 import dataquality as dq
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
-
-# from dataquality.analytics import Analytics
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.split import Split
 from dataquality.utils.tf import is_tf_2
@@ -66,7 +64,6 @@ class DataQualityLoggingLayer(tf.keras.layers.Layer):
         if what_to_log not in ["ids", "probs", "embs"]:
             raise GalileoException("What to log must be one of ids, probs or embs")
         self.what_to_log = what_to_log
-        self.helper_data = dq.get_model_logger().logger_config.helper_data
 
     def call(self, inputs: tf.Tensor) -> tf.Tensor:
         if self.what_to_log == "ids":
@@ -83,9 +80,9 @@ class DataQualityLoggingLayer(tf.keras.layers.Layer):
                 inputs = inputs[..., :-1]
             else:
                 inputs, ids = split_into_ids_and_numpy_arr(inputs)
-                self.helper_data[self.what_to_log] = ids
+                dq.get_model_logger().logger_config.helper_data[self.what_to_log] = ids
         else:
-            self.helper_data[self.what_to_log] = inputs
+            dq.get_model_logger().logger_config.helper_data[self.what_to_log] = inputs
         return inputs
 
 
@@ -93,21 +90,20 @@ class DataQualityCallback(keras.callbacks.Callback):
     def __init__(self) -> None:
         a.log_function("keras/dqcallback")
         super(DataQualityCallback, self).__init__()
-        self.helper_data = dq.get_model_logger().logger_config.helper_data
         # In the future we could maybe insert the layers into sequential or something
 
     def on_epoch_begin(self, epoch: int, logs: Dict) -> None:
         dq.set_epoch(epoch)
 
     def _clear_logger_config_helper_data(self) -> None:
-        self.helper_data.clear()
+        dq.get_model_logger().logger_config.helper_data.clear()
 
     def on_train_batch_begin(self, batch: Any, logs: Dict = None) -> None:
         self._clear_logger_config_helper_data()
         dq.set_split(Split.train)
 
     def on_train_batch_end(self, batch: Any, logs: Dict = None) -> None:
-        dq.log_model_outputs(**self.helper_data)
+        dq.log_model_outputs(**dq.get_model_logger().logger_config.helper_data)
 
     def on_test_batch_begin(self, batch: Any, logs: Dict = None) -> None:
         # TODO: Somehow we should figure out whether this is in .fit
@@ -116,7 +112,7 @@ class DataQualityCallback(keras.callbacks.Callback):
         dq.set_split(Split.test)
 
     def on_test_batch_end(self, batch: Any, logs: Dict = None) -> None:
-        dq.log_model_outputs(**self.helper_data)
+        dq.log_model_outputs(**dq.get_model_logger().logger_config.helper_data)
 
 
 # try:
