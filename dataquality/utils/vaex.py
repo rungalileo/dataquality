@@ -7,7 +7,6 @@ import h5py
 import numpy as np
 import pyarrow as pa
 import vaex
-from sentence_transformers import SentenceTransformer
 from vaex.arrow.convert import arrow_string_array_from_buffers as convert_bytes
 from vaex.dataframe import DataFrame
 
@@ -18,7 +17,6 @@ from dataquality.utils.hdf5_store import HDF5_STORE, HDF5Store
 from dataquality.utils.helpers import galileo_verbose_logging
 
 lock = threading.Lock()
-DATA_MODEL = SentenceTransformer("all-mpnet-base-v2")
 
 
 def _save_hdf5_file(location: str, file_name: str, data: Dict) -> None:
@@ -225,11 +223,18 @@ def rename_df(df: DataFrame, columns: Dict) -> DataFrame:
 
 def get_data_embs(df: DataFrame) -> DataFrame:
     """Runs sentence transformer on raw text to get off the shelf data embeddings"""
+    # This import takes up to 25 seconds, so we don't want to eagerly import it
+    import transformers
+    from sentence_transformers import SentenceTransformer
+
+    transformers.logging.disable_progress_bar()
+    data_model = SentenceTransformer("all-mpnet-base-v2")
     df_copy = df.copy()
 
     @vaex.register_function()
     def apply_sentence_transformer(text: pa.array) -> np.ndarray:
-        return DATA_MODEL.encode(text.to_pylist(), show_progress_bar=False)
+        return data_model.encode(text.to_pylist(), show_progress_bar=False)
 
     df_copy["emb"] = df_copy["text"].apply_sentence_transformer()
+    transformers.logging.enable_progress_bar()
     return df_copy[["id", "emb"]]

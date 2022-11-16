@@ -270,7 +270,7 @@ def get_dataframe(
     tagging_schema: Optional[TaggingSchema] = None,
     filter: Union[FilterParams, Dict] = None,
     as_pandas: bool = True,
-    include_data_embs: bool = False
+    include_data_embs: bool = False,
 ) -> Union[pd.DataFrame, DataFrame]:
     """Gets the dataframe for a run/split
 
@@ -333,7 +333,7 @@ def get_dataframe(
         include_token_indices,
         hf_format,
         as_pandas,
-        include_data_embs
+        include_data_embs,
     )
 
 
@@ -349,7 +349,7 @@ def get_edited_dataframe(
     hf_format: bool = False,
     tagging_schema: Optional[TaggingSchema] = None,
     as_pandas: bool = True,
-    include_data_embs: bool = False
+    include_data_embs: bool = False,
 ) -> Union[pd.DataFrame, DataFrame]:
     """Gets the edited dataframe for a run/split
 
@@ -410,7 +410,7 @@ def get_edited_dataframe(
         include_token_indices,
         hf_format,
         as_pandas,
-        include_data_embs
+        include_data_embs,
     )
 
 
@@ -427,7 +427,7 @@ def _process_exported_dataframe(
     include_token_indices: bool = False,
     hf_format: bool = False,
     as_pandas: bool = True,
-    include_data_embs: bool = False
+    include_data_embs: bool = False,
 ) -> Union[pd.DataFrame, DataFrame]:
     """Process dataframe after export of run or edits.
 
