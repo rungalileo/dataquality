@@ -10,6 +10,7 @@ import dataquality
 import dataquality.core.log
 from dataquality.exceptions import GalileoWarning
 from dataquality.schemas.task_type import TaskType
+from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID
 
 
 def test_finish_no_init() -> None:
@@ -63,7 +64,9 @@ def test_finish_waits_default(
     set_test_config,
 ) -> None:
     set_test_config(task_type=TaskType.text_classification)
-    mock_get_data_logger.return_value = MagicMock()
+    mock_get_data_logger.return_value = MagicMock(
+        logger_config=MagicMock(conditions=None)
+    )
     dataquality.finish()
     mock_wait_for_run.assert_called_once()
 
@@ -87,7 +90,9 @@ def test_finish_no_waits_when_false(
     set_test_config,
 ) -> None:
     set_test_config(task_type=TaskType.text_classification)
-    mock_get_data_logger.return_value = MagicMock()
+    mock_get_data_logger.return_value = MagicMock(
+        logger_config=MagicMock(conditions=None)
+    )
     dataquality.finish(wait=False)
     mock_wait_for_run.assert_not_called()
 
@@ -125,3 +130,44 @@ def test_finish_ignores_missing_inference_name_inframe(
     # This should return and NOT log data and NOT throw an exception
     with pytest.warns(GalileoWarning):
         dataquality.finish()
+
+
+@mock.patch.object(dataquality.core.finish, "_version_check")
+@mock.patch.object(dataquality.core.finish, "_reset_run")
+@mock.patch.object(dataquality.core.finish, "upload_dq_log_file")
+@mock.patch.object(dataquality.clients.api.ApiClient, "make_request")
+@mock.patch.object(
+    dataquality.core.finish.dataquality,
+    "get_data_logger",
+)
+@mock.patch.object(dataquality.core.finish, "wait_for_run")
+@mock.patch.object(dataquality.core.finish, "build_run_report")
+def test_finish_with_conditions(
+    mock_build_run_report: MagicMock,
+    mock_wait_for_run: MagicMock,
+    mock_get_data_logger: MagicMock,
+    mock_make_request: MagicMock,
+    mock_upload_log_file: MagicMock,
+    mock_reset_run: MagicMock,
+    mock_version_check: MagicMock,
+    set_test_config,
+) -> None:
+    set_test_config(task_type=TaskType.text_classification)
+    mock_make_request.return_value = {
+        "link": "https://www.example.com",
+        "job_name": "test",
+    }
+    mock_get_data_logger.return_value = MagicMock(
+        logger_config=MagicMock(
+            conditions=["condition1", "condition2"], report_emails=["fake@example.com"]
+        )
+    )
+    dataquality.finish()
+    mock_wait_for_run.assert_called_once()
+    mock_build_run_report.assert_called_once_with(
+        ["condition1", "condition2"],
+        ["fake@example.com"],
+        project_id=DEFAULT_PROJECT_ID,
+        run_id=DEFAULT_RUN_ID,
+        link="https://www.example.com",
+    )

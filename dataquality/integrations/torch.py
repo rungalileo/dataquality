@@ -18,7 +18,7 @@ from dataquality.utils.torch import (
     patch_iterator_with_store,
 )
 
-a = Analytics(ApiClient, dq.config)
+a = Analytics(ApiClient, dq.config)  # type: ignore
 a.log_import("torch")
 
 
