@@ -1,15 +1,15 @@
+import inspect
+from functools import partial
 from typing import Any, Dict, List, Tuple, Union
-from dataquality import config
 
 import tensorflow as tf
-from tensorflow import keras
 from keras.engine import data_adapter
-import inspect
+from tensorflow import keras
+
 import dataquality as dq
+from dataquality import config
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
-from functools import partial
-
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.split import Split
 from dataquality.utils.helpers import wrap_fn
@@ -31,8 +31,19 @@ def pass_on(*args, **kwargs):
     return None
 
 
-def hook_layer(layer, before_call=None, after_call=None):
+# https://github.com/tensorflow/tensorflow/issues/33478#issuecomment-843720638
+def proxy_call(input: tf.Tensor, obj: tf.keras.layers.Layer, *args, **kwargs):
+    if obj._before_call is not None:
+        obj._before_call(obj, input)
+    output = obj._old_call(input)
+    if obj._after_call is not None:
+        hook_result = obj._after_call(obj, input, output)
+        if hook_result is not None:
+            output = hook_result
+    return output
 
+
+def hook_layer(layer, before_call=None, after_call=None):
     layer._before_call = before_call
     layer._after_call = after_call
     layer._old_call = layer.call
@@ -192,18 +203,6 @@ class DataQualityCallback(keras.callbacks.Callback):
         )
 
 
-# https://github.com/tensorflow/tensorflow/issues/33478#issuecomment-843720638
-def proxy_call(input: tf.Tensor, obj: tf.keras.layers.Layer, *args, **kwargs):
-    if obj._before_call is not None:
-        obj._before_call(obj, input)
-    output = obj._old_call(input)
-    if obj._after_call is not None:
-        hook_result = obj._after_call(obj, input, output)
-        if hook_result is not None:
-            output = hook_result
-    return output
-
-
 def store_model_args_kwargs(store, callback):
     def fit_wrapper(orig_func, *args, **kwargs):
         """Stores the indices of the batch"""
@@ -221,7 +220,10 @@ def store_model_args_kwargs(store, callback):
 def store_model_ids(store):
     def train_step_wrapper(orig_func, *args, **kwargs):
         """Stores the indices of the batch"""
-        store["indices_ids"] = args[0][0].pop("id", None)
+        try:
+            store["indices_ids"] = args[0][0].pop("id", None)
+        except AttributeError:
+            pass
 
         return orig_func(*args, **kwargs)
 
@@ -229,18 +231,18 @@ def store_model_ids(store):
 
 
 def select_model_layer(model, layer):
-    choosen_layer = layer
-    if isinstance(choosen_layer, str) is None:
+    chosen_layer = layer
+    if isinstance(chosen_layer, str) is None:
         for model_layer in model.layers:
             if model_layer.name == layer:
-                choosen_layer = model_layer
+                chosen_layer = model_layer
                 break
     else:
         for model_layer in model.layers:
             if model_layer.name == "classifier":
-                choosen_layer = model_layer
+                chosen_layer = model_layer
                 break
-    return choosen_layer
+    return chosen_layer
 
 
 def watch(model: tf.keras.layers.Layer, layer=None, seed=42):
@@ -252,9 +254,9 @@ def watch(model: tf.keras.layers.Layer, layer=None, seed=42):
     model.test_step = wrap_fn(model.test_step, store_model_ids(logger_data))
     model.predict_step = wrap_fn(model.predict_step, store_model_ids(logger_data))
     model.__call__ = wrap_fn(model.__call__, store_model_ids(logger_data))
-    choosen_layer = select_model_layer(model, layer)
+    chosen_layer = select_model_layer(model, layer)
     hook_layer(
-        choosen_layer,
+        chosen_layer,
         before_call=partial(save_input, logger_data),
         after_call=partial(save_output, logger_data),
     )
