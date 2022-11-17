@@ -296,3 +296,5 @@ def test_create_and_upload_data_embs(
     assert data_embs.get_column_names() == ["id", "emb"]
     assert isinstance(data_embs.emb.values, np.ndarray)
     assert data_embs.emb.values.ndim == 2
+    # mini BERT model spits out 32 dims
+    assert data_embs.emb.values.shape == (10, 32)
