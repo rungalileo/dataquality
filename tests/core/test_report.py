@@ -151,8 +151,8 @@ def test_build_run_report_e2e(
         "link": "www.foobar.com",
         "conditions": [
             {
-                "condition": "confidence",
-                "criteria": "Average confidence is less than 0.4",
+                "metric": "confidence",
+                "condition": "Average confidence is less than 0.4",
                 "splits": [
                     {
                         "split": "training",
@@ -178,8 +178,8 @@ def test_build_run_report_e2e(
                 ],
             },
             {
-                "condition": "is_drifted",
-                "criteria": (
+                "metric": "is_drifted",
+                "condition": (
                     "Percentage (is_drifted is equal to 1.0) is greater than or "
                     "equal to 0.5"
                 ),
