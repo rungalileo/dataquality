@@ -32,8 +32,13 @@ def parse_exception_ipython(
     # We track the parsed error
     error_type = etype.__name__
     error_messages = []
+    # The BaseException has args we want to log.
+    # These are our error messages
     for arg in evalue.args:
         try:
+            # We try to convert the arg to a string
+            # this was causing issues with some errors
+            # that had non-string args
             error_messages.append(str(arg))
         except Exception:
             pass

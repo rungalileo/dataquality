@@ -130,12 +130,17 @@ class Analytics(Borg):
         tb_offset: Any = None,
     ) -> None:
         """This function is used to handle exceptions in ipython."""
-        if self._telemetrics_disabled:
-            return
+
+        # we hook into the traceback,
+        # inbetween we log the exception
+        # and then show the original traceback.
+        # because recently the track_exception_ipython was failing
+        # we added a try except to make sure the original traceback is shown
         try:
-            self.track_exception_ipython(
-                etype, evalue, tb, AmpliMetric.dq_general_exception
-            )
+            if not self._telemetrics_disabled:
+                self.track_exception_ipython(
+                    etype, evalue, tb, AmpliMetric.dq_general_exception
+                )
         except Exception:
             # TODO: create internal logging endpoint
             pass
