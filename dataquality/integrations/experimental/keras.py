@@ -116,24 +116,9 @@ class DataQualityCallback(keras.callbacks.Callback):
         self.helper_data["params"] = params
         self.params = params
 
-    def on_train_begin(self, logs=None):
+    def generate_indices(self, x, kwargs):
         e_model = keras.Sequential([])
         e_model.compile(loss="mse", run_eagerly=True)
-        assert self.model.run_eagerly, GalileoException(
-            "Model must be compiled with run_eagerly=True"
-        )
-        X_values = self.helper_data["fit_kwargs"].get(
-            "x", self.helper_data["fit_args"][0]
-        )
-        x = tf.range(len(X_values))
-        signature = inspect.signature(self.model.fit)
-        default_params = {
-            k: v.default
-            for k, v in signature.parameters.items()
-            if v.default is not inspect.Parameter.empty
-        }
-        kwargs = {**default_params}
-        kwargs.update(self.helper_data["fit_kwargs"])
         data_handler = data_adapter.get_data_handler(
             x=x,
             model=e_model,
@@ -155,11 +140,34 @@ class DataQualityCallback(keras.callbacks.Callback):
             },
         )
         for epoch, iterator in data_handler.enumerate_epochs():
-            iterator_data = iterator.get_next()
-            self.helper_data[f"epoch_{epoch}"] = iterator_data
+            for step, iterator_data in enumerate(iterator):
+                self.helper_data[f"epoch_{epoch}_{step}"] = iterator_data
+
+    def generate_kwargs(self):
+        signature = inspect.signature(self.model.fit)
+        default_params = {
+            k: v.default
+            for k, v in signature.parameters.items()
+            if v.default is not inspect.Parameter.empty
+        }
+        kwargs = {**default_params}
+        kwargs.update(self.helper_data["fit_kwargs"])
+        return kwargs
+
+    def on_train_begin(self, logs=None):
+        self.helper_data["step"] = 0
+        assert self.model.run_eagerly, GalileoException(
+            "Model must be compiled with run_eagerly=True"
+        )
+        X_values = self.helper_data["fit_kwargs"].get(
+            "x", self.helper_data["fit_args"][0]
+        )
+        x = tf.range(len(X_values))
+        self.generate_indices(x, self.generate_kwargs())
 
     def on_epoch_begin(self, epoch: int, logs: Dict) -> None:
         dq.set_epoch(epoch)
+        self.helper_data["step"] = 0
 
     def _clear_logger_config_helper_data(self) -> None:
         self.helper_data.pop("input", None)
@@ -175,13 +183,20 @@ class DataQualityCallback(keras.callbacks.Callback):
         logger_config = dq.get_data_logger().logger_config
         ids = self.helper_data.get("indices_ids")
         if ids is None:
-            ids = self.helper_data[f"epoch_{logger_config.cur_epoch}"]
+            epoch = logger_config.cur_epoch
+            step = self.helper_data["step"]
+            ids = self.helper_data[f"epoch_{epoch}_{step}"]
+            self.helper_data["step"] += 1
 
         dq.log_model_outputs(
             embs=self.helper_data["input"],
             logits=self.helper_data["output"],
             ids=ids,
         )
+
+    def on_test_begin(self, logs=None):
+        dq.set_split(Split.test)
+        self.helper_data["step"] = 0
 
     def on_test_batch_begin(self, batch: Any, logs: Dict = None) -> None:
         # TODO: Somehow we should figure out whether this is in .fit
@@ -193,6 +208,7 @@ class DataQualityCallback(keras.callbacks.Callback):
         dq.set_split(Split.test)
         logger_config = dq.get_data_logger().logger_config
         ids = self.helper_data.get("indices_ids")
+        return
         if ids is None:
             ids = self.helper_data[f"epoch_{logger_config.cur_epoch}"]
 
