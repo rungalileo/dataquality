@@ -35,7 +35,7 @@ def parse_exception_ipython(
     for arg in evalue.args:
         try:
             error_messages.append(str(arg))
-        except Exception as e:
+        except Exception:
             pass
     error_message = ", ".join(error_messages)
     error_stacktrace = lines

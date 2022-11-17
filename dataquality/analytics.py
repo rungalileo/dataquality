@@ -40,7 +40,6 @@ class Borg:
 class Analytics(Borg):
     """Analytics is used to track errors and logs in the background"""
 
-    _is_initialized: bool = False
     _telemetrics_disabled: bool = True
 
     def __init__(self, ApiClient: Type[ApiClient], config: Config) -> None:
@@ -54,14 +53,14 @@ class Analytics(Borg):
             self._telemetrics_disabled = self._is_telemetrics_disabled(config)
             if self._telemetrics_disabled:
                 return
+            self.api_caller = ThreadPoolExecutor(max_workers=5)
+            self.api_client = ApiClient()
+            self.config = config
 
             if not getattr(self, "_initialized", False) and not getattr(
                 self, "_locked", False
             ):
                 self._locked = True
-                self.api_caller = ThreadPoolExecutor(max_workers=5)
-                self.api_client = ApiClient()
-                self.config = config
                 self.last_error: Dict = {}
                 self.last_log: Dict = {}
                 self.user: ProfileModel = self._setup_user()
