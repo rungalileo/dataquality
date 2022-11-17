@@ -31,7 +31,13 @@ def parse_exception_ipython(
         lines += line
     # We track the parsed error
     error_type = etype.__name__
-    error_message = ", ".join(evalue.args)
+    error_messages = []
+    for arg in evalue.args:
+        try:
+            error_messages.append(str(arg))
+        except Exception as e:
+            print(e)
+    error_message = ", ".join(error_messages)
     error_stacktrace = lines
     return {
         **get_device_info(),
