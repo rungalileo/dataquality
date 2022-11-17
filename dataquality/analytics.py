@@ -133,9 +133,13 @@ class Analytics(Borg):
         """This function is used to handle exceptions in ipython."""
         if self._telemetrics_disabled:
             return
-        self.track_exception_ipython(
-            etype, evalue, tb, AmpliMetric.dq_general_exception
-        )
+        try:
+            self.track_exception_ipython(
+                etype, evalue, tb, AmpliMetric.dq_general_exception
+            )
+        except Exception:
+            # TODO: create internal logging endpoint
+            pass
         # We need to call the default ipython exception handler to raise the error
         shell.showtraceback((etype, evalue, tb), tb_offset=tb_offset)
 
