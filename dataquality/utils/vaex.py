@@ -228,7 +228,7 @@ def get_data_embs(df: DataFrame) -> DataFrame:
     from sentence_transformers import SentenceTransformer
 
     transformers.logging.disable_progress_bar()
-    data_model = SentenceTransformer("all-mpnet-base-v2")
+    data_model = SentenceTransformer("all-MiniLM-L6-v2")
     df_copy = df.copy()
 
     @vaex.register_function()
