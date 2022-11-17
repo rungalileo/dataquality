@@ -18,8 +18,7 @@ from dataquality.loggers.data_logger.text_classification import (
 )
 from dataquality.schemas.split import Split
 from dataquality.utils.vaex import GALILEO_DATA_EMBS_ENCODER
-from tests.conftest import TEST_PATH
-from tests.integrations.hf.test_text_classification_hf import HF_TEST_BERT_PATH
+from tests.conftest import HF_TEST_BERT_PATH, TEST_PATH
 
 
 def test_duplicate_rows(set_test_config, cleanup_after_use) -> None:

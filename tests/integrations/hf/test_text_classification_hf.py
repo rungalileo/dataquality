@@ -10,7 +10,6 @@ from torch.utils.data import DataLoader
 from transformers import (
     AutoModel,
     AutoModelForSequenceClassification,
-    AutoTokenizer,
     Trainer,
     TrainingArguments,
 )
@@ -20,28 +19,12 @@ from dataquality import config
 from dataquality.integrations.transformers_trainer import watch
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
-from tests.conftest import LOCATION
+from tests.conftest import HF_TEST_BERT_PATH, LOCATION, model, tokenizer
 from tests.test_utils.hf_datasets_mock import mock_dataset, mock_dataset_repeat
 from tests.test_utils.mock_request import (
     mocked_create_project_run,
     mocked_get_project_run,
 )
-
-# Load models locally
-HF_TEST_BERT_PATH = "hf-internal-testing/tiny-random-distilbert"
-LOCAL_TOKENIZER_PATH = "tmp/testing-random-distilbert-tokenizer"
-LOCAL_MODEL_PATH = "tmp/testing-random-distilbert-sq"
-try:
-    tokenizer = AutoTokenizer.from_pretrained(LOCAL_TOKENIZER_PATH)
-except Exception:
-    tokenizer = AutoTokenizer.from_pretrained(HF_TEST_BERT_PATH)
-    tokenizer.save_pretrained(LOCAL_TOKENIZER_PATH)
-try:
-    model = AutoModelForSequenceClassification.from_pretrained(HF_TEST_BERT_PATH)
-except Exception:
-    model = AutoModelForSequenceClassification.from_pretrained(HF_TEST_BERT_PATH)
-    model.save_pretrained(LOCAL_MODEL_PATH)
-
 
 metric = load_metric("accuracy")
 
