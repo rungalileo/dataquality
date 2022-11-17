@@ -1,4 +1,5 @@
 import itertools
+import warnings
 from collections import defaultdict
 from enum import Enum, unique
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
@@ -8,7 +9,7 @@ import pyarrow as pa
 import vaex
 from vaex.dataframe import DataFrame
 
-from dataquality.exceptions import GalileoException
+from dataquality.exceptions import GalileoException, GalileoWarning
 from dataquality.loggers.data_logger.base_data_logger import (
     ITER_CHUNK_SIZE,
     BaseGalileoDataLogger,
@@ -231,6 +232,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         self.texts = [text]
         self.ids = [id]
         self.split = split
+        self.inference_name = inference_name
         self.text_token_indices = (
             [text_token_indices] if text_token_indices is not None else []
         )
@@ -762,3 +764,13 @@ class TextNERDataLogger(BaseGalileoDataLogger):
     @classmethod
     def set_tagging_schema(cls, tagging_schema: TaggingSchema) -> None:
         cls.logger_config.tagging_schema = tagging_schema
+
+    @classmethod
+    def create_and_upload_data_embs(
+        cls, df: DataFrame, split: str, epoch_or_inf: str
+    ) -> None:
+        """Not yet supported for NER. Coming soon!"""
+        warnings.warn(
+            "Data embeddings are not yet supported for NER. Coming soon!",
+            GalileoWarning,
+        )

@@ -7,6 +7,7 @@ import dataquality
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
 from dataquality.core._config import config
+from dataquality.core.report import build_run_report
 from dataquality.schemas import RequestType, Route
 from dataquality.schemas.job import JobName
 from dataquality.schemas.task_type import TaskType
@@ -21,7 +22,9 @@ a = Analytics(ApiClient, config)  # type: ignore
 
 @check_noop
 def finish(
-    last_epoch: Optional[int] = None, wait: bool = True
+    last_epoch: Optional[int] = None,
+    wait: bool = True,
+    create_data_embs: bool = False,
 ) -> Optional[Dict[str, Any]]:
     """
     Finishes the current run and invokes a job
@@ -31,6 +34,10 @@ def finish(
     :param wait: If true, after uploading the data, this will wait for the
         run to be processed by the Galileo server. If false, you can manually wait
         for the run by calling `dq.wait_for_run()` Default True
+    :param create_data_embs: If True, an off-the-shelf transformer will run on the raw
+        text input to generate data-level embeddings. These will be available in the
+        `data view` tab of the Galileo console. You can also access these embeddings
+        via dq.metrics.get_data_embeddings()
     """
     a.log_function("dq/finish")
     ThreadPoolManager.wait_for_threads()
@@ -45,7 +52,7 @@ def finish(
     if data_logger.non_inference_logged():
         _reset_run(config.current_project_id, config.current_run_id, config.task_type)
 
-    data_logger.upload(last_epoch)
+    data_logger.upload(last_epoch, create_data_embs=create_data_embs)
     upload_dq_log_file()
 
     body = dict(
@@ -67,8 +74,22 @@ def finish(
         f"Job {res['job_name']} successfully submitted. Results will be available "
         f"soon at {res['link']}"
     )
-    if wait:
+    if data_logger.logger_config.conditions:
+        print(
+            "Waiting for run to process before building run report... "
+            "Don't close laptop or terminate shell."
+        )
         wait_for_run()
+        build_run_report(
+            data_logger.logger_config.conditions,
+            data_logger.logger_config.report_emails,
+            project_id=config.current_project_id,
+            run_id=config.current_run_id,
+            link=res["link"],
+        )
+    elif wait:
+        wait_for_run()
+
     # Reset the environment
     data_logger._cleanup()
     return res
