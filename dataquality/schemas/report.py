@@ -18,8 +18,8 @@ class SplitConditionData(BaseModel):
 
 
 class ReportConditionData(BaseModel):
+    metric: str
     condition: str
-    criteria: str
     splits: List[SplitConditionData]
 
 

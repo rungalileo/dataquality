@@ -182,8 +182,8 @@ def _get_report_results_for_condition(
             )
 
     return ReportConditionData(
-        condition=_get_metric(condition),
-        criteria=_condition_to_verbose_string(condition),
+        metric=_get_metric(condition),
+        condition=_condition_to_verbose_string(condition),
         splits=split_data,
     )
 
