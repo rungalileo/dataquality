@@ -6,6 +6,7 @@ from uuid import UUID
 import pytest
 import requests
 import spacy
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
 from vaex.dataframe import DataFrame
 
 import dataquality
@@ -28,6 +29,21 @@ SPLITS = ["training", "test"]
 SUBDIRS = ["data", "emb", "prob"]
 
 spacy.util.fix_random_seed()
+
+
+# Load models locally
+HF_TEST_BERT_PATH = "hf-internal-testing/tiny-random-distilbert"
+LOCAL_MODEL_PATH = "tmp/testing-random-distilbert-sq"
+try:
+    tokenizer = AutoTokenizer.from_pretrained(LOCAL_MODEL_PATH)
+except Exception:
+    tokenizer = AutoTokenizer.from_pretrained(HF_TEST_BERT_PATH)
+    tokenizer.save_pretrained(LOCAL_MODEL_PATH)
+try:
+    model = AutoModelForSequenceClassification.from_pretrained(LOCAL_MODEL_PATH)
+except Exception:
+    model = AutoModelForSequenceClassification.from_pretrained(HF_TEST_BERT_PATH)
+    model.save_pretrained(LOCAL_MODEL_PATH)
 
 
 @pytest.fixture(autouse=True)
