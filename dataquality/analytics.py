@@ -31,7 +31,7 @@ class Borg:
     # We use a borg pattern to share state across all instances of this class.
     # Due to submitting some errors in a thread,
     # we want to share the thread pool executor
-    _shared_state: Dict[str, str] = {}
+    _shared_state: Dict[str, Any] = {}
 
     def __init__(self) -> None:
         self.__dict__ = self._shared_state
@@ -48,27 +48,27 @@ class Analytics(Borg):
         :param ApiClient: The ApiClient class
         :param config: The dq config
         """
-
         super().__init__()
 
         try:
             self._telemetrics_disabled = self._is_telemetrics_disabled(config)
-
             if self._telemetrics_disabled:
                 return
-            # initiate the first instance with default state
-            if not hasattr(self, "state"):
+
+            if not getattr(self, "_initialized", False) and not getattr(
+                self, "_locked", False
+            ):
+                self._locked = True
                 self.api_caller = ThreadPoolExecutor(max_workers=5)
                 self.api_client = ApiClient()
                 self.config = config
-                if not getattr(self, "_is_initializing", False):
-                    self.last_error: Dict = {}
-                    self.last_log: Dict = {}
-                    self.user: ProfileModel = self._setup_user()
-                    self._is_initializing = True
-                    self._init()
+                self.last_error: Dict = {}
+                self.last_log: Dict = {}
+                self.user: ProfileModel = self._setup_user()
+                self._init()
+                self._initialized = True
+                self._locked = False
 
-            self._is_initialized = True
         except Exception as e:
             self.debug_logging(e)
 
