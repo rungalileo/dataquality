@@ -17,10 +17,10 @@ from dataquality.utils.hdf5_store import HDF5_STORE, HDF5Store
 from dataquality.utils.helpers import galileo_verbose_logging
 
 lock = threading.Lock()
-GALILEO_DATA_EMBS_ENCODER = "GALILEO_DATA_EMBS_ENCODER"
 # To decide between "all-MiniLM-L6-v2" or "all-mpnet-base-v2"
 # https://www.sbert.net/docs/pretrained_models.html#model-overview
-SENTENCE_ENCODER = os.getenv(GALILEO_DATA_EMBS_ENCODER, "all-mpnet-base-v2")
+GALILEO_DATA_EMBS_ENCODER = "GALILEO_DATA_EMBS_ENCODER"
+DEFAULT_DATA_EMBS_MODEL = "all-mpnet-base-v2"
 
 
 def _save_hdf5_file(location: str, file_name: str, data: Dict) -> None:
@@ -232,7 +232,8 @@ def create_data_embs(df: DataFrame) -> DataFrame:
     from sentence_transformers import SentenceTransformer
 
     transformers.logging.disable_progress_bar()
-    data_model = SentenceTransformer(SENTENCE_ENCODER)
+    sentence_encoder = os.getenv(GALILEO_DATA_EMBS_ENCODER, DEFAULT_DATA_EMBS_MODEL)
+    data_model = SentenceTransformer(sentence_encoder)
     df_copy = df.copy()
 
     @vaex.register_function()

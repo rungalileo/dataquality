@@ -33,13 +33,12 @@ spacy.util.fix_random_seed()
 
 # Load models locally
 HF_TEST_BERT_PATH = "hf-internal-testing/tiny-random-distilbert"
-LOCAL_TOKENIZER_PATH = "tmp/testing-random-distilbert-tokenizer"
 LOCAL_MODEL_PATH = "tmp/testing-random-distilbert-sq"
 try:
-    tokenizer = AutoTokenizer.from_pretrained(LOCAL_TOKENIZER_PATH)
+    tokenizer = AutoTokenizer.from_pretrained(LOCAL_MODEL_PATH)
 except Exception:
     tokenizer = AutoTokenizer.from_pretrained(HF_TEST_BERT_PATH)
-    tokenizer.save_pretrained(LOCAL_TOKENIZER_PATH)
+    tokenizer.save_pretrained(LOCAL_MODEL_PATH)
 try:
     model = AutoModelForSequenceClassification.from_pretrained(HF_TEST_BERT_PATH)
 except Exception:

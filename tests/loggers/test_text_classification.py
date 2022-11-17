@@ -285,6 +285,7 @@ def test_create_and_upload_data_embs(
     set_test_config(task_type="text_classification")
     # Use the local mini bert model
     os.environ[GALILEO_DATA_EMBS_ENCODER] = LOCAL_MODEL_PATH
+
     df = vaex.from_arrays(id=list(range(10)))
     df["text"] = "sentence number " + df["id"].astype(str)
     logger = TextClassificationDataLogger()
@@ -295,5 +296,3 @@ def test_create_and_upload_data_embs(
     assert data_embs.get_column_names() == ["id", "emb"]
     assert isinstance(data_embs.emb.values, np.ndarray)
     assert data_embs.emb.values.ndim == 2
-    print("TEST")
-    print(data_embs)
