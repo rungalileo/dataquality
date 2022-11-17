@@ -18,7 +18,7 @@ from dataquality.loggers.data_logger.text_classification import (
 )
 from dataquality.schemas.split import Split
 from dataquality.utils.vaex import GALILEO_DATA_EMBS_ENCODER
-from tests.conftest import HF_TEST_BERT_PATH, TEST_PATH
+from tests.conftest import LOCAL_MODEL_PATH, TEST_PATH
 
 
 def test_duplicate_rows(set_test_config, cleanup_after_use) -> None:
@@ -284,7 +284,7 @@ def test_create_and_upload_data_embs(
 ) -> None:
     set_test_config(task_type="text_classification")
     # Use the local mini bert model
-    os.environ[GALILEO_DATA_EMBS_ENCODER] = HF_TEST_BERT_PATH
+    os.environ[GALILEO_DATA_EMBS_ENCODER] = LOCAL_MODEL_PATH
     df = vaex.from_arrays(id=list(range(10)))
     df["text"] = "sentence number " + df["id"].astype(str)
     logger = TextClassificationDataLogger()
@@ -295,3 +295,5 @@ def test_create_and_upload_data_embs(
     assert data_embs.get_column_names() == ["id", "emb"]
     assert isinstance(data_embs.emb.values, np.ndarray)
     assert data_embs.emb.values.ndim == 2
+    print("TEST")
+    print(data_embs)
