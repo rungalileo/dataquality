@@ -28,22 +28,19 @@ from tests.test_utils.mock_request import (
 )
 
 # Load models locally
+HF_TEST_BERT_PATH = "hf-internal-testing/tiny-random-distilbert"
+LOCAL_TOKENIZER_PATH = "tmp/testing-random-distilbert-tokenizer"
+LOCAL_MODEL_PATH = "tmp/testing-random-distilbert-sq"
 try:
-    tokenizer = AutoTokenizer.from_pretrained("tmp/testing-random-distilbert-tokenizer")
+    tokenizer = AutoTokenizer.from_pretrained(LOCAL_TOKENIZER_PATH)
 except Exception:
-    tokenizer = AutoTokenizer.from_pretrained(
-        "hf-internal-testing/tiny-random-distilbert"
-    )
-    tokenizer.save_pretrained("tmp/testing-random-distilbert-tokenizer")
+    tokenizer = AutoTokenizer.from_pretrained(HF_TEST_BERT_PATH)
+    tokenizer.save_pretrained(LOCAL_TOKENIZER_PATH)
 try:
-    model = AutoModelForSequenceClassification.from_pretrained(
-        "tmp/testing-random-distilbert-sq"
-    )
+    model = AutoModelForSequenceClassification.from_pretrained(HF_TEST_BERT_PATH)
 except Exception:
-    model = AutoModelForSequenceClassification.from_pretrained(
-        "hf-internal-testing/tiny-random-distilbert"
-    )
-    model.save_pretrained("tmp/testing-random-distilbert-sq")
+    model = AutoModelForSequenceClassification.from_pretrained(HF_TEST_BERT_PATH)
+    model.save_pretrained(LOCAL_MODEL_PATH)
 
 
 metric = load_metric("accuracy")
@@ -294,10 +291,8 @@ def test_forward_hook(
     cleanup_after_use: Generator,
 ) -> None:
     """Tests that the embedding layer is correctly logged"""
-    model_seq = AutoModelForSequenceClassification.from_pretrained(
-        "hf-internal-testing/tiny-random-distilbert"
-    )
-    model_base = AutoModel.from_pretrained("hf-internal-testing/tiny-random-distilbert")
+    model_seq = AutoModelForSequenceClassification.from_pretrained(HF_TEST_BERT_PATH)
+    model_base = AutoModel.from_pretrained(HF_TEST_BERT_PATH)
 
     train_sample = mock_dataset_with_ids_repeat.map(
         lambda x: preprocess_function(x, tokenizer), batched=True

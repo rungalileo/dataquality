@@ -766,7 +766,9 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         cls.logger_config.tagging_schema = tagging_schema
 
     @classmethod
-    def _upload_data_embs(cls, df: DataFrame, split: str, epoch_or_inf: str) -> None:
+    def create_and_upload_data_embs(
+        cls, df: DataFrame, split: str, epoch_or_inf: str
+    ) -> None:
         """Not yet supported for NER. Coming soon!"""
         warnings.warn(
             "Data embeddings are not yet supported for NER. Coming soon!",

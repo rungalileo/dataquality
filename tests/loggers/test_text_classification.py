@@ -1,3 +1,4 @@
+import os
 from typing import Callable
 from unittest import mock
 
@@ -16,6 +17,9 @@ from dataquality.loggers.data_logger.text_classification import (
     TextClassificationDataLogger,
 )
 from dataquality.schemas.split import Split
+from dataquality.utils.vaex import GALILEO_DATA_EMBS_ENCODER
+from tests.conftest import TEST_PATH
+from tests.integrations.hf.test_text_classification_hf import HF_TEST_BERT_PATH
 
 
 def test_duplicate_rows(set_test_config, cleanup_after_use) -> None:
@@ -274,3 +278,21 @@ def test_log_int_labels(set_test_config: Callable, cleanup_after_use: Callable) 
     assert sorted(dataquality.get_data_logger().logger_config.labels) == sorted(
         ["1", "2", "3"]
     )
+
+
+def test_create_and_upload_data_embs(
+    cleanup_after_use: Callable, set_test_config: Callable
+) -> None:
+    set_test_config(task_type="text_classification")
+    # Use the local mini bert model
+    os.environ[GALILEO_DATA_EMBS_ENCODER] = HF_TEST_BERT_PATH
+    df = vaex.from_arrays(id=list(range(10)))
+    df["text"] = "sentence number " + df["id"].astype(str)
+    logger = TextClassificationDataLogger()
+    logger.create_and_upload_data_embs(df, "training", 3)
+    data_embs_path = f"{TEST_PATH}/training/3/data_emb/data_emb.hdf5"
+    data_embs = vaex.open(data_embs_path)
+    assert len(data_embs) == 10
+    assert data_embs.get_column_names() == ["id", "emb"]
+    assert isinstance(data_embs.emb.values, np.ndarray)
+    assert data_embs.emb.values.ndim == 2

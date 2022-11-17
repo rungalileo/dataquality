@@ -17,6 +17,10 @@ from dataquality.utils.hdf5_store import HDF5_STORE, HDF5Store
 from dataquality.utils.helpers import galileo_verbose_logging
 
 lock = threading.Lock()
+GALILEO_DATA_EMBS_ENCODER = "GALILEO_DATA_EMBS_ENCODER"
+# To decide between "all-MiniLM-L6-v2" or "all-mpnet-base-v2"
+# https://www.sbert.net/docs/pretrained_models.html#model-overview
+SENTENCE_ENCODER = os.getenv(GALILEO_DATA_EMBS_ENCODER, "all-mpnet-base-v2")
 
 
 def _save_hdf5_file(location: str, file_name: str, data: Dict) -> None:
@@ -221,14 +225,14 @@ def rename_df(df: DataFrame, columns: Dict) -> DataFrame:
     return df_copy
 
 
-def get_data_embs(df: DataFrame) -> DataFrame:
+def create_data_embs(df: DataFrame) -> DataFrame:
     """Runs sentence transformer on raw text to get off the shelf data embeddings"""
     # This import takes up to 25 seconds, so we don't want to eagerly import it
     import transformers
     from sentence_transformers import SentenceTransformer
 
     transformers.logging.disable_progress_bar()
-    data_model = SentenceTransformer("all-MiniLM-L6-v2")
+    data_model = SentenceTransformer(SENTENCE_ENCODER)
     df_copy = df.copy()
 
     @vaex.register_function()
