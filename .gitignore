@@ -161,5 +161,6 @@ tmp/
 *.jsonl
 *.ann
 tests/notebooks/dev/
+results/
 
 finetuned
