@@ -6,8 +6,10 @@ from typing import Dict
 
 import numpy as np
 import pandas as pd
+import torch
 from datasets import Dataset, load_dataset
 from PIL import Image
+from torch.utils.data import DataLoader
 from torchvision.transforms import Compose, Normalize, RandomResizedCrop, ToTensor
 from transformers import (
     AutoFeatureExtractor,
@@ -81,9 +83,7 @@ feature_extractor = AutoFeatureExtractor.from_pretrained(
 normalize = Normalize(
     mean=feature_extractor.image_mean, std=feature_extractor.image_std
 )
-_transforms = Compose(
-    [RandomResizedCrop(feature_extractor.size), ToTensor(), normalize]
-)
+_transforms = Compose([RandomResizedCrop(feature_extractor.size), ToTensor()])
 
 B64_CONTENT_TYPE_DELIMITER = ";base64,"
 
@@ -104,16 +104,33 @@ def transforms(examples: Dict) -> Dict:
     #     print(type(_transforms(list(img.convert("RGB").getdata()))))
     #     pdb.set_trace()
 
-    examples["pixel_values"] = [_transforms(img) for img in examples["image"]]
+    examples["pixel_values"] = [
+        _transforms(img.convert("RGB")) for img in examples["image"]
+    ]
 
     # examples["img_tn"] = # thumbnail b64data
-    del examples["image"]
+    # del examples["image"]
 
     return examples
 
 
 _food = food.with_transform(transforms)
-data_collator = DefaultDataCollator()
+# data_collator = DefaultDataCollator()
+
+
+def collate_fn(examples):
+    images = []
+    labels = []
+    for example in examples:
+        images.append((example["pixel_values"]))
+        labels.append(example["labels"])
+
+    pixel_values = torch.stack(images)
+    labels = torch.tensor(labels)
+    return {"pixel_values": pixel_values, "labels": labels}
+
+
+dataloader = DataLoader(_food, collate_fn=collate_fn, batch_size=4)
 
 
 model = AutoModelForImageClassification.from_pretrained(
@@ -140,7 +157,7 @@ training_args = TrainingArguments(
 trainer = Trainer(
     model=model,
     args=training_args,
-    data_collator=data_collator,
+    # data_collator=data_collator,
     train_dataset=_food["train"],
     eval_dataset=_food["test"],
     tokenizer=feature_extractor,
