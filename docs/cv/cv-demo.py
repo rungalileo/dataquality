@@ -41,12 +41,12 @@ dq.init(
 #   Preparing the dataset
 #
 cache_dir = f'{os.environ["HOME"]}/.transformers/data'
-# food = load_dataset("food101", split="train", cache_dir=cache_dir, streaming=True)
-food = load_dataset("sasha/dog-food")
-# food_list = list(food.take(10))  # type: ignore
+food = load_dataset("food101", split="train", cache_dir=cache_dir, streaming=True)
+# food = load_dataset("sasha/dog-food", split="train", cache_dir=cache_dir, streaming=True)
+food_list = list(food.take(10))  # type: ignore
 
-# food = Dataset.from_list(food_list)
-# food = food.train_test_split(test_size=0.2)
+food = Dataset.from_list(food_list)
+food = food.train_test_split(test_size=0.2)
 
 print(food["train"][0])
 
@@ -123,20 +123,20 @@ _food = food.with_transform(transforms)
 data_collator = DefaultDataCollator()
 
 
-# def collate_fn(examples):
-#     images = []
-#     labels = []
-#     for example in examples:
-#         print(type(example["pixel_values"][0]))
-#         images.append(example["pixel_values"])
-#         labels.append(example["labels"])
+def collate_fn(examples):
+    images = []
+    labels = []
+    for example in examples:
+        print(type(example["pixel_values"][0]))
+        images.append(example["pixel_values"])
+        labels.append(example["labels"])
 
-#     pixel_values = torch.stack(images)
-#     labels = torch.tensor(labels)
-#     return {"pixel_values": pixel_values, "labels": labels}
+    pixel_values = torch.stack(images)
+    labels = torch.tensor(labels)
+    return {"pixel_values": pixel_values, "labels": labels}
 
 
-# dataloader = DataLoader(_food, collate_fn=collate_fn, batch_size=4)
+dataloader = DataLoader(_food, collate_fn=collate_fn, batch_size=4)
 
 
 model = ViTForImageClassification.from_pretrained(
@@ -145,6 +145,13 @@ model = ViTForImageClassification.from_pretrained(
     id2label=id2label,
     label2id=label2id,
 )
+
+
+def _test(*args, **kwargs) -> None:
+    print(args, kwargs)
+
+
+next(model.children()).register_forward_hook(_test)
 
 training_args = TrainingArguments(
     output_dir="./results",
@@ -157,7 +164,6 @@ training_args = TrainingArguments(
     logging_steps=10,
     learning_rate=2e-4,
     save_total_limit=2,
-    remove_unused_columns=False,
 )
 
 trainer = Trainer(
@@ -169,7 +175,7 @@ trainer = Trainer(
     tokenizer=feature_extractor,
 )
 
-# watch(trainer, layer=model.vit)
+watch(trainer, layer=model.vit)
 trainer.train()
 
 dq.finish()
