@@ -37,6 +37,48 @@ a.log_import("spacy")
 
 
 @check_noop
+def log_input_docs(
+    docs: List[Doc],
+    split: Split,
+    inference_name: str,
+    meta: Dict[str, List[Union[str, float, int]]] = None,
+) -> None:
+    """Logs the input docs to the data logger.
+
+    Note: This is for inference only. We still require the user to pass in
+    split to stay consistent with other logger fns.
+    """
+    if split != Split.inference:
+        raise GalileoException(
+            "`log_input_docs can only be used for split inference, you "
+            "passed in {split}`. Try using `log_input_examples` instead."
+        )
+
+    texts = []
+    text_token_indices = []
+    ids = []
+    for i, doc in enumerate(docs):
+        validate_obj(doc, Doc, "text")
+        texts.append(doc.text)
+        text_token_indices.append(
+            [(token.idx, token.idx + len(token)) for token in doc]
+        )
+        # We add ids to the doc.user_data to be along for the ride through spacy
+        # The predicted doc will be used in inference: `nlp(doc)`
+        doc.user_data["id"] = i
+        ids.append(i)
+
+    dataquality.log_data_samples(
+        texts=texts,
+        text_token_indices=text_token_indices,
+        ids=ids,
+        split=split,
+        inference_name=inference_name,
+        meta=meta,
+    )
+
+
+@check_noop
 def log_input_examples(
     examples: List[Example],
     split: Split,
