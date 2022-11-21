@@ -5,6 +5,7 @@ from typing import Dict, List
 
 import h5py
 import numpy as np
+import pyarrow as pa
 import vaex
 from vaex.arrow.convert import arrow_string_array_from_buffers as convert_bytes
 from vaex.dataframe import DataFrame
@@ -16,6 +17,10 @@ from dataquality.utils.hdf5_store import HDF5_STORE, HDF5Store
 from dataquality.utils.helpers import galileo_verbose_logging
 
 lock = threading.Lock()
+# To decide between "all-MiniLM-L6-v2" or "all-mpnet-base-v2"
+# https://www.sbert.net/docs/pretrained_models.html#model-overview
+GALILEO_DATA_EMBS_ENCODER = "GALILEO_DATA_EMBS_ENCODER"
+DEFAULT_DATA_EMBS_MODEL = "all-mpnet-base-v2"
 
 
 def _save_hdf5_file(location: str, file_name: str, data: Dict) -> None:
@@ -217,3 +222,23 @@ def rename_df(df: DataFrame, columns: Dict) -> DataFrame:
     for old, new in columns.items():
         df_copy.rename(old, new)
     return df_copy
+
+
+def create_data_embs(df: DataFrame) -> DataFrame:
+    """Runs sentence transformer on raw text to get off the shelf data embeddings"""
+    # This import takes up to 25 seconds, so we don't want to eagerly import it
+    import transformers
+    from sentence_transformers import SentenceTransformer
+
+    transformers.logging.disable_progress_bar()
+    sentence_encoder = os.getenv(GALILEO_DATA_EMBS_ENCODER, DEFAULT_DATA_EMBS_MODEL)
+    data_model = SentenceTransformer(sentence_encoder)
+    df_copy = df.copy()
+
+    @vaex.register_function()
+    def apply_sentence_transformer(text: pa.array) -> np.ndarray:
+        return data_model.encode(text.to_pylist(), show_progress_bar=False)
+
+    df_copy["emb"] = df_copy["text"].apply_sentence_transformer()
+    transformers.logging.enable_progress_bar()
+    return df_copy[["id", "emb"]]

@@ -10,7 +10,6 @@ from torch.utils.data import DataLoader
 from transformers import (
     AutoModel,
     AutoModelForSequenceClassification,
-    AutoTokenizer,
     Trainer,
     TrainingArguments,
 )
@@ -20,31 +19,12 @@ from dataquality import config
 from dataquality.integrations.transformers_trainer import watch
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
-from tests.conftest import LOCATION
+from tests.conftest import HF_TEST_BERT_PATH, LOCATION, model, tokenizer
 from tests.test_utils.hf_datasets_mock import mock_dataset, mock_dataset_repeat
 from tests.test_utils.mock_request import (
     mocked_create_project_run,
     mocked_get_project_run,
 )
-
-# Load models locally
-try:
-    tokenizer = AutoTokenizer.from_pretrained("tmp/testing-random-distilbert-tokenizer")
-except Exception:
-    tokenizer = AutoTokenizer.from_pretrained(
-        "hf-internal-testing/tiny-random-distilbert"
-    )
-    tokenizer.save_pretrained("tmp/testing-random-distilbert-tokenizer")
-try:
-    model = AutoModelForSequenceClassification.from_pretrained(
-        "tmp/testing-random-distilbert-sq"
-    )
-except Exception:
-    model = AutoModelForSequenceClassification.from_pretrained(
-        "hf-internal-testing/tiny-random-distilbert"
-    )
-    model.save_pretrained("tmp/testing-random-distilbert-sq")
-
 
 metric = load_metric("accuracy")
 
@@ -294,10 +274,8 @@ def test_forward_hook(
     cleanup_after_use: Generator,
 ) -> None:
     """Tests that the embedding layer is correctly logged"""
-    model_seq = AutoModelForSequenceClassification.from_pretrained(
-        "hf-internal-testing/tiny-random-distilbert"
-    )
-    model_base = AutoModel.from_pretrained("hf-internal-testing/tiny-random-distilbert")
+    model_seq = AutoModelForSequenceClassification.from_pretrained(HF_TEST_BERT_PATH)
+    model_base = AutoModel.from_pretrained(HF_TEST_BERT_PATH)
 
     train_sample = mock_dataset_with_ids_repeat.map(
         lambda x: preprocess_function(x, tokenizer), batched=True

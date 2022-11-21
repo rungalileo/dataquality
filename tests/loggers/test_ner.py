@@ -10,7 +10,7 @@ import tensorflow as tf
 import vaex
 
 import dataquality
-from dataquality.exceptions import GalileoException
+from dataquality.exceptions import GalileoException, GalileoWarning
 from dataquality.loggers.data_logger.base_data_logger import DataSet
 from dataquality.loggers.data_logger.text_ner import TextNERDataLogger
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
@@ -714,3 +714,19 @@ def test_is_valid_span_label(
         assert e.value.args[0] == expected_err_message
     else:
         TextNERDataLogger._clean_labels()
+
+
+@mock.patch("dataquality.utils.vaex.create_data_embs")
+def test_create_and_upload_data_embs_skipped_ner(
+    mock_create_embs: mock.MagicMock,
+    cleanup_after_use: Callable,
+    set_test_config: Callable,
+) -> None:
+    set_test_config(task_type="text_ner")
+
+    df = vaex.from_arrays(id=list(range(10)))
+    df["text"] = "sentence number " + df["id"].astype(str)
+    logger = TextNERDataLogger()
+    with pytest.warns(GalileoWarning):
+        logger.create_and_upload_data_embs(df, "training", 3)
+    mock_create_embs.assert_not_called()

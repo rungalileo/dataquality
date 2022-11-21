@@ -18,13 +18,12 @@ class SplitConditionData(BaseModel):
 
 
 class ReportConditionData(BaseModel):
+    metric: str
     condition: str
-    criteria: str
     splits: List[SplitConditionData]
 
 
 class RunReportData(BaseModel):
-    template: str
     email_subject: str
     project_name: str
     run_name: str

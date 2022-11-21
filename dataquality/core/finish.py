@@ -22,7 +22,9 @@ a = Analytics(ApiClient, config)  # type: ignore
 
 @check_noop
 def finish(
-    last_epoch: Optional[int] = None, wait: bool = True
+    last_epoch: Optional[int] = None,
+    wait: bool = True,
+    create_data_embs: bool = False,
 ) -> Optional[Dict[str, Any]]:
     """
     Finishes the current run and invokes a job
@@ -32,6 +34,10 @@ def finish(
     :param wait: If true, after uploading the data, this will wait for the
         run to be processed by the Galileo server. If false, you can manually wait
         for the run by calling `dq.wait_for_run()` Default True
+    :param create_data_embs: If True, an off-the-shelf transformer will run on the raw
+        text input to generate data-level embeddings. These will be available in the
+        `data view` tab of the Galileo console. You can also access these embeddings
+        via dq.metrics.get_data_embeddings()
     """
     a.log_function("dq/finish")
     ThreadPoolManager.wait_for_threads()
@@ -46,7 +52,7 @@ def finish(
     if data_logger.non_inference_logged():
         _reset_run(config.current_project_id, config.current_run_id, config.task_type)
 
-    data_logger.upload(last_epoch)
+    data_logger.upload(last_epoch, create_data_embs=create_data_embs)
     upload_dq_log_file()
 
     body = dict(

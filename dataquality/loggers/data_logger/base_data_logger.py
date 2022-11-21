@@ -29,6 +29,7 @@ from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import (
     _join_in_out_frames,
     concat_hdf5_files,
+    create_data_embs,
     filter_df,
     validate_unique_ids,
 )
@@ -149,11 +150,16 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         df.close()
         self.logger_config.input_data_logged[str(self.split)] += 1
 
-    def upload(self, last_epoch: Optional[int] = None) -> None:
+    def upload(
+        self, last_epoch: Optional[int] = None, create_data_embs: bool = False
+    ) -> None:
         """
         Iterates through all of each splits children folders [data/emb/prob] for each
         inference name / epoch, concatenates all of the files with vaex, and uploads
         them to a single file in minio
+
+        If create_data_embs is True, this will also run an off the shelf transformer
+        and upload those text embeddings alongside the models finetuned embeddings
         """
         ThreadPoolManager.wait_for_threads()
         self.check_for_logging_failures()
@@ -180,11 +186,30 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             in_frame_split = vaex.open(f"{in_frame_path}/*.arrow")
             in_frame_split = self.convert_large_string(in_frame_split)
             self.upload_split(
-                object_store, in_frame_split, split, split_loc, last_epoch
+                object_store,
+                in_frame_split,
+                split,
+                split_loc,
+                last_epoch,
+                create_data_embs,
             )
             in_frame_split.close()
             shutil.rmtree(in_frame_path)
             gc.collect()
+
+    @classmethod
+    def create_and_upload_data_embs(
+        cls, df: DataFrame, split: str, epoch_or_inf: str
+    ) -> None:
+        """Uploads off the shelf data embeddings for a split"""
+        object_store = ObjectStore()
+        df_copy = df.copy()
+        # Create
+        data_embs = create_data_embs(df_copy)
+        proj_run_split = f"{config.current_project_id}/{config.current_run_id}/{split}"
+        minio_file = f"{proj_run_split}/{epoch_or_inf}/data_emb/data_emb.hdf5"
+        # And upload
+        object_store.create_project_run_object_from_df(data_embs, minio_file)
 
     def convert_large_string(self, df: DataFrame) -> DataFrame:
         """Cast regular string to large_string for the text column
@@ -209,6 +234,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         split: str,
         split_loc: str,
         last_epoch: Optional[int] = None,
+        create_data_embs: bool = False,
     ) -> None:
         # If set, last_epoch will only let you upload to and including the provided
         # epoch value, nothing more.
@@ -220,6 +246,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         # last_epoch is inclusive
         last_epoch = last_epoch + 1 if last_epoch else last_epoch
         epochs_or_infs = epochs_or_infs[:last_epoch]
+
+        largest_epoch = epochs_or_infs[-1]
 
         # For each inference name or epoch of the given split
         for epoch_or_inf in tqdm(
@@ -240,6 +268,12 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                         GalileoWarning,
                     )
                     continue
+            if create_data_embs and (
+                split == Split.inference or epoch_or_inf == largest_epoch
+            ):
+                name = f"{split}/{epoch_or_inf}" if split == Split.inference else split
+                print(f"Creating and uploading data embeddings for {name}")
+                cls.create_and_upload_data_embs(input_batch, split, epoch_or_inf)
 
             dir_name = f"{split_loc}/{epoch_or_inf}"
             in_out_frames = cls.create_in_out_frames(

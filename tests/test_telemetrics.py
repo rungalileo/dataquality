@@ -31,7 +31,7 @@ def test_mock_log_galileo_import():
 
 def test_log_galileo_exception():
     a = Analytics(MockClient, {"api_url": "https://console.dev.rungalileo.io"})
-    assert a._is_initialized, "Analytics not initialized"
+    assert a._initialized, "Analytics not initialized"
     try:
         10 / 0
         a._log()
@@ -47,7 +47,7 @@ def test_log_galileo__import():
     config.api_url = "https://console.dev.rungalileo.io"
     ac.last_log = {}
     ac.config["current_project_id"] = "test"
-    assert ac._is_initialized, "Analytics not initialized"
+    assert ac._initialized, "Analytics not initialized"
     ac._telemetrics_disabled = False
     ac.log_import("test")
     assert ac.last_log["value"] == "test", "No import detected"
