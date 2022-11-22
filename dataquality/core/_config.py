@@ -106,17 +106,6 @@ def _validate_api_url(console_url: str, api_url: str) -> None:
         r = requests.get(f"{url}/{Route.healthcheck}")
         if not r.ok:
             raise GalileoException(err_detail.format(err=r.text)) from None
-
-        # If user is running an incompatible an old API and new DQ version,
-        # prompt them to downgrade
-        api_version = r.json()["api_version"]
-        if version.parse(api_version) < version.parse(MINIMUM_API_VERSION):
-            msg = (
-                "Your Galileo API version is out of date. Please downgrade dataquality to "
-                f"`pip install dataquality<{MINIMUM_API_VERSION}` or contact your admin to "
-                "upgrade your Galileo account."
-            )
-            raise GalileoException(msg)
     except (ReqConnectionError, ConnectionError) as e:
         raise GalileoException(err_detail.format(err=str(e))) from None
 
@@ -132,14 +121,25 @@ def _check_dq_version() -> None:
             return
         raise GalileoException(r.text) from None
 
-    min_version = r.json()["minimum_dq_version"]
-    if version.parse(dq_version) < version.parse(min_version):
+    min_dq_version = r.json()["minimum_dq_version"]
+    if version.parse(dq_version) < version.parse(min_dq_version):
         msg = (
             f"⚠️ You are running an old version of dataquality. Please upgrade to "
-            f"version {min_version} or higher (you are running {dq_version})."
+            f"version {min_dq_version} or higher (you are running {dq_version})."
             f"  `pip install dataquality --upgrade`"
         )
         # The user is running an incompatible DQ version, must upgrade
+        raise GalileoException(msg)
+
+    # If user is running an old API with new incompatible DQ version,
+    # prompt them to downgrade
+    api_version = r.json()["api_version"]
+    if version.parse(api_version) < version.parse(MINIMUM_API_VERSION):
+        msg = (
+            "Your Galileo API version is out of date. Please downgrade dataquality to "
+            f"`pip install dataquality<{MINIMUM_API_VERSION}` or contact your admin to "
+            "upgrade your Galileo account."
+        )
         raise GalileoException(msg)
 
 
