@@ -140,7 +140,7 @@ def _check_dq_version() -> None:
         msg_version = f"{dq_version_parsed.major}.{dq_version_parsed.minor}"
         msg = (
             "Your Galileo API version is out of date. Please downgrade dataquality to "
-            f'`pip install "dataquality<{msg_version}`" or contact your admin to '
+            f'`pip install "dataquality<{msg_version}"` or contact your admin to '
             "upgrade your Galileo account."
         )
         raise GalileoException(msg)
