@@ -336,7 +336,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             # If method is 'confidence' we return an empty list which
             # will be ignored by the caller
             # We do this over returning a list of Nones for linting
-            if gold_label:
+            if gold_label is not None:
                 gold_labels.append(gold_label)
         return probs, gold_labels
 
