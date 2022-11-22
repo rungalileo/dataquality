@@ -137,7 +137,7 @@ def _check_dq_version() -> None:
     # prompt them to downgrade
     api_version = r.json()["api_version"]
     if version.parse(api_version) < version.parse(MINIMUM_API_VERSION):
-        msg_version = f"{dq_version_parsed.major}.{dq_version_parsed.minor}"
+        msg_version = f"{dq_version_parsed.major}.{dq_version_parsed.minor}"  # type: ignore
         msg = (
             "Your Galileo API version is out of date. Please downgrade dataquality to "
             f'`pip install "dataquality<{msg_version}"` or contact your admin to '
