@@ -20,7 +20,7 @@ lock = threading.Lock()
 # To decide between "all-MiniLM-L6-v2" or "all-mpnet-base-v2"
 # https://www.sbert.net/docs/pretrained_models.html#model-overview
 GALILEO_DATA_EMBS_ENCODER = "GALILEO_DATA_EMBS_ENCODER"
-DEFAULT_DATA_EMBS_MODEL = "all-mpnet-base-v2"
+DEFAULT_DATA_EMBS_MODEL = "all-MiniLM-L6-v2"
 
 
 def _save_hdf5_file(location: str, file_name: str, data: Dict) -> None:
