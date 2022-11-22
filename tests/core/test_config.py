@@ -11,6 +11,7 @@ import dataquality
 from dataquality import __version__ as dq_version
 from dataquality.core._config import (
     CLOUD_URL,
+    MINIMUM_API_VERSION,
     _check_dq_version,
     set_config,
     url_is_localhost,
@@ -93,17 +94,22 @@ def test_config_defaults_cloud(
     mock_update_config.assert_called_once()
 
 
-@pytest.mark.parametrize("v", ["0.0.0", dq_version])
+@pytest.mark.parametrize("min_dq_version", ["0.0.0", dq_version])
+@pytest.mark.parametrize("api_version", ["100.0.0", MINIMUM_API_VERSION])
 @patch("dataquality.core._config.requests.get")
-def test_check_dq_version(mock_get: mock.MagicMock, v: str) -> None:
+def test_check_dq_version_happy_path(
+    mock_get: mock.MagicMock, api_version: str, min_dq_version: str
+) -> None:
     mock_get.return_value = MockResponse(
-        json_data={"minimum_dq_version": v}, status_code=200
+        json_data={"api_version": api_version, "minimum_dq_version": min_dq_version},
+        status_code=200,
     )
     _check_dq_version()
 
 
 @patch("dataquality.core._config.requests.get")
 def test_check_dq_version_fails_major(mock_get: mock.MagicMock) -> None:
+    # First test DQ version
     v = version.parse(dq_version)
     new_version = f"{v.major + 1}.{v.minor}.{v.micro}"
     mock_get.return_value = MockResponse(
@@ -112,9 +118,21 @@ def test_check_dq_version_fails_major(mock_get: mock.MagicMock) -> None:
     with pytest.raises(GalileoException):
         _check_dq_version()
 
+    # Then test API version
+    v = version.parse(MINIMUM_API_VERSION)
+    if v.major > 0:
+        new_version = f"{v.major - 1}.{v.minor}.{v.micro}"
+        mock_get.return_value = MockResponse(
+            json_data={"minimum_dq_version": dq_version, "api_version": new_version},
+            status_code=200,
+        )
+        with pytest.raises(GalileoException):
+            _check_dq_version()
+
 
 @patch("dataquality.core._config.requests.get")
 def test_check_dq_version_fails_minor(mock_get: mock.MagicMock) -> None:
+    # First test DQ version
     v = version.parse(dq_version)
     new_version = f"{v.major}.{v.minor + 1}.{v.micro}"
     mock_get.return_value = MockResponse(
@@ -123,9 +141,21 @@ def test_check_dq_version_fails_minor(mock_get: mock.MagicMock) -> None:
     with pytest.raises(GalileoException):
         _check_dq_version()
 
+    # Then test API version
+    v = version.parse(MINIMUM_API_VERSION)
+    if v.minor > 0:
+        new_version = f"{v.major}.{v.minor - 1}.{v.micro}"
+        mock_get.return_value = MockResponse(
+            json_data={"minimum_dq_version": dq_version, "api_version": new_version},
+            status_code=200,
+        )
+        with pytest.raises(GalileoException):
+            _check_dq_version()
+
 
 @patch("dataquality.core._config.requests.get")
 def test_check_dq_version_fails_micro(mock_get: mock.MagicMock) -> None:
+    # First test DQ version
     v = version.parse(dq_version)
     new_version = f"{v.major}.{v.minor}.{v.micro + 1}"
     mock_get.return_value = MockResponse(
@@ -133,6 +163,17 @@ def test_check_dq_version_fails_micro(mock_get: mock.MagicMock) -> None:
     )
     with pytest.raises(GalileoException):
         _check_dq_version()
+
+    # Then test API version
+    v = version.parse(MINIMUM_API_VERSION)
+    if v.micro > 0:
+        new_version = f"{v.major}.{v.minor}.{v.micro - 1}"
+        mock_get.return_value = MockResponse(
+            json_data={"minimum_dq_version": dq_version, "api_version": new_version},
+            status_code=200,
+        )
+        with pytest.raises(GalileoException):
+            _check_dq_version()
 
 
 @patch("dataquality.core._config.requests.get")
