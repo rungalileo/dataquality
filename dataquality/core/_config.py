@@ -19,6 +19,7 @@ from dataquality.schemas.task_type import TaskType
 from dataquality.utils.helpers import galileo_disabled
 
 CLOUD_URL = "https://console.cloud.rungalileo.io"
+MINIMUM_API_VERSION = "0.4.0"
 
 
 class GalileoConfigVars(str, Enum):
@@ -105,6 +106,17 @@ def _validate_api_url(console_url: str, api_url: str) -> None:
         r = requests.get(f"{url}/{Route.healthcheck}")
         if not r.ok:
             raise GalileoException(err_detail.format(err=r.text)) from None
+
+        # If user is running an incompatible an old API and new DQ version,
+        # prompt them to downgrade
+        api_version = r.json()["api_version"]
+        if version.parse(api_version) < version.parse(MINIMUM_API_VERSION):
+            msg = (
+                "Your Galileo API version is out of date. Please downgrade dataquality to "
+                f"`pip install dataquality<{MINIMUM_API_VERSION}` or contact your admin to "
+                "upgrade your Galileo account."
+            )
+            raise GalileoException(msg)
     except (ReqConnectionError, ConnectionError) as e:
         raise GalileoException(err_detail.format(err=str(e))) from None
 
