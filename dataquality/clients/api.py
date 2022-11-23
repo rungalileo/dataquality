@@ -562,7 +562,7 @@ class ApiClient:
                 "project_id": project_id,
             },
         )
-        return response["url"].replace("host.docker.internal", "localhost")
+        return response["url"]
 
     def get_run_summary(
         self,
