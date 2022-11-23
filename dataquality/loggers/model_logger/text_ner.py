@@ -292,7 +292,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         prob: np.ndarray,
         method: NERProbMethod,
         gold_sequence: Optional[List[str]] = None,
-    ) -> Tuple[List[np.ndarray], List[float]]:
+    ) -> Tuple[List[np.ndarray], List[str]]:
         """Get the probs for each span, on a per-sample basis
 
         Parameters
@@ -309,7 +309,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         -------
         List[np.ndarray]
             The probs for each span
-        List[np.ndarray]
+        List[str]
             The gold labels of token chosen for loss (needed for DEP calculation)
         """
         get_dq_logger().debug(
