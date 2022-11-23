@@ -40,7 +40,7 @@ def compute_nll_loss(probs: np.ndarray, gold_labels: np.ndarray) -> np.ndarray:
 
 def select_span_token_for_prob(
     probs: np.ndarray, method: NERProbMethod, gold_labels: Optional[np.ndarray] = None
-) -> Tuple[np.ndarray, Optional[float]]:
+) -> Tuple[np.ndarray, Optional[int]]:
     """Select the representative token for a span's prob vector
 
     Based on the method provided, compute that metric for
@@ -54,7 +54,7 @@ def select_span_token_for_prob(
     Return:
     -------
         - prob_token: Probability vector for selected token - shape[n_classes]
-        - gold_label: The gold label for the selected token (if method is loss)
+        - gold_label: The gold label index for the selected token (if method is loss)
     """
     gold_label = None
     if method == NERProbMethod.confidence:
