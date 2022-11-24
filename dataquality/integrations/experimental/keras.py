@@ -191,7 +191,10 @@ class DataQualityCallback(keras.callbacks.Callback):
                 val_y,
                 val_sample_weight,
             ) = data_adapter.unpack_x_y_sample_weight(validation_data)
-        val_x = tf.range(len(val_x))
+            val_x = tf.range(len(val_x))
+        else:
+            val_x = None
+            val_sample_weight = None
         return {
             "x": x,
             "y": None,
