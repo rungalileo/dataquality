@@ -28,11 +28,16 @@ def open_console_url(link: Optional[str] = "") -> None:
         print(f"Click here to see your run! {link}")
 
 
-def do_train(trainer: Trainer, encoded_data: DatasetDict, wait: bool) -> None:
+def do_train(
+    trainer: Trainer,
+    encoded_data: DatasetDict,
+    wait: bool,
+    create_data_embs: bool = False,
+) -> None:
     watch(trainer)
     trainer.train()
     if Split.test in encoded_data:
         # We pass in a huggingface dataset but typing wise they expect a torch dataset
         trainer.predict(test_dataset=encoded_data[Split.test])  # type: ignore
-    res = dq.finish(wait=wait) or {}
+    res = dq.finish(wait=wait, create_data_embs=create_data_embs) or {}
     open_console_url(res.get("link"))
