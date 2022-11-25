@@ -1,4 +1,6 @@
+import json
 import os
+from json import JSONDecodeError
 from time import sleep
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -536,10 +538,14 @@ class ApiClient:
                 print(f"Done! Job finished with status {job.get('status')}")
                 return
             elif job.get("status") == "failed":
+                # Try to properly format the stacktrace
+                try:
+                    err = json.loads(job.get("error_message", ""))
+                except JSONDecodeError:
+                    err = job.get("error_message")
                 raise GalileoException(
-                    f"It seems your run failed with status "
-                    f"{job.get('status')}, error {job.get('error_message')}"
-                )
+                    f"It seems your run failed with error\n{err}"
+                ) from None
             elif not job or job.get("status") in ["unstarted", "in_progress"]:
                 sleep(2)
             else:
