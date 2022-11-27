@@ -34,5 +34,5 @@ def do_train(trainer: Trainer, encoded_data: DatasetDict, wait: bool) -> None:
     if Split.test in encoded_data:
         # We pass in a huggingface dataset but typing wise they expect a torch dataset
         trainer.predict(test_dataset=encoded_data[Split.test])  # type: ignore
-    res = dq.finish(wait=wait) or {}
-    open_console_url(res.get("link"))
+    link = dq.finish(wait=wait)
+    open_console_url(link)

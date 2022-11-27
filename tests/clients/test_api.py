@@ -144,7 +144,7 @@ def test_get_run_status_project_default_current_run(
     status = api_client.get_run_status()
     assert status["status"] == "completed"
     mock_make_request.assert_called_once_with(
-        "get", f"https://api.fake.com/projects/{project_id}/runs/{run_id}/jobs"
+        "get", f"https://api.fake.com/projects/{project_id}/runs/{run_id}/jobs/latest"
     )
 
 
@@ -154,7 +154,7 @@ def test_get_run_status_project_specified_run(
     mock_make_request: MagicMock,
     mock_get_project_run_by_name: MagicMock,
     set_test_config: Callable,
-    statuses_response: Dict[str, List],
+    statuses_response: Dict[str, str],
 ) -> None:
     """Happy path: Specifying a project, run different from current run"""
     mock_make_request.return_value = statuses_response
@@ -174,7 +174,7 @@ def test_get_run_status_project_specified_run(
     assert config_project_id != project_id
     assert config_run_id != run_id
     mock_make_request.assert_called_once_with(
-        "get", f"https://api.fake.com/projects/{project_id}/runs/{run_id}/jobs"
+        "get", f"https://api.fake.com/projects/{project_id}/runs/{run_id}/jobs/latest"
     )
 
 

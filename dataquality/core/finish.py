@@ -25,7 +25,7 @@ def finish(
     last_epoch: Optional[int] = None,
     wait: bool = True,
     create_data_embs: bool = False,
-) -> Optional[Dict[str, Any]]:
+) -> str:
     """
     Finishes the current run and invokes a job
 
@@ -92,7 +92,7 @@ def finish(
 
     # Reset the environment
     data_logger._cleanup()
-    return res
+    return res.get("link") or ""
 
 
 @check_noop
