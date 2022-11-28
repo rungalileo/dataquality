@@ -1,4 +1,6 @@
+import json
 import os
+from json import JSONDecodeError
 from time import sleep
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -521,25 +523,34 @@ class ApiClient:
         pid, rid = self._get_project_run_id(
             project_name=project_name, run_name=run_name
         )
-        list_jobs_url = f"{config.api_url}/{Route.content_path(pid, rid)}/{Route.jobs}"
-        jobs = self.make_request(RequestType.GET, list_jobs_url)
-        sorted_jobs = sorted(jobs, key=lambda row: row["created_at"], reverse=True)
-        return sorted_jobs[0] if sorted_jobs else {}
+        job_url = f"{config.api_url}/{Route.content_path(pid, rid)}/{Route.latest_job}"
+        job = self.make_request(RequestType.GET, job_url)
+        return job or {}
 
     def wait_for_run(
         self, project_name: Optional[str] = None, run_name: Optional[str] = None
     ) -> None:
         print("Waiting for job...")
+        last_progress_message = ""
         while True:
             job = self.get_run_status(project_name=project_name, run_name=run_name)
             if job.get("status") == "completed":
                 print(f"Done! Job finished with status {job.get('status')}")
                 return
             elif job.get("status") == "failed":
+                # Try to properly format the stacktrace
+                try:
+                    err = json.loads(job.get("error_message", ""))
+                except JSONDecodeError:
+                    err = job.get("error_message")
                 raise GalileoException(
-                    f"It seems your run failed with status "
-                    f"{job.get('status')}, error {job.get('error_message')}"
-                )
+                    f"It seems your run failed with error\n{err}"
+                ) from None
+            elif job.get("status") == "in_progress" and job.get("progress_message"):
+                if last_progress_message != job["progress_message"]:
+                    print(f"\t{job['progress_message']}")
+                    last_progress_message = job["progress_message"]
+                sleep(2)
             elif not job or job.get("status") in ["unstarted", "in_progress"]:
                 sleep(2)
             else:

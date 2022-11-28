@@ -15,7 +15,7 @@ from dataquality.utils.auto import (
     load_data_from_str,
     run_name_from_hf_dataset,
 )
-from dataquality.utils.auto_trainer import open_console_url
+from dataquality.utils.helpers import open_console_url
 
 TC_DATA = pd.DataFrame(
     {"text": ["sample1", "sample2", "sample3"], "label": ["green", "blue", "green"]}
@@ -82,7 +82,7 @@ def test_open_console_url_no_url():
     open_console_url()
 
 
-@mock.patch("dataquality.utils.auto_trainer.webbrowser")
+@mock.patch("dataquality.utils.helpers.webbrowser")
 def test_open_console_raises_exc(mock_browser: mock.MagicMock):
     """Should catch the exception silently"""
     mock_open = mock.MagicMock()

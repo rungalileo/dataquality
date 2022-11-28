@@ -21,7 +21,7 @@ def train_model(
     training_data: List[Tuple[str, Dict]],
     test_data: List[Tuple[str, Dict]],
     num_epochs: int = 5,
-):
+) -> None:
     nlp = spacy.blank("en")
     nlp.add_pipe("ner", last=True)
     minibatch_size = 3
@@ -67,7 +67,7 @@ def train_model(
 def load_ner_data_from_local(
     split: str,
     epoch: int,
-) -> (pd.DataFrame, DataFrameLocal, pd.DataFrame):
+) -> Tuple[pd.DataFrame, DataFrameLocal, pd.DataFrame]:
     """Loads post-logging locally created files.
 
     Returns: data, emb, and prob vaex dataframes
@@ -89,10 +89,12 @@ def load_ner_data_from_local(
                 assert all([i is not None and i != "nan" for i in vals])
         split_output_data[subdir] = data
 
+    # Remove nested arrays cols from prob
+    probs = split_output_data["prob"].drop(["conf_prob", "loss_prob"])
     return (
         split_output_data["data"].to_pandas_df(),
         split_output_data["emb"],  # can't convert nested arrays to pandas df
-        split_output_data["prob"].to_pandas_df(),
+        probs.to_pandas_df(),
     )
 
 
@@ -103,7 +105,7 @@ def _calculate_emb_from_doc(doc: Doc) -> np.ndarray:
 
 
 class MockParserStepModel(Model):
-    def __init__(self, docs: List[Doc]):
+    def __init__(self, docs: List[Doc]) -> None:
         self._func = self.mock_parser_step_model_forward
 
         tokvecs = []
@@ -111,15 +113,15 @@ class MockParserStepModel(Model):
             tokvecs.extend(_calculate_emb_from_doc(doc))
         self.tokvecs = np.array(tokvecs)
 
-    def mock_parser_step_model_forward(self, X, *args, **kwargs):
+    def mock_parser_step_model_forward(self, X, *args, **kwargs) -> None:
         """Returns logits that should construct an actual state"""
 
 
 class MockTransitionBasedParserModel(Model):
-    def __init__(self):
+    def __init__(self) -> None:
         self._func = self.mock_transition_based_parser_model_forward
 
-    def mock_transition_based_parser_model_forward(self, X, *args, **kwargs):
+    def mock_transition_based_parser_model_forward(self, X, *args, **kwargs) -> None:
         """Mocks TransitionBasedParser Model's forward func
 
         Returns a MockParserStepModel and a noop backprop_fn

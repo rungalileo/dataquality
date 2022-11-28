@@ -20,7 +20,7 @@ lock = threading.Lock()
 # To decide between "all-MiniLM-L6-v2" or "all-mpnet-base-v2"
 # https://www.sbert.net/docs/pretrained_models.html#model-overview
 GALILEO_DATA_EMBS_ENCODER = "GALILEO_DATA_EMBS_ENCODER"
-DEFAULT_DATA_EMBS_MODEL = "all-mpnet-base-v2"
+DEFAULT_DATA_EMBS_MODEL = "all-MiniLM-L6-v2"
 
 
 def _save_hdf5_file(location: str, file_name: str, data: Dict) -> None:
@@ -119,9 +119,8 @@ def _valid_prob_col(col: str) -> bool:
         col.endswith("id")
         or "gold" in col
         or "pred" in col
-        or col.startswith("prob")
+        or "prob" in col  # encapsulates prob, conf_prob, and loss_prob
         or col.startswith("span")
-        or col.startswith("data_")
         or col.startswith("galileo")
     )
 

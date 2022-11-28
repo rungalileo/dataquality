@@ -477,7 +477,9 @@ def _process_exported_dataframe(
                 "Embeddings are not available in HF format, ignoring", GalileoWarning
             )
         else:
-            emb_df = get_data_embeddings(project_name, run_name, split, inference_name)
+            emb_df = get_data_embeddings(
+                project_name, run_name, split, inference_name
+            ).copy()
             emb_df.rename("emb", "data_emb")
             data_df = data_df.join(emb_df, on="id")
     if include_probs:
