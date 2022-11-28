@@ -1,14 +1,11 @@
 from packaging import version
 
-try:
-    from tensorflow import __version__
-
-    TF_AVAILABLE = True
-except ImportError:
-    TF_AVAILABLE = False
+from dataquality.utils.imports import tf_available
 
 
 def is_tf_2() -> bool:
-    if TF_AVAILABLE:
+    if tf_available():
+        from tensorflow import __version__
+
         return version.parse(__version__).major == 2  # type: ignore
     return False
