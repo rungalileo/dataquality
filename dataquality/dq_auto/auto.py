@@ -23,6 +23,7 @@ def auto(
     project_name: str = None,
     run_name: str = None,
     wait: bool = True,
+    create_data_embs: bool = False,
 ) -> None:
     """Automatically gets insights on a text classification or NER dataset
 
@@ -71,9 +72,12 @@ def auto(
         be generated
     :param wait: Whether to wait for Galileo to complete processing your run.
         Default True
-    :param _evaluation_metric: The metric to set for huggingface evaluation.
-        This will simply control the metric huggingface uses to evaluate model
-        performance.
+    :param create_data_embs: Whether to create data embeddings for this run. If True,
+        Sentence-Transformers will be used to generate data embeddings for this dataset
+        and uploaded with this run. You can access these embeddings via
+        `dq.metrics.get_data_embeddings` in the `emb` column or
+        `dq.metrics.get_dataframe(..., include_data_embs=True)` in the `data_emb` col
+        Only available for TC currently. NER coming soon. Default False.
 
     For text classification datasets, the only required columns are `text` and `label`
 
@@ -178,6 +182,7 @@ def auto(
             project_name=project_name or AUTO_PROJECT_NAME[task_type],
             run_name=run_name,
             wait=wait,
+            create_data_embs=create_data_embs,
         )
     elif task_type == TaskType.text_ner:
         from dataquality.dq_auto.ner import auto as auto_ner
