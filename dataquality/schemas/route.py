@@ -37,6 +37,7 @@ class Route(str, Enum):
     export_edits = "edits/export"
     ampli = "ampli"
     notify = "notify/email"
+    token = "get-token"
 
     @staticmethod
     def content_path(

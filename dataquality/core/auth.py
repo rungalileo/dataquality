@@ -7,10 +7,10 @@ import requests
 from dataquality.clients.api import ApiClient
 from dataquality.core._config import config, url_is_localhost
 from dataquality.exceptions import GalileoException
+from dataquality.schemas.route import Route
 from dataquality.utils.helpers import check_noop
 
 GALILEO_AUTH_METHOD = "GALILEO_AUTH_METHOD"
-GET_TOKEN = "/get-token"
 api_client = ApiClient()
 
 
@@ -42,9 +42,11 @@ class _Auth:
 
     def token_login(self) -> None:
         if url_is_localhost(url=config.api_url):
-            token_url = f"{os.environ['GALILEO_CONSOLE_URL']}{GET_TOKEN}"
+            token_url = f"{os.environ['GALILEO_CONSOLE_URL']}/{Route.token.value}"
         else:
-            token_url = config.api_url.replace("api.", "console.") + GET_TOKEN
+            token_url = (
+                f"{config.api_url.replace('api.', 'console.')}/{Route.token.value}"
+            )
         try:
             webbrowser.open(token_url)
         except Exception:
