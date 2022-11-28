@@ -163,3 +163,5 @@ tmp/
 tests/notebooks/dev/
 
 finetuned
+
+pytorch_sphinx_theme

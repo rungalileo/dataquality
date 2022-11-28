@@ -214,6 +214,7 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
         self.hook_manager.attach_hook(model, self._logit_hook)
 
 
+# https://github.com/pytorch/pytorch/blob/master/torch/nn/functional.py
 @check_noop
 def watch(
     trainer: Trainer,
@@ -221,10 +222,13 @@ def watch(
     embedding_dim: Optional[DimensionSlice] = None,
     logits_dim: Optional[DimensionSlice] = None,
 ) -> None:
-    """
-    [`watch`] is used to hook into to the trainer
+    """[Summary]
+    [`watch`] is used to *hook* into to the **trainer**
     to log to [Galileo](https://www.rungalileo.io/)
+    beer test `Link text <link URL>`_ water
+
     :param trainer: Trainer object
+
     :return: None
     """
     a.log_function("transformers_trainer/watch")
