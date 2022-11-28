@@ -10,6 +10,7 @@ from dataquality.exceptions import GalileoException
 from dataquality.utils.helpers import check_noop
 
 GALILEO_AUTH_METHOD = "GALILEO_AUTH_METHOD"
+GET_TOKEN = "/get-token"
 api_client = ApiClient()
 
 
@@ -40,7 +41,6 @@ class _Auth:
         config.update_file_config()
 
     def token_login(self) -> None:
-        GET_TOKEN = "/get-token"
         if url_is_localhost(url=config.api_url):
             token_url = f"{os.environ['GALILEO_CONSOLE_URL']}{GET_TOKEN}"
         else:
