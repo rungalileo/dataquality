@@ -128,6 +128,7 @@ def auto(
     project_name: str = "auto_tc",
     run_name: str = None,
     wait: bool = True,
+    create_data_embs: bool = False,
 ) -> None:
     """Automatically gets insights on a text classification dataset
 
@@ -176,9 +177,8 @@ def auto(
         be generated
     :param wait: Whether to wait for Galileo to complete processing your run.
         Default True
-    :param _evaluation_metric: The metric to set for huggingface evaluation.
-        This will simply control the metric huggingface uses to evaluate model
-        performance.
+    :param create_data_embs: Whether to create data embeddings for this run. Default
+        False
 
     To see auto insights on a random, pre-selected dataset, simply run
     ```python
@@ -243,4 +243,4 @@ def auto(
     dq.set_labels_for_run(labels)
     _log_dataset_dict(dd)
     trainer, encoded_data = get_trainer(dd, labels, hf_model, max_padding_length)
-    do_train(trainer, encoded_data, wait)
+    do_train(trainer, encoded_data, wait, create_data_embs)
