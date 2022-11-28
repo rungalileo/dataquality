@@ -11,7 +11,6 @@ test = food["train"].select(range(2))
 
 
 def pre_process(batch):
-
     # Image is in bytes and we use PIL to scale it to 128x128
     images = [Image.open(BytesIO(img)).resize((128, 128)) for img in batch["image"]]
     # We need to convert the image to base64 to display it in the frontend
