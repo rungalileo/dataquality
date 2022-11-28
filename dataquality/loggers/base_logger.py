@@ -17,25 +17,8 @@ from dataquality.schemas.split import Split, conform_split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.cloud import is_galileo_cloud
 from dataquality.utils.dq_logger import upload_dq_log_file
-from dataquality.utils.tf import TF_AVAILABLE, is_tf_2
-
-try:
-    from torch import Tensor
-
-    TORCH_AVAILABLE = True
-except ImportError:
-    TORCH_AVAILABLE = False
-
-if TF_AVAILABLE:
-    import tensorflow as tf
-
-try:
-    import datasets
-
-    HF_AVAILABLE = True
-except ImportError:
-    HF_AVAILABLE = False
-
+from dataquality.utils.imports import hf_available, tf_available, torch_available
+from dataquality.utils.tf import is_tf_2
 
 T = TypeVar("T", bound="BaseGalileoLogger")
 
@@ -155,10 +138,14 @@ class BaseGalileoLogger:
         arr: Union[List, np.ndarray], attr: Optional[str] = None
     ) -> np.ndarray:
         """Handles numpy arrays and tensors conversions"""
-        if TORCH_AVAILABLE:
+        if torch_available():
+            from torch import Tensor
+
             if isinstance(arr, Tensor):
                 arr = arr.detach().cpu().numpy()
-        if TF_AVAILABLE:
+        if tf_available():
+            import tensorflow as tf
+
             if isinstance(arr, tf.Tensor):
                 if is_tf_2():
                     arr = arr.cpu().numpy()
@@ -191,14 +178,18 @@ class BaseGalileoLogger:
         """Converts pytorch and tensorflow tensors to strings or ints"""
         if isinstance(v, (int, str)):
             return v
-        if TF_AVAILABLE:
+        if tf_available():
+            import tensorflow as tf
+
             if isinstance(v, tf.Tensor):
                 v = v.numpy()
                 if isinstance(v, bytes):
                     v = v.decode("utf-8")
                 else:
                     v = int(v)
-        if TORCH_AVAILABLE:
+        if torch_available():
+            from torch import Tensor
+
             if isinstance(v, Tensor):
                 v = int(v.numpy())  # Torch tensors cannot hold strings
         if isinstance(v, np.ndarray):
@@ -287,7 +278,9 @@ class BaseGalileoLogger:
 
     @classmethod
     def is_hf_dataset(cls, df: Any) -> bool:
-        if HF_AVAILABLE:
+        if hf_available:
+            import datasets
+
             return isinstance(df, datasets.Dataset)
         return False
 
