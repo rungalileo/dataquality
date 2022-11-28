@@ -42,11 +42,9 @@ class _Auth:
 
     def token_login(self) -> None:
         if url_is_localhost(url=config.api_url):
-            token_url = f"{os.environ['GALILEO_CONSOLE_URL']}/{Route.token.value}"
+            token_url = f"{os.environ['GALILEO_CONSOLE_URL']}/{Route.token}"
         else:
-            token_url = (
-                f"{config.api_url.replace('api.', 'console.')}/{Route.token.value}"
-            )
+            token_url = f"{config.api_url.replace('api.', 'console.')}/{Route.token}"
         try:
             webbrowser.open(token_url)
         except Exception:
