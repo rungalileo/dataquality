@@ -1,20 +1,20 @@
 "dataquality"
 
-__version__ = "v0.7.5a10"
+__version__ = "v0.8.3a3"
 
 import os
 import resource
 
 import dataquality.core._config
 import dataquality.integrations
-from dataquality.analytics import Analytics
-from dataquality.clients.api import ApiClient
 
 # We try/catch this in case the user installed dq inside of jupyter. You need to
 # restart the kernel after the install and we want to make that clear. This is because
 # of vaex: https://github.com/vaexio/vaex/pull/2226
 try:
     import dataquality.metrics
+    from dataquality.analytics import Analytics
+    from dataquality.clients.api import ApiClient
 except (FileNotFoundError, AttributeError):
     raise Exception(
         "It looks like you've installed dataquality from a notebook. "
@@ -39,11 +39,13 @@ from dataquality.core.log import (
     set_tagging_schema,
     set_tasks_for_run,
 )
-from dataquality.schemas.predicate import (
+from dataquality.core.report import build_run_report, register_run_report
+from dataquality.dq_auto.auto import auto
+from dataquality.schemas.condition import (
     AggregateFunction,
+    Condition,
+    ConditionFilter,
     Operator,
-    Predicate,
-    PredicateFilter,
 )
 from dataquality.utils.dq_logger import get_dq_log_file
 from dataquality.utils.helpers import (
@@ -119,14 +121,17 @@ __all__ = [
     "log_data_sample",
     "log_dataset",
     "get_dq_log_file",
+    "build_run_report",
+    "register_run_report",
     "AggregateFunction",
     "Operator",
-    "Predicate",
-    "PredicateFilter",
+    "Condition",
+    "ConditionFilter",
     "disable_galileo",
     "disable_galileo_verbose",
     "enable_galileo_verbose",
     "enable_galileo",
+    "auto",
 ]
 
 try:

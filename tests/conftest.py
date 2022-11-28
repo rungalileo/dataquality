@@ -1,15 +1,16 @@
 import os
 import shutil
-from typing import Any, Callable, Dict, Generator, List
+from typing import Any, Callable, Dict, Generator, List, Optional
 from uuid import UUID
 
 import pytest
 import requests
 import spacy
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
 from vaex.dataframe import DataFrame
 
 import dataquality
-from dataquality import config
+from dataquality import AggregateFunction, Condition, ConditionFilter, Operator, config
 from dataquality.clients import objectstore
 from dataquality.loggers import BaseGalileoLogger
 from dataquality.schemas.task_type import TaskType
@@ -28,6 +29,21 @@ SPLITS = ["training", "test"]
 SUBDIRS = ["data", "emb", "prob"]
 
 spacy.util.fix_random_seed()
+
+
+# Load models locally
+HF_TEST_BERT_PATH = "hf-internal-testing/tiny-random-distilbert"
+LOCAL_MODEL_PATH = "tmp/testing-random-distilbert-sq"
+try:
+    tokenizer = AutoTokenizer.from_pretrained(LOCAL_MODEL_PATH)
+except Exception:
+    tokenizer = AutoTokenizer.from_pretrained(HF_TEST_BERT_PATH)
+    tokenizer.save_pretrained(LOCAL_MODEL_PATH)
+try:
+    model = AutoModelForSequenceClassification.from_pretrained(LOCAL_MODEL_PATH)
+except Exception:
+    model = AutoModelForSequenceClassification.from_pretrained(HF_TEST_BERT_PATH)
+    model.save_pretrained(LOCAL_MODEL_PATH)
 
 
 @pytest.fixture(autouse=True)
@@ -93,11 +109,8 @@ def set_test_config(
 
 
 @pytest.fixture()
-def statuses_response() -> Dict[str, List]:
-    return [
-        {"job_id": "1", "status": "in_progress", "created_at": "2022-02-20"},
-        {"job_id": "2", "status": "completed", "created_at": "2022-02-24"},
-    ]
+def statuses_response() -> Dict[str, str]:
+    return {"job_id": "2", "status": "completed", "created_at": "2022-02-24"}
 
 
 @pytest.fixture()
@@ -121,6 +134,26 @@ def input_data() -> Callable:
             data.update(meta=meta)
 
         return data
+
+    return curry
+
+
+@pytest.fixture()
+def test_condition() -> Callable:
+    def curry(
+        agg: AggregateFunction = AggregateFunction.avg,
+        metric: Optional[str] = "confidence",
+        operator: Operator = Operator.lt,
+        threshold: float = 0.5,
+        filters: Optional[List[ConditionFilter]] = [],
+    ) -> Condition:
+        return Condition(
+            agg=agg,
+            metric=metric,
+            operator=operator,
+            threshold=threshold,
+            filters=filters,
+        )
 
     return curry
 

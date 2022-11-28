@@ -31,7 +31,7 @@ class Borg:
     # We use a borg pattern to share state across all instances of this class.
     # Due to submitting some errors in a thread,
     # we want to share the thread pool executor
-    _shared_state: Dict[str, str] = {}
+    _shared_state: Dict[str, Any] = {}
 
     def __init__(self) -> None:
         self.__dict__ = self._shared_state
@@ -40,7 +40,6 @@ class Borg:
 class Analytics(Borg):
     """Analytics is used to track errors and logs in the background"""
 
-    _is_initialized: bool = False
     _telemetrics_disabled: bool = True
 
     def __init__(self, ApiClient: Type[ApiClient], config: Config) -> None:
@@ -48,27 +47,27 @@ class Analytics(Borg):
         :param ApiClient: The ApiClient class
         :param config: The dq config
         """
-
         super().__init__()
 
         try:
             self._telemetrics_disabled = self._is_telemetrics_disabled(config)
-
             if self._telemetrics_disabled:
                 return
-            # initiate the first instance with default state
-            if not hasattr(self, "state"):
-                self.api_caller = ThreadPoolExecutor(max_workers=5)
-                self.api_client = ApiClient()
-                self.config = config
-                if not getattr(self, "_is_initializing", False):
-                    self.last_error: Dict = {}
-                    self.last_log: Dict = {}
-                    self.user: ProfileModel = self._setup_user()
-                    self._is_initializing = True
-                    self._init()
+            self.api_caller = ThreadPoolExecutor(max_workers=5)
+            self.api_client = ApiClient()
+            self.config = config
 
-            self._is_initialized = True
+            if not getattr(self, "_initialized", False) and not getattr(
+                self, "_locked", False
+            ):
+                self._locked = True
+                self.last_error: Dict = {}
+                self.last_log: Dict = {}
+                self.user: ProfileModel = self._setup_user()
+                self._init()
+                self._initialized = True
+                self._locked = False
+
         except Exception as e:
             self.debug_logging(e)
 
@@ -131,11 +130,20 @@ class Analytics(Borg):
         tb_offset: Any = None,
     ) -> None:
         """This function is used to handle exceptions in ipython."""
-        if self._telemetrics_disabled:
-            return
-        self.track_exception_ipython(
-            etype, evalue, tb, AmpliMetric.dq_general_exception
-        )
+
+        # we hook into the traceback,
+        # inbetween we log the exception
+        # and then show the original traceback.
+        # because recently the track_exception_ipython was failing
+        # we added a try except to make sure the original traceback is shown
+        try:
+            if not self._telemetrics_disabled:
+                self.track_exception_ipython(
+                    etype, evalue, tb, AmpliMetric.dq_general_exception
+                )
+        except Exception:
+            # TODO: create internal logging endpoint
+            pass
         # We need to call the default ipython exception handler to raise the error
         shell.showtraceback((etype, evalue, tb), tb_offset=tb_offset)
 

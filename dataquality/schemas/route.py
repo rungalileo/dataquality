@@ -20,7 +20,10 @@ class Route(str, Enum):
     healthcheck = "healthcheck"
     slices = "slices"
     split_path = "split"
+    splits = "splits"
+    inference_names = "inference_names"
     jobs = "jobs"
+    latest_job = "jobs/latest"
     presigned_url = "presigned_url"
     tasks = "tasks"
     labels = "labels"
@@ -33,6 +36,7 @@ class Route(str, Enum):
     edits = "edits"
     export_edits = "edits/export"
     ampli = "ampli"
+    notify = "notify/email"
 
     @staticmethod
     def content_path(

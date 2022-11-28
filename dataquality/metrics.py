@@ -24,7 +24,7 @@ from dataquality.schemas.task_type import TaskType
 
 api_client = ApiClient()
 object_store = ObjectStore()
-a = Analytics(ApiClient, config)
+a = Analytics(ApiClient, config)  # type: ignore
 a.log_import("dq/metrics")
 
 
@@ -270,6 +270,7 @@ def get_dataframe(
     tagging_schema: Optional[TaggingSchema] = None,
     filter: Union[FilterParams, Dict] = None,
     as_pandas: bool = True,
+    include_data_embs: bool = False,
 ) -> Union[pd.DataFrame, DataFrame]:
     """Gets the dataframe for a run/split
 
@@ -303,6 +304,7 @@ def get_dataframe(
         and vaex will memory map the data. If any columns returned are multi-dimensional
         (embeddings, probabilities etc), vaex will always be returned, because pandas
         cannot support multi-dimensional columns. Default True
+    :param include_data_embs: Whether to include the off the shelf data embeddings
     """
     split = conform_split(split)
     project_id, run_id = api_client._get_project_run_id(project_name, run_name)
@@ -331,6 +333,7 @@ def get_dataframe(
         include_token_indices,
         hf_format,
         as_pandas,
+        include_data_embs,
     )
 
 
@@ -346,6 +349,7 @@ def get_edited_dataframe(
     hf_format: bool = False,
     tagging_schema: Optional[TaggingSchema] = None,
     as_pandas: bool = True,
+    include_data_embs: bool = False,
 ) -> Union[pd.DataFrame, DataFrame]:
     """Gets the edited dataframe for a run/split
 
@@ -377,6 +381,7 @@ def get_edited_dataframe(
         and vaex will memory map the data. If any columns returned are multi-dimensional
         (embeddings, probabilities etc), vaex will always be returned, because pandas
         cannot support multi-dimensional columns. Default True
+    :param include_data_embs: Whether to include the off the shelf data embeddings
     """
     split = conform_split(split)
     project_id, run_id = api_client._get_project_run_id(project_name, run_name)
@@ -405,6 +410,7 @@ def get_edited_dataframe(
         include_token_indices,
         hf_format,
         as_pandas,
+        include_data_embs,
     )
 
 
@@ -421,6 +427,7 @@ def _process_exported_dataframe(
     include_token_indices: bool = False,
     hf_format: bool = False,
     as_pandas: bool = True,
+    include_data_embs: bool = False,
 ) -> Union[pd.DataFrame, DataFrame]:
     """Process dataframe after export of run or edits.
 
@@ -429,7 +436,8 @@ def _process_exported_dataframe(
     # See docstring. In this case, we need span-level data
     # You can't attach embeddings to the huggingface data, since the HF format is
     # sample level, and the embeddings are span level
-    if include_embs and task_type == TaskType.text_ner and not hf_format:
+    embs = include_embs or include_data_embs
+    if embs and task_type == TaskType.text_ner and not hf_format:
         # In NER, the `probabilities` contains the span level data
         span_df = get_probabilities(project_name, run_name, split, inference_name)
         # These are the token (not char) indices, lets make that clear
@@ -461,6 +469,18 @@ def _process_exported_dataframe(
             )
         else:
             emb_df = get_embeddings(project_name, run_name, split, inference_name)
+            data_df = data_df.join(emb_df, on="id")
+    if include_data_embs:
+        # Embeddings are span level, but huggingface is sample level, so can't combine
+        if hf_format:
+            warnings.warn(
+                "Embeddings are not available in HF format, ignoring", GalileoWarning
+            )
+        else:
+            emb_df = get_data_embeddings(
+                project_name, run_name, split, inference_name
+            ).copy()
+            emb_df.rename("emb", "data_emb")
             data_df = data_df.join(emb_df, on="id")
     if include_probs:
         if task_type == task_type.text_ner:
@@ -540,6 +560,31 @@ def get_embeddings(
         "emb/emb.hdf5",
         inference_name,
         epoch,
+    )
+
+
+def get_data_embeddings(
+    project_name: str,
+    run_name: str,
+    split: Split,
+    inference_name: str = "",
+) -> DataFrame:
+    """Downloads the data (off the shelf) embeddings for a run/split
+
+    An hdf5 file will be downloaded to local and a Vaex dataframe will be returned
+
+    :param project_name: The project name
+    :param run_name: The run name
+    :param split: The split (training/test/validation/inference)
+    :param inference_name: Required if split is inference
+    """
+    split = conform_split(split)
+    return _get_hdf5_file_for_epoch(
+        project_name,
+        run_name,
+        split,
+        "data_emb/data_emb.hdf5",
+        inference_name,
     )
 
 

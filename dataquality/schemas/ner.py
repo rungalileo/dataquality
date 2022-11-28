@@ -2,6 +2,12 @@ from enum import Enum, unique
 
 
 @unique
+class NERProbMethod(str, Enum):
+    confidence = "confidence"
+    loss = "loss"
+
+
+@unique
 class NERErrorType(str, Enum):
     wrong_tag = "wrong_tag"
     missed_label = "missed_label"
@@ -31,7 +37,9 @@ class NERColumns(str, Enum):
     span_end = "span_end"
     gold = "gold"
     pred = "pred"
-    data_error_potential = "data_error_potential"
+    conf_prob = "conf_prob"
+    loss_prob = "loss_prob"
+    loss_prob_label = "loss_prob_label"
     galileo_error_type = "galileo_error_type"
     emb = "emb"
     inference_name = "inference_name"
