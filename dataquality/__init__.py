@@ -152,3 +152,19 @@ except ValueError:  # The users limit is higher than our max, which is OK
 #  a.log_method_call("dataquality.log_data_samples")
 a = Analytics(ApiClient, config)
 a.log_import("dataquality")
+
+# TODO: Remove after https://github.com/vaexio/vaex/issues/2283 is fixed
+import vaex  # noqa: E402
+
+if not vaex.dataset.opener_classes:
+    import vaex.arrow.opener
+    import vaex.hdf5.dataset
+
+    vaex.dataset.opener_classes = [
+        vaex.hdf5.dataset.Hdf5MemoryMapped,
+        vaex.hdf5.dataset.AmuseHdf5MemoryMapped,
+        vaex.hdf5.dataset.Hdf5MemoryMappedGadget,
+        vaex.arrow.opener.ArrowOpener,
+        vaex.arrow.opener.FeatherOpener,
+        vaex.arrow.opener.ParquetOpener,
+    ]
