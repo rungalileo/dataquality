@@ -48,10 +48,16 @@ def log_input_docs(
     Note: This is for inference only. We still require the user to pass in
     split to stay consistent with other logger fns.
     """
+    split = conform_split(split)
     if split != Split.inference:
         raise GalileoException(
-            "`log_input_docs can only be used for split inference, you "
-            "passed in {split}`. Try using `log_input_examples` instead."
+            "`log_input_docs` can only be used for split inference, you "
+            f"passed in {split}. Try using `log_input_examples` instead."
+        )
+    if not dataquality.get_data_logger().logger_config.labels:
+        raise GalileoException(
+            "Galileo does not have any logged labels. Did you forget "
+            "to call watch(nlp) before log_input_examples(...)?"
         )
 
     texts = []

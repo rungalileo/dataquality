@@ -15,6 +15,7 @@ from dataquality.exceptions import GalileoException
 from dataquality.integrations.spacy import (
     GalileoEntityRecognizer,
     GalileoTransitionBasedParserModel,
+    log_input_docs,
     log_input_examples,
     unwatch,
     watch,
@@ -425,3 +426,27 @@ def test_require_cpu(
 ) -> None:
     with pytest.raises(GalileoException):
         train_model(NER_TRAINING_DATA, NER_TEST_DATA)
+
+
+def test_log_input_docs_not_inference() -> None:
+    with pytest.raises(GalileoException) as e:
+        log_input_docs([], "training", "inf-name")
+
+    assert (
+        e.value.args[0] == "`log_input_docs` can only be used for split inference, you "
+        "passed in training. Try using `log_input_examples` instead."
+    )
+
+
+def test_log_input_docs_without_watch(set_test_config, cleanup_after_use):
+    text_ner_logger_config.reset()
+    set_test_config(task_type=TaskType.text_ner)
+
+    with pytest.raises(GalileoException) as e:
+        log_input_docs([], "inference", "inf-name")
+
+    assert (
+        e.value.args[0]
+        == "Galileo does not have any logged labels. Did you forget to call "
+        "watch(nlp) before log_input_examples(...)?"
+    )
