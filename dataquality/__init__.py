@@ -1,6 +1,6 @@
 "dataquality"
 
-__version__ = "v0.8.4"
+__version__ = "v0.8.5"
 
 import os
 
