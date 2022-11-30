@@ -1,7 +1,7 @@
 import pickle
-from typing import Callable, Dict, Generator, List, Tuple
+from typing import Dict, List, Tuple
 from unittest import mock
-from unittest.mock import patch
+from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
@@ -24,7 +24,6 @@ from dataquality.integrations.spacy import (
 )
 from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
-from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.conftest import LOCATION
 from tests.test_utils.spacy_integration import load_ner_data_from_local, train_model
@@ -34,11 +33,12 @@ from tests.test_utils.spacy_integration_constants import (
     MISALIGNED_SPAN_DATA,
     NER_CLASS_LABELS,
     NER_TRAINING_DATA,
-    TestSpacyNerConstants,
+    TestSpacyExpectedResults,
 )
 from tests.test_utils.spacy_integration_constants_inference import (
     NER_INFERENCE_DATA,
-    NER_INFERENCE_DATA_TOKEN_INDICES,
+    NER_INFERENCE_PRED_TOKEN_SPANS,
+    TestSpacyInfExpectedResults,
 )
 
 
@@ -141,8 +141,7 @@ def test_unwatch(nlp: Language, training_examples: List[Example]) -> None:
 
 
 def test_embeddings_get_updated(
-    set_test_config: Callable,
-    cleanup_after_use: Generator,
+    nlp: Language,
     training_examples: List[Example],
 ) -> None:
     """This test both checks our spacy wrapper end to end and that embs update.
@@ -150,17 +149,17 @@ def test_embeddings_get_updated(
     If embeddings stop updating that means the spacy architecture somehow changed
     and would make our user's embeddings seem meaningless
     """
-    set_test_config(task_type=TaskType.text_ner)
-    train_model(training_examples, num_epochs=2)
+    train_model(nlp, training_examples, num_epochs=2)
+    unwatch(nlp)
 
-    _, embs, _ = load_ner_data_from_local("training", epoch=1)
+    _, embs, _ = load_ner_data_from_local("training", inf_name_or_epoch=1)
     embs = embs["emb"].to_numpy()
 
     dataquality.get_data_logger()._cleanup()
 
-    train_model(training_examples, num_epochs=1)
+    train_model(nlp, training_examples, num_epochs=1)
 
-    _, embs_2, _ = load_ner_data_from_local("training", epoch=0)
+    _, embs_2, _ = load_ner_data_from_local("training", inf_name_or_epoch=0)
     embs_2 = embs_2["emb"].to_numpy()
 
     assert embs.shape == embs_2.shape
@@ -168,15 +167,13 @@ def test_embeddings_get_updated(
 
 
 def test_spacy_ner(
-    set_test_config: Callable,
-    cleanup_after_use: Generator,
+    nlp: Language,
     training_examples: List[Example],
 ) -> None:
     """An end to end test of functionality"""
     spacy.util.fix_random_seed(0)
-    set_test_config(task_type=TaskType.text_ner)
     num_epochs = 2
-    training_losses = train_model(training_examples, num_epochs=num_epochs)
+    training_losses = train_model(nlp, training_examples, num_epochs=num_epochs)
 
     training_losses = np.array(training_losses).astype(np.float32)
     res = np.array(
@@ -184,30 +181,26 @@ def test_spacy_ner(
     )
     assert np.allclose(training_losses, res, atol=1e-01)
 
-    data, embs, probs = load_ner_data_from_local("training", epoch=num_epochs - 1)
+    data, embs, probs = load_ner_data_from_local(
+        "training", inf_name_or_epoch=num_epochs - 1
+    )
 
     assert len(data) == 5
     assert all(data["id"] == range(len(data)))
     assert data.equals(
-        TestSpacyNerConstants.gt_data
+        TestSpacyExpectedResults.gt_data
     ), f"Received the following data df {data}"
 
     assert embs["id"].tolist() == list(range(len(embs)))
     embs = embs["emb"].to_numpy().astype(np.float16)
-    assert all([span_emb in TestSpacyNerConstants.gt_embs for span_emb in embs])
+    assert all([span_emb in TestSpacyExpectedResults.gt_embs for span_emb in embs])
 
-    # arrange the probs array to account for misordering of logged samples
-    probs = (
-        probs.sort_values(by=["sample_id", "span_start"]).drop("id", axis=1).round(4)
-    )
     assert len(probs) == 8
-
-    gt_probs = TestSpacyNerConstants.gt_probs
-    for c in probs.columns:
-        if np.issubdtype(probs[c].dtype, np.number):
-            assert np.allclose(probs[c].values, gt_probs[c].values, atol=1e-3)
-        else:
-            assert (probs[c].values == gt_probs[c].values).all()
+    # arrange the probs array to account for misordering of logged samples
+    probs = probs.sort(["sample_id", "span_start"])
+    # Drop multi-dimensional columns
+    probs = probs.drop(["id", "conf_prob", "loss_prob"]).to_pandas_df()
+    probs.equals(TestSpacyExpectedResults.gt_probs)
 
 
 @pytest.mark.parametrize(
@@ -327,10 +320,11 @@ def test_watch_nlp_with_no_gold_labels(nlp: Language) -> None:
 @mock.patch("dataquality.utils.spacy_integration.is_spacy_using_gpu", return_value=True)
 def test_require_cpu(
     mock_spacy_gpu: mock.MagicMock,
+    nlp: Language,
     training_examples: List[Example],
 ) -> None:
     with pytest.raises(GalileoException):
-        train_model(training_examples)
+        train_model(nlp, training_examples)
 
 
 def test_log_input_docs_not_inference() -> None:
@@ -382,17 +376,49 @@ def test_log_input_docs(nlp_watch: Language, inference_docs: List[Doc]) -> None:
     )
     # Checks that logged data was tokenized correctly
     logged_token_indices = logged_data["text_token_indices"].tolist()
-    assert logged_token_indices == NER_INFERENCE_DATA_TOKEN_INDICES
+    expected_token_indices = [
+        list(row) for row in TestSpacyInfExpectedResults.gt_data.text_token_indices
+    ]
+    assert logged_token_indices == expected_token_indices
 
 
-def test_spacy_inference_only(nlp_watch: Language, inference_docs: List[Doc]) -> None:
+@mock.patch.object(TextNERModelLogger, "_extract_pred_spans")
+def test_spacy_inference_only(
+    mock_extract_pred_spans: MagicMock, nlp_watch: Language, inference_docs: List[Doc]
+) -> None:
+    spacy.util.fix_random_seed(0)
+    # We don't care what the nlp model actually predicts,
+    # mock the response to ensure pred_spans exist
+    mock_extract_pred_spans.side_effect = NER_INFERENCE_PRED_TOKEN_SPANS
+
     log_input_docs(inference_docs, "inference", "inf-name")
     dataquality.set_split("inference", "inf-name")
     for doc in inference_docs:
         nlp_watch(doc)
-    # TODO: Make some assertions
 
+    logger = dataquality.get_data_logger(dataquality.config.task_type)
+    logger.upload()
 
-def test_spacy_train_and_inference() -> None:
-    """An end to end test of functionality for inference"""
-    pass
+    data, embs, probs = load_ner_data_from_local(
+        "inference", inf_name_or_epoch="inf-name"
+    )
+
+    assert len(data) == 5
+    assert all(data["id"] == range(len(data)))
+    assert data.equals(TestSpacyInfExpectedResults.gt_data)
+
+    assert embs["id"].tolist() == list(range(7))
+    embs = embs["emb"].to_numpy()
+    # Since order might change due to multi-threading we verify each embedding
+    # is in the expected list, but don't check the exact order
+    assert all([span_emb in TestSpacyInfExpectedResults.gt_embs for span_emb in embs])
+
+    # arrange the probs array to account for misordering of logged samples
+    assert len(probs) == 7
+    probs = probs.sort(["sample_id", "span_start"])
+    conf_probs = probs["conf_prob"].to_numpy()
+    assert np.isclose(conf_probs, TestSpacyInfExpectedResults.gt_conf_prob).all()
+
+    # Drop conf_prob since pandas doesn't support multi-dimensional arrays
+    pdf = probs.drop(["id", "conf_prob"]).to_pandas_df()
+    assert pdf.equals(TestSpacyInfExpectedResults.gt_probs)

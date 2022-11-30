@@ -450,18 +450,16 @@ class GalileoParserStepModel(ThincModelWrapper):
     def _self_is_helper_data_filled(self) -> bool:
         """Should be enough to check that logits is filled"""
         helper_data = self._self_model_logger.log_helper_data
-        is_doc_filled = []
         for doc_id, doc_logits in helper_data["logits"].items():
             doc_embs = helper_data["embs"][doc_id]
-            is_doc_filled.append(
-                all(
-                    [
-                        token_logits is not None and token_embs is not None
-                        for token_logits, token_embs in zip(doc_logits, doc_embs)
-                    ]
-                )
-            )
-        return all(is_doc_filled)
+            if not all(
+                [
+                    token_logits is not None and token_embs is not None
+                    for token_logits, token_embs in zip(doc_logits, doc_embs)
+                ]
+            ):
+                return False
+        return True
 
     def _self_fill_helper_data(
         self, states: List[StateClass], scores: np.ndarray
