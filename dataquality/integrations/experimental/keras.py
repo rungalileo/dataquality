@@ -1,9 +1,7 @@
-import inspect
 from functools import partial
-from typing import Any, Callable, Dict, Optional, Sized, Tuple, Union
+from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 import tensorflow as tf
-from keras.engine import data_adapter
 from tensorflow import keras
 
 import dataquality as dq
@@ -11,300 +9,199 @@ from dataquality import config
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
 from dataquality.exceptions import GalileoException
+from dataquality.loggers.logger_config.base_logger_config import BaseLoggerConfig
 from dataquality.schemas.split import Split
 from dataquality.utils.helpers import wrap_fn
-from dataquality.utils.tf import is_tf_2
-
-# If this is TF 1.x
-if not is_tf_2():
-    tf.compat.v1.enable_eager_execution()
-
-import tensorflow as tf
+from dataquality.utils.keras import (
+    combine_with_default_kwargs,
+    generate_indices,
+    generate_split,
+    get_x_len,
+    patch_layer_call,
+    save_input,
+    save_output,
+)
 
 a = Analytics(ApiClient, config)
 a.log_import("integrations/experimental/keras")
 
 
-def pass_on(*args: Tuple, **kwargs: Dict[str, Any]) -> None:
-    return None
-
-
-# https://github.com/tensorflow/tensorflow/issues/33478#issuecomment-843720638
-def proxy_call(
-    input: tf.Tensor, obj: tf.keras.layers.Layer, *args: Tuple, **kwargs: Dict[str, Any]
-) -> Any:
-    if obj._before_call is not None:
-        obj._before_call(obj, input)
-    output = obj._old_call(input)
-    if obj._after_call is not None:
-        hook_result = obj._after_call(obj, input, output)
-        if hook_result is not None:
-            output = hook_result
-    return output
-
-
-def hook_layer(
-    layer: tf.keras.layers.Layer,
-    before_call: Optional[Callable] = None,
-    after_call: Optional[Callable] = None,
-) -> None:
-    layer._before_call = before_call
-    layer._after_call = after_call
-    layer._old_call = layer.call
-    layer.call = partial(proxy_call, obj=layer)
-
-
-def save_input(
-    store: Dict[str, Any],
-    layer: tf.keras.layers.Layer,
-    input: tf.Tensor,
-    *args: Tuple,
-    **kwargs: Dict[str, Any],
-) -> None:
-    if input is not None:
-        store["input"] = input
-
-
-def save_output(
-    store: Dict[str, Any],
-    layer: tf.keras.layers.Layer,
-    input: tf.Tensor,
-    output: tf.Tensor,
-) -> None:
-
-    if output is not None:
-        store["output"] = output
-
-
 class DataQualityCallback(keras.callbacks.Callback):
-    helper_data: Any
-    model: Any
+    store: Dict[str, Any]
+    model: tf.keras.layers.Layer
+    logger_config: BaseLoggerConfig
 
     def __init__(
         self,
         store: Dict[str, Any],
+        logger_config: BaseLoggerConfig,
+        log_function: Callable,
         model: tf.keras.layers.Layer,
         *args: Tuple,
         **kwargs: Dict[str, Any],
     ) -> None:
-        self.helper_data = store
+        """Initialize the callback by passing in the model and the input store.
+        :param store: The store to save the input and output to.
+        :param model: The model to patch.
+        """
         a.log_function("keras/dqcallback")
+        self.log_function = log_function
+        self.store = store
+        self.logger_config = logger_config
         self.model = model
         super(DataQualityCallback, self).__init__()
         if not tf.executing_eagerly():
             raise GalileoException("Needs to be executing eagerly")
 
-    def generate_test_indices(self, kwargs: Dict[str, Any]) -> None:
-        e_model = keras.Sequential([])
-        e_model.compile(loss="mse", run_eagerly=True)
-        data_handler = data_adapter.DataHandler(
-            x=kwargs.get("val_x"),
-            y=None,
-            sample_weight=kwargs.get("val_sample_weight"),
-            batch_size=kwargs.get("validation_batch_size") or kwargs.get("batch_size"),
-            steps_per_epoch=kwargs.get("validation_steps"),
-            initial_epoch=0,
-            epochs=1,
-            max_queue_size=kwargs.get("max_queue_size"),
-            workers=1,
-            use_multiprocessing=False,
-            model=e_model,
-            steps_per_execution=self.model._steps_per_execution,
-        )
-        for epoch, iterator in data_handler.enumerate_epochs():
-            for step, iterator_data in enumerate(iterator):
-                self.helper_data[f"val_{step}"] = iterator_data
-
-    def generate_train_indices(self, kwargs: Dict[str, Any]) -> None:
-        e_model = keras.Sequential([])
-        e_model.compile(loss="mse", run_eagerly=True)
-        filtered_keys = set(kwargs.keys())
-        filtered_keys.discard("model")
-        filtered_keys.discard("steps_per_execution")
-        allowed_keys = set(inspect.signature(data_adapter.DataHandler).parameters)
-
-        keys = filtered_keys.intersection(allowed_keys)
-        dh_kwargs = {key: kwargs.get(key) for key in keys}
-        data_handler = data_adapter.get_data_handler(
-            model=e_model,
-            steps_per_execution=self.model._steps_per_execution,
-            **dh_kwargs,
-        )
-
-        for epoch, iterator in data_handler.enumerate_epochs():
-            for step in data_handler.steps():
-                self.helper_data[f"epoch_{epoch}_{step}"] = next(iterator)
-
-    def generate_kwargs(
-        self, func: Callable, fit_kwargs: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        signature = inspect.signature(func)
-        default_params = {
-            k: v.default
-            for k, v in signature.parameters.items()
-            if v.default is not inspect.Parameter.empty
-        }
-        kwargs = {**default_params}
-        kwargs.update(fit_kwargs)
-        return kwargs
-
     def on_train_begin(self, logs: Any = None) -> None:
+        """Initialize the training by extracting the model input arguments.
+        and from it generate the indices of the batches."""
         assert self.model.run_eagerly, GalileoException(
             "Model must be compiled with run_eagerly=True"
         )
-        fit_kwargs = self.helper_data["model_fit"].get("kwargs")
-        fit_args = self.helper_data["model_fit"].get("args")
-        self.fit_kwargs = self.generate_kwargs(self.model.fit, fit_kwargs)
-        x = self.fit_kwargs.get("x")
-        if x is None and len(fit_args):
-            # TODO: enumerate args and replace kwargs
-            x = fit_args[0]
-        if isinstance(x, Sized):
-            x_len = len(x)
+        self.fit_kwargs = combine_with_default_kwargs(
+            self.model.fit,  # model fit function for default kwargs
+            self.store["model_fit"].get("args", ()),  # model fit args
+            self.store["model_fit"].get("kwargs"),  # model fit kwargs
+        )
+        x_len = get_x_len(self.fit_kwargs.get("x"))
+        if x_len is None:
+            self.x_len_is_none = True
         else:
-            raise GalileoException("Can not determine length of x")
-        new_kwargs = self.generate_split(self.fit_kwargs, x_len)
-        self.fit_kwargs.update(new_kwargs)
-        self.generate_train_indices(self.fit_kwargs)
-
-    def generate_split(self, kwargs: Dict[str, Any], x_len: int) -> Dict:
-        validation_split = kwargs.get("validation_split")
-        validation_data = kwargs.get("validation_data")
-        sample_weight = kwargs.get("sample_weight")
-        x = tf.range(x_len)
-        y = x
-
-        if validation_split and validation_data is None:
-            # Create the validation data using the training data. Only supported
-            # for `Tensor` and `NumPy` input.
-            (
-                x,
-                y,
-                sample_weight,
-            ), validation_data = data_adapter.train_validation_split(
-                (x, y, sample_weight), validation_split=validation_split
+            # If that data is splitted we perform the same splitting as keras
+            self.fit_kwargs.update(generate_split(x_len, self.fit_kwargs))
+            # Now we can generate the indices of the batches
+            self.store["train_indices"] = generate_indices(
+                x_len,
+                batch_size=self.fit_kwargs["batch_size"],
+                steps_per_epoch=self.fit_kwargs["steps_per_epoch"],
+                epochs=self.fit_kwargs["epochs"],
+                shuffle=self.fit_kwargs["shuffle"],
+                sample_weight=self.fit_kwargs["sample_weight"],
+                class_weight=self.fit_kwargs["class_weight"],
+                initial_epoch=self.fit_kwargs["initial_epoch"],
             )
 
-        if validation_data:
-            (
-                val_x,
-                val_y,
-                val_sample_weight,
-            ) = data_adapter.unpack_x_y_sample_weight(validation_data)
-            val_x = tf.range(len(val_x))
-        else:
-            val_x = None
-            val_sample_weight = None
-        return {
-            "x": x,
-            "y": None,
-            "sample_weight": sample_weight,
-            "val_x": val_x,
-            "val_y": None,
-            "val_sample_weight": val_sample_weight,
-        }
-
     def on_epoch_begin(self, epoch: int, logs: Dict) -> None:
+        """At the beginning of the epoch we set the epoch in the store.
+        :param epoch: The epoch number.
+        :param logs: The logs."""
         dq.set_epoch(epoch)
 
     def _clear_logger_config_helper_data(self) -> None:
-        self.helper_data.pop("input", None)
-        self.helper_data.pop("output", None)
-        self.helper_data.pop("indices_ids", None)
+        """Clear the helper data from the logger config for the current step."""
+        self.store.pop("input", None)
+        self.store.pop("output", None)
+        self.store.pop("indices_ids", None)
 
     def on_train_batch_begin(self, batch: Any, logs: Dict = None) -> None:
+        """At the beginning of the batch we clear the
+        helper data from the logger config."""
         self._clear_logger_config_helper_data()
         dq.set_split(Split.train)
 
     def on_train_batch_end(self, batch: Any, logs: Dict = None) -> None:
+        """At the end of the batch we log the input of the classifier and the output.
+        :param batch: The batch number.
+        :param logs: The logs."""
         dq.set_split(Split.train)
-        logger_config = dq.get_data_logger().logger_config
-        ids = self.helper_data.get("indices_ids")
+        # We try to fetch the indices directly from the store
+        ids = self.store.get("indices_ids")
+        # If we don't have them we try to fetch them from the generated indices
         if ids is None:
-            epoch = logger_config.cur_epoch
+            epoch = self.logger_config.cur_epoch
             step = batch
-            ids = self.helper_data[f"epoch_{epoch}_{step}"]
-        dq.log_model_outputs(
-            embs=self.helper_data["input"],
-            logits=self.helper_data["output"],
+            ids = self.store.get("train_indices", {}).get(f"epoch_{epoch}_{step}")
+            assert ids is not None, GalileoException("No logged indices found")
+
+        self.log_function(
+            embs=self.store["input"],
+            logits=self.store["output"],
             ids=ids,
         )
 
     def on_test_begin(self, logs: Any = None) -> None:
-        dq.set_split(Split.test)
-        self.generate_test_indices(self.fit_kwargs)
+        """At the beginning of the test we set the split to test.
+        And generate the indices of the batches."""
+        dq.set_split(Split.validation)
+        x_len = get_x_len(self.fit_kwargs.get("val_x"))
+        if x_len is None:
+            self.val_x_len_is_none = True
+        else:
+            self.store["validation_indices"] = generate_indices(
+                x=x_len,
+                batch_size=self.fit_kwargs.get("validation_batch_size")
+                or self.fit_kwargs["batch_size"],
+                steps_per_epoch=self.fit_kwargs.get("validation_steps"),
+                sample_weight=self.fit_kwargs.get("val_sample_weight"),
+            )
 
     def on_test_batch_begin(self, batch: Any, logs: Dict = None) -> None:
-        # TODO: Somehow we should figure out whether this is in .fit
-        #  (so really this should be val) or .evaluate (so this should be test)
+        """At the beginning of the batch we clear the helper
+        data from the logger config."""
         self._clear_logger_config_helper_data()
         dq.set_split(Split.validation)
 
     def on_test_batch_end(self, batch: Any, logs: Dict = None) -> None:
+        """At the end of the validation batch we log the input of the classifier
+        and the output."""
         dq.set_split(Split.validation)
-        # logger_config = dq.get_data_logger().logger_config
-        ids = self.helper_data.get("indices_ids")
+        ids = self.store.get("indices_ids")
 
         if ids is None:
             step = batch
-            ids = self.helper_data[f"val_{step}"]
-        dq.log_model_outputs(
-            embs=self.helper_data["input"],
-            logits=self.helper_data["output"],
+            ids = self.store.get("validation_indices", {}).get(f"epoch_0_{step}")
+            assert ids is not None, GalileoException("No logged indices found")
+
+        self.log_function(
+            embs=self.store["input"],
+            logits=self.store["output"],
             ids=ids,
         )
 
     def on_predict_begin(self, batch: int) -> None:
+        """At the beginning of the prediction we set the split to test."""
         dq.set_split(Split.test)
-        predict_kwargs = self.helper_data["model_predict"].get("kwargs")
-        predict_args = self.helper_data["model_predict"].get("args")
-        self.predict_kwargs = self.generate_kwargs(self.model.predict, predict_kwargs)
-        x = self.predict_kwargs.get("x")
-        if x is None and len(predict_args):
-            # TODO: enumerate args and replace kwargs
-            x = predict_args[0]
-        if isinstance(x, Sized):
-            x_len = len(x)
-        else:
-            raise GalileoException("Can not determine length of x")
-        e_model = keras.Sequential([])
-        e_model.compile(loss="mse", run_eagerly=True)
-        data_handler = data_adapter.DataHandler(
-            x=tf.range(x_len),
-            batch_size=self.predict_kwargs.get("batch_size"),
-            steps_per_epoch=self.predict_kwargs.get("steps"),
-            initial_epoch=0,
-            epochs=1,
-            max_queue_size=self.predict_kwargs.get("max_queue_size"),
-            workers=1,
-            use_multiprocessing=False,
-            model=e_model,
-            steps_per_execution=self.model._steps_per_execution,
-        )
-        for epoch, iterator in data_handler.enumerate_epochs():
-            for step, iterator_data in enumerate(iterator):
-                self.helper_data[f"test_{step}"] = iterator_data
-
-    def on_predict_batch_begin(self, batch: int, logs: Any = None) -> None:
         dq.set_epoch(0)
+        predict_kwargs = self.store["model_predict"].get("kwargs")
+        predict_args = self.store["model_predict"].get("args", ())
+
+        predict_kwargs = combine_with_default_kwargs(
+            self.model.predict, predict_args, predict_kwargs
+        )
+
+        x_len = get_x_len(predict_kwargs.get("x"))
+        if x_len is None:
+            self.predict_x_len_is_none = True
+        else:
+            self.store["test_indices"] = generate_indices(
+                x=x_len,
+                batch_size=predict_kwargs.get("batch_size"),
+                steps_per_epoch=predict_kwargs.get("steps"),
+            )
 
     def on_predict_batch_end(self, batch: int, logs: Any = None) -> None:
         dq.set_split(Split.test)
-        # logger_config = dq.get_data_logger().logger_config
-        ids = self.helper_data.get("indices_ids")
-
+        ids = self.store.get("indices_ids")
         if ids is None:
             step = batch
-            ids = self.helper_data[f"test_{step}"]
+            ids = self.store.get("test_indices", {}).get(f"epoch_0_{step}")
+            assert ids is not None, GalileoException("No loggeg indices found")
 
-        dq.log_model_outputs(
-            embs=self.helper_data["input"],
-            logits=self.helper_data["output"],
+        self.log_function(
+            embs=self.store["input"],
+            logits=self.store["output"],
             ids=ids,
         )
 
 
-def store_args_kwargs(store: Dict[str, Any], callback: Callable) -> Callable:
+def patch_model_fit_args_kwargs(store: Dict[str, Any], callback: Callable) -> Callable:
+    """Store the args and kwargs of model.fit in the store.
+    Adds the callback to the callbacks of the model.
+    :param store: The store for the kwargs and args.
+    :param callback: The callback to add to the model.
+    :return: The patched model.fit function."""
+
     def fit_wrapper(orig_func: Callable, *args: Any, **kwargs: Any) -> None:
         """Stores the indices of the batch"""
         store["args"] = args
@@ -319,10 +216,21 @@ def store_args_kwargs(store: Dict[str, Any], callback: Callable) -> Callable:
 
 
 def store_model_ids(store: Dict[str, Any]) -> Callable:
+    """Stores the indices of the batch. For a prebatched dataset"""
+
     def train_step_wrapper(orig_func: Callable, *args: Any, **kwargs: Any) -> None:
-        """Stores the indices of the batch"""
+        """We pop out the ids from the batch dict and store them in the store."""
         try:
-            store["indices_ids"] = args[0][0].pop("id", None)
+            ids = None
+            if isinstance(args[0], tuple):
+                ids = args[0]
+                if not isinstance(ids, dict):
+                    ids = ids[0]
+                if isinstance(ids, dict):
+                    ids = ids.pop("id", None)
+                else:
+                    ids = None
+            store["indices_ids"] = ids
         except AttributeError:
             pass
 
@@ -334,6 +242,10 @@ def store_model_ids(store: Dict[str, Any]) -> Callable:
 def select_model_layer(
     model: tf.keras.layers.Layer, layer: Optional[Union[tf.keras.layers.Layer, str]]
 ) -> tf.keras.layers.Layer:
+    """Selects the classifier layer from the model.
+    :param model: The model.
+    :param layer: The layer to select. If the layer with the name
+    'classifier' is selected."""
     chosen_layer = layer
     if isinstance(chosen_layer, str) is None:
         for model_layer in model.layers:
@@ -352,12 +264,31 @@ def select_model_layer(
     return chosen_layer
 
 
-def watch(model: tf.keras.layers.Layer, layer: Any = None, seed: int = 42) -> None:
+def _watch(
+    logger_data: Dict[str, Any],
+    logger_config: BaseLoggerConfig,
+    log_function: Callable,
+    model: tf.keras.layers.Layer,
+    layer: Any = None,
+    seed: int = 42,
+) -> None:
+    """Internal watch function that is used to watch the model during training.
+    :param logger_data: The store for temporary logger data
+    :param logger_config: The configuration of the logger
+    :param log_function: The function that is used to log the data
+    :param model: The model that is watched
+    :param layer: The layer that is watched
+    :param seed: The seed that is used for the random generator
+    """
+    # If we don't set the seed here, the random generator will be different for
+    # each process and the indices will be different
     tf.random.set_seed(seed)
-    logger_data = dq.get_model_logger().logger_config.helper_data
-    callback = DataQualityCallback(logger_data, model)
-    logger_data["model_fit"] = {}
+    # We add the callback to the model
+    callback = DataQualityCallback(
+        logger_data, logger_config, log_function, dq.log_model_outputs, model
+    )
 
+    # We store all monkey patches here so we can remove them later
     logger_data["model_patches"] = {
         "predict": model.predict,
         "test_step": model.test_step,
@@ -365,31 +296,55 @@ def watch(model: tf.keras.layers.Layer, layer: Any = None, seed: int = 42) -> No
         "__call__": model.__call__,
         "fit": model.fit,
     }
-
-    model.fit = wrap_fn(
-        model.fit, store_args_kwargs(logger_data["model_fit"], callback)
-    )
+    # We store the args and kwargs of the model fit and prediction method in our store
+    logger_data["model_fit"] = {}
     logger_data["model_predict"] = {}
-
-    model.predict = wrap_fn(
-        model.predict, store_args_kwargs(logger_data["model_predict"], callback)
+    model.fit = wrap_fn(
+        model.fit, patch_model_fit_args_kwargs(logger_data["model_fit"], callback)
     )
-
+    model.predict = wrap_fn(
+        model.predict,
+        patch_model_fit_args_kwargs(logger_data["model_predict"], callback),
+    )
+    # We need to patch all functions to store the indices of the batch
     model.train_step = wrap_fn(model.train_step, store_model_ids(logger_data))
     model.test_step = wrap_fn(model.test_step, store_model_ids(logger_data))
     model.predict_step = wrap_fn(model.predict_step, store_model_ids(logger_data))
     model.__call__ = wrap_fn(model.__call__, store_model_ids(logger_data))
+    # Select the layer that is watched
     chosen_layer = select_model_layer(model, layer)
-    hook_layer(
+    patch_layer_call(
         chosen_layer,
         before_call=partial(save_input, logger_data),
         after_call=partial(save_output, logger_data),
     )
 
 
-def unwatch(model: tf.keras.layers.Layer) -> None:
+def watch(model: tf.keras.layers.Layer, layer: Any = None, seed: int = 42) -> None:
+    """Watch a model and log the inputs and outputs of a layer.
+    :param model: The model to watch
+    :param layer: The layer to watch, if None the classifier layer is used
+    :param seed: The seed to use for the model"""
+    if not getattr(model, "_dq", False):
+        model._dq = True
+    else:
+        raise GalileoException(
+            "Model is already being watched, run unwatch(model) first"
+        )
     logger_data = dq.get_model_logger().logger_config.helper_data
-    for k, v in logger_data.get("model_patches", {}).items():
+    logger_config = dq.get_data_logger().logger_config
+    _watch(logger_data, logger_config, dq.log_model_outputs, model, layer, seed)
+
+
+def unwatch(model: tf.keras.layers.Layer) -> None:
+    """Unpatches the model. Run after the run is finished
+    :param model: The model to unpatch"""
+    if not getattr(model, "_dq", False):
+        raise GalileoException("Model is not watched, run watch(model) first")
+
+    logger_data = dq.get_model_logger().logger_config.helper_data
+    patched_layers = logger_data.get("model_patches", {})
+    for k, v in patched_layers.items():
         print("unpatching", k)
         setattr(model, k, v)
 
@@ -399,3 +354,5 @@ def unwatch(model: tf.keras.layers.Layer) -> None:
             del layer._old_call
             del layer._before_call
             del layer._after_call
+    if hasattr(model, "_dq"):
+        del model._dq

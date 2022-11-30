@@ -46,10 +46,12 @@ def preprocess_function(examples, tokenizer):
 data_collator = DataCollatorWithPadding(tokenizer=tokenizer, return_tensors="tf")
 
 # 🔭🌕 Galileo logging
-mock_dataset_with_ids = mock_dataset.map(lambda x, idx: {"id": idx}, with_indices=True)
+mock_dataset_with_ids = mock_dataset.map(
+    lambda x, idx: {"id": idx}, with_indices=True
+).select(range(7))
 mock_dataset_with_ids_number = mock_dataset_numbered.map(
     lambda x, idx: {"id": idx}, with_indices=True
-)
+).select(range(7))
 
 encoded_train_dataset = mock_dataset_with_ids.map(
     lambda x: preprocess_function(x, tokenizer), batched=True
@@ -67,7 +69,6 @@ encoded_test_dataset_number = mock_dataset_with_ids_number.map(
 
 # Training arguments and training part
 metric_name = "accuracy"
-batch_size = 4
 
 
 @patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
@@ -87,6 +88,7 @@ def test_hf_watch_e2e_numbered(
     cleanup_after_use: Generator,
 ) -> None:
     """Base case: Tests creating a new project and run"""
+    batch_size = 5
     set_test_config(task_type=TaskType.text_classification)
     # 🔭🌕 Galileo logging
     dq.set_labels_for_run(mock_dataset_numbered.features["label"].names)
@@ -111,10 +113,6 @@ def test_hf_watch_e2e_numbered(
         batch_size=batch_size,
     )
     num_epochs = 1
-    # model.compile(
-    # metrics=["accuracy"], optimizer="adam", loss="sparse_categorical_crossentropy"
-    # )
-    # model.fit(train_dataset, epochs=num_epochs)
     model_h = TFAutoModelForSequenceClassification.from_pretrained(
         checkpoint, num_labels=len(mock_dataset_numbered.features["label"].names)
     )
@@ -161,7 +159,6 @@ def test_tf_watch_e2e_numbered(
     set_test_config(task_type=TaskType.text_classification)
     dataset_len = 13
     val_dataset_len = 14
-    # 🔭🌕 Galileo logging
     dq.set_labels_for_run(tf.range(10).numpy())
     train_dataset = pd.DataFrame(
         {
@@ -181,10 +178,11 @@ def test_tf_watch_e2e_numbered(
     dq.log_dataset(val_dataset, split="validation")
     dq.log_dataset(val_dataset, split="test")
 
-    batch_size = 4
+    batch_size = 8
     input_data = (dataset_len, 28, 28, 1)
     input_shape = (28, 28, 1)
     num_classes = 10
+    # for the model read further in the tensorflow tests
     # reuters_mlp_benchmark_test.py
     # mnist_conv_benchmark_test.py
     model_s = tf.keras.Sequential(
@@ -227,7 +225,6 @@ def test_tf_watch_e2e_numbered(
     assert len(vaex.open(f"{LOCATION}/training/0/*.hdf5")) == len(x)
     assert len(vaex.open(f"{LOCATION}/validation/0/*.hdf5")) == len(val_x)
     assert len(vaex.open(f"{LOCATION}/test/0/*.hdf5")) == len(x)
-    print("finishing")
     unwatch(model_s)
     dq.finish()
     model_s.fit(
@@ -235,7 +232,7 @@ def test_tf_watch_e2e_numbered(
         y=y,
         validation_data=(val_x, val_y),
         batch_size=batch_size,
-        epochs=2,
+        epochs=1,
     )
 
 
@@ -252,3 +249,21 @@ def test_create_epoch_data() -> None:
             assert isinstance(epoch, int)
             assert isinstance(step, int)
             assert len(next(iterator))
+
+
+def test_model() -> None:
+    layer1 = tf.keras.layers.Embedding(output_dim=2, input_dim=7)
+    # create a classifier layer
+    layer2 = tf.keras.layers.Dense(
+        1, activation="linear", use_bias=False, name="classifier"
+    )
+    # create a sequential model
+    model = tf.keras.models.Sequential([layer1, layer2])
+    layer1.set_weights(
+        [tf.constant([[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6]])]
+    )
+    model.run_eagerly = True
+    input_list = tf.constant([0, 1, 2, 3, 4, 5, 6], dtype="int32")
+    # set the weights in classifier layer (layer2) so it will always predict 1
+    layer2.set_weights([tf.constant([[0.5], [0.5]])])
+    model.predict(input_list)
