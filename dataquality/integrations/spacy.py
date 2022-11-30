@@ -1,4 +1,3 @@
-import warnings
 from collections import defaultdict
 from typing import Any, Callable, DefaultDict, Dict, Generator, List, Tuple, Union
 
@@ -384,12 +383,7 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
         )
         validate_spacy_is_not_using_gpu()
         model_logger = TextNERModelLogger()
-        if model_logger.logger_config.cur_split == Split.inference:
-            warnings.warn(
-                "Inference logging with Galileo coming soon. For now "
-                "skipping logging"
-            )
-            return parser_step_model, backprop_fn
+
         if not all(["id" in doc.user_data for doc in X]):
             raise GalileoException(
                 "One of your input's docs is missing a galileo generated "

@@ -1,5 +1,5 @@
 import pickle
-from typing import Callable, Dict, List, Tuple
+from typing import Callable, Dict, Generator, List, Tuple
 from unittest import mock
 from unittest.mock import patch
 
@@ -7,7 +7,9 @@ import numpy as np
 import pytest
 import spacy
 import vaex
+from spacy.language import Language
 from spacy.pipeline.ner import EntityRecognizer
+from spacy.tokens import Doc
 from spacy.training import Example
 
 import dataquality
@@ -31,16 +33,16 @@ from tests.test_utils.spacy_integration_constants import (
     LONG_TRAIN_DATA,
     MISALIGNED_SPAN_DATA,
     NER_CLASS_LABELS,
-    NER_TEST_DATA,
     NER_TRAINING_DATA,
     TestSpacyNerConstants,
 )
+from tests.test_utils.spacy_integration_constants_inference import (
+    NER_INFERENCE_DATA,
+    NER_INFERENCE_DATA_TOKEN_INDICES,
+)
 
 
-def test_log_input_examples_without_watch(set_test_config, cleanup_after_use):
-    text_ner_logger_config.reset()
-    set_test_config(task_type=TaskType.text_ner)
-
+def test_log_input_examples_without_watch():
     with pytest.raises(GalileoException) as e:
         log_input_examples(NER_TRAINING_DATA, split="training")
     assert (
@@ -50,21 +52,7 @@ def test_log_input_examples_without_watch(set_test_config, cleanup_after_use):
     )
 
 
-def test_log_input_list_of_tuples(set_test_config, cleanup_after_use):
-    text_ner_logger_config.reset()
-    set_test_config(task_type=TaskType.text_ner)
-
-    nlp = spacy.blank("en")
-    nlp.add_pipe("ner")
-
-    training_examples = []
-    for text, annotations in NER_TRAINING_DATA:
-        doc = nlp.make_doc(text)
-        training_examples.append(Example.from_dict(doc, annotations))
-    nlp.initialize(lambda: training_examples)
-
-    watch(nlp)
-
+def test_log_input_list_of_tuples(nlp_watch: Language) -> None:
     with pytest.raises(GalileoException) as e:
         log_input_examples(NER_TRAINING_DATA, "training")
     assert (
@@ -74,20 +62,10 @@ def test_log_input_list_of_tuples(set_test_config, cleanup_after_use):
     )
 
 
-def test_log_input_examples(set_test_config, cleanup_after_use):
-    text_ner_logger_config.reset()
-    set_test_config(task_type=TaskType.text_ner)
-    nlp = spacy.blank("en")
-    nlp.add_pipe("ner")
-
-    training_examples = []
-    for text, annotations in NER_TRAINING_DATA:
-        doc = nlp.make_doc(text)
-        training_examples.append(Example.from_dict(doc, annotations))
-
-    nlp.initialize(lambda: training_examples)
-
-    watch(nlp)
+def test_log_input_examples(
+    nlp_init: Language, training_examples: List[Example]
+) -> None:
+    watch(nlp_init)
     log_input_examples(training_examples, "training")
 
     # assert that we added ids to the examples for later joining with model outputs
@@ -123,37 +101,19 @@ def test_log_input_examples(set_test_config, cleanup_after_use):
         assert NER_TRAINING_DATA[i][1]["entities"] == ents_as_char_idxs
 
 
-def test_watch(set_test_config, cleanup_after_use):
-    set_test_config(task_type=TaskType.text_ner)
-    nlp = spacy.blank("en")
-    nlp.add_pipe("ner")
+def test_watch(nlp_init: Language) -> None:
+    watch(nlp_init)
 
-    training_examples = []
-    for text, annotations in NER_TRAINING_DATA:
-        doc = nlp.make_doc(text)
-        training_examples.append(Example.from_dict(doc, annotations))
-
-    nlp.initialize(lambda: training_examples)
-    watch(nlp)
-
-    assert text_ner_logger_config.helper_data["nlp"] == nlp
+    assert text_ner_logger_config.helper_data["nlp"] == nlp_init
     assert dataquality.get_data_logger().logger_config.labels == NER_CLASS_LABELS
     assert dataquality.get_data_logger().logger_config.tagging_schema == "BILOU"
 
-    assert isinstance(nlp.get_pipe("ner"), EntityRecognizer)
-    assert isinstance(nlp.get_pipe("ner"), GalileoEntityRecognizer)
+    assert isinstance(nlp_init.get_pipe("ner"), EntityRecognizer)
+    assert isinstance(nlp_init.get_pipe("ner"), GalileoEntityRecognizer)
 
 
-def test_unwatch(set_test_config):
-    set_test_config(task_type=TaskType.text_ner)
-    nlp = spacy.blank("en")
-    original_ner = nlp.add_pipe("ner")
-
-    training_examples = []
-    for text, annotations in NER_TRAINING_DATA:
-        doc = nlp.make_doc(text)
-        training_examples.append(Example.from_dict(doc, annotations))
-
+def test_unwatch(nlp: Language, training_examples: List[Example]) -> None:
+    original_ner = nlp.get_pipe("ner")
     nlp.initialize(lambda: training_examples)
 
     # This should be possible here
@@ -180,25 +140,25 @@ def test_unwatch(set_test_config):
     pickle.loads(pickle.dumps(nlp))
 
 
-def test_embeddings_get_updated(cleanup_after_use, set_test_config):
+def test_embeddings_get_updated(
+    set_test_config: Callable,
+    cleanup_after_use: Generator,
+    training_examples: List[Example],
+) -> None:
     """This test both checks our spacy wrapper end to end and that embs update.
 
     If embeddings stop updating that means the spacy architecture somehow changed
     and would make our user's embeddings seem meaningless
     """
     set_test_config(task_type=TaskType.text_ner)
-    train_model(
-        training_data=NER_TRAINING_DATA, test_data=NER_TRAINING_DATA, num_epochs=2
-    )
+    train_model(training_examples, num_epochs=2)
 
     _, embs, _ = load_ner_data_from_local("training", epoch=1)
     embs = embs["emb"].to_numpy()
 
     dataquality.get_data_logger()._cleanup()
 
-    train_model(
-        training_data=NER_TRAINING_DATA, test_data=NER_TRAINING_DATA, num_epochs=1
-    )
+    train_model(training_examples, num_epochs=1)
 
     _, embs_2, _ = load_ner_data_from_local("training", epoch=0)
     embs_2 = embs_2["emb"].to_numpy()
@@ -207,14 +167,16 @@ def test_embeddings_get_updated(cleanup_after_use, set_test_config):
     assert not np.allclose(embs, embs_2)
 
 
-def test_spacy_ner(cleanup_after_use, set_test_config) -> None:
+def test_spacy_ner(
+    set_test_config: Callable,
+    cleanup_after_use: Generator,
+    training_examples: List[Example],
+) -> None:
     """An end to end test of functionality"""
-    spacy.util.fix_random_seed()
+    spacy.util.fix_random_seed(0)
     set_test_config(task_type=TaskType.text_ner)
     num_epochs = 2
-    training_losses = train_model(
-        NER_TRAINING_DATA, NER_TEST_DATA, num_epochs=num_epochs
-    )
+    training_losses = train_model(training_examples, num_epochs=num_epochs)
 
     training_losses = np.array(training_losses).astype(np.float32)
     res = np.array(
@@ -254,15 +216,9 @@ def test_spacy_ner(cleanup_after_use, set_test_config) -> None:
 )
 def test_long_sample(
     samples: List[Tuple[str, Dict]],
-    cleanup_after_use: Callable,
-    set_test_config: Callable,
+    nlp: Language,
 ):
     """Tests logging a long sample during training"""
-    TextNERModelLogger.logger_config.reset()
-    set_test_config(task_type=TaskType.text_ner)
-
-    nlp = spacy.blank("en")
-    nlp.add_pipe("ner")
     all_examples = [
         Example.from_dict(nlp.make_doc(text), entities) for text, entities in samples
     ]
@@ -292,44 +248,7 @@ def test_long_sample(
     del nlp
 
 
-def test_inference_split_raises_warning(
-    cleanup_after_use: Callable, set_test_config: Callable
-) -> None:
-    """Tests that inference mode raises a warning and continues without dq client"""
-    TextNERModelLogger.logger_config.reset()
-    set_test_config(task_type=TaskType.text_ner)
-
-    nlp = spacy.blank("en")
-    nlp.add_pipe("ner")
-    all_examples = [
-        Example.from_dict(nlp.make_doc(text), entities)
-        for text, entities in NER_TRAINING_DATA
-    ]
-    nlp.initialize(lambda: all_examples)
-    watch(nlp)
-    dataquality.set_split(split="inference", inference_name="some_name")
-
-    with patch(
-        "dataquality.loggers.model_logger.text_ner.TextNERModelLogger"
-    ) as mocked_model_logger_log:
-        with pytest.warns(UserWarning) as record:
-            nlp("some text here")
-            assert len(record) == 1
-            assert (
-                record[0].message.args[0]
-                == "Inference logging with Galileo coming soon. For now skipping "
-                "logging"
-            )
-        assert not mocked_model_logger_log.called
-
-
-def test_spacy_does_not_log_misaligned_entities(cleanup_after_use, set_test_config):
-    TextNERModelLogger.logger_config.reset()
-    set_test_config(task_type=TaskType.text_ner)
-
-    nlp = spacy.blank("en")
-    nlp.add_pipe("ner", last=True)
-
+def test_spacy_does_not_log_misaligned_entities(nlp: Language) -> None:
     def make_examples(data):
         examples = []
         for text, annotations in data:
@@ -364,14 +283,7 @@ def test_spacy_does_not_log_misaligned_entities(cleanup_after_use, set_test_conf
         ],
     ],
 )
-def test_log_input_examples_have_no_gold_spans(
-    set_test_config, cleanup_after_use, training_data
-):
-    TextNERModelLogger.logger_config.reset()
-    set_test_config(task_type=TaskType.text_ner)
-    nlp = spacy.blank("en")
-    nlp.add_pipe("ner")
-
+def test_log_input_examples_have_no_gold_spans(nlp: Language, training_data: List):
     def make_examples(data):
         examples = []
         for text, annotations in data:
@@ -398,14 +310,8 @@ def test_log_input_examples_have_no_gold_spans(
             assert logged_gold_span[2] == original_span.label_
 
 
-def test_watch_nlp_with_no_gold_labels(set_test_config, cleanup_after_use):
-    TextNERModelLogger.logger_config.reset()
-    set_test_config(task_type=TaskType.text_ner)
-
-    nlp = spacy.blank("en")
-    nlp.add_pipe("ner")
+def test_watch_nlp_with_no_gold_labels(nlp: Language) -> None:
     nlp.initialize()
-
     with pytest.raises(GalileoException) as e:
         watch(nlp)
     assert e.value.args[0] == (
@@ -421,11 +327,10 @@ def test_watch_nlp_with_no_gold_labels(set_test_config, cleanup_after_use):
 @mock.patch("dataquality.utils.spacy_integration.is_spacy_using_gpu", return_value=True)
 def test_require_cpu(
     mock_spacy_gpu: mock.MagicMock,
-    set_test_config: Callable,
-    cleanup_after_use: Callable,
+    training_examples: List[Example],
 ) -> None:
     with pytest.raises(GalileoException):
-        train_model(NER_TRAINING_DATA, NER_TEST_DATA)
+        train_model(training_examples)
 
 
 def test_log_input_docs_not_inference() -> None:
@@ -438,10 +343,7 @@ def test_log_input_docs_not_inference() -> None:
     )
 
 
-def test_log_input_docs_without_watch(set_test_config, cleanup_after_use):
-    text_ner_logger_config.reset()
-    set_test_config(task_type=TaskType.text_ner)
-
+def test_log_input_docs_without_watch() -> None:
     with pytest.raises(GalileoException) as e:
         log_input_docs([], "inference", "inf-name")
 
@@ -450,3 +352,47 @@ def test_log_input_docs_without_watch(set_test_config, cleanup_after_use):
         == "Galileo does not have any logged labels. Did you forget to call "
         "watch(nlp) before log_input_examples(...)?"
     )
+
+
+def test_log_input_docs_list_of_strs(nlp_watch: Language) -> None:
+    with pytest.raises(GalileoException) as e:
+        log_input_docs(NER_INFERENCE_DATA, "inference", "inf-name")
+    assert (
+        e.value.args[0] == "Expected a <class 'spacy.tokens.doc.Doc'>. Received "
+        "<class 'str'>"
+    )
+
+
+def test_log_input_docs(nlp_watch: Language, inference_docs: List[Doc]) -> None:
+    log_input_docs(inference_docs, "inference", "inf-name")
+
+    # assert that we added ids to the docs for later joining with model outputs
+    assert all([doc.user_data["id"] == i for i, doc in enumerate(inference_docs)])
+
+    logged_data = vaex.open(f"{LOCATION}/input_data/inference/data_0.arrow")
+
+    assert logged_data["id"].tolist() == [0, 1, 2, 3, 4]
+    assert logged_data["split"].tolist() == ["inference"] * len(inference_docs)
+    assert logged_data["inference_name"].tolist() == ["inf-name"] * len(inference_docs)
+    assert all(
+        [
+            text == NER_INFERENCE_DATA[i]
+            for i, text in enumerate(logged_data["text"].tolist())
+        ]
+    )
+    # Checks that logged data was tokenized correctly
+    logged_token_indices = logged_data["text_token_indices"].tolist()
+    assert logged_token_indices == NER_INFERENCE_DATA_TOKEN_INDICES
+
+
+def test_spacy_inference_only(nlp_watch: Language, inference_docs: List[Doc]) -> None:
+    log_input_docs(inference_docs, "inference", "inf-name")
+    dataquality.set_split("inference", "inf-name")
+    for doc in inference_docs:
+        nlp_watch(doc)
+    # TODO: Make some assertions
+
+
+def test_spacy_train_and_inference() -> None:
+    """An end to end test of functionality for inference"""
+    pass

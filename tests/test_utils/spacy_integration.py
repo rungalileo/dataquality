@@ -1,5 +1,5 @@
 import hashlib
-from typing import Dict, List, Tuple
+from typing import List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -18,19 +18,12 @@ from tests.conftest import SUBDIRS, TEST_PATH
 
 
 def train_model(
-    training_data: List[Tuple[str, Dict]],
-    test_data: List[Tuple[str, Dict]],
+    training_examples: List[Example],
     num_epochs: int = 5,
 ) -> None:
     nlp = spacy.blank("en")
     nlp.add_pipe("ner", last=True)
     minibatch_size = 3
-
-    # Spacy pre-processing
-    training_examples = []
-    for text, annotations in training_data:
-        doc = nlp.make_doc(text)
-        training_examples.append(Example.from_dict(doc, annotations))
 
     optimizer = nlp.initialize(lambda: training_examples)
 
