@@ -1,9 +1,8 @@
 "dataquality"
 
-__version__ = "v0.8.3a2"
+__version__ = "v0.8.4"
 
 import os
-import resource
 
 import dataquality.core._config
 import dataquality.integrations
@@ -135,8 +134,10 @@ __all__ = [
 ]
 
 try:
+    import resource
+
     resource.setrlimit(resource.RLIMIT_NOFILE, (65535, 65535))
-except ValueError:  # The users limit is higher than our max, which is OK
+except (ImportError, ValueError):  # The users limit is higher than our max, which is OK
     pass
 
 #  Logging is optional. If enabled, imports, method calls
