@@ -483,17 +483,14 @@ def _process_exported_dataframe(
             emb_df.rename("emb", "data_emb")
             data_df = data_df.join(emb_df, on="id")
     if include_probs:
-        if task_type == task_type.text_ner:
-            warnings.warn(
-                "Probabilities are not available for NER runs, ignoring", GalileoWarning
-            )
-        elif hf_format:
+        if hf_format:
             warnings.warn(
                 "Probabilities are not available in HF format, ignoring", GalileoWarning
             )
         else:
             prob_df = get_probabilities(project_name, run_name, split, inference_name)
-            prob_cols = prob_df.get_column_names(regex="prob*") + ["id"]
+            # Includes `prob` for TC, `prob_#` for MLTC, and `conf/loss_prob` for NER
+            prob_cols = prob_df.get_column_names(regex=r".*prob*") + ["id"]
             data_df = data_df.join(prob_df[prob_cols], on="id")
             data_df = _rename_prob_cols(data_df, tasks)
     if include_token_indices:
