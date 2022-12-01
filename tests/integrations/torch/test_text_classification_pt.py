@@ -1,3 +1,5 @@
+from typing import Callable, Generator
+
 import pandas as pd
 import torch
 from torch import nn
@@ -10,6 +12,7 @@ from torchtext.vocab import build_vocab_from_iterator
 
 import dataquality as dq
 from dataquality.integrations.torch import watch
+from dataquality.schemas.task_type import TaskType
 
 train_iter = iter(AG_NEWS(split="train"))
 tokenizer = get_tokenizer("basic_english")
@@ -181,7 +184,10 @@ def test_end_to_end_without_callback():
             total_accu = accu_val
 
 
-def test_end_to_end_with_callback():
+def test_end_to_end_with_callback(
+    cleanup_after_use: Generator, set_test_config: Callable
+) -> None:
+    set_test_config(default_task_type=TaskType.text_classification)
     global total_accu
     # Preprocessing
     ag_train = to_map_style_dataset(AG_NEWS(split="train"))[:500]

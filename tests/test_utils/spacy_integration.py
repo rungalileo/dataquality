@@ -1,11 +1,10 @@
 import hashlib
-from typing import Dict, List, Tuple
+from typing import List, Tuple, Union
 
 import numpy as np
 import pandas as pd
-import spacy
 import vaex
-from spacy.language import Doc
+from spacy.language import Doc, Language
 from spacy.training import Example
 from spacy.util import minibatch
 from thinc.model import Model
@@ -16,22 +15,21 @@ import dataquality
 from dataquality.integrations.spacy import log_input_examples, watch
 from tests.conftest import SUBDIRS, TEST_PATH
 
+MINIBATCH_SZ = 3
+
 
 def train_model(
-    training_data: List[Tuple[str, Dict]],
-    test_data: List[Tuple[str, Dict]],
+    nlp: Language,
+    training_examples: List[Example],
     num_epochs: int = 5,
 ) -> None:
-    nlp = spacy.blank("en")
-    nlp.add_pipe("ner", last=True)
-    minibatch_size = 3
+    """Trains a model and logs the data, embeddings, and probabilities.
 
-    # Spacy pre-processing
-    training_examples = []
-    for text, annotations in training_data:
-        doc = nlp.make_doc(text)
-        training_examples.append(Example.from_dict(doc, annotations))
-
+    Args:
+        nlp (Language): The spacy model, uninitialized and unwatched
+        training_examples (List[Example]): The training examples.
+        num_epochs (int, optional): The number of epochs to train for. Defaults to 5.
+    """
     optimizer = nlp.initialize(lambda: training_examples)
 
     # Galileo code
@@ -42,7 +40,7 @@ def train_model(
     training_losses = []
     for itn in range(num_epochs):
         dataquality.set_epoch(itn)
-        batches = minibatch(training_examples, minibatch_size)
+        batches = minibatch(training_examples, MINIBATCH_SZ)
 
         dataquality.set_split("training")
         for batch in tqdm(batches):
@@ -50,7 +48,7 @@ def train_model(
             training_losses.append(training_loss["ner"])
 
         dataquality.set_split("test")
-        nlp.evaluate(training_examples, batch_size=minibatch_size)
+        nlp.evaluate(training_examples, batch_size=MINIBATCH_SZ)
 
     # TODO: need to support the following line for inference
     # nlp('Thank you for your subscription renewal')
@@ -66,8 +64,8 @@ def train_model(
 
 def load_ner_data_from_local(
     split: str,
-    epoch: int,
-) -> Tuple[pd.DataFrame, DataFrameLocal, pd.DataFrame]:
+    inf_name_or_epoch: Union[str, int] = "",
+) -> Tuple[pd.DataFrame, DataFrameLocal, DataFrameLocal]:
     """Loads post-logging locally created files.
 
     Returns: data, emb, and prob vaex dataframes
@@ -75,7 +73,7 @@ def load_ner_data_from_local(
     split_output_data = {}
     for subdir in SUBDIRS:
         file_path = (
-            f"{TEST_PATH}/{split}/{epoch}/{subdir}/{subdir}."
+            f"{TEST_PATH}/{split}/{inf_name_or_epoch}/{subdir}/{subdir}."
             f"{'arrow' if subdir == 'data' else 'hdf5'}"
         )
         # Ensure files were cleaned up
@@ -89,12 +87,10 @@ def load_ner_data_from_local(
                 assert all([i is not None and i != "nan" for i in vals])
         split_output_data[subdir] = data
 
-    # Remove nested arrays cols from prob
-    probs = split_output_data["prob"].drop(["conf_prob", "loss_prob"])
     return (
         split_output_data["data"].to_pandas_df(),
         split_output_data["emb"],  # can't convert nested arrays to pandas df
-        probs.to_pandas_df(),
+        split_output_data["prob"],  # can't convert nested arrays to pandas df
     )
 
 
