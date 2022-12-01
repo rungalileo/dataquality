@@ -343,9 +343,6 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         self, df: Union[pd.DataFrame, DataFrame], meta: List[Union[str, int]]
     ) -> None:
         """Helper to log a pandas or vex df"""
-
-        print(f"debugging df: {df}")
-
         self.texts = df["text"].tolist()
         self.ids = df["id"].tolist()
         # Inference case
