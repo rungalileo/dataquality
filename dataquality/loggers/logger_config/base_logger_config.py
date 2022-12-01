@@ -29,6 +29,7 @@ class BaseLoggerConfig(BaseModel):
     idx_to_id_map: DefaultDict[str, List] = defaultdict(list)
     conditions: List[Condition] = []
     report_emails: List[str] = []
+    ner_labels: List[str] = []
 
     class Config:
         validate_assignment = True
