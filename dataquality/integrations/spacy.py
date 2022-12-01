@@ -43,8 +43,12 @@ def log_input_docs(
 ) -> None:
     """Logs the input docs to the data logger.
 
-    Note: This is for inference only. We still require the user to pass in
-    split to stay consistent with other logger fns.
+    This function is used to log input docs to the data logger for an
+    inference split.
+
+    :param docs: List of spacy Doc objects to log.
+    :param inference_name: The unique inference name for this run.
+    :param meta: A dictionary of meta data to log with the docs.
     """
     if not dataquality.get_data_logger().logger_config.labels:
         raise GalileoException(

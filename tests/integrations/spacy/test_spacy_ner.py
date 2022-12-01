@@ -422,3 +422,50 @@ def test_spacy_inference_only(
     # Drop conf_prob since pandas doesn't support multi-dimensional arrays
     pdf = probs.drop(["id", "conf_prob"]).to_pandas_df()
     assert pdf.equals(TestSpacyInfExpectedResults.gt_probs)
+
+
+def test_spacy_training_then_inference(
+    nlp: Language, training_examples: List[Example], inference_docs: List[Doc]
+) -> None:
+    """Test that we can log training data, then inference data
+
+    We don't assert exact values here, just that the data is logged to the correct files
+    and a few simple assertions about the DF lengths and split names.
+    """
+    spacy.util.fix_random_seed(0)
+
+    # first log the training run
+    num_epochs = 2
+    train_model(nlp, training_examples, num_epochs=num_epochs)
+
+    with mock.patch.object(
+        TextNERModelLogger, "_extract_pred_spans"
+    ) as mock_extract_pred_spans:
+        # We don't care what the nlp model actually predicts,
+        # mock the response to ensure pred_spans exist
+        mock_extract_pred_spans.side_effect = NER_INFERENCE_PRED_TOKEN_SPANS
+
+        log_input_docs(inference_docs, "inf-name")
+        dataquality.set_split("inference", "inf-name")
+        for doc in inference_docs:
+            # NLP is watched in training pipeline so we don't need to watch here
+            nlp(doc)
+
+    logger = dataquality.get_data_logger(dataquality.config.task_type)
+    logger.upload()
+
+    train_data, train_embs, train_probs = load_ner_data_from_local(
+        "training", inf_name_or_epoch=1
+    )
+    assert len(train_data) == 5
+    assert len(train_embs) == len(train_probs) == 8
+    assert "inference_name" not in train_data.columns
+    assert train_data.split.tolist() == ["training"] * 5
+
+    inf_data, inf_embs, inf_probs = load_ner_data_from_local(
+        "inference", inf_name_or_epoch="inf-name"
+    )
+    assert len(inf_data) == 5
+    assert inf_data.split.tolist() == ["inference"] * 5
+    assert inf_data.inference_name.tolist() == ["inf-name"] * 5
+    assert len(inf_embs) == len(inf_probs) == 7
