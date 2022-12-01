@@ -42,11 +42,6 @@ def nlp_watch(nlp_init: Language) -> Language:
     return nlp_init
 
 
-@pytest.fixture(scope="session")
-def en_core_web_sm() -> Language:
-    return spacy.load("en_core_web_sm")
-
-
 @pytest.fixture
 def inference_docs(nlp: Language) -> List[Doc]:
     return [nlp.make_doc(text) for text in NER_INFERENCE_DATA]

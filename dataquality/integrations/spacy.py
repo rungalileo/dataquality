@@ -38,7 +38,6 @@ a.log_import("spacy")
 @check_noop
 def log_input_docs(
     docs: List[Doc],
-    split: Split,
     inference_name: str,
     meta: Dict[str, List[Union[str, float, int]]] = None,
 ) -> None:
@@ -47,12 +46,6 @@ def log_input_docs(
     Note: This is for inference only. We still require the user to pass in
     split to stay consistent with other logger fns.
     """
-    split = conform_split(split)
-    if split != Split.inference:
-        raise GalileoException(
-            "`log_input_docs` can only be used for split inference, you "
-            f"passed in {split}. Try using `log_input_examples` instead."
-        )
     if not dataquality.get_data_logger().logger_config.labels:
         raise GalileoException(
             "Galileo does not have any logged labels. Did you forget "
@@ -77,7 +70,7 @@ def log_input_docs(
         texts=texts,
         text_token_indices=text_token_indices,
         ids=ids,
-        split=split,
+        split=Split.inference,
         inference_name=inference_name,
         meta=meta,
     )
@@ -86,11 +79,16 @@ def log_input_docs(
 @check_noop
 def log_input_examples(
     examples: List[Example],
-    split: Split,
+    split: Union[Split, str],
     meta: Dict[str, List[Union[str, float, int]]] = None,
 ) -> None:
     """Logs a list of Spacy Examples using the dataquality client"""
     split = conform_split(split)
+    if split == Split.inference:
+        raise GalileoException(
+            "`log_input_examples` cannot be used to log inference data. "
+            "Try using `log_input_docs` instead."
+        )
     if not dataquality.get_data_logger().logger_config.labels:
         raise GalileoException(
             "Galileo does not have any logged labels. Did you forget "

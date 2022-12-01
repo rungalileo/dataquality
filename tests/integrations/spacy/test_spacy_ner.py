@@ -327,19 +327,19 @@ def test_require_cpu(
         train_model(nlp, training_examples)
 
 
-def test_log_input_docs_not_inference() -> None:
+def test_log_input_examples_inference_split() -> None:
     with pytest.raises(GalileoException) as e:
-        log_input_docs([], "training", "inf-name")
+        log_input_examples([], "inference")
 
     assert (
-        e.value.args[0] == "`log_input_docs` can only be used for split inference, you "
-        "passed in training. Try using `log_input_examples` instead."
+        e.value.args[0] == "`log_input_examples` cannot be used to log inference data. "
+        "Try using `log_input_docs` instead."
     )
 
 
 def test_log_input_docs_without_watch() -> None:
     with pytest.raises(GalileoException) as e:
-        log_input_docs([], "inference", "inf-name")
+        log_input_docs([], "inf-name")
 
     assert (
         e.value.args[0]
@@ -350,7 +350,7 @@ def test_log_input_docs_without_watch() -> None:
 
 def test_log_input_docs_list_of_strs(nlp_watch: Language) -> None:
     with pytest.raises(GalileoException) as e:
-        log_input_docs(NER_INFERENCE_DATA, "inference", "inf-name")
+        log_input_docs(NER_INFERENCE_DATA, "inf-name")
     assert (
         e.value.args[0] == "Expected a <class 'spacy.tokens.doc.Doc'>. Received "
         "<class 'str'>"
@@ -358,7 +358,7 @@ def test_log_input_docs_list_of_strs(nlp_watch: Language) -> None:
 
 
 def test_log_input_docs(nlp_watch: Language, inference_docs: List[Doc]) -> None:
-    log_input_docs(inference_docs, "inference", "inf-name")
+    log_input_docs(inference_docs, "inf-name")
 
     # assert that we added ids to the docs for later joining with model outputs
     assert all([doc.user_data["id"] == i for i, doc in enumerate(inference_docs)])
@@ -391,7 +391,7 @@ def test_spacy_inference_only(
     # mock the response to ensure pred_spans exist
     mock_extract_pred_spans.side_effect = NER_INFERENCE_PRED_TOKEN_SPANS
 
-    log_input_docs(inference_docs, "inference", "inf-name")
+    log_input_docs(inference_docs, "inf-name")
     dataquality.set_split("inference", "inf-name")
     for doc in inference_docs:
         nlp_watch(doc)
