@@ -9,3 +9,8 @@ from dataquality.loggers.model_logger.text_classification import (
 class ImageClassificationModelLogger(TextClassificationModelLogger):
     __logger_name__ = "image_classification"
     logger_config = image_classification_logger_config
+
+    def __init__(
+        self,
+    ) -> None:
+        super().__init__()

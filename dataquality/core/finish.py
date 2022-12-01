@@ -49,6 +49,9 @@ def finish(
 
     _version_check()
 
+    print(data_logger._get_input_df())
+    raise ("stop")
+
     if data_logger.non_inference_logged():
         _reset_run(config.current_project_id, config.current_run_id, config.task_type)
 
