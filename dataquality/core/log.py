@@ -1,6 +1,7 @@
 from typing import Any, Dict, List, Optional, Type, Union
 
 import numpy as np
+import pandas as pd
 
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
@@ -8,6 +9,9 @@ from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
 from dataquality.loggers.data_logger.base_data_logger import ITER_CHUNK_SIZE, DataSet
+from dataquality.loggers.data_logger.image_classification import (
+    ImageClassificationDataLogger,
+)
 from dataquality.loggers.logger_config.text_multi_label import (
     text_multi_label_logger_config,
 )
@@ -101,6 +105,45 @@ def log_data_sample(*, text: str, id: int, **kwargs: Any) -> None:
     # ephemeral
     data_logger.log_export_progress = False
     data_logger.log_data_sample(text=text, id=id, **kwargs)
+
+
+@check_noop
+def log_image_dataset(
+    dataset: DataSet,
+    imgs_dir: str,
+    *,
+    imgs_location_colname: Optional[str] = "relpath",
+    batch_size: int = ITER_CHUNK_SIZE,
+    text: Union[str, int] = "text",
+    id: Union[str, int] = "id",
+    label: Optional[Union[str, int]] = "label",
+    split: Optional[Split] = None,
+    meta: Optional[List[Union[str, int]]] = None,
+    **kwargs: Any,
+) -> None:
+    assert isinstance(
+        dataset, pd.DataFrame
+    ), "dataset must be a pandas DataFrame"  # TODO: add support for other data types
+    a.log_function("dq/log_image_dataset")
+    assert all(
+        [config.task_type, config.current_project_id, config.current_run_id]
+    ), "You must call dataquality.init before logging data"
+    data_logger = get_data_logger()
+    assert isinstance(data_logger, ImageClassificationDataLogger), (
+        "This method is only supported for image tasks. "
+        "Please use dq.log_samples for text tasks."
+    )
+    data_logger.log_image_dataset(
+        dataset=dataset,
+        imgs_dir=imgs_dir,
+        imgs_location_colname=imgs_location_colname,
+        batch_size=batch_size,
+        text=text,
+        id=id,
+        label=label,
+        split=split,
+        meta=meta,
+    )
 
 
 @check_noop
@@ -356,5 +399,7 @@ def set_epoch_and_split(
     When set, logging data inputs/model outputs will use this if not logged explicitly
     When setting split to inference, inference_name must be included
     """
+    set_epoch(epoch)
+    set_split(split, inference_name)
     set_epoch(epoch)
     set_split(split, inference_name)
