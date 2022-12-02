@@ -11,6 +11,8 @@ from dataquality.schemas.task_type import TaskType
 from tests.test_utils.spacy_integration_constants import NER_TRAINING_DATA
 from tests.test_utils.spacy_integration_constants_inference import NER_INFERENCE_DATA
 
+spacy.util.fix_random_seed()
+
 
 @pytest.fixture
 def nlp(set_test_config: Callable, cleanup_after_use: Generator) -> Language:
