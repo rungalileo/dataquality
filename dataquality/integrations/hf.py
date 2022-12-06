@@ -170,7 +170,6 @@ def tokenize_and_log_dataset(
         ), f"label_names must be of type list, but got {type(label_names)}"
     else:
         label_names = _extract_labels_from_ds(dd)
-
     dq.set_tagging_schema(infer_schema(label_names))
     dq.set_labels_for_run(label_names)
 
