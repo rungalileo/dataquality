@@ -115,7 +115,7 @@ def log_image_dataset(
     imgs_location_colname: Optional[str] = "relpath",
     batch_size: int = ITER_CHUNK_SIZE,
     id: Union[str, int] = "id",
-    label: Optional[Union[str, int]] = "label",
+    label: Union[str, int] = "label",
     split: Optional[Split] = None,
     meta: Optional[List[Union[str, int]]] = None,
     **kwargs: Any,
