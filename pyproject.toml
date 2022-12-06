@@ -26,10 +26,12 @@ requires = [
     "cachetools==5.2.0",
     "importlib-metadata==4.12.0",
     "evaluate",
-    "datasets>=2.2.2",
-    "transformers>=4.11.3",
+    "datasets==2.6.1",
+    "transformers<4.25.0",
     "seqeval",
-    "sentence-transformers>=2.2"
+    "sentence-transformers>=2.2",
+    "Pillow >=9.3.0",
+    "h5py >=3.1.0",
 ]
 
 [tool.flit.metadata.urls]
@@ -49,13 +51,13 @@ test = [
     "scikit-learn==1.0",
     "tensorflow==2.9.1",
     "pytest-env==0.6.2",
-    "datasets==2.2.2",
     "spacy==3.2.1",
     "types-setuptools==65.5.0.2",
     "types-cachetools==5.2.1",
-    "torch<=1.12.1",
-    "torchtext<=0.13.1",
-    "torchdata<=0.4.1",
+    "torchvision==0.13.1",
+    "torch==1.12.1",
+    "torchtext==0.13.1",
+    "torchdata==0.4.1",
 ]
 dev = [
     "flake8==3.9.2",
