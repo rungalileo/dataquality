@@ -5,7 +5,6 @@ from uuid import UUID
 
 import pytest
 import requests
-import spacy
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 from vaex.dataframe import DataFrame
 
@@ -27,8 +26,6 @@ TEST_STORE_DIR = "TEST_STORE"
 TEST_PATH = f"{LOCATION}/{TEST_STORE_DIR}"
 SPLITS = ["training", "test"]
 SUBDIRS = ["data", "emb", "prob"]
-
-spacy.util.fix_random_seed()
 
 
 # Load models locally

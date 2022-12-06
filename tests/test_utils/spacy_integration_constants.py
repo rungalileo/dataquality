@@ -64,7 +64,7 @@ NER_CLASS_LABELS = [
 ]
 
 
-class TestSpacyNerConstants:
+class TestSpacyExpectedResults:
     num_epochs = 2
     _num_gold_spans = 8
 

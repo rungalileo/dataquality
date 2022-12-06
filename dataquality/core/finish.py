@@ -61,6 +61,7 @@ def finish(
         labels=data_logger.logger_config.labels,
         task_type=config.task_type.value,
         tasks=data_logger.logger_config.tasks,
+        ner_labels=data_logger.logger_config.ner_labels,
     )
     if data_logger.logger_config.inference_logged:
         body.update(

@@ -701,8 +701,20 @@ class TextNERDataLogger(BaseGalileoDataLogger):
 
     @classmethod
     def validate_labels(cls) -> None:
-        """Validates and cleans labels, see _clean_labels"""
-        cls.logger_config.labels = cls._clean_labels()
+        """Validates and cleans labels, see _clean_labels and saves ner_labels
+
+        ner_labels are all of the labels that start with a tag (B-, I-, E- etc) as well
+        as the O tag
+        """
+        # We run this first because _clean_labels does the necessary validation
+        clean_labels = cls._clean_labels()
+        ner_labels = [
+            lbl
+            for lbl in cls.logger_config.labels
+            if cls.is_valid_span_label(lbl) or lbl == "O"
+        ]
+        cls.logger_config.labels = clean_labels
+        cls.logger_config.ner_labels = ner_labels
 
     @classmethod
     def _clean_labels(cls) -> List[str]:
