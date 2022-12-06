@@ -124,7 +124,7 @@ def test_tokenize_and_log_dataset(
     new DatasetDict, and that the datasets per split were logged correctly.
     """
     set_test_config(task_type="text_ner")
-    tokenize_output = tokenize_adjust_labels(mock_ds, mock_tokenizer, label_names)
+    tokenize_output = tokenize_adjust_labels(mock_ds, mock_tokenizer, tag_names)
     with mock.patch("dataquality.integrations.hf.tokenize_adjust_labels") as mock_tok:
         mock_tok.return_value = tokenize_output
         ds_dict = datasets.DatasetDict(
@@ -135,7 +135,7 @@ def test_tokenize_and_log_dataset(
             }
         )
         print("call mocked tokenize_adjust_labels")
-        output = tokenize_adjust_labels(ds_dict, mock_tokenizer, label_names)
+        output = tokenize_adjust_labels(ds_dict, mock_tokenizer)
         print("done")
 
     for split in ds_dict.keys():
