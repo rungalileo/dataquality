@@ -62,9 +62,10 @@ def _main() -> None:
     food["test"] = food["test"].map(lambda x, idx: {"id": idx}, with_indices=True)
 
     labels = food["train"].features["label"].names
-    labelids = food["train"].features["label"].str2int(labels)
-    label2id = dict(zip(labels, labelids))
-    id2label = dict(zip(labelids, labels))
+    label2id, id2label = dict(), dict()
+    for i, label in enumerate(labels):
+        label2id[label] = str(i)
+        id2label[str(i)] = label
 
     model_name = "facebook/deit-tiny-patch16-224"
     feature_extractor = AutoFeatureExtractor.from_pretrained(model_name)

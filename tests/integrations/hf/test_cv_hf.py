@@ -118,8 +118,9 @@ def test_cv_hf(
     )
     watch(trainer)
     trainer.train()
+    trainer.evaluate()
     ThreadPoolManager.wait_for_threads()
 
     assert len(vaex.open(f"{LOCATION}/training/0/*.hdf5")) == len(train_df)
-    # assert len(vaex.open(f"{LOCATION}/validation/0/*.hdf5")) == len(test_df)
+    assert len(vaex.open(f"{LOCATION}/test/**/*.hdf5")) == len(test_df)
     dq.finish()
