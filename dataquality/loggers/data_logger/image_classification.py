@@ -18,9 +18,7 @@ from dataquality.utils.cv import _img_to_b64_str
 
 class ImageClassificationDataLogger(TextClassificationDataLogger):
     __logger_name__ = "image_classification"
-    logger_config: ImageClassificationLoggerConfig = (
-        image_classification_logger_config  # type: ignore
-    )
+    logger_config: ImageClassificationLoggerConfig = image_classification_logger_config
 
     def __init__(
         self,
@@ -47,7 +45,6 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         *,
         imgs_location_colname: Optional[str] = "relpath",
         batch_size: int = ITER_CHUNK_SIZE,
-        text: Union[str, int] = "text",
         id: Union[str, int] = "id",
         label: Optional[Union[str, int]] = "label",
         split: Optional[Split] = None,
@@ -59,7 +56,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         self.log_dataset(
             dataset=dataset,
             batch_size=batch_size,
-            text=text,
+            text="text",
             id=id,
             label=label,
             split=split,

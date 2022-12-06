@@ -2,9 +2,10 @@ import base64
 import zlib
 from io import BytesIO
 
-import numpy as np
-import vaex as vx
+from datasets import load_dataset
 from PIL import Image
+
+food = load_dataset("sasha/dog-food")
 
 RGB = "RGB"
 B64_CONTENT_TYPE_DELIMITER = ";base64,"
@@ -46,3 +47,22 @@ with Image.open(filepath) as img:
 #     arrs = np.array([compressed_data] * n)
 #     df = vx.from_arrays(arrs=arrs)
 #     df.export_hdf5(f"tmp/test-arrs-b64-{n}.hdf5")
+
+
+# #
+# #   Testing pre-processing for thumbnail generation
+# #
+
+# small_train_selection = food["train"].select(range(2))
+
+
+# def pre_process(batch):
+#     # Image is in bytes and we use PIL to scale it to 128x128
+#     images = [Image.open(BytesIO(img)).resize((128, 128)) for img in batch["image"]]
+#     # We need to convert the image to base64 to display it in the frontend
+#     images_b64 = [base64.b64encode(img.tobytes()).decode("utf-8") for img in images]
+#     return {"img_thumbnail": images_b64}
+
+
+# result = small_train_selection.map(pre_process, batched=True)
+# print(result[0])

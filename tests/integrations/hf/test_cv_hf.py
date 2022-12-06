@@ -1,20 +1,23 @@
-from unittest.mock import MagicMock, patch
-from typing import Any, Callable, Generator
-from dataquality.schemas.task_type import TaskType
 import hashlib
-import vaex
-from tests.conftest import LOCATION
-from dataquality.utils.thread_pool import ThreadPoolManager
+from typing import Callable, Generator
+from unittest.mock import MagicMock, patch
 
+import vaex
 from datasets import load_dataset
+from torchvision.transforms import Compose, Normalize, RandomResizedCrop, ToTensor
 from transformers import (
     AutoFeatureExtractor,
     AutoModelForImageClassification,
+    DefaultDataCollator,
+    Trainer,
+    TrainingArguments,
 )
-from torchvision.transforms import RandomResizedCrop, Compose, Normalize, ToTensor
-from transformers import DefaultDataCollator, TrainingArguments, Trainer
+
 import dataquality as dq
 from dataquality.integrations.transformers_trainer import watch
+from dataquality.schemas.task_type import TaskType
+from dataquality.utils.thread_pool import ThreadPoolManager
+from tests.conftest import LOCATION
 
 food = load_dataset("sasha/dog-food")
 food["train"] = food["train"].select(range(200))
@@ -118,5 +121,8 @@ def test_cv_hf(
     ThreadPoolManager.wait_for_threads()
 
     assert len(vaex.open(f"{LOCATION}/training/0/*.hdf5")) == len(train_df)
-    # assert len(vaex.open(f"{LOCATION}/validation/0/*.hdf5")) == len(test_df)
+    assert len(vaex.open(f"{LOCATION}/validation/0/*.hdf5")) == len(test_df)
+    dq.finish()
+    assert len(vaex.open(f"{LOCATION}/training/0/*.hdf5")) == len(train_df)
+    assert len(vaex.open(f"{LOCATION}/validation/0/*.hdf5")) == len(test_df)
     dq.finish()

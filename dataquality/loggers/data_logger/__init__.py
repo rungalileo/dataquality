@@ -10,6 +10,6 @@ __all__ = [
     "text_classification",
     "text_multi_label",
     "text_ner",
-    "image_classification"
+    "image_classification",
     "BaseGalileoDataLogger",
 ]

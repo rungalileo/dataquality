@@ -114,7 +114,6 @@ def log_image_dataset(
     *,
     imgs_location_colname: Optional[str] = "relpath",
     batch_size: int = ITER_CHUNK_SIZE,
-    text: Union[str, int] = "text",
     id: Union[str, int] = "id",
     label: Optional[Union[str, int]] = "label",
     split: Optional[Split] = None,
@@ -138,7 +137,6 @@ def log_image_dataset(
         imgs_dir=imgs_dir,
         imgs_location_colname=imgs_location_colname,
         batch_size=batch_size,
-        text=text,
         id=id,
         label=label,
         split=split,
@@ -399,7 +397,5 @@ def set_epoch_and_split(
     When set, logging data inputs/model outputs will use this if not logged explicitly
     When setting split to inference, inference_name must be included
     """
-    set_epoch(epoch)
-    set_split(split, inference_name)
     set_epoch(epoch)
     set_split(split, inference_name)
