@@ -206,7 +206,7 @@ def test_end_to_end_with_callback(
         columns={0: "label", 1: "text", "index": "id"}
     )
     dq.log_dataset(train_df, split="train")
-    dq.log_dataset(test_df, split="validation")
+    dq.log_dataset(test_df, split="test")
 
     train_dataloader_dq = DataLoader(
         ag_train, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_batch
@@ -223,7 +223,7 @@ def test_end_to_end_with_callback(
         dq.set_epoch_and_split(epoch, "training")
         train(train_dataloader_dq, modeldq)
         # 🔭🌕 Logging the dataset with Galileo
-        dq.set_split("validation")
+        dq.set_split("test")
         accu_val = evaluate(test_dataloader_dq, modeldq)
         if total_accu is not None and total_accu > accu_val:
             scheduler.step()

@@ -51,7 +51,10 @@ class DataQualityCallback(keras.callbacks.Callback):
         self.model = model
         super(DataQualityCallback, self).__init__()
         if not tf.executing_eagerly():
-            raise GalileoException("Needs to be executing eagerly")
+            raise GalileoException(
+                "Tensorflow must be running eagerly. "
+                "Set `model.compile(run_eagerly=True)` to fix this"
+            )
 
     def on_train_begin(self, logs: Any = None) -> None:
         """Initialize the training by extracting the model input arguments.
@@ -101,7 +104,8 @@ class DataQualityCallback(keras.callbacks.Callback):
         dq.set_split(Split.train)
 
     def on_train_batch_end(self, batch: Any, logs: Dict = None) -> None:
-        """At the end of the batch we log the input of the classifier and the output.
+        """At the end of the batch we log the input
+        of the classifier and the output.
         :param batch: The batch number.
         :param logs: The logs."""
         dq.set_split(Split.train)
@@ -112,7 +116,10 @@ class DataQualityCallback(keras.callbacks.Callback):
             epoch = self.logger_config.cur_epoch
             step = batch
             ids = self.store.get("train_indices", {}).get(f"epoch_{epoch}_{step}")
-            assert ids is not None, GalileoException("No logged indices found")
+            assert ids is not None, GalileoException(
+                "ids of batch could not be logged."
+                "See documentation to learn how to log indices."
+            )
 
         self.log_function(
             embs=self.store["input"],
@@ -123,16 +130,16 @@ class DataQualityCallback(keras.callbacks.Callback):
     def on_test_begin(self, logs: Any = None) -> None:
         """At the beginning of the test we set the split to test.
         And generate the indices of the batches."""
-        dq.set_split(Split.validation)
+        dq.set_split(Split.test)
         x_len = get_x_len(self.fit_kwargs.get("val_x"))
         if x_len is None:
             self.val_x_len_is_none = True
         else:
-            self.store["validation_indices"] = generate_indices(
+            self.store[f"{Split.test}_indices"] = generate_indices(
                 x=x_len,
-                batch_size=self.fit_kwargs.get("validation_batch_size")
+                batch_size=self.fit_kwargs.get(f"{Split.test}_batch_size")
                 or self.fit_kwargs["batch_size"],
-                steps_per_epoch=self.fit_kwargs.get("validation_steps"),
+                steps_per_epoch=self.fit_kwargs.get(f"{Split.test}_steps"),
                 sample_weight=self.fit_kwargs.get("val_sample_weight"),
             )
 
@@ -140,17 +147,17 @@ class DataQualityCallback(keras.callbacks.Callback):
         """At the beginning of the batch we clear the helper
         data from the logger config."""
         self._clear_logger_config_helper_data()
-        dq.set_split(Split.validation)
+        dq.set_split(Split.test)
 
     def on_test_batch_end(self, batch: Any, logs: Dict = None) -> None:
-        """At the end of the validation batch we log the input of the classifier
+        """At the end of the test batch we log the input of the classifier
         and the output."""
-        dq.set_split(Split.validation)
+        dq.set_split(Split.test)
         ids = self.store.get("indices_ids")
 
         if ids is None:
             step = batch
-            ids = self.store.get("validation_indices", {}).get(f"epoch_0_{step}")
+            ids = self.store.get(f"{Split.test}_indices", {}).get(f"epoch_0_{step}")
             assert ids is not None, GalileoException("No logged indices found")
 
         self.log_function(
@@ -160,9 +167,9 @@ class DataQualityCallback(keras.callbacks.Callback):
         )
 
     def on_predict_begin(self, batch: int) -> None:
-        """At the beginning of the prediction we set the split to test."""
-        dq.set_split(Split.test)
-        dq.set_epoch(0)
+        """At the beginning of the prediction we set the split to validation."""
+        dq.set_split(Split.validation)
+
         predict_kwargs = self.store["model_predict"].get("kwargs")
         predict_args = self.store["model_predict"].get("args", ())
 
@@ -181,11 +188,14 @@ class DataQualityCallback(keras.callbacks.Callback):
             )
 
     def on_predict_batch_end(self, batch: int, logs: Any = None) -> None:
-        dq.set_split(Split.test)
+        """Log the validation batch"""
+        dq.set_split(Split.validation)
         ids = self.store.get("indices_ids")
         if ids is None:
             step = batch
-            ids = self.store.get("test_indices", {}).get(f"epoch_0_{step}")
+            ids = self.store.get(f"{Split.validation}_indices", {}).get(
+                f"epoch_0_{step}"
+            )
             assert ids is not None, GalileoException("No loggeg indices found")
 
         self.log_function(
