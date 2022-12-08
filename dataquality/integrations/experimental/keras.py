@@ -253,7 +253,6 @@ def store_model_ids(store: Dict[str, Any]) -> Callable:
                     and hasattr(ids[1], "numpy")
                 ):
                     x, ids = ids
-                    ids = ids.numpy()
                     args = tuple([x, *args[1:]])
                 else:
                     ids = None
