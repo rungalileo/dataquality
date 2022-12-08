@@ -208,3 +208,26 @@ def save_output(
     """
     if output is not None:
         store["output"] = output
+
+
+def add_indices(dataset: Union[tf.data.Dataset, tf.Tensor]) -> tf.data.Dataset:
+    """Add indices to a TensorFlow dataset.
+    :param dataset: The dataset to add indices to.
+    :return: A zipped dataset with indices in the second column."""
+    # Unbatch data for processing if it is batched
+    batch_size = getattr(dataset, "_batch_size", None)
+    if batch_size:
+        dataset = dataset.unbatch()
+
+    if isinstance(dataset, tf.Tensor):
+        # If the dataset is a tensor, we need to convert it to a dataset
+        dataset = tf.data.Dataset.from_tensor_slices(dataset)
+
+    # Add indices to the dataset in a zipped dataset with the original dataset
+    # as the first column and the indices as the second column
+    idx_ds = tf.data.experimental.Counter().take(dataset.cardinality())
+    zip_ds = tf.data.Dataset.zip((dataset, idx_ds))
+    # Rebatch the data if it was batched
+    if batch_size:
+        zip_ds = zip_ds.batch(batch_size)
+    return zip_ds

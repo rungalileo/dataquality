@@ -232,12 +232,24 @@ def store_model_ids(store: Dict[str, Any]) -> Callable:
         """We pop out the ids from the batch dict and store them in the store."""
         try:
             ids = None
+            # we check if the first argument is a tuple
+            # this is our batch
             if isinstance(args[0], tuple):
                 ids = args[0]
+                # if there is a dict in the tuple we pop out the ids
+                # example batches:
+                # [{'id': [0,1,2,3,4], 'x': [0,1,2,3,4]},
+                # {'id': [5,6,7,8,9], 'x': [5,6,7,8,9]}
+                dict_ids = ids
                 if not isinstance(ids, dict):
-                    ids = ids[0]
-                if isinstance(ids, dict):
-                    ids = ids.pop("id", None)
+                    dict_ids = ids[0]
+                if isinstance(dict_ids, dict):
+                    ids = dict_ids.pop("id", None)
+                # if add_indices was used we pop out the ids
+                # return the batch without them
+                elif isinstance(ids, tuple) and len(ids) == 2:
+                    x, ids = ids
+                    args = tuple([x, *args[1:]])
                 else:
                     ids = None
             store["indices_ids"] = ids
