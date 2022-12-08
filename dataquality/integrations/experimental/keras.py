@@ -247,8 +247,13 @@ def store_model_ids(store: Dict[str, Any]) -> Callable:
                     ids = dict_ids.pop("id", None)
                 # if add_indices was used we pop out the ids
                 # return the batch without them
-                elif isinstance(ids, tuple) and len(ids) == 2:
+                elif (
+                    isinstance(ids, tuple)
+                    and len(ids) == 2
+                    and hasattr(ids[1], "numpy", None)
+                ):
                     x, ids = ids
+                    ids = ids.numpy()
                     args = tuple([x, *args[1:]])
                 else:
                     ids = None
