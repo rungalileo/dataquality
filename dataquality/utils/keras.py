@@ -210,12 +210,24 @@ def save_output(
         store["output"] = output
 
 
+def get_batch_size(dataset: tf.data.Dataset) -> Optional[int]:
+    """Get the batch size of a dataset. If the dataset is nested,
+    recursivly check for _batch_size.
+    """
+    if hasattr(dataset, "_batch_size"):
+        return dataset._batch_size.numpy()
+    elif hasattr(dataset, "_input_dataset"):
+        return get_batch_size(dataset._input_dataset)
+    else:
+        return None
+
+
 def add_indices(dataset: Union[tf.data.Dataset, tf.Tensor]) -> tf.data.Dataset:
     """Add indices to a TensorFlow dataset.
     :param dataset: The dataset to add indices to.
     :return: A zipped dataset with indices in the second column."""
     # Unbatch data for processing if it is batched
-    batch_size = getattr(dataset, "_batch_size", None)
+    batch_size = get_batch_size(dataset)
     if batch_size:
         dataset = dataset.unbatch()
 

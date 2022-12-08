@@ -250,7 +250,7 @@ def store_model_ids(store: Dict[str, Any]) -> Callable:
                 elif (
                     isinstance(ids, tuple)
                     and len(ids) == 2
-                    and hasattr(ids[1], "numpy", None)
+                    and hasattr(ids[1], "numpy")
                 ):
                     x, ids = ids
                     ids = ids.numpy()
