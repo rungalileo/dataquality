@@ -1,6 +1,6 @@
 from typing import Callable, Generator
 from unittest.mock import MagicMock, patch
-
+import keras
 import pandas as pd
 import tensorflow as tf
 import vaex
@@ -39,7 +39,11 @@ except Exception:
 
 def preprocess_function(examples, tokenizer):
     return tokenizer(
-        examples["text"], padding="max_length", max_length=201, truncation=True
+        examples["text"],
+        padding="max_length",
+        max_length=201,
+        truncation=True,
+        return_tensors="tf",
     )
 
 
@@ -99,14 +103,14 @@ def test_hf_watch_e2e_numbered(
     dq.log_dataset(val_dataset, split="validation")
     dq.log_dataset(test_dataset, split="test")
     train_dataset = encoded_train_dataset_number.to_tf_dataset(
-        columns=["attention_mask", "input_ids", "token_type_ids", "id"],
+        columns=["attention_mask", "input_ids", "id"],
         label_cols=["label"],
         shuffle=False,
         collate_fn=data_collator,
         batch_size=batch_size,
     )
     test_dataset = encoded_test_dataset_number.to_tf_dataset(
-        columns=["attention_mask", "input_ids", "token_type_ids", "id"],
+        columns=["attention_mask", "input_ids", "id"],
         label_cols=["label"],
         shuffle=False,
         collate_fn=data_collator,

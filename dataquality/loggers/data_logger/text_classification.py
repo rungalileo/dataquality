@@ -151,7 +151,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         self.split = split
         self.labels = [str(i) for i in labels] if labels is not None else []
         self.inference_name = inference_name
-        self.meta = meta or {}
+        self.meta: Union[MetasType, Dict] = meta or {}
         self.log()
 
     def log_data_sample(

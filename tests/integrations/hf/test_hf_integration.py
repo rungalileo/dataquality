@@ -1,4 +1,5 @@
 import json
+import sys
 from typing import Callable, Dict, List
 from unittest import mock
 
@@ -115,6 +116,7 @@ def test_validate_dataset() -> None:
     )
 
 
+@pytest.mark.skipif(sys.version_info < (3, 8), reason="requires python3.8 or higher")
 @mock.patch("dataquality.log_dataset")
 def test_tokenize_and_log_dataset(
     mock_log_dataset: mock.MagicMock, set_test_config
@@ -151,6 +153,7 @@ def test_tokenize_and_log_dataset(
         mock_log_dataset.assert_any_call(mock.ANY, split=split, meta=[])
 
 
+@pytest.mark.skipif(sys.version_info < (3, 8), reason="requires python3.8 or higher")
 @mock.patch("dataquality.log_dataset")
 def test_tokenize_and_log_dataset_inference(
     mock_log_dataset: mock.MagicMock, set_test_config
@@ -250,6 +253,7 @@ def test_tokenize_and_log_dataset_invalid_labels() -> None:
     assert str(e.value).startswith("label_names must be of type list, but got")
 
 
+@pytest.mark.skipif(sys.version_info < (3, 8), reason="requires python3.8 or higher")
 @mock.patch("dataquality.log_dataset")
 def test_tokenize_and_log_dataset_with_meta(
     mock_log_dataset: mock.MagicMock, set_test_config
