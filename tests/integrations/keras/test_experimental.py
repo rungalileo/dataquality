@@ -1,10 +1,9 @@
 from typing import Callable, Generator
 from unittest.mock import MagicMock, patch
-import keras
 import pandas as pd
+from keras.engine import data_adapter
 import tensorflow as tf
 import vaex
-from keras.engine import data_adapter
 from transformers import (
     AutoTokenizer,
     DataCollatorWithPadding,
