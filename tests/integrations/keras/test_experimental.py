@@ -133,7 +133,7 @@ def test_hf_watch_e2e_numbered(
     assert len(vaex.open(f"{LOCATION}/training/0/*.hdf5")) == len(
         encoded_train_dataset_number
     )
-    assert len(vaex.open(f"{LOCATION}/validation/0/*.hdf5")) == len(
+    assert len(vaex.open(f"{LOCATION}/test/0/*.hdf5")) == len(
         encoded_test_dataset_number
     )
     # Should upload without failing on data validation or otherwise
@@ -222,9 +222,9 @@ def test_tf_watch_e2e_numbered(
     model_s.predict(x=x, batch_size=batch_size)
 
     ThreadPoolManager.wait_for_threads()
-    assert len(vaex.open(f"{LOCATION}/training/0/*.hdf5")) == len(x)
-    assert len(vaex.open(f"{LOCATION}/validation/0/*.hdf5")) == len(val_x)
-    assert len(vaex.open(f"{LOCATION}/test/0/*.hdf5")) == len(x)
+    assert len(vaex.open(f"{LOCATION}/training/1/*.hdf5")) == len(x)
+    assert len(vaex.open(f"{LOCATION}/validation/1/*.hdf5")) == len(x)
+    assert len(vaex.open(f"{LOCATION}/test/1/*.hdf5")) == len(val_x)
     unwatch(model_s)
     dq.finish()
     model_s.fit(

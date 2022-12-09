@@ -60,12 +60,17 @@ class DataQualityCallback(keras.callbacks.Callback):
         """Initialize the training by extracting the model input arguments.
         and from it generate the indices of the batches."""
         assert self.model.run_eagerly, GalileoException(
-            "Model must be compiled with run_eagerly=True"
+            "Model must be run run eagerly."
+            "Set `model.compile(run_eagerly=True)` to fix this"
         )
+
         self.fit_kwargs = combine_with_default_kwargs(
             self.model.fit,  # model fit function for default kwargs
             self.store["model_fit"].get("args", ()),  # model fit args
             self.store["model_fit"].get("kwargs"),  # model fit kwargs
+        )
+        assert self.fit_kwargs.get("validation_split") == 0, GalileoException(
+            "Validation split is not supported yet."
         )
         x_len = get_x_len(self.fit_kwargs.get("x"))
         if x_len is None:
@@ -198,9 +203,8 @@ class DataQualityCallback(keras.callbacks.Callback):
         ids = self.store.get("indices_ids")
         if ids is None:
             step = batch
-            epoch = self.logger_config.cur_epoch
             ids = self.store.get(f"{Split.validation}_indices", {}).get(
-                f"epoch_{epoch}_{step}"
+                f"epoch_0_{step}"
             )
             assert ids is not None, GalileoException(
                 "ids of validation batch could not be logged."
