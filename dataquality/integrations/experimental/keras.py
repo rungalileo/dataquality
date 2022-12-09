@@ -74,7 +74,7 @@ class DataQualityCallback(keras.callbacks.Callback):
             # If that data is splitted we perform the same splitting as keras
             self.fit_kwargs.update(generate_split(x_len, self.fit_kwargs))
             # Now we can generate the indices of the batches
-            self.store["train_indices"] = generate_indices(
+            self.store[f"{Split.train}_indices"] = generate_indices(
                 x_len,
                 batch_size=self.fit_kwargs["batch_size"],
                 steps_per_epoch=self.fit_kwargs["steps_per_epoch"],
@@ -115,9 +115,11 @@ class DataQualityCallback(keras.callbacks.Callback):
         if ids is None:
             epoch = self.logger_config.cur_epoch
             step = batch
-            ids = self.store.get("train_indices", {}).get(f"epoch_{epoch}_{step}")
+            ids = self.store.get(f"{Split.train}_indices", {}).get(
+                f"epoch_{epoch}_{step}"
+            )
             assert ids is not None, GalileoException(
-                "ids of batch could not be logged."
+                "ids of training batch could not be logged."
                 "See documentation to learn how to log indices."
             )
 
@@ -158,7 +160,10 @@ class DataQualityCallback(keras.callbacks.Callback):
         if ids is None:
             step = batch
             ids = self.store.get(f"{Split.test}_indices", {}).get(f"epoch_0_{step}")
-            assert ids is not None, GalileoException("No logged indices found")
+            assert ids is not None, GalileoException(
+                "ids of test batch could not be logged."
+                "See documentation to learn how to log indices."
+            )
 
         self.log_function(
             embs=self.store["input"],
@@ -181,7 +186,7 @@ class DataQualityCallback(keras.callbacks.Callback):
         if x_len is None:
             self.predict_x_len_is_none = True
         else:
-            self.store["test_indices"] = generate_indices(
+            self.store[f"{Split.validation}_indices"] = generate_indices(
                 x=x_len,
                 batch_size=predict_kwargs.get("batch_size"),
                 steps_per_epoch=predict_kwargs.get("steps"),
@@ -193,10 +198,14 @@ class DataQualityCallback(keras.callbacks.Callback):
         ids = self.store.get("indices_ids")
         if ids is None:
             step = batch
+            epoch = self.logger_config.cur_epoch
             ids = self.store.get(f"{Split.validation}_indices", {}).get(
-                f"epoch_0_{step}"
+                f"epoch_{epoch}_{step}"
             )
-            assert ids is not None, GalileoException("No loggeg indices found")
+            assert ids is not None, GalileoException(
+                "ids of validation batch could not be logged."
+                "See documentation to learn how to log indices."
+            )
 
         self.log_function(
             embs=self.store["input"],
@@ -250,9 +259,10 @@ def store_model_ids(store: Dict[str, Any]) -> Callable:
                 elif (
                     isinstance(ids, tuple)
                     and len(ids) == 2
-                    and hasattr(ids[1], "numpy")
+                    and isinstance(ids[0], tuple)
                 ):
                     x, ids = ids
+                    # Remove the indices from the args
                     args = tuple([x, *args[1:]])
                 else:
                     ids = None
