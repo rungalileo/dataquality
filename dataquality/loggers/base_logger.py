@@ -148,7 +148,8 @@ class BaseGalileoLogger:
 
             if isinstance(arr, tf.Tensor):
                 if is_tf_2():
-                    arr = arr.cpu().numpy()
+                    with tf.device("/cpu:0"):
+                        arr = tf.identity(arr).numpy()
                 else:  # Just for TF1.x
                     arr = arr.numpy()
         if isinstance(arr, np.ndarray):
