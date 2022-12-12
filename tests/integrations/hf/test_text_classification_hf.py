@@ -165,9 +165,9 @@ def test_remove_unused_columns(
 
     train_dataset = mock_dataset_with_ids
     test_dataset = mock_dataset_with_ids
+    dq.set_labels_for_run(mock_dataset.features["label"].names)
     dq.log_dataset(train_dataset, split="train")
     dq.log_dataset(test_dataset, split="test")
-    dq.set_labels_for_run(mock_dataset.features["label"].names)
     assert config.current_run_id
     assert config.current_project_id
     t_args = TrainingArguments(

@@ -30,6 +30,7 @@ class BaseLoggerConfig(BaseModel):
     conditions: List[Condition] = []
     report_emails: List[str] = []
     ner_labels: List[str] = []
+    int_labels: bool = False
 
     class Config:
         validate_assignment = True
