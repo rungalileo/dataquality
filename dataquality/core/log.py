@@ -302,7 +302,6 @@ def set_labels_for_run(labels: Union[List[List[str]], List[str]]) -> None:
     a.log_function("dq/set_labels_for_run")
 
     if isinstance(labels[0], (int, np.integer)):
-        print("HAEV INT LABELS")
         get_data_logger().logger_config.int_labels = True
     get_data_logger().logger_config.labels = labels
 
