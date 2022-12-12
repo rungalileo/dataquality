@@ -368,12 +368,20 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         * Text and Labels must be the same length
         * If ids exist, it must be the same length as text/labels
         :return: None
+
+        If the user logged labels as ints, convert them to the string labels.
+        In the next optimization, we will support the API having int labels, but for
+        now it expects string labels. When we make that change, we will do the opposite
+        and always convert to the int index of the labels.
         """
         super().validate()
         label_len = len(self.labels)
         text_len = len(self.texts)
         id_len = len(self.ids)
 
+        set_labels_are_ints = self.logger_config.int_labels
+        if label_len and isinstance(self.labels[0], int) and not set_labels_are_ints:
+            self.labels = [self.logger_config.labels[lbl] for lbl in self.labels]
         if not isinstance(self.texts, list):
             self.texts = list(self._convert_tensor_ndarray(self.texts))
         clean_labels = self._convert_tensor_ndarray(self.labels, attr="Labels")

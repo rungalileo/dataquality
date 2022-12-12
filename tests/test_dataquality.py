@@ -786,3 +786,4 @@ def test_int_labels(set_test_config: Callable) -> None:
         "4",
         "5",
     ]
+    assert dataquality.get_data_logger().logger_config.int_labels is True

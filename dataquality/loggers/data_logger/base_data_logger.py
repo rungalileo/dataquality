@@ -423,6 +423,10 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
     def validate(self) -> None:
         self.set_split_epoch()
+        if self.split != Split.inference:
+            assert (
+                self.logger_config.labels is not None
+            ), "You must set labels before logging input data"
 
     @classmethod
     @abstractmethod
