@@ -17,4 +17,9 @@ def do_train(
     if Split.test in encoded_data:
         # We pass in a huggingface dataset but typing wise they expect a torch dataset
         trainer.predict(test_dataset=encoded_data[Split.test])  # type: ignore
+
+    inf_names = [k for k in encoded_data if k not in Split.get_valid_keys()]
+    for inf_name in inf_names:
+        dq.set_split(Split.inference, inference_name=inf_name)
+        trainer.predict(test_dataset=encoded_data[inf_name])
     dq.finish(wait=wait, create_data_embs=create_data_embs)
