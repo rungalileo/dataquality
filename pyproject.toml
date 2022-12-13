@@ -30,7 +30,7 @@ requires = [
     "transformers<4.25.0",
     "seqeval",
     "sentence-transformers>=2.2",
-    "Pillow >=9.3.0",
+    "Pillow",
     "h5py >=3.1.0",
 ]
 
