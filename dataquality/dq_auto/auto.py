@@ -39,8 +39,9 @@ def auto(
     :param hf_data: Union[DatasetDict, str] Use this param if you have huggingface
         data in the hub or in memory. Otherwise see `train_data`, `val_data`,
         and `test_data`. If provided, train_data, val_data, and test_data are ignored.
-    :param hf_inference_names: A list of key names in `hf_data` to be run as inference
-        runs after training. If set, those keys must exist in `hf_data`
+    :param hf_inference_names: Use this param alongside `hf_data` if you have splits
+        you'd like to consider as inference. A list of key names in `hf_data`
+        to be run as inference runs after training. Any keys set must exist in `hf_data`
     :param train_data: Optional training data to use. Can be one of
         * Pandas dataframe
         * Huggingface dataset
@@ -64,9 +65,11 @@ def auto(
         * Huggingface dataset
         * Path to a local file
         * Huggingface dataset hub path
-    :param inference_data: Optional inference datasets to run with after training
-        completes. The structure is a dictionary with the key being the infeerence name
-        and the value one of
+    :param inference_data: User this param to include inference data alongside the
+        `train_data` param. If you are passing data via the `hf_data` parameter, you
+        should use the `hf_inference_names` param. Optional inference datasets to run
+        with after training completes. The structure is a dictionary with the
+        key being the inference name and the value one of
         * Pandas dataframe
         * Huggingface dataset
         * Path to a local file
