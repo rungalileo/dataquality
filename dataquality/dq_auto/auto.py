@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import Dict, List, Union
 
 import pandas as pd
 from datasets import Dataset, DatasetDict
@@ -14,9 +14,11 @@ AUTO_PROJECT_NAME = {
 
 def auto(
     hf_data: Union[DatasetDict, str] = None,
+    hf_inference_names: List[str] = None,
     train_data: Union[pd.DataFrame, Dataset, str] = None,
     val_data: Union[pd.DataFrame, Dataset, str] = None,
     test_data: Union[pd.DataFrame, Dataset, str] = None,
+    inference_data: Dict[str, Union[pd.DataFrame, Dataset, str]] = None,
     max_padding_length: int = 200,
     hf_model: str = "distilbert-base-uncased",
     labels: List[str] = None,
@@ -36,7 +38,10 @@ def auto(
 
     :param hf_data: Union[DatasetDict, str] Use this param if you have huggingface
         data in the hub or in memory. Otherwise see `train_data`, `val_data`,
-        and `test_data`. If provided, train_data, val_data, and test_data are ignored
+        and `test_data`. If provided, train_data, val_data, and test_data are ignored.
+    :param hf_inference_names: Use this param alongside `hf_data` if you have splits
+        you'd like to consider as inference. A list of key names in `hf_data`
+        to be run as inference runs after training. Any keys set must exist in `hf_data`
     :param train_data: Optional training data to use. Can be one of
         * Pandas dataframe
         * Huggingface dataset
@@ -56,6 +61,15 @@ def auto(
         will be used after training is complete, as the held-out set. If no validation
         data is provided, this will instead be used as the evaluation set.
         Can be one of
+        * Pandas dataframe
+        * Huggingface dataset
+        * Path to a local file
+        * Huggingface dataset hub path
+    :param inference_data: User this param to include inference data alongside the
+        `train_data` param. If you are passing data via the `hf_data` parameter, you
+        should use the `hf_inference_names` param. Optional inference datasets to run
+        with after training completes. The structure is a dictionary with the
+        key being the inference name and the value one of
         * Pandas dataframe
         * Huggingface dataset
         * Path to a local file
@@ -173,9 +187,11 @@ def auto(
 
         auto_tc(
             hf_data=hf_data,
+            hf_inference_names=hf_inference_names,
             train_data=train_data,
             val_data=val_data,
             test_data=test_data,
+            inference_data=inference_data,
             max_padding_length=max_padding_length,
             hf_model=hf_model,
             labels=labels,
@@ -189,9 +205,11 @@ def auto(
 
         auto_ner(
             hf_data=hf_data,
+            hf_inference_names=hf_inference_names,
             train_data=train_data,
             val_data=val_data,
             test_data=test_data,
+            inference_data=inference_data,
             hf_model=hf_model,
             labels=labels,
             project_name=project_name or AUTO_PROJECT_NAME[task_type],
