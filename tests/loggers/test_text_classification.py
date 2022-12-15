@@ -18,7 +18,6 @@ from dataquality.loggers.data_logger.text_classification import (
     TextClassificationDataLogger,
 )
 from dataquality.schemas.split import Split
-from dataquality.schemas.task_type import TaskType
 from dataquality.utils.vaex import GALILEO_DATA_EMBS_ENCODER
 from tests.conftest import LOCAL_MODEL_PATH, LOCATION, TEST_PATH
 
