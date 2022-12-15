@@ -109,4 +109,8 @@ def open_console_url(link: Optional[str] = "") -> None:
         print(f"Click here to see your run! {link}")
 
 
-is_numeric = re.compile(r"^\d+$").match
+_is_numeric = re.compile(r"^\d+$").match
+
+
+def is_numeric(value: str) -> bool:
+    return bool(_is_numeric(value))
