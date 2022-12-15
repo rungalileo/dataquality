@@ -17,6 +17,7 @@ from dataquality.loggers.data_logger.text_classification import (
     TextClassificationDataLogger,
 )
 from dataquality.schemas.split import Split
+from dataquality.schemas.task_type import TaskType
 from dataquality.utils.vaex import GALILEO_DATA_EMBS_ENCODER
 from tests.conftest import LOCAL_MODEL_PATH, LOCATION, TEST_PATH
 
@@ -255,7 +256,23 @@ def test_logged_labels_dont_match_set_labels(
     else:
         with pytest.raises(AssertionError) as e:
             dataquality.log_dataset(dataset, split="train")
-        assert str(e.value) == "You must set labels before logging input data"
+        assert (
+            str(e.value) == "You must set labels before logging input data,"
+            " when label column is numeric"
+        )
+
+
+def test_labels(set_test_config: Callable):
+    set_test_config(default_task_type=TaskType.text_classification)
+    dq.set_labels_for_run(["cat", "dog"])
+    df = pd.DataFrame(
+        {
+            "id": [0, 1, 2, 3, 4],
+            "text": ["hello", "world", "bye", "foo", "bar"],
+            "label": [0, 0, 1, 1, 0],
+        }
+    )
+    dq.log_dataset(df, split="train")
 
 
 def test_log_int_labels(set_test_config: Callable, cleanup_after_use: Callable) -> None:
