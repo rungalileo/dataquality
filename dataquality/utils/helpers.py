@@ -1,7 +1,7 @@
 import os
 from functools import wraps
 from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar
-
+import webbrowser
 from typing_extensions import ParamSpec
 
 T = TypeVar("T")
@@ -98,7 +98,6 @@ def open_console_url(link: Optional[str] = "") -> None:
     if not link:
         return
     try:
-        import webbrowser
 
         webbrowser.open(link)
     # In some environments, webbrowser will raise. Other times it fails silently (colab)
