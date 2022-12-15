@@ -1,4 +1,3 @@
-import re
 from collections import defaultdict
 from enum import Enum, unique
 from typing import Any, DefaultDict, Dict, Iterable, List, Optional, Tuple, Union
@@ -21,9 +20,8 @@ from dataquality.loggers.logger_config.text_classification import (
 )
 from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.split import Split
+from dataquality.utils.helpers import is_numeric
 from dataquality.utils.vaex import rename_df
-
-is_numeric = re.compile(r"^\d+$").match
 
 
 @unique
@@ -384,13 +382,16 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
 
         set_labels_are_ints = self.logger_config.int_labels
 
-        numeric_str = is_numeric(str(self.labels[0]))
-        if self.split != Split.inference and numeric_str:
+        if self.split != Split.inference and (
+            isinstance(self.labels[0], int) or isinstance(self.labels[0], str)
+        ):
             # labels must be set if numeric
-            assert self.logger_config.labels is not None, (
-                "You must set labels before logging input data,"
-                " when label column is numeric"
-            )
+            numeric_str = is_numeric(str(self.labels[0]))
+            if numeric_str:
+                assert self.logger_config.labels is not None, (
+                    "You must set labels before logging input data,"
+                    " when label column is numeric"
+                )
 
         if label_len and isinstance(self.labels[0], int) and not set_labels_are_ints:
             self.labels = [self.logger_config.labels[lbl] for lbl in self.labels]

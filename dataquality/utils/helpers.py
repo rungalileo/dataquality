@@ -1,5 +1,5 @@
 import os
-import webbrowser
+import re
 from functools import wraps
 from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar
 
@@ -99,9 +99,14 @@ def open_console_url(link: Optional[str] = "") -> None:
     if not link:
         return
     try:
+        import webbrowser
+
         webbrowser.open(link)
     # In some environments, webbrowser will raise. Other times it fails silently (colab)
     except Exception:
         pass
     finally:
         print(f"Click here to see your run! {link}")
+
+
+is_numeric = re.compile(r"^\d+$").match
