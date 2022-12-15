@@ -381,16 +381,12 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
 
         set_labels_are_ints = self.logger_config.int_labels
 
-        if self.split != Split.inference and (
-            isinstance(self.labels[0], int) or isinstance(self.labels[0], str)
-        ):
+        if self.split != Split.inference and (isinstance(self.labels[0], int)):
             # labels must be set if numeric
-            numeric_str = str(self.labels[0]).isnumeric()
-            if numeric_str:
-                assert self.logger_config.labels is not None, (
-                    "You must set labels before logging input data,"
-                    " when label column is numeric"
-                )
+            assert self.logger_config.labels is not None, (
+                "You must set labels before logging input data,"
+                " when label column is numeric"
+            )
 
         if label_len and isinstance(self.labels[0], int) and not set_labels_are_ints:
             self.labels = [self.logger_config.labels[lbl] for lbl in self.labels]
