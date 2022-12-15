@@ -1,7 +1,8 @@
 import os
+import webbrowser
 from functools import wraps
 from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar
-import webbrowser
+
 from typing_extensions import ParamSpec
 
 T = TypeVar("T")
