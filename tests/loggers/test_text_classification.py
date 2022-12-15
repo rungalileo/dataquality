@@ -1,4 +1,5 @@
 import os
+import random
 from typing import Callable
 from unittest import mock
 
@@ -262,17 +263,36 @@ def test_logged_labels_dont_match_set_labels(
         )
 
 
-def test_labels(set_test_config: Callable):
-    set_test_config(default_task_type=TaskType.text_classification)
-    dq.set_labels_for_run(["cat", "dog"])
+@pytest.mark.parametrize("set_labels_first", [True, False])
+@pytest.mark.parametrize("is_numeric", [True, False])
+def test_labels(
+    set_test_config: Callable, set_labels_first: bool, is_numeric: bool
+) -> None:
+    set_test_config(task_type="text_classification")
+    str_labels = ["A", "B", "C"]
+    if is_numeric:
+        labels = [0, 1, 2]
+    else:
+        labels = str_labels
     df = pd.DataFrame(
         {
             "id": [0, 1, 2, 3, 4],
             "text": ["hello", "world", "bye", "foo", "bar"],
-            "label": [0, 0, 1, 1, 0],
+            "label": [random.choice(labels) for _ in range(5)],
         }
     )
-    dq.log_dataset(df, split="train")
+
+    if set_labels_first:
+        dq.set_labels_for_run(str_labels)
+        dataquality.log_dataset(df, split="train")
+    else:
+        if is_numeric:
+            with pytest.raises(AssertionError) as e:
+                dataquality.log_dataset(df, split="train")
+            assert (
+                str(e.value) == "You must set labels before logging input data,"
+                " when label column is numeric"
+            )
 
 
 def test_log_int_labels(set_test_config: Callable, cleanup_after_use: Callable) -> None:

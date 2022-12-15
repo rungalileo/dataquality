@@ -20,7 +20,6 @@ from dataquality.loggers.logger_config.text_classification import (
 )
 from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.split import Split
-from dataquality.utils.helpers import is_numeric
 from dataquality.utils.vaex import rename_df
 
 
@@ -386,7 +385,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
             isinstance(self.labels[0], int) or isinstance(self.labels[0], str)
         ):
             # labels must be set if numeric
-            numeric_str = is_numeric(str(self.labels[0]))
+            numeric_str = str(self.labels[0]).isnumeric()
             if numeric_str:
                 assert self.logger_config.labels is not None, (
                     "You must set labels before logging input data,"
