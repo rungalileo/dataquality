@@ -617,7 +617,7 @@ def test_log_data_sample(
     "dataset",
     [
         pd.DataFrame(NER_INPUT_DATA),
-        vaex.from_pandas(pd.DataFrame(NER_INPUT_DATA)),
+        vaex.from_dict(NER_INPUT_DATA),
         NER_INPUT_ITER,
         datasets.Dataset.from_dict(NER_INPUT_DATA),
     ],
