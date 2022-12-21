@@ -80,11 +80,10 @@ def get_trainer(
     args = TrainingArguments(
         "finetuned",
         evaluation_strategy=eval_strat,
-        learning_rate=2e-5,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
         load_best_model_at_end=load_best_model,
-        num_train_epochs=10,
+        num_train_epochs=15,
         weight_decay=0.01,
         save_strategy=IntervalStrategy.EPOCH,
         logging_strategy=IntervalStrategy.EPOCH,
