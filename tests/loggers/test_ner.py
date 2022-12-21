@@ -46,7 +46,10 @@ def test_gold_span_extraction() -> None:
     assert new_spans == good_new_spans
 
 
-def test_construct_gold_sequence() -> None:
+def test_construct_gold_sequence(
+    cleanup_after_use: Callable, set_test_config: Callable
+) -> None:
+    set_test_config(default_task_type=TaskType.text_ner)
     len_sequence = 15
     case_1_seq_bio = [
         "O",
