@@ -58,12 +58,14 @@ class TestTextNERDataLoggerInference:
                     "text_token_indices": [[(1, 4), (5, 8)], [(0, 4)], [(4, 9)]],
                 }
             ),
-            vaex.from_dict(
-                {
-                    "my_text": ["sample1", "sample2", "sample3"],
-                    "my_id": [1, 2, 3],
-                    "text_token_indices": [[(1, 4), (5, 8)], [(0, 4)], [(4, 9)]],
-                }
+            vaex.from_pandas(
+                pd.DataFrame(
+                    {
+                        "my_text": ["sample1", "sample2", "sample3"],
+                        "my_id": [1, 2, 3],
+                        "text_token_indices": [[(1, 4), (5, 8)], [(0, 4)], [(4, 9)]],
+                    }
+                )
             ),
             [
                 {
@@ -74,11 +76,13 @@ class TestTextNERDataLoggerInference:
                 {"my_text": "sample2", "my_id": 2, "text_token_indices": [(0, 4)]},
                 {"my_text": "sample3", "my_id": 3, "text_token_indices": [(4, 9)]},
             ],
-            datasets.Dataset.from_dict(
-                dict(
-                    my_text=["sample1", "sample2", "sample3"],
-                    my_id=[1, 2, 3],
-                    text_token_indices=[[(1, 4), (5, 8)], [(0, 4)], [(4, 9)]],
+            datasets.Dataset.from_pandas(
+                pd.DataFrame(
+                    {
+                        "my_text": ["sample1", "sample2", "sample3"],
+                        "my_id": [1, 2, 3],
+                        "text_token_indices": [[(1, 4), (5, 8)], [(0, 4)], [(4, 9)]],
+                    }
                 )
             ),
         ],
