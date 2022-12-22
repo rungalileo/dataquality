@@ -1,6 +1,5 @@
 import os
 import sys
-import threading
 from typing import Dict, List
 
 import h5py
