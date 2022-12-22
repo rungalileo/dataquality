@@ -8,6 +8,7 @@ from dataquality.loggers.logger_config.image_classification import (
 from dataquality.loggers.model_logger.text_classification import (
     TextClassificationModelLogger,
 )
+from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.split import Split
 
 
@@ -35,8 +36,23 @@ class ImageClassificationModelLogger(TextClassificationModelLogger):
             inference_name=inference_name,
         )
 
+    def _filter_duplicate_ids(self) -> None:
+        """To avoid duplicate ids, when augmentation is used.
+        Filter out duplicate ids in the batch. This is done by keeping track of
+        the ids that have been observed in the current epoch in the config"""
+        observed_ids = self.logger_config.observed_ids[self.epoch]
+        unique_ids = set(self.ids).difference(observed_ids)
+        observed_ids.update(unique_ids)
+        # If there are duplicate ids, filter out the duplicates
+        if len(self.ids) > len(unique_ids):
+            unique_indices = [list(self.ids).index(id) for id in unique_ids]
+            self.embs = self.embs[unique_indices]
+            self.probs = self.probs[unique_indices]
+            self.ids = self.ids[unique_indices]
+
     def _get_data_dict(self) -> Dict[str, Any]:
         # Handle the binary case by converting it to 2-class classification
+        self._filter_duplicate_ids()
         probs = np.array(self.probs)
         if probs.shape[-1] == 1:
             self.probs = np.column_stack((1 - probs, probs))

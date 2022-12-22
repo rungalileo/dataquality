@@ -7,7 +7,8 @@ from dataquality.utils.vaex import validate_unique_ids
 from tests.conftest import LOCATION
 
 
-def test_duplicate_augmented(set_test_config, cleanup_after_use) -> None:
+def test_duplicate_ids_augmented(set_test_config, cleanup_after_use) -> None:
+    # This test is to ensure that duplicate ids caused by augmentation are not logged
     set_test_config(task_type="image_classification")
     text_inputs = [
         "what movies star bruce willis",
@@ -29,7 +30,17 @@ def test_duplicate_augmented(set_test_config, cleanup_after_use) -> None:
         logits=[[0, 0, 1], [0, 0, 1], [0, 0, 1]],
         ids=[0, 0, 1],
     )
-    df = vaex.open(f"{LOCATION}/training/0/*.hdf5")
-    print("df")
-    print(df)
-    validate_unique_ids(df, "epoch")
+    dq.log_model_outputs(
+        embs=np.random.rand(3, 10),
+        logits=[[0, 0, 1], [0, 0, 1], [0, 0, 1]],
+        ids=[0, 0, 1],
+    )
+    dq.set_epoch(1)
+    dq.log_model_outputs(
+        embs=np.random.rand(3, 10),
+        logits=[[0, 0, 1], [0, 0, 1], [0, 0, 1]],
+        ids=[0, 0, 1],
+    )
+    print(vaex.open(f"{LOCATION}/training/0/*.hdf5"))
+    validate_unique_ids(vaex.open(f"{LOCATION}/training/0/*.hdf5"), "epoch")
+    validate_unique_ids(vaex.open(f"{LOCATION}/training/1/*.hdf5"), "epoch")
