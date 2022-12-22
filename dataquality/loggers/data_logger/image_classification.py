@@ -1,6 +1,7 @@
 import os
-from typing import List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
+import numpy as np
 import pandas as pd
 from PIL import Image
 
@@ -62,3 +63,22 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             split=split,
             meta=meta,
         )
+
+    def _get_data_dict(self) -> Dict[str, Any]:
+        # Handle the binary case by converting it to 2-class classification
+        probs = np.array(self.probs)
+        if probs.shape[-1] == 1:
+            self.probs = np.column_stack((1 - probs, probs))
+        num_samples_in_batch = len(self.ids)
+        data = {
+            "id": self.ids,
+            "emb": self.embs,
+            "prob": self.probs,
+            "pred": np.argmax(self.probs, axis=1),
+            "split": [Split[self.split].value] * num_samples_in_batch,
+            "data_schema_version": [__data_schema_version__] * num_samples_in_batch,
+            "epoch": [self.epoch] * num_samples_in_batch,
+        }
+        if self.split == Split.inference:
+            data["inference_name"] = [self.inference_name] * num_samples_in_batch
+        return data

@@ -1,4 +1,4 @@
-from typing import List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 
@@ -8,6 +8,7 @@ from dataquality.loggers.logger_config.image_classification import (
 from dataquality.loggers.model_logger.text_classification import (
     TextClassificationModelLogger,
 )
+from dataquality.schemas.split import Split
 
 
 class ImageClassificationModelLogger(TextClassificationModelLogger):
@@ -33,3 +34,27 @@ class ImageClassificationModelLogger(TextClassificationModelLogger):
             epoch=epoch,
             inference_name=inference_name,
         )
+
+    def _get_data_dict(self) -> Dict[str, Any]:
+        # Handle the binary case by converting it to 2-class classification
+        probs = np.array(self.probs)
+        if probs.shape[-1] == 1:
+            self.probs = np.column_stack((1 - probs, probs))
+        num_samples_in_batch = len(self.ids)
+        if len(self.ids) != len(set(self.ids)):
+            raise ValueError(
+                f"Duplicate ids found in batch: {self.ids}. "
+                "Please make sure that each sample has a unique id."
+            )
+        data = {
+            "id": self.ids,
+            "emb": self.embs,
+            "prob": self.probs,
+            "pred": np.argmax(self.probs, axis=1),
+            "split": [Split[self.split].value] * num_samples_in_batch,
+            "data_schema_version": [__data_schema_version__] * num_samples_in_batch,
+            "epoch": [self.epoch] * num_samples_in_batch,
+        }
+        if self.split == Split.inference:
+            data["inference_name"] = [self.inference_name] * num_samples_in_batch
+        return data
