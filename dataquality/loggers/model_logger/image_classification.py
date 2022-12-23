@@ -40,7 +40,8 @@ class ImageClassificationModelLogger(TextClassificationModelLogger):
         """To avoid duplicate ids, when augmentation is used.
         Filter out duplicate ids in the batch. This is done by keeping track of
         the ids that have been observed in the current epoch in the config"""
-        observed_ids = self.logger_config.observed_ids[str(self.epoch)]
+
+        observed_ids = self.logger_config.observed_ids[f"{self.split}_{self.epoch}"]
         unique_ids = set(self.ids).difference(observed_ids)
         observed_ids.update(unique_ids)
         # If there are duplicate ids, filter out the duplicates

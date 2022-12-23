@@ -21,26 +21,25 @@ def test_duplicate_ids_augmented(set_test_config, cleanup_after_use) -> None:
     ids = [0, 1, 2, 3, 4]
 
     dq.set_labels_for_run(["A", "B", "C"])
-    dq.log_data_samples(texts=text_inputs, labels=gold, split="training", ids=ids)
-
-    dq.set_split("training")
-    dq.set_epoch(0)
-    dq.log_model_outputs(
-        embs=np.random.rand(3, 10),
-        logits=[[0, 0, 1], [0, 0, 1], [0, 0, 1]],
-        ids=[0, 0, 1],
-    )
-    dq.log_model_outputs(
-        embs=np.random.rand(3, 10),
-        logits=[[0, 0, 1], [0, 0, 1], [0, 0, 1]],
-        ids=[0, 0, 1],
-    )
-    dq.set_epoch(1)
-    dq.log_model_outputs(
-        embs=np.random.rand(3, 10),
-        logits=[[0, 0, 1], [0, 0, 1], [0, 0, 1]],
-        ids=[0, 0, 1],
-    )
-    print(vaex.open(f"{LOCATION}/training/0/*.hdf5"))
-    validate_unique_ids(vaex.open(f"{LOCATION}/training/0/*.hdf5"), "epoch")
-    validate_unique_ids(vaex.open(f"{LOCATION}/training/1/*.hdf5"), "epoch")
+    for split in ["training", "validation", "test"]:
+        dq.log_data_samples(texts=text_inputs, labels=gold, split=split, ids=ids)
+        dq.set_split(split)
+        dq.set_epoch(0)
+        dq.log_model_outputs(
+            embs=np.random.rand(3, 10),
+            logits=[[0, 0, 1], [0, 0, 1], [0, 0, 1]],
+            ids=[0, 0, 1],
+        )
+        dq.log_model_outputs(
+            embs=np.random.rand(3, 10),
+            logits=[[0, 0, 1], [0, 0, 1], [0, 0, 1]],
+            ids=[0, 0, 1],
+        )
+        dq.set_epoch(1)
+        dq.log_model_outputs(
+            embs=np.random.rand(3, 10),
+            logits=[[0, 0, 1], [0, 0, 1], [0, 0, 1]],
+            ids=[0, 0, 1],
+        )
+        validate_unique_ids(vaex.open(f"{LOCATION}/{split}/0/*.hdf5"), "epoch")
+        validate_unique_ids(vaex.open(f"{LOCATION}/{split}/1/*.hdf5"), "epoch")
