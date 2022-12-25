@@ -11,11 +11,13 @@ Galileo gives you access to all of the information you need, at a UI and API lev
 # ToC
 * [Getting Started](#getting-started)
 * [Custom Integrations](#can-i-analyze-data-using-a-custom-model)
-* [Programmatic Access](#is-there-a-python-api-for-programmatically-interacting-with-the-console)
 * [No labels? No problem](#what-if-i-dont-have-labels-to-train-with-can-you-help-with-labeling)
-* [Contributing](#contibuting)
+* [Programmatic Access](#is-there-a-python-api-for-programmatically-interacting-with-the-console)
+* [Contributing](#contributing)
 
-## Getting Started
+
+<details>
+<summary><h2>Getting Started</h2></summary>
 
 Install the package.
 ```sh
@@ -52,31 +54,50 @@ dq.config.token = 'MY-TOKEN'
 ```
 For long-lived flows like CI/CD, see our docs on [environment variables](https://rungalileo.gitbook.io/galileo/python-library-api/environment-variables)
 
-### What kinds of datasets can I analyze?
+<details>
+<summary><h3>What kinds of datasets can I analyze?</h3></summary>
+
 Currently, you can analyze **Text Classification** and **NER**
 
 If you want support for other kinds, [reach out!](https://github.com/rungalileo/dataquality/issues/new?assignees=ben-epstein&labels=enhancement&template=feature.md&title=%5BFEATURE%5D)
+</details>
 
-### Can I use auto with other data forms?
+<details>
+<summary><h3>Can I use auto with other data forms?</h3></summary>
+
 `auto` params `train_data`, `val_data`, and `test_data` can also take as input pandas dataframes and huggingface dataframes!
+</details>
 
-### What if all my data is in huggingface?
+<details>
+<summary><h3>What if all my data is in huggingface?</h3></summary>
+
 Use the `hf_data` param to point to a dataset in huggingface
 ```python
 import dataquality as dq
 
-dq.auto("rungalileo/emotion")
+dq.auto(hf_data="rungalileo/emotion")
 ```
+</details>
 
-### Anything else? Can I learn more?
+<details>
+<summary><h3>Anything else? Can I learn more?</h3></summary>
+
 Run `help(dq.auto)` for more information on usage<br>
 Check out our [docs](https://rungalileo.gitbook.io/galileo/getting-started/add-your-data-to-galileo/dq-auto) for the inspiration behind this methodology.
+</details>
+</details>
 
 
-## Can I analyze data using a custom model?
+<details>
+<summary><h2>Can I analyze data using a custom model?</h2></summary>
+
 Yes! Check out our [full documentation](https://rungalileo.gitbook.io/galileo/getting-started/byom-bring-your-own-model) and [example notebooks](https://rungalileo.gitbook.io/galileo/example-notebooks) on how to integrate your own model with Galileo
+</details>
 
-## What if I don't have labels to train with? Can you help with labeling?
+
+<details>
+<summary><h2>What if I don't have labels to train with? Can you help with labeling?</h2></summary>
+
 We have an [app for that](https://github.com/rungalileo/bulk-labeling/)! Currently text classification only, but [reach out](https://github.com/rungalileo/bulk-labeling/issues/new?assignee=ben-epstein) if you want a new modality!<br>
 
 This is currently in development, and not an official part of the Galileo product, but rather an open source tool for the community.
@@ -84,12 +105,17 @@ This is currently in development, and not an official part of the Galileo produc
 We've built a bulk-labeling tool (and hosted it on streamlit) to help you generate labels quickly using semantic embeddings and text search.
 
 For more info on how it works and how to use it, check out the [open source repo](https://github.com/rungalileo/bulk-labeling/).
+</details>
 
-## Is there a Python API for programmatically interacting with the console?
+
+<details>
+<summary><h2>Is there a Python API for programmatically interacting with the console?</h2></summary>
+
 Yes! See our docs on [`dq.metrics`](https://rungalileo.gitbook.io/galileo/python-library-api/dq.metrics) to access things like overall metrics, your analyzed dataframe, and even your embeddings.
+</details>
 
-
-## Contibuting
+<details>
+<summary><h2>Contributing</h2></summary>
 
 Read our [contributing doc](./CONTRIBUTING.md)!
 
