@@ -11,6 +11,7 @@ Galileo gives you access to all of the information you need, at a UI and API lev
 # ToC
 * [Getting Started](#getting-started)
 * [Custom Integrations](#can-i-analyze-data-using-a-custom-model)
+* [Programmatic Access](#is-there-a-python-api-for-programmatically-interacting-with-the-console)
 * [No labels? No problem](#what-if-i-dont-have-labels-to-train-with-can-you-help-with-labeling)
 * [Contributing](#contibuting)
 
@@ -41,6 +42,15 @@ dq.auto(
 
 ☕️ Wait for Galileo to train your model and analyze the results.  
 ✨ A link to your run will be provided automatically
+
+#### Pro tip: Set your token programmatically for automated workflows
+By setting the token, you'll never be prompted to log in
+```python
+import dataquality as dq
+
+dq.config.token = 'MY-TOKEN'
+```
+For long-lived flows like CI/CD, see our docs on [environment variables](https://rungalileo.gitbook.io/galileo/python-library-api/environment-variables)
 
 ### What kinds of datasets can I analyze?
 Currently, you can analyze **Text Classification** and **NER**
@@ -74,6 +84,10 @@ This is currently in development, and not an official part of the Galileo produc
 We've built a bulk-labeling tool (and hosted it on streamlit) to help you generate labels quickly using semantic embeddings and text search.
 
 For more info on how it works and how to use it, check out the [open source repo](https://github.com/rungalileo/bulk-labeling/).
+
+## Is there a Python API for programmatically interacting with the console?
+Yes! See our docs on [`dq.metrics`](https://rungalileo.gitbook.io/galileo/python-library-api/dq.metrics) to access things like overall metrics, your analyzed dataframe, and even your embeddings.
+
 
 ## Contibuting
 
