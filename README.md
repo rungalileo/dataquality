@@ -8,6 +8,12 @@ Galileo gives you access to all of the information you need, at a UI and API lev
 
 `dataquality` is your entrypoint to Galileo. It helps you start and complete the loop of data quality improvements.
 
+# ToC
+* [Getting Started](#getting-started)
+* [Custom Integrations](#can-i-analyze-data-using-a-custom-model)
+* [No labels? No problem](#what-if-i-dont-have-labels-to-train-with-can-you-help-with-labeling)
+* [Contributing](#contibuting)
+
 ## Getting Started
 
 Install the package.
@@ -59,6 +65,15 @@ Check out our [docs](https://rungalileo.gitbook.io/galileo/getting-started/add-y
 
 ## Can I analyze data using a custom model?
 Yes! Check out our [full documentation](https://rungalileo.gitbook.io/galileo/getting-started/byom-bring-your-own-model) and [example notebooks](https://rungalileo.gitbook.io/galileo/example-notebooks) on how to integrate your own model with Galileo
+
+## What if I don't have labels to train with? Can you help with labeling?
+We have an [app for that](https://github.com/rungalileo/bulk-labeling/)! Currently text classification only, but [reach out](https://github.com/rungalileo/bulk-labeling/issues/new?assignee=ben-epstein) if you want a new modality!<br>
+
+This is currently in development, and not an official part of the Galileo product, but rather an open source tool for the community.
+
+We've built a bulk-labeling tool (and hosted it on streamlit) to help you generate labels quickly using semantic embeddings and text search.
+
+For more info on how it works and how to use it, check out the [open source repo](https://github.com/rungalileo/bulk-labeling/).
 
 ## Contibuting
 
