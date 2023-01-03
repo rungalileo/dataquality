@@ -62,10 +62,11 @@ class ImageClassificationModelLogger(TextClassificationModelLogger):
                 self.ids = np.array(self.ids)[unique_indices]
 
     def write_model_output(self, model_output: Dict) -> None:
-        """Only write model output if there is data to write
+        """Only write model output if there is data to write.
 
         In image classification, it is possible that after filtering
-        duplicate IDs, there are none to write. In that case, we'll get an error trying to write them, so we skip
+        duplicate IDs, there are none to write. In that case,
+        we'll get an error trying to write them, so we skip
         """
         if len(model_output["id"]):
             return super().write_model_output(model_output)
