@@ -1,9 +1,12 @@
 import os
+import threading
 from threading import Thread
 from time import sleep
 from typing import Any, Callable, Iterable, List
 
 from dataquality.exceptions import GalileoException
+
+lock = threading.Lock()
 
 
 class ThreadPoolManager:
