@@ -76,10 +76,4 @@ class ImageClassificationModelLogger(TextClassificationModelLogger):
         with lock:
             self._filter_duplicate_ids()
 
-        if len(self.ids) != len(set(self.ids)):
-            raise ValueError(
-                f"Duplicate ids found in batch: {self.ids}. "
-                "Please make sure that each sample has a unique id."
-            )
-
         return super()._get_data_dict()
