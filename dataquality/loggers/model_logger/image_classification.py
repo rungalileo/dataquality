@@ -46,6 +46,8 @@ class ImageClassificationModelLogger(TextClassificationModelLogger):
         observed_ids = self.logger_config.observed_ids[f"{self.split}_{self.epoch}"]
         unique_ids = set(self.ids).difference(observed_ids)
         observed_ids.update(unique_ids)
+        id_to_index = {id: index for index, id in enumerate(self.ids)}
+
         # If there are duplicate ids, filter out the duplicates
         if len(self.ids) > len(unique_ids):
             get_dq_logger().warning(
@@ -53,7 +55,7 @@ class ImageClassificationModelLogger(TextClassificationModelLogger):
                 f"Batch size: {len(self.ids)}, "
                 f"Unique ids: {len(unique_ids)}"
             )
-            unique_indices = [list(self.ids).index(id) for id in unique_ids]
+            unique_indices = [id_to_index[id] for id in unique_ids]
             if len(self.embs) > 0:
                 self.embs = np.array(self.embs)[unique_indices]
             if len(self.probs) > 0:
@@ -75,24 +77,11 @@ class ImageClassificationModelLogger(TextClassificationModelLogger):
         # Handle the binary case by converting it to 2-class classification
         with lock:
             self._filter_duplicate_ids()
-        probs = np.array(self.probs)
-        if probs.shape[-1] == 1:
-            self.probs = np.column_stack((1 - probs, probs))
-        num_samples_in_batch = len(self.ids)
+
         if len(self.ids) != len(set(self.ids)):
             raise ValueError(
                 f"Duplicate ids found in batch: {self.ids}. "
                 "Please make sure that each sample has a unique id."
             )
-        data = {
-            "id": self.ids,
-            "emb": self.embs,
-            "prob": self.probs,
-            "pred": np.argmax(self.probs, axis=1),
-            "split": [Split[self.split].value] * num_samples_in_batch,
-            "data_schema_version": [__data_schema_version__] * num_samples_in_batch,
-            "epoch": [self.epoch] * num_samples_in_batch,
-        }
-        if self.split == Split.inference:
-            data["inference_name"] = [self.inference_name] * num_samples_in_batch
-        return data
+
+        return super()._get_data_dict()
