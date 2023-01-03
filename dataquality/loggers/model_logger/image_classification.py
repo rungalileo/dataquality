@@ -8,8 +8,6 @@ from dataquality.loggers.logger_config.image_classification import (
 from dataquality.loggers.model_logger.text_classification import (
     TextClassificationModelLogger,
 )
-from dataquality.schemas import __data_schema_version__
-from dataquality.schemas.split import Split
 from dataquality.utils.dq_logger import get_dq_logger
 from dataquality.utils.thread_pool import lock
 
