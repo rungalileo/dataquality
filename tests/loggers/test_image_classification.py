@@ -46,8 +46,6 @@ def test_duplicate_ids_augmented(set_test_config, cleanup_after_use) -> None:
         validate_unique_ids(vaex.open(f"{LOCATION}/{split}/0/*.hdf5"), "epoch")
         validate_unique_ids(vaex.open(f"{LOCATION}/{split}/1/*.hdf5"), "epoch")
 
-    dq.finish()
-
 
 def test_duplicate_ids_augmented_loop_thread(
     set_test_config, cleanup_after_use
@@ -90,5 +88,3 @@ def test_duplicate_ids_augmented_loop_thread(
     for split in ["training", "validation", "test"]:
         validate_unique_ids(vaex.open(f"{LOCATION}/{split}/0/*.hdf5"), "epoch")
         validate_unique_ids(vaex.open(f"{LOCATION}/{split}/1/*.hdf5"), "epoch")
-
-    dq.finish()
