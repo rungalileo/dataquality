@@ -17,10 +17,12 @@ from dataquality.utils.helpers import wrap_fn
 class TorchBaseInstance:
     embedding_dim: Optional[DimensionSlice]
     logits_dim: Optional[DimensionSlice]
+    embedding_fn: Optional[Any]
+    logits_fn: Optional[Any]
     task: TaskType
     helper_data: Dict[str, Any]
 
-    def _init_dimension(
+    def _set_dimensions(
         self,
         embedding_dim: Optional[Union[str, DimensionSlice]],
         logits_dim: Optional[Union[str, DimensionSlice]],
@@ -119,6 +121,73 @@ class TorchBaseInstance:
             logits = logits[:, 1:, :]
         self.helper_data["logits"] = logits
 
+    def _classifier_hook(
+        self,
+        model: Module,
+        model_input: Union[Tuple[Tensor], TokenClassifierOutput, Tensor],
+        model_output: Union[BaseModelOutput, Tensor],
+    ) -> None:
+        """
+        Hook to extract the embeddings from the model
+        Keyword arguments won't be passed to the hooks and only to the ``forward``.
+        The hook can modify the input. User can either return a tuple or a
+        single modified value in the hook. We will wrap the value into a tuple
+        if a single value is returned(unless that value is already a tuple).
+        The hook will be called every time after :func:`forward` has computed an output.
+
+        :param model: Model pytorch model / layer
+        :param model_input: Input of the current layer
+        :param model_output: Output of the current layer
+        :return: None
+        """
+        if self.embedding_fn is not None:
+            model_input = self.embedding_fn(model_input)
+
+        if isinstance(model_input, tuple):
+            model_input = model_input[0]
+        if isinstance(model_input, Tensor):
+            layer_input = model_input
+        elif hasattr(model_input, "last_hidden_state"):
+            layer_input = model_input.last_hidden_state
+        output_detached = layer_input.detach()
+        # If embedding has the CLS token, remove it
+
+        if self.embedding_dim is not None:
+            output_detached = output_detached[self.embedding_dim]
+        elif len(output_detached.shape) == 3 and (
+            self.task
+            in [
+                TaskType.text_classification,
+                TaskType.text_multi_label,
+                TaskType.image_classification,
+            ]
+        ):
+            # It is assumed that the CLS token is removed through this dimension
+            # for text classification tasks and multi label tasks
+            output_detached = output_detached[:, 0]
+        elif len(output_detached.shape) == 3 and self.task == TaskType.text_ner:
+            # It is assumed that the CLS token is removed through this dimension
+            # for NER tasks
+            output_detached = output_detached[:, 1:, :]
+        self.helper_data["embs"] = output_detached
+
+        if self.logits_fn is not None:
+            model_output = self.logits_fn(model_output)
+
+        if isinstance(model_output, Tensor):
+            logits = model_output
+        elif hasattr(model_output, "logits"):
+            logits = model_output.logits
+        logits = logits.detach()
+
+        if self.logits_dim is not None:
+            logits = logits[self.logits_dim]
+        elif len(logits.shape) == 3 and self.task == TaskType.text_ner:
+            # It is assumed that the CLS token is removed
+            # through this dimension for NER tasks
+            logits = logits[:, 1:, :]
+        self.helper_data["logits"] = logits
+
 
 # store indices
 def store_batch_indices(store: Dict[str, List[int]]) -> Callable:
@@ -199,7 +268,7 @@ class ModelHookManager:
         print(f"Selected layer for the last hidden state embedding {name}")
         return layer
 
-    def get_embedding_layer_by_name(self, model: Module, name: str) -> Module:
+    def get_layer_by_name(self, model: Module, name: str) -> Module:
         """
         Iterate over each layer and stop once the the layer name matches
         :param model: Model
@@ -227,6 +296,21 @@ class ModelHookManager:
             "make sure to check capitalization"
         )
 
+    def attach_classifier_hook(
+        self,
+        model: Module,
+        classifier_hook: Callable,
+        model_layer: Layer = None,
+    ) -> RemovableHandle:
+        """Attach hook and save it in our hook list"""
+        if model_layer is None:
+            selected_layer = self.get_layer_by_name(model, "classifier")
+        elif isinstance(model_layer, str):
+            selected_layer = self.get_layer_by_name(model, model_layer)
+        else:
+            selected_layer = model_layer
+        return self.attach_hook(selected_layer, classifier_hook)
+
     def attach_embedding_hook(
         self,
         model: Module,
@@ -237,7 +321,7 @@ class ModelHookManager:
         if model_layer is None:
             selected_layer = self.get_embedding_layer_auto(model)
         elif isinstance(model_layer, str):
-            selected_layer = self.get_embedding_layer_by_name(model, model_layer)
+            selected_layer = self.get_layer_by_name(model, model_layer)
         else:
             selected_layer = model_layer
         return self.attach_hook(selected_layer, embedding_hook)

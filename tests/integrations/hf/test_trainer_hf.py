@@ -1,17 +1,12 @@
-import sys
-
-print(sys.version)
-
-from utils import patch_dataloader, unpatch
+import torch
 from torch.utils.data import DataLoader
 
-import torch
+from dataquality.integrations.transformers2 import patch_dataloaders, unpatch
 
 
-if __name__ == "__main__":
+def test_mp():
     a = torch.arange(0, 10)
     store = {"ids": []}
-    print("dataloader created")
     mp_dataloader = DataLoader(
         a,
         batch_size=3,
@@ -19,12 +14,12 @@ if __name__ == "__main__":
         persistent_workers=True,
         shuffle=True,
     )
-
-    patch_dataloader(mp_dataloader, store)
-
+    patch_dataloaders(store)
     batches = []
     for batch in mp_dataloader:
         batches.append(batch.long())
+    print("store")
+    print(store)
     assert len(batches) == len(store["ids"]), "number of batches is not the same"
     # assert all indices are the same
     for batch, indices in zip(batches, store["ids"]):
@@ -53,7 +48,7 @@ if __name__ == "__main__":
             torch.LongTensor(indices)
         ), "indices are the same"
 
-    patch_dataloader(sp_dataloader, store)
+    patch_dataloaders(store)
     batches = []
     for batch in sp_dataloader:
         batches.append(batch.long())
@@ -72,7 +67,7 @@ if __name__ == "__main__":
         shuffle=True,
     )
 
-    patch_dataloader(mp_dataloader, store)
+    patch_dataloaders(store)
     store["ids"] = []
     batches = []
     for batch in mp_dataloader:

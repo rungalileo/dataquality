@@ -49,7 +49,7 @@ class TorchLogger(TorchBaseInstance):
         self.task = task_type
         self.model = model
         self.model_layer = model_layer
-        self._init_dimension(embedding_dim, logits_dim)
+        self._set_dimensions(embedding_dim, logits_dim)
         self.hook_manager = ModelHookManager()
         self.hook_manager.attach_embedding_hook(
             model, self._embedding_hook, model_layer
