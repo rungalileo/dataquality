@@ -1,4 +1,5 @@
 from tempfile import NamedTemporaryFile
+from typing import Callable
 from unittest import mock
 
 import numpy as np
@@ -7,6 +8,7 @@ import pytest
 import vaex
 from datasets import ClassLabel, Dataset, DatasetDict
 
+import dataquality as dq
 from dataquality.dq_auto.text_classification import (
     TCDatasetManager,
     _get_labels,
@@ -189,7 +191,7 @@ def test_validate_dataset_dict() -> None:
         {"text": ["sample1", "sample2", "sample3"], "label": [1, 0, 1]}
     )
     dd = DatasetDict({"train": ds})
-    new_dd = manager._validate_dataset_dict(dd)
+    new_dd = manager._validate_dataset_dict(dd, inference_names=[])
     assert Split.validation in new_dd
     assert len(new_dd[Split.train]["id"]) == 2
     assert len(new_dd[Split.validation]["id"]) == 1
@@ -205,7 +207,7 @@ def test_validate_dataset_dict_no_labels() -> None:
     )
     dd = DatasetDict({"train": ds})
     with pytest.raises(AssertionError) as e:
-        manager._validate_dataset_dict(dd)
+        manager._validate_dataset_dict(dd, inference_names=[])
     assert str(e.value) == "Dataset must have column `label`"
 
 
@@ -213,7 +215,7 @@ def test_validate_dataset_dict_no_text() -> None:
     ds = Dataset.from_dict({"label": [1, 0, 1]})
     dd = DatasetDict({"train": ds})
     with pytest.raises(AssertionError) as e:
-        manager._validate_dataset_dict(dd)
+        manager._validate_dataset_dict(dd, inference_names=[])
     assert str(e.value) == "Dataset must have column `text`"
 
 
@@ -401,3 +403,68 @@ def test_call_auto_pandas_train_df_mixed_meta(
 
     all_ids_logged = ds_logged_arg["id"] + val_ds_logged_arg["id"]
     assert sorted(all_ids_logged) == [0, 1, 2]
+
+
+@mock.patch("dataquality.finish")
+@mock.patch("dataquality.utils.auto_trainer.watch")
+@mock.patch("dataquality.dq_auto.text_classification.get_trainer")
+@mock.patch("dataquality.log_dataset")
+@mock.patch("dataquality.set_labels_for_run")
+@mock.patch("dataquality.init")
+@mock.patch("dataquality.login")
+def test_call_auto_pandas_with_inference(
+    mock_login: mock.MagicMock,
+    mock_init: mock.MagicMock,
+    mock_set_labels: mock.MagicMock,
+    mock_log_dataset: mock.MagicMock,
+    mock_get_trainer: mock.MagicMock,
+    mock_watch: mock.MagicMock,
+    mock_finish: mock.MagicMock,
+    set_test_config: Callable,
+) -> None:
+    df_train = pd.DataFrame(
+        {
+            "text": ["sample4", "sample5", "sample6"],
+            "label": ["red", "green", "blue"],
+            "meta_1": [0, "apple", 5.42],
+        }
+    )
+    df_inf = pd.DataFrame(
+        {
+            "text": ["sample77", "sample5575", "sample6666"],
+            "meta_1": ["Good", "Risky", 55.5],
+        }
+    )
+    trainer = mock.MagicMock()
+    trainer.predict = mock.MagicMock()
+    encoded_data = {"inference_1": df_inf, Split.training: df_train}
+    mock_get_trainer.return_value = trainer, encoded_data
+    auto(train_data=df_train, inference_data={"inference_1": df_inf})
+    # Called to predict one time at the end
+    trainer.predict.assert_called_once()
+    assert dq.get_data_logger().logger_config.cur_split == Split.inference
+    assert dq.get_data_logger().logger_config.cur_inference_name == "inference_1"
+
+    # 3 calls, train, val (since train is split into train/val), and inference
+    assert mock_log_dataset.call_count == 3
+    train_args, train_kwargs = mock_log_dataset.call_args_list[0]
+    assert train_kwargs["meta"] == ["meta_1"]
+    # Whether or not we provided the index IDs, they should be added and logged
+    ds_logged_arg = train_args[0]
+    assert len(ds_logged_arg["id"]) == 2
+
+    val_args, val_kwargs = mock_log_dataset.call_args_list[2]
+    assert val_kwargs["meta"] == ["meta_1"]
+    # Whether or not we provided the index IDs, they should be added and logged
+    val_ds_logged_arg = val_args[0]
+    assert len(val_ds_logged_arg["id"]) == 1
+
+    all_ids_logged = ds_logged_arg["id"] + val_ds_logged_arg["id"]
+    assert sorted(all_ids_logged) == [0, 1, 2]
+
+    # Inference split
+    inf_args, inf_kwargs = mock_log_dataset.call_args_list[1]
+    inf_ds_logged_arg = inf_args[0]
+    assert len(inf_ds_logged_arg) == 3
+    assert inf_kwargs["split"] == Split.inference
+    assert inf_kwargs["inference_name"] == "inference_1"
