@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
 from torch import Tensor
 from torch.nn import Module
@@ -36,9 +36,12 @@ class TorchLogger(TorchBaseInstance):
     def __init__(
         self,
         model: Module,
-        model_layer: Layer = None,
+        last_hidden_state_layer: Layer = None,
         embedding_dim: Optional[Union[str, DimensionSlice]] = None,
         logits_dim: Optional[Union[str, DimensionSlice]] = None,
+        classifier_layer: Layer = "classifier",
+        embedding_fn: Optional[Callable] = None,
+        logits_fn: Optional[Callable] = None,
         task: Union[TaskType, None] = TaskType.text_classification,
     ):
         task_type = task or dq.config.task_type
@@ -48,15 +51,41 @@ class TorchLogger(TorchBaseInstance):
         )
         self.task = task_type
         self.model = model
-        self.model_layer = model_layer
-        self._set_dimensions(embedding_dim, logits_dim)
+        self.last_hidden_state_layer = last_hidden_state_layer
+        self.classifier_layer = classifier_layer
+        self.embedding_fn = embedding_fn
+        self.logits_fn = logits_fn
+
+        self._init_dimension(embedding_dim, logits_dim)
         self.hook_manager = ModelHookManager()
-        self.hook_manager.attach_embedding_hook(
-            model, self._embedding_hook, model_layer
-        )
-        self.hook_manager.attach_hook(model, self._logit_hook_step_end)
+        self._attach_hooks_to_model(model, classifier_layer, last_hidden_state_layer)
+
         self.helper_data: Dict[str, Any] = {}
         self.logger_config = dq.get_data_logger().logger_config
+
+    def _attach_hooks_to_model(
+        self, model: Module, classifier_layer: Layer, last_hidden_state_layer: Layer
+    ) -> None:
+        """
+        Method to attach hooks to the model by using the hook manager
+        :param model: Model
+        :param model: pytorch model layer to attach hooks to
+        :return: None
+        """
+        try:
+            self.hook_manager.attach_classifier_hook(
+                model, self._classifier_hook, classifier_layer
+            )
+        except Exception as e:
+            print(
+                f"Could not attach classifier hook to model. "
+                f"Error: {e}. "
+                f"Please check the classifier layer name: {classifier_layer}"
+            )
+            self.hook_manager.attach_hooks_to_model(
+                model, self._embedding_hook, last_hidden_state_layer
+            )
+            self.hook_manager.attach_hook(model, self._logit_hook)
 
     def _logit_hook_step_end(
         self,
@@ -102,9 +131,12 @@ class TorchLogger(TorchBaseInstance):
 def watch(
     model: Module,
     dataloaders: List[DataLoader],
-    layer: Union[Module, str, None] = None,
+    last_hidden_state_layer: Union[Module, str, None] = None,
     embedding_dim: InputDim = None,
     logits_dim: InputDim = None,
+    classifier_layer: Union[str, Module] = "classifier",
+    embedding_fn: Optional[Callable] = None,
+    logits_fn: Optional[Callable] = None,
 ) -> None:
     """
     [`watch`] is a function that wraps the model and dataloaders to log the
@@ -138,7 +170,14 @@ def watch(
 
     print("Attaching dataquality to model and dataloaders")
     tl = TorchLogger(
-        model, layer, embedding_dim, logits_dim=logits_dim, task=dq.config.task_type
+        model=model,
+        last_hidden_state_layer=last_hidden_state_layer,
+        embedding_dim=embedding_dim,
+        logits_dim=logits_dim,
+        classifier_layer=classifier_layer,
+        embedding_fn=embedding_fn,
+        logits_fn=logits_fn,
+        task=dq.config.task_type,
     )
     if len(dataloaders) == 0:
         raise GalileoException("No dataloaders passed to watch")

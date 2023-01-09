@@ -1,10 +1,13 @@
+import gc
 import re
+from functools import wraps
 from queue import Queue
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np  # noqa: F401
 from torch import Tensor
 from torch.nn import Module
+from torch.utils.data.dataloader import _BaseDataLoaderIter
 from torch.utils.hooks import RemovableHandle
 from transformers.modeling_outputs import BaseModelOutput, TokenClassifierOutput
 
@@ -17,12 +20,12 @@ from dataquality.utils.helpers import wrap_fn
 class TorchBaseInstance:
     embedding_dim: Optional[DimensionSlice]
     logits_dim: Optional[DimensionSlice]
-    embedding_fn: Optional[Any]
-    logits_fn: Optional[Any]
+    embedding_fn: Optional[Any] = None
+    logits_fn: Optional[Any] = None
     task: TaskType
     helper_data: Dict[str, Any]
 
-    def _set_dimensions(
+    def _init_dimension(
         self,
         embedding_dim: Optional[Union[str, DimensionSlice]],
         logits_dim: Optional[Union[str, DimensionSlice]],
@@ -70,6 +73,8 @@ class TorchBaseInstance:
         :param model_output: Output of the current layer
         :return: None
         """
+        if self.embedding_fn is not None:
+            model_input = self.embedding_fn(model_input)
         if isinstance(model_output, Tensor):
             output = model_output
         elif hasattr(model_output, "last_hidden_state"):
@@ -108,6 +113,8 @@ class TorchBaseInstance:
         :param model_output: Model output of the current layer
         :return: None
         """
+        if self.logits_fn is not None:
+            model_output = self.logits_fn(model_output)
         if isinstance(model_output, Tensor):
             logits = model_output
         elif hasattr(model_output, "logits"):
@@ -124,8 +131,8 @@ class TorchBaseInstance:
     def _classifier_hook(
         self,
         model: Module,
-        model_input: Union[Tuple[Tensor], TokenClassifierOutput, Tensor],
-        model_output: Union[BaseModelOutput, Tensor],
+        model_input: Any,  # Union[BaseModelOutput, Tensor],
+        model_output: Any,  # Union[Tuple[Tensor], TokenClassifierOutput, Tensor],
     ) -> None:
         """
         Hook to extract the embeddings from the model
@@ -143,7 +150,7 @@ class TorchBaseInstance:
         if self.embedding_fn is not None:
             model_input = self.embedding_fn(model_input)
 
-        if isinstance(model_input, tuple):
+        if isinstance(model_input, tuple) and len(model_input) == 1:
             model_input = model_input[0]
         if isinstance(model_input, Tensor):
             layer_input = model_input
@@ -292,9 +299,24 @@ class ModelHookManager:
                 layer_model._get_name()
                 queue.put(layer_model.named_children())
         raise GalileoException(
-            f"Layer could not be found in {layer_names_str}, "
-            "make sure to check capitalization"
+            f"Layer could not be found in layers: {layer_names_str}. "
+            "make sure to check capitalization or pass layer directly."
         )
+
+    def attach_hooks_to_model(
+        self,
+        model: Module,
+        embedding_hook: Callable,
+        model_layer: Layer = None,
+    ) -> RemovableHandle:
+        """Attach hook and save it in our hook list"""
+        if model_layer is None:
+            selected_layer = self.get_embedding_layer_auto(model)
+        elif isinstance(model_layer, str):
+            selected_layer = self.get_layer_by_name(model, model_layer)
+        else:
+            selected_layer = model_layer
+        return self.attach_hook(selected_layer, embedding_hook)
 
     def attach_classifier_hook(
         self,
@@ -311,21 +333,6 @@ class ModelHookManager:
             selected_layer = model_layer
         return self.attach_hook(selected_layer, classifier_hook)
 
-    def attach_embedding_hook(
-        self,
-        model: Module,
-        embedding_hook: Callable,
-        model_layer: Layer = None,
-    ) -> RemovableHandle:
-        """Attach hook and save it in our hook list"""
-        if model_layer is None:
-            selected_layer = self.get_embedding_layer_auto(model)
-        elif isinstance(model_layer, str):
-            selected_layer = self.get_layer_by_name(model, model_layer)
-        else:
-            selected_layer = model_layer
-        return self.attach_hook(selected_layer, embedding_hook)
-
     def attach_hook(self, selected_layer: Module, hook: Callable) -> RemovableHandle:
         """Register a hook and save it in our hook list"""
         h = selected_layer.register_forward_hook(hook)
@@ -336,3 +343,59 @@ class ModelHookManager:
         """Remove all hooks from the model"""
         for h in self.hooks:
             h.remove()
+
+
+def patch_dataloaders(store: Dict, reset_indices: bool = True) -> None:
+    def wrap_next_index(func: Callable, key: str = "ids") -> Callable:
+        @wraps(func)
+        def patched_next_index(*args: Any, **kwargs: Any) -> Any:
+            print("patched_next_index", args, kwargs)
+            indices = func(*args, **kwargs)
+            if indices and key in store:
+                if reset_indices and store.get("last_action") == "pop":
+                    store[key] = []
+                store[key].append(indices)
+                store["last_action"] = "append"
+
+            return indices
+
+        return patched_next_index
+
+    if hasattr(_BaseDataLoaderIter, "_patched"):
+        # logger warning if already patched
+        print("BaseDataLoaderIter already patched")
+        return
+    if "patches" not in store:
+        store["patches"] = []
+
+    store["patches"].append({"class": _BaseDataLoaderIter, "attr": "_next_index"})
+    setattr(_BaseDataLoaderIter, "_old__next_index", _BaseDataLoaderIter._next_index)
+    setattr(
+        _BaseDataLoaderIter,
+        "_next_index",
+        wrap_next_index(_BaseDataLoaderIter._next_index, "ids"),
+    )
+    setattr(_BaseDataLoaderIter, "_patched", True)
+
+
+def unpatch(store: Dict) -> None:
+    # unpatch all instances and classes
+    # starting with all classes
+    for patch in store.get("patches", []):
+        print("unpatching", patch["class"])
+        if hasattr(patch["class"], "_patched"):
+            print("unpatching", patch["class"], patch["attr"])
+            setattr(
+                patch["class"],
+                patch["attr"],
+                getattr(patch["class"], f"_old_{patch['attr']}"),
+            )
+            delattr(patch["class"], f"_old_{patch['attr']}")
+            delattr(patch["class"], "_patched")
+        # then all instances
+        for obj in gc.get_objects():
+            if isinstance(obj, patch["class"]) and hasattr(obj, "_patched"):
+                print("unpatching", obj, patch["attr"])
+                setattr(obj, patch["attr"], getattr(obj, f"old_{patch['attr']}"))
+                delattr(obj, f"old_{patch['attr']}")
+                delattr(obj, "_patched")

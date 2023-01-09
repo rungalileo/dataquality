@@ -71,18 +71,18 @@ class TextClassificationModel(nn.Module):
     def __init__(self, vocab_size, embed_dim, num_class):
         super(TextClassificationModel, self).__init__()
         self.embedding = nn.EmbeddingBag(vocab_size, embed_dim, sparse=True)
-        self.fc = nn.Linear(embed_dim, num_class)
+        self.classifier = nn.Linear(embed_dim, num_class)
         self.init_weights()
 
     def init_weights(self):
         initrange = 0.5
         self.embedding.weight.data.uniform_(-initrange, initrange)
-        self.fc.weight.data.uniform_(-initrange, initrange)
-        self.fc.bias.data.zero_()
+        self.classifier.weight.data.uniform_(-initrange, initrange)
+        self.classifier.bias.data.zero_()
 
     def forward(self, text, offsets):
         embedded = self.embedding(text, offsets)
-        return self.fc(embedded)
+        return self.classifier(embedded)
 
 
 """ Initate an instance """
@@ -92,7 +92,6 @@ vocab_size = len(vocab)
 emsize = 64
 model = TextClassificationModel(vocab_size, emsize, num_class).to(device)
 modeldq = TextClassificationModel(vocab_size, emsize, num_class).to(device)
-
 """ Define functions to train the model and evaluate results"""
 
 

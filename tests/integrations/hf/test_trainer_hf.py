@@ -1,7 +1,7 @@
 import torch
 from torch.utils.data import DataLoader
 
-from dataquality.integrations.transformers2 import patch_dataloaders, unpatch
+from dataquality.utils.torch import patch_dataloaders, unpatch
 
 
 def test_mp():
