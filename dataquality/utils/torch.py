@@ -153,15 +153,15 @@ class TorchBaseInstance:
         if isinstance(model_input, tuple) and len(model_input) == 1:
             model_input = model_input[0]
         if isinstance(model_input, Tensor):
-            layer_input = model_input
+            last_hidden_state = model_input
         elif hasattr(model_input, "last_hidden_state"):
-            layer_input = model_input.last_hidden_state
-        output_detached = layer_input.detach()
+            last_hidden_state = model_input.last_hidden_state
+        last_hidden_state_detached = last_hidden_state.detach()
         # If embedding has the CLS token, remove it
 
         if self.embedding_dim is not None:
-            output_detached = output_detached[self.embedding_dim]
-        elif len(output_detached.shape) == 3 and (
+            last_hidden_state_detached = last_hidden_state_detached[self.embedding_dim]
+        elif len(last_hidden_state_detached.shape) == 3 and (
             self.task
             in [
                 TaskType.text_classification,
@@ -171,16 +171,17 @@ class TorchBaseInstance:
         ):
             # It is assumed that the CLS token is removed through this dimension
             # for text classification tasks and multi label tasks
-            output_detached = output_detached[:, 0]
-        elif len(output_detached.shape) == 3 and self.task == TaskType.text_ner:
+            last_hidden_state_detached = last_hidden_state_detached[:, 0]
+        elif (
+            len(last_hidden_state_detached.shape) == 3
+            and self.task == TaskType.text_ner
+        ):
             # It is assumed that the CLS token is removed through this dimension
             # for NER tasks
-            output_detached = output_detached[:, 1:, :]
-        self.helper_data["embs"] = output_detached
+            last_hidden_state_detached = last_hidden_state_detached[:, 1:, :]
 
         if self.logits_fn is not None:
             model_output = self.logits_fn(model_output)
-
         if isinstance(model_output, Tensor):
             logits = model_output
         elif hasattr(model_output, "logits"):
@@ -193,7 +194,9 @@ class TorchBaseInstance:
             # It is assumed that the CLS token is removed
             # through this dimension for NER tasks
             logits = logits[:, 1:, :]
+        self.helper_data["embs"] = last_hidden_state_detached
         self.helper_data["logits"] = logits
+        self._on_step_end()
 
 
 # store indices
@@ -306,7 +309,7 @@ class ModelHookManager:
     def attach_hooks_to_model(
         self,
         model: Module,
-        embedding_hook: Callable,
+        hook_fn: Callable,
         model_layer: Layer = None,
     ) -> RemovableHandle:
         """Attach hook and save it in our hook list"""
@@ -316,7 +319,7 @@ class ModelHookManager:
             selected_layer = self.get_layer_by_name(model, model_layer)
         else:
             selected_layer = model_layer
-        return self.attach_hook(selected_layer, embedding_hook)
+        return self.attach_hook(selected_layer, hook_fn)
 
     def attach_classifier_hook(
         self,

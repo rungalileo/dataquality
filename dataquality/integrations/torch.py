@@ -85,7 +85,7 @@ class TorchLogger(TorchBaseInstance):
             self.hook_manager.attach_hooks_to_model(
                 model, self._embedding_hook, last_hidden_state_layer
             )
-            self.hook_manager.attach_hook(model, self._logit_hook)
+            self.hook_manager.attach_hook(model, self._logit_hook_step_end)
 
     def _logit_hook_step_end(
         self,
@@ -118,7 +118,6 @@ class TorchLogger(TorchBaseInstance):
         assert self.helper_data.get("ids") is not None, GalileoException(
             "id column missing in dataset (needed to map rows to the indices/ids)"
         )
-
         # Convert the indices to ids
         cur_split = dq.get_data_logger().logger_config.cur_split.lower()  # type: ignore
         self.helper_data["ids"] = map_indices_to_ids(
@@ -130,7 +129,7 @@ class TorchLogger(TorchBaseInstance):
 
 def watch(
     model: Module,
-    dataloaders: List[DataLoader],
+    dataloaders: List[DataLoader] = [],
     last_hidden_state_layer: Union[Module, str, None] = None,
     embedding_dim: InputDim = None,
     logits_dim: InputDim = None,

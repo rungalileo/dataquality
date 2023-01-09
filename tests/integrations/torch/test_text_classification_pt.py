@@ -2,6 +2,7 @@ from typing import Callable, Generator
 
 import pandas as pd
 import torch
+import vaex
 from torch import nn
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import random_split
@@ -13,6 +14,9 @@ from torchtext.vocab import build_vocab_from_iterator
 import dataquality as dq
 from dataquality.integrations.torch import watch
 from dataquality.schemas.task_type import TaskType
+from dataquality.utils.thread_pool import ThreadPoolManager
+from dataquality.utils.vaex import validate_unique_ids
+from tests.conftest import LOCATION
 
 train_iter = iter(AG_NEWS(split="train"))
 tokenizer = get_tokenizer("basic_english")
@@ -215,66 +219,15 @@ def test_end_to_end_with_callback(
     )
 
     # 🔭🌕 Logging the dataset with Galileo
-    watch(modeldq, [train_dataloader_dq, test_dataloader_dq])
-
-    for epoch in range(1, EPOCHS + 1):
-        # 🔭🌕 Logging the dataset with Galileo
-        dq.set_epoch_and_split(epoch, "training")
-        train(train_dataloader_dq, modeldq)
-        # 🔭🌕 Logging the dataset with Galileo
-        dq.set_split("test")
-        accu_val = evaluate(test_dataloader_dq, modeldq)
-        if total_accu is not None and total_accu > accu_val:
-            scheduler.step()
-        else:
-            total_accu = accu_val
-
-
-def test_end_to_end_with_callback_logit_fn(
-    cleanup_after_use: Generator, set_test_config: Callable
-) -> None:
-    set_test_config(default_task_type=TaskType.text_classification)
-    global total_accu
-    # Preprocessing
-    ag_train = to_map_style_dataset(AG_NEWS(split="train"))[:500]
-    ag_test = to_map_style_dataset(AG_NEWS(split="test"))[500:800]
-
-    train_df = pd.DataFrame(ag_train)
-    test_df = pd.DataFrame(ag_test)
-    labels = train_df[0].unique()
-    labels.sort()
-    dq.set_labels_for_run(labels)
-    train_df = train_df.reset_index().rename(
-        columns={0: "label", 1: "text", "index": "id"}
-    )
-    train_df["id"] = train_df["id"] + 10000
-    test_df = test_df.reset_index().rename(
-        columns={0: "label", 1: "text", "index": "id"}
-    )
-    dq.log_dataset(train_df, split="train")
-    dq.log_dataset(test_df, split="test")
-
-    train_dataloader_dq = DataLoader(
-        ag_train, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_batch
-    )
-    test_dataloader_dq = DataLoader(
-        ag_test, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_batch
-    )
-
-    def logit_fn(x):
-        return torch.rand_like(x)
-
-    # 🔭🌕 Logging the dataset with Galileo
     watch(
         modeldq,
         [train_dataloader_dq, test_dataloader_dq],
-        classifier_layer="xx",
-        logits_fn=logit_fn,
+        classifier_layer="classifier",
     )
-
-    for epoch in range(1, EPOCHS + 1):
+    split = "training"
+    for epoch in range(0, EPOCHS):
         # 🔭🌕 Logging the dataset with Galileo
-        dq.set_epoch_and_split(epoch, "training")
+        dq.set_epoch_and_split(epoch, split)
         train(train_dataloader_dq, modeldq)
         # 🔭🌕 Logging the dataset with Galileo
         dq.set_split("test")
@@ -283,4 +236,6 @@ def test_end_to_end_with_callback_logit_fn(
             scheduler.step()
         else:
             total_accu = accu_val
-    dq.finish()
+    ThreadPoolManager.wait_for_threads()
+    train_df = vaex.open(f"{LOCATION}/{split}/0/*.hdf5")
+    validate_unique_ids(train_df, "epoch")
