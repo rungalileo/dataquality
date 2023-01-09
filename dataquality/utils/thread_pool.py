@@ -1,4 +1,3 @@
-import os
 import threading
 from threading import Thread
 from time import sleep
