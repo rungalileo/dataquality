@@ -1,5 +1,6 @@
 import os
 import sys
+import threading
 from typing import Dict, List
 
 import h5py
@@ -28,6 +29,7 @@ def _save_hdf5_file(location: str, file_name: str, data: Dict) -> None:
     """
     if not os.path.isdir(location):
         with lock:
+            print(f"{threading.currentThread()} lock acquired in _save_hdf5_file")
             os.makedirs(location, exist_ok=True)
     file_path = f"{location}/{file_name}"
     with h5py.File(file_path, "w") as f:
