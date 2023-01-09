@@ -1,3 +1,4 @@
+import os
 import threading
 from threading import Thread
 from time import sleep
@@ -14,7 +15,7 @@ class ThreadPoolManager:
     """
 
     THREADS: List[Thread] = []
-    MAX_THREADS = 1
+    MAX_THREADS = os.cpu_count() or 10
 
     @staticmethod
     def add_thread(target: Callable, args: Iterable[Any] = None) -> None:

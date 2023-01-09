@@ -19,7 +19,9 @@ def test_duplicate_ids_augmented(set_test_config, cleanup_after_use) -> None:
         "find me a movie with a quote about baseball in it",
     ]
     gold = ["A", "C", "B", "A", "C"]
-    ids = [0, 1, 2, 3, 4]
+    ids = list(range(len(text_inputs)))
+    embs = np.random.rand(5, 10)
+    logits = [[0, 0, 1]] * 5
 
     dq.set_labels_for_run(["A", "B", "C"])
     for split in ["training", "validation", "test"]:
@@ -27,24 +29,34 @@ def test_duplicate_ids_augmented(set_test_config, cleanup_after_use) -> None:
         dq.set_split(split)
         dq.set_epoch(0)
         dq.log_model_outputs(
-            embs=np.random.rand(3, 10),
-            logits=[[0, 0, 1], [0, 0, 1], [0, 0, 1]],
-            ids=[0, 0, 1],
+            embs=embs,
+            logits=logits,
+            ids=ids,
         )
         dq.log_model_outputs(
-            embs=np.random.rand(3, 10),
-            logits=[[0, 0, 1], [0, 0, 1], [0, 0, 1]],
-            ids=[0, 0, 1],
+            embs=embs,
+            logits=logits,
+            ids=ids,
         )
         dq.set_epoch(1)
         dq.log_model_outputs(
-            embs=np.random.rand(3, 10),
-            logits=[[0, 0, 1], [0, 0, 1], [0, 0, 1]],
-            ids=[0, 0, 1],
+            embs=embs,
+            logits=logits,
+            ids=ids,
+        )
+        dq.log_model_outputs(
+            embs=embs,
+            logits=logits,
+            ids=ids,
         )
 
-        ThreadPoolManager.wait_for_threads()
+    ThreadPoolManager.wait_for_threads()
+    for split in ["training", "validation", "test"]:
+        df = vaex.open(f"{LOCATION}/{split}/0/*.hdf5")
+        assert len(df) == 5
         validate_unique_ids(vaex.open(f"{LOCATION}/{split}/0/*.hdf5"), "epoch")
+        df = vaex.open(f"{LOCATION}/{split}/1/*.hdf5")
+        assert len(df) == 5
         validate_unique_ids(vaex.open(f"{LOCATION}/{split}/1/*.hdf5"), "epoch")
 
 
@@ -61,7 +73,9 @@ def test_duplicate_ids_augmented_loop_thread(
         "find me a movie with a quote about baseball in it",
     ]
     gold = ["A", "C", "B", "A", "C"]
-    ids = [0, 1, 2, 3, 4]
+    ids = list(range(len(text_inputs)))
+    embs = np.random.rand(5, 10)
+    logits = [[0, 0, 1]] * 5
 
     dq.set_labels_for_run(["A", "B", "C"])
     for split in ["training", "validation", "test"]:
@@ -69,23 +83,27 @@ def test_duplicate_ids_augmented_loop_thread(
         dq.set_split(split)
         dq.set_epoch(0)
         dq.log_model_outputs(
-            embs=np.random.rand(3, 10),
-            logits=[[0, 0, 1], [0, 0, 1], [0, 0, 1]],
-            ids=[0, 0, 1],
+            embs=embs,
+            logits=logits,
+            ids=ids,
         )
         dq.log_model_outputs(
-            embs=np.random.rand(3, 10),
-            logits=[[0, 0, 1], [0, 0, 1], [0, 0, 1]],
-            ids=[0, 0, 1],
+            embs=embs,
+            logits=logits,
+            ids=ids,
         )
         dq.set_epoch(1)
         dq.log_model_outputs(
-            embs=np.random.rand(3, 10),
-            logits=[[0, 0, 1], [0, 0, 1], [0, 0, 1]],
-            ids=[0, 0, 1],
+            embs=embs,
+            logits=logits,
+            ids=ids,
         )
 
     ThreadPoolManager.wait_for_threads()
     for split in ["training", "validation", "test"]:
-        validate_unique_ids(vaex.open(f"{LOCATION}/{split}/0/*.hdf5"), "epoch")
-        validate_unique_ids(vaex.open(f"{LOCATION}/{split}/1/*.hdf5"), "epoch")
+        df = vaex.open(f"{LOCATION}/{split}/0/*.hdf5")
+        assert len(df) == 5
+        validate_unique_ids(df, "epoch")
+        df = vaex.open(f"{LOCATION}/{split}/1/*.hdf5")
+        assert len(df) == 5
+        validate_unique_ids(df, "epoch")
