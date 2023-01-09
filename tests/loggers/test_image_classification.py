@@ -42,6 +42,7 @@ def test_duplicate_ids_augmented(set_test_config, cleanup_after_use) -> None:
             logits=[[0, 0, 1], [0, 0, 1], [0, 0, 1]],
             ids=[0, 0, 1],
         )
+
         ThreadPoolManager.wait_for_threads()
         validate_unique_ids(vaex.open(f"{LOCATION}/{split}/0/*.hdf5"), "epoch")
         validate_unique_ids(vaex.open(f"{LOCATION}/{split}/1/*.hdf5"), "epoch")
