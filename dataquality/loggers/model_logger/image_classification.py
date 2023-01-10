@@ -44,7 +44,10 @@ class ImageClassificationModelLogger(TextClassificationModelLogger):
         Filter out duplicate ids in the batch. This is done by keeping track of
         the ids that have been observed in the current epoch in the config"""
 
-        observed_ids = self.logger_config.observed_ids[f"{self.split}_{self.epoch}"]
+        key = f"{self.split}_{self.epoch}"
+        if key not in self.logger_config.observed_ids:
+            self.logger_config.observed_ids[key] = ThreadSafeSet()
+        observed_ids = self.logger_config.observed_ids[key]
         unique_ids = ThreadSafeSet()
         unique_ids.update(self.ids)
         _unique_ids = unique_ids.difference(observed_ids)
@@ -81,5 +84,4 @@ class ImageClassificationModelLogger(TextClassificationModelLogger):
         print(f"{threading.currentThread()} lock acquired in _get_data_dict")
         self._filter_duplicate_ids()
 
-        return super()._get_data_dict()
         return super()._get_data_dict()
