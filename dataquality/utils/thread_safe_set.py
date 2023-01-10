@@ -1,12 +1,13 @@
+import threading
 from typing import Any, Iterable, Iterator, Set
 
-from dataquality.utils.thread_pool import lock
+# from dataquality.utils.thread_pool import lock
 
 
 class ThreadSafeSet:
     def __init__(self) -> None:
         self._set: Set = set()
-        self._lock = lock
+        self._lock = threading.Lock()
 
     def add(self, value: Any) -> None:
         with self._lock:
