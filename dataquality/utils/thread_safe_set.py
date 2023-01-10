@@ -1,5 +1,5 @@
 import threading
-from typing import Any, Iterable, Set
+from typing import Any, Iterable, Iterator, Set
 
 
 class ThreadSafeSet:
@@ -15,10 +15,18 @@ class ThreadSafeSet:
         with self._lock:
             self._set.remove(value)
 
-    def update(self, values: Iterable) -> None:
+    def update(self, values: Iterable[Any]) -> None:
         with self._lock:
             self._set.update(values)
 
-    def __iter__(self) -> Iterable:
+    def __iter__(self) -> Iterator:
         with self._lock:
             return iter(self._set)
+
+    def difference(self, values: Iterable[Any]) -> Set:
+        with self._lock:
+            return self._set.difference(values)
+
+    def __len__(self) -> int:
+        with self._lock:
+            return len(self._set)

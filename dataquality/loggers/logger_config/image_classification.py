@@ -1,5 +1,5 @@
-from collections import defaultdict
-from typing import Dict, Set, Union
+# from collections import defaultdict
+from typing import Dict
 
 from dataquality.loggers.logger_config.text_classification import (
     TextClassificationLoggerConfig,

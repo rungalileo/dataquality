@@ -10,7 +10,9 @@ from dataquality.loggers.model_logger.text_classification import (
     TextClassificationModelLogger,
 )
 from dataquality.utils.dq_logger import get_dq_logger
-from dataquality.utils.thread_pool import lock
+
+# from dataquality.utils.thread_pool import lock
+from dataquality.utils.thread_safe_set import ThreadSafeSet
 
 
 class ImageClassificationModelLogger(TextClassificationModelLogger):
@@ -43,18 +45,20 @@ class ImageClassificationModelLogger(TextClassificationModelLogger):
         the ids that have been observed in the current epoch in the config"""
 
         observed_ids = self.logger_config.observed_ids[f"{self.split}_{self.epoch}"]
-        unique_ids = set(self.ids).difference(observed_ids)
-        observed_ids.update(unique_ids)
+        unique_ids = ThreadSafeSet()
+        unique_ids.update(self.ids)
+        _unique_ids = unique_ids.difference(observed_ids)
+        observed_ids.update(_unique_ids)
         id_to_index = {id: index for index, id in enumerate(self.ids)}
 
         # If there are duplicate ids, filter out the duplicates
-        if len(self.ids) > len(unique_ids):
+        if len(self.ids) > len(_unique_ids):
             get_dq_logger().warning(
                 f"Duplicate ids found in epoch. "
                 f"Batch size: {len(self.ids)}, "
-                f"Unique ids: {len(unique_ids)}"
+                f"Unique ids: {len(_unique_ids)}"
             )
-            unique_indices = [id_to_index[id] for id in unique_ids]
+            unique_indices = [id_to_index[id] for id in _unique_ids]
             if len(self.embs) > 0:
                 self.embs = np.array(self.embs)[unique_indices]
             if len(self.probs) > 0:
@@ -77,4 +81,5 @@ class ImageClassificationModelLogger(TextClassificationModelLogger):
         print(f"{threading.currentThread()} lock acquired in _get_data_dict")
         self._filter_duplicate_ids()
 
+        return super()._get_data_dict()
         return super()._get_data_dict()
