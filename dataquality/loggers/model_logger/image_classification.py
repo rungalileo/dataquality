@@ -74,8 +74,7 @@ class ImageClassificationModelLogger(TextClassificationModelLogger):
 
     def _get_data_dict(self) -> Dict[str, Any]:
         # Handle the binary case by converting it to 2-class classification
-        with lock:
-            print(f"{threading.currentThread()} lock acquired in _get_data_dict")
-            self._filter_duplicate_ids()
+        print(f"{threading.currentThread()} lock acquired in _get_data_dict")
+        self._filter_duplicate_ids()
 
         return super()._get_data_dict()
