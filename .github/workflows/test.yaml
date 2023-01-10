@@ -26,6 +26,9 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: install dependencies
         run: scripts/install.sh
+      - name: debug image classification
+        run: |
+          pytest tests/test_image_classification.py -s
       - name: test
         run: scripts/test.sh
       - name: upload coverage
