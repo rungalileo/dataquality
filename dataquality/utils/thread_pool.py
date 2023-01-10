@@ -55,7 +55,8 @@ class ThreadPoolManager:
         """
         ThreadPoolManager._cleanup()
         while len(ThreadPoolManager.THREADS) >= ThreadPoolManager.MAX_THREADS:
-            # sleep(0.05)
+            # this sleep is necessary to prevent the thread from hogging compute
+            sleep(0.05)
             ThreadPoolManager._cleanup()
 
     @staticmethod
