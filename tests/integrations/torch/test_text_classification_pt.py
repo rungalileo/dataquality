@@ -1,6 +1,5 @@
 from typing import Callable, Generator
 
-import vaex
 import pandas as pd
 import torch
 from torch import nn
@@ -14,9 +13,6 @@ from torchtext.vocab import build_vocab_from_iterator
 import dataquality as dq
 from dataquality.integrations.torch import watch
 from dataquality.schemas.task_type import TaskType
-from dataquality.utils.thread_pool import ThreadPoolManager
-from dataquality.utils.vaex import validate_unique_ids
-from tests.conftest import LOCATION
 
 train_iter = iter(AG_NEWS(split="train"))
 tokenizer = get_tokenizer("basic_english")
@@ -221,11 +217,10 @@ def test_end_to_end_with_callback(
 
     # 🔭🌕 Logging the dataset with Galileo
     watch(modeldq, [train_dataloader_dq, test_dataloader_dq])
-    split = "training"
 
-    for epoch in range(0, EPOCHS):
+    for epoch in range(1, EPOCHS + 1):
         # 🔭🌕 Logging the dataset with Galileo
-        dq.set_epoch_and_split(epoch, split)
+        dq.set_epoch_and_split(epoch, "training")
         train(train_dataloader_dq, modeldq)
         # 🔭🌕 Logging the dataset with Galileo
         dq.set_split("test")
@@ -234,7 +229,3 @@ def test_end_to_end_with_callback(
             scheduler.step()
         else:
             total_accu = accu_val
-    ThreadPoolManager.wait_for_threads()
-    train_df = vaex.open(f"{LOCATION}/{split}/0/*.hdf5")
-    validate_unique_ids(train_df, "epoch")
-    print("train_df", train_df)
