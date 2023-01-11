@@ -250,6 +250,7 @@ def auto(
     )
     ```
     """
+    a.log_function("auto/tc")
     manager = TCDatasetManager()
     dd = manager.get_dataset_dict(
         hf_data,
@@ -262,7 +263,6 @@ def auto(
     )
     labels = _get_labels(dd, labels)
     dq.login()
-    a.log_function("auto/tc")
     if not run_name and isinstance(hf_data, str):
         run_name = run_name_from_hf_dataset(hf_data)
     dq.init(TaskType.text_classification, project_name=project_name, run_name=run_name)

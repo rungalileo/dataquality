@@ -160,12 +160,12 @@ def auto(
     )
     ```
     """
+    a.log_function("auto/ner")
     manager = NERDatasetManager()
     dd = manager.get_dataset_dict(
         hf_data, hf_inference_names, train_data, val_data, test_data, inference_data
     )
     dq.login()
-    a.log_function("auto/ner")
     if not run_name and isinstance(hf_data, str):
         run_name = run_name_from_hf_dataset(hf_data)
     dq.init(TaskType.text_ner, project_name=project_name, run_name=run_name)
