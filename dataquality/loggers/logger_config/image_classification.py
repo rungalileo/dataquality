@@ -1,11 +1,8 @@
-# from collections import defaultdict
 from typing import Dict
 
 from dataquality.loggers.logger_config.text_classification import (
     TextClassificationLoggerConfig,
 )
-
-# from dataquality.utils.thread_safe_defaultdict import ThreadSafeDefaultDict
 from dataquality.utils.thread_safe_set import ThreadSafeSet
 
 

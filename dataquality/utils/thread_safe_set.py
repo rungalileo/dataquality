@@ -30,4 +30,3 @@ class ThreadSafeSet:
     def __len__(self) -> int:
         with self._lock:
             return len(self._set)
-            return len(self._set)
