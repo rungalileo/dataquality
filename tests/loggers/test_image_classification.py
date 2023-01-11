@@ -9,7 +9,13 @@ from tests.conftest import LOCATION
 
 
 def test_duplicate_ids_augmented(set_test_config, cleanup_after_use) -> None:
-    # This test is to ensure that duplicate ids caused by augmentation are not logged
+    """
+    This test is to ensure that duplicate ids caused by augmentation are not logged
+    """
+
+    # wait for threads to finish from other tests
+    ThreadPoolManager.wait_for_threads()
+
     set_test_config(task_type="image_classification")
     text_inputs = [
         "what movies star bruce willis",
@@ -63,7 +69,13 @@ def test_duplicate_ids_augmented(set_test_config, cleanup_after_use) -> None:
 def test_duplicate_ids_augmented_loop_thread(
     set_test_config, cleanup_after_use
 ) -> None:
-    # This test is to ensure that duplicate ids caused by augmentation are not logged
+    """
+    This test is to ensure that duplicate ids caused by augmentation are not logged
+    """
+
+    # wait for threads to finish from other tests
+    ThreadPoolManager.wait_for_threads()
+
     set_test_config(task_type="image_classification")
     text_inputs = [
         "what movies star bruce willis",
