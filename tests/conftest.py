@@ -14,6 +14,7 @@ from dataquality.clients import objectstore
 from dataquality.loggers import BaseGalileoLogger
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.dq_logger import DQ_LOG_FILE_HOME
+from dataquality.utils.thread_pool import lock
 from tests.test_utils.mock_request import MockResponse
 
 DEFAULT_API_URL = "http://localhost:8088"
@@ -66,7 +67,8 @@ def cleanup_after_use() -> Generator:
         dataquality.get_model_logger(task_type).logger_config.reset()
     try:
         if os.path.isdir(BaseGalileoLogger.LOG_FILE_DIR):
-            shutil.rmtree(BaseGalileoLogger.LOG_FILE_DIR)
+            with lock:
+                shutil.rmtree(BaseGalileoLogger.LOG_FILE_DIR)
         if not os.path.isdir(TEST_PATH):
             for split in SPLITS:
                 for subdir in SUBDIRS:
@@ -76,9 +78,11 @@ def cleanup_after_use() -> Generator:
         yield
     finally:
         if os.path.exists(BaseGalileoLogger.LOG_FILE_DIR):
-            shutil.rmtree(BaseGalileoLogger.LOG_FILE_DIR)
+            with lock:
+                shutil.rmtree(BaseGalileoLogger.LOG_FILE_DIR)
         if os.path.exists(DQ_LOG_FILE_LOCATION):
-            shutil.rmtree(DQ_LOG_FILE_LOCATION)
+            with lock:
+                shutil.rmtree(DQ_LOG_FILE_LOCATION)
         for task_type in list(TaskType):
             dataquality.get_model_logger(task_type).logger_config.reset()
 

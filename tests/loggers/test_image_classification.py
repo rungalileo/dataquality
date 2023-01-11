@@ -54,10 +54,10 @@ def test_duplicate_ids_augmented(set_test_config, cleanup_after_use) -> None:
     for split in ["training", "validation", "test"]:
         df = vaex.open(f"{LOCATION}/{split}/0/*.hdf5")
         assert len(df) == 5
-        validate_unique_ids(vaex.open(f"{LOCATION}/{split}/0/*.hdf5"), "epoch")
+        validate_unique_ids(df, "epoch")
         df = vaex.open(f"{LOCATION}/{split}/1/*.hdf5")
         assert len(df) == 5
-        validate_unique_ids(vaex.open(f"{LOCATION}/{split}/1/*.hdf5"), "epoch")
+        validate_unique_ids(df, "epoch")
 
 
 def test_duplicate_ids_augmented_loop_thread(
@@ -99,8 +99,7 @@ def test_duplicate_ids_augmented_loop_thread(
             ids=ids,
         )
 
-    ThreadPoolManager.wait_for_threads()
-    for split in ["training", "validation", "test"]:
+        ThreadPoolManager.wait_for_threads()
         df = vaex.open(f"{LOCATION}/{split}/0/*.hdf5")
         assert len(df) == 5
         validate_unique_ids(df, "epoch")
