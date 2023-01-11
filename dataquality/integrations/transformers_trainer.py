@@ -59,7 +59,7 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
         self.logits_fn = logits_fn
         self._init_dimension(embedding_dim, logits_dim)
 
-    def _clear_logger_config_helper_data(self) -> None:
+    def _clear_logger_config_curr_model_outputs(self) -> None:
         self.model_outputs.clear()
 
     def _do_log(self) -> None:
@@ -78,7 +78,7 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
 
         # 🔭🌕 Galileo logging
         dq.log_model_outputs(**self.model_outputs)
-        self._clear_logger_config_helper_data()
+        self._clear_logger_config_curr_model_outputs()
 
     def on_init_end(
         self,
@@ -90,7 +90,7 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
         """
         Event called at the end of the initialization of the [`Trainer`].
         """
-        self._clear_logger_config_helper_data()
+        self._clear_logger_config_curr_model_outputs()
 
     def setup(
         self,
@@ -288,6 +288,7 @@ def watch(
         orig_collate_fn, signature_cols, dqcallback.helper_data["model_outputs"]
     )
     trainer.add_callback(dqcallback)
+    # Save the original signature columns and the callback for unwatch
     helper_data["dqcallback"] = dqcallback
     helper_data["signature_cols"] = [col for col in signature_cols if col != "id"]
     helper_data["orig_collate_fn"] = orig_collate_fn

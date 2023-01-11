@@ -184,23 +184,33 @@ def watch(
     embedding_fn: Optional[Callable] = None,
     logits_fn: Optional[Callable] = None,
     force_local_patching: bool = False,
+    unpatch_on_start: bool = False,
 ) -> None:
     """
     [`watch`] is a function that wraps the model and dataloaders to log the
     embeddings and logits to [Galileo](https://www.rungalileo.io/).
-    :param model: Pytorch model
-    :param dataloaders: List of dataloaders
-    :param layer: Layer to extract the embeddings from
-    :param embedding_dim: Embedding dimension to for example "[:, 0]"
+    :param model: Pytorch Model to be wrapped
+    :param dataloaders: List of dataloaders to be wrapped
+    :param last_hidden_state_layer: Layer to extract the embeddings from
+    :param embedding_dim: Dimension of the embeddings for example "[:, 0]"
     to remove the cls token
     :param logits_dim: Dimension to extract the logits for example in NER
     "[:,1:,:]"
+    :param logits_dim: Dimension of the logits
+    :param classifier_layer: Layer to hook into. This will extract embeddings
+    from layer input and logits from layer output. If the layer is not found,
+    the last_hidden_state_layer will be used
+    :param embedding_fn: Function to process embeddings from the model
+    :param logits_fn: Function to process logits from the model f.e. lambda x[0]
+    :param force_local_patching: Force patching of dataloaders
+    :param unpatch_on_start: Force unpatching of dataloaders
+    instead of global patching
     :return: None
     ```
     dq.log_dataset(train_dataset, split="train")
     train_dataloader = torch.utils.data.DataLoader()
     model = TextClassificationModel(num_labels=len(train_dataset.list_of_labels))
-    watch(model, [train_dataloader,test_dataloader])
+    watch(model, classifier_layer = "classifier")
     for epoch in range(NUM_EPOCHS):
         dq.set_epoch_and_split(epoch,"training")
         train()
@@ -214,6 +224,8 @@ def watch(
     assert dq.config.task_type, GalileoException(
         "dq client must be initialized. " "For example: dq.init('text_classification')"
     )
+    if unpatch_on_start:
+        unwatch(force=True)
     if not getattr(model, "_dq", False):
         setattr(model, "_dq", True)
     else:
@@ -234,7 +246,8 @@ def watch(
         task=dq.config.task_type,
         helper_data=helper_data,
     )
-
+    # Patch the dataloader for passed dataloaders instead of patching the dataloader
+    # class globally
     if force_local_patching:
         if len(dataloaders) == 0:
             raise GalileoException("No dataloaders passed to watch")
@@ -254,18 +267,21 @@ def watch(
                 patch_iterator_with_store(helper_data["model_outputs"]),
             )
     else:
+        # Patch the dataloader class globally
+        # Can be unpatched with unwatch()
         patch_dataloaders(tl.helper_data)
 
 
-def unwatch() -> None:
-    """Unpatches the model. Run after the run is finished
-    :param model: The model to unpatch"""
+def unwatch(force: bool = False) -> None:
+    """Unwatches the model. Run after the run is finished.
+    :param force: Force unwatch even if the model is not watched"""
+
     helper_data = dq.get_model_logger().logger_config.helper_data
-
-    if not getattr(helper_data["model"], "_dq", False):
+    if not getattr(helper_data["model"], "_dq", False) and not force:
         raise GalileoException("Model is not watched, run watch(model) first")
-
-    unpatch(helper_data["patches"])
+    # Unpatch the dataloaders
+    unpatch(helper_data.get("patches", []))
+    # Detach hooks the model
     helper_data["hook_manager"].detach_hooks()
     model = helper_data["model"]
     if hasattr(model, "_dq"):

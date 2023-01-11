@@ -57,7 +57,7 @@ class TorchBaseInstance:
     def _embedding_hook(
         self,
         model: Module,
-        model_input: Tensor,
+        model_input: Optional[Tensor],
         model_output: Union[BaseModelOutput, Tensor],
     ) -> None:
         """
@@ -73,12 +73,23 @@ class TorchBaseInstance:
         :param model_output: Output of the current layer
         :return: None
         """
+        output = None
         if self.embedding_fn is not None:
-            model_input = self.embedding_fn(model_input)
+            model_output = self.embedding_fn(model_output)
+        if isinstance(model_output, tuple) and len(model_output) == 1:
+            model_output = model_output[0]
         if isinstance(model_output, Tensor):
             output = model_output
         elif hasattr(model_output, "last_hidden_state"):
             output = model_output.last_hidden_state
+        if output is None:
+            raise GalileoException(
+                "Could not extract embeddings from the model. "
+                f"Passed embeddings type {type(model_output)} is not supported. "
+                "Pass a custom embedding_fn to extract the embeddings as a Tensor. "
+                "For example pass the following embedding_fn: "
+                "watch(model, embedding_fn=lambda x: x[0].last_hidden_state)"
+            )
         output_detached = output.detach()
         # If embedding has the CLS token, remove it
         if self.embedding_dim is not None:
@@ -104,7 +115,7 @@ class TorchBaseInstance:
     def _logit_hook(
         self,
         model: Module,
-        model_input: Tensor,
+        model_input: Optional[Tensor],
         model_output: Union[TokenClassifierOutput, Tensor],
     ) -> None:
         """
@@ -114,12 +125,23 @@ class TorchBaseInstance:
         :param model_output: Model output of the current layer
         :return: None
         """
+        logits = None
         if self.logits_fn is not None:
             model_output = self.logits_fn(model_output)
+        if isinstance(model_output, tuple) and len(model_output) == 1:
+            model_output = model_output[0]
         if isinstance(model_output, Tensor):
             logits = model_output
         elif hasattr(model_output, "logits"):
             logits = model_output.logits
+        if logits is None:
+            raise GalileoException(
+                "Could not extract logits from the model. "
+                f"Passed logits type {type(model_output)} is not supported. "
+                "Pass a custom logits_fn to extract the logits as a Tensor. "
+                "For example pass the following embedding_fn: "
+                "watch(model, logits_fn=lambda x: x[0])"
+            )
         logits = logits.detach()
         if self.logits_dim is not None:
             logits = logits[self.logits_dim]
@@ -149,56 +171,9 @@ class TorchBaseInstance:
         :param model_output: Output of the current layer
         :return: None
         """
-        if self.embedding_fn is not None:
-            model_input = self.embedding_fn(model_input)
 
-        if isinstance(model_input, tuple) and len(model_input) == 1:
-            model_input = model_input[0]
-        if isinstance(model_input, Tensor):
-            last_hidden_state = model_input
-        elif hasattr(model_input, "last_hidden_state"):
-            last_hidden_state = model_input.last_hidden_state
-        last_hidden_state_detached = last_hidden_state.detach()
-        # If embedding has the CLS token, remove it
-
-        if self.embedding_dim is not None:
-            last_hidden_state_detached = last_hidden_state_detached[self.embedding_dim]
-        elif len(last_hidden_state_detached.shape) == 3 and (
-            self.task
-            in [
-                TaskType.text_classification,
-                TaskType.text_multi_label,
-                TaskType.image_classification,
-            ]
-        ):
-            # It is assumed that the CLS token is removed through this dimension
-            # for text classification tasks and multi label tasks
-            last_hidden_state_detached = last_hidden_state_detached[:, 0]
-        elif (
-            len(last_hidden_state_detached.shape) == 3
-            and self.task == TaskType.text_ner
-        ):
-            # It is assumed that the CLS token is removed through this dimension
-            # for NER tasks
-            last_hidden_state_detached = last_hidden_state_detached[:, 1:, :]
-
-        if self.logits_fn is not None:
-            model_output = self.logits_fn(model_output)
-        if isinstance(model_output, Tensor):
-            logits = model_output
-        elif hasattr(model_output, "logits"):
-            logits = model_output.logits
-        logits = logits.detach()
-
-        if self.logits_dim is not None:
-            logits = logits[self.logits_dim]
-        elif len(logits.shape) == 3 and self.task == TaskType.text_ner:
-            # It is assumed that the CLS token is removed
-            # through this dimension for NER tasks
-            logits = logits[:, 1:, :]
-        model_outputs = self.helper_data["model_outputs"]
-        model_outputs["embs"] = last_hidden_state_detached
-        model_outputs["logits"] = logits
+        self._embedding_hook(model, None, model_input)
+        self._logit_hook(model, None, model_output)
 
 
 # store indices
@@ -351,7 +326,16 @@ class ModelHookManager:
 
 
 def patch_dataloaders(store: Dict, reset_indices: bool = True) -> None:
+    """Patch the dataloaders to store the indices of the batches.
+    :param store: The store to save the indices to.
+    :param reset_indices: If true, the indices will be reset when indices are popped.
+    """
+
     def wrap_next_index(func: Callable, key: str = "ids") -> Callable:
+        """
+        Wraps the next index function to store the indices.
+        """
+
         @wraps(func)
         def patched_next_index(*args: Any, **kwargs: Any) -> Any:
             #            print("patched_next_index", args, kwargs)
@@ -365,9 +349,11 @@ def patch_dataloaders(store: Dict, reset_indices: bool = True) -> None:
 
         return patched_next_index
 
+    # Store all applied patches
     if "patches" not in store:
         store["patches"] = []
 
+    # Patch the dataloader
     if hasattr(_BaseDataLoaderIter, "_patched"):
         # logger warning if already patched
         print("BaseDataLoaderIter already patched")
@@ -380,6 +366,8 @@ def patch_dataloaders(store: Dict, reset_indices: bool = True) -> None:
                 ),
             )
     else:
+        # patch the _BaseDataLoaderIter class to wrap the next index function
+        # save the old function on the class itself
         setattr(
             _BaseDataLoaderIter, "_old__next_index", _BaseDataLoaderIter._next_index
         )
@@ -390,11 +378,15 @@ def patch_dataloaders(store: Dict, reset_indices: bool = True) -> None:
         )
         setattr(_BaseDataLoaderIter, "_patched", True)
         setattr(_BaseDataLoaderIter, "_patch_store", store)
-
+    # store the patch
     store["patches"].append({"class": _BaseDataLoaderIter, "attr": "_next_index"})
 
 
 def unpatch(patches: List[Dict[str, Any]] = []) -> None:
+    """
+    Unpatch all patched classes and instances
+    :param patches: list of patches
+    """
     # unpatch all instances and classes
     # starting with all classes
     for patch in patches:
@@ -409,7 +401,7 @@ def unpatch(patches: List[Dict[str, Any]] = []) -> None:
         )
         delattr(patch["class"], f"_old_{patch['attr']}")
         delattr(patch["class"], "_patched")
-        # then all instances
+        # then all instances of the classes found through the garbage collector
         for obj in gc.get_objects():
             if (
                 isinstance(obj, patch["class"])
@@ -421,6 +413,7 @@ def unpatch(patches: List[Dict[str, Any]] = []) -> None:
                 delattr(obj, f"_old_{patch['attr']}")
                 delattr(obj, "_patched")
 
+    # If no patched items are passed, unpatch all instances and classes
     if len(patches) == 0:
         all_objects = gc.get_objects()
         for obj in all_objects + [_BaseDataLoaderIter]:

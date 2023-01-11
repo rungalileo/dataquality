@@ -90,13 +90,13 @@ class TextClassificationModel(nn.Module):
         return self.classifier(embedded)
 
 
-""" Initate an instance """
 train_iter = AG_NEWS(split="train")
 num_class = len(set([label for (label, text) in train_iter]))
 vocab_size = len(vocab)
 emsize = 64
 model = TextClassificationModel(vocab_size, emsize, num_class).to(device)
 modeldq = TextClassificationModel(vocab_size, emsize, num_class).to(device)
+
 """ Define functions to train the model and evaluate results"""
 
 
@@ -163,7 +163,7 @@ test_df = pd.DataFrame(ag_test)
 train_df = train_df.reset_index().rename(columns={0: "label", 1: "text", "index": "id"})
 train_df["id"] = train_df["id"] + 10000
 test_df = test_df.reset_index().rename(columns={0: "label", 1: "text", "index": "id"})
-labels = train_df["label"].append(test_df["label"]).unique()
+labels = pd.concat([train_df["label"], test_df["label"]]).unique()
 labels.sort()
 
 
@@ -198,6 +198,7 @@ def test_end_to_end_with_callback(
         num_workers=3,
         shuffle=True,
         collate_fn=collate_batch,
+        # persistent_workers=True,
     )
     test_dataloader_dq = DataLoader(
         ag_test, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_batch
