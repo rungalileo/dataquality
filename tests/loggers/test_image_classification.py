@@ -3,6 +3,7 @@ import vaex
 
 import dataquality
 import dataquality as dq
+from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import validate_unique_ids
 from tests.conftest import LOCATION
 

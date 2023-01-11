@@ -6,6 +6,8 @@ from typing import Any, Callable, Iterable, List
 
 from dataquality.exceptions import GalileoException
 
+lock = threading.Lock()
+
 
 class ThreadPoolManager:
     """
