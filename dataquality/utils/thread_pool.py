@@ -1,9 +1,12 @@
 import os
+import threading
 from threading import Thread
 from time import sleep
 from typing import Any, Callable, Iterable, List
 
 from dataquality.exceptions import GalileoException
+
+lock = threading.Lock()
 
 
 class ThreadPoolManager:
@@ -52,6 +55,7 @@ class ThreadPoolManager:
         """
         ThreadPoolManager._cleanup()
         while len(ThreadPoolManager.THREADS) >= ThreadPoolManager.MAX_THREADS:
+            # this sleep is necessary to prevent the thread from hogging compute
             sleep(0.05)
             ThreadPoolManager._cleanup()
 
