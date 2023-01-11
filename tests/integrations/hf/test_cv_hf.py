@@ -20,8 +20,8 @@ from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.conftest import LOCATION
 
 food = load_dataset("sasha/dog-food")
-food["train"] = food["train"].select(range(200))
-food["test"] = food["test"].select(range(64))
+food["train"] = food["train"].select(range(120))
+food["test"] = food["test"].select(range(32))
 food["train"] = food["train"].map(lambda x, idx: {"id": idx}, with_indices=True)
 food["test"] = food["test"].map(lambda x, idx: {"id": idx}, with_indices=True)
 
@@ -66,7 +66,7 @@ training_args = TrainingArguments(
     output_dir="./results",
     per_device_train_batch_size=16,
     evaluation_strategy="steps",
-    num_train_epochs=4,
+    num_train_epochs=2,
     fp16=False,
     save_steps=100,
     eval_steps=100,

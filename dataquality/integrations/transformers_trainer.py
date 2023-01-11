@@ -3,6 +3,7 @@ from typing import Callable, Dict, Optional
 
 from datasets import Dataset
 from torch.nn import Module
+from torch.utils.data import Dataset as TorchDataset
 from transformers import Trainer
 from transformers.trainer_callback import TrainerCallback, TrainerControl, TrainerState
 from transformers.training_args import TrainingArguments
@@ -46,6 +47,8 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
     ) -> None:
         # Access the dq logger helper data
         self.helper_data = dq.get_model_logger().logger_config.helper_data
+        self.helper_data["model_outputs"] = {}
+        self.model_outputs = self.helper_data["model_outputs"]
         self._initialized = False
         # Hook manager for attaching hooks to the model
         self.hook_manager = ModelHookManager()
@@ -56,24 +59,24 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
         self._init_dimension(embedding_dim, logits_dim)
 
     def _clear_logger_config_helper_data(self) -> None:
-        self.helper_data.clear()
+        self.model_outputs.clear()
 
     def _do_log(self) -> None:
         # Log only if embedding exists
-        assert self.helper_data.get("embs") is not None, GalileoException(
+        assert self.model_outputs.get("embs") is not None, GalileoException(
             "Embedding passed to the logger can not be logged"
         )
-        assert self.helper_data.get("logits") is not None, GalileoException(
+        assert self.model_outputs.get("logits") is not None, GalileoException(
             "Logits passed to the logger can not be logged"
         )
-        assert self.helper_data.get("ids") is not None, GalileoException(
+        assert self.model_outputs.get("ids") is not None, GalileoException(
             "Did you map IDs to your dataset before watching the model? You can run:\n"
             "`ds= dataset.map(lambda x, idx: {'id': idx}, with_indices=True)`\n"
             "id (index) column is needed in the dataset for logging"
         )
 
         # 🔭🌕 Galileo logging
-        dq.log_model_outputs(**self.helper_data)
+        dq.log_model_outputs(**self.model_outputs)
         self._clear_logger_config_helper_data()
 
     def on_init_end(
@@ -120,6 +123,14 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
                 """`ds= dataset.map(lambda x, idx: {"id": idx},"""
                 " with_indices=True)`. The id (index) column is needed in "
                 "the dataset for logging"
+            )
+        elif isinstance(train_dataloader_ds, TorchDataset):
+            item = next(iter(train_dataloader_ds))
+            assert hasattr(item, "keys") and "id" in item.keys(), GalileoException(
+                "Dataset __getitem__ needs to return a dictionary"
+                " including the index id. "
+                'For example: return {"input_ids": ..., "attention_mask":'
+                ' ..., "id": ...}'
             )
         else:
             raise GalileoException(f"Unknown dataset type {type(train_dataloader_ds)}")
@@ -266,12 +277,11 @@ def watch(
     # The columns needed for the forward process
     signature_cols = add_id_to_signature_columns(trainer)
 
-    assert trainer.args.dataloader_num_workers == 0, GalileoException(
-        "Parallel Dataloader workers are not supported."
-        "TrainingArgs.dataloader_num_workers should be set to 0"
+    assert trainer.args.n_gpu <= 1, GalileoException(
+        "Parallel GPUs are not supported. TrainingArguments.n_gpu should be set to 1"
     )
     # We wrap the data collator to remove the id column
     trainer.data_collator = remove_id_collate_fn_wrapper(
-        trainer.data_collator, signature_cols, dqcallback.helper_data
+        trainer.data_collator, signature_cols, dqcallback.helper_data["model_outputs"]
     )
     trainer.add_callback(dqcallback)

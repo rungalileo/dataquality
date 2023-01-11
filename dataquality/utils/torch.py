@@ -98,7 +98,8 @@ class TorchBaseInstance:
             # It is assumed that the CLS token is removed through this dimension
             # for NER tasks
             output_detached = output_detached[:, 1:, :]
-        self.helper_data["embs"] = output_detached
+        model_outputs = self.helper_data["model_outputs"]
+        model_outputs["embs"] = output_detached
 
     def _logit_hook(
         self,
@@ -126,7 +127,8 @@ class TorchBaseInstance:
             # It is assumed that the CLS token is removed
             # through this dimension for NER tasks
             logits = logits[:, 1:, :]
-        self.helper_data["logits"] = logits
+        model_outputs = self.helper_data["model_outputs"]
+        model_outputs["logits"] = logits
 
     def _classifier_hook(
         self,
@@ -194,9 +196,9 @@ class TorchBaseInstance:
             # It is assumed that the CLS token is removed
             # through this dimension for NER tasks
             logits = logits[:, 1:, :]
-        self.helper_data["embs"] = last_hidden_state_detached
-        self.helper_data["logits"] = logits
-        self._on_step_end()
+        model_outputs = self.helper_data["model_outputs"]
+        model_outputs["embs"] = last_hidden_state_detached
+        model_outputs["logits"] = logits
 
 
 # store indices
@@ -342,7 +344,7 @@ class ModelHookManager:
         self.hooks.append(h)
         return h
 
-    def remove_hook(self) -> None:
+    def detach_hooks(self) -> None:
         """Remove all hooks from the model"""
         for h in self.hooks:
             h.remove()
@@ -352,53 +354,80 @@ def patch_dataloaders(store: Dict, reset_indices: bool = True) -> None:
     def wrap_next_index(func: Callable, key: str = "ids") -> Callable:
         @wraps(func)
         def patched_next_index(*args: Any, **kwargs: Any) -> Any:
-            print("patched_next_index", args, kwargs)
+            #            print("patched_next_index", args, kwargs)
             indices = func(*args, **kwargs)
             if indices and key in store:
                 if reset_indices and store.get("last_action") == "pop":
                     store[key] = []
                 store[key].append(indices)
                 store["last_action"] = "append"
-
             return indices
 
         return patched_next_index
 
-    if hasattr(_BaseDataLoaderIter, "_patched"):
-        # logger warning if already patched
-        print("BaseDataLoaderIter already patched")
-        return
     if "patches" not in store:
         store["patches"] = []
 
+    if hasattr(_BaseDataLoaderIter, "_patched"):
+        # logger warning if already patched
+        print("BaseDataLoaderIter already patched")
+        if hasattr(_BaseDataLoaderIter, "_old__next_index"):
+            setattr(
+                _BaseDataLoaderIter,
+                "_next_index",
+                wrap_next_index(
+                    getattr(_BaseDataLoaderIter, "_old__next_index"), "ids"
+                ),
+            )
+    else:
+        setattr(
+            _BaseDataLoaderIter, "_old__next_index", _BaseDataLoaderIter._next_index
+        )
+        setattr(
+            _BaseDataLoaderIter,
+            "_next_index",
+            wrap_next_index(_BaseDataLoaderIter._next_index, "ids"),
+        )
+        setattr(_BaseDataLoaderIter, "_patched", True)
+        setattr(_BaseDataLoaderIter, "_patch_store", store)
+
     store["patches"].append({"class": _BaseDataLoaderIter, "attr": "_next_index"})
-    setattr(_BaseDataLoaderIter, "_old__next_index", _BaseDataLoaderIter._next_index)
-    setattr(
-        _BaseDataLoaderIter,
-        "_next_index",
-        wrap_next_index(_BaseDataLoaderIter._next_index, "ids"),
-    )
-    setattr(_BaseDataLoaderIter, "_patched", True)
 
 
-def unpatch(store: Dict) -> None:
+def unpatch(patches: List[Dict[str, Any]] = []) -> None:
     # unpatch all instances and classes
     # starting with all classes
-    for patch in store.get("patches", []):
-        print("unpatching", patch["class"])
-        if hasattr(patch["class"], "_patched"):
-            print("unpatching", patch["class"], patch["attr"])
-            setattr(
-                patch["class"],
-                patch["attr"],
-                getattr(patch["class"], f"_old_{patch['attr']}"),
-            )
-            delattr(patch["class"], f"_old_{patch['attr']}")
-            delattr(patch["class"], "_patched")
+    for patch in patches:
+        # print("unpatching", patch["class"])
+        if not hasattr(patch["class"], "_patched"):
+            continue
+        # print("unpatching", patch["class"], patch["attr"])
+        setattr(
+            patch["class"],
+            patch["attr"],
+            getattr(patch["class"], f"_old_{patch['attr']}"),
+        )
+        delattr(patch["class"], f"_old_{patch['attr']}")
+        delattr(patch["class"], "_patched")
         # then all instances
         for obj in gc.get_objects():
-            if isinstance(obj, patch["class"]) and hasattr(obj, "_patched"):
-                print("unpatching", obj, patch["attr"])
-                setattr(obj, patch["attr"], getattr(obj, f"old_{patch['attr']}"))
-                delattr(obj, f"old_{patch['attr']}")
+            if (
+                isinstance(obj, patch["class"])
+                and hasattr(obj, "_patched")
+                and getattr(obj, f"_old_{patch['attr']}")
+            ):
+                # print("unpatching gc", obj, patch["attr"])
+                setattr(obj, patch["attr"], getattr(obj, f"_old_{patch['attr']}"))
+                delattr(obj, f"_old_{patch['attr']}")
+                delattr(obj, "_patched")
+
+    if len(patches) == 0:
+        all_objects = gc.get_objects()
+        for obj in all_objects + [_BaseDataLoaderIter]:
+            if isinstance(obj, _BaseDataLoaderIter) and getattr(obj, "_patched", False):
+                # print("unpatching", obj)
+                for attrib in dir(obj):
+                    if attrib.startswith("_old_"):
+                        setattr(obj, attrib[5:], getattr(obj, attrib))
+                        delattr(obj, attrib)
                 delattr(obj, "_patched")

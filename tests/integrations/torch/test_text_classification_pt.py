@@ -1,4 +1,5 @@
 from typing import Callable, Generator
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import torch
@@ -12,7 +13,7 @@ from torchtext.datasets import AG_NEWS
 from torchtext.vocab import build_vocab_from_iterator
 
 import dataquality as dq
-from dataquality.integrations.torch import watch
+from dataquality.integrations.torch import unwatch, watch
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import validate_unique_ids
@@ -140,7 +141,7 @@ def evaluate(dataloader, model):
 """Split the dataset and run the model"""
 
 # Hyperparameters
-EPOCHS = 1  # epoch
+EPOCHS = 3  # epoch
 LR = 5  # learning rate
 BATCH_SIZE = 64  # batch size for training
 
@@ -150,69 +151,53 @@ scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1.0, gamma=0.1)
 total_accu = None
 train_iter, test_iter = AG_NEWS()
 train_dataset = to_map_style_dataset(train_iter)
-test_dataset = to_map_style_dataset(test_iter)
 num_train = int(len(train_dataset) * 0.95)
 split_train_, split_valid_ = random_split(
     train_dataset, [num_train, len(train_dataset) - num_train]
 )
 
-train_dataloader = DataLoader(
-    split_train_, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_batch
-)
-valid_dataloader = DataLoader(
-    split_valid_, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_batch
-)
-test_dataloader = DataLoader(
-    test_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_batch
-)
+ag_train = to_map_style_dataset(AG_NEWS(split="train"))[:128]
+ag_test = to_map_style_dataset(AG_NEWS(split="test"))[128:180]
+train_df = pd.DataFrame(ag_train)
+test_df = pd.DataFrame(ag_test)
+train_df = train_df.reset_index().rename(columns={0: "label", 1: "text", "index": "id"})
+train_df["id"] = train_df["id"] + 10000
+test_df = test_df.reset_index().rename(columns={0: "label", 1: "text", "index": "id"})
+labels = train_df["label"].append(test_df["label"]).unique()
+labels.sort()
 
 
-""" Evaluate the model with test dataset"""
-
-
-def test_dataset() -> None:
-    print("Checking the results of test dataset.")
-    accu_test = evaluate(test_dataloader, model)
-    print("test accuracy {:8.3f}".format(accu_test))
-
-
-def test_end_to_end_without_callback():
-    global total_accu
-    for epoch in range(1, EPOCHS + 1):
-        train(train_dataloader, model)
-        accu_val = evaluate(valid_dataloader, model)
-        if total_accu is not None and total_accu > accu_val:
-            scheduler.step()
-        else:
-            total_accu = accu_val
-
-
+@patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
+@patch.object(dq.core.finish, "_version_check")
+@patch.object(dq.core.finish, "_reset_run")
+@patch.object(dq.core.finish, "upload_dq_log_file")
+@patch.object(dq.clients.api.ApiClient, "make_request")
+@patch.object(dq.core.finish, "wait_for_run")
 def test_end_to_end_with_callback(
-    cleanup_after_use: Generator, set_test_config: Callable
+    mock_wait_for_run: MagicMock,
+    mock_make_request: MagicMock,
+    mock_upload_log_file: MagicMock,
+    mock_reset_run: MagicMock,
+    mock_version_check: MagicMock,
+    mock_valid_user: MagicMock,
+    set_test_config: Callable,
+    cleanup_after_use: Generator,
 ) -> None:
-    set_test_config(default_task_type=TaskType.text_classification)
-    global total_accu
-    # Preprocessing
-    ag_train = to_map_style_dataset(AG_NEWS(split="train"))[:500]
-    ag_test = to_map_style_dataset(AG_NEWS(split="test"))[500:800]
 
-    train_df = pd.DataFrame(ag_train)
-    test_df = pd.DataFrame(ag_test)
-    labels = train_df[0].unique()
-    labels.sort()
+    global train_df, test_df
+
+    set_test_config(default_task_type=TaskType.text_classification)
     dq.set_labels_for_run(labels)
-    train_df = train_df.reset_index().rename(
-        columns={0: "label", 1: "text", "index": "id"}
-    )
-    train_df["id"] = train_df["id"] + 10000
-    test_df = test_df.reset_index().rename(
-        columns={0: "label", 1: "text", "index": "id"}
-    )
+    # Preprocessing
     dq.log_dataset(train_df, split="train")
     dq.log_dataset(test_df, split="test")
 
     train_dataloader_dq = DataLoader(
-        ag_train, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_batch
+        ag_train,
+        batch_size=BATCH_SIZE,
+        num_workers=3,
+        shuffle=True,
+        collate_fn=collate_batch,
     )
     test_dataloader_dq = DataLoader(
         ag_test, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_batch
@@ -231,11 +216,62 @@ def test_end_to_end_with_callback(
         train(train_dataloader_dq, modeldq)
         # 🔭🌕 Logging the dataset with Galileo
         dq.set_split("test")
-        accu_val = evaluate(test_dataloader_dq, modeldq)
-        if total_accu is not None and total_accu > accu_val:
-            scheduler.step()
-        else:
-            total_accu = accu_val
+        evaluate(test_dataloader_dq, modeldq)
+    unwatch()
     ThreadPoolManager.wait_for_threads()
-    train_df = vaex.open(f"{LOCATION}/{split}/0/*.hdf5")
-    validate_unique_ids(train_df, "epoch")
+    validate_unique_ids(vaex.open(f"{LOCATION}/{split}/0/*.hdf5"), "epoch")
+    validate_unique_ids(vaex.open(f"{LOCATION}/{split}/1/*.hdf5"), "epoch")
+    dq.finish()
+
+
+@patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
+@patch.object(dq.core.finish, "_version_check")
+@patch.object(dq.core.finish, "_reset_run")
+@patch.object(dq.core.finish, "upload_dq_log_file")
+@patch.object(dq.clients.api.ApiClient, "make_request")
+@patch.object(dq.core.finish, "wait_for_run")
+def test_end_to_end_old_patch(
+    mock_wait_for_run: MagicMock,
+    mock_make_request: MagicMock,
+    mock_upload_log_file: MagicMock,
+    mock_reset_run: MagicMock,
+    mock_version_check: MagicMock,
+    mock_valid_user: MagicMock,
+    set_test_config: Callable,
+    cleanup_after_use: Generator,
+) -> None:
+
+    set_test_config(default_task_type=TaskType.text_classification)
+    # Preprocessing
+    global train_df, test_df
+
+    dq.set_labels_for_run(labels)
+
+    dq.log_dataset(train_df, split="train")
+    dq.log_dataset(test_df, split="test")
+
+    train_dataloader_dq = DataLoader(
+        ag_train, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_batch
+    )
+    test_dataloader_dq = DataLoader(
+        ag_test, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_batch
+    )
+
+    # 🔭🌕 Logging the dataset with Galileo
+    watch(
+        modeldq,
+        [train_dataloader_dq, test_dataloader_dq],
+        classifier_layer="classifier",
+        force_local_patching=True,
+    )
+    split = "training"
+    for epoch in range(0, 2):
+        # 🔭🌕 Logging the dataset with Galileo
+        dq.set_epoch_and_split(epoch, split)
+        train(train_dataloader_dq, modeldq)
+        # 🔭🌕 Logging the dataset with Galileo
+        dq.set_split("test")
+        evaluate(test_dataloader_dq, modeldq)
+    unwatch()
+    ThreadPoolManager.wait_for_threads()
+    validate_unique_ids(vaex.open(f"{LOCATION}/{split}/0/*.hdf5"), "epoch")
