@@ -14,7 +14,6 @@ from dataquality.clients import objectstore
 from dataquality.loggers import BaseGalileoLogger
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.dq_logger import DQ_LOG_FILE_HOME
-from dataquality.utils.thread_pool import lock
 from tests.test_utils.mock_request import MockResponse
 
 DEFAULT_API_URL = "http://localhost:8088"
@@ -64,31 +63,24 @@ def disable_network_calls(request, monkeypatch):
 @pytest.fixture(scope="function")
 def cleanup_after_use() -> Generator:
     for task_type in list(TaskType):
-        with lock:
-            dataquality.get_model_logger(task_type).logger_config.reset()
+        dataquality.get_model_logger(task_type).logger_config.reset()
     try:
         if os.path.isdir(BaseGalileoLogger.LOG_FILE_DIR):
-            with lock:
-                shutil.rmtree(BaseGalileoLogger.LOG_FILE_DIR)
+            shutil.rmtree(BaseGalileoLogger.LOG_FILE_DIR)
         if not os.path.isdir(TEST_PATH):
             for split in SPLITS:
                 for subdir in SUBDIRS:
-                    with lock:
-                        os.makedirs(f"{TEST_PATH}/{split}/{subdir}")
+                    os.makedirs(f"{TEST_PATH}/{split}/{subdir}")
         if not os.path.isdir(DQ_LOG_FILE_LOCATION):
-            with lock:
-                os.makedirs(DQ_LOG_FILE_LOCATION)
+            os.makedirs(DQ_LOG_FILE_LOCATION)
         yield
     finally:
         if os.path.exists(BaseGalileoLogger.LOG_FILE_DIR):
-            with lock:
-                shutil.rmtree(BaseGalileoLogger.LOG_FILE_DIR)
+            shutil.rmtree(BaseGalileoLogger.LOG_FILE_DIR)
         if os.path.exists(DQ_LOG_FILE_LOCATION):
-            with lock:
-                shutil.rmtree(DQ_LOG_FILE_LOCATION)
+            shutil.rmtree(DQ_LOG_FILE_LOCATION)
         for task_type in list(TaskType):
-            with lock:
-                dataquality.get_model_logger(task_type).logger_config.reset()
+            dataquality.get_model_logger(task_type).logger_config.reset()
 
 
 @pytest.fixture()
@@ -108,8 +100,7 @@ def set_test_config(
         for k, v in kwargs.items():
             if k in config.dict():
                 config.__setattr__(k, v)
-        with lock:
-            dataquality.get_model_logger().logger_config.reset()
+        dataquality.get_model_logger().logger_config.reset()
 
     return curry
 
