@@ -10,8 +10,6 @@ from dataquality.loggers.model_logger.text_classification import (
     TextClassificationModelLogger,
 )
 from dataquality.utils.dq_logger import get_dq_logger
-
-# from dataquality.utils.thread_pool import lock
 from dataquality.utils.thread_safe_set import ThreadSafeSet
 
 
@@ -81,7 +79,6 @@ class ImageClassificationModelLogger(TextClassificationModelLogger):
 
     def _get_data_dict(self) -> Dict[str, Any]:
         # Handle the binary case by converting it to 2-class classification
-        print(f"{threading.currentThread()} lock acquired in _get_data_dict")
         self._filter_duplicate_ids()
 
         return super()._get_data_dict()

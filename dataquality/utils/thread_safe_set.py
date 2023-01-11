@@ -1,8 +1,6 @@
 import threading
 from typing import Any, Iterable, Iterator, Set
 
-# from dataquality.utils.thread_pool import lock
-
 
 class ThreadSafeSet:
     def __init__(self) -> None:
