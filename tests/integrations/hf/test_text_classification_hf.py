@@ -165,7 +165,6 @@ def test_remove_unused_columns(
 ) -> None:
     """Base case: Tests watch function to pass"""
     set_test_config(task_type=TaskType.text_classification)
-
     train_dataset = mock_dataset_with_ids
     test_dataset = mock_dataset_with_ids
     dq.set_labels_for_run(mock_hf_dataset.features["label"].names)

@@ -1,5 +1,5 @@
 # Imports for the hook manager
-from typing import Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 from datasets import Dataset
 from torch.nn import Module
@@ -44,9 +44,10 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
         classifier_layer: Layer = "classifier",
         embedding_fn: Optional[Callable] = None,
         logits_fn: Optional[Callable] = None,
+        helper_data: Dict[str, Any] = {},
     ) -> None:
         # Access the dq logger helper data
-        self.helper_data = dq.get_model_logger().logger_config.helper_data
+        self.helper_data = helper_data
         self.helper_data["model_outputs"] = {}
         self.model_outputs = self.helper_data["model_outputs"]
         self._initialized = False
@@ -264,7 +265,7 @@ def watch(
     :return: None
     """
     a.log_function("transformers_trainer/watch")
-
+    helper_data = dq.get_model_logger().logger_config.helper_data
     # Callback which we add to the trainer
     dqcallback = DQCallback(
         last_hidden_state_layer=last_hidden_state_layer,
@@ -273,6 +274,7 @@ def watch(
         classifier_layer=classifier_layer,
         embedding_fn=embedding_fn,
         logits_fn=logits_fn,
+        helper_data=helper_data,
     )
     # The columns needed for the forward process
     signature_cols = add_id_to_signature_columns(trainer)
@@ -280,8 +282,25 @@ def watch(
     assert trainer.args.n_gpu <= 1, GalileoException(
         "Parallel GPUs are not supported. TrainingArguments.n_gpu should be set to 1"
     )
+    orig_collate_fn = trainer.data_collator
     # We wrap the data collator to remove the id column
     trainer.data_collator = remove_id_collate_fn_wrapper(
-        trainer.data_collator, signature_cols, dqcallback.helper_data["model_outputs"]
+        orig_collate_fn, signature_cols, dqcallback.helper_data["model_outputs"]
     )
     trainer.add_callback(dqcallback)
+    helper_data["dqcallback"] = dqcallback
+    helper_data["signature_cols"] = [col for col in signature_cols if col != "id"]
+    helper_data["orig_collate_fn"] = orig_collate_fn
+
+
+def unwatch(trainer: Trainer) -> None:
+    """
+    [`unwatch`] is used to remove the callback from the trainer
+    :param trainer: Trainer object
+    :return: None
+    """
+    a.log_function("transformers_trainer/unwatch")
+    helper_data = dq.get_model_logger().logger_config.helper_data
+    trainer.remove_callback(helper_data["dqcallback"])
+    trainer._signature_columns = helper_data["signature_cols"]
+    trainer.data_collator = helper_data["orig_collate_fn"]
