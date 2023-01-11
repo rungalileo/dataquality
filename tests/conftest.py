@@ -64,7 +64,8 @@ def disable_network_calls(request, monkeypatch):
 @pytest.fixture(scope="function")
 def cleanup_after_use() -> Generator:
     for task_type in list(TaskType):
-        dataquality.get_model_logger(task_type).logger_config.reset()
+        with lock:
+            dataquality.get_model_logger(task_type).logger_config.reset()
     try:
         if os.path.isdir(BaseGalileoLogger.LOG_FILE_DIR):
             with lock:
@@ -72,9 +73,11 @@ def cleanup_after_use() -> Generator:
         if not os.path.isdir(TEST_PATH):
             for split in SPLITS:
                 for subdir in SUBDIRS:
-                    os.makedirs(f"{TEST_PATH}/{split}/{subdir}")
+                    with lock:
+                        os.makedirs(f"{TEST_PATH}/{split}/{subdir}")
         if not os.path.isdir(DQ_LOG_FILE_LOCATION):
-            os.makedirs(DQ_LOG_FILE_LOCATION)
+            with lock:
+                os.makedirs(DQ_LOG_FILE_LOCATION)
         yield
     finally:
         if os.path.exists(BaseGalileoLogger.LOG_FILE_DIR):
@@ -84,7 +87,8 @@ def cleanup_after_use() -> Generator:
             with lock:
                 shutil.rmtree(DQ_LOG_FILE_LOCATION)
         for task_type in list(TaskType):
-            dataquality.get_model_logger(task_type).logger_config.reset()
+            with lock:
+                dataquality.get_model_logger(task_type).logger_config.reset()
 
 
 @pytest.fixture()
@@ -104,7 +108,8 @@ def set_test_config(
         for k, v in kwargs.items():
             if k in config.dict():
                 config.__setattr__(k, v)
-        dataquality.get_model_logger().logger_config.reset()
+        with lock:
+            dataquality.get_model_logger().logger_config.reset()
 
     return curry
 
