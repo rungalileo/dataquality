@@ -51,7 +51,6 @@ class ImageClassificationModelLogger(TextClassificationModelLogger):
         id_to_index = dict()
         for index, id in enumerate(self.ids):
             id_to_index[id] = index
-        # id_to_index = {id: index for index, id in enumerate(self.ids)}
 
         # If there are duplicate ids, filter out the duplicates
         if len(self.ids) > len(_unique_ids):
@@ -82,5 +81,4 @@ class ImageClassificationModelLogger(TextClassificationModelLogger):
         # Handle the binary case by converting it to 2-class classification
         self._filter_duplicate_ids()
 
-        return super()._get_data_dict()
         return super()._get_data_dict()
