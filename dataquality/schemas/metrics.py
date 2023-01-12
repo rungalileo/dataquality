@@ -89,7 +89,7 @@ class FilterParams(HashableBaseModel):
             likely_mislabeled filter. The threshold is applied against the DEP
             distribution of the likely_mislabeled samples. A threshold of 0 returns all,
             100 returns 1 sample, and 50 will return the top 50% DEP samples that are
-            likely_mislabeled. Higher = more precision, lower = more recall. Default 50.
+            likely_mislabeled. Higher = more precision, lower = more recall. Default 0.
     """
 
     ids: List[int] = []
