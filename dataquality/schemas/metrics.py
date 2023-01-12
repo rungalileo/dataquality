@@ -111,4 +111,4 @@ class FilterParams(HashableBaseModel):
     lasso: Optional[LassoSelection] = None
     class_filter: Optional[List[StrictStr]] = None
     likely_mislabeled: Optional[bool] = None
-    likely_mislabeled_dep_percentile: Optional[int] = Field(100, ge=0, le=100)
+    likely_mislabeled_dep_percentile: Optional[int] = Field(0, ge=0, le=100)
