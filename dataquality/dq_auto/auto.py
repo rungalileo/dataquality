@@ -133,9 +133,9 @@ def auto(
 
     An example using `auto` with sklearn data as pandas dataframes
     ```python
+        import dataquality as dq
         import pandas as pd
         from sklearn.datasets import fetch_20newsgroups
-        from dataquality.auto.text_classification import auto
 
         # Load the newsgroups dataset from sklearn
         newsgroups_train = fetch_20newsgroups(subset='train')
@@ -148,7 +148,7 @@ def auto(
             {"text": newsgroups_test.data, "label": newsgroups_test.target}
         )
 
-        auto(
+        dq.auto(
              train_data=df_train,
              test_data=df_test,
              labels=newsgroups_train.target_names,
@@ -159,9 +159,9 @@ def auto(
 
     An example of using `auto` with a local CSV file with `text` and `label` columns
     ```python
-    from dataquality.auto.text_classification import auto
+    import dataquality as dq
 
-    auto(
+    dq.auto(
          train_data="train.csv",
          test_data="test.csv",
          project_name="data_from_local",
