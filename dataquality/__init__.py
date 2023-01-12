@@ -1,9 +1,8 @@
 "dataquality"
 
-__version__ = "v0.8.1"
+__version__ = "v0.8.12"
 
 import os
-import resource
 
 import dataquality.core._config
 import dataquality.integrations
@@ -31,6 +30,7 @@ from dataquality.core.log import (
     log_data_sample,
     log_data_samples,
     log_dataset,
+    log_image_dataset,
     log_model_outputs,
     set_epoch,
     set_epoch_and_split,
@@ -120,6 +120,7 @@ __all__ = [
     "set_console_url",
     "log_data_sample",
     "log_dataset",
+    "log_image_dataset",
     "get_dq_log_file",
     "build_run_report",
     "register_run_report",
@@ -135,8 +136,10 @@ __all__ = [
 ]
 
 try:
+    import resource
+
     resource.setrlimit(resource.RLIMIT_NOFILE, (65535, 65535))
-except ValueError:  # The users limit is higher than our max, which is OK
+except (ImportError, ValueError):  # The users limit is higher than our max, which is OK
     pass
 
 #  Logging is optional. If enabled, imports, method calls

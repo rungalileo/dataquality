@@ -3,7 +3,7 @@ import shutil
 from abc import abstractmethod
 from enum import Enum, unique
 from glob import glob
-from typing import Any, List, Optional, Type, TypeVar, Union
+from typing import Any, Dict, List, Optional, Type, TypeVar, Union
 
 import numpy as np
 
@@ -17,25 +17,8 @@ from dataquality.schemas.split import Split, conform_split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.cloud import is_galileo_cloud
 from dataquality.utils.dq_logger import upload_dq_log_file
-from dataquality.utils.tf import TF_AVAILABLE, is_tf_2
-
-try:
-    from torch import Tensor
-
-    TORCH_AVAILABLE = True
-except ImportError:
-    TORCH_AVAILABLE = False
-
-if TF_AVAILABLE:
-    import tensorflow as tf
-
-try:
-    import datasets
-
-    HF_AVAILABLE = True
-except ImportError:
-    HF_AVAILABLE = False
-
+from dataquality.utils.imports import hf_available, tf_available, torch_available
+from dataquality.utils.tf import is_tf_2
 
 T = TypeVar("T", bound="BaseGalileoLogger")
 
@@ -51,22 +34,24 @@ class BaseLoggerAttributes(str, Enum):
     split = "split"  # type: ignore
     meta = "meta"  # Metadata columns for logging
     prob = "prob"
+    gold_conf_prob = "gold_conf_prob"
+    gold_loss_prob = "gold_loss_prob"
+    gold_loss_prob_label = "gold_loss_prob_label"
+    pred_conf_prob = "pred_conf_prob"
+    pred_loss_prob = "pred_loss_prob"
+    pred_loss_prob_label = "pred_loss_prob_label"
     gold = "gold"
     embs = "embs"
     probs = "probs"
     logits = "logits"
     epoch = "epoch"
-    data_error_potential = "data_error_potential"
     aum = "aum"
     text_tokenized = "text_tokenized"
     gold_spans = "gold_spans"
     pred_emb = "pred_emb"
     gold_emb = "gold_emb"
     pred_spans = "pred_spans"
-    dep_scores = "dep_scores"
     text_token_indices = "text_token_indices"
-    gold_dep = "gold_dep"
-    pred_dep = "pred_dep"
     text_token_indices_flat = "text_token_indices_flat"
     log_helper_data = "log_helper_data"
     inference_name = "inference_name"
@@ -153,13 +138,18 @@ class BaseGalileoLogger:
         arr: Union[List, np.ndarray], attr: Optional[str] = None
     ) -> np.ndarray:
         """Handles numpy arrays and tensors conversions"""
-        if TORCH_AVAILABLE:
+        if torch_available():
+            from torch import Tensor
+
             if isinstance(arr, Tensor):
                 arr = arr.detach().cpu().numpy()
-        if TF_AVAILABLE:
+        if tf_available():
+            import tensorflow as tf
+
             if isinstance(arr, tf.Tensor):
                 if is_tf_2():
-                    arr = arr.cpu().numpy()
+                    with tf.device("/cpu:0"):
+                        arr = tf.identity(arr).numpy()
                 else:  # Just for TF1.x
                     arr = arr.numpy()
         if isinstance(arr, np.ndarray):
@@ -189,14 +179,18 @@ class BaseGalileoLogger:
         """Converts pytorch and tensorflow tensors to strings or ints"""
         if isinstance(v, (int, str)):
             return v
-        if TF_AVAILABLE:
+        if tf_available():
+            import tensorflow as tf
+
             if isinstance(v, tf.Tensor):
                 v = v.numpy()
                 if isinstance(v, bytes):
                     v = v.decode("utf-8")
                 else:
                     v = int(v)
-        if TORCH_AVAILABLE:
+        if torch_available():
+            from torch import Tensor
+
             if isinstance(v, Tensor):
                 v = int(v.numpy())  # Torch tensors cannot hold strings
         if isinstance(v, np.ndarray):
@@ -285,6 +279,32 @@ class BaseGalileoLogger:
 
     @classmethod
     def is_hf_dataset(cls, df: Any) -> bool:
-        if HF_AVAILABLE:
+        if hf_available:
+            import datasets
+
             return isinstance(df, datasets.Dataset)
         return False
+
+    @property
+    def label_idx_map(self) -> Dict[str, int]:
+        """Convert a list of labels to a dictionary of label to index
+
+        Example:
+        --------
+        >>> labels = ["O", "B-PER", "I-PER", "B-LOC", "I-LOC"]
+        >>> label_idx_map(labels)
+        {"O": 0, "B-PER": 1, "I-PER": 2, "B-LOC": 3, "I-LOC": 4}
+        """
+        return {label: idx for idx, label in enumerate(self.logger_config.labels or [])}
+
+    def labels_to_idx(self, gold_sequence: List[str]) -> np.ndarray:
+        """Convert a list of labels to a np array of indices
+
+        Example:
+        --------
+        # labels = ["O", "B-PER", "I-PER", "B-LOC", "I-LOC"]
+        >>> gold_sequence = ["O", "B-LOC", "B-PER", "I-PER", "O"]
+        >>> labels_to_idx(gold_sequence)
+        [0, 3, 1, 2, 0]
+        """
+        return np.array([self.label_idx_map[s] for s in gold_sequence])

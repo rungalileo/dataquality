@@ -41,6 +41,13 @@ MetaType = TypeVar("MetaType", bound=Dict[str, Union[str, float, int]])
 ITER_CHUNK_SIZE = 100_000
 
 
+# Vaex issue https://github.com/vaexio/vaex/issues/2282
+try:
+    vaex.progress.bar("vaex")
+except NameError:
+    vaex.progress._progressbar_registry.registry["vaex"] = vaex.progress.simple
+
+
 class BaseGalileoDataLogger(BaseGalileoLogger):
     MAX_META_COLS = 25  # Limit the number of metadata attrs a user can log
     MAX_STR_LEN = 1000  # Max characters in a string metadata attribute
@@ -299,7 +306,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         :param in_frame: the input dataframe
         :param dir_name: The directory of all of the output hdf5 files
         :param prob_only: If we are only uploading probability data. We only upload
-            probability data for all epochs expect the last one (we dont use cross-epoch
+            probability data for all epochs except the last one (we dont use cross-epoch
             embeddings currently, so we dont log them)
         :param split: The split we are logging for
         :param epoch_or_inf: The epoch or inference name we are logging for

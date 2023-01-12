@@ -12,7 +12,7 @@ from dataquality.schemas import RequestType, Route
 from dataquality.schemas.job import JobName
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.dq_logger import DQ_LOG_FILE_HOME, upload_dq_log_file
-from dataquality.utils.helpers import check_noop
+from dataquality.utils.helpers import check_noop, open_console_url
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.version import _version_check
 
@@ -25,7 +25,7 @@ def finish(
     last_epoch: Optional[int] = None,
     wait: bool = True,
     create_data_embs: bool = False,
-) -> Optional[Dict[str, Any]]:
+) -> str:
     """
     Finishes the current run and invokes a job
 
@@ -61,6 +61,7 @@ def finish(
         labels=data_logger.logger_config.labels,
         task_type=config.task_type.value,
         tasks=data_logger.logger_config.tasks,
+        ner_labels=data_logger.logger_config.ner_labels,
     )
     if data_logger.logger_config.inference_logged:
         body.update(
@@ -80,6 +81,7 @@ def finish(
             "Don't close laptop or terminate shell."
         )
         wait_for_run()
+        open_console_url(res["link"])
         build_run_report(
             data_logger.logger_config.conditions,
             data_logger.logger_config.report_emails,
@@ -89,10 +91,15 @@ def finish(
         )
     elif wait:
         wait_for_run()
+        open_console_url(res["link"])
 
-    # Reset the environment
+    # Reset the data logger
     data_logger._cleanup()
-    return res
+
+    # Reset the model logger
+    dataquality.get_model_logger()._cleanup()
+
+    return res.get("link") or ""
 
 
 @check_noop

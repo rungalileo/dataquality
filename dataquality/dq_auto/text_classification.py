@@ -1,4 +1,4 @@
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -72,7 +72,10 @@ class TCDatasetManager(BaseDatasetManager):
         return self._add_class_label_to_dataset(ds, labels)
 
     def _validate_dataset_dict(
-        self, clean_dd: DatasetDict, labels: List[str] = None
+        self,
+        dd: DatasetDict,
+        inference_names: List[str],
+        labels: Optional[List[str]] = None,
     ) -> DatasetDict:
         """Validates the core components of the provided (or created) DatasetDict)
 
@@ -86,15 +89,16 @@ class TCDatasetManager(BaseDatasetManager):
         We then also convert the keys of the DatasetDict to our `Split` key enum so
         we can access it easier in the future
         """
-        clean_dd = super()._validate_dataset_dict(clean_dd, labels)
+        clean_dd = super()._validate_dataset_dict(dd, inference_names, labels)
         for key in list(clean_dd.keys()):
             ds = clean_dd.pop(key)
             assert "text" in ds.features, "Dataset must have column `text`"
-            assert "label" in ds.features, "Dataset must have column `label`"
+            if key not in inference_names:
+                assert "label" in ds.features, "Dataset must have column `label`"
+                if not isinstance(ds.features["label"], ClassLabel):
+                    ds = self._add_class_label_to_dataset(ds, labels)
             if "id" not in ds.features:
                 ds = ds.add_column("id", list(range(ds.num_rows)))
-            if not isinstance(ds.features["label"], ClassLabel):
-                ds = self._add_class_label_to_dataset(ds, labels)
             clean_dd[key] = ds
         return add_val_data_if_missing(clean_dd)
 
@@ -114,20 +118,26 @@ def _log_dataset_dict(dd: DatasetDict) -> None:
         ds = dd[key]
         default_cols = ["text", "label", "id"]
         meta = [i for i in ds.features if i not in default_cols]
-        dq.log_dataset(ds, meta=meta, split=key)
+        if key in Split.get_valid_keys():
+            dq.log_dataset(ds, meta=meta, split=key)
+        else:
+            dq.log_dataset(ds, meta=meta, split=Split.inference, inference_name=key)
 
 
 def auto(
     hf_data: Union[DatasetDict, str] = None,
+    hf_inference_names: List[str] = None,
     train_data: Union[pd.DataFrame, Dataset, str] = None,
     val_data: Union[pd.DataFrame, Dataset, str] = None,
     test_data: Union[pd.DataFrame, Dataset, str] = None,
+    inference_data: Dict[str, Union[pd.DataFrame, Dataset, str]] = None,
     max_padding_length: int = 200,
     hf_model: str = "distilbert-base-uncased",
     labels: List[str] = None,
     project_name: str = "auto_tc",
     run_name: str = None,
     wait: bool = True,
+    create_data_embs: bool = False,
 ) -> None:
     """Automatically gets insights on a text classification dataset
 
@@ -141,6 +151,8 @@ def auto(
     :param hf_data: Union[DatasetDict, str] Use this param if you have huggingface
         data in the hub or in memory. Otherwise see `train_data`, `val_data`,
         and `test_data`. If provided, train_data, val_data, and test_data are ignored
+    :param hf_inference_names: A list of key names in `hf_data` to be run as inference
+        runs after training. If set, those keys must exist in `hf_data`
     :param train_data: Optional training data to use. Can be one of
         * Pandas dataframe
         * Huggingface dataset
@@ -164,6 +176,13 @@ def auto(
         * Huggingface dataset
         * Path to a local file
         * Huggingface dataset hub path
+    :param inference_data: Optional inference datasets to run with after training
+        completes. The structure is a dictionary with the key being the infeerence name
+        and the value one of
+        * Pandas dataframe
+        * Huggingface dataset
+        * Path to a local file
+        * Huggingface dataset hub path
     :param max_padding_length: The max length for padding the input text
         during tokenization. Default 200
     :param hf_model: The pretrained AutoModel from huggingface that will be used to
@@ -176,9 +195,8 @@ def auto(
         be generated
     :param wait: Whether to wait for Galileo to complete processing your run.
         Default True
-    :param _evaluation_metric: The metric to set for huggingface evaluation.
-        This will simply control the metric huggingface uses to evaluate model
-        performance.
+    :param create_data_embs: Whether to create data embeddings for this run. Default
+        False
 
     To see auto insights on a random, pre-selected dataset, simply run
     ```python
@@ -232,15 +250,23 @@ def auto(
     )
     ```
     """
-    a.log_function("auto/tc")
     manager = TCDatasetManager()
-    dd = manager.get_dataset_dict(hf_data, train_data, val_data, test_data, labels)
+    dd = manager.get_dataset_dict(
+        hf_data,
+        hf_inference_names,
+        train_data,
+        val_data,
+        test_data,
+        inference_data,
+        labels,
+    )
     labels = _get_labels(dd, labels)
     dq.login()
+    a.log_function("auto/tc")
     if not run_name and isinstance(hf_data, str):
         run_name = run_name_from_hf_dataset(hf_data)
     dq.init(TaskType.text_classification, project_name=project_name, run_name=run_name)
     dq.set_labels_for_run(labels)
     _log_dataset_dict(dd)
     trainer, encoded_data = get_trainer(dd, labels, hf_model, max_padding_length)
-    do_train(trainer, encoded_data, wait)
+    do_train(trainer, encoded_data, wait, create_data_embs)

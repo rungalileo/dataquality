@@ -1,4 +1,5 @@
 import os
+import webbrowser
 from functools import wraps
 from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar
 
@@ -85,3 +86,23 @@ def map_indices_to_ids(id_map: List, indices: List) -> List:
     :return: The ids
     """
     return [id_map[i] for i in indices]
+
+
+def open_console_url(link: Optional[str] = "") -> None:
+    """Tries to open the console url in the browser, if possible.
+
+    This will work in local environments like jupyter or a python script, but won't
+    work in colab (because colab is running on a server, so there's no "browser" to
+    interact with). This also prints out the link for users to click so even in those
+    environments they still have something to interact with.
+    """
+    if not link:
+        return
+    try:
+
+        webbrowser.open(link)
+    # In some environments, webbrowser will raise. Other times it fails silently (colab)
+    except Exception:
+        pass
+    finally:
+        print(f"Click here to see your run! {link}")

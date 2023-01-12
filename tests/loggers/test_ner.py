@@ -1,5 +1,5 @@
 from itertools import chain
-from typing import Callable, List
+from typing import Callable, Generator, List
 from unittest import mock
 
 import datasets
@@ -46,7 +46,10 @@ def test_gold_span_extraction() -> None:
     assert new_spans == good_new_spans
 
 
-def test_construct_gold_sequence() -> None:
+def test_construct_gold_sequence(
+    cleanup_after_use: Callable, set_test_config: Callable
+) -> None:
+    set_test_config(default_task_type=TaskType.text_ner)
     len_sequence = 15
     case_1_seq_bio = [
         "O",
@@ -213,56 +216,9 @@ def test_pred_span_extraction_bilou() -> None:
     assert model_logger._extract_spans_token_level(case_5_seq) == case_5_spans
 
 
-def test_calculate_dep_score_across_spans() -> None:
-    dep_scores = [0.9, 0.2, 0.4, 0.3, 0.7, 0.9, 0.4, 0.3, 0.4, 0.3, 0.7, 0.9, 0.4, 0.3]
-    spans = [
-        {"start": 2, "end": 5, "label": "PER"},
-        {"start": 6, "end": 10, "label": "MISC"},
-        {"start": 12, "end": 13, "label": "ORG"},
-    ]
-    span_dep_score = [0.7, 0.4, 0.4]
-    assert span_dep_score == model_logger._calculate_dep_score_across_spans(
-        spans, dep_scores
-    )
-
-
-def test_calculate_dep_scores() -> None:
-    model_logger.logger_config.tagging_schema = "BIO"
-    pred_prob = np.array(
-        [
-            [0.9, 0.05, 0.05, 0, 0, 0, 0],
-            [0.1, 0.7, 0.1, 0.1, 0, 0, 0],
-            [0, 0, 0, 0.1, 0.9, 0, 0],
-            [0.0, 0.4, 0.6, 0, 0, 0, 0],
-            [0.2, 0.05, 0.05, 0, 0, 0.7, 0],
-        ]
-    )
-    model_logger.logger_config.labels = [
-        "B-PER",
-        "I-PER",
-        "B-ORG",
-        "I-ORG",
-        "O",
-        "B-MISC",
-        "I-MISC",
-    ]
-    sample_len = 5
-    gold_spans = [
-        {"start": 0, "end": 2, "label": "PER"},
-        {"start": 4, "end": 5, "label": "MISC"},
-    ]
-    pred_spans = [
-        {"start": 3, "end": 4, "label": "ORG"},
-        {"start": 4, "end": 5, "label": "MISC"},
-    ]
-    gold_dep, pred_dep = model_logger._calculate_dep_scores(
-        pred_prob, gold_spans, pred_spans, sample_len
-    )
-    assert gold_dep == [0.2, 0.25]
-    assert pred_dep == [0.8, 0.25]
-
-
-def test_ner_logging_bad_inputs(set_test_config: Callable, cleanup_after_use) -> None:
+def test_ner_logging_bad_inputs(
+    set_test_config: Callable, cleanup_after_use: Generator
+) -> None:
     set_test_config(task_type=TaskType.text_ner)
     dataquality.set_tagging_schema("BIO")
 
@@ -336,7 +292,8 @@ def test_ner_logging(
 ) -> None:
     """
     To validate:
-    * dep scores are all 0 <= dep <= 1
+    * pred_conf and pred_loss exist in prob df and have correct shape
+    * pred_loss_label exists in prob df
     * assert correct start and end index for extracted spans
     * spans within gold cannot be nested
     * spans within pred cannot be nested
@@ -461,8 +418,9 @@ def test_ner_logging(
 
     prob_path = f"{TEST_PATH}/{split}/0/prob/prob.hdf5"
     prob_df = vaex.open(prob_path)
-    for i in prob_df.data_error_potential.to_numpy():
-        assert 0 <= i <= 1
+    assert list(prob_df.loss_prob_label.to_numpy()) == [0, 2, 6, 6, 5, 5, 6, 7]
+    assert prob_df.loss_prob.shape == (8, 9)  # 8 spans, 9 labels
+    assert prob_df.conf_prob.shape == (8, 9)  # 8 spans, 9 labels
 
     for i in range(3):
         sample_pred_spans = pred_spans[i]
@@ -512,8 +470,9 @@ def test_ner_logging(
     c.upload()
     prob_path = f"{TEST_PATH}/{split}/0/prob/prob.hdf5"
     prob_df = vaex.open(prob_path)
-    for i in prob_df.data_error_potential.to_numpy():
-        assert 0 <= i <= 1
+    assert list(prob_df.loss_prob_label.to_numpy()) == [0, 2, 6, 6, 5, 5, 6, 7]
+    assert prob_df.loss_prob.shape == (8, 9)  # 8 spans, 9 labels
+    assert prob_df.conf_prob.shape == (8, 9)  # 8 spans, 9 labels
 
 
 def test_ghost_spans() -> None:

@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import Dict, List, Union
 
 import pandas as pd
 from datasets import Dataset, DatasetDict
@@ -14,15 +14,18 @@ AUTO_PROJECT_NAME = {
 
 def auto(
     hf_data: Union[DatasetDict, str] = None,
+    hf_inference_names: List[str] = None,
     train_data: Union[pd.DataFrame, Dataset, str] = None,
     val_data: Union[pd.DataFrame, Dataset, str] = None,
     test_data: Union[pd.DataFrame, Dataset, str] = None,
+    inference_data: Dict[str, Union[pd.DataFrame, Dataset, str]] = None,
     max_padding_length: int = 200,
     hf_model: str = "distilbert-base-uncased",
     labels: List[str] = None,
     project_name: str = None,
     run_name: str = None,
     wait: bool = True,
+    create_data_embs: bool = False,
 ) -> None:
     """Automatically gets insights on a text classification or NER dataset
 
@@ -35,7 +38,10 @@ def auto(
 
     :param hf_data: Union[DatasetDict, str] Use this param if you have huggingface
         data in the hub or in memory. Otherwise see `train_data`, `val_data`,
-        and `test_data`. If provided, train_data, val_data, and test_data are ignored
+        and `test_data`. If provided, train_data, val_data, and test_data are ignored.
+    :param hf_inference_names: Use this param alongside `hf_data` if you have splits
+        you'd like to consider as inference. A list of key names in `hf_data`
+        to be run as inference runs after training. Any keys set must exist in `hf_data`
     :param train_data: Optional training data to use. Can be one of
         * Pandas dataframe
         * Huggingface dataset
@@ -59,6 +65,15 @@ def auto(
         * Huggingface dataset
         * Path to a local file
         * Huggingface dataset hub path
+    :param inference_data: User this param to include inference data alongside the
+        `train_data` param. If you are passing data via the `hf_data` parameter, you
+        should use the `hf_inference_names` param. Optional inference datasets to run
+        with after training completes. The structure is a dictionary with the
+        key being the inference name and the value one of
+        * Pandas dataframe
+        * Huggingface dataset
+        * Path to a local file
+        * Huggingface dataset hub path
     :param max_padding_length: The max length for padding the input text
         during tokenization. Default 200
     :param hf_model: The pretrained AutoModel from huggingface that will be used to
@@ -71,9 +86,12 @@ def auto(
         be generated
     :param wait: Whether to wait for Galileo to complete processing your run.
         Default True
-    :param _evaluation_metric: The metric to set for huggingface evaluation.
-        This will simply control the metric huggingface uses to evaluate model
-        performance.
+    :param create_data_embs: Whether to create data embeddings for this run. If True,
+        Sentence-Transformers will be used to generate data embeddings for this dataset
+        and uploaded with this run. You can access these embeddings via
+        `dq.metrics.get_data_embeddings` in the `emb` column or
+        `dq.metrics.get_dataframe(..., include_data_embs=True)` in the `data_emb` col
+        Only available for TC currently. NER coming soon. Default False.
 
     For text classification datasets, the only required columns are `text` and `label`
 
@@ -115,9 +133,9 @@ def auto(
 
     An example using `auto` with sklearn data as pandas dataframes
     ```python
+        import dataquality as dq
         import pandas as pd
         from sklearn.datasets import fetch_20newsgroups
-        from dataquality.auto.text_classification import auto
 
         # Load the newsgroups dataset from sklearn
         newsgroups_train = fetch_20newsgroups(subset='train')
@@ -130,7 +148,7 @@ def auto(
             {"text": newsgroups_test.data, "label": newsgroups_test.target}
         )
 
-        auto(
+        dq.auto(
              train_data=df_train,
              test_data=df_test,
              labels=newsgroups_train.target_names,
@@ -141,9 +159,9 @@ def auto(
 
     An example of using `auto` with a local CSV file with `text` and `label` columns
     ```python
-    from dataquality.auto.text_classification import auto
+    import dataquality as dq
 
-    auto(
+    dq.auto(
          train_data="train.csv",
          test_data="test.csv",
          project_name="data_from_local",
@@ -169,24 +187,29 @@ def auto(
 
         auto_tc(
             hf_data=hf_data,
+            hf_inference_names=hf_inference_names,
             train_data=train_data,
             val_data=val_data,
             test_data=test_data,
+            inference_data=inference_data,
             max_padding_length=max_padding_length,
             hf_model=hf_model,
             labels=labels,
             project_name=project_name or AUTO_PROJECT_NAME[task_type],
             run_name=run_name,
             wait=wait,
+            create_data_embs=create_data_embs,
         )
     elif task_type == TaskType.text_ner:
         from dataquality.dq_auto.ner import auto as auto_ner
 
         auto_ner(
             hf_data=hf_data,
+            hf_inference_names=hf_inference_names,
             train_data=train_data,
             val_data=val_data,
             test_data=test_data,
+            inference_data=inference_data,
             hf_model=hf_model,
             labels=labels,
             project_name=project_name or AUTO_PROJECT_NAME[task_type],

@@ -1,4 +1,3 @@
-import warnings
 from collections import defaultdict
 from typing import Any, Callable, DefaultDict, Dict, Generator, List, Tuple, Union
 
@@ -37,13 +36,63 @@ a.log_import("spacy")
 
 
 @check_noop
+def log_input_docs(
+    docs: List[Doc],
+    inference_name: str,
+    meta: Dict[str, List[Union[str, float, int]]] = None,
+) -> None:
+    """Logs the input docs to the data logger.
+
+    This function is used to log input docs to the data logger for an
+    inference split.
+
+    :param docs: List of spacy Doc objects to log.
+    :param inference_name: The unique inference name for this run.
+    :param meta: A dictionary of meta data to log with the docs.
+    """
+    if not dataquality.get_data_logger().logger_config.labels:
+        raise GalileoException(
+            "Galileo does not have any logged labels. Did you forget "
+            "to call watch(nlp) before log_input_examples(...)?"
+        )
+
+    texts = []
+    text_token_indices = []
+    ids = []
+    for i, doc in enumerate(docs):
+        validate_obj(doc, Doc, "text")
+        texts.append(doc.text)
+        text_token_indices.append(
+            [(token.idx, token.idx + len(token)) for token in doc]
+        )
+        # We add ids to the doc.user_data to be along for the ride through spacy
+        # The predicted doc will be used in inference: `nlp(doc)`
+        doc.user_data["id"] = i
+        ids.append(i)
+
+    dataquality.log_data_samples(
+        texts=texts,
+        text_token_indices=text_token_indices,
+        ids=ids,
+        split=Split.inference,
+        inference_name=inference_name,
+        meta=meta,
+    )
+
+
+@check_noop
 def log_input_examples(
     examples: List[Example],
-    split: Split,
+    split: Union[Split, str],
     meta: Dict[str, List[Union[str, float, int]]] = None,
 ) -> None:
     """Logs a list of Spacy Examples using the dataquality client"""
     split = conform_split(split)
+    if split == Split.inference:
+        raise GalileoException(
+            "`log_input_examples` cannot be used to log inference data. "
+            "Try using `log_input_docs` instead."
+        )
     if not dataquality.get_data_logger().logger_config.labels:
         raise GalileoException(
             "Galileo does not have any logged labels. Did you forget "
@@ -336,12 +385,7 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
         )
         validate_spacy_is_not_using_gpu()
         model_logger = TextNERModelLogger()
-        if model_logger.logger_config.cur_split == Split.inference:
-            warnings.warn(
-                "Inference logging with Galileo coming soon. For now "
-                "skipping logging"
-            )
-            return parser_step_model, backprop_fn
+
         if not all(["id" in doc.user_data for doc in X]):
             raise GalileoException(
                 "One of your input's docs is missing a galileo generated "
@@ -408,18 +452,16 @@ class GalileoParserStepModel(ThincModelWrapper):
     def _self_is_helper_data_filled(self) -> bool:
         """Should be enough to check that logits is filled"""
         helper_data = self._self_model_logger.log_helper_data
-        is_doc_filled = []
         for doc_id, doc_logits in helper_data["logits"].items():
             doc_embs = helper_data["embs"][doc_id]
-            is_doc_filled.append(
-                all(
-                    [
-                        token_logits is not None and token_embs is not None
-                        for token_logits, token_embs in zip(doc_logits, doc_embs)
-                    ]
-                )
-            )
-        return all(is_doc_filled)
+            if not all(
+                [
+                    token_logits is not None and token_embs is not None
+                    for token_logits, token_embs in zip(doc_logits, doc_embs)
+                ]
+            ):
+                return False
+        return True
 
     def _self_fill_helper_data(
         self, states: List[StateClass], scores: np.ndarray

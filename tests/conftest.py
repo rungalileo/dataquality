@@ -5,7 +5,6 @@ from uuid import UUID
 
 import pytest
 import requests
-import spacy
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 from vaex.dataframe import DataFrame
 
@@ -27,8 +26,6 @@ TEST_STORE_DIR = "TEST_STORE"
 TEST_PATH = f"{LOCATION}/{TEST_STORE_DIR}"
 SPLITS = ["training", "test"]
 SUBDIRS = ["data", "emb", "prob"]
-
-spacy.util.fix_random_seed()
 
 
 # Load models locally
@@ -109,11 +106,8 @@ def set_test_config(
 
 
 @pytest.fixture()
-def statuses_response() -> Dict[str, List]:
-    return [
-        {"job_id": "1", "status": "in_progress", "created_at": "2022-02-20"},
-        {"job_id": "2", "status": "completed", "created_at": "2022-02-24"},
-    ]
+def statuses_response() -> Dict[str, str]:
+    return {"job_id": "2", "status": "completed", "created_at": "2022-02-24"}
 
 
 @pytest.fixture()

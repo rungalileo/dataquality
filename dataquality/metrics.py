@@ -279,9 +279,9 @@ def get_dataframe(
 
     Special note for NER. By default, the data will be downloaded at a sample level
     (1 row per sample text), with spans for each sample in a `spans` column in a
-    spacy-compatible JSON format. If include_emb is True, the data will be expanded
-    into span level (1 row per span, with sample text repeated for each span row), in
-    order to join the span-level embeddings
+    spacy-compatible JSON format. If include_embs or include_probs is True,
+    the data will be expanded into span level (1 row per span, with sample text repeated
+    for each span row), in order to join the span-level embeddings/probs
 
     :param project_name: The project name
     :param run_name: The run name
@@ -358,9 +358,9 @@ def get_edited_dataframe(
 
     Special note for NER. By default, the data will be downloaded at a sample level
     (1 row per sample text), with spans for each sample in a `spans` column in a
-    spacy-compatible JSON format. If include_emb is True, the data will be expanded
-    into span level (1 row per span, with sample text repeated for each span row), in
-    order to join the span-level embeddings
+    spacy-compatible JSON format. If include_embs or include_probs is True,
+    the data will be expanded into span level (1 row per span, with sample text repeated
+    for each span row), in order to join the span-level embeddings/probs
 
     :param project_name: The project name
     :param run_name: The run name
@@ -434,15 +434,18 @@ def _process_exported_dataframe(
     See `get_dataframe` and `get_edited_dataframe` for details"""
     split = conform_split(split)
     # See docstring. In this case, we need span-level data
-    # You can't attach embeddings to the huggingface data, since the HF format is
+    # You can't attach embeddings/probs to the huggingface data, since the HF format is
     # sample level, and the embeddings are span level
     embs = include_embs or include_data_embs
-    if embs and task_type == TaskType.text_ner and not hf_format:
+    if (embs or include_probs) and task_type == TaskType.text_ner and not hf_format:
         # In NER, the `probabilities` contains the span level data
         span_df = get_probabilities(project_name, run_name, split, inference_name)
+        keep_cols = [i for i in span_df.get_column_names() if "prob" not in i]
+        span_df = span_df[keep_cols]
         # These are the token (not char) indices, lets make that clear
         span_df.rename("span_start", "span_token_start")
         span_df.rename("span_end", "span_token_end")
+
         for i in data_df.get_column_names():
             if i != "sample_id":
                 data_df.rename(i, f"sample_{i}")
@@ -477,21 +480,20 @@ def _process_exported_dataframe(
                 "Embeddings are not available in HF format, ignoring", GalileoWarning
             )
         else:
-            emb_df = get_data_embeddings(project_name, run_name, split, inference_name)
+            emb_df = get_data_embeddings(
+                project_name, run_name, split, inference_name
+            ).copy()
             emb_df.rename("emb", "data_emb")
             data_df = data_df.join(emb_df, on="id")
     if include_probs:
-        if task_type == task_type.text_ner:
-            warnings.warn(
-                "Probabilities are not available for NER runs, ignoring", GalileoWarning
-            )
-        elif hf_format:
+        if hf_format:
             warnings.warn(
                 "Probabilities are not available in HF format, ignoring", GalileoWarning
             )
         else:
             prob_df = get_probabilities(project_name, run_name, split, inference_name)
-            prob_cols = prob_df.get_column_names(regex="prob*") + ["id"]
+            # Includes `prob` for TC, `prob_#` for MLTC, and `conf/loss_prob` for NER
+            prob_cols = prob_df.get_column_names(regex=r".*prob*") + ["id"]
             data_df = data_df.join(prob_df[prob_cols], on="id")
             data_df = _rename_prob_cols(data_df, tasks)
     if include_token_indices:

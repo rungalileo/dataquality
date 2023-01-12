@@ -1,11 +1,10 @@
 import hashlib
-from typing import Dict, List, Tuple
+from typing import List, Tuple, Union
 
 import numpy as np
 import pandas as pd
-import spacy
 import vaex
-from spacy.language import Doc
+from spacy.language import Doc, Language
 from spacy.training import Example
 from spacy.util import minibatch
 from thinc.model import Model
@@ -16,22 +15,21 @@ import dataquality
 from dataquality.integrations.spacy import log_input_examples, watch
 from tests.conftest import SUBDIRS, TEST_PATH
 
+MINIBATCH_SZ = 3
+
 
 def train_model(
-    training_data: List[Tuple[str, Dict]],
-    test_data: List[Tuple[str, Dict]],
+    nlp: Language,
+    training_examples: List[Example],
     num_epochs: int = 5,
-):
-    nlp = spacy.blank("en")
-    nlp.add_pipe("ner", last=True)
-    minibatch_size = 3
+) -> None:
+    """Trains a model and logs the data, embeddings, and probabilities.
 
-    # Spacy pre-processing
-    training_examples = []
-    for text, annotations in training_data:
-        doc = nlp.make_doc(text)
-        training_examples.append(Example.from_dict(doc, annotations))
-
+    Args:
+        nlp (Language): The spacy model, uninitialized and unwatched
+        training_examples (List[Example]): The training examples.
+        num_epochs (int, optional): The number of epochs to train for. Defaults to 5.
+    """
     optimizer = nlp.initialize(lambda: training_examples)
 
     # Galileo code
@@ -42,7 +40,7 @@ def train_model(
     training_losses = []
     for itn in range(num_epochs):
         dataquality.set_epoch(itn)
-        batches = minibatch(training_examples, minibatch_size)
+        batches = minibatch(training_examples, MINIBATCH_SZ)
 
         dataquality.set_split("training")
         for batch in tqdm(batches):
@@ -50,7 +48,7 @@ def train_model(
             training_losses.append(training_loss["ner"])
 
         dataquality.set_split("test")
-        nlp.evaluate(training_examples, batch_size=minibatch_size)
+        nlp.evaluate(training_examples, batch_size=MINIBATCH_SZ)
 
     # TODO: need to support the following line for inference
     # nlp('Thank you for your subscription renewal')
@@ -66,8 +64,8 @@ def train_model(
 
 def load_ner_data_from_local(
     split: str,
-    epoch: int,
-) -> (pd.DataFrame, DataFrameLocal, pd.DataFrame):
+    inf_name_or_epoch: Union[str, int] = "",
+) -> Tuple[pd.DataFrame, DataFrameLocal, DataFrameLocal]:
     """Loads post-logging locally created files.
 
     Returns: data, emb, and prob vaex dataframes
@@ -75,7 +73,7 @@ def load_ner_data_from_local(
     split_output_data = {}
     for subdir in SUBDIRS:
         file_path = (
-            f"{TEST_PATH}/{split}/{epoch}/{subdir}/{subdir}."
+            f"{TEST_PATH}/{split}/{inf_name_or_epoch}/{subdir}/{subdir}."
             f"{'arrow' if subdir == 'data' else 'hdf5'}"
         )
         # Ensure files were cleaned up
@@ -92,7 +90,7 @@ def load_ner_data_from_local(
     return (
         split_output_data["data"].to_pandas_df(),
         split_output_data["emb"],  # can't convert nested arrays to pandas df
-        split_output_data["prob"].to_pandas_df(),
+        split_output_data["prob"],  # can't convert nested arrays to pandas df
     )
 
 
@@ -103,7 +101,7 @@ def _calculate_emb_from_doc(doc: Doc) -> np.ndarray:
 
 
 class MockParserStepModel(Model):
-    def __init__(self, docs: List[Doc]):
+    def __init__(self, docs: List[Doc]) -> None:
         self._func = self.mock_parser_step_model_forward
 
         tokvecs = []
@@ -111,15 +109,15 @@ class MockParserStepModel(Model):
             tokvecs.extend(_calculate_emb_from_doc(doc))
         self.tokvecs = np.array(tokvecs)
 
-    def mock_parser_step_model_forward(self, X, *args, **kwargs):
+    def mock_parser_step_model_forward(self, X, *args, **kwargs) -> None:
         """Returns logits that should construct an actual state"""
 
 
 class MockTransitionBasedParserModel(Model):
-    def __init__(self):
+    def __init__(self) -> None:
         self._func = self.mock_transition_based_parser_model_forward
 
-    def mock_transition_based_parser_model_forward(self, X, *args, **kwargs):
+    def mock_transition_based_parser_model_forward(self, X, *args, **kwargs) -> None:
         """Mocks TransitionBasedParser Model's forward func
 
         Returns a MockParserStepModel and a noop backprop_fn

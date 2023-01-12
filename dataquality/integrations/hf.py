@@ -101,6 +101,7 @@ def _validate_dataset(dd: DatasetDict) -> DatasetDict:
         ds = dd[key]
         # Filter out the samples with no tokens
         ds = ds.filter(lambda row: len(row[HFCol.tokens]) != 0)
+        # Non-inference split must have ner_tags or tags column (the labels)
         if HFCol.ner_tags not in ds.features and key in Split.get_valid_keys():
             if HFCol.tags in ds.features:
                 ds = ds.rename_column(HFCol.tags, HFCol.ner_tags)
@@ -170,7 +171,6 @@ def tokenize_and_log_dataset(
         ), f"label_names must be of type list, but got {type(label_names)}"
     else:
         label_names = _extract_labels_from_ds(dd)
-
     dq.set_tagging_schema(infer_schema(label_names))
     dq.set_labels_for_run(label_names)
 

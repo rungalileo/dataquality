@@ -161,7 +161,10 @@ tmp/
 *.jsonl
 *.ann
 tests/notebooks/dev/
+results/
 
 finetuned
 
 pytorch_sphinx_theme
+launch.json
+data/

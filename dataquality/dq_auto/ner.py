@@ -1,4 +1,4 @@
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 import pandas as pd
 from datasets import Dataset, DatasetDict
@@ -19,7 +19,10 @@ class NERDatasetManager(BaseDatasetManager):
     DEMO_DATASETS = ["conll2003", "rungalileo/mit_movies", "wnut_17"]
 
     def _validate_dataset_dict(
-        self, dd: DatasetDict, labels: Optional[List[str]] = None
+        self,
+        dd: DatasetDict,
+        inference_names: List[str],
+        labels: Optional[List[str]] = None,
     ) -> DatasetDict:
         """Validates the core components of the provided (or created) DatasetDict)
 
@@ -27,25 +30,28 @@ class NERDatasetManager(BaseDatasetManager):
         train/test/val data must have the following:
             * all keys must be one of our valid key names
             * it must have a `tokens` column
-            * it must have a `tags` or `ner_tags column
+            * it must have a `tags` or `ner_tags column (if not inference)
 
         We then also convert the keys of the DatasetDict to our `Split` key enum so
         we can access it easier in the future
         """
-        clean_dd = super()._validate_dataset_dict(dd, labels)
-        for ds in clean_dd.values():
+        clean_dd = super()._validate_dataset_dict(dd, inference_names, labels)
+        for ds_key, ds in clean_dd.items():
             assert "tokens" in ds.features, "Dataset must have column `tokens`"
-            assert (
-                "tags" in ds.features or "ner_tags" in ds.features
-            ), "Dataset must have column `tags` or `ner_tags`"
+            if ds_key not in inference_names:
+                assert (
+                    "tags" in ds.features or "ner_tags" in ds.features
+                ), "Dataset must have column `tags` or `ner_tags`"
         return add_val_data_if_missing(clean_dd)
 
 
 def auto(
     hf_data: Union[DatasetDict, str] = None,
+    hf_inference_names: List[str] = None,
     train_data: Union[pd.DataFrame, Dataset, str] = None,
     val_data: Union[pd.DataFrame, Dataset, str] = None,
     test_data: Union[pd.DataFrame, Dataset, str] = None,
+    inference_data: Dict[str, Union[pd.DataFrame, Dataset, str]] = None,
     hf_model: str = "distilbert-base-uncased",
     labels: List[str] = None,
     project_name: str = "auto_ner",
@@ -136,8 +142,8 @@ def auto(
         auto(
              train_data=df_train,
              test_data=df_test,
-             labels=TODO,
-             project_name="TODO",
+             labels=['O','B-ACTOR','I-ACTOR','B-TITLE','I-TITLE','B-YEAR','I-YEAR']
+             project_name="ner_movie_reviews",
              run_name="run_1_raw_data"
         )
     ```
@@ -154,10 +160,12 @@ def auto(
     )
     ```
     """
-    a.log_function("auto/ner")
     manager = NERDatasetManager()
-    dd = manager.get_dataset_dict(hf_data, train_data, val_data, test_data)
+    dd = manager.get_dataset_dict(
+        hf_data, hf_inference_names, train_data, val_data, test_data, inference_data
+    )
     dq.login()
+    a.log_function("auto/ner")
     if not run_name and isinstance(hf_data, str):
         run_name = run_name_from_hf_dataset(hf_data)
     dq.init(TaskType.text_ner, project_name=project_name, run_name=run_name)

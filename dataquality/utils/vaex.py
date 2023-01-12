@@ -1,6 +1,5 @@
 import os
 import sys
-import threading
 from typing import Dict, List
 
 import h5py
@@ -15,8 +14,8 @@ from dataquality.loggers.base_logger import BaseLoggerAttributes
 from dataquality.utils import tqdm
 from dataquality.utils.hdf5_store import HDF5_STORE, HDF5Store
 from dataquality.utils.helpers import galileo_verbose_logging
+from dataquality.utils.thread_pool import lock
 
-lock = threading.Lock()
 # To decide between "all-MiniLM-L6-v2" or "all-mpnet-base-v2"
 # https://www.sbert.net/docs/pretrained_models.html#model-overview
 GALILEO_DATA_EMBS_ENCODER = "GALILEO_DATA_EMBS_ENCODER"
@@ -119,9 +118,8 @@ def _valid_prob_col(col: str) -> bool:
         col.endswith("id")
         or "gold" in col
         or "pred" in col
-        or col.startswith("prob")
+        or "prob" in col  # encapsulates prob, conf_prob, and loss_prob
         or col.startswith("span")
-        or col.startswith("data_")
         or col.startswith("galileo")
     )
 

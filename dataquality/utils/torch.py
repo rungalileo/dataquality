@@ -77,7 +77,12 @@ class TorchBaseInstance:
         if self.embedding_dim is not None:
             output_detached = output_detached[self.embedding_dim]
         elif len(output_detached.shape) == 3 and (
-            self.task in [TaskType.text_classification, TaskType.text_multi_label]
+            self.task
+            in [
+                TaskType.text_classification,
+                TaskType.text_multi_label,
+                TaskType.image_classification,
+            ]
         ):
             # It is assumed that the CLS token is removed through this dimension
             # for text classification tasks and multi label tasks
