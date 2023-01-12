@@ -10,8 +10,6 @@ from dataquality.loggers.model_logger.text_classification import (
 )
 from dataquality.utils.dq_logger import get_dq_logger
 
-# from dataquality.utils.thread_safe_set import ThreadSafeSet
-
 
 class ImageClassificationModelLogger(TextClassificationModelLogger):
     __logger_name__ = "image_classification"

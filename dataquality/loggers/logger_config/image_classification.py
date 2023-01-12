@@ -4,8 +4,6 @@ from dataquality.loggers.logger_config.text_classification import (
     TextClassificationLoggerConfig,
 )
 
-# from dataquality.utils.thread_safe_set import ThreadSafeSet
-
 
 class ImageClassificationLoggerConfig(TextClassificationLoggerConfig):
     # Keep track of the ids that have been observed in the current epoch
