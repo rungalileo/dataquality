@@ -82,7 +82,7 @@ class FilterParams(HashableBaseModel):
         exclude_ids: List[int] = []  opposite of `ids`
         lasso: Optional[LassoSelection] = None  see LassoSelection class
         class_filter: Optional[List[StrictStr]] = None  filter GT OR prediction
-        likely_mislabeled: Optional[List[StrictStr]] = None  Filter for only
+        likely_mislabeled: Optional[bool] = None  Filter for only
             likely_mislabeled samples. False/None will return all samples
         likely_mislabeled_dep_percentile: Optional[int] A percentile threshold for l
             ikely mislabeled. This field (ranged 0-100) determines the precision of the
