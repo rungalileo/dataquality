@@ -82,14 +82,14 @@ class FilterParams(HashableBaseModel):
         exclude_ids: List[int] = []  opposite of `ids`
         lasso: Optional[LassoSelection] = None  see LassoSelection class
         class_filter: Optional[List[StrictStr]] = None  filter GT OR prediction
-        likely_mislabeled: Optional[List[StrictStr]] = None  Filter for only
+        likely_mislabeled: Optional[bool] = None  Filter for only
             likely_mislabeled samples. False/None will return all samples
         likely_mislabeled_dep_percentile: Optional[int] A percentile threshold for l
             ikely mislabeled. This field (ranged 0-100) determines the precision of the
             likely_mislabeled filter. The threshold is applied against the DEP
             distribution of the likely_mislabeled samples. A threshold of 0 returns all,
             100 returns 1 sample, and 50 will return the top 50% DEP samples that are
-            likely_mislabeled. Higher = more precision, lower = more recall. Default 50.
+            likely_mislabeled. Higher = more precision, lower = more recall. Default 0.
     """
 
     ids: List[int] = []
@@ -111,4 +111,4 @@ class FilterParams(HashableBaseModel):
     lasso: Optional[LassoSelection] = None
     class_filter: Optional[List[StrictStr]] = None
     likely_mislabeled: Optional[bool] = None
-    likely_mislabeled_dep_percentile: Optional[int] = Field(50, ge=0, le=100)
+    likely_mislabeled_dep_percentile: Optional[int] = Field(0, ge=0, le=100)
