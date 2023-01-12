@@ -93,8 +93,12 @@ def finish(
         wait_for_run()
         open_console_url(res["link"])
 
-    # Reset the environment
+    # Reset the data logger
     data_logger._cleanup()
+
+    # Reset the model logger
+    dataquality.get_model_logger()._cleanup()
+
     return res.get("link") or ""
 
 
