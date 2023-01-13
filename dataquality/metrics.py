@@ -436,6 +436,7 @@ def _process_exported_dataframe(
     # See docstring. In this case, we need span-level data
     # You can't attach embeddings/probs to the huggingface data, since the HF format is
     # sample level, and the embeddings are span level
+
     embs = include_embs or include_data_embs
     if (embs or include_probs) and task_type == TaskType.text_ner and not hf_format:
         # In NER, the `probabilities` contains the span level data
@@ -454,10 +455,8 @@ def _process_exported_dataframe(
     tasks = []
     if task_type == TaskType.text_multi_label:
         tasks = api_client.get_tasks_for_run(project_name, run_name)
-        labels = [
-            api_client.get_labels_for_run(project_name, run_name, task)
-            for task in tasks
-        ]
+        # Don't provide a task, get all task-labels
+        labels = get_labels_for_run(project_name, run_name)
         data_df = _index_df(data_df, labels, tasks)
         data_df = _clean_mltc_df(data_df)
     if task_type == TaskType.text_classification:
@@ -658,8 +657,24 @@ def get_xray_cards(
 def get_labels_for_run(
     project_name: str, run_name: str, task: Optional[str] = None
 ) -> List[str]:
-    """Gets labels for a given run. If multi-label, a task must be provided"""
-    return api_client.get_labels_for_run(project_name, run_name, task)
+    """Gets labels for a given run.
+
+    If multi-label, and a task is provided, this will get the labels for that task.
+    Otherwise, it will get all task-labels
+    """
+    try:
+        return api_client.get_labels_for_run(project_name, run_name, task)
+    except GalileoException as e:
+        if str(e) != "For multi-label runs, a task name must be provided":
+            raise e
+        # Multi-label case with no task provided. Get all tasks
+        pid, rid = api_client._get_project_run_id(project_name, run_name)
+        labels_object = f"{pid}/{rid}/labels/labels.json"
+        labels_path = object_store.download_file(
+            labels_object, "/tmp/labels.json", object_store.RESULTS_BUCKET_NAME
+        )
+        with open(labels_path) as f:
+            return json.loads(f.read())
 
 
 def get_tasks_for_run(project_name: str, run_name: str) -> List[str]:
@@ -719,8 +734,8 @@ def _index_df(df: DataFrame, labels: List, tasks: Optional[List] = None) -> Data
     for ind, task in enumerate(tasks):
         # If multi label, must do it per task. If TC, then it's just 1 list of labels
         task_labels = labels[ind] if task else labels
-        for col in ["gold", "pred"]:
-            if col not in df.get_column_names():
+        for col in ["gold", "pred", "label"]:
+            if col not in df.get_column_names() or df[col].dtype != int:
                 continue
             df_col = f"{col}_{task}" if task else col
             df[f"{df_col}_idx"] = df[df_col]
@@ -747,6 +762,6 @@ def _conform_edit(edit: Union[Edit, Dict]) -> Edit:
 
 def _clean_mltc_df(df: DataFrame) -> DataFrame:
     """In MLTC, don't return the non-task-indexes gold/pred/dep columns"""
-    drop_cols = ["gold", "pred", "data_error_potential", "prob"]
+    drop_cols = ["gold", "label", "pred", "data_error_potential", "prob"]
     keep_cols = [col for col in df.get_column_names() if col not in drop_cols]
     return df[keep_cols]
