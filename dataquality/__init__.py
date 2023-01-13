@@ -70,11 +70,9 @@ def configure(do_login: bool = True) -> None:
     * GALILEO_USERNAME
     * GALILEO_PASSWORD
     """
-    print("HI-")
     a.log_function("dq/configure")
     warnings.warn(
-        "configure is deprecated, use dq.set_console_url and dq.login",
-        GalileoWarning
+        "configure is deprecated, use dq.set_console_url and dq.login", GalileoWarning
     )
 
     if "GALILEO_API_URL" in os.environ:
