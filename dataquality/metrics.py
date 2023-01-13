@@ -656,7 +656,7 @@ def get_xray_cards(
 
 def get_labels_for_run(
     project_name: str, run_name: str, task: Optional[str] = None
-) -> List[str]:
+) -> List:
     """Gets labels for a given run.
 
     If multi-label, and a task is provided, this will get the labels for that task.
