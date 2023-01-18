@@ -3,9 +3,12 @@
 __version__ = "v0.8.12"
 
 import os
+import sys
 
 import dataquality.core._config
 import dataquality.integrations
+from dataquality.exceptions import GalileoException
+from dataquality.utils import imports as lazy_imports
 
 # We try/catch this in case the user installed dq inside of jupyter. You need to
 # restart the kernel after the install and we want to make that clear. This is because
@@ -155,3 +158,56 @@ except (ImportError, ValueError):  # The users limit is higher than our max, whi
 #  a.log_method_call("dataquality.log_data_samples")
 a = Analytics(ApiClient, config)
 a.log_import("dataquality")
+
+
+class DataQuality:
+    call_args = None
+    call_kwargs = None
+
+    def __call__(self, *args, **kwds):
+        self.call_kwargs = kwds
+        self.call_args = args
+        return self
+
+    def __enter__(self, *args, **kwargs):
+        if not len(args) and not len(kwargs):
+            args = self.call_args
+            kwargs = self.call_kwargs
+
+        model = kwargs.get("model")
+        if not model:
+            model = args[0]
+
+        # check if the model is a pytorch nn.Module instance
+        # but we don't want to import torch here
+        if hasattr(model, "register_forward_hook"):
+            pass
+        elif hasattr(model, "fit"):
+            pass
+        elif hasattr(model, "push_to_hub"):
+            pass
+        elif hasattr(model, "pipe"):
+            pass
+        else:
+            print("Model could not be determined")
+            # raise GalileoException("model class could not be determined")
+        return self
+
+    def __exit__(self, *args, **kwargs):
+        print("exit")
+        return self
+
+    # we want to add the __all__ to the module
+    def __dir__(self):
+        return __all__
+
+    def __getattr__(self, name):
+        if name in __all__:
+            return globals()[name]
+        raise AttributeError(f"module {__name__} has no attribute {name}")
+
+
+# Workaround by Guido van Rossum: https://mail.python.org/pipermail/python-ideas/2012-May/014969.html
+# This allows us to use the same syntax as the original dataquality package
+_dq = DataQuality()
+sys.modules[__name__] = _dq
