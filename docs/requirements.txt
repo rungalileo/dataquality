@@ -1,0 +1,6 @@
+# requirements for readthedocs generation
+# TODO COMMON requirements
+sphinx==5.3.0
+sphinx-autobuild
+sphinx-autodoc-typehints
+furo==2022.12.7
