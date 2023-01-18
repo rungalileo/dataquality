@@ -3,7 +3,7 @@ from enum import Enum, unique
 from typing import List, Optional, Union
 
 import pandas as pd
-from PIL import Image
+from PIL.Image import Image
 
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger.base_data_logger import (
@@ -19,7 +19,7 @@ from dataquality.loggers.logger_config.image_classification import (
     image_classification_logger_config,
 )
 from dataquality.schemas.split import Split
-from dataquality.utils.cv import _img_path_to_b64_str, _img_to_b64_str
+from dataquality.utils.cv import _img_path_to_b64_str, _img_to_b64_str, _bytes_to_b64_str
 
 
 @unique
@@ -52,15 +52,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             inference_name=inference_name,
         )
 
-    @staticmethod
-    def _infer_image_field_type(example: Union[Image, dict, str]) -> ImageFieldType:
-        if isinstance(example, Image):
-            return ImageFieldType.pil_image
-        if isinstance(example, str):
-            return ImageFieldType.file_path
-        if isinstance(example, dict) and all(k in example for k in ["bytes", "path"]):
-            return ImageFieldType.hf_image_feature
-        return ImageFieldType.unknown
+
 
     def log_image_dataset(
         self,
@@ -75,23 +67,31 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         meta: Optional[List[Union[str, int]]] = None,
     ) -> None:
         if self.is_hf_dataset(dataset):
-            # TODO: cast to non decode
-            example = dataset[0][imgs_location_colname]
-            image_field_type = self._infer_image_field_type(example)
+            image_feature = dataset.features[imgs_location_colname]
+
+            image_field_type = ImageFieldType.unknown
+            if image_feature.dtype == Image:
+                image_field_type = image_field_type.hf_image_feature
+            elif image_feature.dtype == str:
+                image_field_type = image_field_type.file_path
 
             if image_field_type == image_field_type.hf_image_feature:
+                import datasets
+                dataset = dataset.cast_column(imgs_location_colname, datasets.Image(decode=False))
 
-                def hf_map_file_path(example):
-                    example["text"] = _img_path_to_b64_str(
-                        example[imgs_location_colname]
+                def hf_map_image_feature(example):
+                    image = example[imgs_location_colname]
+                    example["text"] = _bytes_to_b64_str(
+                        # assume abs paths for HF
+                        img_bytes=image['bytes'], img_path=image['path']
                     )
                     return example
 
-                dataset["text"] = dataset.map(hf_map_file_path)
+                dataset["text"] = dataset.map(hf_map_image_feature)
             elif image_field_type == image_field_type.file_path:
-
                 def hf_map_file_path(example):
                     example["text"] = _img_path_to_b64_str(
+                        # assume abs paths for HF
                         example[imgs_location_colname]
                     )
                     return example
@@ -104,6 +104,13 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
                 )
         elif isinstance(dataset, pd.DataFrame):
             example = dataset[imgs_location_colname].values[0]
+
+            image_field_type = ImageFieldType.unknown
+            if isinstance(example, Image):
+                image_field_type = image_field_type.pil_image
+            elif isinstance(example, str):
+                image_field_type = image_field_type.file_path
+
             image_field_type = self._infer_image_field_type(example)
 
             if image_field_type == image_field_type.file_path:
