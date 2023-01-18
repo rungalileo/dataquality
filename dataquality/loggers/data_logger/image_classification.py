@@ -19,7 +19,11 @@ from dataquality.loggers.logger_config.image_classification import (
     image_classification_logger_config,
 )
 from dataquality.schemas.split import Split
-from dataquality.utils.cv import _img_path_to_b64_str, _img_to_b64_str, _bytes_to_b64_str
+from dataquality.utils.cv import (
+    _bytes_to_b64_str,
+    _img_path_to_b64_str,
+    _img_to_b64_str,
+)
 
 
 @unique
@@ -52,8 +56,6 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             inference_name=inference_name,
         )
 
-
-
     def log_image_dataset(
         self,
         dataset: DataSet,
@@ -67,28 +69,39 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         meta: Optional[List[Union[str, int]]] = None,
     ) -> None:
         if self.is_hf_dataset(dataset):
+            # Find the id column, or create it.
+            if "id" not in dataset.column_names:
+                dataset = dataset.add_column(
+                    name="id", column=list(range(len(dataset)))
+                )
+
             image_feature = dataset.features[imgs_location_colname]
 
             image_field_type = ImageFieldType.unknown
-            if image_feature.dtype == Image:
+            if image_feature.dtype == "PIL.Image.Image":
                 image_field_type = image_field_type.hf_image_feature
-            elif image_feature.dtype == str:
+            elif image_feature.dtype == "string":
                 image_field_type = image_field_type.file_path
 
             if image_field_type == image_field_type.hf_image_feature:
                 import datasets
-                dataset = dataset.cast_column(imgs_location_colname, datasets.Image(decode=False))
+
+                dataset = dataset.cast_column(
+                    imgs_location_colname, datasets.Image(decode=False)
+                )
 
                 def hf_map_image_feature(example):
                     image = example[imgs_location_colname]
                     example["text"] = _bytes_to_b64_str(
                         # assume abs paths for HF
-                        img_bytes=image['bytes'], img_path=image['path']
+                        img_bytes=image["bytes"],
+                        img_path=image["path"],
                     )
                     return example
 
-                dataset["text"] = dataset.map(hf_map_image_feature)
+                dataset = dataset.map(hf_map_image_feature)
             elif image_field_type == image_field_type.file_path:
+
                 def hf_map_file_path(example):
                     example["text"] = _img_path_to_b64_str(
                         # assume abs paths for HF
@@ -96,11 +109,11 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
                     )
                     return example
 
-                dataset["text"] = dataset.map(hf_map_file_path)
+                dataset = dataset.map(hf_map_file_path)
             else:
                 raise GalileoException(
-                    f"Could not interpret column {imgs_location_colname} as either images"
-                    "or image paths."
+                    f"Could not interpret column {imgs_location_colname} as either"
+                    " images or image paths."
                 )
         elif isinstance(dataset, pd.DataFrame):
             example = dataset[imgs_location_colname].values[0]

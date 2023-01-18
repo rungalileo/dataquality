@@ -1,7 +1,6 @@
 from typing import Any, Dict, List, Optional, Type, Union
 
 import numpy as np
-import pandas as pd
 
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
@@ -120,9 +119,6 @@ def log_image_dataset(
     meta: Optional[List[Union[str, int]]] = None,
     **kwargs: Any,
 ) -> None:
-    assert isinstance(
-        dataset, pd.DataFrame
-    ), "dataset must be a pandas DataFrame"  # TODO: add support for other data types
     a.log_function("dq/log_image_dataset")
     assert all(
         [config.task_type, config.current_project_id, config.current_run_id]
