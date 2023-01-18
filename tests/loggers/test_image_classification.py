@@ -127,6 +127,7 @@ def test_base64_image_logging(set_test_config, cleanup_after_use) -> None:
     """
     set_test_config(task_type="image_classification")
 
+    # TODO: move synthetic image dataset creation code into a utility in test_utils
     def make_img(w, h):
         a = np.random.randint(256, size=(w, h, 3), dtype=np.uint8)
         return Image.fromarray(a)
