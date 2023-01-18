@@ -1,9 +1,9 @@
+import base64
 import os.path
+from io import BytesIO
+from tempfile import TemporaryDirectory
 from unittest import mock
 from unittest.mock import MagicMock
-from tempfile import TemporaryDirectory
-from io import BytesIO
-import base64
 
 import numpy as np
 import pandas as pd
@@ -138,7 +138,7 @@ def test_base64_image_logging(set_test_config, cleanup_after_use) -> None:
         image_paths = []
         labels = []
         ids = []
-        for i, xtn in enumerate(['.jpg', '.png', '.jpeg', '.gif']):
+        for i, xtn in enumerate([".jpg", ".png", ".jpeg", ".gif"]):
             image_filename = f"{i:03d}.{xtn}"
             image_path = os.path.join(imgs_dir, image_filename)
             image = make_img(32, 32)
@@ -153,7 +153,11 @@ def test_base64_image_logging(set_test_config, cleanup_after_use) -> None:
 
         # log dataset
         dataset = pd.DataFrame(
-            dict(id=ids, label=labels, path=image_paths, )
+            dict(
+                id=ids,
+                label=labels,
+                path=image_paths,
+            )
         )
         dq.set_labels_for_run(["A", "B"])
         dq.log_image_dataset(
