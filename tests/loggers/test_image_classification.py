@@ -17,53 +17,6 @@ from dataquality.utils.vaex import validate_unique_ids
 from tests.conftest import LOCATION
 
 
-def test_base64(set_test_config, cleanup_after_use) -> None:
-    """
-    TODO
-    """
-    set_test_config(task_type="image_classification")
-
-    def make_img(w, h):
-        a = np.random.randint(256, size=(w, h, 3), dtype=np.uint8)
-        return Image.fromarray(a)
-
-    with TemporaryDirectory() as imgs_dir:
-        images = []
-        image_paths = []
-        labels = []
-        ids = []
-        for i, xtn in enumerate(['.jpg', '.png', '.jpeg', '.gif']):
-            image_path = os.path.join(imgs_dir, f"{i:.03d}.{xtn}")
-            image = make_img(32, 32).save(image_path)
-
-            images.append(image)
-            image_paths.append(image_path)
-            labels.append("A" if i % 2 == 0 else "B")
-            ids.append(i)
-
-        dataset = pd.DataFrame(
-            dict(id=ids, label=labels, path=image_paths,)
-        )
-
-        dq.set_labels_for_run(["A", "B"])
-        dq.log_image_dataset(
-            dataset=dataset,
-            label="label",
-            imgs_location_colname="path"
-        )
-        ThreadPoolManager.wait_for_threads()
-        df = vaex.open(f"{LOCATION}/input_data/training/data_0.arrow")
-
-        base64_images = df["text"]
-        assert len(base64_images) == len(images)
-
-        for image, base64_image in zip(images, base64_images):
-            _, _, content = base64_image.partition("base64,")
-            assert len(content) > 0
-            decoded = Image.open(BytesIO(base64.b64decode(content)))
-            assert np.allclose(np.array(image), np.array(decoded))
-
-
 def test_duplicate_ids_augmented_loop_thread(
     set_test_config, cleanup_after_use
 ) -> None:
@@ -166,6 +119,67 @@ def test_duplicate_ids_augmented(set_test_config, cleanup_after_use) -> None:
         df = vaex.open(f"{LOCATION}/{split}/1/*.hdf5")
         assert len(df) == 5
         validate_unique_ids(df, "epoch")
+
+
+def test_base64_image_logging(set_test_config, cleanup_after_use) -> None:
+    """
+    Tests that dq.log_image_dataset logs base64-encoded image data when passed image file paths.
+    """
+    set_test_config(task_type="image_classification")
+
+    def make_img(w, h):
+        a = np.random.randint(256, size=(w, h, 3), dtype=np.uint8)
+        return Image.fromarray(a)
+
+    with TemporaryDirectory() as imgs_dir:
+        # construct synthetic image dataset
+        images = []
+        image_paths = []
+        labels = []
+        ids = []
+        for i, xtn in enumerate(['.jpg', '.png', '.jpeg', '.gif']):
+            image_filename = f"{i:03d}.{xtn}"
+            image_path = os.path.join(imgs_dir, image_filename)
+            image = make_img(32, 32)
+            image.save(image_path)
+
+            loaded_image = Image.open(image_path)
+            images.append(loaded_image)
+
+            image_paths.append(image_filename)
+            labels.append("A" if i % 2 == 0 else "B")
+            ids.append(i)
+
+        # log dataset
+        dataset = pd.DataFrame(
+            dict(id=ids, label=labels, path=image_paths, )
+        )
+        dq.set_labels_for_run(["A", "B"])
+        dq.log_image_dataset(
+            dataset=dataset,
+            label="label",
+            imgs_location_colname="path",
+            imgs_dir=imgs_dir,
+            split="training",
+        )
+
+        # read logged data
+        ThreadPoolManager.wait_for_threads()
+        df = vaex.open(f"{LOCATION}/input_data/training/data_0.arrow")
+
+        base64_images = df["text"].tolist()
+        assert len(base64_images) == len(images)
+
+        for image, base64_image in zip(images, base64_images):
+            # strip off MIME type
+            _, _, content = base64_image.partition("base64,")
+
+            assert len(content) > 0
+
+            # load image from base64 and compare to image loaded from disk
+            decoded = Image.open(BytesIO(base64.b64decode(content)))
+            assert decoded.size == image.size
+            assert np.all(np.array(image) == np.array(decoded))
 
 
 @mock.patch.object(
