@@ -123,7 +123,8 @@ def test_duplicate_ids_augmented(set_test_config, cleanup_after_use) -> None:
 
 def test_base64_image_logging(set_test_config, cleanup_after_use) -> None:
     """
-    Tests that dq.log_image_dataset logs base64-encoded image data when passed image file paths.
+    Tests that dq.log_image_dataset logs base64-encoded image data when passed image
+    file paths.
     """
     set_test_config(task_type="image_classification")
 
