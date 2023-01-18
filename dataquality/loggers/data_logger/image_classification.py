@@ -2,7 +2,6 @@ import os
 from typing import List, Optional, Union
 
 import pandas as pd
-from PIL import Image
 
 from dataquality.loggers.data_logger.base_data_logger import ITER_CHUNK_SIZE, MetasType, DataSet
 from dataquality.loggers.data_logger.text_classification import (
@@ -13,7 +12,7 @@ from dataquality.loggers.logger_config.image_classification import (
     image_classification_logger_config,
 )
 from dataquality.schemas.split import Split
-from dataquality.utils.cv import _img_to_b64_str
+from dataquality.utils.cv import _img_path_to_b64_str
 
 
 class ImageClassificationDataLogger(TextClassificationDataLogger):
@@ -51,7 +50,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         meta: Optional[List[Union[str, int]]] = None,
     ) -> None:
         dataset["text"] = dataset[imgs_location_colname].apply(
-            lambda x: _img_to_b64_str(img=Image.open(os.path.join(imgs_dir, x)))
+            lambda x: _img_path_to_b64_str(img_path=os.path.join(imgs_dir, x))
         )
         self.log_dataset(
             dataset=dataset,
