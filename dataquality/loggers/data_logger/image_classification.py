@@ -4,7 +4,7 @@ from typing import List, Optional, Union
 import pandas as pd
 from PIL import Image
 
-from dataquality.loggers.data_logger.base_data_logger import ITER_CHUNK_SIZE, MetasType
+from dataquality.loggers.data_logger.base_data_logger import ITER_CHUNK_SIZE, MetasType, DataSet
 from dataquality.loggers.data_logger.text_classification import (
     TextClassificationDataLogger,
 )
@@ -40,7 +40,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
 
     def log_image_dataset(
         self,
-        dataset: pd.DataFrame,
+        dataset: DataSet,
         imgs_dir: str,
         *,
         imgs_location_colname: Optional[str] = "relpath",
