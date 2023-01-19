@@ -63,20 +63,18 @@ class TorchLogger(TorchBaseInstance):
         self.hook_manager = ModelHookManager()
         self._attach_hooks_to_model(model, classifier_layer, last_hidden_state_layer)
         self.helper_data = helper_data
-        self._init_helper_data(helper_data, self.hook_manager, self.model)
+        self._init_helper_data(self.hook_manager, self.model)
         self.logger_config = dq.get_data_logger().logger_config
 
-    def _init_helper_data(
-        self, helper_data: Dict[str, Any], hm: ModelHookManager, model: Module
-    ) -> Dict[str, Any]:
+    def _init_helper_data(self, hm: ModelHookManager, model: Module) -> None:
         """
         Initialize the helper data with ids from the dataloader indices,
         patches for applied monkey patched functions and the hook manager.
         :param hm: Hook manager
         :return: None
         """
-        helper_data.clear()
-        helper_data.update(
+        self.helper_data.clear()
+        self.helper_data.update(
             {
                 "ids": [],
                 "last_action": "init",
@@ -86,7 +84,6 @@ class TorchLogger(TorchBaseInstance):
                 "model": model,
             }
         )
-        return helper_data
 
     def _attach_hooks_to_model(
         self, model: Module, classifier_layer: Layer, last_hidden_state_layer: Layer
@@ -176,15 +173,14 @@ class TorchLogger(TorchBaseInstance):
 
 def watch(
     model: Module,
-    dataloaders: List[DataLoader] = [],
+    dataloaders: Optional[List[DataLoader]] = [],
     last_hidden_state_layer: Union[Module, str, None] = None,
     embedding_dim: InputDim = None,
     logits_dim: InputDim = None,
     classifier_layer: Union[str, Module] = "classifier",
     embedding_fn: Optional[Callable] = None,
     logits_fn: Optional[Callable] = None,
-    force_local_patching: bool = False,
-    unpatch_on_start: bool = False,
+    unpatch_on_start: bool = True,
 ) -> None:
     """
     [`watch`] is a function that wraps the model and dataloaders to log the
@@ -202,7 +198,6 @@ def watch(
     the last_hidden_state_layer will be used
     :param embedding_fn: Function to process embeddings from the model
     :param logits_fn: Function to process logits from the model f.e. lambda x[0]
-    :param force_local_patching: Force patching of dataloaders
     :param unpatch_on_start: Force unpatching of dataloaders
     instead of global patching
     :return: None
@@ -246,25 +241,26 @@ def watch(
         task=dq.config.task_type,
         helper_data=helper_data,
     )
-    # Patch the dataloader for passed dataloaders instead of patching the dataloader
-    # class globally
-    if force_local_patching:
-        if len(dataloaders) == 0:
-            raise GalileoException("No dataloaders passed to watch")
-
+    # Patch the dataloader class if no dataloaders are passed
+    # or if the dataloaders have num_workers > 0
+    if dataloaders is None:
+        dataloaders = []
+    is_single_process_dataloader = all(
+        [getattr(d, "num_workers", 0) == 0 for d in dataloaders]
+    )
+    if len(dataloaders) > 0 and is_single_process_dataloader:
         for dataloader in dataloaders:
             assert isinstance(dataloader, DataLoader), GalileoException(
                 "Invalid dataloader. Must be a pytorch dataloader"
                 "from torch.utils.data import DataLoader..."
                 "train_dataloader = DataLoader(dataset)"
             )
-            assert dataloader.num_workers == 0, GalileoException(
-                "Dataloaders passed to watch must have num_workers=0."
-                "Parralelization is not yet supported"
-            )
+            assert (
+                getattr(dataloader, "num_workers", 0) == 0
+            ), "Dataloaders with num_workers > 0 are not supported"
             dataloader._get_iterator = wrap_fn(  # type: ignore
                 dataloader._get_iterator,
-                patch_iterator_with_store(helper_data["model_outputs"]),
+                patch_iterator_with_store(tl.helper_data["model_outputs"]),
             )
     else:
         # Patch the dataloader class globally
@@ -272,17 +268,23 @@ def watch(
         patch_dataloaders(tl.helper_data)
 
 
-def unwatch(force: bool = False) -> None:
+def unwatch(model: Optional[Module] = None, force: bool = True) -> None:
     """Unwatches the model. Run after the run is finished.
     :param force: Force unwatch even if the model is not watched"""
 
     helper_data = dq.get_model_logger().logger_config.helper_data
-    if not getattr(helper_data["model"], "_dq", False) and not force:
+    model = model or helper_data.get("model", None)
+    if not getattr(model or {}, "_dq", False) and not force:
         raise GalileoException("Model is not watched, run watch(model) first")
     # Unpatch the dataloaders
     unpatch(helper_data.get("patches", []))
-    # Detach hooks the model
-    helper_data["hook_manager"].detach_hooks()
-    model = helper_data["model"]
-    if hasattr(model, "_dq"):
+    # Detach hooks the model. in the future use the model passed
+    # https://discuss.pytorch.org/t/how-to-check-where-the-hooks-are-in-the-model/120120/2
+    hook_manager = helper_data.get("hook_manager", None)
+    if hook_manager:
+        hook_manager.detach_hooks()
+    # Remove the model from the helper data
+    if "model" in helper_data:
+        del helper_data["model"]
+    if model and hasattr(model, "_dq"):
         del model._dq

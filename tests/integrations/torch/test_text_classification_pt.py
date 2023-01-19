@@ -263,7 +263,6 @@ def test_end_to_end_old_patch(
         modeldq,
         [train_dataloader_dq, test_dataloader_dq],
         classifier_layer="classifier",
-        force_local_patching=True,
     )
     split = "training"
     for epoch in range(0, 2):

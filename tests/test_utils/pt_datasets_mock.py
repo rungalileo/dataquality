@@ -20,9 +20,7 @@ class CustomDatasetWithTokenizer(TorchDataset):
         tokenized["input_ids"] = tokenized["input_ids"].squeeze(0)
         tokenized["label"] = label
         if self.with_index:
-            print("WITH INDEX")
             tokenized["id"] = idx
-        print(tokenized)
         return tokenized
 
     def __len__(self):

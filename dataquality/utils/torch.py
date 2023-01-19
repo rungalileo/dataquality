@@ -2,7 +2,7 @@ import gc
 import re
 from functools import wraps
 from queue import Queue
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
 
 import numpy as np  # noqa: F401
 from torch import Tensor
@@ -115,8 +115,10 @@ class TorchBaseInstance:
     def _logit_hook(
         self,
         model: Module,
-        model_input: Optional[Tensor],
-        model_output: Union[TokenClassifierOutput, Tensor],
+        model_input: Optional[
+            Tensor
+        ],  # the classifier hook does not pass a model input
+        model_output: Union[Tuple[Tensor], TokenClassifierOutput, Tensor],
     ) -> None:
         """
         Hook to extract the logits from the model.
@@ -133,7 +135,7 @@ class TorchBaseInstance:
         if isinstance(model_output, Tensor):
             logits = model_output
         elif hasattr(model_output, "logits"):
-            logits = model_output.logits
+            logits = getattr(model_output, "logits")
         if logits is None:
             raise GalileoException(
                 "Could not extract logits from the model. "
@@ -155,8 +157,8 @@ class TorchBaseInstance:
     def _classifier_hook(
         self,
         model: Module,
-        model_input: Any,  # Union[BaseModelOutput, Tensor],
-        model_output: Any,  # Union[Tuple[Tensor], TokenClassifierOutput, Tensor],
+        model_input: Union[BaseModelOutput, Tensor],
+        model_output: Union[Tuple[Tensor], TokenClassifierOutput, Tensor],
     ) -> None:
         """
         Hook to extract the embeddings from the model
@@ -338,7 +340,6 @@ def patch_dataloaders(store: Dict, reset_indices: bool = True) -> None:
 
         @wraps(func)
         def patched_next_index(*args: Any, **kwargs: Any) -> Any:
-            #            print("patched_next_index", args, kwargs)
             indices = func(*args, **kwargs)
             if indices and key in store:
                 if reset_indices and store.get("last_action") == "pop":
@@ -354,7 +355,7 @@ def patch_dataloaders(store: Dict, reset_indices: bool = True) -> None:
         store["patches"] = []
 
     # Patch the dataloader
-    if hasattr(_BaseDataLoaderIter, "_patched"):
+    if getattr(_BaseDataLoaderIter, "_patched", False):
         # logger warning if already patched
         print("BaseDataLoaderIter already patched")
         if hasattr(_BaseDataLoaderIter, "_old__next_index"):
@@ -390,10 +391,8 @@ def unpatch(patches: List[Dict[str, Any]] = []) -> None:
     # unpatch all instances and classes
     # starting with all classes
     for patch in patches:
-        # print("unpatching", patch["class"])
         if not hasattr(patch["class"], "_patched"):
             continue
-        # print("unpatching", patch["class"], patch["attr"])
         setattr(
             patch["class"],
             patch["attr"],
@@ -406,21 +405,24 @@ def unpatch(patches: List[Dict[str, Any]] = []) -> None:
             if (
                 isinstance(obj, patch["class"])
                 and hasattr(obj, "_patched")
-                and getattr(obj, f"_old_{patch['attr']}")
+                and hasattr(obj, f"_old_{patch['attr']}")
             ):
-                # print("unpatching gc", obj, patch["attr"])
                 setattr(obj, patch["attr"], getattr(obj, f"_old_{patch['attr']}"))
                 delattr(obj, f"_old_{patch['attr']}")
                 delattr(obj, "_patched")
 
     # If no patched items are passed, unpatch all instances and classes
     if len(patches) == 0:
-        all_objects = gc.get_objects()
-        for obj in all_objects + [_BaseDataLoaderIter]:
-            if isinstance(obj, _BaseDataLoaderIter) and getattr(obj, "_patched", False):
-                # print("unpatching", obj)
+        base_dataloaders: List[
+            Union[Type[_BaseDataLoaderIter], _BaseDataLoaderIter]
+        ] = []
+        for obj in gc.get_objects():
+            if isinstance(obj, _BaseDataLoaderIter):
+                base_dataloaders.append(obj)
+        for obj in base_dataloaders + [_BaseDataLoaderIter]:
+            if getattr(obj, "_patched", False):
                 for attrib in dir(obj):
-                    if attrib.startswith("_old_"):
+                    if attrib.startswith("_old_") and hasattr(obj, attrib[5:]):
                         setattr(obj, attrib[5:], getattr(obj, attrib))
                         delattr(obj, attrib)
                 delattr(obj, "_patched")
