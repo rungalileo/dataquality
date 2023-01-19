@@ -71,6 +71,9 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         if self.is_hf_dataset(dataset):
             # Find the id column, or create it.
             if "id" not in dataset.column_names:
+                import datasets
+                dataset: datasets.Dataset
+
                 dataset = dataset.add_column(
                     name="id", column=list(range(len(dataset)))
                 )
@@ -92,11 +95,20 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
 
                 def hf_map_image_feature(example):
                     image = example[imgs_location_colname]
-                    example["text"] = _bytes_to_b64_str(
-                        # assume abs paths for HF
-                        img_bytes=image["bytes"],
-                        img_path=image["path"],
-                    )
+
+                    if image["bytes"] is None:
+                        # sometimes the Image feature only contains a path
+                        # example: beans dataset
+                        example["text"] = _img_path_to_b64_str(
+                            # assume abs paths for HF
+                            img_path=image["path"],
+                        )
+                    else:
+                        example["text"] = _bytes_to_b64_str(
+                            # assume abs paths for HF
+                            img_bytes=image["bytes"],
+                            img_path=image["path"],
+                        )
                     return example
 
                 dataset = dataset.map(hf_map_image_feature)
@@ -123,8 +135,6 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
                 image_field_type = image_field_type.pil_image
             elif isinstance(example, str):
                 image_field_type = image_field_type.file_path
-
-            image_field_type = self._infer_image_field_type(example)
 
             if image_field_type == image_field_type.file_path:
                 dataset["text"] = dataset[imgs_location_colname].apply(
