@@ -30,12 +30,14 @@ author = "Galileo Team"
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
+    "sphinx.ext.autosummary",
     "sphinx_autodoc_typehints",
     "sphinx.ext.autosectionlabel",
     "sphinx.ext.intersphinx",
     "myst_parser",
     "sphinx_markdown_builder",
 ]
+
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]

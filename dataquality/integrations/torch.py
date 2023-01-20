@@ -107,29 +107,30 @@ def watch(
     logits_dim: InputDim = None,
 ) -> None:
     """
-    [`watch`] is a function that wraps the model and dataloaders to log the
+    wraps a PyTorch model and optionally dataloaders to log the
     embeddings and logits to [Galileo](https://www.rungalileo.io/).
+
+    .. code-block:: python
+
+        dq.log_dataset(train_dataset, split="train")
+        train_dataloader = torch.utils.data.DataLoader()
+        model = TextClassificationModel(num_labels=len(train_dataset.list_of_labels))
+        watch(model, [train_dataloader,test_dataloader])
+        for epoch in range(NUM_EPOCHS):
+            dq.set_epoch_and_split(epoch,"training")
+            train()
+            dq.set_split("validate")
+            validate()
+        dq.finish()
+
     :param model: Pytorch model
     :param dataloaders: List of dataloaders
     :param layer: Layer to extract the embeddings from
     :param embedding_dim: Embedding dimension to for example "[:, 0]"
-    to remove the cls token
+        to remove the cls token
     :param logits_dim: Dimension to extract the logits for example in NER
-    "[:,1:,:]"
+        "[:,1:,:]"
     :return: None
-    ```
-    dq.log_dataset(train_dataset, split="train")
-    train_dataloader = torch.utils.data.DataLoader()
-    model = TextClassificationModel(num_labels=len(train_dataset.list_of_labels))
-    watch(model, [train_dataloader,test_dataloader])
-    for epoch in range(NUM_EPOCHS):
-        dq.set_epoch_and_split(epoch,"training")
-        train()
-        dq.set_split("validate")
-        validate()
-    dq.finish()
-
-    ```
     """
     a.log_function("torch/watch")
     assert dq.config.task_type, GalileoException(

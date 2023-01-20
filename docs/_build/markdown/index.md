@@ -49,7 +49,7 @@ nodes and clients*
 * [Glossary](glossary.md) → *A dictionary of common terms used in these docs*
 
 
-* [API](api.md) → *API Docs*
+* [Reference](api.md) → *API Docs*
 
 ## dataquality resources
 
@@ -98,82 +98,82 @@ community*
 * [How to install](install/index.md)
 
 
-* [API](api.md)
+* [Reference](api.md)
 
 
-    * [`AggregateFunction`](api.md#dataquality.AggregateFunction)
+    * [watch (PyTorch)](api.md#watch-pytorch)
 
 
-    * [`Condition`](api.md#dataquality.Condition)
+        * [`watch()`](api.md#dataquality.integrations.torch.watch)
 
 
-    * [`ConditionFilter`](api.md#dataquality.ConditionFilter)
+        * [`watch()`](api.md#dataquality.integrations.transformers_trainer.watch)
 
 
-    * [`Operator`](api.md#dataquality.Operator)
+        * [`watch()`](api.md#dataquality.integrations.spacy.watch)
 
 
-    * [`auto()`](api.md#dataquality.auto)
+        * [`watch()`](api.md#dataquality.integrations.experimental.keras.watch)
 
 
-    * [`build_run_report()`](api.md#dataquality.build_run_report)
+        * [`DataQualityCallback`](api.md#dataquality.integrations.keras.DataQualityCallback)
 
 
-    * [`configure()`](api.md#dataquality.configure)
+            * [`DataQualityCallback.on_epoch_begin()`](api.md#dataquality.integrations.keras.DataQualityCallback.on_epoch_begin)
 
 
-    * [`docs()`](api.md#dataquality.docs)
+            * [`DataQualityCallback.on_test_batch_begin()`](api.md#dataquality.integrations.keras.DataQualityCallback.on_test_batch_begin)
 
 
-    * [`finish()`](api.md#dataquality.finish)
+            * [`DataQualityCallback.on_test_batch_end()`](api.md#dataquality.integrations.keras.DataQualityCallback.on_test_batch_end)
 
 
-    * [`get_run_status()`](api.md#dataquality.get_run_status)
+            * [`DataQualityCallback.on_train_batch_begin()`](api.md#dataquality.integrations.keras.DataQualityCallback.on_train_batch_begin)
 
 
-    * [`init()`](api.md#dataquality.init)
+            * [`DataQualityCallback.on_train_batch_end()`](api.md#dataquality.integrations.keras.DataQualityCallback.on_train_batch_end)
 
 
-    * [`log_data_sample()`](api.md#dataquality.log_data_sample)
+        * [`DataQualityLoggingLayer`](api.md#dataquality.integrations.keras.DataQualityLoggingLayer)
 
 
-    * [`log_data_samples()`](api.md#dataquality.log_data_samples)
+            * [`DataQualityLoggingLayer.call()`](api.md#dataquality.integrations.keras.DataQualityLoggingLayer.call)
 
 
-    * [`log_dataset()`](api.md#dataquality.log_dataset)
+        * [`add_ids_to_numpy_arr()`](api.md#dataquality.integrations.keras.add_ids_to_numpy_arr)
 
 
-    * [`log_model_outputs()`](api.md#dataquality.log_model_outputs)
+        * [`add_sample_ids()`](api.md#dataquality.integrations.keras.add_sample_ids)
 
 
-    * [`login()`](api.md#dataquality.login)
+        * [`auto()`](api.md#dataquality.auto)
 
 
-    * [`register_run_report()`](api.md#dataquality.register_run_report)
+        * [`finish()`](api.md#dataquality.finish)
 
 
-    * [`set_console_url()`](api.md#dataquality.set_console_url)
+        * [`init()`](api.md#dataquality.init)
 
 
-    * [`set_epoch()`](api.md#dataquality.set_epoch)
+        * [`log_data_sample()`](api.md#dataquality.log_data_sample)
 
 
-    * [`set_epoch_and_split()`](api.md#dataquality.set_epoch_and_split)
+        * [`log_dataset()`](api.md#dataquality.log_dataset)
 
 
-    * [`set_labels_for_run()`](api.md#dataquality.set_labels_for_run)
+        * [`log_model_outputs()`](api.md#dataquality.log_model_outputs)
 
 
-    * [`set_split()`](api.md#dataquality.set_split)
+        * [`login()`](api.md#dataquality.login)
 
 
-    * [`set_tagging_schema()`](api.md#dataquality.set_tagging_schema)
+        * [`set_epoch()`](api.md#dataquality.set_epoch)
 
 
-    * [`set_tasks_for_run()`](api.md#dataquality.set_tasks_for_run)
+        * [`set_labels_for_run()`](api.md#dataquality.set_labels_for_run)
 
 
-    * [`wait_for_run()`](api.md#dataquality.wait_for_run)
+        * [`set_split()`](api.md#dataquality.set_split)
 
 
 * [Indices and tables](api.md#indices-and-tables)

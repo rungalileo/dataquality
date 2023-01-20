@@ -1,4 +1,6 @@
-root: ./docs/_build/markdown/api.md
+root: ./docs/_build/markdown/
 
 ​structure:  
-    api: api.md
+    Start: index.md
+    Reference: api/dataquality.md
+    Table of Contents: api/index.md
