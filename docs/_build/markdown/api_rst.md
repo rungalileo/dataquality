@@ -1,6 +1,6 @@
-# API MD
+# Document Title
 
-| [`dataquality`](generated/dataquality.md#module-dataquality)
+| `dataquality`
  | dataquality
 
  |
@@ -674,7 +674,7 @@ dq.auto(
     project_name=”data_from_local”,
     run_name=”run_1_raw_data”
 
-# )
+## )
 
 
 ### finish(last_epoch=None, wait=True, create_data_embs=False)
