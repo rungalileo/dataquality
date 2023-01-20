@@ -132,8 +132,6 @@ def init(
     _init = InitManager()
     task_type = BaseGalileoLogger.validate_task(task_type)
     config.task_type = task_type
-    # _init.validate_name(project_name)
-    # _init.validate_name(run_name)
     if not project_name and run_name:
         # The user provided a run name and no project name. No good
         warnings.warn(
