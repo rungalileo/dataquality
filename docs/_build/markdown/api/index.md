@@ -99,21 +99,21 @@ dq.finish()
 * **Parameters**
 
     
-    * **model** (`Module`) – Pytorch model
+    * **model** (`Module`) -- Pytorch model
 
 
-    * **dataloaders** (`List`[`DataLoader`]) – List of dataloaders
+    * **dataloaders** (`List`[`DataLoader`]) -- List of dataloaders
 
 
-    * **layer** (`Union`[`Module`, `str`, `None`]) – Layer to extract the embeddings from
+    * **layer** (`Union`[`Module`, `str`, `None`]) -- Layer to extract the embeddings from
 
 
-    * **embedding_dim** (`Union`[`str`, `int`, `slice`, `Tensor`, `List`, `Tuple`, `None`]) – Embedding dimension to for example “[:, 0]”
+    * **embedding_dim** (`Union`[`str`, `int`, `slice`, `Tensor`, `List`, `Tuple`, `None`]) -- Embedding dimension to for example "[:, 0]"
     to remove the cls token
 
 
-    * **logits_dim** (`Union`[`str`, `int`, `slice`, `Tensor`, `List`, `Tuple`, `None`]) – Dimension to extract the logits for example in NER
-    “[:,1:,:]”
+    * **logits_dim** (`Union`[`str`, `int`, `slice`, `Tensor`, `List`, `Tuple`, `None`]) -- Dimension to extract the logits for example in NER
+    "[:,1:,:]"
 
 
 
@@ -164,13 +164,13 @@ dq.finish()
 Stores the nlp object before calling watch on the ner component within it
 
 We need access to the nlp object so that during training we can capture the
-model’s predictions over the raw text by running nlp(“user’s text”) and looking
+model's predictions over the raw text by running nlp("user's text") and looking
 at the results
 
 
 * **Parameters**
 
-    **nlp** (`Language`) – The spacy nlp Language component.
+    **nlp** (`Language`) -- The spacy nlp Language component.
 
 
 

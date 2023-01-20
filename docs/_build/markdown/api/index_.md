@@ -24,21 +24,21 @@ dq.finish()
 * **Parameters**
 
     
-    * **model** (`Module`) – Pytorch model
+    * **model** (`Module`) -- Pytorch model
 
 
-    * **dataloaders** (`List`[`DataLoader`]) – List of dataloaders
+    * **dataloaders** (`List`[`DataLoader`]) -- List of dataloaders
 
 
-    * **layer** (`Union`[`Module`, `str`, `None`]) – Layer to extract the embeddings from
+    * **layer** (`Union`[`Module`, `str`, `None`]) -- Layer to extract the embeddings from
 
 
-    * **embedding_dim** (`Union`[`str`, `int`, `slice`, `Tensor`, `List`, `Tuple`, `None`]) – Embedding dimension to for example “[:, 0]”
+    * **embedding_dim** (`Union`[`str`, `int`, `slice`, `Tensor`, `List`, `Tuple`, `None`]) -- Embedding dimension to for example "[:, 0]"
     to remove the cls token
 
 
-    * **logits_dim** (`Union`[`str`, `int`, `slice`, `Tensor`, `List`, `Tuple`, `None`]) – Dimension to extract the logits for example in NER
-    “[:,1:,:]”
+    * **logits_dim** (`Union`[`str`, `int`, `slice`, `Tensor`, `List`, `Tuple`, `None`]) -- Dimension to extract the logits for example in NER
+    "[:,1:,:]"
 
 
 
@@ -65,7 +65,7 @@ beer test [Link text](linkURL) water
 
 * **Parameters**
 
-    **trainer** (`Trainer`) – Trainer object
+    **trainer** (`Trainer`) -- Trainer object
 
 
 
@@ -87,13 +87,13 @@ beer test [Link text](linkURL) water
 Stores the nlp object before calling watch on the ner component within it
 
 We need access to the nlp object so that during training we can capture the
-model’s predictions over the raw text by running nlp(“user’s text”) and looking
+model's predictions over the raw text by running nlp("user's text") and looking
 at the results
 
 
 * **Parameters**
 
-    **nlp** (`Language`) – The spacy nlp Language component.
+    **nlp** (`Language`) -- The spacy nlp Language component.
 
 
 
@@ -143,10 +143,10 @@ be called during TRAIN mode.
 * **Parameters**
 
     
-    * **epoch** (`int`) – Integer, index of epoch.
+    * **epoch** (`int`) -- Integer, index of epoch.
 
 
-    * **logs** (`Dict`) – Dict. Currently no data is passed to this argument for this method
+    * **logs** (`Dict`) -- Dict. Currently no data is passed to this argument for this method
     but that may change in the future.
 
 
@@ -173,10 +173,10 @@ batches.
 * **Parameters**
 
     
-    * **batch** (`Any`) – Integer, index of batch within the current epoch.
+    * **batch** (`Any`) -- Integer, index of batch within the current epoch.
 
 
-    * **logs** (`Optional`[`Dict`]) – Dict. Currently no data is passed to this argument for this method
+    * **logs** (`Optional`[`Dict`]) -- Dict. Currently no data is passed to this argument for this method
     but that may change in the future.
 
 
@@ -203,10 +203,10 @@ batches.
 * **Parameters**
 
     
-    * **batch** (`Any`) – Integer, index of batch within the current epoch.
+    * **batch** (`Any`) -- Integer, index of batch within the current epoch.
 
 
-    * **logs** (`Optional`[`Dict`]) – Dict. Aggregated metric results up until this batch.
+    * **logs** (`Optional`[`Dict`]) -- Dict. Aggregated metric results up until this batch.
 
 
 
@@ -229,10 +229,10 @@ batches.
 * **Parameters**
 
     
-    * **batch** (`Any`) – Integer, index of batch within the current epoch.
+    * **batch** (`Any`) -- Integer, index of batch within the current epoch.
 
 
-    * **logs** (`Optional`[`Dict`]) – Dict. Currently no data is passed to this argument for this method
+    * **logs** (`Optional`[`Dict`]) -- Dict. Currently no data is passed to this argument for this method
     but that may change in the future.
 
 
@@ -256,10 +256,10 @@ batches.
 * **Parameters**
 
     
-    * **batch** (`Any`) – Integer, index of batch within the current epoch.
+    * **batch** (`Any`) -- Integer, index of batch within the current epoch.
 
 
-    * **logs** (`Optional`[`Dict`]) – Dict. Aggregated metric results up until this batch.
+    * **logs** (`Optional`[`Dict`]) -- Dict. Aggregated metric results up until this batch.
 
 
 
@@ -274,7 +274,7 @@ Bases: `Layer`
 
 
 #### call(inputs)
-This is where the layer’s logic lives.
+This is where the layer's logic lives.
 
 The call() method may not create state (except in its first invocation,
 wrapping the creation of variables or other resources in tf.init_scope()).
@@ -285,7 +285,7 @@ that is called automatically before call() executes the first time.
 * **Parameters**
 
     
-    * **inputs** (`Tensor`) – Input tensor, or dict/list/tuple of input tensors.
+    * **inputs** (`Tensor`) -- Input tensor, or dict/list/tuple of input tensors.
     The first positional inputs argument is subject to special rules:
     - inputs must be explicitly passed. A layer cannot have zero
 
@@ -320,11 +320,11 @@ that is called automatically before call() executes the first time.
 
 
 
-    * **\*args** – Additional positional arguments. May contain tensors, although
+    * **\*args** -- Additional positional arguments. May contain tensors, although
     this is not recommended, for the reasons above.
 
 
-    * **\*\*kwargs** – Additional keyword arguments. May contain tensors, although
+    * **\*\*kwargs** -- Additional keyword arguments. May contain tensors, although
     this is not recommended, for the reasons above.
     The following optional keyword arguments are reserved:
     - training: Boolean scalar tensor of Python boolean indicating
@@ -332,7 +332,7 @@ that is called automatically before call() executes the first time.
     > whether the call is meant for training or inference.
 
 
-        * mask: Boolean input mask. If the layer’s call() method takes a
+        * mask: Boolean input mask. If the layer's call() method takes a
     mask argument, its default value will be set to the mask generated
     for inputs by the previous layer (if input did come from a layer
     that generated a corresponding mask, i.e. if it came from a Keras
@@ -373,10 +373,10 @@ Galileo DataQualityCallback
 * **Parameters**
 
     
-    * **orig_arr** (`ndarray`) – The numpy array to be passed into model.train
+    * **orig_arr** (`ndarray`) -- The numpy array to be passed into model.train
 
 
-    * **ids** (`Union`[`List`[`int`], `ndarray`]) – The ids for each sample to append. These are the same IDs that are
+    * **ids** (`Union`[`List`[`int`], `ndarray`]) -- The ids for each sample to append. These are the same IDs that are
 
 
 
@@ -406,24 +406,24 @@ demo dataset will be loaded by Galileo for training.
 * **Parameters**
 
     
-    * **hf_data** (`Union`[`DatasetDict`, `str`, `None`]) – Union[DatasetDict, str] Use this param if you have huggingface
+    * **hf_data** (`Union`[`DatasetDict`, `str`, `None`]) -- Union[DatasetDict, str] Use this param if you have huggingface
     data in the hub or in memory. Otherwise see train_data, val_data,
     and test_data. If provided, train_data, val_data, and test_data are ignored.
 
 
-    * **hf_inference_names** (`Optional`[`List`[`str`]]) – Use this param alongside hf_data if you have splits
-    you’d like to consider as inference. A list of key names in hf_data
+    * **hf_inference_names** (`Optional`[`List`[`str`]]) -- Use this param alongside hf_data if you have splits
+    you'd like to consider as inference. A list of key names in hf_data
     to be run as inference runs after training. Any keys set must exist in hf_data
 
 
-    * **train_data** (`Union`[`DataFrame`, `Dataset`, `str`, `None`]) – Optional training data to use. Can be one of
+    * **train_data** (`Union`[`DataFrame`, `Dataset`, `str`, `None`]) -- Optional training data to use. Can be one of
     \* Pandas dataframe
     \* Huggingface dataset
     \* Path to a local file
     \* Huggingface dataset hub path
 
 
-    * **val_data** (`Union`[`DataFrame`, `Dataset`, `str`, `None`]) – Optional validation data to use. The validation data is what is
+    * **val_data** (`Union`[`DataFrame`, `Dataset`, `str`, `None`]) -- Optional validation data to use. The validation data is what is
     used for the evaluation dataset in huggingface, and what is used for early
     stopping. If not provided, but test_data is, that will be used as the evaluation
     set. If neither val nor test are available, the train data will be randomly
@@ -435,7 +435,7 @@ demo dataset will be loaded by Galileo for training.
     \* Huggingface dataset hub path
 
 
-    * **test_data** (`Union`[`DataFrame`, `Dataset`, `str`, `None`]) – Optional test data to use. The test data, if provided with val,
+    * **test_data** (`Union`[`DataFrame`, `Dataset`, `str`, `None`]) -- Optional test data to use. The test data, if provided with val,
     will be used after training is complete, as the held-out set. If no validation
     data is provided, this will instead be used as the evaluation set.
     Can be one of
@@ -445,7 +445,7 @@ demo dataset will be loaded by Galileo for training.
     \* Huggingface dataset hub path
 
 
-    * **inference_data** (`Optional`[`Dict`[`str`, `Union`[`DataFrame`, `Dataset`, `str`]]]) – User this param to include inference data alongside the
+    * **inference_data** (`Optional`[`Dict`[`str`, `Union`[`DataFrame`, `Dataset`, `str`]]]) -- User this param to include inference data alongside the
     train_data param. If you are passing data via the hf_data parameter, you
     should use the hf_inference_names param. Optional inference datasets to run
     with after training completes. The structure is a dictionary with the
@@ -456,35 +456,35 @@ demo dataset will be loaded by Galileo for training.
     \* Huggingface dataset hub path
 
 
-    * **max_padding_length** (`int`) – The max length for padding the input text
+    * **max_padding_length** (`int`) -- The max length for padding the input text
     during tokenization. Default 200
 
 
-    * **hf_model** (`str`) – The pretrained AutoModel from huggingface that will be used to
+    * **hf_model** (`str`) -- The pretrained AutoModel from huggingface that will be used to
     tokenize and train on the provided data. Default distilbert-base-uncased
 
 
-    * **labels** (`Optional`[`List`[`str`]]) – Optional list of labels for this dataset. If not provided, they
+    * **labels** (`Optional`[`List`[`str`]]) -- Optional list of labels for this dataset. If not provided, they
     will attempt to be extracted from the data
 
 
-    * **project_name** (`Optional`[`str`]) – Optional project name. If not set, a random name will
+    * **project_name** (`Optional`[`str`]) -- Optional project name. If not set, a random name will
     be generated
 
 
-    * **run_name** (`Optional`[`str`]) – Optional run name for this data. If not set, a random name will
+    * **run_name** (`Optional`[`str`]) -- Optional run name for this data. If not set, a random name will
     be generated
 
 
-    * **wait** (`bool`) – Whether to wait for Galileo to complete processing your run.
+    * **wait** (`bool`) -- Whether to wait for Galileo to complete processing your run.
     Default True
 
 
-    * **create_data_embs** (`bool`) – Whether to create data embeddings for this run. If True,
+    * **create_data_embs** (`bool`) -- Whether to create data embeddings for this run. If True,
     Sentence-Transformers will be used to generate data embeddings for this dataset
     and uploaded with this run. You can access these embeddings via
     dq.metrics.get_data_embeddings in the emb column or
-    dq.metrics.get_dataframe(…, include_data_embs=True) in the data_emb col
+    dq.metrics.get_dataframe(..., include_data_embs=True) in the data_emb col
     Only available for TC currently. NER coming soon. Default False.
 
 
@@ -503,12 +503,12 @@ See example: [https://huggingface.co/datasets/rungalileo/mit_movies](https://hug
 > MIT Movies dataset in huggingface format
 
 > tokens                                              ner_tags
-> [what, is, a, good, action, movie, that, is, r…       [0, 0, 0, 0, 7, 0, …
-> [show, me, political, drama, movies, with, jef…       [0, 0, 7, 8, 0, 0, …
-> [what, are, some, good, 1980, s, g, rated, mys…       [0, 0, 0, 0, 5, 6, …
-> [list, a, crime, film, which, director, was, d…       [0, 0, 7, 0, 0, 0, …
-> [is, there, a, thriller, movie, starring, al, …       [0, 0, 0, 7, 0, 0, …
-> …                                               …                      …
+> [what, is, a, good, action, movie, that, is, r...       [0, 0, 0, 0, 7, 0, ...
+> [show, me, political, drama, movies, with, jef...       [0, 0, 7, 8, 0, 0, ...
+> [what, are, some, good, 1980, s, g, rated, mys...       [0, 0, 0, 0, 5, 6, ...
+> [list, a, crime, film, which, director, was, d...       [0, 0, 7, 0, 0, 0, ...
+> [is, there, a, thriller, movie, starring, al, ...       [0, 0, 0, 7, 0, 0, ...
+> ...                                               ...                      ...
 
 To see auto insights on a random, pre-selected dataset, simply run
 
@@ -559,7 +559,7 @@ python
 
 > import dataquality as dq
 
-> dq.auto(hf_data=”rungalileo/trec6”)
+> dq.auto(hf_data="rungalileo/trec6")
 
 
 
@@ -591,7 +591,7 @@ python
 
 > import dataquality as dq
 
-> dq.auto(hf_data=”conll2003”)
+> dq.auto(hf_data="conll2003")
 
 
 
@@ -626,17 +626,17 @@ python
 > from sklearn.datasets import fetch_20newsgroups
 
 > # Load the newsgroups dataset from sklearn
-> newsgroups_train = fetch_20newsgroups(subset=’train’)
-> newsgroups_test = fetch_20newsgroups(subset=’test’)
+> newsgroups_train = fetch_20newsgroups(subset='train')
+> newsgroups_test = fetch_20newsgroups(subset='test')
 > # Convert to pandas dataframes
 > df_train = pd.DataFrame(
 
-> > {“text”: newsgroups_train.data, “label”: newsgroups_train.target}
+> > {"text": newsgroups_train.data, "label": newsgroups_train.target}
 
 > )
 > df_test = pd.DataFrame(
 
-> > {“text”: newsgroups_test.data, “label”: newsgroups_test.target}
+> > {"text": newsgroups_test.data, "label": newsgroups_test.target}
 
 > )
 
@@ -645,8 +645,8 @@ python
 >     train_data=df_train,
 >     test_data=df_test,
 >     labels=newsgroups_train.target_names,
->     project_name=”newsgroups_work”,
->     run_name=”run_1_raw_data”
+>     project_name="newsgroups_work",
+>     run_name="run_1_raw_data"
 
 > )
 
@@ -681,10 +681,10 @@ import dataquality as dq
 
 dq.auto(
 
-    train_data=”train.csv”,
-    test_data=”test.csv”,
-    project_name=”data_from_local”,
-    run_name=”run_1_raw_data”
+    train_data="train.csv",
+    test_data="test.csv",
+    project_name="data_from_local",
+    run_name="run_1_raw_data"
 
 ## )
 
@@ -696,16 +696,16 @@ Finishes the current run and invokes a job
 * **Parameters**
 
     
-    * **last_epoch** (`Optional`[`int`]) – If set, only epochs up to this value will be uploaded/processed
+    * **last_epoch** (`Optional`[`int`]) -- If set, only epochs up to this value will be uploaded/processed
     This is inclusive, so setting last_epoch to 5 would upload epochs 0,1,2,3,4,5
 
 
-    * **wait** (`bool`) – If true, after uploading the data, this will wait for the
+    * **wait** (`bool`) -- If true, after uploading the data, this will wait for the
     run to be processed by the Galileo server. If false, you can manually wait
     for the run by calling dq.wait_for_run() Default True
 
 
-    * **create_data_embs** (`bool`) – If True, an off-the-shelf transformer will run on the raw
+    * **create_data_embs** (`bool`) -- If True, an off-the-shelf transformer will run on the raw
     text input to generate data-level embeddings. These will be available in the
     data view tab of the Galileo console. You can also access these embeddings
     via dq.metrics.get_data_embeddings()
@@ -740,7 +740,7 @@ existing ones.
 
 * **Parameters**
 
-    **task_type** (`str`) – The task type for modeling. This must be one of the valid
+    **task_type** (`str`) -- The task type for modeling. This must be one of the valid
 
 
 dataquality.schemas.task_type.TaskType options
@@ -753,7 +753,7 @@ does exist, it will be set.
 generated. If provided, and the project does not exist, it will be created. If it
 does exist, it will be set.
 :type is_public: `bool`
-:param is_public: Boolean value that sets the project’s visibility. Default True.
+:param is_public: Boolean value that sets the project's visibility. Default True.
 :type overwrite_local: `bool`
 :param overwrite_local: If True, the current project/run log directory will be
 cleared during this function. If logging over many sessions with checkpoints, you
@@ -771,17 +771,17 @@ The expected arguments come from the task_type being used: See dq.docs() for det
 * **Parameters**
 
     
-    * **text** (`str`) – List[str] the input samples to your model
+    * **text** (`str`) -- List[str] the input samples to your model
 
 
-    * **id** (`int`) – List[int | str] the ids per sample
+    * **id** (`int`) -- List[int | str] the ids per sample
 
 
-    * **split** – Optional[str] the split for this data. Can also be set via
+    * **split** -- Optional[str] the split for this data. Can also be set via
     dq.set_split
 
 
-    * **kwargs** (`Any`) – See dq.docs() for details on other task specific parameters
+    * **kwargs** (`Any`) -- See dq.docs() for details on other task specific parameters
 
 
 
@@ -802,14 +802,14 @@ valid examples:
 
     d = [
 
-        {“my_text”: “sample1”, “my_labels”: “A”, “my_id”: 1, “sample_quality”: 5.3},
-        {“my_text”: “sample2”, “my_labels”: “A”, “my_id”: 2, “sample_quality”: 9.1},
-        {“my_text”: “sample3”, “my_labels”: “B”, “my_id”: 3, “sample_quality”: 2.7},
+        {"my_text": "sample1", "my_labels": "A", "my_id": 1, "sample_quality": 5.3},
+        {"my_text": "sample2", "my_labels": "A", "my_id": 2, "sample_quality": 9.1},
+        {"my_text": "sample3", "my_labels": "B", "my_id": 3, "sample_quality": 2.7},
 
     ]
     dq.log_dataset(
 
-    > d, text=”my_text”, id=”my_id”, label=”my_labels”, meta=[“sample_quality”]
+    > d, text="my_text", id="my_id", label="my_labels", meta=["sample_quality"]
 
     )
 
@@ -820,15 +820,15 @@ valid examples:
     0  sample1     A   1             5.3
     1  sample2     A   2             9.1
     2  sample3     B   3             2.7
-    # We don’t need to set text id or label because it matches the default
-    dq.log_dataset(d, meta=[“sample_quality”])
+    # We don't need to set text id or label because it matches the default
+    dq.log_dataset(d, meta=["sample_quality"])
 
     Logging and iterable of tuples:
     d = [
 
-    > (“sample1”, “A”, “ID1”),
-    > (“sample2”, “A”, “ID2”),
-    > (“sample3”, “B”, “ID3”),
+    > ("sample1", "A", "ID1"),
+    > ("sample2", "A", "ID2"),
+    > ("sample3", "B", "ID3"),
 
     ]
     dq.log_dataset(d, text=0, id=2, label=1)
@@ -837,19 +837,19 @@ Invalid example:
 
     d = {
 
-        “my_text”: [“sample1”, “sample2”, “sample3”],
-        “my_labels”: [“A”, “A”, “B”],
-        “my_id”: [1, 2, 3],
-        “sample_quality”: [5.3, 9.1, 2.7]
+        "my_text": ["sample1", "sample2", "sample3"],
+        "my_labels": ["A", "A", "B"],
+        "my_id": [1, 2, 3],
+        "sample_quality": [5.3, 9.1, 2.7]
 
     }
 
 In the invalid case, use dq.log_data_samples:
 
-    meta = {“sample_quality”: d[“sample_quality”]}
+    meta = {"sample_quality": d["sample_quality"]}
     dq.log_data_samples(
 
-    > texts=d[“my_text”], labels=d[“my_labels”], ids=d[“my_ids”], meta=meta
+    > texts=d["my_text"], labels=d["my_labels"], ids=d["my_ids"], meta=meta
 
     )
 
@@ -864,7 +864,7 @@ Keyword arguments are specific to the task type. See dq.docs() for details
 
 * **Parameters**
 
-    **dataset** (`TypeVar`(`DataSet`, bound= `Union`[`Iterable`, `DataFrame`, `DataFrame`])) – The iterable or dataframe to log
+    **dataset** (`TypeVar`(`DataSet`, bound= `Union`[`Iterable`, `DataFrame`, `DataFrame`])) -- The iterable or dataframe to log
 
 
 
@@ -876,9 +876,9 @@ Keyword arguments are specific to the task type. See dq.docs() for details
 memory mapped dataset. A larger batch_size will result in faster logging at the
 expense of more memory usage. Default 100,000
 :type text: `Union`[`str`, `int`]
-:param text: str | int The column, key, or int index for text data. Default “text”
+:param text: str | int The column, key, or int index for text data. Default "text"
 :type id: `Union`[`str`, `int`]
-:param id: str | int The column, key, or int index for id data. Default “id”
+:param id: str | int The column, key, or int index for id data. Default "id"
 :type split: `Optional`[`Split`]
 :param split: Optional[str] the split for this data. Can also be set via
 
@@ -888,12 +888,12 @@ expense of more memory usage. Default 100,000
 * **Parameters**
 
     
-    * **meta** (`Optional`[`List`[`Union`[`str`, `int`]]]) – List[str | int] Additional keys/columns to your input data to be
+    * **meta** (`Optional`[`List`[`Union`[`str`, `int`]]]) -- List[str | int] Additional keys/columns to your input data to be
     logged as metadata. Consider a pandas dataframe, this would be the list of
     columns corresponding to each metadata field to log
 
 
-    * **kwargs** (`Any`) – See help(dq.get_data_logger().log_dataset) for more details here
+    * **kwargs** (`Any`) -- See help(dq.get_data_logger().log_dataset) for more details here
 
 
 or dq.docs() for more general task details
@@ -906,29 +906,29 @@ Logs model outputs for model during training/test/validation.
 * **Parameters**
 
     
-    * **embs** (`Union`[`List`, `ndarray`, `None`]) – The embeddings per output sample
+    * **embs** (`Union`[`List`, `ndarray`, `None`]) -- The embeddings per output sample
 
 
-    * **ids** (`Union`[`List`, `ndarray`]) – The ids for each sample. Must match input ids of logged samples
+    * **ids** (`Union`[`List`, `ndarray`]) -- The ids for each sample. Must match input ids of logged samples
 
 
-    * **split** (`Optional`[`Split`]) – The current split. Must be set either here or via dq.set_split
+    * **split** (`Optional`[`Split`]) -- The current split. Must be set either here or via dq.set_split
 
 
-    * **epoch** (`Optional`[`int`]) – The current epoch. Must be set either here or via dq.set_epoch
+    * **epoch** (`Optional`[`int`]) -- The current epoch. Must be set either here or via dq.set_epoch
 
 
-    * **logits** (`Union`[`List`, `ndarray`, `None`]) – The logits for each sample
+    * **logits** (`Union`[`List`, `ndarray`, `None`]) -- The logits for each sample
 
 
-    * **probs** (`Union`[`List`, `ndarray`, `None`]) – Deprecated, use logits. If passed in, a softmax will NOT be applied
+    * **probs** (`Union`[`List`, `ndarray`, `None`]) -- Deprecated, use logits. If passed in, a softmax will NOT be applied
 
 
-    * **inference_name** (`Optional`[`str`]) – Inference name indicator for this inference split.
+    * **inference_name** (`Optional`[`str`]) -- Inference name indicator for this inference split.
     If logging for an inference split, this is required.
 
 
-    * **exclude_embs** (`bool`) – Optional flag to exclude embeddings from logging. If True and
+    * **exclude_embs** (`bool`) -- Optional flag to exclude embeddings from logging. If True and
     embs is set to None, this will generate random embs for each sample.
 
 
@@ -982,7 +982,7 @@ Creates the mapping of the labels for the model to their respective indexes.
 
 * **Parameters**
 
-    **labels** (`Union`[`List`[`List`[`str`]], `List`[`str`]]) – An ordered list of labels (ie [‘dog’,’cat’,’fish’]
+    **labels** (`Union`[`List`[`List`[`str`]], `List`[`str`]]) -- An ordered list of labels (ie ['dog','cat','fish']
 
 
 If this is a multi-label type, then labels are a list of lists where each inner

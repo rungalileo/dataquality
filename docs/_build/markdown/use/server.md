@@ -80,7 +80,7 @@ files`
 | `vserver
 attach`
 
-                 | Show a server’s logs in the current terminal
+                 | Show a server's logs in the current terminal
 
                          |
 | `vserver
@@ -456,7 +456,7 @@ are explained. You can retrieve any record and edit any property of it.
 Every `db.` object has a `help()` method which prints some info on
 what data is stored in it (e.g. `db.Organization.help()`).
 
-**NOTE**: Don’t forget to call `.save()` once you are done editing an object.
+**NOTE**: Don't forget to call `.save()` once you are done editing an object.
 
 ### Organizations
 
@@ -666,11 +666,11 @@ collaboration.organizations
 
 **WARNING**: Setting the encryption to False at the server does not mean that the nodes
 will send encrypted results. This is only the case if the nodes also agree
-on this setting. If they don’t, you will receive an error message.
+on this setting. If they don't, you will receive an error message.
 
 ### Nodes
 
-Before nodes can login, they need to exist in the server’s database. A
+Before nodes can login, they need to exist in the server's database. A
 new node can be created as follows:
 
 ```python

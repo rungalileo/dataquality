@@ -32,7 +32,7 @@ permissions are described by rules, which can be aggregated in roles.
 Contact your server administrator if you find your permissions are
 inappropriate.
 
-**NOTE**: There are predefined roles such as ‘Researcher’ and ‘Organization Admin’
+**NOTE**: There are predefined roles such as 'Researcher' and 'Organization Admin'
 that are automatically created by the server. These can be assigned to any
 new user by the administrator that is creating the user.
 
@@ -253,14 +253,14 @@ administrators).
 
 A collaboration is an association of multiple
 organizations that want to run analyses together.
-First, you will need to find the organization id’s of the organizations
+First, you will need to find the organization id's of the organizations
 you want to be part of the collaboration.
 
 ```python
 client.organization.list(fields=['id', 'name'])
 ```
 
-Once you know the id’s of the organizations you want in the
+Once you know the id's of the organizations you want in the
 collaboration (e.g. 1 and 2), you can create the collaboration:
 
 ```python
@@ -289,7 +289,7 @@ have these permissions, this is typically only for administrators).
 
 A node is associated with both a collaboration and an organization (see
 ). You will need to find
-the collaboration and organization id’s for the node you want to
+the collaboration and organization id's for the node you want to
 register:
 
 ```python
@@ -331,10 +331,10 @@ for more details on developing your own algorithm)
 
 * the nodes are configured to look at the right database
 
-In this manual, we’ll use the averaging algorithm from
+In this manual, we'll use the averaging algorithm from
 `harbor2.dataquality.ai/demo/average`, so the second requirement is met.
 This container assumes a comma-separated (\*.csv) file as input, and will
-compute the average over one of the named columns. We’ll assume the
+compute the average over one of the named columns. We'll assume the
 nodes in your collaboration have been configured to look at a
 comma-separated database, i.e. their config contains something like
 
@@ -345,13 +345,13 @@ databases:
 ```
 
 so that the third requirement is also met. As an end-user running the
-algorithm, you’ll need to align with the node owner about which database
+algorithm, you'll need to align with the node owner about which database
 name is used for the database you are interested in. For more details, see
 how to [Configure](node.md#node-configure) your node.
 
 **Determining which collaboration / organizations to create a task for**
 
-First, you’ll want to determine which collaboration to submit this task
+First, you'll want to determine which collaboration to submit this task
 to, and which organizations from this collaboration you want to be
 involved in the analysis
 
@@ -369,7 +369,7 @@ involved in the analysis
 
 In this example, we see that the collaboration called `example_collab1`
 has three organizations associated with it, of which the organization
-id’s are `2`, `3` and `4`. To figure out the names of these
+id's are `2`, `3` and `4`. To figure out the names of these
 organizations, we run:
 
 ```python
@@ -425,7 +425,7 @@ argument. Check `help(client.task.create)` for more information.
 **Creating a task that runs the RPC algorithm**
 
 You might be interested to know output of the RPC algorithm (in this
-example: the averages for the ‘age’ column for each node). In that case,
+example: the averages for the 'age' column for each node). In that case,
 you can run only the RPC algorithm, omitting the aggregation that the
 master algorithm will normally do:
 
