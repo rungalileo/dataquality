@@ -1,6 +1,6 @@
 # API MD
 
-| [`dataquality`](api.md#module-dataquality)
+| [`dataquality`](generated/dataquality.md#module-dataquality)
  | dataquality
 
  |

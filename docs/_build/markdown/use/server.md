@@ -52,62 +52,62 @@ e.g. `vserver start --help`.
  | **Description**
 
  |
-| ------------------------ | -------------------------------------------------------- |  |  |
+| ------------------------------ | -------------------------------------------------------------------- |  |  |  |  |  |  |  |  |
 | `vserver
 new`
 
-              | Create a new server configuration file
+                    | Create a new server configuration file
 
-                   |
+                               |
 | `vserver
 start`
 
-            | Start a server
+                  | Start a server
 
-                                           |
+                                                       |
 | `vserver
 stop`
 
-             | Stop a server
+                   | Stop a server
 
-                                            |
+                                                        |
 | `vserver
 files`
 
-            | List the files that a server is using
+                  | List the files that a server is using
 
-                    |
+                                |
 | `vserver
 attach`
 
-           | Show a server’s logs in the current terminal
+                 | Show a server’s logs in the current terminal
 
-             |
+                         |
 | `vserver
 list`
 
-             | List the available server instances
+                   | List the available server instances
 
-                      |
+                                  |
 | `vserver
 shell`
 
-            | Run a server instance python shell
+                  | Run a server instance python shell
 
-                       |
+                                   |
 | `vserver
 import`
 
-           | Import server entities as a batch
+                 | Import server entities as a batch
 
-                        |
+                                    |
 | `vserver
 version`
 
-          | Shows the versions of all the components of the
+                | Shows the versions of all the components of the
 running server
 
- |
+       |
 The following sections explain how to use these commands to configure
 and maintain a dataquality-server instance:
 

@@ -1,3 +1,8 @@
+# Reference
+
+## watch (PyTorch)
+
+
 ### watch(model, dataloaders, layer=None, embedding_dim=None, logits_dim=None)
 wraps a PyTorch model and optionally dataloaders to log the
 embeddings and logits to [Galileo]([https://www.rungalileo.io/](https://www.rungalileo.io/)).
@@ -97,22 +102,6 @@ at the results
 * **Returns**
 
     None
-
-
-
-### watch(model, layer=None, seed=42)
-Watch a model and log the inputs and outputs of a layer.
-:type model: `Layer`
-:param model: The model to watch
-:type layer: `Optional`[`Any`]
-:param layer: The layer to watch, if None the classifier layer is used
-:type seed: `int`
-:param seed: The seed to use for the model
-
-
-* **Return type**
-
-    `None`
 
 
 
@@ -667,7 +656,7 @@ dq.auto(
     project_name=”data_from_local”,
     run_name=”run_1_raw_data”
 
-# )
+### )
 
 
 ### finish(last_epoch=None, wait=True, create_data_embs=False)
@@ -985,3 +974,24 @@ When setting split to inference, inference_name must be included
 * **Return type**
 
     `None`
+
+
+# Indices and tables
+
+
+* [Index](genindex.md)
+
+
+* [Module Index](py-modindex.md)
+
+
+* search\`\`\`
+
+
+---
+
+`\`{code-block} python
+a = 2
+print('my 1st line')
+print(f'my {a}nd line')
+\``

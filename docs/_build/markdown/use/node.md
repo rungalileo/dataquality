@@ -44,44 +44,44 @@ i.e. `vnode start --help` .
  | **Description**
 
  |
-| ------- | ----------- |
+| ------------------------------ | -------------------------------------------------------------------- |  |  |  |  |  |  |
 | `vnode new`
 
- | Create a new node configuration file
+                      | Create a new node configuration file
 
- |
+                                 |
 | `vnode start`
 
- | Start a node
+                    | Start a node
 
-                         |
+                                                         |
 | `vnode stop`
 
-  | Stop one or all nodes
+                     | Stop one or all nodes
 
-                |
+                                                |
 | `vnode files`
 
- | List the files of a node
+                    | List the files of a node
 
-             |
+                                             |
 | `vnode attach`
 
- | Print the node logs to the console
+                   | Print the node logs to the console
 
-   |
+                                   |
 | `vnode list`
 
-   | List all available nodes
+                     | List all available nodes
 
-             |
+                                             |
 | `vnode
 create-private-key`
 
- | Create and upload a new public key for your
+       | Create and upload a new public key for your
 organization
 
- |
+             |
 See the following sections on how to configure and maintain a
 dataquality-node instance:
 

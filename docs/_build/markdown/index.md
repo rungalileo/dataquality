@@ -113,9 +113,6 @@ community*
         * [`watch()`](api.md#dataquality.integrations.spacy.watch)
 
 
-        * [`watch()`](api.md#dataquality.integrations.experimental.keras.watch)
-
-
         * [`DataQualityCallback`](api.md#dataquality.integrations.keras.DataQualityCallback)
 
 
