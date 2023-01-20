@@ -9,7 +9,7 @@ import dataquality
 import dataquality.clients.api
 from dataquality import config
 from dataquality.core.auth import GALILEO_AUTH_METHOD
-from dataquality.core.init import _Init
+from dataquality.core.init import InitManager
 from dataquality.exceptions import GalileoException
 from tests.exceptions import LoginInvoked
 from tests.test_utils.mock_request import (
@@ -419,7 +419,7 @@ def test_initialize_new_project_catches_api_errors(
     mock_create_project: MagicMock,
     err: str,
 ) -> None:
-    _init = _Init()
+    _init = InitManager()
     mock_create_project.side_effect = GalileoException(err)
     _init._initialize_new_project("test_proj")
     mock_get_project.assert_called_once_with("test_proj")

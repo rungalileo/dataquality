@@ -10,6 +10,7 @@ class TaskType(str, Enum):
     text_multi_label = "text_multi_label"
     text_ner = "text_ner"
     image_classification = "image_classification"
+    structured_classification = "structured_classification"
 
     @staticmethod
     def get_valid_tasks() -> List[str]:
@@ -23,4 +24,5 @@ class TaskType(str, Enum):
             1: TaskType.text_multi_label,
             2: TaskType.text_ner,
             3: TaskType.image_classification,
+            4: TaskType.structured_classification,
         }[task_int]

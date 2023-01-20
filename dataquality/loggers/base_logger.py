@@ -206,8 +206,10 @@ class BaseGalileoLogger:
         return v
 
     @staticmethod
-    def validate_task(task_type: Union[str, TaskType]) -> None:
-        if task_type not in TaskType.get_valid_tasks():
+    def validate_task(task_type: Union[str, TaskType]) -> TaskType:
+        try:
+            return TaskType[task_type]
+        except KeyError:
             raise GalileoException(
                 f"Task type {task_type} not valid. Choose one of "
                 f"{TaskType.get_valid_tasks()}"

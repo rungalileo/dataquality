@@ -12,6 +12,9 @@ from dataquality.loggers.data_logger.base_data_logger import ITER_CHUNK_SIZE, Da
 from dataquality.loggers.data_logger.image_classification import (
     ImageClassificationDataLogger,
 )
+from dataquality.loggers.data_logger.structured_classification import (
+    StructuredClassificationLogger,
+)
 from dataquality.loggers.logger_config.text_multi_label import (
     text_multi_label_logger_config,
 )
@@ -141,6 +144,37 @@ def log_image_dataset(
         label=label,
         split=split,
         meta=meta,
+    )
+
+
+@check_noop
+def log_structured_dataset(
+    dataset: DataSet,
+    *,
+    # batch_size: int = ITER_CHUNK_SIZE,
+    # id: Union[str, int] = "id",
+    label: Union[str, int] = "label",
+    split: Optional[Split] = None,
+    **kwargs: Any,
+) -> None:
+    assert isinstance(
+        dataset, pd.DataFrame
+    ), "dataset must be a pandas DataFrame"  # TODO: add support for other data types
+    a.log_function("dq/log_structured")
+    assert all(
+        [config.task_type, config.current_project_id, config.current_run_id]
+    ), "You must call dataquality.init before logging data"
+    data_logger = get_data_logger()
+    assert isinstance(data_logger, StructuredClassificationLogger), (
+        "This method is only supported for structured data tasks. "
+        "You must call dq.init('structured_classification') to use this method."
+    )
+    data_logger.log_structured_dataset(
+        dataset=dataset,
+        # batch_size=batch_size,
+        # id=id,
+        label=label,
+        split=split,
     )
 
 
