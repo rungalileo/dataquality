@@ -35,9 +35,7 @@ class InitManager:
         created = False
         if not project:
             created = True
-            project = api_client.create_project(
-                project_name=project_name, is_public=is_public
-            )
+            project = api_client.create_project(project_name, is_public=is_public)
 
         visibility = "public" if is_public else "private"
         created_str = "new" if created else "existing"
@@ -56,7 +54,7 @@ class InitManager:
         created = False
         if not run:
             created = True
-            run = api_client.create_run(project_name, run_name, task_type)
+            run = api_client.create_run(project_name, run_name, task_type=task_type)
 
         created_str = "new" if created else "existing"
         verb = "Creating" if created else "Fetching"
