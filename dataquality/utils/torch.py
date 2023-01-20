@@ -342,10 +342,8 @@ def patch_dataloaders(store: Dict, reset_indices: bool = True) -> None:
         def patched_next_index(*args: Any, **kwargs: Any) -> Any:
             indices = func(*args, **kwargs)
             if indices and key in store:
-                if reset_indices and store.get("last_action") == "pop":
-                    store[key] = []
+                # TODO: investigate into ways to reset the indices
                 store[key].append(indices)
-                store["last_action"] = "append"
             return indices
 
         return patched_next_index
@@ -415,14 +413,19 @@ def unpatch(patches: List[Dict[str, Any]] = []) -> None:
     if len(patches) == 0:
         base_dataloaders: List[
             Union[Type[_BaseDataLoaderIter], _BaseDataLoaderIter]
-        ] = []
+        ] = [_BaseDataLoaderIter]
         for obj in gc.get_objects():
             if isinstance(obj, _BaseDataLoaderIter):
                 base_dataloaders.append(obj)
-        for obj in base_dataloaders + [_BaseDataLoaderIter]:
-            if getattr(obj, "_patched", False):
-                for attrib in dir(obj):
-                    if attrib.startswith("_old_") and hasattr(obj, attrib[5:]):
-                        setattr(obj, attrib[5:], getattr(obj, attrib))
+        for obj in base_dataloaders:
+            for attrib in dir(obj):
+                if (
+                    attrib.startswith("_old_")
+                    and hasattr(obj, attrib[5:])
+                    and hasattr(obj, attrib)
+                ):
+                    setattr(obj, attrib[5:], getattr(obj, attrib))
+                    if hasattr(obj, attrib):
                         delattr(obj, attrib)
+            if getattr(obj, "_patched", False):
                 delattr(obj, "_patched")

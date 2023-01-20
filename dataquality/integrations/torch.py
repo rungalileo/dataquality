@@ -1,3 +1,4 @@
+from logging import warning
 from typing import Any, Callable, Dict, List, Optional, Union
 
 from torch import Tensor
@@ -150,7 +151,6 @@ class TorchLogger(TorchBaseInstance):
         # Workaround for multiprocessing
         if model_outputs.get("ids") is None and len(self.helper_data["ids"]):
             model_outputs["ids"] = self.helper_data["ids"].pop(0)
-            self.helper_data["last_action"] = "pop"
 
         # Log only if embedding exists
         assert model_outputs.get("embs") is not None, GalileoException(
@@ -163,7 +163,7 @@ class TorchLogger(TorchBaseInstance):
             "id column missing in dataset (needed to map rows to the indices/ids)"
         )
         # Convert the indices to ids
-        cur_split = dq.get_data_logger().logger_config.cur_split.lower()  # type: ignore
+        cur_split = self.logger_config.cur_split.lower()  # type: ignore
         model_outputs["ids"] = map_indices_to_ids(
             self.logger_config.idx_to_id_map[cur_split], model_outputs["ids"]
         )
@@ -220,7 +220,7 @@ def watch(
         "dq client must be initialized. " "For example: dq.init('text_classification')"
     )
     if unpatch_on_start:
-        unwatch(force=True)
+        unwatch(model, force=True)
     if not getattr(model, "_dq", False):
         setattr(model, "_dq", True)
     else:
@@ -274,8 +274,11 @@ def unwatch(model: Optional[Module] = None, force: bool = True) -> None:
 
     helper_data = dq.get_model_logger().logger_config.helper_data
     model = model or helper_data.get("model", None)
-    if not getattr(model or {}, "_dq", False) and not force:
-        raise GalileoException("Model is not watched, run watch(model) first")
+    if not getattr(model or {}, "_dq", False):
+        warning("Model is not watched, run watch(model) first")
+        if not force:
+            return
+
     # Unpatch the dataloaders
     unpatch(helper_data.get("patches", []))
     # Detach hooks the model. in the future use the model passed

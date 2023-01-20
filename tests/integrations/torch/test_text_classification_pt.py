@@ -108,10 +108,12 @@ def train(dataloader, model):
     for idx, (label, text, offsets) in enumerate(dataloader):
         optimizer.zero_grad()
         predicted_label = model(text, offsets)
-        loss = criterion(predicted_label, label)
-        loss.backward()
+        # uncommented to speed up testing
+        # loss = criterion(predicted_label, label)
+        # loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), 0.1)
-        optimizer.step()
+        # uncommented to speed up testing
+        # optimizer.step()
         total_acc += (predicted_label.argmax(1) == label).sum().item()
         total_count += label.size(0)
         if idx % log_interval == 0 and idx > 0:
@@ -131,8 +133,8 @@ def evaluate(dataloader, model):
     with torch.no_grad():
         for idx, (label, text, offsets) in enumerate(dataloader):
             predicted_label = model(text, offsets)
-            loss = criterion(predicted_label, label)
-            loss
+            # uncommented to speed up testing
+            # loss = criterion(predicted_label, label)
             total_acc += (predicted_label.argmax(1) == label).sum().item()
             total_count += label.size(0)
     return total_acc / total_count
@@ -141,9 +143,9 @@ def evaluate(dataloader, model):
 """Split the dataset and run the model"""
 
 # Hyperparameters
-EPOCHS = 3  # epoch
+EPOCHS = 2  # epoch
 LR = 5  # learning rate
-BATCH_SIZE = 64  # batch size for training
+BATCH_SIZE = 32  # batch size for training
 
 criterion = torch.nn.CrossEntropyLoss()
 optimizer = torch.optim.SGD(model.parameters(), lr=LR)
@@ -156,8 +158,8 @@ split_train_, split_valid_ = random_split(
     train_dataset, [num_train, len(train_dataset) - num_train]
 )
 
-ag_train = to_map_style_dataset(AG_NEWS(split="train"))[:128]
-ag_test = to_map_style_dataset(AG_NEWS(split="test"))[128:180]
+ag_train = to_map_style_dataset(AG_NEWS(split="train"))[:192]
+ag_test = to_map_style_dataset(AG_NEWS(split="test"))[192:220]
 train_df = pd.DataFrame(ag_train)
 test_df = pd.DataFrame(ag_test)
 train_df = train_df.reset_index().rename(columns={0: "label", 1: "text", "index": "id"})
@@ -241,7 +243,6 @@ def test_end_to_end_old_patch(
     set_test_config: Callable,
     cleanup_after_use: Generator,
 ) -> None:
-
     set_test_config(default_task_type=TaskType.text_classification)
     # Preprocessing
     global train_df, test_df
