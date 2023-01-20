@@ -1,6 +1,6 @@
 # Document Title
 
-| `dataquality`
+| [`dataquality`](generated/dataquality.md#module-dataquality)
  | dataquality
 
  |

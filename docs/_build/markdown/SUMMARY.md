@@ -8,6 +8,3 @@
 
 
     * [Documentation](api/dataquality.md)
-
-
-    * [Toc](api/index.md)
