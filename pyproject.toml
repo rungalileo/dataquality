@@ -32,7 +32,8 @@ requires = [
     "sentence-transformers>=2.2",
     "Pillow",
     "h5py >=3.1.0",
-    "numpy<1.24.0"
+    "numpy<1.24.0",
+    "tenacity>=8.1.0"
 ]
 
 [tool.flit.metadata.urls]

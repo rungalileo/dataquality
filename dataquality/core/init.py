@@ -5,6 +5,12 @@ import warnings
 from typing import Dict, Optional, Tuple
 
 from pydantic.types import UUID4
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential_jitter,
+)
 
 import dataquality
 from dataquality.clients.api import ApiClient
@@ -22,6 +28,11 @@ BAD_CHARS_REGEX = r"[^\w -]+"
 
 
 class InitManager:
+    @retry(
+        wait=wait_exponential_jitter(initial=0.1, max=2),
+        stop=stop_after_attempt(5),
+        retry=retry_if_exception_type(GalileoException),
+    )
     def get_or_create_project(
         self, project_name: str, is_public: bool
     ) -> Tuple[Dict, bool]:
@@ -34,8 +45,8 @@ class InitManager:
         project = api_client.get_project_by_name(project_name)
         created = False
         if not project:
-            created = True
             project = api_client.create_project(project_name, is_public=is_public)
+            created = True
 
         visibility = "public" if is_public else "private"
         created_str = "new" if created else "existing"
@@ -53,8 +64,8 @@ class InitManager:
         run = api_client.get_project_run_by_name(project_name, run_name)
         created = False
         if not run:
-            created = True
             run = api_client.create_run(project_name, run_name, task_type=task_type)
+            created = True
 
         created_str = "new" if created else "existing"
         verb = "Creating" if created else "Fetching"

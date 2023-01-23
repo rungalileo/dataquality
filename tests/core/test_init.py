@@ -4,6 +4,7 @@ from typing import Callable
 from unittest.mock import ANY, MagicMock, patch
 
 import pytest
+from tenacity import RetryError
 
 import dataquality
 from dataquality import config
@@ -303,6 +304,83 @@ def test_init_only_run(
     assert not config.current_project_id
 
     mock_get_project_by_name.assert_not_called()
+    mock_create_project.assert_not_called()
+    mock_get_project_run_by_name.assert_not_called()
+    mock_create_run.assert_not_called()
+
+
+@patch.object(ApiClient, "get_project_by_name")
+@patch.object(ApiClient, "create_project")
+@patch.object(ApiClient, "get_project_run_by_name")
+@patch.object(ApiClient, "create_run")
+@patch("dataquality.core.init._check_dq_version")
+@patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=True)
+def test_init_project_name_collision(
+    mock_valid_user: MagicMock,
+    mock_check_dq_version: MagicMock,
+    mock_create_run: MagicMock,
+    mock_get_project_run_by_name: MagicMock,
+    mock_create_project: MagicMock,
+    mock_get_project_by_name: MagicMock,
+    set_test_config: Callable,
+) -> None:
+    """Tests init with a project name created by another user at same time
+
+    If two users try to create a project with the same name at the same time,
+    the second user will return an empty project from `get_project` and then
+    run into an error when trying to `create_project` with the same name.
+
+    Using the tenacity `retry` decorator, we should be able to handle this
+    gracefully.
+
+    Here we test that despite 2 failed attempts to create a project with the same
+    name will result in a successful project creation.
+    """
+    mock_get_project_by_name.side_effect = [
+        GalileoException,
+        GalileoException,
+        {"id": DEFAULT_PROJECT_ID},
+    ]
+    mock_get_project_run_by_name.return_value = {"id": DEFAULT_RUN_ID}
+    dataquality.init(
+        task_type="text_classification", project_name="race-condition-proj"
+    )
+    assert config.current_run_id == DEFAULT_RUN_ID
+    assert config.current_project_id == DEFAULT_PROJECT_ID
+
+    assert mock_get_project_by_name.call_count == 3
+    mock_create_project.assert_not_called()
+    mock_get_project_run_by_name.assert_called_once_with("race-condition-proj", ANY)
+    mock_create_run.assert_not_called()
+
+
+@patch.object(ApiClient, "get_project_by_name")
+@patch.object(ApiClient, "create_project")
+@patch.object(ApiClient, "get_project_run_by_name")
+@patch.object(ApiClient, "create_run")
+@patch("dataquality.core.init._check_dq_version")
+@patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=True)
+def test_init_project_name_collision_fails(
+    mock_valid_user: MagicMock,
+    mock_check_dq_version: MagicMock,
+    mock_create_run: MagicMock,
+    mock_get_project_run_by_name: MagicMock,
+    mock_create_project: MagicMock,
+    mock_get_project_by_name: MagicMock,
+    set_test_config: Callable,
+) -> None:
+    """Tests that the retry decorator will stop after 5 failed attempts"""
+    set_test_config(current_project_id=None, current_run_id=None)
+    mock_get_project_by_name.side_effect = GalileoException
+    with pytest.raises(RetryError):
+        dataquality.init(
+            task_type="text_classification", project_name="race-condition-proj"
+        )
+
+    assert config.current_run_id is None
+    assert config.current_project_id is None
+
+    assert mock_get_project_by_name.call_count == 5
     mock_create_project.assert_not_called()
     mock_get_project_run_by_name.assert_not_called()
     mock_create_run.assert_not_called()
