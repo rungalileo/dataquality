@@ -79,6 +79,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             dataset["text"] = dataset[imgs_location_colname].apply(_img_to_b64_str)
         elif image_field_type == image_field_type.hf_image_feature:
             # TODO
+            raise GalileoException("TODO")
         else:
             raise GalileoException(
                 f"Could not interpret column {imgs_location_colname} as either images"
