@@ -3,7 +3,10 @@ from enum import Enum, unique
 from typing import List, Optional, Union
 
 import pandas as pd
+<<<<<<< HEAD
 from PIL.Image import Image
+=======
+>>>>>>> main
 
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger.base_data_logger import (
