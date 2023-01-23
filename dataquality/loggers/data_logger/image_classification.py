@@ -96,9 +96,9 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         dataset: datasets.Dataset
 
         # Find the id column, or create it.
-        if id not in dataset.column_names:
+        if 'id' not in dataset.column_names:
             dataset = dataset.add_column(
-                name=id, column=list(range(len(dataset)))
+                name='id', column=list(range(len(dataset)))
             )
 
         image_feature = dataset.features[imgs_location_colname]
