@@ -5,6 +5,12 @@ import warnings
 from typing import Dict, Optional, Tuple
 
 from pydantic.types import UUID4
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential_jitter,
+)
 
 import dataquality
 from dataquality.clients.api import ApiClient
@@ -22,21 +28,25 @@ BAD_CHARS_REGEX = r"[^\w -]+"
 
 
 class InitManager:
+    @retry(
+        wait=wait_exponential_jitter(initial=0.1, max=2),
+        stop=stop_after_attempt(5),
+        retry=retry_if_exception_type(GalileoException),
+    )
     def get_or_create_project(
         self, project_name: str, is_public: bool
     ) -> Tuple[Dict, bool]:
         """Gets a project by name, or creates a new one if it doesn't exist.
 
         Returns:
-            Tuple[Dict, bool]: The project and a boolean indicating if the project was created
+            Tuple[Dict, bool]: The project and a boolean indicating if the project
+            was created
         """
         project = api_client.get_project_by_name(project_name)
         created = False
         if not project:
+            project = api_client.create_project(project_name, is_public=is_public)
             created = True
-            project = api_client.create_project(
-                project_name=project_name, is_public=is_public
-            )
 
         visibility = "public" if is_public else "private"
         created_str = "new" if created else "existing"
@@ -54,8 +64,8 @@ class InitManager:
         run = api_client.get_project_run_by_name(project_name, run_name)
         created = False
         if not run:
+            run = api_client.create_run(project_name, run_name, task_type=task_type)
             created = True
-            run = api_client.create_run(project_name, run_name, task_type)
 
         created_str = "new" if created else "existing"
         verb = "Creating" if created else "Fetching"
@@ -131,8 +141,6 @@ def init(
     _init = InitManager()
     task_type = BaseGalileoLogger.validate_task(task_type)
     config.task_type = task_type
-    # _init.validate_name(project_name)
-    # _init.validate_name(run_name)
     if not project_name and run_name:
         # The user provided a run name and no project name. No good
         warnings.warn(
@@ -143,8 +151,6 @@ def init(
 
     project_name = _init.validate_name(project_name)
     run_name = _init.validate_name(run_name)
-    proj_created = False
-    run_created = False
 
     project, proj_created = _init.get_or_create_project(project_name, is_public)
     run, run_created = _init.get_or_create_run(project_name, run_name, task_type)
@@ -158,9 +164,11 @@ def init(
     config.current_project_id = project["id"]
     config.current_run_id = run["id"]
 
+    proj_created_str = "new" if proj_created else "existing"
+    run_created_str = "new" if run_created else "existing"
     print(
-        f"🛰 Connected to {'new' if proj_created else 'existing'} project '{project_name}', "
-        f"and {'new' if run_created else 'existing'} run '{run_name}'."
+        f"🛰 Connected to {proj_created_str} project '{project_name}', "
+        f"and {run_created_str} run '{run_name}'."
     )
 
     config.update_file_config()
