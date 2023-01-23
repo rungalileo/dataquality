@@ -78,8 +78,12 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         elif image_field_type == image_field_type.pil_image:
             dataset["text"] = dataset[imgs_location_colname].apply(_img_to_b64_str)
         elif image_field_type == image_field_type.hf_image_feature:
-            # TODO
-            raise GalileoException("TODO")
+            # rather than supporting this edge case, it seems better to
+            # encourage using the existing support for HF datasets in HF format
+            raise GalileoException(
+                "This dataframe looks like it was created from a HuggingFace dataset. "
+                "Try passing the dataset itself, without converting it to a dataframe."
+            )
         else:
             raise GalileoException(
                 f"Could not interpret column {imgs_location_colname} as either images"
