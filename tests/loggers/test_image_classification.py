@@ -17,6 +17,10 @@ from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import validate_unique_ids
 from tests.conftest import LOCATION
 
+food_dataset = load_dataset("sasha/dog-food", split="train")
+food_dataset = food_dataset.select(range(200))
+food_dataset_labels = food_dataset.features["label"].names
+
 
 def test_duplicate_ids_augmented_loop_thread(
     set_test_config, cleanup_after_use
@@ -294,13 +298,9 @@ def test_hf_image_dataset(set_test_config, cleanup_after_use) -> None:
     """
     set_test_config(task_type="image_classification")
 
-    food = load_dataset("sasha/dog-food")
-    food["train"] = food["train"].select(range(200))
-    labels = food["train"].features["label"].names
-
-    dq.set_labels_for_run(labels)
+    dq.set_labels_for_run(food_dataset_labels)
     dq.log_image_dataset(
-        dataset=food,
+        dataset=food_dataset,
         label="label",
         imgs_location_colname="image",
         imgs_dir="",
@@ -311,4 +311,4 @@ def test_hf_image_dataset(set_test_config, cleanup_after_use) -> None:
     ThreadPoolManager.wait_for_threads()
     df = vaex.open(f"{LOCATION}/input_data/training/*.arrow")
 
-    assert len(df) == len(food)
+    assert len(df) == len(food_dataset)
