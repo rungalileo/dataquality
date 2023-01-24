@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import vaex
 from PIL import Image
+from datasets import load_dataset
 
 import dataquality
 import dataquality as dq
@@ -285,3 +286,29 @@ def test_observed_ids_cleaned_up_after_finish(
 
     # assert that the logger config's observed ids are reset
     assert len(dq.get_model_logger().logger_config.observed_ids) == 0
+
+
+def test_hf_image_dataset(set_test_config, cleanup_after_use) -> None:
+    """
+    Tests that dq.log_image_dataset can handle HF dataset inputs.
+    """
+    set_test_config(task_type="image_classification")
+
+    food = load_dataset("sasha/dog-food")
+    food["train"] = food["train"].select(range(200))
+    labels = food["train"].features["label"].names
+
+    dq.set_labels_for_run(labels)
+    dq.log_image_dataset(
+        dataset=food,
+        label="label",
+        imgs_location_colname="image",
+        imgs_dir="",
+        split="training",
+    )
+
+    # read logged data
+    ThreadPoolManager.wait_for_threads()
+    df = vaex.open(f"{LOCATION}/input_data/training/*.arrow")
+
+    assert len(df) == len(food)
