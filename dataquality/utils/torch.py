@@ -3,17 +3,22 @@ import re
 from functools import wraps
 from queue import Queue
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
+from warnings import warn
 
 import numpy as np  # noqa: F401
 from torch import Tensor
 from torch.nn import Module
-from torch.utils.data.dataloader import _BaseDataLoaderIter
+from torch.utils.data.dataloader import (
+    _BaseDataLoaderIter,
+    _MultiProcessingDataLoaderIter,
+    _SingleProcessDataLoaderIter,
+)
 from torch.utils.hooks import RemovableHandle
 from transformers.modeling_outputs import BaseModelOutput, TokenClassifierOutput
 
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.task_type import TaskType
-from dataquality.schemas.torch import DimensionSlice, Layer
+from dataquality.schemas.torch import DimensionSlice, HelperData, Layer
 from dataquality.utils.helpers import wrap_fn
 
 
@@ -109,8 +114,8 @@ class TorchBaseInstance:
             # It is assumed that the CLS token is removed through this dimension
             # for NER tasks
             output_detached = output_detached[:, 1:, :]
-        model_outputs = self.helper_data["model_outputs"]
-        model_outputs["embs"] = output_detached
+        model_outputs_store = self.helper_data[HelperData.model_outputs_store]
+        model_outputs_store["embs"] = output_detached
 
     def _logit_hook(
         self,
@@ -151,8 +156,8 @@ class TorchBaseInstance:
             # It is assumed that the CLS token is removed
             # through this dimension for NER tasks
             logits = logits[:, 1:, :]
-        model_outputs = self.helper_data["model_outputs"]
-        model_outputs["logits"] = logits
+        model_outputs_store = self.helper_data["model_outputs"]
+        model_outputs_store["logits"] = logits
 
     def _classifier_hook(
         self,
@@ -308,7 +313,10 @@ class ModelHookManager:
     ) -> RemovableHandle:
         """Attach hook and save it in our hook list"""
         if model_layer is None:
-            selected_layer = self.get_layer_by_name(model, "classifier")
+            try:
+                selected_layer = self.get_layer_by_name(model, "classifier")
+            except GalileoException:
+                selected_layer = self.get_layer_by_name(model, "fc")
         elif isinstance(model_layer, str):
             selected_layer = self.get_layer_by_name(model, model_layer)
         else:
@@ -355,7 +363,7 @@ def patch_dataloaders(store: Dict, reset_indices: bool = True) -> None:
     # Patch the dataloader
     if getattr(_BaseDataLoaderIter, "_patched", False):
         # logger warning if already patched
-        print("BaseDataLoaderIter already patched")
+        warn("BaseDataLoaderIter already patched")
         if hasattr(_BaseDataLoaderIter, "_old__next_index"):
             setattr(
                 _BaseDataLoaderIter,
@@ -413,9 +421,17 @@ def unpatch(patches: List[Dict[str, Any]] = []) -> None:
     if len(patches) == 0:
         base_dataloaders: List[
             Union[Type[_BaseDataLoaderIter], _BaseDataLoaderIter]
-        ] = [_BaseDataLoaderIter]
+        ] = [
+            _BaseDataLoaderIter,
+            _SingleProcessDataLoaderIter,
+            _MultiProcessingDataLoaderIter,
+        ]
         for obj in gc.get_objects():
-            if isinstance(obj, _BaseDataLoaderIter):
+            if (
+                isinstance(obj, _BaseDataLoaderIter)
+                or isinstance(obj, _SingleProcessDataLoaderIter)
+                or isinstance(obj, _MultiProcessingDataLoaderIter)
+            ):
                 base_dataloaders.append(obj)
         for obj in base_dataloaders:
             for attrib in dir(obj):
