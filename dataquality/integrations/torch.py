@@ -289,14 +289,14 @@ def unwatch(model: Optional[Module] = None, force: bool = True) -> None:
     :param force: Force unwatch even if the model is not watched"""
 
     helper_data = dq.get_model_logger().logger_config.helper_data
-    model = model or helper_data.get("model", None)
+    model = model or helper_data.get(HelperData.model, None)
     if not getattr(model or {}, "_dq", False):
         warn("Model is not watched, run watch(model) first")
         if not force:
             return
 
     # Unpatch the dataloaders
-    unpatch(helper_data.get("patches", []))
+    unpatch(helper_data.get(HelperData.patches, []))
     # Detach hooks the model. in the future use the model passed
     # https://discuss.pytorch.org/t/how-to-check-where-the-hooks-are-in-the-model/120120/2
     hook_manager = helper_data.get(HelperData.hook_manager, None)

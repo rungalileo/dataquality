@@ -357,8 +357,8 @@ def patch_dataloaders(store: Dict, reset_indices: bool = True) -> None:
         return patched_next_index
 
     # Store all applied patches
-    if "patches" not in store:
-        store["patches"] = []
+    if HelperData.patches not in store:
+        store[HelperData.patches] = []
 
     # Patch the dataloader
     if getattr(_BaseDataLoaderIter, "_patched", False):
@@ -369,7 +369,8 @@ def patch_dataloaders(store: Dict, reset_indices: bool = True) -> None:
                 _BaseDataLoaderIter,
                 "_next_index",
                 wrap_next_index(
-                    getattr(_BaseDataLoaderIter, "_old__next_index"), "ids"
+                    getattr(_BaseDataLoaderIter, "_old__next_index"),
+                    HelperData.dl_next_idx_ids,
                 ),
             )
     else:
@@ -381,7 +382,9 @@ def patch_dataloaders(store: Dict, reset_indices: bool = True) -> None:
         setattr(
             _BaseDataLoaderIter,
             "_next_index",
-            wrap_next_index(_BaseDataLoaderIter._next_index, "ids"),
+            wrap_next_index(
+                _BaseDataLoaderIter._next_index, HelperData.dl_next_idx_ids
+            ),
         )
         setattr(_BaseDataLoaderIter, "_patched", True)
         setattr(_BaseDataLoaderIter, "_patch_store", store)
