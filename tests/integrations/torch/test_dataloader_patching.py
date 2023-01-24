@@ -1,7 +1,7 @@
 import torch
 from torch.utils.data import DataLoader
-from dataquality.schemas.torch import HelperData
 
+from dataquality.schemas.torch import HelperData
 from dataquality.utils.torch import patch_dataloaders, unpatch
 
 
