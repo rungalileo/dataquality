@@ -156,7 +156,7 @@ class TorchBaseInstance:
             # It is assumed that the CLS token is removed
             # through this dimension for NER tasks
             logits = logits[:, 1:, :]
-        model_outputs_store = self.helper_data["model_outputs"]
+        model_outputs_store = self.helper_data[HelperData.model_outputs_store]
         model_outputs_store["logits"] = logits
 
     def _classifier_hook(

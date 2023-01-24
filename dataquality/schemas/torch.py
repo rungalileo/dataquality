@@ -19,3 +19,6 @@ class HelperData(str, Enum):
     model_outputs_store = "model_outputs_store"
     model = "model"
     hook_manager = "hook_manager"
+    last_action = "last_action"
+    patches = "patches"
+    dl_next_idx_ids = "dl_next_idx_ids"

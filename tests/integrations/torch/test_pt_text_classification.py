@@ -145,7 +145,7 @@ def evaluate(dataloader, model):
 # Hyperparameters
 EPOCHS = 2  # epoch
 LR = 5  # learning rate
-BATCH_SIZE = 32  # batch size for training
+BATCH_SIZE = 8  # batch size for training
 
 criterion = torch.nn.CrossEntropyLoss()
 optimizer = torch.optim.SGD(model.parameters(), lr=LR)
@@ -197,10 +197,11 @@ def test_end_to_end_with_callback(
     train_dataloader_dq = DataLoader(
         ag_train,
         batch_size=BATCH_SIZE,
-        num_workers=3,
+        num_workers=2,
         shuffle=True,
         collate_fn=collate_batch,
-        # persistent_workers=True,
+        persistent_workers=True,
+        pin_memory=False,
     )
     test_dataloader_dq = DataLoader(
         ag_test, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_batch

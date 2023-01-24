@@ -77,12 +77,12 @@ class TorchLogger(TorchBaseInstance):
         self.helper_data.clear()
         self.helper_data.update(
             {
-                "ids": [],
-                "last_action": "init",
-                "patches": [],
-                "model_outputs": {},
-                "hook_manager": hm,
-                "model": model,
+                HelperData.dl_next_idx_ids: [],
+                HelperData.last_action: "init",
+                HelperData.patches: [],
+                HelperData.model_outputs_store: {},
+                HelperData.hook_manager: hm,
+                HelperData.model: model,
             }
         )
 
@@ -159,8 +159,12 @@ class TorchLogger(TorchBaseInstance):
         # method.
         model_outputs_store = self.helper_data[HelperData.model_outputs_store]
         # Workaround for multiprocessing
-        if model_outputs_store.get("ids") is None and len(self.helper_data["ids"]):
-            model_outputs_store["ids"] = self.helper_data["ids"].pop(0)
+        if model_outputs_store.get("ids") is None and len(
+            self.helper_data[HelperData.dl_next_idx_ids]
+        ):
+            model_outputs_store["ids"] = self.helper_data[
+                HelperData.dl_next_idx_ids
+            ].pop(0)
 
         # Log only if embedding exists
         assert model_outputs_store.get("embs") is not None, GalileoException(
