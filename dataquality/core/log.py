@@ -111,7 +111,8 @@ def log_image_dataset(
     dataset: DataSet,
     imgs_dir: str,
     *,
-    imgs_location_colname: Optional[str] = "relpath",
+    imgs_colname: Optional[str] = None,
+    imgs_location_colname: Optional[str] = None,
     batch_size: int = ITER_CHUNK_SIZE,
     id: Union[str, int] = "id",
     label: Union[str, int] = "label",
@@ -131,6 +132,7 @@ def log_image_dataset(
     data_logger.log_image_dataset(
         dataset=dataset,
         imgs_dir=imgs_dir,
+        imgs_colname=imgs_colname,
         imgs_location_colname=imgs_location_colname,
         batch_size=batch_size,
         id=id,

@@ -1,5 +1,4 @@
 import os
-from enum import Enum, unique
 from typing import List, Optional, Union
 
 import pandas as pd
@@ -26,14 +25,6 @@ from dataquality.utils.cv import (
 )
 
 
-@unique
-class ImageFieldType(str, Enum):
-    file_path = "file_path"
-    pil_image = "pil_image"
-    hf_image_feature = "hf_image_feature"
-    unknown = "unknown"
-
-
 class ImageClassificationDataLogger(TextClassificationDataLogger):
     __logger_name__ = "image_classification"
     logger_config: ImageClassificationLoggerConfig = image_classification_logger_config
@@ -58,70 +49,62 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
 
     def _prepare_pandas(self,
                         dataset: pd.DataFrame,
-                        imgs_location_colname: str,
+                        imgs_location_colname: Optional[str],
+                        imgs_colname: Optional[str],
                         imgs_dir: str,
                         ) -> pd.DataFrame:
-        example = dataset[imgs_location_colname].values[0]
 
-        image_field_type = ImageFieldType.unknown
-        if isinstance(example, Image):
-            image_field_type = image_field_type.pil_image
-        elif isinstance(example, str):
-            image_field_type = image_field_type.file_path
-        elif isinstance(example, dict) and set(example.keys()) == {'bytes', 'path'}:
-            image_field_type = image_field_type.hf_image_feature
-
-        if image_field_type == image_field_type.file_path:
+        if imgs_location_colname is not None:
+            # image paths
             dataset["text"] = dataset[imgs_location_colname].apply(
                 lambda x: _img_path_to_b64_str(img_path=os.path.join(imgs_dir, x))
             )
-        elif image_field_type == image_field_type.pil_image:
-            dataset["text"] = dataset[imgs_location_colname].apply(_img_to_b64_str)
-        elif image_field_type == image_field_type.hf_image_feature:
-            # rather than supporting this edge case, it seems better to
-            # encourage using the existing support for HF datasets in HF format
-            raise GalileoException(
-                "This dataframe looks like it was created from a HuggingFace dataset. "
-                "Try passing the dataset itself, without converting it to a dataframe."
-            )
         else:
-            raise GalileoException(
-                f"Could not interpret column {imgs_location_colname} as either images"
-                "or image paths."
-            )
+            # PIL images in a DataFrame column - weird, but we'll allow it
+            example = dataset[imgs_location_colname].values[0]
+            if not isinstance(example, Image):
+                raise GalileoException(
+                    f"Got imgs_colname={repr(imgs_colname)}, but that "
+                    "dataset column does not contain images. If you have "
+                    "image paths, pass imgs_location_colname instead."
+                )
+
+            dataset["text"] = dataset[imgs_colname].apply(_img_to_b64_str)
+
         return dataset
 
     def _prepare_hf(self,
                         dataset: DataSet,
-                        imgs_location_colname: str,
-                        id: str,
+                        imgs_colname: Optional[str],
+                        imgs_location_colname: Optional[str],
+                        id_: str,
                         ) -> DataSet:
         import datasets
         dataset: datasets.Dataset
 
         # Find the id column, or create it.
-        if 'id' not in dataset.column_names:
+        if id_ not in dataset.column_names:
             dataset = dataset.add_column(
-                name='id', column=list(range(len(dataset)))
+                name=id_, column=list(range(len(dataset)))
             )
 
-        image_feature = dataset.features[imgs_location_colname]
-
-        image_field_type = ImageFieldType.unknown
-        if image_feature.dtype == "PIL.Image.Image":
-            image_field_type = image_field_type.hf_image_feature
-        elif image_feature.dtype == "string":
-            image_field_type = image_field_type.file_path
-
-        if image_field_type == image_field_type.hf_image_feature:
+        if imgs_colname is not None:
+            # HF datasets Image feature
             import datasets
 
             dataset = dataset.cast_column(
-                imgs_location_colname, datasets.Image(decode=False)
+                imgs_colname, datasets.Image(decode=False)
             )
 
             def hf_map_image_feature(example):
-                image = example[imgs_location_colname]
+                image = example[imgs_colname]
+
+                if image.dtype != "PIL.Image.Image":
+                    raise GalileoException(
+                        f"Got imgs_colname={repr(imgs_colname)}, but that "
+                        "dataset feature does not contain images. If you have "
+                        "image paths, pass imgs_location_colname instead."
+                    )
 
                 if image["bytes"] is None:
                     # sometimes the Image feature only contains a path
@@ -139,8 +122,8 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
                 return example
 
             dataset = dataset.map(hf_map_image_feature)
-        elif image_field_type == image_field_type.file_path:
-
+        else:
+            # file paths
             def hf_map_file_path(example):
                 example["text"] = _img_path_to_b64_str(
                     # assume abs paths for HF
@@ -149,11 +132,6 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
                 return example
 
             dataset = dataset.map(hf_map_file_path)
-        else:
-            raise GalileoException(
-                f"Could not interpret column {imgs_location_colname} as either"
-                " images or image paths."
-            )
         return dataset
 
     def log_image_dataset(
@@ -161,19 +139,26 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         dataset: DataSet,
         imgs_dir: str,
         *,
-        imgs_location_colname: Optional[str] = "relpath",
+        imgs_colname: Optional[str] = None,
+        imgs_location_colname: Optional[str] = None,
         batch_size: int = ITER_CHUNK_SIZE,
         id: Union[str, int] = "id",
         label: Union[str, int] = "label",
         split: Optional[Split] = None,
         meta: Optional[List[Union[str, int]]] = None,
     ) -> None:
+        if imgs_colname is None and imgs_location_colname is None:
+            raise GalileoException(
+                "Must provide one of imgs_colname or imgs_location_colname."
+            )
         if self.is_hf_dataset(dataset):
             dataset = self._prepare_hf(dataset,
+                                       imgs_colname=imgs_colname,
                                        imgs_location_colname=imgs_location_colname,
-                                       id=id)
+                                       id_=id)
         elif isinstance(dataset, pd.DataFrame):
             dataset = self._prepare_pandas(dataset,
+                                           imgs_colname=imgs_colname,
                                            imgs_location_colname=imgs_location_colname,
                                            imgs_dir=imgs_dir)
         else:
