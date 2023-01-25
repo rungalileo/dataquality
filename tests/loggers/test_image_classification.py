@@ -8,8 +8,8 @@ from unittest.mock import MagicMock
 import numpy as np
 import pandas as pd
 import vaex
-from PIL import Image
 from datasets import load_dataset
+from PIL import Image
 
 import dataquality
 import dataquality as dq

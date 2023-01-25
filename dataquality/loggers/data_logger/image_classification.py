@@ -1,14 +1,11 @@
 import os
-from typing import List, Optional, Union, Any
+from typing import Any, List, Optional, Union
 
 import pandas as pd
 from PIL.Image import Image
 
 from dataquality.exceptions import GalileoException
-from dataquality.loggers.data_logger.base_data_logger import (
-    DataSet,
-    MetasType,
-)
+from dataquality.loggers.data_logger.base_data_logger import DataSet, MetasType
 from dataquality.loggers.data_logger.text_classification import (
     TextClassificationDataLogger,
 )
@@ -17,10 +14,7 @@ from dataquality.loggers.logger_config.image_classification import (
     image_classification_logger_config,
 )
 from dataquality.schemas.split import Split
-from dataquality.utils.cv import (
-    _img_path_to_b64_str,
-    _img_to_b64_str,
-)
+from dataquality.utils.cv import _img_path_to_b64_str, _img_to_b64_str
 
 # smaller than ITER_CHUNK_SIZE from base_data_logger because very large chunks
 # containing image data often won't fit in memory
@@ -32,13 +26,13 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
     logger_config: ImageClassificationLoggerConfig = image_classification_logger_config
 
     def __init__(
-            self,
-            texts: List[str] = None,
-            labels: List[str] = None,
-            ids: List[int] = None,
-            split: str = None,
-            meta: MetasType = None,
-            inference_name: str = None,
+        self,
+        texts: List[str] = None,
+        labels: List[str] = None,
+        ids: List[int] = None,
+        split: str = None,
+        meta: MetasType = None,
+        inference_name: str = None,
     ) -> None:
         super().__init__(
             texts=texts,
@@ -49,12 +43,13 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             inference_name=inference_name,
         )
 
-    def _prepare_pandas(self,
-                        dataset: pd.DataFrame,
-                        imgs_location_colname: Optional[str],
-                        imgs_colname: Optional[str],
-                        imgs_dir: Optional[str],
-                        ) -> pd.DataFrame:
+    def _prepare_pandas(
+        self,
+        dataset: pd.DataFrame,
+        imgs_location_colname: Optional[str],
+        imgs_colname: Optional[str],
+        imgs_dir: Optional[str],
+    ) -> pd.DataFrame:
         imgs_dir = imgs_dir or ""
 
         if imgs_location_colname is not None:
@@ -76,31 +71,35 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
 
         return dataset
 
-    def _prepare_hf(self,
-                    dataset: DataSet,
-                    imgs_colname: Optional[str],
-                    imgs_location_colname: Optional[str],
-                    id_: str,
-                    # returns HF dataset, hard to express in mypy without
-                    # importing the datasets package
-                    ) -> Any:
+    def _prepare_hf(
+        self,
+        dataset: DataSet,
+        imgs_colname: Optional[str],
+        imgs_location_colname: Optional[str],
+        id_: str,
+        # returns HF dataset, hard to express in mypy without
+        # importing the datasets package
+    ) -> Any:
         import datasets
+
         assert isinstance(dataset, datasets.Dataset)
 
         # Find the id column, or create it.
         if id_ not in dataset.column_names:
-            dataset = dataset.add_column(
-                name=id_, column=list(range(len(dataset)))
-            )
+            dataset = dataset.add_column(name=id_, column=list(range(len(dataset))))
 
         if imgs_colname is not None:
             # HF datasets Image feature
             from dataquality.utils.hf_images import process_hf_image_feature_for_logging
+
             prepared = process_hf_image_feature_for_logging(dataset, imgs_colname)
         elif imgs_location_colname is not None:
             # file paths
             from dataquality.utils.hf_images import process_hf_image_paths_for_logging
-            prepared = process_hf_image_paths_for_logging(dataset, imgs_location_colname)
+
+            prepared = process_hf_image_paths_for_logging(
+                dataset, imgs_location_colname
+            )
         else:
             raise GalileoException(
                 "Must provide one of imgs_colname or imgs_location_colname."
@@ -108,32 +107,36 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         return prepared
 
     def log_image_dataset(
-            self,
-            dataset: DataSet,
-            *,
-            imgs_colname: Optional[str] = None,
-            imgs_location_colname: Optional[str] = None,
-            imgs_dir: Optional[str] = None,
-            batch_size: int = ITER_CHUNK_SIZE_IMAGES,
-            id: str = "id",
-            label: Union[str, int] = "label",
-            split: Optional[Split] = None,
-            meta: Optional[List[Union[str, int]]] = None,
+        self,
+        dataset: DataSet,
+        *,
+        imgs_colname: Optional[str] = None,
+        imgs_location_colname: Optional[str] = None,
+        imgs_dir: Optional[str] = None,
+        batch_size: int = ITER_CHUNK_SIZE_IMAGES,
+        id: str = "id",
+        label: Union[str, int] = "label",
+        split: Optional[Split] = None,
+        meta: Optional[List[Union[str, int]]] = None,
     ) -> None:
         if imgs_colname is None and imgs_location_colname is None:
             raise GalileoException(
                 "Must provide one of imgs_colname or imgs_location_colname."
             )
         if isinstance(dataset, pd.DataFrame):
-            dataset = self._prepare_pandas(dataset,
-                                           imgs_colname=imgs_colname,
-                                           imgs_location_colname=imgs_location_colname,
-                                           imgs_dir=imgs_dir)
+            dataset = self._prepare_pandas(
+                dataset,
+                imgs_colname=imgs_colname,
+                imgs_location_colname=imgs_location_colname,
+                imgs_dir=imgs_dir,
+            )
         elif self.is_hf_dataset(dataset):
-            dataset = self._prepare_hf(dataset,
-                                       imgs_colname=imgs_colname,
-                                       imgs_location_colname=imgs_location_colname,
-                                       id_=id)
+            dataset = self._prepare_hf(
+                dataset,
+                imgs_colname=imgs_colname,
+                imgs_location_colname=imgs_location_colname,
+                id_=id,
+            )
         else:
             raise GalileoException(
                 f"Dataset must be one of pandas or HF, but got {type(dataset)}"
