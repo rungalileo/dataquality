@@ -54,8 +54,10 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
                         dataset: pd.DataFrame,
                         imgs_location_colname: Optional[str],
                         imgs_colname: Optional[str],
-                        imgs_dir: str,
+                        imgs_dir: Optional[str],
                         ) -> pd.DataFrame:
+        imgs_dir = imgs_dir or ""
+        imgs_dir: str
 
         if imgs_location_colname is not None:
             # image paths
@@ -140,10 +142,10 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
     def log_image_dataset(
         self,
         dataset: DataSet,
-        imgs_dir: str,
         *,
         imgs_colname: Optional[str] = None,
         imgs_location_colname: Optional[str] = None,
+        imgs_dir: Optional[str] = None,
         batch_size: int = ITER_CHUNK_SIZE_IMAGES,
         id: Union[str, int] = "id",
         label: Union[str, int] = "label",
