@@ -34,12 +34,12 @@ TESTING_DATASETS = {
         imgs_colname="image",
     ),
     "mnist": dict(
-        dataset=food_dataset,
+        dataset=mnist_dataset,
         labels=mnist_dataset.features["label"].names,
         imgs_colname="image",
     ),
     "cifar10": dict(
-        dataset=food_dataset,
+        dataset=cifar10_dataset,
         labels=cifar10_dataset.features["label"].names,
         imgs_colname="img",
     ),
@@ -316,11 +316,10 @@ def test_observed_ids_cleaned_up_after_finish(
     assert len(dq.get_model_logger().logger_config.observed_ids) == 0
 
 
-def _test_hf_image_dataset(name, set_test_config) -> None:
+def _test_hf_image_dataset(name) -> None:
     """
     Tests that dq.log_image_dataset can handle HF dataset inputs.
     """
-    set_test_config(task_type="image_classification")
 
     dataset_info = TESTING_DATASETS[name]
 
@@ -340,15 +339,18 @@ def _test_hf_image_dataset(name, set_test_config) -> None:
 
 
 def test_hf_dataset_food(cleanup_after_use, set_test_config) -> None:
-    _test_hf_image_dataset("food", set_test_config)
+    set_test_config(task_type="image_classification")
+    _test_hf_image_dataset("food")
 
 
 def test_hf_dataset_mnist(cleanup_after_use, set_test_config) -> None:
-    _test_hf_image_dataset("mnist", set_test_config)
+    set_test_config(task_type="image_classification")
+    _test_hf_image_dataset("mnist")
 
 
 def test_hf_dataset_cifar10(cleanup_after_use, set_test_config) -> None:
-    _test_hf_image_dataset("cifar10", set_test_config)
+    set_test_config(task_type="image_classification")
+    _test_hf_image_dataset("cifar10")
 
 
 def test_hf_image_dataset_with_paths(set_test_config, cleanup_after_use) -> None:
