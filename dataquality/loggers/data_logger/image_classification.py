@@ -87,7 +87,6 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
                     ) -> Any:
         import datasets
         assert isinstance(dataset, datasets.Dataset)
-        dataset_hf: datasets.Dataset = dataset
 
         # Find the id column, or create it.
         if id_ not in dataset.column_names:
@@ -98,7 +97,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         if imgs_colname is not None:
             # HF datasets Image feature
 
-            if dataset.features[imgs_colname].dtype != "PIL.Image.Image":
+            if not isinstance(dataset.features[imgs_colname], datasets.Image):
                 raise GalileoException(
                     f"Got imgs_colname={repr(imgs_colname)}, but that "
                     "dataset feature does not contain images. If you have "
