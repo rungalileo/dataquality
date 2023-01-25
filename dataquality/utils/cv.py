@@ -1,6 +1,7 @@
 import base64
 import mimetypes
 from io import BytesIO
+from typing import Optional
 
 from PIL import Image
 
@@ -27,8 +28,13 @@ def _img_to_b64_str(img: Image) -> str:
     return (prefix + data).decode("utf-8")
 
 
-def _bytes_to_b64_str(img_bytes: bytes, img_path: str) -> str:
-    mimetype, _ = mimetypes.guess_type(img_path)
+def _bytes_to_b64_str(img_bytes: bytes, img_path: Optional[str] = None) -> str:
+    mimetype = None
+
+    if img_path is not None:
+        # try to guess from path without loading image
+        mimetype, _ = mimetypes.guess_type(img_path)
+
     if mimetype is None:
         # slow path - load image and read mimetype
         mimetype = _bytes_to_img(img_bytes).get_format_mimetype()
