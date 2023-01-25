@@ -17,7 +17,6 @@ from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import validate_unique_ids
 from tests.conftest import LOCATION
 
-
 food_dataset = load_dataset("sasha/dog-food", split="train")
 food_dataset = food_dataset.select(range(20))
 
@@ -361,22 +360,17 @@ def test_hf_image_dataset_with_paths(set_test_config, cleanup_after_use) -> None
     set_test_config(task_type="image_classification")
 
     with TemporaryDirectory() as imgs_dir:
+
         def save_and_record_path(example, index):
             path = os.path.join(imgs_dir, f"{index:04d}.jpg")
             example["image"].save(path)
-            return {
-                "path": path,
-                **example
-            }
+            return {"path": path, **example}
 
         dataset_info = TESTING_DATASETS["food"]
 
         dataset = dataset_info["dataset"]
 
-        dataset_with_paths = dataset.map(
-            save_and_record_path,
-            with_indices=True
-        )
+        dataset_with_paths = dataset.map(save_and_record_path, with_indices=True)
 
         dq.set_labels_for_run(dataset_info["labels"])
         dq.log_image_dataset(
@@ -391,4 +385,3 @@ def test_hf_image_dataset_with_paths(set_test_config, cleanup_after_use) -> None
         df = vaex.open(f"{LOCATION}/input_data/training/*.arrow")
 
         assert len(df) == len(food_dataset)
-
