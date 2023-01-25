@@ -302,7 +302,7 @@ def test_hf_image_dataset(set_test_config, cleanup_after_use) -> None:
     dq.log_image_dataset(
         dataset=food_dataset,
         label="label",
-        imgs_location_colname="image",
+        imgs_colname="image",
         imgs_dir="",
         split="training",
     )
