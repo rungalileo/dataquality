@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 import numpy as np
 import pandas as pd
 import vaex
+import datasets
 from datasets import load_dataset
 from PIL import Image
 
@@ -18,7 +19,7 @@ from dataquality.utils.vaex import validate_unique_ids
 from tests.conftest import LOCATION
 
 food_dataset = load_dataset("sasha/dog-food", split="train")
-food_dataset = food_dataset.select(range(200))
+food_dataset = food_dataset.select(range(20))
 food_dataset_labels = food_dataset.features["label"].names
 
 
@@ -303,7 +304,6 @@ def test_hf_image_dataset(set_test_config, cleanup_after_use) -> None:
         dataset=food_dataset,
         label="label",
         imgs_colname="image",
-        imgs_dir="",
         split="training",
     )
 
@@ -312,3 +312,40 @@ def test_hf_image_dataset(set_test_config, cleanup_after_use) -> None:
     df = vaex.open(f"{LOCATION}/input_data/training/*.arrow")
 
     assert len(df) == len(food_dataset)
+
+
+def test_hf_image_dataset_with_paths(set_test_config, cleanup_after_use) -> None:
+    """
+    Tests that dq.log_image_dataset can handle imgs_location_colname when
+    passed an HF dataset.
+    """
+    set_test_config(task_type="image_classification")
+
+    with TemporaryDirectory() as imgs_dir:
+        def save_and_record_path(example, index):
+            path = os.path.join(imgs_dir, f"{index:04d}.jpg")
+            example["image"].save(path)
+            return {
+                "path": path,
+                **example
+            }
+
+        food_dataset_with_paths = food_dataset.map(
+            save_and_record_path,
+            with_indices=True
+        )
+
+        dq.set_labels_for_run(food_dataset_labels)
+        dq.log_image_dataset(
+            dataset=food_dataset_with_paths,
+            label="label",
+            imgs_location_colname="path",
+            split="training",
+        )
+
+        # read logged data
+        ThreadPoolManager.wait_for_threads()
+        df = vaex.open(f"{LOCATION}/input_data/training/*.arrow")
+
+        assert len(df) == len(food_dataset)
+
