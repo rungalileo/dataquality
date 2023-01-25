@@ -114,7 +114,7 @@ def log_image_dataset(
     imgs_location_colname: Optional[str] = None,
     imgs_dir: Optional[str] = None,
     batch_size: int = ITER_CHUNK_SIZE,
-    id: Union[str, int] = "id",
+    id: str = "id",
     label: Union[str, int] = "label",
     split: Optional[Split] = None,
     meta: Optional[List[Union[str, int]]] = None,

@@ -1,5 +1,5 @@
 import os
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Any
 
 import pandas as pd
 from PIL.Image import Image
@@ -33,13 +33,13 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
     logger_config: ImageClassificationLoggerConfig = image_classification_logger_config
 
     def __init__(
-        self,
-        texts: List[str] = None,
-        labels: List[str] = None,
-        ids: List[int] = None,
-        split: str = None,
-        meta: MetasType = None,
-        inference_name: str = None,
+            self,
+            texts: List[str] = None,
+            labels: List[str] = None,
+            ids: List[int] = None,
+            split: str = None,
+            meta: MetasType = None,
+            inference_name: str = None,
     ) -> None:
         super().__init__(
             texts=texts,
@@ -57,7 +57,6 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
                         imgs_dir: Optional[str],
                         ) -> pd.DataFrame:
         imgs_dir = imgs_dir or ""
-        imgs_dir: str
 
         if imgs_location_colname is not None:
             # image paths
@@ -79,13 +78,15 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         return dataset
 
     def _prepare_hf(self,
-                        dataset: DataSet,
-                        imgs_colname: Optional[str],
-                        imgs_location_colname: Optional[str],
-                        id_: str,
-                        ) -> DataSet:
+                    dataset: DataSet,
+                    imgs_colname: Optional[str],
+                    imgs_location_colname: Optional[str],
+                    id_: str,
+                    # returns HF dataset, hard to express in mypy without
+                    # importing the datasets package
+                    ) -> Any:
         import datasets
-        dataset: datasets.Dataset
+        assert isinstance(dataset, datasets.Dataset)
 
         # Find the id column, or create it.
         if id_ not in dataset.column_names:
@@ -95,7 +96,6 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
 
         if imgs_colname is not None:
             # HF datasets Image feature
-            import datasets
 
             if dataset.features[imgs_colname].dtype != "PIL.Image.Image":
                 raise GalileoException(
@@ -108,7 +108,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
                 imgs_colname, datasets.Image(decode=False)
             )
 
-            def hf_map_image_feature(example):
+            def hf_map_image_feature(example: dict) -> dict:
                 image = example[imgs_colname]
 
                 if image["bytes"] is None:
@@ -126,10 +126,11 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
                     )
                 return example
 
+            assert isinstance(dataset, datasets.Dataset)
             dataset = dataset.map(hf_map_image_feature)
         else:
             # file paths
-            def hf_map_file_path(example):
+            def hf_map_file_path(example: dict) -> dict:
                 example["text"] = _img_path_to_b64_str(
                     # assume abs paths for HF
                     example[imgs_location_colname]
@@ -140,17 +141,17 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         return dataset
 
     def log_image_dataset(
-        self,
-        dataset: DataSet,
-        *,
-        imgs_colname: Optional[str] = None,
-        imgs_location_colname: Optional[str] = None,
-        imgs_dir: Optional[str] = None,
-        batch_size: int = ITER_CHUNK_SIZE_IMAGES,
-        id: Union[str, int] = "id",
-        label: Union[str, int] = "label",
-        split: Optional[Split] = None,
-        meta: Optional[List[Union[str, int]]] = None,
+            self,
+            dataset: DataSet,
+            *,
+            imgs_colname: Optional[str] = None,
+            imgs_location_colname: Optional[str] = None,
+            imgs_dir: Optional[str] = None,
+            batch_size: int = ITER_CHUNK_SIZE_IMAGES,
+            id: str = "id",
+            label: Union[str, int] = "label",
+            split: Optional[Split] = None,
+            meta: Optional[List[Union[str, int]]] = None,
     ) -> None:
         if imgs_colname is None and imgs_location_colname is None:
             raise GalileoException(
