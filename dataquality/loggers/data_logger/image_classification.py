@@ -6,7 +6,6 @@ from PIL.Image import Image
 
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger.base_data_logger import (
-    ITER_CHUNK_SIZE,
     DataSet,
     MetasType,
 )
@@ -23,6 +22,10 @@ from dataquality.utils.cv import (
     _img_path_to_b64_str,
     _img_to_b64_str,
 )
+
+# smaller than ITER_CHUNK_SIZE from base_data_logger because very large chunks
+# containing image data often won't fit in memory
+ITER_CHUNK_SIZE_IMAGES = 10000
 
 
 class ImageClassificationDataLogger(TextClassificationDataLogger):
@@ -141,7 +144,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         *,
         imgs_colname: Optional[str] = None,
         imgs_location_colname: Optional[str] = None,
-        batch_size: int = ITER_CHUNK_SIZE,
+        batch_size: int = ITER_CHUNK_SIZE_IMAGES,
         id: Union[str, int] = "id",
         label: Union[str, int] = "label",
         split: Optional[Split] = None,
