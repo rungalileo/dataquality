@@ -18,7 +18,6 @@ from dataquality.loggers.logger_config.image_classification import (
 )
 from dataquality.schemas.split import Split
 from dataquality.utils.cv import (
-    _bytes_to_b64_str,
     _img_path_to_b64_str,
     _img_to_b64_str,
 )
@@ -96,48 +95,17 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
 
         if imgs_colname is not None:
             # HF datasets Image feature
-
-            if not isinstance(dataset.features[imgs_colname], datasets.Image):
-                raise GalileoException(
-                    f"Got imgs_colname={repr(imgs_colname)}, but that "
-                    "dataset feature does not contain images. If you have "
-                    "image paths, pass imgs_location_colname instead."
-                )
-
-            dataset = dataset.cast_column(
-                imgs_colname, datasets.Image(decode=False)
-            )
-
-            def hf_map_image_feature(example: dict) -> dict:
-                image = example[imgs_colname]
-
-                if image["bytes"] is None:
-                    # sometimes the Image feature only contains a path
-                    # example: beans dataset
-                    example["text"] = _img_path_to_b64_str(
-                        # assume abs paths for HF
-                        img_path=image["path"],
-                    )
-                else:
-                    example["text"] = _bytes_to_b64_str(
-                        # assume abs paths for HF
-                        img_bytes=image["bytes"],
-                        img_path=image["path"],
-                    )
-                return example
-
-            dataset = dataset.map(hf_map_image_feature)
-        else:
+            from dataquality.utils.hf_images import process_hf_image_feature_for_logging
+            prepared = process_hf_image_feature_for_logging(dataset, imgs_colname)
+        elif imgs_location_colname is not None:
             # file paths
-            def hf_map_file_path(example: dict) -> dict:
-                example["text"] = _img_path_to_b64_str(
-                    # assume abs paths for HF
-                    example[imgs_location_colname]
-                )
-                return example
-
-            dataset = dataset.map(hf_map_file_path)
-        return dataset
+            from dataquality.utils.hf_images import process_hf_image_paths_for_logging
+            prepared = process_hf_image_paths_for_logging(dataset, imgs_location_colname)
+        else:
+            raise GalileoException(
+                "Must provide one of imgs_colname or imgs_location_colname."
+            )
+        return prepared
 
     def log_image_dataset(
             self,
