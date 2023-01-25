@@ -87,6 +87,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
                     ) -> Any:
         import datasets
         assert isinstance(dataset, datasets.Dataset)
+        dataset_hf: datasets.Dataset = dataset
 
         # Find the id column, or create it.
         if id_ not in dataset.column_names:
@@ -126,7 +127,6 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
                     )
                 return example
 
-            assert isinstance(dataset, datasets.Dataset)
             dataset = dataset.map(hf_map_image_feature)
         else:
             # file paths
@@ -157,19 +157,19 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             raise GalileoException(
                 "Must provide one of imgs_colname or imgs_location_colname."
             )
-        if self.is_hf_dataset(dataset):
-            dataset = self._prepare_hf(dataset,
-                                       imgs_colname=imgs_colname,
-                                       imgs_location_colname=imgs_location_colname,
-                                       id_=id)
-        elif isinstance(dataset, pd.DataFrame):
+        if isinstance(dataset, pd.DataFrame):
             dataset = self._prepare_pandas(dataset,
                                            imgs_colname=imgs_colname,
                                            imgs_location_colname=imgs_location_colname,
                                            imgs_dir=imgs_dir)
+        elif self.is_hf_dataset(dataset):
+            dataset = self._prepare_hf(dataset,
+                                       imgs_colname=imgs_colname,
+                                       imgs_location_colname=imgs_location_colname,
+                                       id_=id)
         else:
             raise GalileoException(
-                f"Dataset must be one of pandas or HF, " f"but got {type(dataset)}"
+                f"Dataset must be one of pandas or HF, but got {type(dataset)}"
             )
         self.log_dataset(
             dataset=dataset,
