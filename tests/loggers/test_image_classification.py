@@ -8,7 +8,6 @@ from unittest.mock import MagicMock
 import numpy as np
 import pandas as pd
 import vaex
-import datasets
 from datasets import load_dataset
 from PIL import Image
 
@@ -18,9 +17,33 @@ from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import validate_unique_ids
 from tests.conftest import LOCATION
 
+
 food_dataset = load_dataset("sasha/dog-food", split="train")
 food_dataset = food_dataset.select(range(20))
-food_dataset_labels = food_dataset.features["label"].names
+
+mnist_dataset = load_dataset("mnist", split="train")
+mnist_dataset = mnist_dataset.select(range(20))
+
+cifar10_dataset = load_dataset("cifar10", split="train")
+cifar10_dataset = cifar10_dataset.select(range(20))
+
+TESTING_DATASETS = {
+    "food": dict(
+        dataset=food_dataset,
+        labels=food_dataset.features["label"].names,
+        imgs_colname="image",
+    ),
+    "mnist": dict(
+        dataset=food_dataset,
+        labels=mnist_dataset.features["label"].names,
+        imgs_colname="image",
+    ),
+    "cifar10": dict(
+        dataset=food_dataset,
+        labels=cifar10_dataset.features["label"].names,
+        imgs_colname="img",
+    ),
+}
 
 
 def test_duplicate_ids_augmented_loop_thread(
@@ -293,17 +316,19 @@ def test_observed_ids_cleaned_up_after_finish(
     assert len(dq.get_model_logger().logger_config.observed_ids) == 0
 
 
-def test_hf_image_dataset(set_test_config, cleanup_after_use) -> None:
+def _test_hf_image_dataset(name, set_test_config) -> None:
     """
     Tests that dq.log_image_dataset can handle HF dataset inputs.
     """
     set_test_config(task_type="image_classification")
 
-    dq.set_labels_for_run(food_dataset_labels)
+    dataset_info = TESTING_DATASETS[name]
+
+    dq.set_labels_for_run(dataset_info["labels"])
     dq.log_image_dataset(
-        dataset=food_dataset,
+        dataset=dataset_info["dataset"],
         label="label",
-        imgs_colname="image",
+        imgs_colname=dataset_info["imgs_colname"],
         split="training",
     )
 
@@ -312,6 +337,18 @@ def test_hf_image_dataset(set_test_config, cleanup_after_use) -> None:
     df = vaex.open(f"{LOCATION}/input_data/training/*.arrow")
 
     assert len(df) == len(food_dataset)
+
+
+def test_hf_dataset_food(cleanup_after_use, set_test_config) -> None:
+    _test_hf_image_dataset("food", set_test_config)
+
+
+def test_hf_dataset_mnist(cleanup_after_use, set_test_config) -> None:
+    _test_hf_image_dataset("mnist", set_test_config)
+
+
+def test_hf_dataset_cifar10(cleanup_after_use, set_test_config) -> None:
+    _test_hf_image_dataset("cifar10", set_test_config)
 
 
 def test_hf_image_dataset_with_paths(set_test_config, cleanup_after_use) -> None:
@@ -330,14 +367,18 @@ def test_hf_image_dataset_with_paths(set_test_config, cleanup_after_use) -> None
                 **example
             }
 
-        food_dataset_with_paths = food_dataset.map(
+        dataset_info = TESTING_DATASETS["food"]
+
+        dataset = dataset_info["dataset"]
+
+        dataset_with_paths = dataset.map(
             save_and_record_path,
             with_indices=True
         )
 
-        dq.set_labels_for_run(food_dataset_labels)
+        dq.set_labels_for_run(dataset_info["labels"])
         dq.log_image_dataset(
-            dataset=food_dataset_with_paths,
+            dataset=dataset_with_paths,
             label="label",
             imgs_location_colname="path",
             split="training",
