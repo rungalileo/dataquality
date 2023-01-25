@@ -97,19 +97,19 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             # HF datasets Image feature
             import datasets
 
+            if dataset.features[imgs_colname].dtype != "PIL.Image.Image":
+                raise GalileoException(
+                    f"Got imgs_colname={repr(imgs_colname)}, but that "
+                    "dataset feature does not contain images. If you have "
+                    "image paths, pass imgs_location_colname instead."
+                )
+
             dataset = dataset.cast_column(
                 imgs_colname, datasets.Image(decode=False)
             )
 
             def hf_map_image_feature(example):
                 image = example[imgs_colname]
-
-                if image.dtype != "PIL.Image.Image":
-                    raise GalileoException(
-                        f"Got imgs_colname={repr(imgs_colname)}, but that "
-                        "dataset feature does not contain images. If you have "
-                        "image paths, pass imgs_location_colname instead."
-                    )
 
                 if image["bytes"] is None:
                     # sometimes the Image feature only contains a path
