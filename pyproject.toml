@@ -41,6 +41,9 @@ Documentation = "https://rungalileo.gitbook.io/galileo"
 
 [tool.flit.metadata.requires-extra]
 doc = [
+    "furo",
+    "sphinx",
+    "sphinx-autodoc-typehints",
     "myst-parser",
     "sphinx-markdown-builder",
 ]
