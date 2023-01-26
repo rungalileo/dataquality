@@ -6,20 +6,19 @@
 ### watch(model, dataloaders=[], last_hidden_state_layer=None, embedding_dim=None, logits_dim=None, classifier_layer=None, embedding_fn=None, logits_fn=None, unpatch_on_start=True)
 wraps a PyTorch model and optionally dataloaders to log the
 embeddings and logits to [Galileo]([https://www.rungalileo.io/](https://www.rungalileo.io/)).
-.. code-block:: python
 
+```python
 dq.log_dataset(train_dataset, split="train")
 train_dataloader = torch.utils.data.DataLoader()
 model = TextClassificationModel(num_labels=len(train_dataset.list_of_labels))
 watch(model, [train_dataloader,test_dataloader])
 for epoch in range(NUM_EPOCHS):
-
-> dq.set_epoch_and_split(epoch,"training")
-> train()
-> dq.set_split("validate")
-> validate()
-
+    dq.set_epoch_and_split(epoch,"training")
+    train()
+    dq.set_split("validate")
+    validate()
 dq.finish()
+```
 
 
 * **Parameters**
@@ -466,60 +465,60 @@ tokens                                              ner_tags
 ```
 
 To see auto insights on a random, pre-selected dataset, simply run
-.. code-block:: python
 
-> import dataquality as dq
+```python
+import dataquality as dq
 
-> dq.auto()
+dq.auto()
+```
 
 An example using auto with a hosted huggingface text classification dataset
-.. code-block:: python
 
-> import dataquality as dq
+```python
+import dataquality as dq
 
-> dq.auto(hf_data="rungalileo/trec6")
+dq.auto(hf_data="rungalileo/trec6")
+```
 
 Similarly, for NER
-.. code-block:: python
 
-> import dataquality as dq
+```python
+import dataquality as dq
 
-> dq.auto(hf_data="conll2003")
+dq.auto(hf_data="conll2003")
+```
 
 An example using auto with sklearn data as pandas dataframes
-.. code-block:: python
 
-> import dataquality as dq
-> import pandas as pd
-> from sklearn.datasets import fetch_20newsgroups
+```python
+import dataquality as dq
+import pandas as pd
+from sklearn.datasets import fetch_20newsgroups
 
-> # Load the newsgroups dataset from sklearn
-> newsgroups_train = fetch_20newsgroups(subset='train')
-> newsgroups_test = fetch_20newsgroups(subset='test')
-> # Convert to pandas dataframes
-> df_train = pd.DataFrame(
+# Load the newsgroups dataset from sklearn
+newsgroups_train = fetch_20newsgroups(subset='train')
+newsgroups_test = fetch_20newsgroups(subset='test')
+# Convert to pandas dataframes
+df_train = pd.DataFrame(
+    {"text": newsgroups_train.data, "label": newsgroups_train.target}
+)
+df_test = pd.DataFrame(
+    {"text": newsgroups_test.data, "label": newsgroups_test.target}
+)
 
-> > {"text": newsgroups_train.data, "label": newsgroups_train.target}
-
-> )
-> df_test = pd.DataFrame(
-
-> > {"text": newsgroups_test.data, "label": newsgroups_test.target}
-
-> )
-
-> dq.auto(
-
->     train_data=df_train,
->     test_data=df_test,
->     labels=newsgroups_train.target_names,
->     project_name="newsgroups_work",
->     run_name="run_1_raw_data"
-
-> )
+dq.auto(
+     train_data=df_train,
+     test_data=df_test,
+     labels=newsgroups_train.target_names,
+     project_name="newsgroups_work",
+     run_name="run_1_raw_data"
+)
+```
 
 An example of using auto with a local CSV file with text and label columns
-.. code-block:: python
+
+```python
+```
 
 import dataquality as dq
 

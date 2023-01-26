@@ -81,20 +81,19 @@
 ### watch(model, dataloaders=[], last_hidden_state_layer=None, embedding_dim=None, logits_dim=None, classifier_layer=None, embedding_fn=None, logits_fn=None, unpatch_on_start=True)
 wraps a PyTorch model and optionally dataloaders to log the
 embeddings and logits to [Galileo]([https://www.rungalileo.io/](https://www.rungalileo.io/)).
-.. code-block:: python
 
+```python
 dq.log_dataset(train_dataset, split="train")
 train_dataloader = torch.utils.data.DataLoader()
 model = TextClassificationModel(num_labels=len(train_dataset.list_of_labels))
 watch(model, [train_dataloader,test_dataloader])
 for epoch in range(NUM_EPOCHS):
-
-> dq.set_epoch_and_split(epoch,"training")
-> train()
-> dq.set_split("validate")
-> validate()
-
+    dq.set_epoch_and_split(epoch,"training")
+    train()
+    dq.set_split("validate")
+    validate()
 dq.finish()
+```
 
 
 * **Parameters**

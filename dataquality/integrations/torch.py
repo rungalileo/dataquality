@@ -201,6 +201,7 @@ def watch(
     """
     wraps a PyTorch model and optionally dataloaders to log the
     embeddings and logits to [Galileo](https://www.rungalileo.io/).
+    
     .. code-block:: python
 
         dq.log_dataset(train_dataset, split="train")
