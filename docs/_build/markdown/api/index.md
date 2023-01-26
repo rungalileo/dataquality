@@ -78,55 +78,46 @@
 # PyTorch (dataquality.integrations.torch)
 
 
-### watch(model, dataloaders, layer=None, embedding_dim=None, logits_dim=None)
+### watch(model, dataloaders=[], last_hidden_state_layer=None, embedding_dim=None, logits_dim=None, classifier_layer=None, embedding_fn=None, logits_fn=None, unpatch_on_start=True)
 wraps a PyTorch model and optionally dataloaders to log the
 embeddings and logits to [Galileo]([https://www.rungalileo.io/](https://www.rungalileo.io/)).
+.. code-block:: python
 
-```python
 dq.log_dataset(train_dataset, split="train")
 train_dataloader = torch.utils.data.DataLoader()
 model = TextClassificationModel(num_labels=len(train_dataset.list_of_labels))
 watch(model, [train_dataloader,test_dataloader])
 for epoch in range(NUM_EPOCHS):
-    dq.set_epoch_and_split(epoch,"training")
-    train()
-    dq.set_split("validate")
-    validate()
+
+> dq.set_epoch_and_split(epoch,"training")
+> train()
+> dq.set_split("validate")
+> validate()
+
 dq.finish()
-```
 
 
 * **Parameters**
 
     
-    * **model** (`Module`) -- Pytorch model
+    * **model** (`Module`) -- Pytorch Model to be wrapped
 
 
-    * **dataloaders** (`List`[`DataLoader`]) -- List of dataloaders
+    * **dataloaders** (`Optional`[`List`[`DataLoader`]]) -- List of dataloaders to be wrapped
 
 
-    * **layer** (`Union`[`Module`, `str`, `None`]) -- Layer to extract the embeddings from
+    * **last_hidden_state_layer** (`Union`[`Module`, `str`, `None`]) -- Layer to extract the embeddings from
 
 
-    * **embedding_dim** (`Union`[`str`, `int`, `slice`, `Tensor`, `List`, `Tuple`, `None`]) -- Embedding dimension to for example "[:, 0]"
-    to remove the cls token
+    * **embedding_dim** (`Union`[`str`, `int`, `slice`, `Tensor`, `List`, `Tuple`, `None`]) -- Dimension of the embeddings for example "[:, 0]"
 
 
-    * **logits_dim** (`Union`[`str`, `int`, `slice`, `Tensor`, `List`, `Tuple`, `None`]) -- Dimension to extract the logits for example in NER
-    "[:,1:,:]"
-
-
-
-* **Return type**
-
-    `None`
-
-
-
-* **Returns**
-
-    None
-
+to remove the cls token
+:type logits_dim: `Union`[`str`, `int`, `slice`, `Tensor`, `List`, `Tuple`, `None`]
+:param logits_dim: Dimension to extract the logits for example in NER
+"[:,1:,:]"
+:rtype: `None`
+:return: None
 
 
 

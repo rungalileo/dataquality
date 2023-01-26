@@ -41,8 +41,8 @@ Documentation = "https://rungalileo.gitbook.io/galileo"
 
 [tool.flit.metadata.requires-extra]
 doc = [
-    "mkdocs >=1.1.2,<2.0.0",
-    "mkdocs-material >=5.4.0,<6.0.0",
+    "myst-parser",
+    "sphinx-markdown-builder",
 ]
 test = [
     "pytest==7.2.1",

@@ -3,64 +3,53 @@
 # PyTorch (dataquality.integrations.torch)
 
 
-### watch(model, dataloaders, layer=None, embedding_dim=None, logits_dim=None)
+### watch(model, dataloaders=[], last_hidden_state_layer=None, embedding_dim=None, logits_dim=None, classifier_layer=None, embedding_fn=None, logits_fn=None, unpatch_on_start=True)
 wraps a PyTorch model and optionally dataloaders to log the
 embeddings and logits to [Galileo]([https://www.rungalileo.io/](https://www.rungalileo.io/)).
+.. code-block:: python
 
-```python
 dq.log_dataset(train_dataset, split="train")
 train_dataloader = torch.utils.data.DataLoader()
 model = TextClassificationModel(num_labels=len(train_dataset.list_of_labels))
 watch(model, [train_dataloader,test_dataloader])
 for epoch in range(NUM_EPOCHS):
-    dq.set_epoch_and_split(epoch,"training")
-    train()
-    dq.set_split("validate")
-    validate()
+
+> dq.set_epoch_and_split(epoch,"training")
+> train()
+> dq.set_split("validate")
+> validate()
+
 dq.finish()
-```
 
 
 * **Parameters**
 
     
-    * **model** (`Module`) -- Pytorch model
+    * **model** (`Module`) -- Pytorch Model to be wrapped
 
 
-    * **dataloaders** (`List`[`DataLoader`]) -- List of dataloaders
+    * **dataloaders** (`Optional`[`List`[`DataLoader`]]) -- List of dataloaders to be wrapped
 
 
-    * **layer** (`Union`[`Module`, `str`, `None`]) -- Layer to extract the embeddings from
+    * **last_hidden_state_layer** (`Union`[`Module`, `str`, `None`]) -- Layer to extract the embeddings from
 
 
-    * **embedding_dim** (`Union`[`str`, `int`, `slice`, `Tensor`, `List`, `Tuple`, `None`]) -- Embedding dimension to for example "[:, 0]"
-    to remove the cls token
+    * **embedding_dim** (`Union`[`str`, `int`, `slice`, `Tensor`, `List`, `Tuple`, `None`]) -- Dimension of the embeddings for example "[:, 0]"
 
 
-    * **logits_dim** (`Union`[`str`, `int`, `slice`, `Tensor`, `List`, `Tuple`, `None`]) -- Dimension to extract the logits for example in NER
-    "[:,1:,:]"
-
-
-
-* **Return type**
-
-    `None`
-
-
-
-* **Returns**
-
-    None
-
+to remove the cls token
+:type logits_dim: `Union`[`str`, `int`, `slice`, `Tensor`, `List`, `Tuple`, `None`]
+:param logits_dim: Dimension to extract the logits for example in NER
+"[:,1:,:]"
+:rtype: `None`
+:return: None
 
 # Transformers (dataquality.integrations.transformers_trainer)
 
 
-### watch(trainer, layer=None, embedding_dim=None, logits_dim=None)
-[Summary]
-[watch] is used to *hook* into to the **trainer**
+### watch(trainer, last_hidden_state_layer=None, embedding_dim=None, logits_dim=None, classifier_layer=None, embedding_fn=None, logits_fn=None)
+used to *hook* into to the **trainer**
 to log to [Galileo]([https://www.rungalileo.io/](https://www.rungalileo.io/))
-beer test [Link text](linkURL) water
 
 
 * **Parameters**
@@ -379,13 +368,13 @@ Galileo DataQualityCallback
     * **ids** (`Union`[`List`[`int`], `ndarray`]) -- The ids for each sample to append. These are the same IDs that are
 
 
+logged for the input data. They must match 1-1
+
 
 * **Return type**
 
     `ndarray`
 
-
-logged for the input data. They must match 1-1
 
 # dataquality
 
@@ -488,12 +477,6 @@ demo dataset will be loaded by Galileo for training.
     Only available for TC currently. NER coming soon. Default False.
 
 
-
-* **Return type**
-
-    `None`
-
-
 For text classification datasets, the only required columns are text and label
 
 For NER, the required format is the huggingface standard format of tokens and
@@ -502,124 +485,39 @@ See example: [https://huggingface.co/datasets/rungalileo/mit_movies](https://hug
 
 > MIT Movies dataset in huggingface format
 
-> tokens                                              ner_tags
-> [what, is, a, good, action, movie, that, is, r...       [0, 0, 0, 0, 7, 0, ...
-> [show, me, political, drama, movies, with, jef...       [0, 0, 7, 8, 0, 0, ...
-> [what, are, some, good, 1980, s, g, rated, mys...       [0, 0, 0, 0, 5, 6, ...
-> [list, a, crime, film, which, director, was, d...       [0, 0, 7, 0, 0, 0, ...
-> [is, there, a, thriller, movie, starring, al, ...       [0, 0, 0, 7, 0, 0, ...
-> ...                                               ...                      ...
+```python
+tokens                                              ner_tags
+[what, is, a, good, action, movie, that, is, r...       [0, 0, 0, 0, 7, 0, ...
+[show, me, political, drama, movies, with, jef...       [0, 0, 7, 8, 0, 0, ...
+[what, are, some, good, 1980, s, g, rated, mys...       [0, 0, 0, 0, 5, 6, ...
+[list, a, crime, film, which, director, was, d...       [0, 0, 7, 0, 0, 0, ...
+[is, there, a, thriller, movie, starring, al, ...       [0, 0, 0, 7, 0, 0, ...
+...                                               ...                      ...
+```
 
 To see auto insights on a random, pre-selected dataset, simply run
-
-
-```
-``
-```
-
-
-
-```
-`
-```
-
-python
+.. code-block:: python
 
 > import dataquality as dq
 
 > dq.auto()
 
-
-
-```
-``
-```
-
-
-
-```
-`
-```
-
-
 An example using auto with a hosted huggingface text classification dataset
-
-
-```
-``
-```
-
-
-
-```
-`
-```
-
-python
+.. code-block:: python
 
 > import dataquality as dq
 
 > dq.auto(hf_data="rungalileo/trec6")
 
-
-
-```
-``
-```
-
-
-
-```
-`
-```
-
-
 Similarly, for NER
-
-
-```
-``
-```
-
-
-
-```
-`
-```
-
-python
+.. code-block:: python
 
 > import dataquality as dq
 
 > dq.auto(hf_data="conll2003")
 
-
-
-```
-``
-```
-
-
-
-```
-`
-```
-
-
 An example using auto with sklearn data as pandas dataframes
-
-
-```
-``
-```
-
-
-
-```
-`
-```
-
-python
+.. code-block:: python
 
 > import dataquality as dq
 > import pandas as pd
@@ -650,33 +548,9 @@ python
 
 > )
 
-
-
-```
-``
-```
-
-
-
-```
-`
-```
-
-
 An example of using auto with a local CSV file with text and label columns
+.. code-block:: python
 
-
-```
-``
-```
-
-
-
-```
-`
-```
-
-python
 import dataquality as dq
 
 dq.auto(
@@ -686,7 +560,13 @@ dq.auto(
     project_name="data_from_local",
     run_name="run_1_raw_data"
 
-## )
+)
+
+
+* **Return type**
+
+    `None`
+
 
 
 ### finish(last_epoch=None, wait=True, create_data_embs=False)
@@ -732,12 +612,6 @@ Optionally provide project and run names to create a new project/run or restart
 existing ones.
 
 
-* **Return type**
-
-    `None`
-
-
-
 * **Parameters**
 
     **task_type** (`str`) -- The task type for modeling. This must be one of the valid
@@ -758,6 +632,12 @@ does exist, it will be set.
 :param overwrite_local: If True, the current project/run log directory will be
 cleared during this function. If logging over many sessions with checkpoints, you
 may want to set this to False. Default True
+
+
+* **Return type**
+
+    `None`
+
 
 
 ### log_data_sample(\*, text, id, \*\*kwargs)
@@ -856,12 +736,6 @@ In the invalid case, use dq.log_data_samples:
 Keyword arguments are specific to the task type. See dq.docs() for details
 
 
-* **Return type**
-
-    `None`
-
-
-
 * **Parameters**
 
     **dataset** (`TypeVar`(`DataSet`, bound= `Union`[`Iterable`, `DataFrame`, `DataFrame`])) -- The iterable or dataframe to log
@@ -899,6 +773,12 @@ expense of more memory usage. Default 100,000
 or dq.docs() for more general task details
 
 
+* **Return type**
+
+    `None`
+
+
+
 ### log_model_outputs(\*, embs, ids, split=None, epoch=None, logits=None, probs=None, inference_name=None, exclude_embs=False)
 Logs model outputs for model during training/test/validation.
 
@@ -932,14 +812,14 @@ Logs model outputs for model during training/test/validation.
     embs is set to None, this will generate random embs for each sample.
 
 
+The expected argument shapes come from the task_type being used
+See dq.docs() for more task specific details on parameter shape
+
 
 * **Return type**
 
     `None`
 
-
-The expected argument shapes come from the task_type being used
-See dq.docs() for more task specific details on parameter shape
 
 
 ### login()
@@ -974,12 +854,6 @@ When set, logging model outputs will use this if not logged explicitly
 Creates the mapping of the labels for the model to their respective indexes.
 
 
-* **Return type**
-
-    `None`
-
-
-
 * **Parameters**
 
     **labels** (`Union`[`List`[`List`[`str`]], `List`[`str`]]) -- An ordered list of labels (ie ['dog','cat','fish']
@@ -992,6 +866,12 @@ This order MUST match the order of probabilities that the model outputs.
 
 In the multi-label case, the outer order (order of the tasks) must match the
 task-order of the task-probabilities logged as well.
+
+
+* **Return type**
+
+    `None`
+
 
 
 ### set_split(split, inference_name=None)

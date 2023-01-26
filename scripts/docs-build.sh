@@ -1,5 +1,5 @@
 #!/bin/sh -ex
 
-mkdocs build
+cd docs
 
-cp ./docs/index.md ./README.md
+make markdown

@@ -102,6 +102,7 @@ def auto(
         MIT Movies dataset in huggingface format
 
     .. code-block:: python
+
         tokens	                                            ner_tags
         [what, is, a, good, action, movie, that, is, r...	[0, 0, 0, 0, 7, 0, ...
         [show, me, political, drama, movies, with, jef...	[0, 0, 7, 8, 0, 0, ...
@@ -113,6 +114,7 @@ def auto(
 
     To see auto insights on a random, pre-selected dataset, simply run
     .. code-block:: python
+
         import dataquality as dq
 
         dq.auto()
@@ -120,6 +122,7 @@ def auto(
 
     An example using `auto` with a hosted huggingface text classification dataset
     .. code-block:: python
+
         import dataquality as dq
 
         dq.auto(hf_data="rungalileo/trec6")
@@ -127,6 +130,7 @@ def auto(
 
     Similarly, for NER
     .. code-block:: python
+
         import dataquality as dq
 
         dq.auto(hf_data="conll2003")
@@ -134,6 +138,7 @@ def auto(
 
     An example using `auto` with sklearn data as pandas dataframes
     .. code-block:: python
+
         import dataquality as dq
         import pandas as pd
         from sklearn.datasets import fetch_20newsgroups
@@ -160,6 +165,7 @@ def auto(
 
     An example of using `auto` with a local CSV file with `text` and `label` columns
     .. code-block:: python
+
     import dataquality as dq
 
     dq.auto(
