@@ -272,10 +272,8 @@ def watch(
     embedding_fn: Optional[Callable] = None,
     logits_fn: Optional[Callable] = None,
 ) -> None:
-    """[Summary]
-    [`watch`] is used to *hook* into to the **trainer**
+    """used to *hook* into to the **trainer**
     to log to [Galileo](https://www.rungalileo.io/)
-    beer test `Link text <link URL>`_ water
 
     :param trainer: Trainer object
 
@@ -317,7 +315,7 @@ def watch(
 
 def unwatch(trainer: Trainer) -> None:
     """
-    [`unwatch`] is used to remove the callback from the trainer
+    `unwatch` is used to remove the callback from the trainer
     :param trainer: Trainer object
     :return: None
     """

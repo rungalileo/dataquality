@@ -101,6 +101,7 @@ def auto(
 
         MIT Movies dataset in huggingface format
 
+    .. code-block:: python
         tokens	                                            ner_tags
         [what, is, a, good, action, movie, that, is, r...	[0, 0, 0, 0, 7, 0, ...
         [show, me, political, drama, movies, with, jef...	[0, 0, 7, 8, 0, 0, ...
@@ -111,28 +112,28 @@ def auto(
 
 
     To see auto insights on a random, pre-selected dataset, simply run
-    ```python
+    .. code-block:: python
         import dataquality as dq
 
         dq.auto()
-    ```
+
 
     An example using `auto` with a hosted huggingface text classification dataset
-    ```python
+    .. code-block:: python
         import dataquality as dq
 
         dq.auto(hf_data="rungalileo/trec6")
-    ```
+
 
     Similarly, for NER
-    ```python
+    .. code-block:: python
         import dataquality as dq
 
         dq.auto(hf_data="conll2003")
-    ```
+
 
     An example using `auto` with sklearn data as pandas dataframes
-    ```python
+    .. code-block:: python
         import dataquality as dq
         import pandas as pd
         from sklearn.datasets import fetch_20newsgroups
@@ -155,10 +156,10 @@ def auto(
              project_name="newsgroups_work",
              run_name="run_1_raw_data"
         )
-    ```
+
 
     An example of using `auto` with a local CSV file with `text` and `label` columns
-    ```python
+    .. code-block:: python
     import dataquality as dq
 
     dq.auto(
@@ -167,7 +168,6 @@ def auto(
          project_name="data_from_local",
          run_name="run_1_raw_data"
     )
-    ```
     """
     # We need to import auto down here instead of at the top of the file like normal
     # because we simultaneously want analytic tracking on the files we import while
