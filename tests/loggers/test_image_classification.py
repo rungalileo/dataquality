@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 import numpy as np
 import pandas as pd
 import vaex
+from datasets import load_dataset
 from PIL import Image
 
 import dataquality
@@ -15,6 +16,33 @@ import dataquality as dq
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import validate_unique_ids
 from tests.conftest import LOCATION
+
+food_dataset = load_dataset("sasha/dog-food", split="train")
+food_dataset = food_dataset.select(range(20))
+
+mnist_dataset = load_dataset("mnist", split="train")
+mnist_dataset = mnist_dataset.select(range(20))
+
+cifar10_dataset = load_dataset("cifar10", split="train")
+cifar10_dataset = cifar10_dataset.select(range(20))
+
+TESTING_DATASETS = {
+    "food": dict(
+        dataset=food_dataset,
+        labels=food_dataset.features["label"].names,
+        imgs_colname="image",
+    ),
+    "mnist": dict(
+        dataset=mnist_dataset,
+        labels=mnist_dataset.features["label"].names,
+        imgs_colname="image",
+    ),
+    "cifar10": dict(
+        dataset=cifar10_dataset,
+        labels=cifar10_dataset.features["label"].names,
+        imgs_colname="img",
+    ),
+}
 
 
 def test_duplicate_ids_augmented_loop_thread(
@@ -285,3 +313,75 @@ def test_observed_ids_cleaned_up_after_finish(
 
     # assert that the logger config's observed ids are reset
     assert len(dq.get_model_logger().logger_config.observed_ids) == 0
+
+
+def _test_hf_image_dataset(name) -> None:
+    """
+    Tests that dq.log_image_dataset can handle HF dataset inputs.
+    """
+
+    dataset_info = TESTING_DATASETS[name]
+
+    dq.set_labels_for_run(dataset_info["labels"])
+    dq.log_image_dataset(
+        dataset=dataset_info["dataset"],
+        label="label",
+        imgs_colname=dataset_info["imgs_colname"],
+        split="training",
+    )
+
+    # read logged data
+    ThreadPoolManager.wait_for_threads()
+    df = vaex.open(f"{LOCATION}/input_data/training/*.arrow")
+
+    assert len(df) == len(food_dataset)
+
+
+def test_hf_dataset_food(cleanup_after_use, set_test_config) -> None:
+    set_test_config(task_type="image_classification")
+    _test_hf_image_dataset("food")
+
+
+def test_hf_dataset_mnist(cleanup_after_use, set_test_config) -> None:
+    set_test_config(task_type="image_classification")
+    _test_hf_image_dataset("mnist")
+
+
+def test_hf_dataset_cifar10(cleanup_after_use, set_test_config) -> None:
+    set_test_config(task_type="image_classification")
+    _test_hf_image_dataset("cifar10")
+
+
+def test_hf_image_dataset_with_paths(set_test_config, cleanup_after_use) -> None:
+    """
+    Tests that dq.log_image_dataset can handle imgs_location_colname when
+    passed an HF dataset.
+    """
+    set_test_config(task_type="image_classification")
+
+    with TemporaryDirectory() as imgs_dir:
+
+        def save_and_record_path(example, index):
+            path = os.path.join(imgs_dir, f"{index:04d}.jpg")
+            example["image"].save(path)
+            return {"path": path, **example}
+
+        dataset_info = TESTING_DATASETS["food"]
+
+        dataset = dataset_info["dataset"]
+
+        dataset_with_paths = dataset.map(save_and_record_path, with_indices=True)
+
+        dq.set_labels_for_run(dataset_info["labels"])
+        dq.log_image_dataset(
+            dataset=dataset_with_paths,
+            label="label",
+            imgs_location_colname="path",
+            split="training",
+        )
+
+        # read logged data
+        ThreadPoolManager.wait_for_threads()
+        df = vaex.open(f"{LOCATION}/input_data/training/*.arrow")
+
+        assert len(df) == len(food_dataset)

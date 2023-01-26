@@ -1,7 +1,6 @@
 from typing import Any, Dict, List, Optional, Type, Union
 
 import numpy as np
-import pandas as pd
 
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
@@ -110,19 +109,17 @@ def log_data_sample(*, text: str, id: int, **kwargs: Any) -> None:
 @check_noop
 def log_image_dataset(
     dataset: DataSet,
-    imgs_dir: str,
     *,
-    imgs_location_colname: Optional[str] = "relpath",
+    imgs_colname: Optional[str] = None,
+    imgs_location_colname: Optional[str] = None,
+    imgs_dir: Optional[str] = None,
     batch_size: int = ITER_CHUNK_SIZE,
-    id: Union[str, int] = "id",
+    id: str = "id",
     label: Union[str, int] = "label",
     split: Optional[Split] = None,
     meta: Optional[List[Union[str, int]]] = None,
     **kwargs: Any,
 ) -> None:
-    assert isinstance(
-        dataset, pd.DataFrame
-    ), "dataset must be a pandas DataFrame"  # TODO: add support for other data types
     a.log_function("dq/log_image_dataset")
     assert all(
         [config.task_type, config.current_project_id, config.current_run_id]
@@ -134,8 +131,9 @@ def log_image_dataset(
     )
     data_logger.log_image_dataset(
         dataset=dataset,
-        imgs_dir=imgs_dir,
+        imgs_colname=imgs_colname,
         imgs_location_colname=imgs_location_colname,
+        imgs_dir=imgs_dir,
         batch_size=batch_size,
         id=id,
         label=label,
