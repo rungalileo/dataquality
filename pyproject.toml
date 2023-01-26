@@ -45,10 +45,10 @@ doc = [
     "mkdocs-material >=5.4.0,<6.0.0",
 ]
 test = [
-    "pytest==6.2.5",
+    "pytest==7.2.1",
     "mypy==0.971",
     "freezegun==1.2.2",
-    "coverage==6.1.1",
+    "coverage==7.0.5",
     "pytest-cov==3.0.0",
     "scikit-learn==1.0",
     "tensorflow==2.9.1",

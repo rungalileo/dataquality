@@ -113,9 +113,3 @@ class DataQualityCallback(keras.callbacks.Callback):
 
     def on_test_batch_end(self, batch: Any, logs: Dict = None) -> None:
         dq.log_model_outputs(**dq.get_model_logger().logger_config.helper_data)
-
-
-# try:
-#     Analytics().log("import", "dataquality.keras")
-# except Exception:
-#     pass
