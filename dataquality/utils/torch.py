@@ -1,5 +1,6 @@
 import gc
 import re
+from collections import OrderedDict
 from functools import wraps
 from queue import Queue
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
@@ -59,7 +60,7 @@ class TorchBaseInstance:
         else:
             self.logits_dim = None
 
-    def _embedding_hook(
+    def _dq_embedding_hook(
         self,
         model: Module,
         model_input: Optional[Tensor],
@@ -117,7 +118,7 @@ class TorchBaseInstance:
         model_outputs_store = self.helper_data[HelperData.model_outputs_store]
         model_outputs_store["embs"] = output_detached
 
-    def _logit_hook(
+    def _dq_logit_hook(
         self,
         model: Module,
         model_input: Optional[
@@ -179,8 +180,8 @@ class TorchBaseInstance:
         :return: None
         """
 
-        self._embedding_hook(model, None, model_input)
-        self._logit_hook(model, None, model_output)
+        self._dq_embedding_hook(model, None, model_input)
+        self._dq_logit_hook(model, None, model_output)
 
 
 # store indices
@@ -448,3 +449,16 @@ def unpatch(patches: List[Dict[str, Any]] = []) -> None:
                         delattr(obj, attrib)
             if getattr(obj, "_patched", False):
                 delattr(obj, "_patched")
+
+
+def remove_all_forward_hooks(model: Module, all: bool = False) -> None:
+    for name, child in model._modules.items():
+        if child is not None:
+            if hasattr(child, "_forward_hooks"):
+                if all:
+                    child._forward_hooks = OrderedDict()
+                else:
+                    for k, v in child._forward_hooks.items():
+                        if v.__name__.startswith("dq_"):
+                            del child._forward_hooks[k]
+            remove_all_forward_hooks(child)

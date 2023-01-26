@@ -1,3 +1,4 @@
+import warnings
 from typing import Any, Callable, Dict, List, Optional, Union
 from warnings import warn
 
@@ -18,6 +19,7 @@ from dataquality.utils.torch import (
     TorchBaseInstance,
     patch_dataloaders,
     patch_iterator_with_store,
+    remove_all_forward_hooks,
     unpatch,
 )
 
@@ -97,7 +99,7 @@ class TorchLogger(TorchBaseInstance):
         """
         try:
             self.hook_manager.attach_classifier_hook(
-                model, self.classifier_hook_with_step_end, classifier_layer
+                model, self._dq_classifier_hook_with_step_end, classifier_layer
             )
         except Exception as e:
             warn(
@@ -112,11 +114,11 @@ class TorchLogger(TorchBaseInstance):
                 "function or by printing the model."
             )
             self.hook_manager.attach_hooks_to_model(
-                model, self._embedding_hook, last_hidden_state_layer
+                model, self._dq_embedding_hook, last_hidden_state_layer
             )
-            self.hook_manager.attach_hook(model, self._logit_hook_with_step_end)
+            self.hook_manager.attach_hook(model, self._dq_logit_hook_with_step_end)
 
-    def classifier_hook_with_step_end(
+    def _dq_classifier_hook_with_step_end(
         self,
         model: Module,
         model_input: Tensor,
@@ -132,7 +134,7 @@ class TorchLogger(TorchBaseInstance):
         self._classifier_hook(model, model_input, model_output)
         self._on_step_end()
 
-    def _logit_hook_with_step_end(
+    def _dq_logit_hook_with_step_end(
         self,
         model: Module,
         model_input: Tensor,
@@ -145,7 +147,7 @@ class TorchLogger(TorchBaseInstance):
         :param model_output: Model output
         :return: None
         """
-        self._logit_hook(model, model_input, model_output)
+        self._dq_logit_hook(model, model_input, model_output)
         self._on_step_end()
 
     def _on_step_end(self) -> None:
@@ -303,6 +305,10 @@ def unwatch(model: Optional[Module] = None, force: bool = True) -> None:
     if hook_manager:
         hook_manager.detach_hooks()
     # Remove the model from the helper data
+    if isinstance(model, Module):
+        remove_all_forward_hooks(model)
+    else:
+        warnings.warn("model is not a Module")
     if "model" in helper_data:
         del helper_data[HelperData.model]
     if model and hasattr(model, "_dq"):

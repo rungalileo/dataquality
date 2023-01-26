@@ -17,7 +17,7 @@ from dataquality.integrations.torch import TorchBaseInstance
 from dataquality.schemas.split import Split
 from dataquality.schemas.torch import DimensionSlice, HelperData, InputDim, Layer
 from dataquality.utils.helpers import check_noop
-from dataquality.utils.torch import ModelHookManager
+from dataquality.utils.torch import ModelHookManager, remove_all_forward_hooks
 from dataquality.utils.transformers import (
     add_id_to_signature_columns,
     remove_id_collate_fn_wrapper,
@@ -256,9 +256,9 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
                 "function or by printing the model."
             )
             self.hook_manager.attach_hooks_to_model(
-                model, self._embedding_hook, last_hidden_state_layer
+                model, self._dq_embedding_hook, last_hidden_state_layer
             )
-            self.hook_manager.attach_hook(model, self._logit_hook)
+            self.hook_manager.attach_hook(model, self._dq_logit_hook)
 
 
 @check_noop
@@ -322,3 +322,4 @@ def unwatch(trainer: Trainer) -> None:
     trainer.remove_callback(helper_data[HelperData.dqcallback])
     trainer._signature_columns = helper_data[HelperData.signature_cols]
     trainer.data_collator = helper_data[HelperData.orig_collate_fn]
+    remove_all_forward_hooks(trainer.model)

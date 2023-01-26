@@ -200,13 +200,13 @@ def test_end_to_end_with_callback(
         num_workers=2,
         shuffle=True,
         collate_fn=collate_batch,
-        persistent_workers=True,
-        pin_memory=False,
+        # persistent_workers=True,
+        # pin_memory=False,
     )
     test_dataloader_dq = DataLoader(
         ag_test, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_batch
     )
-
+    unwatch(modeldq)
     # 🔭🌕 Logging the dataset with Galileo
     watch(
         modeldq,
@@ -244,7 +244,7 @@ def test_end_to_end_old_patch(
     set_test_config: Callable,
     cleanup_after_use: Generator,
 ) -> None:
-    return None
+
     set_test_config(default_task_type=TaskType.text_classification)
     # Preprocessing
     global train_df, test_df

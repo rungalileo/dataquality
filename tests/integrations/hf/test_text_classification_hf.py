@@ -243,7 +243,7 @@ def test_embedding_layer_indexing():
 historic_embeddings = None
 
 
-def _embedding_hook(model: Module, model_input: Any, model_output: Any) -> None:
+def _dq_embedding_hook(model: Module, model_input: Any, model_output: Any) -> None:
     """
     Hook to extract the embeddings from the model
     :param model: Model pytorch model
@@ -289,7 +289,7 @@ def test_forward_hook(
     for batch in dataloader:
         batch.pop("id").detach().numpy()
         pred = model_base(**batch)
-        next(model_seq.children()).register_forward_hook(_embedding_hook)
+        next(model_seq.children()).register_forward_hook(_dq_embedding_hook)
         model_seq(**batch)
         embeddings = pred[0][:, 0].detach().numpy()[0]
         embeddings_cls = historic_embeddings[:, 0].detach().numpy()[0]
