@@ -47,6 +47,8 @@
     * [Data Drift Detection](glossary/galileo-product-features/data-drift-detection.md)
 * [🙋 FAQs](faqs.md)
 * [📖 Python Library API](python-library-api/README.md)
+  * [Reference](api/index.md)
+  * [Documentation](api/dataquality.md)
   * [dq.login](python-library-api/dq.login.md)
   * [dq.init](python-library-api/dq.init.md)
   * [Logging Data](python-library-api/logging-data/README.md)
