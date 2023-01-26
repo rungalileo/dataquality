@@ -113,6 +113,7 @@ def auto(
 
 
     To see auto insights on a random, pre-selected dataset, simply run
+
     .. code-block:: python
 
         import dataquality as dq
@@ -121,6 +122,7 @@ def auto(
 
 
     An example using `auto` with a hosted huggingface text classification dataset
+
     .. code-block:: python
 
         import dataquality as dq
@@ -129,6 +131,7 @@ def auto(
 
 
     Similarly, for NER
+
     .. code-block:: python
 
         import dataquality as dq
@@ -137,6 +140,7 @@ def auto(
 
 
     An example using `auto` with sklearn data as pandas dataframes
+
     .. code-block:: python
 
         import dataquality as dq
@@ -164,6 +168,7 @@ def auto(
 
 
     An example of using `auto` with a local CSV file with `text` and `label` columns
+
     .. code-block:: python
 
     import dataquality as dq
