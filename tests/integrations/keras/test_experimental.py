@@ -18,7 +18,7 @@ from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.conftest import LOCATION
 
 # from tests.conftest import LOCATION
-from tests.test_utils.hf_datasets_mock import mock_dataset, mock_dataset_numbered
+from tests.test_utils.hf_datasets_mock import mock_dataset_numbered, mock_hf_dataset
 
 tmp_checkpoint = "tmp/tiny-distillbert"
 checkpoint = "hf-internal-testing/tiny-bert-for-token-classification"
@@ -50,7 +50,7 @@ def preprocess_function(examples, tokenizer):
 data_collator = DataCollatorWithPadding(tokenizer=tokenizer, return_tensors="tf")
 
 # 🔭🌕 Galileo logging
-mock_dataset_with_ids = mock_dataset.map(
+mock_dataset_with_ids = mock_hf_dataset.map(
     lambda x, idx: {"id": idx}, with_indices=True
 ).select(range(7))
 mock_dataset_with_ids_number = mock_dataset_numbered.map(

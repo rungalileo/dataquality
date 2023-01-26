@@ -2,9 +2,15 @@ import os
 import re
 import shutil
 import warnings
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
 from pydantic.types import UUID4
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential_jitter,
+)
 
 import dataquality
 from dataquality.clients.api import ApiClient
@@ -21,43 +27,50 @@ api_client = ApiClient()
 BAD_CHARS_REGEX = r"[^\w -]+"
 
 
-class _Init:
-    def get_project_by_name_for_user(self, project_name: str) -> Dict:
-        return api_client.get_project_by_name(project_name)
+class InitManager:
+    @retry(
+        wait=wait_exponential_jitter(initial=0.1, max=2),
+        stop=stop_after_attempt(5),
+        retry=retry_if_exception_type(GalileoException),
+    )
+    def get_or_create_project(
+        self, project_name: str, is_public: bool
+    ) -> Tuple[Dict, bool]:
+        """Gets a project by name, or creates a new one if it doesn't exist.
 
-    def get_project_run_by_name_for_user(
-        self, project_name: str, run_name: str
-    ) -> Dict:
-        return api_client.get_project_run_by_name(project_name, run_name)
+        Returns:
+            Tuple[Dict, bool]: The project and a boolean indicating if the project
+            was created
+        """
+        project = api_client.get_project_by_name(project_name)
+        created = False
+        if not project:
+            project = api_client.create_project(project_name, is_public=is_public)
+            created = True
 
-    def _initialize_new_project(
-        self, project_name: str, is_public: bool = True
-    ) -> Dict:
         visibility = "public" if is_public else "private"
-        print(f"✨ Initializing {visibility} project {project_name}")
-        try:
-            return api_client.create_project(
-                project_name=project_name, is_public=is_public
-            )
-        except GalileoException as e:
-            # There is a unique constraint on the project_name+user_id (a user cannot
-            # create 2 projects with the same name. We check this in the API and throw
-            # an error if it occurs, but if the user makes the request twice in parallel
-            # we won't be able to catch it and the unique constraint in the DB will
-            # throw. These are the 2 errors thrown. In either case, simply "setting"
-            # the project will now work since the project was created
-            unique_key = "duplicate key value violates unique constraint"
-            proj_exists = "A project with this name already exists"
-            if proj_exists in str(e) or unique_key in str(e):
-                return api_client.get_project_by_name(project_name)
-            else:
-                raise e
+        created_str = "new" if created else "existing"
+        print(f"✨ Initializing {created_str} {visibility} project '{project_name}'")
+        return project, created
 
-    def _initialize_run_for_project(
+    def get_or_create_run(
         self, project_name: str, run_name: str, task_type: TaskType
-    ) -> Dict:
-        print(f"🏃‍♂️ Starting run {run_name}")
-        return api_client.create_run(project_name, run_name, task_type)
+    ) -> Tuple[Dict, bool]:
+        """Gets a run by name, or creates a new one if it doesn't exist.
+
+        Returns:
+            Tuple[Dict, bool]: The run and a boolean indicating if the run was created
+        """
+        run = api_client.get_project_run_by_name(project_name, run_name)
+        created = False
+        if not run:
+            run = api_client.create_run(project_name, run_name, task_type=task_type)
+            created = True
+
+        created_str = "new" if created else "existing"
+        verb = "Creating" if created else "Fetching"
+        print(f"🏃‍♂️ {verb} {created_str} run '{run_name}'")
+        return run, created
 
     def create_log_file_dir(
         self, project_id: UUID4, run_id: UUID4, overwrite_local: bool
@@ -70,16 +83,22 @@ class _Init:
             if not os.path.exists(out_dir):
                 os.makedirs(out_dir)
 
-    def validate_name(self, name: Optional[str]) -> None:
-        """Validates project/run name ensuring only letters, numbers, space, - and _"""
+    def validate_name(self, name: Optional[str]) -> str:
+        """Validates project/run name ensuring only letters, numbers, space, - and _
+
+        If no name is provided, a random name is generated
+        """
         if not name:
-            return
+            name = random_name()
+
         badchars = re.findall(BAD_CHARS_REGEX, name)
         if badchars:
             raise GalileoException(
                 "Only letters, numbers, whitespace, - and _ are allowed in a project "
                 f"or run name. Remove the following characters: {badchars}"
             )
+
+        return name
 
 
 @check_noop
@@ -119,97 +138,39 @@ def init(
     if not api_client.valid_current_user():
         login()
     _check_dq_version()
-    _init = _Init()
-    BaseGalileoLogger.validate_task(task_type)
-    task_type = TaskType[task_type]
+    _init = InitManager()
+    task_type = BaseGalileoLogger.validate_task(task_type)
     config.task_type = task_type
-    _init.validate_name(project_name)
-    _init.validate_name(run_name)
-    if not project_name and not run_name:
-        # no project and no run id, start a new project and start a new run
-        project_name, run_name = random_name(), random_name()
-        project_response = _init._initialize_new_project(
-            project_name=project_name, is_public=is_public
-        )
-        run_response = _init._initialize_run_for_project(
-            project_name=project_name, run_name=run_name, task_type=task_type
-        )
-        config.current_project_id = project_response["id"]
-        config.current_run_id = run_response["id"]
-        print(f"🛰 Created project, {project_name}, and new run, {run_name}.")
-    elif project_name and not run_name:
-        project = _init.get_project_by_name_for_user(project_name)
-        # if project exists, start new run
-        if project.get("id") is not None:
-            run_name = random_name()
-            print(f"📡 Retrieved project, {project_name}, and starting a new run")
-            run_response = _init._initialize_run_for_project(
-                project_name=project_name, run_name=run_name, task_type=task_type
-            )
-            config.current_project_id = project["id"]
-            config.current_run_id = run_response["id"]
-            print(
-                f"🛰 Connected to project, {project_name}, and created run, {run_name}."
-            )
-        # otherwise create project with given name and start new run
-        else:
-            print(f"💭 Project {project_name} was not found.")
-            run_name = random_name()
-            project_response = _init._initialize_new_project(
-                project_name=project_name, is_public=is_public
-            )
-            run_response = _init._initialize_run_for_project(
-                project_name=project_name, run_name=run_name, task_type=task_type
-            )
-            config.current_project_id = project_response["id"]
-            config.current_run_id = run_response["id"]
-    elif project_name and run_name:
-        project = _init.get_project_by_name_for_user(project_name)
-        # if project actually exists, get the run
-        if project.get("name"):
-            # If the project and run exist, connect to them
-            print(f"📡 Retrieving run from existing project, {project_name}")
-            run = _init.get_project_run_by_name_for_user(
-                project["name"], run_name=run_name
-            )
-            if run.get("id"):
-                config.current_project_id = project["id"]
-                config.current_run_id = run["id"]
-                warnings.warn(
-                    f"Run: {project_name}/{run_name} already exists! "
-                    "The existing run will get overwritten on call to finish()!"
-                )
-                print(f"🛰 Connected to project, {project_name}, and run, {run_name}.")
-            else:
-                # If the run does not exist, create it
-                run_response = _init._initialize_run_for_project(
-                    project_name, run_name, task_type
-                )
-                config.current_project_id = project["id"]
-                config.current_run_id = run_response["id"]
-                print(
-                    f"🛰 Connected to project, {project['name']} "
-                    f"and created new run, {run_name}."
-                )
-        else:
-            # User gave us a new project name and new run name to create, so create it
-            print(f"💭 Project {project_name} was not found.")
-            project_response = _init._initialize_new_project(
-                project_name=project_name, is_public=is_public
-            )
-            run_response = _init._initialize_run_for_project(
-                project_name=project_name, run_name=run_name, task_type=task_type
-            )
-            config.current_project_id = project_response["id"]
-            config.current_run_id = run_response["id"]
-            print(f"🛰 Created project, {project_name}, and new run, {run_name}.")
-    else:
+    if not project_name and run_name:
         # The user provided a run name and no project name. No good
         warnings.warn(
             "⚠️ You must specify a project name to initialize or create a new Galileo "
             "run. Add a project name, or simply run dq.init()."
         )
         return
+
+    project_name = _init.validate_name(project_name)
+    run_name = _init.validate_name(run_name)
+
+    project, proj_created = _init.get_or_create_project(project_name, is_public)
+    run, run_created = _init.get_or_create_run(project_name, run_name, task_type)
+
+    if not run_created:
+        warnings.warn(
+            f"Run: {project_name}/{run_name} already exists! "
+            "The existing run will get overwritten on call to finish()!"
+        )
+
+    config.current_project_id = project["id"]
+    config.current_run_id = run["id"]
+
+    proj_created_str = "new" if proj_created else "existing"
+    run_created_str = "new" if run_created else "existing"
+    print(
+        f"🛰 Connected to {proj_created_str} project '{project_name}', "
+        f"and {run_created_str} run '{run_name}'."
+    )
+
     config.update_file_config()
     if config.current_project_id and config.current_run_id:
         _init.create_log_file_dir(
