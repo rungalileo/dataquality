@@ -74,13 +74,29 @@ class BaseGalileoLogger:
         self.split: Optional[str] = None
         self.inference_name: Optional[str] = None
 
+    @property
     def write_output_dir(self) -> str:
+        """Returns the path to the output directory for the current run
+
+        Example:
+            /Users/username/.galileo/logs/proj-id/run-id
+        """
         return (
             f"{BaseGalileoLogger.LOG_FILE_DIR}/{config.current_project_id}/"
             f"{config.current_run_id}"
         )
 
+    @property
     def split_name(self) -> str:
+        """Returns the name of the current split
+
+        If the split is inference, it will return the name of the inference
+        concatenated to the end of the split name
+
+        Example:
+            training
+            inference_inf-name1
+        """
         split = self.split
         if split == Split.inference:
             split = f"{split}_{self.inference_name}"
@@ -95,6 +111,10 @@ class BaseGalileoLogger:
         """Validates params passed in during logging. Implemented by child"""
 
     def set_split_epoch(self) -> None:
+        """Sets the split for the current logger
+
+        If the split is not set, it will use the split set in the logger config
+        """
         if not self.split:
             if self.logger_config.cur_split:
                 self.split = self.logger_config.cur_split
@@ -207,6 +227,7 @@ class BaseGalileoLogger:
 
     @staticmethod
     def validate_task(task_type: Union[str, TaskType]) -> TaskType:
+        """Raises error if task type is not a valid TaskType"""
         try:
             return TaskType[task_type]
         except KeyError:
@@ -217,8 +238,13 @@ class BaseGalileoLogger:
 
     @classmethod
     def _cleanup(cls) -> None:
-        """
-        Cleans up the current run data and metadata locally
+        """Cleans up the current run data and metadata locally
+
+        Does so by deleting the run directory and resetting the logger config
+
+        Example:
+            # Deletes all files in the run directory
+            /Users/username/.galileo/logs/proj-id/run-id
         """
         assert config.current_project_id
         assert config.current_run_id
@@ -259,6 +285,10 @@ class BaseGalileoLogger:
 
     @classmethod
     def validate_split(cls, split: Union[str, Split]) -> str:
+        """Raises error if split is not a valid Split
+
+        Also raises if a cloud user tries to log inference data
+        """
         split = conform_split(split).value
         if is_galileo_cloud() and split == Split.inference:
             raise GalileoException(

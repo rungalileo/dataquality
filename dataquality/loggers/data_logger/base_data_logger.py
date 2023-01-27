@@ -6,7 +6,7 @@ import sys
 import warnings
 from abc import abstractmethod
 from collections import Counter
-from typing import Any, Dict, Iterable, List, Optional, Tuple, TypeVar, Union
+from typing import Any, Dict, Iterable, List, Optional, TypeVar, Union
 
 import numpy as np
 import pandas as pd
@@ -18,7 +18,7 @@ from dataquality.clients.objectstore import ObjectStore
 from dataquality.core._config import config
 from dataquality.exceptions import GalileoException, GalileoWarning
 from dataquality.loggers.base_logger import BaseGalileoLogger, BaseLoggerAttributes
-from dataquality.schemas.dataframe import BaseLoggerInOutFrames, DFVar
+from dataquality.schemas.dataframe import BaseLoggerDataFrames, DFVar
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
 from dataquality.utils import tqdm
@@ -64,16 +64,29 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         self.meta: Dict = meta or {}
         self.log_export_progress = True
 
+    @property
     def input_data_path(self) -> str:
-        return f"{self.write_output_dir()}/{BaseGalileoDataLogger.INPUT_DATA_BASE}"
+        """Return the path to the input data folder.
+
+        Example:
+            /Users/username/.galileo/logs/proj-id/run-id/input_data
+        """
+        return f"{self.write_output_dir}/{BaseGalileoDataLogger.INPUT_DATA_BASE}"
 
     def input_data_file(self, input_num: int = None, split: str = None) -> str:
+        """Return the path to the input data file.
+
+        Example:
+            /Users/username/.galileo/logs/proj-id/run-id/input_data/train/data_0.arrow
+        """
         if not split:
             assert self.split
             split = str(self.split)
         if input_num is None:
+            # input_data_logged is a dict of {split: input_num}
+            # where input_num is incremented in log()
             input_num = self.logger_config.input_data_logged[split]
-        return f"{self.input_data_path()}/{split}/data_{input_num}.arrow"
+        return f"{self.input_data_path}/{split}/data_{input_num}.arrow"
 
     @abstractmethod
     def log_data_sample(self, *, text: str, id: int, **kwargs: Any) -> None:
@@ -102,7 +115,16 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         Provide the dataset and the keys to index into it. See child for details"""
 
     def validate_ids_for_split(self, ids: List[int]) -> None:
-        split = self.split_name()
+        """Validate ids for the current split
+
+        Validates:
+        - that the ids are unique for the current split
+        - that the ids are not already logged for the current split
+
+        On success:
+        - adds the ids to the logged_input_ids for the current split
+        """
+        split = self.split_name
         exc = (
             "If you've re-run a block of code or notebook cell that logs model "
             "outputs, that could be the cause. Try reinitializing with `dq.init` "
@@ -112,17 +134,20 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         id_set = set(ids)
         if len(id_set) != len(ids):
             exc = "It seems you do not have unique ids in this logged data. " + exc
-            dups = {k: v for k, v in Counter(ids).items() if v > 1}
             if galileo_verbose_logging():
+                dups = {k: v for k, v in Counter(ids).items() if v > 1}
                 exc += f"split:{split}, dup ids and counts: {dups}"
             raise GalileoException(exc)
         # This means some logged ids were already logged!
         if len(id_set - self.logger_config.logged_input_ids[split]) != len(ids):
-            extra = self.logger_config.logged_input_ids[split].intersection(id_set)
             exc = "Some ids in this dataset were already logged for this split. " + exc
             if galileo_verbose_logging():
-                exc += f"split:{split}, overlapping ids: {extra}"
+                overlapping = self.logger_config.logged_input_ids[split].intersection(
+                    id_set
+                )
+                exc += f"split:{split}, overlapping ids: {overlapping}"
             raise GalileoException(exc)
+
         self.logger_config.logged_input_ids[split].update(ids)
 
     def add_ids_to_split(self, ids: List) -> None:
@@ -137,12 +162,16 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         times for a given split.
         """
         self.validate()
-        write_input_dir = self.write_output_dir()
+        # E.g. /Users/username/.galileo/logs/proj-id/run-id
+        write_input_dir = self.write_output_dir
         os.makedirs(write_input_dir, exist_ok=True)
-        os.makedirs(f"{self.input_data_path()}/{self.split}", exist_ok=True)
+        # E.g. /Users/username/.galileo/logs/proj-id/run-id/training
+        os.makedirs(f"{self.input_data_path}/{self.split}", exist_ok=True)
 
         df = self._get_input_df()
+        # Validates cloud size limit
         self.validate_data_size(df)
+
         ids = df["id"].tolist()
         self.validate_ids_for_split(ids)
         self.add_ids_to_split(ids)
@@ -177,7 +206,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
         for split in Split.get_valid_attributes():
             split_loc = f"{location}/{split}"
-            input_logged = os.path.exists(f"{self.input_data_path()}/{split}")
+            input_logged = os.path.exists(f"{self.input_data_path}/{split}")
             output_logged = os.path.exists(split_loc)
             if not output_logged:
                 continue
@@ -189,7 +218,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                     GalileoWarning,
                 )
                 continue
-            in_frame_path = f"{self.input_data_path()}/{split}"
+            in_frame_path = f"{self.input_data_path}/{split}"
             in_frame_split = vaex.open(f"{in_frame_path}/*.arrow")
             in_frame_split = self.convert_large_string(in_frame_split)
             self.upload_split(
@@ -296,7 +325,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         prob_only: bool,
         split: str,
         epoch_or_inf: Union[str, int],
-    ) -> BaseLoggerInOutFrames:
+    ) -> BaseLoggerDataFrames:
         """Formats the input data and model output data
 
         In this step, we concatenate the many hdf5 files created during model training
@@ -344,7 +373,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         prob_only: bool,
         epoch_or_inf_name: str,
         split: str,
-    ) -> BaseLoggerInOutFrames:
+    ) -> BaseLoggerDataFrames:
         """Processes input and output dataframes from logging
 
         Validates uniqueness of IDs in the output dataframe
@@ -359,20 +388,20 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         validate_unique_ids(out_frame, epoch_or_inf_name)
         in_out = _join_in_out_frames(in_frame, out_frame)
 
-        prob, emb, data_df = cls.split_dataframe(in_out, prob_only, split)
+        in_out_frames = cls.separate_dataframe(in_out, prob_only, split)
         # These df vars will be used in upload_in_out_frames
-        emb.set_variable("skip_upload", prob_only)
-        data_df.set_variable("skip_upload", prob_only)
+        in_out_frames.emb.set_variable("skip_upload", prob_only)
+        in_out_frames.data.set_variable("skip_upload", prob_only)
         epoch_inf_val = out_frame[[epoch_or_inf_name]][0][0]
-        prob.set_variable("progress_name", str(epoch_inf_val))
+        in_out_frames.prob.set_variable("progress_name", str(epoch_inf_val))
 
-        return BaseLoggerInOutFrames(prob=prob, emb=emb, data=data_df)
+        return in_out_frames
 
     @classmethod
     def upload_in_out_frames(
         cls,
         object_store: ObjectStore,
-        in_out_frames: BaseLoggerInOutFrames,
+        in_out_frames: BaseLoggerDataFrames,
         split: str,
         epoch_or_inf: Union[str, int],
     ) -> None:
@@ -422,6 +451,13 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         return bool(epoch < max_epoch_for_split - 1)
 
     def validate(self) -> None:
+        """Validates the logger
+
+        Ensures that self.split is set, or sets it to the current split
+        from the logger_config.
+
+        Each child also defines an additional validate method that is called
+        """
         self.set_split_epoch()
 
     @classmethod
@@ -504,9 +540,9 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
     @classmethod
     @abstractmethod
-    def split_dataframe(
-        cls, df: DataFrame, prob_only: bool, split: str
-    ) -> Tuple[DataFrame, DataFrame, DataFrame]:
+    def separate_dataframe(
+        cls, df: DataFrame, prob_only: bool = False, split: str = None
+    ) -> BaseLoggerDataFrames:
         ...
 
     def validate_kwargs(self, kwargs: Dict) -> None:
@@ -524,12 +560,16 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         raise GalileoException(f"Cannot set tagging schema for {cls.__logger_name__}")
 
     def validate_data_size(self, df: DataFrame) -> None:
+        """Validates that the data size is within the limits of Galileo Cloud
+
+        If the data size is too large, a warning is raised.
+        """
         if not is_galileo_cloud():
             return
         samples_logged = len(df)
-        path_to_logged_data = f"{self.input_data_path()}/*/*arrow"
+        path_to_logged_data = f"{self.input_data_path}/*/*arrow"
         if glob.glob(path_to_logged_data):
-            samples_logged += len(vaex.open(f"{self.input_data_path()}/*/*arrow"))
+            samples_logged += len(vaex.open(f"{self.input_data_path}/*/*arrow"))
         nrows = BaseGalileoDataLogger.MAX_DATA_SIZE_CLOUD
         if samples_logged > nrows:
             warnings.warn(

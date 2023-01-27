@@ -148,19 +148,15 @@ def log_image_dataset(
 
 
 @check_noop
-def log_structured_dataset(
-    dataset: DataSet,
+def log_structured_samples(
+    X: np.ndarray,
+    y: np.ndarray,
+    feature_names: List[str],
+    probs: np.ndarray,
     *,
-    # batch_size: int = ITER_CHUNK_SIZE,
-    # id: Union[str, int] = "id",
-    label: Union[str, int] = "label",
     split: Optional[Split] = None,
-    **kwargs: Any,
+    inference_name: Optional[str] = None,
 ) -> None:
-    assert isinstance(
-        dataset, pd.DataFrame
-    ), "dataset must be a pandas DataFrame"  # TODO: add support for other data types
-    a.log_function("dq/log_structured")
     assert all(
         [config.task_type, config.current_project_id, config.current_run_id]
     ), "You must call dataquality.init before logging data"
@@ -169,12 +165,13 @@ def log_structured_dataset(
         "This method is only supported for structured data tasks. "
         "You must call dq.init('structured_classification') to use this method."
     )
-    data_logger.log_structured_dataset(
-        dataset=dataset,
-        # batch_size=batch_size,
-        # id=id,
-        label=label,
+    data_logger.log_samples(
+        X=X,
+        y=y,
+        feature_names=feature_names,
+        probs=probs,
         split=split,
+        inference_name=inference_name,
     )
 
 
