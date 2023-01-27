@@ -19,7 +19,7 @@ from dataquality.loggers.data_logger.base_data_logger import (
 )
 from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
 from dataquality.schemas import __data_schema_version__
-from dataquality.schemas.dataframe import BaseLoggerInOutFrames, DFVar
+from dataquality.schemas.dataframe import BaseLoggerDataFrames, DFVar
 from dataquality.schemas.ner import NERColumns as NERCols
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
@@ -619,7 +619,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         prob_only: bool,
         epoch_or_inf_name: str,
         split: str,
-    ) -> BaseLoggerInOutFrames:
+    ) -> BaseLoggerDataFrames:
         """Processes input and output dataframes from logging
 
         NER is a different case where the input data is logged at the sample level,
@@ -632,13 +632,15 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         Splits the dataframes into prob, emb, and input data for uploading to minio
         """
         cls._validate_duplicate_spans(out_frame, epoch_or_inf_name)
-        prob, emb, _ = cls.split_dataframe(out_frame, prob_only, split)
+        dataframes = cls.separate_dataframe(out_frame, prob_only, split)
+        # For NER data is the input data
+        dataframes.data = in_frame
         # These df vars will be used in upload_in_out_frames
-        emb.set_variable(DFVar.skip_upload, prob_only)
-        in_frame.set_variable(DFVar.skip_upload, prob_only)
+        dataframes.emb.set_variable(DFVar.skip_upload, prob_only)
+        dataframes.data.set_variable(DFVar.skip_upload, prob_only)
         epoch_inf_val = out_frame[[epoch_or_inf_name]][0][0]
-        prob.set_variable(DFVar.progress_name, str(epoch_inf_val))
-        return BaseLoggerInOutFrames(prob=prob, emb=emb, data=in_frame)
+        dataframes.prob.set_variable(DFVar.progress_name, str(epoch_inf_val))
+        return dataframes
 
     @classmethod
     def _validate_duplicate_spans(cls, df: DataFrame, epoch_or_inf_name: str) -> None:
@@ -657,9 +659,9 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             )
 
     @classmethod
-    def split_dataframe(
-        cls, df: DataFrame, prob_only: bool, split: str
-    ) -> Tuple[DataFrame, DataFrame, DataFrame]:
+    def separate_dataframe(
+        cls, df: DataFrame, prob_only: bool = True, split: str = None
+    ) -> BaseLoggerDataFrames:
         """Splits the dataframe into logical grouping for minio storage
 
         NER is a different case, where we store the text samples as "data" and
@@ -697,7 +699,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             [NERCols.id.value] if prob_only else [NERCols.id.value, NERCols.emb.value]
         )
         emb = df_copy[emb_cols]
-        return prob, emb, df_copy
+        return BaseLoggerDataFrames(prob=prob, emb=emb, data=df_copy)
 
     @classmethod
     def validate_labels(cls) -> None:
