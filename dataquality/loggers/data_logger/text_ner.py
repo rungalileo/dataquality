@@ -632,13 +632,15 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         Splits the dataframes into prob, emb, and input data for uploading to minio
         """
         cls._validate_duplicate_spans(out_frame, epoch_or_inf_name)
-        in_out_frames = cls.separate_dataframe(out_frame, prob_only, split)
+        dataframes = cls.separate_dataframe(out_frame, prob_only, split)
+        # For NER data is the input data
+        dataframes.data = in_frame
         # These df vars will be used in upload_in_out_frames
-        in_out_frames.emb.set_variable(DFVar.skip_upload, prob_only)
-        in_frame.set_variable(DFVar.skip_upload, prob_only)
+        dataframes.emb.set_variable(DFVar.skip_upload, prob_only)
+        dataframes.data.set_variable(DFVar.skip_upload, prob_only)
         epoch_inf_val = out_frame[[epoch_or_inf_name]][0][0]
-        in_out_frames.prob.set_variable(DFVar.progress_name, str(epoch_inf_val))
-        return in_out_frames
+        dataframes.prob.set_variable(DFVar.progress_name, str(epoch_inf_val))
+        return dataframes
 
     @classmethod
     def _validate_duplicate_spans(cls, df: DataFrame, epoch_or_inf_name: str) -> None:

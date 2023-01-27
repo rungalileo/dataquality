@@ -482,7 +482,6 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         emb = df_copy[emb_cols]
         data_df = df_copy[other_cols]
         return BaseLoggerDataFrames(prob=prob, emb=emb, data=data_df)
-        return prob, emb, data_df
 
     @classmethod
     def _get_prob_cols(cls) -> List[str]:
