@@ -388,14 +388,14 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         validate_unique_ids(out_frame, epoch_or_inf_name)
         in_out = _join_in_out_frames(in_frame, out_frame)
 
-        in_out_frames = cls.separate_dataframe(in_out, prob_only, split)
+        dataframes = cls.separate_dataframe(in_out, prob_only, split)
         # These df vars will be used in upload_in_out_frames
-        in_out_frames.emb.set_variable("skip_upload", prob_only)
-        in_out_frames.data.set_variable("skip_upload", prob_only)
+        dataframes.emb.set_variable("skip_upload", prob_only)
+        dataframes.data.set_variable("skip_upload", prob_only)
         epoch_inf_val = out_frame[[epoch_or_inf_name]][0][0]
-        in_out_frames.prob.set_variable("progress_name", str(epoch_inf_val))
+        dataframes.prob.set_variable("progress_name", str(epoch_inf_val))
 
-        return in_out_frames
+        return dataframes
 
     @classmethod
     def upload_in_out_frames(
