@@ -6,7 +6,6 @@ import numpy as np
 import vaex
 from vaex.dataframe import DataFrame
 
-# from dataquality.loggers.base_logger import BaseGalileoLogger
 from dataquality.clients.objectstore import ObjectStore
 from dataquality.loggers.data_logger.base_data_logger import BaseGalileoDataLogger
 from dataquality.loggers.logger_config.structured_classification import (
@@ -63,7 +62,7 @@ class StructuredClassificationLogger(BaseGalileoDataLogger):
         Support for batching to come in V1 of structured data project.
 
         We write the input data to disk in the following locations:
-        /Users/username/.galileo/logs/proj-id/run-id/training/data.hdf5  # TODO: arrow?
+        /Users/username/.galileo/logs/proj-id/run-id/training/data.hdf5
         /Users/username/.galileo/logs/proj-id/run-id/training/probs.hdf5
 
         NOTE #2: We don't restrict row or feature counts here for cloud users. If we add
