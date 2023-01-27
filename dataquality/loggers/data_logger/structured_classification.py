@@ -24,11 +24,6 @@ class StructuredClassificationLogger(BaseGalileoDataLogger):
     __logger_name__ = "structured_classification"
     logger_config = structured_classification_logger_config
 
-    def __init__(
-        self,
-    ) -> None:
-        super().__init__()
-
     def validate(self) -> None:
         # Validate length of data, labels, and probs are the same
         assert len(self.X) == len(self.y) == len(self.probs)
