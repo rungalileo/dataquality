@@ -412,14 +412,17 @@ def unpatch(patches: List[Dict[str, Any]] = []) -> None:
         delattr(patch["class"], "_patched")
         # then all instances of the classes found through the garbage collector
         for obj in gc.get_objects():
-            if (
-                isinstance(obj, patch["class"])
-                and hasattr(obj, "_patched")
-                and hasattr(obj, f"_old_{patch['attr']}")
-            ):
-                setattr(obj, patch["attr"], getattr(obj, f"_old_{patch['attr']}"))
-                delattr(obj, f"_old_{patch['attr']}")
-                delattr(obj, "_patched")
+            try:
+                if (
+                    isinstance(obj, patch["class"])
+                    and hasattr(obj, "_patched")
+                    and hasattr(obj, f"_old_{patch['attr']}")
+                ):
+                    setattr(obj, patch["attr"], getattr(obj, f"_old_{patch['attr']}"))
+                    delattr(obj, f"_old_{patch['attr']}")
+                    delattr(obj, "_patched")
+            except ReferenceError:
+                pass
 
     # If no patched items are passed, unpatch all instances and classes
     if len(patches) == 0:
@@ -431,24 +434,31 @@ def unpatch(patches: List[Dict[str, Any]] = []) -> None:
             _MultiProcessingDataLoaderIter,
         ]
         for obj in gc.get_objects():
-            if (
-                isinstance(obj, _BaseDataLoaderIter)
-                or isinstance(obj, _SingleProcessDataLoaderIter)
-                or isinstance(obj, _MultiProcessingDataLoaderIter)
-            ):
-                base_dataloaders.append(obj)
-        for obj in base_dataloaders:
-            for attrib in dir(obj):
+            try:
                 if (
-                    attrib.startswith("_old_")
-                    and hasattr(obj, attrib[5:])
-                    and hasattr(obj, attrib)
+                    isinstance(obj, _BaseDataLoaderIter)
+                    or isinstance(obj, _SingleProcessDataLoaderIter)
+                    or isinstance(obj, _MultiProcessingDataLoaderIter)
                 ):
-                    setattr(obj, attrib[5:], getattr(obj, attrib))
-                    if hasattr(obj, attrib):
-                        delattr(obj, attrib)
-            if getattr(obj, "_patched", False):
-                delattr(obj, "_patched")
+                    base_dataloaders.append(obj)
+            except ReferenceError:
+                pass
+        for obj in base_dataloaders:
+            try:
+                for attrib in dir(obj):
+                    if (
+                        attrib.startswith("_old_")
+                        and hasattr(obj, attrib[5:])
+                        and hasattr(obj, attrib)
+                    ):
+                        setattr(obj, attrib[5:], getattr(obj, attrib))
+                        if hasattr(obj, attrib):
+                            delattr(obj, attrib)
+
+                if getattr(obj, "_patched", False):
+                    delattr(obj, "_patched")
+            except ReferenceError:
+                pass
 
 
 def remove_all_forward_hooks(model: Module, all: bool = False) -> None:

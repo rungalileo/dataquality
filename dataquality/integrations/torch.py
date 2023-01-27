@@ -190,46 +190,47 @@ class TorchLogger(TorchBaseInstance):
 def watch(
     model: Module,
     dataloaders: Optional[List[DataLoader]] = [],
-    last_hidden_state_layer: Union[Module, str, None] = None,
+    classifier_layer: Union[str, Module] = None,
     embedding_dim: InputDim = None,
     logits_dim: InputDim = None,
-    classifier_layer: Union[str, Module] = None,
     embedding_fn: Optional[Callable] = None,
     logits_fn: Optional[Callable] = None,
-    unpatch_on_start: bool = True,
+    last_hidden_state_layer: Union[Module, str, None] = None,
+    unpatch_on_start: bool = False,
 ) -> None:
     """
-    [`watch`] is a function that wraps the model and dataloaders to log the
-    embeddings and logits to [Galileo](https://www.rungalileo.io/).
-    :param model: Pytorch Model to be wrapped
-    :param dataloaders: List of dataloaders to be wrapped
-    :param last_hidden_state_layer: Layer to extract the embeddings from
-    :param embedding_dim: Dimension of the embeddings for example "[:, 0]"
-    to remove the cls token
-    :param logits_dim: Dimension to extract the logits for example in NER
-    "[:,1:,:]"
-    :param logits_dim: Dimension of the logits
-    :param classifier_layer: Layer to hook into. This will extract embeddings
-    from layer input and logits from layer output. If the layer is not found,
-    the last_hidden_state_layer will be used
-    :param embedding_fn: Function to process embeddings from the model
-    :param logits_fn: Function to process logits from the model f.e. lambda x[0]
-    :param unpatch_on_start: Force unpatching of dataloaders
-    instead of global patching
-    :return: None
-    ```
-    dq.log_dataset(train_dataset, split="train")
-    train_dataloader = torch.utils.data.DataLoader()
-    model = TextClassificationModel(num_labels=len(train_dataset.list_of_labels))
-    watch(model, classifier_layer = "classifier")
-    for epoch in range(NUM_EPOCHS):
-        dq.set_epoch_and_split(epoch,"training")
-        train()
-        dq.set_split("validate")
-        validate()
-    dq.finish()
+        [`watch`] is a function that wraps the model and dataloaders to log the
+        embeddings and logits to [Galileo](https://www.rungalileo.io/).
+        :param model: Pytorch Model to be wrapped
+        :param dataloaders: List of dataloaders to be wrapped
+        :param classifier_layer: Layer to hook into (usually 'classifier' or 'fc').
+    Inputs are the embeddings and outputs are the logits.
+        :param embedding_dim: Dimension of the embeddings for example "[:, 0]"
+        to remove the cls token
+        :param logits_dim: Dimension to extract the logits for example in NER
+        "[:,1:,:]"
+        :param logits_dim: Dimension of the logits
+        from layer input and logits from layer output. If the layer is not found,
+        the last_hidden_state_layer will be used
+        :param embedding_fn: Function to process embeddings from the model
+        :param logits_fn: Function to process logits from the model f.e. lambda x[0]
+        :param last_hidden_state_layer: Layer to extract the embeddings from
+        :param unpatch_on_start: Force unpatching of dataloaders
+        instead of global patching
+        :return: None
+        ```
+        dq.log_dataset(train_dataset, split="train")
+        train_dataloader = torch.utils.data.DataLoader()
+        model = TextClassificationModel(num_labels=len(train_dataset.list_of_labels))
+        watch(model, classifier_layer = "classifier")
+        for epoch in range(NUM_EPOCHS):
+            dq.set_epoch_and_split(epoch,"training")
+            train()
+            dq.set_split("validate")
+            validate()
+        dq.finish()
 
-    ```
+        ```
     """
     a.log_function("torch/watch")
     assert dq.config.task_type, GalileoException(
