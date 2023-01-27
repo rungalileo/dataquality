@@ -11,9 +11,6 @@ from dataquality.loggers.data_logger.base_data_logger import ITER_CHUNK_SIZE, Da
 from dataquality.loggers.data_logger.image_classification import (
     ImageClassificationDataLogger,
 )
-from dataquality.loggers.data_logger.structured_classification import (
-    StructuredClassificationLogger,
-)
 from dataquality.loggers.logger_config.text_multi_label import (
     text_multi_label_logger_config,
 )
@@ -142,34 +139,6 @@ def log_image_dataset(
         label=label,
         split=split,
         meta=meta,
-    )
-
-
-@check_noop
-def log_structured_samples(
-    X: np.ndarray,
-    y: np.ndarray,
-    feature_names: List[str],
-    probs: np.ndarray,
-    *,
-    split: Optional[Split] = None,
-    inference_name: Optional[str] = None,
-) -> None:
-    assert all(
-        [config.task_type, config.current_project_id, config.current_run_id]
-    ), "You must call dataquality.init before logging data"
-    data_logger = get_data_logger()
-    assert isinstance(data_logger, StructuredClassificationLogger), (
-        "This method is only supported for structured data tasks. "
-        "You must call dq.init('structured_classification') to use this method."
-    )
-    data_logger.log_samples(
-        X=X,
-        y=y,
-        feature_names=feature_names,
-        probs=probs,
-        split=split,
-        inference_name=inference_name,
     )
 
 
