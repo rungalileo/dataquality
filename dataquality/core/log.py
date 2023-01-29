@@ -1,6 +1,7 @@
 from typing import Any, Dict, List, Optional, Type, Union
 
 import numpy as np
+import pandas as pd
 
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
@@ -12,7 +13,7 @@ from dataquality.loggers.data_logger.image_classification import (
     ImageClassificationDataLogger,
 )
 from dataquality.loggers.data_logger.structured_classification import (
-    StructuredClassificationLogger,
+    StructuredClassificationDataLogger,
 )
 from dataquality.loggers.logger_config.text_multi_label import (
     text_multi_label_logger_config,
@@ -159,7 +160,7 @@ def log_structured_samples(
         [config.task_type, config.current_project_id, config.current_run_id]
     ), "You must call dataquality.init before logging data"
     data_logger = get_data_logger()
-    assert isinstance(data_logger, StructuredClassificationLogger), (
+    assert isinstance(data_logger, StructuredClassificationDataLogger), (
         "This method is only supported for structured data tasks. "
         "You must call dq.init('structured_classification') to use this method."
     )
@@ -168,6 +169,67 @@ def log_structured_samples(
         y=y,
         feature_names=feature_names,
         probs=probs,
+        split=split,
+        inference_name=inference_name,
+    )
+
+
+@check_noop
+def log_structured_dataset(
+    dataset: pd.DataFrame,
+    probs: np.ndarray,
+    *,
+    label: str = "label",
+    split: Optional[Split] = None,
+    inference_name: Optional[str] = None,
+) -> None:
+    """Log a pandas DataFrame to disk for structured data
+
+    Example:
+        Logging a pandas dataframe, df:
+            feature_1    feature_2    label
+        0       3            7.1        A
+        1       7            2.3        B
+        2       4            1.0        B
+        # We don't need to set label because it matches the default
+        # Probs is a numpy array of shape (N, C) where N is the number of samples and C
+        # is the number of classes
+        dq.log_dataset(df, probs=probs)
+
+    Invalid example:
+        d = {
+            "my_text": ["sample1", "sample2", "sample3"],
+            "my_labels": ["A", "A", "B"],
+            "my_id": [1, 2, 3],
+            "sample_quality": [5.3, 9.1, 2.7]
+        }
+
+    In the invalid case, use `dq.log_data_samples`:
+        meta = {"sample_quality": d["sample_quality"]}
+        dq.log_data_samples(
+            texts=d["my_text"], labels=d["my_labels"], ids=d["my_ids"], meta=meta
+        )
+
+    :param dataset: The pandas dataframe to log
+    :param probs: Numpy array of shape (N, C) where N is the number of samples and C
+    :param label: Optional[str] The column for gold label in dataset. Default "label"
+    :param split: Optional[str] the split for this data. Can also be set via
+        dq.set_split
+    :param inference_name: Optional[str] the inference_name for this data. Can also be
+        set via dq.set_split
+    """
+    assert all(
+        [config.task_type, config.current_project_id, config.current_run_id]
+    ), "You must call dataquality.init before logging data"
+    data_logger = get_data_logger()
+    assert isinstance(data_logger, StructuredClassificationDataLogger), (
+        "This method is only supported for structured data tasks. "
+        "You must call dq.init('structured_classification') to use this method."
+    )
+    data_logger.log_structured_dataset(
+        dataset=dataset,
+        probs=probs,
+        label=label,
         split=split,
         inference_name=inference_name,
     )

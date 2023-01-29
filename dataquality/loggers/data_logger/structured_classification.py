@@ -3,6 +3,7 @@ import sys
 from typing import Dict, List, Optional
 
 import numpy as np
+import pandas as pd
 import vaex
 from vaex.dataframe import DataFrame
 
@@ -20,14 +21,20 @@ from dataquality.utils.vaex import _save_hdf5_file
 DATA_FOLDERS = ["prob", "data"]
 
 
-class StructuredClassificationLogger(BaseGalileoDataLogger):
+class StructuredClassificationDataLogger(BaseGalileoDataLogger):
     __logger_name__ = "structured_classification"
     logger_config = structured_classification_logger_config
 
     def validate(self) -> None:
-        # Validate length of data, labels, and probs are the same
+        """Validates the input data before logging
+
+        Validates:
+            - Split is set (TODO)
+            - Inference name is set if split is inference (TODO)
+            - The length of the data, labels, and probs are the same
+            - The number of feature names is the same as the number of features
+        """
         assert len(self.X) == len(self.y) == len(self.probs)
-        # Validate that the feature names are the same length as the number of features
         assert len(self.feature_names) == len(self.X[0])
 
     def log_samples(
@@ -47,6 +54,23 @@ class StructuredClassificationLogger(BaseGalileoDataLogger):
         self.inference_name = inference_name
         self.log()
 
+    def log_structured_dataset(
+        self,
+        dataset: pd.DataFrame,
+        probs: np.ndarray,
+        label: str,
+        split: str = None,
+        inference_name: str = None,
+    ) -> None:
+        self.y = dataset[label].values
+        data = dataset.drop(label, axis=1)
+        self.X = data.values
+        self.feature_names = data.columns.to_list()
+        self.probs = probs
+        self.split = split
+        self.inference_name = inference_name
+        self.log()
+
     def log(self) -> None:
         """Writes input data to disk in .galileo/logs
 
@@ -61,7 +85,7 @@ class StructuredClassificationLogger(BaseGalileoDataLogger):
         /Users/username/.galileo/logs/proj-id/run-id/training/probs.hdf5
 
         NOTE #2: We don't restrict row or feature counts here for cloud users. If we add
-        that restriction, it will go here after gatting input_df
+        that restriction, it will go here after getting data_dict
         """
         self.validate()
         # E.g. /Users/username/.galileo/logs/proj-id/run-id/training
@@ -139,23 +163,43 @@ class StructuredClassificationLogger(BaseGalileoDataLogger):
             desc="Uploading splits",
             file=sys.stdout,
         ):
-            df = vaex.open(f"{split_path}/input_data.hdf5")
-            dfs = self.separate_dataframe(df)
+            self.upload_split_from_path(split_path, objectstore)
 
-            prob = dfs.prob
-            data_df = dfs.data
+    def upload_split_from_path(self, split_path: str, objectstore: ObjectStore) -> None:
+        """Uploads the data and prob files for a given split to Minio
 
-            for data_folder, df_obj in tqdm(
-                zip(DATA_FOLDERS, [data_df, prob]),
-                total=len(DATA_FOLDERS),
-                desc="Uploading Data",
-                file=sys.stdout,
-            ):
-                ext = self.DATA_FOLDER_EXTENSION[data_folder]
-                minio_file = f"{split_path}/{data_folder}/{data_folder}.{ext}"
-                objectstore.create_project_run_object_from_df(
-                    df=df_obj, object_name=minio_file
-                )
+        Example of split_path:
+            /Users/username/.galileo/logs/proj-id/run-id/training
+            /Users/username/.galileo/logs/proj-id/run-id/inference/my-inference
+
+        To get the Minio path, we remove the local path
+
+        Args:
+            split_path: The local path to the split folder
+            objectstore: The objectstore object
+        """
+        df = vaex.open(f"{split_path}/input_data.hdf5")
+        # Get data and prob dfs
+        dataframes = self.separate_dataframe(df)
+
+        prob = dataframes.prob
+        data_df = dataframes.data
+
+        # Upload data and prob dfs to minio
+        for data_folder, df_obj in tqdm(
+            zip(DATA_FOLDERS, [data_df, prob]),
+            total=len(DATA_FOLDERS),
+            desc="Uploading Data",
+            file=sys.stdout,
+        ):
+            # Strip local base dir to get Minio base path
+            minio_dir = split_path.replace(f"{self.LOG_FILE_DIR}/", "")
+            ext = self.DATA_FOLDER_EXTENSION[data_folder]
+
+            minio_file = f"{minio_dir}/{data_folder}/{data_folder}.{ext}"
+            objectstore.create_project_run_object_from_df(
+                df=df_obj, object_name=minio_file
+            )
 
     @classmethod
     def separate_dataframe(
