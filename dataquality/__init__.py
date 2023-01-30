@@ -1,6 +1,6 @@
 "dataquality"
 
-__version__ = "v0.8.15"
+__version__ = "v0.8.13"
 
 import os
 import warnings
