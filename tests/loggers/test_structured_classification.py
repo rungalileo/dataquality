@@ -24,6 +24,12 @@ class TestStructuredClassificationDataLogger:
             split=split, inference_name=inference_name
         )
         logger.validate()
+    
+    def test_create_dataset_from_samples(self) -> None:
+        pass
+
+    def test_set_probs(self) -> None:
+        pass
 
     def test_log_samples(self) -> None:
         pass
@@ -34,20 +40,9 @@ class TestStructuredClassificationDataLogger:
     def test_log(self) -> None:
         pass
 
-    def test_get_data_dict(self) -> None:
+    def test_get_dfs(self) -> None:
         pass
 
-    def test_upload(self) -> None:
-        pass
-
-    def test_upload_split_from_path(self) -> None:
-        pass
-
-    def test_separate_dataframe(self) -> None:
-        pass
-
-    def test_get_split_upload_folders(self) -> None:
-        pass
 
 
 class TestStructuredClassificationValidationErrors:
