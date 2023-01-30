@@ -24,7 +24,7 @@ class TestStructuredClassificationDataLogger:
             split=split, inference_name=inference_name
         )
         logger.validate()
-    
+
     def test_create_dataset_from_samples(self) -> None:
         pass
 
@@ -42,7 +42,6 @@ class TestStructuredClassificationDataLogger:
 
     def test_get_dfs(self) -> None:
         pass
-
 
 
 class TestStructuredClassificationValidationErrors:

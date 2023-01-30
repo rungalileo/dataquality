@@ -23,9 +23,13 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
 
     def __init__(
         self,
+        X: Optional[np.ndarray] = None,
+        y: Optional[np.ndarray] = None,
         probs: Optional[np.ndarray] = None,
     ) -> None:
         super().__init__()
+        self.X: np.ndarray = X if X is not None else np.array([])
+        self.y: np.ndarray = y if y is not None else np.array([])
         self.probs: np.ndarray = probs if probs is not None else np.array([])
 
     def validate(self) -> None:

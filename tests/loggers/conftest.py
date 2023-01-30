@@ -2,6 +2,7 @@ from typing import Callable, Dict, Optional
 
 import numpy as np
 import pytest
+import xgboost as xgb
 from sklearn.datasets import load_wine
 from sklearn.model_selection import train_test_split
 
@@ -36,22 +37,30 @@ def sc_dataset() -> Dict:
     }
 
 
+@pytest.fixture(scope="module")
+def fit_xgboost(sc_dataset: Dict) -> Dict:
+    model = xgb.XGBClassifier(objective="multi:softprob", random_state=42)
+    model.fit(sc_dataset["training"]["X"], sc_dataset["training"]["y"])
+    return model
+
+
 @pytest.fixture
 def sc_data_logger(sc_dataset: Dict) -> Callable:
     def curry(
         split: Optional[str] = None, inference_name: Optional[str] = None
     ) -> StructuredClassificationDataLogger:
+        logger = StructuredClassificationDataLogger()
         if not split:
-            return StructuredClassificationDataLogger()
+            return logger
 
         key = inference_name if split == "inference" else split
-        return StructuredClassificationDataLogger(
-            X=sc_dataset[key]["X"],
-            y=sc_dataset[key].get("y"),  # We use get since inf data doesn't have y
-            feature_names=sc_dataset["feature_names"],
-            probs=sc_dataset[key]["probs"],
-            split=split,
-            inference_name=inference_name,
+        logger.X = sc_dataset[key]["X"]
+        logger.y = sc_dataset[key].get("y")  # We use get since inf data doesn't have y
+        logger.dataset = logger.create_dataset_from_samples(
+            X=logger.X, y=logger.y, feature_names=sc_dataset["feature_names"]
         )
+        logger.split = split
+        logger.inference_name = inference_name
+        return logger
 
     return curry
