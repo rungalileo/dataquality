@@ -23,6 +23,7 @@ class TestStructuredClassificationDataLogger:
         logger: StructuredClassificationDataLogger = sc_data_logger(
             split=split, inference_name=inference_name
         )
+        logger.set_probs()
         logger.validate()
 
     def test_create_dataset_from_samples(self) -> None:

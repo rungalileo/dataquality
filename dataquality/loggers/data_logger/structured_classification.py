@@ -23,11 +23,15 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
 
     def __init__(
         self,
+        model: Optional[xgb.XGBClassifier] = None,
         X: Optional[np.ndarray] = None,
         y: Optional[np.ndarray] = None,
         probs: Optional[np.ndarray] = None,
     ) -> None:
         super().__init__()
+        self.model: xgb.XGBClassifier = (
+            model if model is not None else xgb.XGBClassifier()
+        )
         self.X: np.ndarray = X if X is not None else np.array([])
         self.y: np.ndarray = y if y is not None else np.array([])
         self.probs: np.ndarray = probs if probs is not None else np.array([])
@@ -44,7 +48,8 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
         super().validate()
         assert len(self.dataset) == len(
             self.probs
-        ), "The length of the data and probs are not the same."
+        ), "Data and probs are not the same length. "
+        f"Data: {len(self.dataset)}, Probs: {len(self.probs)}"
 
     def create_dataset_from_samples(
         self, X: np.ndarray, y: Optional[np.ndarray], feature_names: List[str]
@@ -71,10 +76,9 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
 
         dataset = pd.DataFrame(X, columns=feature_names)
 
-        if y is not None:
-            assert len(X) == len(
-                y
-            ), "The length of the data and probs are not the same."
+        if y is not None and y.any():
+            assert len(X) == len(y), "Data and labels are not the same length. "
+            f"Data: {len(X)}, Labels: {len(y)}"
             dataset["gold"] = y
 
         return dataset

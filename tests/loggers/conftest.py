@@ -38,24 +38,26 @@ def sc_dataset() -> Dict:
 
 
 @pytest.fixture(scope="module")
-def fit_xgboost(sc_dataset: Dict) -> Dict:
+def fit_xgboost(sc_dataset: Dict) -> xgb.XGBClassifier:
     model = xgb.XGBClassifier(objective="multi:softprob", random_state=42)
     model.fit(sc_dataset["training"]["X"], sc_dataset["training"]["y"])
     return model
 
 
 @pytest.fixture
-def sc_data_logger(sc_dataset: Dict) -> Callable:
+def sc_data_logger(sc_dataset: Dict, fit_xgboost: xgb.XGBClassifier) -> Callable:
     def curry(
         split: Optional[str] = None, inference_name: Optional[str] = None
     ) -> StructuredClassificationDataLogger:
-        logger = StructuredClassificationDataLogger()
         if not split:
-            return logger
+            return StructuredClassificationDataLogger()
 
         key = inference_name if split == "inference" else split
-        logger.X = sc_dataset[key]["X"]
-        logger.y = sc_dataset[key].get("y")  # We use get since inf data doesn't have y
+        logger = StructuredClassificationDataLogger(
+            model=fit_xgboost,
+            X=sc_dataset[key]["X"],
+            y=sc_dataset[key].get("y"),  # We use get since inf data doesn't have y
+        )
         logger.dataset = logger.create_dataset_from_samples(
             X=logger.X, y=logger.y, feature_names=sc_dataset["feature_names"]
         )
