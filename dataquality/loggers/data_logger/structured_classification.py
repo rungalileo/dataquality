@@ -1,10 +1,9 @@
-import os
-import sys
-from typing import Dict, List, Optional
+from typing import List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 import vaex
+import xgboost as xgb
 from vaex.dataframe import DataFrame
 
 from dataquality.clients.objectstore import ObjectStore
@@ -13,10 +12,7 @@ from dataquality.loggers.logger_config.structured_classification import (
     structured_classification_logger_config,
 )
 from dataquality.schemas import __data_schema_version__
-from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.split import Split
-from dataquality.utils import tqdm
-from dataquality.utils.vaex import _save_hdf5_file
 
 DATA_FOLDERS = ["prob", "data"]
 
@@ -25,48 +21,101 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
     __logger_name__ = "structured_classification"
     logger_config = structured_classification_logger_config
 
+    def __init__(
+        self,
+        probs: Optional[np.ndarray] = None,
+    ) -> None:
+        super().__init__()
+        self.probs: np.ndarray = probs if probs is not None else np.array([])
+
     def validate(self) -> None:
-        """Validates the input data before logging
+        """Validates the input data before logging to Minio
 
         Validates:
-            - Split is set (TODO)
-            - Inference name is set if split is inference (TODO)
-            - The length of the data, labels, and probs are the same
-            - The number of feature names is the same as the number of features
+            - The split is set and is one of the allowed splits (in super)
+            - If the user is cloud the split is not inference (in super)
+            -
+            - The length of the data and probs are the same
         """
-        assert len(self.X) == len(self.y) == len(self.probs)
-        assert len(self.feature_names) == len(self.X[0])
+        super().validate()
+        assert len(self.dataset) == len(
+            self.probs
+        ), "The length of the data and probs are not the same."
+
+    def create_dataset_from_samples(
+        self, X: np.ndarray, y: Optional[np.ndarray], feature_names: List[str]
+    ) -> pd.DataFrame:
+        """Validates and creates pandas DataFrame from input data
+
+        Validates:
+            - The number of feature names is the same as the number of features
+            - If the split is not inf, the length of the data and labels is the same
+
+        Args:
+            X: The data to be logged
+            y: The labels to be logged
+            feature_names: The names of the features in the data
+        Returns:
+            A pandas DataFrame with the data and labels
+            The label column is named "gold"
+        """
+        feature_msg = (
+            "The number of feature_names is not the same as the number of "
+            "features in the datset."
+        )
+        assert len(feature_names) == len(X[0]), feature_msg
+
+        dataset = pd.DataFrame(X, columns=feature_names)
+
+        if y is not None:
+            assert len(X) == len(
+                y
+            ), "The length of the data and probs are not the same."
+            dataset["gold"] = y
+
+        return dataset
+
+    def set_probs(self) -> None:
+        """Sets the probs attribute for the class
+
+        Assumes model and dataset are set.
+        Assumes dataset is input data X, with optional "id" and "gold" columns
+            that are removed
+        """
+        assert self.model is not None, "Model must be set before setting probs."
+        assert self.dataset is not None, "Dataset must be set before setting probs."
+
+        input_data = self.dataset.copy()
+        # Drop gold and id columns if they exist
+        input_data = input_data.drop(["gold", "id"], axis=1, errors="ignore").to_numpy()
+        self.probs = self.model.predict_proba(input_data)
 
     def log_samples(
         self,
+        model: xgb.XGBClassifier,
         X: np.ndarray,
-        y: np.ndarray,
         feature_names: List[str],
-        probs: np.ndarray,
+        y: Optional[np.ndarray],
         split: str = None,
         inference_name: str = None,
     ) -> None:
-        self.X = X
-        self.y = y
-        self.feature_names = feature_names
-        self.probs = probs
+        self.model = model
         self.split = split
         self.inference_name = inference_name
+        self.dataset = self.create_dataset_from_samples(X, y, feature_names)
         self.log()
 
     def log_structured_dataset(
         self,
+        model: xgb.XGBClassifier,
         dataset: pd.DataFrame,
-        probs: np.ndarray,
-        label: str,
+        label: Optional[str],
         split: str = None,
         inference_name: str = None,
     ) -> None:
-        self.y = dataset[label].values
-        data = dataset.drop(label, axis=1)
-        self.X = data.values
-        self.feature_names = data.columns.to_list()
-        self.probs = probs
+        self.model = model
+        self.dataset = dataset
+        self.dataset.rename(columns={label: "gold"}, inplace=True)
         self.split = split
         self.inference_name = inference_name
         self.log()
@@ -87,188 +136,52 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
         NOTE #2: We don't restrict row or feature counts here for cloud users. If we add
         that restriction, it will go here after getting data_dict
         """
+        self.set_probs()
         self.validate()
-        # E.g. /Users/username/.galileo/logs/proj-id/run-id/training
-        # E.g. /Users/username/.galileo/logs/proj-id/run-id/inference/my-inference
-        write_dir = f"{self.write_output_dir}/{self.split}"
+        # E.g. proj-id/run-id/training or proj-id/run-id/inference/my-inference
+        object_base_path = f"{self.proj_run}/{self.split_name_path}"
+
+        data_df, probs_df = self._get_dfs()
+
+        print("☁️ Uploading Data")
+        objectstore = ObjectStore()
+
+        objectstore.create_project_run_object_from_df(
+            data_df, f"{object_base_path}/data/data.hdf5"
+        )
+        objectstore.create_project_run_object_from_df(
+            probs_df, f"{object_base_path}/prob/prob.hdf5"
+        )
+
+    def _get_dfs(self) -> Tuple[DataFrame, DataFrame]:
+        """Returns data and probs as vaex DataFrames"""
+        df = vaex.from_pandas(self.dataset)
+        n_rows = len(df)
+        ids = (
+            df.id.to_numpy()
+            if "id" in df.get_column_names()
+            else self.dataset.index.to_numpy()
+        )
+
+        # Add id, split, data_schema_version, and inference_name to the data
+        df["id"] = ids
+        df["split"] = np.array([self.split] * n_rows)
+        df["data_schema_version"] = np.array([__data_schema_version__] * n_rows)
         if self.split == Split.inference:
-            write_dir = f"{write_dir}/{self.inference_name}"
+            df["inference_name"] = np.array([self.inference_name] * n_rows)
 
-        os.makedirs(write_dir, exist_ok=True)
+        # Create probs DataFrame
+        probs_df = vaex.from_arrays(id=ids, prob=self.probs)
+        if self.split != Split.inference and "gold" in self.dataset:
+            probs_df["gold"] = self.dataset["gold"].to_numpy()
 
-        data = self._get_data_dict()
-        _save_hdf5_file(write_dir, "input_data.hdf5", data)
-
-    def _get_data_dict(self) -> Dict:
-        """Returns a dictionary with the input data
-
-        Each of the features in the input data becomes a column in the DataFrame.
-        We also add the gold label and other metadata to the Dict, such as
-        the split, data schema version, and inference name.
-
-        Example:
-            >>> X = [[1, 2], [3, 4]]
-            >>> y = [0, 1] # gold labels
-            >>> features = ["feature_0", "feature_1"]
-            >>> probs = [[0.9, 0.1], [0.1, 0.9]] # model predictions
-            >>> split = "inference"
-            >>> inference_name = "my-inference"
-            >>> print(self._get_input_df())
-            {
-                "id": [0, 1],
-                "feature_0": [1, 3],
-                "feature_1": [2, 4],
-                "gold": [0, 1],
-                "probs": [[0.9, 0.1], [0.1, 0.9]],
-                "split": ["inference", "inference"],
-                "data_schema_version": [1, 1],
-                "inference_name": ["my-inference", "my-inference"]
-            }
-        """
-        num_samples = len(self.X)
-        ids = list(range(num_samples))
-        features = {
-            feature: self.X[:, i] for i, feature in enumerate(self.feature_names)
-        }
-        data = {
-            "id": ids,
-            "gold": self.y,
-            "prob": self.probs,
-            "split": [self.split] * num_samples,
-            "data_schema_version": [__data_schema_version__] * num_samples,
-            **features,
-        }
-        if self.split == Split.inference:
-            data.update(inference_name=self.inference_name)
-
-        return data
+        return df, probs_df
 
     def upload(
         self, last_epoch: Optional[int] = None, create_data_embs: bool = False
     ) -> None:
-        """
-        Iterates through all of each splits [data/prob] and uploads
-        them to Minio
-
-        For structured data we don't use last_epoch or create_data_embs
-        """
-        self.check_for_logging_failures()
-        print("☁️ Uploading Data")
-        objectstore = ObjectStore()
-        split_upload_folders = self.get_split_upload_folders()
-
-        for split_path in tqdm(
-            split_upload_folders,
-            total=len(split_upload_folders),
-            desc="Uploading splits",
-            file=sys.stdout,
-        ):
-            self.upload_split_from_path(split_path, objectstore)
-
-    def upload_split_from_path(self, split_path: str, objectstore: ObjectStore) -> None:
         """Uploads the data and prob files for a given split to Minio
 
-        Example of split_path:
-            /Users/username/.galileo/logs/proj-id/run-id/training
-            /Users/username/.galileo/logs/proj-id/run-id/inference/my-inference
-
-        To get the Minio path, we remove the local path
-
-        Args:
-            split_path: The local path to the split folder
-            objectstore: The objectstore object
+        For structured data we upload the data to Minio on log() instead of here.
+        This is a noop for structured data.
         """
-        df = vaex.open(f"{split_path}/input_data.hdf5")
-        # Get data and prob dfs
-        dataframes = self.separate_dataframe(df)
-
-        prob = dataframes.prob
-        data_df = dataframes.data
-
-        # Upload data and prob dfs to minio
-        for data_folder, df_obj in tqdm(
-            zip(DATA_FOLDERS, [data_df, prob]),
-            total=len(DATA_FOLDERS),
-            desc="Uploading Data",
-            file=sys.stdout,
-        ):
-            # Strip local base dir to get Minio base path
-            minio_dir = split_path.replace(f"{self.LOG_FILE_DIR}/", "")
-            ext = self.DATA_FOLDER_EXTENSION[data_folder]
-
-            minio_file = f"{minio_dir}/{data_folder}/{data_folder}.{ext}"
-            objectstore.create_project_run_object_from_df(
-                df=df_obj, object_name=minio_file
-            )
-
-    @classmethod
-    def separate_dataframe(
-        cls, df: DataFrame, prob_only: bool = True, split: str = None
-    ) -> BaseLoggerDataFrames:
-        """Separates the singular dataframe into prob and data components
-
-        Gets the probability df, the embedding df, and the "data" df containing
-        all other columns
-
-        With example data:
-            >>> X = [[1, 2], [3, 4]]
-            >>> y = [1, 0] # gold labels
-            >>> features = ["feature_0", "feature_1"]
-            >>> probs = [[0.9, 0.1], [0.2, 0.8]] # model predictions
-            >>> split = "training"
-
-        Example prob df:
-            >>> print(self.separate_df(df).prob)
-            #    id    gold    prob
-            0    0      1      [0.9, 0.1]
-            1    1      0      [0.2, 0.8]
-
-        Example data df:
-            >>> print(self.separate_df(df).data)
-            #    id    feature_0    feature_1    split    data_schema_version
-            0    0            1            2    training    1
-            1    1            3            4    training    1
-        """
-        df_copy = df.copy()
-        prob_cols = ["id", "gold", "prob"]
-        data_cols = [col for col in df_copy.get_column_names() if col not in prob_cols]
-        data_cols += ["id"]
-
-        data_df = df_copy[data_cols]
-        prob_df = df_copy[prob_cols]
-
-        # We don't use emb, but for linting it can't be None
-        return BaseLoggerDataFrames(prob=prob_df, emb=df_copy, data=data_df)
-
-    def get_split_upload_folders(self) -> List[str]:
-        """Returns a list of all the split folders that need to be uploaded
-
-        This returns a list containing paths to each split folder that was logged.
-        For inference, we include a path to each inference folder that was logged.
-
-        Example:
-            >>> self.get_split_upload_folders()
-            [
-                "/Users/username/.galileo/logs/proj-id/run-id/training",
-                "/Users/username/.galileo/logs/proj-id/run-id/validation",
-                "/Users/username/.galileo/logs/proj-id/run-id/test",
-                "/Users/username/.galileo/logs/proj-id/run-id/inference/my-inference",
-                "/Users/username/.galileo/logs/proj-id/run-id/inference/my-other-inference",
-            ]
-        """
-        upload_folders = []
-        for split in Split.get_valid_attributes():
-            split_dir = f"{self.write_output_dir}/{split}"
-            split_logged = os.path.exists(split_dir)
-            if not split_logged:
-                continue
-
-            if split == Split.inference:
-                inf_names = os.listdir(split_dir)
-                upload_folders.extend(
-                    [f"{split_dir}/{inf_name}" for inf_name in inf_names]
-                )
-            else:
-                upload_folders.append(split_dir)
-
-        return upload_folders

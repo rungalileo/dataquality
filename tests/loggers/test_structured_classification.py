@@ -1,6 +1,29 @@
+from typing import Callable, Optional
+
+import pytest
+
+from dataquality.loggers.data_logger.structured_classification import (
+    StructuredClassificationDataLogger,
+)
+
+
 class TestStructuredClassificationDataLogger:
-    def test_validate(self) -> None:
-        pass
+    @pytest.mark.parametrize(
+        "split, inference_name",
+        [
+            ("training", None),
+            ("test", None),
+            ("inference", "inf1"),
+            ("inference", "inf2"),
+        ],
+    )
+    def test_validate(
+        self, split: str, inference_name: Optional[str], sc_data_logger: Callable
+    ) -> None:
+        logger: StructuredClassificationDataLogger = sc_data_logger(
+            split=split, inference_name=inference_name
+        )
+        logger.validate()
 
     def test_log_samples(self) -> None:
         pass
@@ -35,7 +58,7 @@ class TestStructuredClassificationValidationErrors:
         pass
 
     def test_validate_data_labels_probs_different_dims(self) -> None:
-        """Teset error is raised if X, y, and probs have different dimensions"""
+        """Test error is raised if X, y, and probs have different dimensions"""
 
     def test_validate_data_and_features_names_mismatch(self) -> None:
         """Test error is raised if X and features_names have different lengths"""

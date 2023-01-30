@@ -2,6 +2,7 @@ from typing import Any, Dict, List, Optional, Type, Union
 
 import numpy as np
 import pandas as pd
+import xgboost as xgb
 
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
@@ -148,11 +149,11 @@ def log_image_dataset(
 
 @check_noop
 def log_structured_samples(
+    model: xgb.XGBClassifier,
     X: np.ndarray,
-    y: np.ndarray,
     feature_names: List[str],
-    probs: np.ndarray,
     *,
+    y: Optional[np.ndarray] = None,
     split: Optional[Split] = None,
     inference_name: Optional[str] = None,
 ) -> None:
@@ -164,11 +165,20 @@ def log_structured_samples(
         "This method is only supported for structured data tasks. "
         "You must call dq.init('structured_classification') to use this method."
     )
+    assert isinstance(
+        model, xgb.XGBClassifier
+    ), "Logging structured data currently only supports XGBoost for classification."
+    assert isinstance(X, np.ndarray), "X must be a numpy array"
+    if split is not None and split != Split.inference:
+        assert isinstance(
+            y, (List, np.ndarray)
+        ), "y must be a list of numpy array of labels"
+
     data_logger.log_samples(
+        model=model,
         X=X,
         y=y,
         feature_names=feature_names,
-        probs=probs,
         split=split,
         inference_name=inference_name,
     )
@@ -176,10 +186,10 @@ def log_structured_samples(
 
 @check_noop
 def log_structured_dataset(
+    model: xgb.XGBClassifier,
     dataset: pd.DataFrame,
-    probs: np.ndarray,
     *,
-    label: str = "label",
+    label: Optional[str] = "label",
     split: Optional[Split] = None,
     inference_name: Optional[str] = None,
 ) -> None:
@@ -194,21 +204,7 @@ def log_structured_dataset(
         # We don't need to set label because it matches the default
         # Probs is a numpy array of shape (N, C) where N is the number of samples and C
         # is the number of classes
-        dq.log_dataset(df, probs=probs)
-
-    Invalid example:
-        d = {
-            "my_text": ["sample1", "sample2", "sample3"],
-            "my_labels": ["A", "A", "B"],
-            "my_id": [1, 2, 3],
-            "sample_quality": [5.3, 9.1, 2.7]
-        }
-
-    In the invalid case, use `dq.log_data_samples`:
-        meta = {"sample_quality": d["sample_quality"]}
-        dq.log_data_samples(
-            texts=d["my_text"], labels=d["my_labels"], ids=d["my_ids"], meta=meta
-        )
+        dq.log_dataset(model, df, probs=probs, label="label")
 
     :param dataset: The pandas dataframe to log
     :param probs: Numpy array of shape (N, C) where N is the number of samples and C
@@ -226,9 +222,13 @@ def log_structured_dataset(
         "This method is only supported for structured data tasks. "
         "You must call dq.init('structured_classification') to use this method."
     )
+    assert isinstance(
+        model, xgb.XGBClassifier
+    ), "Logging structured data currently only supports XGBoost for classification."
+
     data_logger.log_structured_dataset(
+        model=model,
         dataset=dataset,
-        probs=probs,
         label=label,
         split=split,
         inference_name=inference_name,
