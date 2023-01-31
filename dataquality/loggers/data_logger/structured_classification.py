@@ -14,8 +14,6 @@ from dataquality.loggers.logger_config.structured_classification import (
 from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.split import Split
 
-DATA_FOLDERS = ["prob", "data"]
-
 
 class StructuredClassificationDataLogger(BaseGalileoDataLogger):
     __logger_name__ = "structured_classification"
