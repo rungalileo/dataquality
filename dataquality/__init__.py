@@ -1,18 +1,20 @@
 "dataquality"
 
-__version__ = "v0.8.12"
+__version__ = "v0.8.13"
 
 import os
-import sys
+import warnings
 
 import dataquality.core._config
 import dataquality.integrations
-from dataquality.exceptions import GalileoException
-from dataquality.utils import imports as lazy_imports
 
 # We try/catch this in case the user installed dq inside of jupyter. You need to
 # restart the kernel after the install and we want to make that clear. This is because
 # of vaex: https://github.com/vaexio/vaex/pull/2226
+from dataquality.exceptions import GalileoWarning
+from dataquality.schemas.model import ModelFramework
+from dataquality.schemas.split import Split
+
 try:
     import dataquality.metrics
     from dataquality.analytics import Analytics
@@ -71,6 +73,9 @@ def configure(do_login: bool = True) -> None:
     * GALILEO_PASSWORD
     """
     a.log_function("dq/configure")
+    warnings.warn(
+        "configure is deprecated, use dq.set_console_url and dq.login", GalileoWarning
+    )
 
     if "GALILEO_API_URL" in os.environ:
         del os.environ["GALILEO_API_URL"]
@@ -164,37 +169,128 @@ class DataQuality:
     call_args = None
     call_kwargs = None
 
+    def __init__(self, *args, **kwargs):
+        self.call_kwargs = kwargs
+        self.call_args = args
+        print("INIT")
+
     def __call__(self, *args, **kwds):
         self.call_kwargs = kwds
         self.call_args = args
+        print("CALL")
         return self
 
-    def __enter__(self, *args, **kwargs):
-        if not len(args) and not len(kwargs):
-            args = self.call_args
-            kwargs = self.call_kwargs
+    def setup_dq(self, model, args, kwargs, framework):
+        task_type = kwargs.pop("task", kwargs.pop("task_type", None))
+        run_name = kwargs.pop("run", kwargs.pop("run_name", None))
+        project_name = kwargs.pop("project", kwargs.pop("project_name", None))
+        labels = kwargs.pop("labels", [])
+        train_df = kwargs.pop("train_df", None)
+        test_df = kwargs.pop("test_df", None)
+        val_df = kwargs.pop("val_df", None)
 
+        assert (
+            task_type is not None
+        ), """keyword argument task_type is required,
+for example task_type='classification' """
+
+        assert (
+            labels is not None
+        ), """keyword labels is required,
+for example task_type=['neg','pos']"""
+        init_kwargs = {
+            "task_type": task_type,
+        }
+        if run_name:
+            init_kwargs["run_name"] = run_name
+        if project_name:
+            init_kwargs["project_name"] = project_name
+        init(**init_kwargs)
+        if framework == ModelFramework.spacy:
+            from dataquality.integrations.spacy import log_input_examples
+            from dataquality.integrations.spacy import watch as spacy_watch
+
+            model.initialize(lambda: train_df)
+            spacy_watch(model)
+            if train_df is not None:
+                log_input_examples(train_df, split=Split.train)
+            if test_df is not None:
+                log_input_examples(test_df, split=Split.test)
+            if val_df is not None:
+                log_input_examples(val_df, split=Split.validation)
+        else:
+            if labels:
+                set_labels_for_run(labels)
+            if train_df is not None:
+                log_dataset(train_df, split=Split.train)
+            if test_df is not None:
+                log_dataset(test_df, split=Split.test)
+            if val_df is not None:
+                log_dataset(val_df, split=Split.validation)
+
+    def guess_framework(self, model):
+        if hasattr(model, "pipe"):
+            return ModelFramework.spacy
+        elif hasattr(model, "fit"):
+            return ModelFramework.keras
+        elif hasattr(model, "register_forward_hook"):
+            return ModelFramework.torch
+        elif hasattr(model, "push_to_hub"):
+            return ModelFramework.hf
+
+    def start_watching(self, args, kwargs):
         model = kwargs.get("model")
         if not model:
             model = args[0]
+        self.model = model
+        framework = kwargs.get("framework", self.guess_framework(model))
+        self.setup_dq(model, args, kwargs, framework)
+        # We want to support the following models
+        if framework == ModelFramework.spacy:  # spacy
+            from dataquality.integrations.spacy import unwatch as spacy_unwatch
 
-        # check if the model is a pytorch nn.Module instance
-        # but we don't want to import torch here
-        if hasattr(model, "register_forward_hook"):
-            pass
-        elif hasattr(model, "fit"):
-            pass
-        elif hasattr(model, "push_to_hub"):
-            pass
-        elif hasattr(model, "pipe"):
-            pass
+            self.unwatch = spacy_unwatch
+        elif framework == ModelFramework.keras:
+            from dataquality.integrations.experimental.keras import (
+                unwatch as keras_unwatch,
+            )
+            from dataquality.integrations.experimental.keras import watch as keras_watch
+
+            self.unwatch = keras_unwatch
+            keras_watch(model)
+        elif framework == ModelFramework.hf:
+            from dataquality.integrations.transformers_trainer import (
+                unwatch as trainer_unwatch,
+            )
+            from dataquality.integrations.transformers_trainer import (
+                watch as trainer_watch,
+            )
+
+            self.unwatch = trainer_unwatch
+            trainer_watch(model)
+        elif framework == ModelFramework.torch:
+            from dataquality.integrations.torch import unwatch as torch_unwatch
+            from dataquality.integrations.torch import watch as torch_watch
+
+            self.unwatch = torch_unwatch
+            torch_watch(model)
         else:
             print("Model could not be determined")
             # raise GalileoException("model class could not be determined")
         return self
 
+    def __enter__(self, *args, **kwargs):
+        print("ENTER")
+        if not len(args) and not len(kwargs):
+            args = self.call_args
+            kwargs = self.call_kwargs
+        self.start_watching(args, kwargs)
+        return self
+
     def __exit__(self, *args, **kwargs):
-        print("exit")
+        if hasattr(self, "unwatch"):
+            self.unwatch(self.model)
+        finish()
         return self
 
     # we want to add the __all__ to the module
@@ -207,7 +303,8 @@ class DataQuality:
         raise AttributeError(f"module {__name__} has no attribute {name}")
 
 
-# Workaround by Guido van Rossum: https://mail.python.org/pipermail/python-ideas/2012-May/014969.html
+# Workaround by Guido van Rossum:
+# https://mail.python.org/pipermail/python-ideas/2012-May/014969.html
 # This allows us to use the same syntax as the original dataquality package
-_dq = DataQuality()
-sys.modules[__name__] = _dq
+# _dq = DataQuality()
+# sys.modules[__name__] = _dq

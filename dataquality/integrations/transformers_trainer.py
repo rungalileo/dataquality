@@ -1,8 +1,10 @@
 # Imports for the hook manager
-from typing import Dict, Optional
+from typing import Any, Callable, Dict, Optional
+from warnings import warn
 
 from datasets import Dataset
 from torch.nn import Module
+from torch.utils.data import Dataset as TorchDataset
 from transformers import Trainer
 from transformers.trainer_callback import TrainerCallback, TrainerControl, TrainerState
 from transformers.training_args import TrainingArguments
@@ -13,9 +15,9 @@ from dataquality.clients.api import ApiClient
 from dataquality.exceptions import GalileoException
 from dataquality.integrations.torch import TorchBaseInstance
 from dataquality.schemas.split import Split
-from dataquality.schemas.torch import DimensionSlice, InputDim, Layer
+from dataquality.schemas.torch import DimensionSlice, HelperData, InputDim, Layer
 from dataquality.utils.helpers import check_noop
-from dataquality.utils.torch import ModelHookManager
+from dataquality.utils.torch import ModelHookManager, remove_all_forward_hooks
 from dataquality.utils.transformers import (
     add_id_to_signature_columns,
     remove_id_collate_fn_wrapper,
@@ -37,38 +39,47 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
 
     def __init__(
         self,
-        layer: Layer = None,
+        last_hidden_state_layer: Layer = None,
         embedding_dim: InputDim = None,
         logits_dim: InputDim = None,
+        classifier_layer: Layer = "classifier",
+        embedding_fn: Optional[Callable] = None,
+        logits_fn: Optional[Callable] = None,
+        helper_data: Dict[str, Any] = {},
     ) -> None:
         # Access the dq logger helper data
-        self.helper_data = dq.get_model_logger().logger_config.helper_data
+        self.helper_data = helper_data
+        self.helper_data[HelperData.model_outputs_store] = {}
+        self.model_outputs_store = self.helper_data[HelperData.model_outputs_store]
         self._initialized = False
         # Hook manager for attaching hooks to the model
         self.hook_manager = ModelHookManager()
-        self.layer = layer
+        self.last_hidden_state_layer = last_hidden_state_layer
+        self.classifier_layer = classifier_layer
+        self.embedding_fn = embedding_fn
+        self.logits_fn = logits_fn
         self._init_dimension(embedding_dim, logits_dim)
 
-    def _clear_logger_config_helper_data(self) -> None:
-        self.helper_data.clear()
+    def _clear_logger_config_curr_model_outputs(self) -> None:
+        self.model_outputs_store.clear()
 
     def _do_log(self) -> None:
         # Log only if embedding exists
-        assert self.helper_data.get("embs") is not None, GalileoException(
+        assert self.model_outputs_store.get("embs") is not None, GalileoException(
             "Embedding passed to the logger can not be logged"
         )
-        assert self.helper_data.get("logits") is not None, GalileoException(
+        assert self.model_outputs_store.get("logits") is not None, GalileoException(
             "Logits passed to the logger can not be logged"
         )
-        assert self.helper_data.get("ids") is not None, GalileoException(
+        assert self.model_outputs_store.get("ids") is not None, GalileoException(
             "Did you map IDs to your dataset before watching the model? You can run:\n"
             "`ds= dataset.map(lambda x, idx: {'id': idx}, with_indices=True)`\n"
             "id (index) column is needed in the dataset for logging"
         )
 
         # 🔭🌕 Galileo logging
-        dq.log_model_outputs(**self.helper_data)
-        self._clear_logger_config_helper_data()
+        dq.log_model_outputs(**self.model_outputs_store)
+        self._clear_logger_config_curr_model_outputs()
 
     def on_init_end(
         self,
@@ -80,7 +91,7 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
         """
         Event called at the end of the initialization of the [`Trainer`].
         """
-        self._clear_logger_config_helper_data()
+        self._clear_logger_config_curr_model_outputs()
 
     def setup(
         self,
@@ -102,7 +113,9 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
         self.task = dq.config.task_type
         model: Module = kwargs["model"]
         # Attach hooks to the model
-        self._attach_hooks_to_model(model, self.layer)
+        self._attach_hooks_to_model(
+            model, self.classifier_layer, self.last_hidden_state_layer
+        )
         train_dataloader = kwargs["train_dataloader"]
         train_dataloader_ds = train_dataloader.dataset
         if isinstance(train_dataloader_ds, Dataset):
@@ -113,8 +126,22 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
                 " with_indices=True)`. The id (index) column is needed in "
                 "the dataset for logging"
             )
+        elif isinstance(train_dataloader_ds, TorchDataset):
+            item = next(iter(train_dataloader_ds))
+            assert hasattr(item, "keys") and "id" in item.keys(), GalileoException(
+                "Dataset __getitem__ needs to return a dictionary"
+                " including the index id. "
+                'For example: return {"input_ids": ..., "attention_mask":'
+                ' ..., "id": ...}'
+            )
         else:
-            raise GalileoException(f"Unknown dataset type {type(train_dataloader_ds)}")
+            raise GalileoException(
+                f"Unknown dataset type {type(train_dataloader_ds)}. "
+                "Must be a datasets.Dataset or torch.utils.data.Dataset. "
+                "Each row must be dictionary with the id columns. "
+                'For example: return {"input_ids": ..., "attention_mask":'
+                ' ..., "id": ...}'
+            )
         self._initialized = True
 
     def on_train_begin(
@@ -203,23 +230,46 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
         """
         self._do_log()
 
-    def _attach_hooks_to_model(self, model: Module, layer: Layer) -> None:
+    def _attach_hooks_to_model(
+        self, model: Module, classifier_layer: Layer, last_hidden_state_layer: Layer
+    ) -> None:
         """
         Method to attach hooks to the model by using the hook manager
         :param model: Model
         :param model: pytorch model layer to attach hooks to
         :return: None
         """
-        self.hook_manager.attach_embedding_hook(model, self._embedding_hook, layer)
-        self.hook_manager.attach_hook(model, self._logit_hook)
+        try:
+            self.hook_manager.attach_classifier_hook(
+                model, self._classifier_hook, classifier_layer
+            )
+        except Exception as e:
+            warn(
+                "Could not attach function to model layer. Error:"
+                f" {e}. Please check that the classifier layer name:"
+                f" {classifier_layer} exists in the model. Common layers"
+                " to extract logits and the last hidden state are 'classifier'"
+                "and 'fc'. To fix this, pass the correct layer name to the "
+                "'classifier_layer' parameter in the 'watch' function. "
+                "For example: 'watch(model, classifier_layer='fc')'."
+                "You can view the model layers by using the 'model.named_children'"
+                "function or by printing the model."
+            )
+            self.hook_manager.attach_hooks_to_model(
+                model, self._dq_embedding_hook, last_hidden_state_layer
+            )
+            self.hook_manager.attach_hook(model, self._dq_logit_hook)
 
 
 @check_noop
 def watch(
     trainer: Trainer,
-    layer: Layer = None,
+    last_hidden_state_layer: Layer = None,
     embedding_dim: Optional[DimensionSlice] = None,
     logits_dim: Optional[DimensionSlice] = None,
+    classifier_layer: Layer = None,
+    embedding_fn: Optional[Callable] = None,
+    logits_fn: Optional[Callable] = None,
 ) -> None:
     """
     [`watch`] is used to hook into to the trainer
@@ -228,20 +278,48 @@ def watch(
     :return: None
     """
     a.log_function("transformers_trainer/watch")
-
+    helper_data = dq.get_model_logger().logger_config.helper_data
     # Callback which we add to the trainer
     dqcallback = DQCallback(
-        layer=layer, embedding_dim=embedding_dim, logits_dim=logits_dim
+        last_hidden_state_layer=last_hidden_state_layer,
+        embedding_dim=embedding_dim,
+        logits_dim=logits_dim,
+        classifier_layer=classifier_layer,
+        embedding_fn=embedding_fn,
+        logits_fn=logits_fn,
+        helper_data=helper_data,
     )
     # The columns needed for the forward process
     signature_cols = add_id_to_signature_columns(trainer)
 
-    assert trainer.args.dataloader_num_workers == 0, GalileoException(
-        "Parallel Dataloader workers are not supported."
-        "TrainingArgs.dataloader_num_workers should be set to 0"
+    assert trainer.args.n_gpu <= 1, GalileoException(
+        "Parallel GPUs are not supported. TrainingArguments.n_gpu should be set to 1"
     )
+    orig_collate_fn = trainer.data_collator
     # We wrap the data collator to remove the id column
     trainer.data_collator = remove_id_collate_fn_wrapper(
-        trainer.data_collator, signature_cols, dqcallback.helper_data
+        orig_collate_fn,
+        signature_cols,
+        dqcallback.helper_data[HelperData.model_outputs_store],
     )
     trainer.add_callback(dqcallback)
+    # Save the original signature columns and the callback for unwatch
+    helper_data[HelperData.dqcallback] = dqcallback
+    helper_data[HelperData.signature_cols] = [
+        col for col in signature_cols if col != "id"
+    ]
+    helper_data[HelperData.orig_collate_fn] = orig_collate_fn
+
+
+def unwatch(trainer: Trainer) -> None:
+    """
+    [`unwatch`] is used to remove the callback from the trainer
+    :param trainer: Trainer object
+    :return: None
+    """
+    a.log_function("transformers_trainer/unwatch")
+    helper_data = dq.get_model_logger().logger_config.helper_data
+    trainer.remove_callback(helper_data[HelperData.dqcallback])
+    trainer._signature_columns = helper_data[HelperData.signature_cols]
+    trainer.data_collator = helper_data[HelperData.orig_collate_fn]
+    remove_all_forward_hooks(trainer.model)
