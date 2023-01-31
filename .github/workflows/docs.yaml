@@ -27,3 +27,13 @@ jobs:
         run: scripts/install.sh
       - name: docs
         run: scripts/docs-build.sh
+      - name: Pushes to another repository
+        uses: cpina/github-action-push-to-another-repository@main
+        env:
+          API_TOKEN_GITHUB: ${{ secrets.GH_TOKEN }}
+        with:
+          source-directory: 'docs/_build/markdown'
+          target-directory: 'autodocs'
+          destination-github-username: 'rungalileo'
+          destination-repository-name: 'docs'
+          user-email: franz@rungalileo.io
