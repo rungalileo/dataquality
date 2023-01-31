@@ -157,6 +157,38 @@ def log_structured_samples(
     split: Optional[Split] = None,
     inference_name: Optional[str] = None,
 ) -> None:
+    """Log a split with raw numpy arrays for structured data
+
+    Example:
+    .. code-block:: python
+
+        import xgboost as xgb
+        from sklearn.datasets import load_wine
+
+        data = load_wine()
+        X = data.data
+        y = data.target
+        feature_names = data.feature_names
+
+        model = xgb.XGBClassifier()
+        model.fit(X, y)
+
+        dq.log_dataset(model, X, feature_names, y=y, split="training")
+
+        # or for inference
+        dq.log_dataset(
+            model, X, feature_names, split="inference", inference_name="my_inference"
+        )
+
+    :param model: XGBClassifier model fit on the training data
+    :param X: np.ndarray of shape (n_samples, n_features)
+    :param feature_names: List[str] of length n_features
+    :param y: Optional[np.ndarray] of shape (n_samples,). Provide for non-inference only
+    :param split: Optional[str] the split for this data. Can also be set via
+        dq.set_split
+    :param inference_name: Optional[str] the inference_name for this data. Can also be
+        set via dq.set_split
+    """
     assert all(
         [config.task_type, config.current_project_id, config.current_run_id]
     ), "You must call dataquality.init before logging data"
@@ -193,21 +225,34 @@ def log_structured_dataset(
     split: Optional[Split] = None,
     inference_name: Optional[str] = None,
 ) -> None:
-    """Log a pandas DataFrame to disk for structured data
+    """Log a pandas DataFrame for structured data
 
     Example:
-        Logging a pandas dataframe, df:
-            feature_1    feature_2    label
-        0       3            7.1        A
-        1       7            2.3        B
-        2       4            1.0        B
-        # We don't need to set label because it matches the default
-        # Probs is a numpy array of shape (N, C) where N is the number of samples and C
-        # is the number of classes
-        dq.log_dataset(model, df, probs=probs, label="label")
+    .. code-block:: python
 
+        import xgboost as xgb
+        from sklearn.datasets import load_wine
+
+        data = load_wine()
+        X = data.data
+        y = data.target
+        feature_names = data.feature_names
+
+        model = xgb.XGBClassifier()
+        model.fit(X, y)
+
+        dataset = pd.DataFrame(X, columns=feature_names)
+        dataset["label"] = y
+        dq.log_dataset(model, dataset, label="label", split="training")
+
+        # or for inference
+        dataset = pd.DataFrame(X, columns=feature_names)
+        dq.log_dataset(
+            model, dataset, split="inference", inference_name="my_inference"
+        )
+
+    :param model: XGBClassifier model fit on the training data
     :param dataset: The pandas dataframe to log
-    :param probs: Numpy array of shape (N, C) where N is the number of samples and C
     :param label: Optional[str] The column for gold label in dataset. Default "label"
     :param split: Optional[str] the split for this data. Can also be set via
         dq.set_split

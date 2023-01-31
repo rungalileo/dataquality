@@ -145,6 +145,18 @@ class BaseGalileoLogger:
                     "You didn't log a split and did not set a split. Use "
                     "'dataquality.set_split' to set the split"
                 )
+
+        # Inference split must have inference name
+        if self.split == Split.inference and self.inference_name is None:
+            if self.logger_config.cur_inference_name is not None:
+                self.inference_name = self.logger_config.cur_inference_name
+            else:
+                raise GalileoException(
+                    "For inference split you must either log an inference name "
+                    "or set it before logging. Use `dataquality.set_split` to set "
+                    "inference_name"
+                )
+
         self.split = self.validate_split(self.split)
         # Set this config variable in validation, right before logging split data
         setattr(self.logger_config, f"{self.split}_logged", True)

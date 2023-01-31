@@ -42,17 +42,17 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
         Validates:
             - The split is set and is one of the allowed splits (in super)
             - If the user is cloud the split is not inference (in super)
-            -
             - The length of the data and probs are the same
         """
         super().validate()
-        assert len(self.dataset) == len(
-            self.probs
-        ), "Data and probs are not the same length. "
-        f"Data: {len(self.dataset)}, Probs: {len(self.probs)}"
+        assert len(self.dataset) == len(self.probs), (
+            "Data and probs are not the same length. "
+            f"Data: {len(self.dataset)}, Probs: {len(self.probs)}"
+        )
 
+    @classmethod
     def create_dataset_from_samples(
-        self, X: np.ndarray, y: Optional[np.ndarray], feature_names: List[str]
+        cls, X: np.ndarray, y: Optional[np.ndarray], feature_names: List[str]
     ) -> pd.DataFrame:
         """Validates and creates pandas DataFrame from input data
 
@@ -90,8 +90,11 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
         Assumes dataset is input data X, with optional "id" and "gold" columns
             that are removed
         """
-        assert self.model is not None, "Model must be set before setting probs."
-        assert self.dataset is not None, "Dataset must be set before setting probs."
+        error_msg = (
+            "must be set before setting probs. Try calling `log_structured_dataset`"
+        )
+        assert self.model is not None, f"Model {error_msg}"
+        assert self.dataset is not None, f"Dataset {error_msg}"
 
         input_data = self.dataset.copy()
         # Drop gold and id columns if they exist
@@ -182,6 +185,7 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
         probs_df = vaex.from_arrays(id=ids, prob=self.probs)
         if self.split != Split.inference and "gold" in self.dataset:
             probs_df["gold"] = self.dataset["gold"].to_numpy()
+            df = df.drop("gold")
 
         return df, probs_df
 
