@@ -18,5 +18,4 @@ Keras (dataquality.integrations.keras)
 dataquality
 -----------
 .. automodule:: dataquality
-    :members: init, log_dataset, set_labels_for_run, set_split, set_epoch, finish, login, auto, log_data_sample,log_image_dataset, log_model_outputs, logout
     :show-inheritance:
