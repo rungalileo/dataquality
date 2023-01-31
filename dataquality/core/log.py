@@ -202,9 +202,7 @@ def log_structured_samples(
     ), "Logging structured data currently only supports XGBoost for classification."
     assert isinstance(X, np.ndarray), "X must be a numpy array"
     if split is not None and split != Split.inference:
-        assert isinstance(
-            y, (List, np.ndarray)
-        ), "y must be a list of numpy array of labels"
+        assert isinstance(y, np.ndarray), "y must be a numpy array of labels"
 
     data_logger.log_samples(
         model=model,
