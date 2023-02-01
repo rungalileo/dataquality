@@ -86,15 +86,18 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
 
         # Find the id column, or create it.
         if id_ not in dataset.column_names:
+            print("Adding id column to dataset")
             dataset = dataset.add_column(name=id_, column=list(range(len(dataset))))
 
         if imgs_colname is not None:
             # HF datasets Image feature
+            print("Processing HF Image feature")
             from dataquality.utils.hf_images import process_hf_image_feature_for_logging
 
             prepared = process_hf_image_feature_for_logging(dataset, imgs_colname)
         elif imgs_location_colname is not None:
             # file paths
+            print("Processing HF image paths")
             from dataquality.utils.hf_images import process_hf_image_paths_for_logging
 
             prepared = process_hf_image_paths_for_logging(
@@ -104,6 +107,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             raise GalileoException(
                 "Must provide one of imgs_colname or imgs_location_colname."
             )
+
         return prepared
 
     def log_image_dataset(
