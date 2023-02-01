@@ -27,9 +27,7 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
         probs: Optional[np.ndarray] = None,
     ) -> None:
         super().__init__()
-        self.model: xgb.XGBClassifier = (
-            model if model is not None else xgb.XGBClassifier()
-        )
+        self.model: xgb.XGBClassifier = model or xgb.XGBClassifier()
         self.X: np.ndarray = X if X is not None else np.array([])
         self.y: np.ndarray = y if y is not None else np.array([])
         self.probs: np.ndarray = probs if probs is not None else np.array([])
