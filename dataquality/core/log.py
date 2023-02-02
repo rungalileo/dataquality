@@ -203,8 +203,8 @@ def log_dataset(
 
     :param dataset: The iterable or dataframe to log
     :batch_size: The number of data samples to log at a time. Useful when logging a
-    memory mapped dataset. A larger batch_size will result in faster logging at the
-    expense of more memory usage. Default 100,000
+        memory mapped dataset. A larger batch_size will result in faster logging at the
+        expense of more memory usage. Default 100,000
     :param text: str | int The column, key, or int index for text data. Default "text"
     :param id: str | int The column, key, or int index for id data. Default "id"
     :param split: Optional[str] the split for this data. Can also be set via
