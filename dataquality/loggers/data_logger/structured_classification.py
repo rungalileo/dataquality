@@ -105,20 +105,15 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
         self.probs = self.model.predict_proba(self.X)
 
     def log(self) -> None:
-        """Writes input data to disk in .galileo/logs
-
-        Note that unlike unstructured data, we don't batch data here, we write
-        the entire input data to disk. If the input data is logged multiple times
-        for the same split, we will overwrite the data on disk.
+        """Uploads data and probs df to Minio
 
         Support for batching to come in V1 of structured data project.
 
-        We write the input data to disk in the following locations:
-        /Users/username/.galileo/logs/proj-id/run-id/training/data.hdf5
-        /Users/username/.galileo/logs/proj-id/run-id/training/probs.hdf5
+        We write the dfs to minio in the following locations:
+        bucket/proj-id/run-id/training/data.hdf5
+        bucket/proj-id/run-id/training/probs.hdf5
 
-        NOTE #2: We don't restrict row or feature counts here for cloud users. If we add
-        that restriction, it will go here after getting data_dict
+        NOTE: We don't restrict row or feature counts here for cloud users.
         """
         self.validate_and_prepare_logger()
         # E.g. proj-id/run-id/training or proj-id/run-id/inference/my-inference
