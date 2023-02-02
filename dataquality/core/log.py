@@ -196,7 +196,13 @@ def log(
         [config.task_type, config.current_project_id, config.current_run_id]
     ), "You must call dataquality.init before logging data"
     data_logger = get_data_logger(
-        task_type=None, model=model, X=X, y=y, feature_names=feature_names, split=split
+        task_type=None,
+        model=model,
+        X=X,
+        y=y,
+        feature_names=feature_names,
+        split=split,
+        inference_name=inference_name,
     )
     assert isinstance(data_logger, StructuredClassificationDataLogger), (
         "This method is only supported for structured data tasks. "

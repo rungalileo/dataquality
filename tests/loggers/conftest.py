@@ -22,49 +22,42 @@ def sc_data() -> Dict:
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42, shuffle=False
     )
-    train_ds = pd.DataFrame(X_train, columns=wine.feature_names)
-    train_ds["my-label"] = y_train
-    test_ds = pd.DataFrame(X_test, columns=wine.feature_names)
+    train_df = pd.DataFrame(X_train, columns=wine.feature_names)
+    test_df = pd.DataFrame(X_test, columns=wine.feature_names)
 
     return {
         "feature_names": wine.feature_names,
         "labels": wine.target_names,
-        "training": {"X": X_train, "y": y_train, "dataset": train_ds},
-        "test": {"X": X_test, "y": y_test, "dataset": test_ds},
+        "training": {"X": X_train, "y": y_train, "df": train_df},
+        "test": {"X": X_test, "y": y_test, "df": test_df},
         "inf1": {
             "X": X_test,
-            "dataset": test_ds,
+            "df": test_df,
         },  # It's fine for inference data to be test data
-        "inf2": {"X": X_test, "dataset": test_ds},
+        "inf2": {"X": X_test, "df": test_df},
     }
 
 
 @pytest.fixture(scope="module")
 def fit_xgboost(sc_data: Dict) -> xgb.XGBClassifier:
-    model = xgb.XGBClassifier(objective="multi:softprob", random_state=42)
+    model = xgb.XGBClassifier()
     model.fit(sc_data["training"]["X"], sc_data["training"]["y"])
     return model
 
 
 @pytest.fixture
-def sc_data_logger(sc_data: Dict, fit_xgboost: xgb.XGBClassifier) -> Callable:
+def create_logger(sc_data: Dict, fit_xgboost: xgb.XGBClassifier) -> Callable:
     def curry(
-        split: Optional[str] = None, inference_name: Optional[str] = None
+        split: str = "training", inference_name: Optional[str] = None
     ) -> StructuredClassificationDataLogger:
-        if not split:
-            return StructuredClassificationDataLogger()
-
         key = inference_name if split == "inference" else split
-        logger = StructuredClassificationDataLogger(
+        return StructuredClassificationDataLogger(
             model=fit_xgboost,
             X=sc_data[key]["X"],
             y=sc_data[key].get("y"),  # We use get since inf data doesn't have y
+            feature_names=sc_data["feature_names"],
+            split=split,
+            inference_name=inference_name,
         )
-        logger.dataset = logger.create_dataset_from_samples(
-            X=logger.X, y=logger.y, feature_names=sc_data["feature_names"]
-        )
-        logger.split = split
-        logger.inference_name = inference_name
-        return logger
 
     return curry

@@ -21,6 +21,30 @@ from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID
 
 
 class TestStructuredClassificationDataLogger:
+    def test_init(
+        self,
+        fit_xgboost: xgb.XGBClassifier,
+        sc_data: Dict,
+    ) -> None:
+        """Test that validate_inputs is called on init"""
+        logger = StructuredClassificationDataLogger(
+            model=fit_xgboost,
+            X=sc_data["training"]["X"],
+            y=sc_data["training"]["y"],
+            feature_names=sc_data["feature_names"],
+            split="training",
+        )
+        for attr in [
+            "model",
+            "X",
+            "y",
+            "feature_names",
+            "split",
+            "inference_name",
+            "probs",
+        ]:
+            assert hasattr(logger, attr)
+
     @pytest.mark.parametrize(
         "split, inference_name",
         [
@@ -31,108 +55,39 @@ class TestStructuredClassificationDataLogger:
         ],
     )
     def test_validate(
-        self, split: str, inference_name: Optional[str], sc_data_logger: Callable
+        self, split: str, inference_name: Optional[str], create_logger: Callable
     ) -> None:
-        logger: StructuredClassificationDataLogger = sc_data_logger(
+        """Test that validation works for all splits"""
+        logger: StructuredClassificationDataLogger = create_logger(
             split=split, inference_name=inference_name
         )
-        logger.set_probs()
         logger.validate()
 
-    def test_create_dataset_from_samples(self, sc_data: Dict) -> None:
-        dataset = StructuredClassificationDataLogger.create_dataset_from_samples(
+    def validate_inputs(self, fit_xgboost: xgb.XGBClassifier, sc_data: Dict) -> None:
+        """Test that validate_inputs casts X and y to the correct types"""
+        logger = StructuredClassificationDataLogger(
+            model=fit_xgboost,
             X=sc_data["training"]["X"],
-            y=sc_data["training"]["y"],
-            feature_names=sc_data["feature_names"].copy(),
+            y=list(sc_data["training"]["y"]),
+            feature_names=sc_data["feature_names"],
+            split="training",
         )
-        assert isinstance(dataset, pd.DataFrame)
-        n_rows = sc_data["training"]["X"].shape[0]
-        n_features = sc_data["training"]["X"].shape[1]
-        assert dataset.shape == (n_rows, n_features + 1)
-        assert "gold" in dataset.columns
-
-        # Test that we can create a dataset without labels for inference
-        dataset = StructuredClassificationDataLogger.create_dataset_from_samples(
-            X=sc_data["inf1"]["X"],
-            y=None,
-            feature_names=sc_data["feature_names"].copy(),
-        )
-        assert isinstance(dataset, pd.DataFrame)
-        n_rows = sc_data["inf1"]["X"].shape[0]
-        n_features = sc_data["inf1"]["X"].shape[1]
-        assert dataset.shape == (n_rows, n_features)
-        assert "gold" not in dataset.columns
-
-        # Test that inference works with empty y numpy array as well
-        dataset = StructuredClassificationDataLogger.create_dataset_from_samples(
-            X=sc_data["inf1"]["X"],
-            y=np.array([]),
-            feature_names=sc_data["feature_names"].copy(),
-        )
-        assert isinstance(dataset, pd.DataFrame)
-        assert dataset.shape == (n_rows, n_features)
-        assert "gold" not in dataset.columns
+        logger.validate_and_prepare_logger()
+        assert isinstance(logger.X, pd.DataFrame)
+        assert isinstance(logger.y, np.ndarray)
 
     def test_set_probs(self, fit_xgboost: xgb.XGBClassifier, sc_data: Dict) -> None:
-        logger = StructuredClassificationDataLogger()
-        logger.model = fit_xgboost
-        logger.dataset = pd.DataFrame(
-            sc_data["training"]["X"], columns=sc_data["feature_names"].copy()
-        )
-
-        assert len(logger.probs) == 0
-        logger.set_probs()
-        # 3 since wine dataset has 3 classes
-        assert logger.probs.shape == (len(logger.dataset), 3)
-
-    @mock.patch.object(StructuredClassificationDataLogger, "log")
-    def test_log_samples(
-        self, mock_log: mock.MagicMock, fit_xgboost: xgb.XGBClassifier, sc_data: Dict
-    ) -> None:
-        """Test log_samples sets dataset and split attributes and calls log method"""
-        logger = StructuredClassificationDataLogger()
-        assert not hasattr(logger, "dataset")
-        assert logger.split is None
-        logger.log_samples(
+        logger = StructuredClassificationDataLogger(
             model=fit_xgboost,
             X=sc_data["training"]["X"],
             y=sc_data["training"]["y"],
-            feature_names=sc_data["feature_names"].copy(),
+            feature_names=sc_data["feature_names"],
             split="training",
         )
-        assert hasattr(logger, "dataset")
-        assert logger.split == "training"
-        assert logger.dataset.shape == sc_data["training"]["dataset"].shape
-        mock_log.assert_called_once()
-
-    @mock.patch.object(StructuredClassificationDataLogger, "log")
-    def test_log_structured_dataset(
-        self, mock_log: mock.MagicMock, fit_xgboost: xgb.XGBClassifier, sc_data: Dict
-    ) -> None:
-        """Test log_structured_dataset
-
-        Test that this fn:
-          - sets dataset gold col
-          - sets split attributes
-          - calls log method
-        """
-        logger = StructuredClassificationDataLogger()
-        assert not hasattr(logger, "dataset")
-        assert logger.split is None
-
-        dataset = sc_data["training"]["dataset"].copy()
-        assert "gold" not in dataset.columns
-
-        logger.log_structured_dataset(
-            model=fit_xgboost,
-            dataset=dataset,
-            label="my-label",
-            split="training",
-        )
-        assert logger.split == "training"
-        assert logger.dataset.shape == sc_data["training"]["dataset"].shape
-        assert "gold" in logger.dataset.columns
-        mock_log.assert_called_once()
+        assert logger.probs is None
+        logger.set_probs()
+        # 3 since wine dataset has 3 classes
+        assert logger.probs.shape == (len(logger.X), 3)
 
     @mock.patch.object(ObjectStore, "create_project_run_object_from_df")
     @mock.patch.object(StructuredClassificationDataLogger, "_get_dfs")
@@ -145,6 +100,7 @@ class TestStructuredClassificationDataLogger:
         mock_get_dfs: mock.MagicMock,
         mock_upload_df_to_minio: mock.MagicMock,
         set_test_config: Callable,
+        create_logger: Callable,
     ) -> None:
         """Test log method
 
@@ -153,8 +109,7 @@ class TestStructuredClassificationDataLogger:
         set_test_config()
         mock_get_dfs.return_value = (mock.MagicMock(), mock.MagicMock())
 
-        logger = StructuredClassificationDataLogger()
-        logger.split = "training"
+        logger: StructuredClassificationDataLogger = create_logger(split="training")
         logger.log()
 
         mock_set_probs.assert_called_once_with()
@@ -169,20 +124,10 @@ class TestStructuredClassificationDataLogger:
             mock.ANY, f"{DEFAULT_PROJECT_ID}/{DEFAULT_RUN_ID}/training/prob/prob.hdf5"
         )
 
-    @mock.patch.object(StructuredClassificationDataLogger, "log")
-    def test_get_dfs(
-        self, mock_log: mock.MagicMock, fit_xgboost: xgb.XGBClassifier, sc_data: Dict
-    ) -> None:
+    def test_get_dfs(self, create_logger: Callable, sc_data: Dict) -> None:
         # Set up logger with dataset, probs and split
-        logger = StructuredClassificationDataLogger()
-        dataset = sc_data["training"]["dataset"].copy()
-        logger.log_structured_dataset(
-            model=fit_xgboost,
-            dataset=dataset,
-            label="my-label",
-            split="training",
-        )
-        logger.set_probs()
+        logger: StructuredClassificationDataLogger = create_logger(split="training")
+        logger.validate_and_prepare_logger()
 
         # Assertions on returned dfs
         df, probs_df = logger._get_dfs()
@@ -199,16 +144,14 @@ class TestStructuredClassificationDataLogger:
 
 
 class TestStructuredClassificationValidationErrors:
-    @mock.patch.object(StructuredClassificationDataLogger, "log")
     def test_validate_missing_split(
-        self, mock_log: mock.MagicMock, fit_xgboost: xgb.XGBClassifier, sc_data: Dict
+        self, fit_xgboost: xgb.XGBClassifier, sc_data: Dict
     ) -> None:
-        # Set up logger with dataset, probs and split
-        logger = StructuredClassificationDataLogger()
-        logger.log_structured_dataset(
+        logger = StructuredClassificationDataLogger(
             model=fit_xgboost,
-            dataset=sc_data["training"]["dataset"].copy(),
-            label="my-label",
+            X=sc_data["training"]["X"],
+            y=sc_data["training"]["y"],
+            feature_names=sc_data["feature_names"],
         )
         with pytest.raises(GalileoException) as e:
             logger.validate()
@@ -218,16 +161,14 @@ class TestStructuredClassificationValidationErrors:
             "'dataquality.set_split' to set the split"
         )
 
-    @mock.patch.object(StructuredClassificationDataLogger, "log")
     def test_validate_missing_inference_name(
-        self, mock_log: mock.MagicMock, fit_xgboost: xgb.XGBClassifier, sc_data: Dict
+        self, fit_xgboost: xgb.XGBClassifier, sc_data: Dict
     ) -> None:
-        # Set up logger with dataset, probs and split
-        logger = StructuredClassificationDataLogger()
-        logger.log_structured_dataset(
+        logger = StructuredClassificationDataLogger(
             model=fit_xgboost,
-            dataset=sc_data["training"]["dataset"].copy(),
-            label="my-label",
+            X=sc_data["training"]["X"],
+            y=sc_data["training"]["y"],
+            feature_names=sc_data["feature_names"],
             split="inference",
         )
         with pytest.raises(GalileoException) as e:
@@ -239,62 +180,121 @@ class TestStructuredClassificationValidationErrors:
             "inference_name"
         )
 
-    @mock.patch.object(StructuredClassificationDataLogger, "log")
-    def test_validate_data_probs_different_dims(
-        self, mock_log: mock.MagicMock, fit_xgboost: xgb.XGBClassifier, sc_data: Dict
-    ) -> None:
-        """Test error is raised if X, y, and probs have different dimensions"""
-        # Set up logger with dataset, probs and split
-        logger = StructuredClassificationDataLogger()
-        logger.log_structured_dataset(
-            model=fit_xgboost,
-            dataset=sc_data["training"]["dataset"].copy(),
-            label="my-label",
-            split="training",
-        )
-        logger.set_probs()
-        logger.probs = logger.probs[1:]
-        with pytest.raises(AssertionError) as e:
-            logger.validate()
-
-        assert str(e.value) == (
-            "Data and probs are not the same length. " "Data: 142, Probs: 141"
-        )
-
-    def test_validate_data_and_features_names_mismatch(self) -> None:
-        """Test error is raised if X and features_names have different lengths"""
-
-    @mock.patch.object(StructuredClassificationDataLogger, "log")
-    def test_set_probs_missing_model(
-        self, mock_log: mock.MagicMock, sc_data: Dict
-    ) -> None:
-        """If logger model is not set, raise error"""
-        logger = StructuredClassificationDataLogger()
-        logger.log_structured_dataset(
+    def test_validate_inputs_model_not_xgb(self) -> None:
+        """Test error is raised if model is not an XGBClassifier"""
+        logger = StructuredClassificationDataLogger(
             model=None,
-            dataset=sc_data["training"]["dataset"].copy(),
-            label="my-label",
+            X=None,
             split="training",
         )
         with pytest.raises(AssertionError) as e:
-            logger.set_probs()
+            logger.validate_and_prepare_logger()
 
         assert str(e.value) == (
-            "Model must be set before setting probs. Try calling "
-            "`log_structured_dataset`"
+            "Logging structured data currently only supports XGBoost for "
+            "classification."
         )
 
-    def test_set_probs_missing_dataset(self) -> None:
-        """If logger dataset is not set, raise error"""
-        logger = StructuredClassificationDataLogger()
-        logger.model = mock.MagicMock()
-        logger.dataset = None
+    def test_validate_inputs_model_not_fitted(self) -> None:
+        """Test error is raised if model is not already fit"""
+        model = xgb.XGBClassifier()
+        logger = StructuredClassificationDataLogger(
+            model=model,
+            X=None,
+            split="training",
+        )
         with pytest.raises(AssertionError) as e:
-            logger.set_probs()
+            logger.validate_and_prepare_logger()
+
+        assert str(e.value) == ("Model must be fit before logging data.")
+
+    def test_validate_inputs_invalid_X_type(
+        self, fit_xgboost: xgb.XGBClassifier
+    ) -> None:
+        """X is not a DataFrame or numpy array"""
+        logger = StructuredClassificationDataLogger(
+            model=fit_xgboost,
+            X=3,
+            split="training",
+        )
+        with pytest.raises(AssertionError) as e:
+            logger.validate_and_prepare_logger()
 
         assert str(e.value) == (
-            "Dataset must be set before setting probs. Try calling "
-            "`log_structured_dataset`"
+            "X must be a pandas DataFrame or numpy array, not <class 'int'>"
+        )
+
+    def test_validate_inputs_invalid_y_type(
+        self, fit_xgboost: xgb.XGBClassifier, sc_data: Dict
+    ) -> None:
+        """y is not a list or numpy array"""
+        logger = StructuredClassificationDataLogger(
+            model=fit_xgboost,
+            X=sc_data["training"]["X"],
+            y=3,
+            feature_names=sc_data["feature_names"],
+            split="training",
+        )
+        with pytest.raises(AssertionError) as e:
+            logger.validate_and_prepare_logger()
+
+        assert str(e.value) == (
+            "y must be a list or numpy array of labels, not <class 'int'>"
+        )
+
+    def test_validate_inputs_X_and_y_different_lengths(
+        self, fit_xgboost: xgb.XGBClassifier, sc_data: Dict
+    ) -> None:
+        """X and y have different lengths"""
+        logger = StructuredClassificationDataLogger(
+            model=fit_xgboost,
+            X=sc_data["training"]["X"],
+            y=sc_data["training"]["y"][:2],
+            feature_names=sc_data["feature_names"],
+            split="training",
+        )
+        with pytest.raises(AssertionError) as e:
+            logger.validate_and_prepare_logger()
+
+        assert str(e.value) == (
+            "X and y must be the same length. X has 142 rows, y has 2 rows"
+        )
+
+    def test_validate_inputs_data_feature_names_set(
+        self, fit_xgboost: xgb.XGBClassifier, sc_data: Dict
+    ) -> None:
+        """Feature names are not set and X is numpy array"""
+        logger = StructuredClassificationDataLogger(
+            model=fit_xgboost,
+            X=sc_data["training"]["X"],
+            y=sc_data["training"]["y"],
+            split="training",
+        )
+        with pytest.raises(AssertionError) as e:
+            logger.validate_and_prepare_logger()
+
+        assert str(e.value) == (
+            "feature_names must be provided when logging X as a numpy array. "
+            "If X is a pandas DataFrame, feature_names will be inferred from the "
+            "column names."
+        )
+
+    def test_validate_inputs_data_and_features_names_mismatch(
+        self, fit_xgboost: xgb.XGBClassifier, sc_data: Dict
+    ) -> None:
+        """Test error is raised if X and features_names have different lengths"""
+        logger = StructuredClassificationDataLogger(
+            model=fit_xgboost,
+            X=sc_data["training"]["X"],
+            y=sc_data["training"]["y"],
+            feature_names=sc_data["feature_names"][1:],
+            split="training",
+        )
+        with pytest.raises(AssertionError) as e:
+            logger.validate_and_prepare_logger()
+
+        assert str(e.value) == (
+            "X and feature_names must have the same number of features"
         )
 
 
@@ -322,7 +322,7 @@ class TestStructuredClassificationE2E:
                 DEFAULT_PROJECT_ID, DEFAULT_RUN_ID, TaskType.structured_classification
             )
 
-    def test_log_structured_samples_e2e(
+    def test_log_pandas_e2e(
         self,
         mock_create_job: mock.MagicMock,
         mock_upload_dq_log_file: mock.MagicMock,
@@ -333,20 +333,18 @@ class TestStructuredClassificationE2E:
         fit_xgboost: xgb.XGBClassifier,
         sc_data: Dict,
     ) -> None:
-        """Test logging structured samples for training, validation and test splits"""
+        """Test logging input pandas dfs for training, validation and test splits"""
         set_test_config(task_type="structured_classification")
         dq.set_labels_for_run(sc_data["labels"])
-        dq.log_structured_samples(
+        dq.log(
             model=fit_xgboost,
-            X=sc_data["training"]["X"],
-            feature_names=sc_data["feature_names"].copy(),
+            X=sc_data["training"]["df"],
             y=sc_data["training"]["y"],
             split="training",
         )
-        dq.log_structured_samples(
+        dq.log(
             model=fit_xgboost,
-            X=sc_data["test"]["X"],
-            feature_names=sc_data["feature_names"].copy(),
+            X=sc_data["test"]["df"],
             y=sc_data["test"]["y"],
             split="test",
         )
@@ -368,7 +366,7 @@ class TestStructuredClassificationE2E:
         )
         self._assert_mocks(mock_upload_dq_log_file, mock_reset_run, mock_version_check)
 
-    def test_log_structured_dataset_e2e(
+    def test_log_arrays_e2e(
         self,
         mock_create_job: mock.MagicMock,
         mock_upload_dq_log_file: mock.MagicMock,
@@ -379,19 +377,21 @@ class TestStructuredClassificationE2E:
         fit_xgboost: xgb.XGBClassifier,
         sc_data: Dict,
     ) -> None:
-        """Test logging structured dataset for training, validation and test splits"""
+        """Test logging input numpy arrays for training, validation and test splits"""
         set_test_config(task_type="structured_classification")
         dq.set_labels_for_run(sc_data["labels"])
-        dq.log_structured_dataset(
+        dq.log(
             model=fit_xgboost,
-            dataset=sc_data["training"]["dataset"].copy(),
-            label="my-label",
+            X=sc_data["training"]["X"],
+            feature_names=sc_data["feature_names"],
+            y=sc_data["training"]["y"],
             split="training",
         )
-        dq.log_structured_dataset(
+        dq.log(
             model=fit_xgboost,
-            dataset=sc_data["test"]["dataset"].copy(),
-            label="my-label",
+            X=sc_data["test"]["X"],
+            feature_names=sc_data["feature_names"],
+            y=sc_data["test"]["y"],
             split="test",
         )
         dq.finish(wait=False)
@@ -412,7 +412,7 @@ class TestStructuredClassificationE2E:
         )
         self._assert_mocks(mock_upload_dq_log_file, mock_reset_run, mock_version_check)
 
-    def test_log_structured_samples_e2e_inference(
+    def test_log_pandas_e2e_inference(
         self,
         mock_create_job: mock.MagicMock,
         mock_upload_dq_log_file: mock.MagicMock,
@@ -423,27 +423,24 @@ class TestStructuredClassificationE2E:
         fit_xgboost: xgb.XGBClassifier,
         sc_data: Dict,
     ) -> None:
-        """Test logging structured samples for training and inference splits"""
+        """Test logging input pandas dfs for training and inference splits"""
         set_test_config(task_type="structured_classification")
         dq.set_labels_for_run(sc_data["labels"])
-        dq.log_structured_samples(
+        dq.log(
             model=fit_xgboost,
-            X=sc_data["training"]["X"],
-            feature_names=sc_data["feature_names"].copy(),
+            X=sc_data["training"]["df"],
             y=sc_data["training"]["y"],
             split="training",
         )
-        dq.log_structured_samples(
+        dq.log(
             model=fit_xgboost,
-            X=sc_data["inf1"]["X"],
-            feature_names=sc_data["feature_names"].copy(),
+            X=sc_data["inf1"]["df"],
             split="inference",
             inference_name="inf1",
         )
-        dq.log_structured_samples(
+        dq.log(
             model=fit_xgboost,
-            X=sc_data["inf2"]["X"],
-            feature_names=sc_data["feature_names"].copy(),
+            X=sc_data["inf2"]["df"],
             split="inference",
             inference_name="inf2",
         )
@@ -467,7 +464,7 @@ class TestStructuredClassificationE2E:
         )
         self._assert_mocks(mock_upload_dq_log_file, mock_reset_run, mock_version_check)
 
-    def test_log_structured_dataset_e2e_inference(
+    def test_log_arrays_e2e_inference(
         self,
         mock_create_job: mock.MagicMock,
         mock_upload_dq_log_file: mock.MagicMock,
@@ -478,24 +475,27 @@ class TestStructuredClassificationE2E:
         fit_xgboost: xgb.XGBClassifier,
         sc_data: Dict,
     ) -> None:
-        """Test logging structured dataset for training and inference splits"""
+        """Test logging input numpy arrays for training and inference splits"""
         set_test_config(task_type="structured_classification")
         dq.set_labels_for_run(sc_data["labels"])
-        dq.log_structured_dataset(
+        dq.log(
             model=fit_xgboost,
-            dataset=sc_data["training"]["dataset"].copy(),
-            label="my-label",
+            X=sc_data["training"]["X"],
+            y=sc_data["training"]["y"],
+            feature_names=sc_data["feature_names"],
             split="training",
         )
-        dq.log_structured_dataset(
+        dq.log(
             model=fit_xgboost,
-            dataset=sc_data["inf1"]["dataset"].copy(),
+            X=sc_data["inf1"]["X"],
+            feature_names=sc_data["feature_names"],
             split="inference",
             inference_name="inf1",
         )
-        dq.log_structured_dataset(
+        dq.log(
             model=fit_xgboost,
-            dataset=sc_data["inf2"]["dataset"].copy(),
+            X=sc_data["inf2"]["X"],
+            feature_names=sc_data["feature_names"],
             split="inference",
             inference_name="inf2",
         )
@@ -519,7 +519,7 @@ class TestStructuredClassificationE2E:
         )
         self._assert_mocks(mock_upload_dq_log_file, mock_reset_run, mock_version_check)
 
-    def test_log_structured_samples_e2e_inference_only(
+    def test_log_pandas_e2e_inference_only(
         self,
         mock_create_job: mock.MagicMock,
         mock_upload_dq_log_file: mock.MagicMock,
@@ -530,20 +530,18 @@ class TestStructuredClassificationE2E:
         fit_xgboost: xgb.XGBClassifier,
         sc_data: Dict,
     ) -> None:
-        """Test logging structured samples for inference splits"""
+        """Test logging input data as pandas dfs for inference splits"""
         set_test_config(task_type="structured_classification")
         dq.set_labels_for_run(sc_data["labels"])
-        dq.log_structured_samples(
+        dq.log(
             model=fit_xgboost,
-            X=sc_data["inf1"]["X"],
-            feature_names=sc_data["feature_names"].copy(),
+            X=sc_data["inf1"]["df"],
             split="inference",
             inference_name="inf1",
         )
-        dq.log_structured_samples(
+        dq.log(
             model=fit_xgboost,
-            X=sc_data["inf2"]["X"],
-            feature_names=sc_data["feature_names"].copy(),
+            X=sc_data["inf2"]["df"],
             split="inference",
             inference_name="inf2",
         )
@@ -569,7 +567,7 @@ class TestStructuredClassificationE2E:
             mock_upload_dq_log_file, mock_reset_run, mock_version_check, True
         )
 
-    def test_log_structured_dataset_e2e_inference_only(
+    def test_log_arrays_e2e_inference_only(
         self,
         mock_create_job: mock.MagicMock,
         mock_upload_dq_log_file: mock.MagicMock,
@@ -580,18 +578,20 @@ class TestStructuredClassificationE2E:
         fit_xgboost: xgb.XGBClassifier,
         sc_data: Dict,
     ) -> None:
-        """Test logging structured dataset for inference splits"""
+        """Test logging input data as numpy arrays for inference splits"""
         set_test_config(task_type="structured_classification")
         dq.set_labels_for_run(sc_data["labels"])
-        dq.log_structured_dataset(
+        dq.log(
             model=fit_xgboost,
-            dataset=sc_data["inf1"]["dataset"].copy(),
+            X=sc_data["inf1"]["X"],
+            feature_names=sc_data["feature_names"],
             split="inference",
             inference_name="inf1",
         )
-        dq.log_structured_dataset(
+        dq.log(
             model=fit_xgboost,
-            dataset=sc_data["inf2"]["dataset"].copy(),
+            X=sc_data["inf2"]["X"],
+            feature_names=sc_data["feature_names"],
             split="inference",
             inference_name="inf2",
         )

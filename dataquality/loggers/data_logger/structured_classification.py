@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import vaex
 import xgboost as xgb
+from sklearn.exceptions import NotFittedError
 from sklearn.utils.validation import check_is_fitted
 from vaex.dataframe import DataFrame
 
@@ -22,24 +23,22 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
 
     def __init__(
         self,
-        model: xgb.XGBClassifier,
-        X: Union[pd.DataFrame, np.ndarray],
+        model: xgb.XGBClassifier = None,
+        X: Union[pd.DataFrame, np.ndarray] = None,
         y: Optional[Union[List, np.ndarray]] = None,
         feature_names: Optional[List[str]] = None,
         split: Optional[Split] = None,
         inference_name: Optional[str] = None,
     ) -> None:
-        super().__init__()
         self.model = model
         self.X = X
         self.y = y
         self.feature_names = feature_names
         self.split = split
         self.inference_name = inference_name
+        self.probs: Optional[np.ndarray] = None
 
-        self.validate_inputs()
-
-    def validate_inputs(self) -> None:
+    def validate_and_prepare_logger(self) -> None:
         """Validates the input data before logging to Minio
 
         Validates:
@@ -56,10 +55,15 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
             - self.X to a pandas DataFrame if it is a numpy array
             - self.y to a numpy array if it is a list
         """
+        self.validate()
+
         assert isinstance(
             self.model, xgb.XGBClassifier
         ), "Logging structured data currently only supports XGBoost for classification."
-        assert check_is_fitted(self.model), "Model must be fit before logging data"
+        try:
+            check_is_fitted(self.model)
+        except NotFittedError:
+            raise AssertionError("Model must be fit before logging data.")
         assert isinstance(
             self.X, (pd.DataFrame, np.ndarray)
         ), f"X must be a pandas DataFrame or numpy array, not {type(self.X)}"
@@ -67,11 +71,11 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
         if self.split is not None and self.split != Split.inference:
             assert isinstance(
                 self.y, (List, np.ndarray)
-            ), "y must be a numpy array of labels"
+            ), f"y must be a list or numpy array of labels, not {type(self.y)}"
             self.y = np.array(self.y) if self.y is not None else None
             assert len(self.X) == len(self.y), (
                 "X and y must be the same length. "
-                f"X: {len(self.X)}, y: {len(self.y)}"
+                f"X has {len(self.X)} rows, y has {len(self.y)} rows"
             )
 
         if isinstance(self.X, np.ndarray):
@@ -89,11 +93,15 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
                 else self.X
             )
 
+        self.set_probs()
+
     def set_probs(self) -> None:
         """Sets the probs attribute for the class
 
         Assumes model and dataset are set.
         """
+        assert self.model is not None, "Model must be set before setting probs"
+        assert self.X is not None, "X must be set before setting probs"
         self.probs = self.model.predict_proba(self.X)
 
     def log(self) -> None:
@@ -112,9 +120,7 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
         NOTE #2: We don't restrict row or feature counts here for cloud users. If we add
         that restriction, it will go here after getting data_dict
         """
-        self.set_probs()
-        # Validates split and inference name, defined in parent class
-        self.validate()
+        self.validate_and_prepare_logger()
         # E.g. proj-id/run-id/training or proj-id/run-id/inference/my-inference
         object_base_path = f"{self.proj_run}/{self.split_name_path}"
 
