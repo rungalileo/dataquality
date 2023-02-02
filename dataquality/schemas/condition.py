@@ -58,7 +58,7 @@ class ConditionFilter(BaseModel):
     """Filter a dataframe based on the column value
 
     Note that the column used for filtering is the same as the metric used
-      in the condition.
+    in the condition.
 
     :param operator: The operator to use for filtering (e.g. "gt", "lt", "eq", "neq")
         See `Operator`

@@ -40,7 +40,6 @@ class TorchBaseInstance:
         Initialize the dimensions of the embeddings and logits
         :param embedding_dim: Dimension of the embedding
         :param logits_dim: Dimension of the logits
-        :return: None
         """
         # If embedding_dim is a string, convert it to a slice
         # else assume it is a slice or None
@@ -77,7 +76,6 @@ class TorchBaseInstance:
         :param model: Model pytorch model / layer
         :param model_input: Input of the current layer
         :param model_output: Output of the current layer
-        :return: None
         """
         output = None
         if self.embedding_fn is not None:
@@ -131,7 +129,6 @@ class TorchBaseInstance:
         :param model: Model pytorch model
         :param model_input: Model input of the current layer
         :param model_output: Model output of the current layer
-        :return: None
         """
         logits = None
         if self.logits_fn is not None:
@@ -177,7 +174,6 @@ class TorchBaseInstance:
         :param model: Model pytorch model / layer
         :param model_input: Input of the current layer
         :param model_output: Output of the current layer
-        :return: None
         """
 
         self._dq_embedding_hook(model, None, model_input)

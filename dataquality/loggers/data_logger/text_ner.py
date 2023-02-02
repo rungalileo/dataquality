@@ -419,7 +419,6 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         gold_spans must be None)
         * Text and Labels must be the same length
         * If ids exist, it must be the same length as text/labels
-        :return: None
         """
         super().validate()
         assert self.logger_config.labels, (

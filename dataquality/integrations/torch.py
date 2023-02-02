@@ -74,7 +74,6 @@ class TorchLogger(TorchBaseInstance):
         Initialize the helper data with ids from the dataloader indices,
         patches for applied monkey patched functions and the hook manager.
         :param hm: Hook manager
-        :return: None
         """
         self.helper_data.clear()
         self.helper_data.update(
@@ -95,7 +94,6 @@ class TorchLogger(TorchBaseInstance):
         Method to attach hooks to the model by using the hook manager
         :param model: Model
         :param model: pytorch model layer to attach hooks to
-        :return: None
         """
         try:
             self.hook_manager.attach_classifier_hook(
@@ -129,7 +127,6 @@ class TorchLogger(TorchBaseInstance):
         :param model: Model pytorch model
         :param model_input: Model input
         :param model_output: Model output
-        :return: None
         """
         self._classifier_hook(model, model_input, model_output)
         self._on_step_end()
@@ -145,7 +142,6 @@ class TorchLogger(TorchBaseInstance):
         :param model: Model pytorch model
         :param model_input: Model input
         :param model_output: Model output
-        :return: None
         """
         self._dq_logit_hook(model, model_input, model_output)
         self._on_step_end()
@@ -153,7 +149,6 @@ class TorchLogger(TorchBaseInstance):
     def _on_step_end(self) -> None:
         """
         Log the embeddings, ids and logits.
-        :return: None
         """
         # We save the embeddings and logits in a dict called model_outputs
         # in the helper data. This is because the embeddings and logits are
@@ -201,7 +196,7 @@ def watch(
     """
     wraps a PyTorch model and optionally dataloaders to log the
     embeddings and logits to [Galileo](https://www.rungalileo.io/).
-    
+
     .. code-block:: python
 
         dq.log_dataset(train_dataset, split="train")
@@ -222,7 +217,6 @@ def watch(
     to remove the cls token
     :param logits_dim: Dimension to extract the logits for example in NER
     "[:,1:,:]"
-    :return: None
     """
     a.log_function("torch/watch")
     assert dq.config.task_type, GalileoException(

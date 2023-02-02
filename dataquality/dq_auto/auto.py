@@ -171,14 +171,14 @@ def auto(
 
     .. code-block:: python
 
-    import dataquality as dq
+        import dataquality as dq
 
-    dq.auto(
-         train_data="train.csv",
-         test_data="test.csv",
-         project_name="data_from_local",
-         run_name="run_1_raw_data"
-    )
+        dq.auto(
+            train_data="train.csv",
+            test_data="test.csv",
+            project_name="data_from_local",
+            run_name="run_1_raw_data"
+        )
     """
     # We need to import auto down here instead of at the top of the file like normal
     # because we simultaneously want analytic tracking on the files we import while

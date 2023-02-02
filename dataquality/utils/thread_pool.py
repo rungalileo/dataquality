@@ -24,7 +24,6 @@ class ThreadPoolManager:
 
         :param target: The callable
         :param args: The arguments to the function
-        :return: None
         """
         ThreadPoolManager.wait_for_thread()
         thread = Thread(target=target, args=args or [])
@@ -39,8 +38,6 @@ class ThreadPoolManager:
     def wait_for_threads() -> None:
         """
         Joins all currently active threads and waits for all to be done
-
-        :return: None
         """
         ThreadPoolManager._cleanup()
         # Waits for each thread to finish
@@ -63,8 +60,6 @@ class ThreadPoolManager:
     def _cleanup() -> None:
         """
         Cleans up the ThreadPoolManager, removing any dead ones
-
-        :return: None
         """
         ThreadPoolManager.THREADS = [
             i for i in ThreadPoolManager.THREADS if i.is_alive()

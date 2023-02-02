@@ -2,8 +2,8 @@
 
 dataquality
 
-
 ### login()
+
 Log into your Galileo environment.
 
 The function will prompt your for an Authorization Token (api key) that you can
@@ -12,31 +12,28 @@ access from the console.
 To skip the prompt for automated workflows, you can set GALILEO_USERNAME
 (your email) and GALILEO_PASSWORD if you signed up with an email and password
 
+- **Return type**
 
-* **Return type**
-
-    `None`
-
-
+  `None`
 
 ### init(task_type, project_name=None, run_name=None, is_public=True, overwrite_local=True)
+
 Start a run
 
 Initialize a new run and new project, initialize a new run in an existing project,
 or reinitialize an existing run in an existing project.
 
 Before creating the project, check:
+
 - The user is valid, login if not
 - The DQ client version is compatible with API version
 
 Optionally provide project and run names to create a new project/run or restart
 existing ones.
 
+- **Parameters**
 
-* **Parameters**
-
-    **task_type** (`str`) -- The task type for modeling. This must be one of the valid
-
+  **task_type** (`str`) -- The task type for modeling. This must be one of the valid
 
 dataquality.schemas.task_type.TaskType options
 :type project_name: `Optional`[`str`]
@@ -54,93 +51,70 @@ does exist, it will be set.
 cleared during this function. If logging over many sessions with checkpoints, you
 may want to set this to False. Default True
 
+- **Return type**
 
-* **Return type**
-
-    `None`
-
-
+  `None`
 
 ### log_model_outputs(\*, embs, ids, split=None, epoch=None, logits=None, probs=None, inference_name=None, exclude_embs=False)
+
 Logs model outputs for model during training/test/validation.
 
+- **Parameters**
 
-* **Parameters**
+  - **embs** (`Union`[`List`, `ndarray`, `None`]) -- The embeddings per output sample
 
-    
-    * **embs** (`Union`[`List`, `ndarray`, `None`]) -- The embeddings per output sample
+  - **ids** (`Union`[`List`, `ndarray`]) -- The ids for each sample. Must match input ids of logged samples
 
+  - **split** (`Optional`[`Split`]) -- The current split. Must be set either here or via dq.set_split
 
-    * **ids** (`Union`[`List`, `ndarray`]) -- The ids for each sample. Must match input ids of logged samples
+  - **epoch** (`Optional`[`int`]) -- The current epoch. Must be set either here or via dq.set_epoch
 
+  - **logits** (`Union`[`List`, `ndarray`, `None`]) -- The logits for each sample
 
-    * **split** (`Optional`[`Split`]) -- The current split. Must be set either here or via dq.set_split
+  - **probs** (`Union`[`List`, `ndarray`, `None`]) -- Deprecated, use logits. If passed in, a softmax will NOT be applied
 
-
-    * **epoch** (`Optional`[`int`]) -- The current epoch. Must be set either here or via dq.set_epoch
-
-
-    * **logits** (`Union`[`List`, `ndarray`, `None`]) -- The logits for each sample
-
-
-    * **probs** (`Union`[`List`, `ndarray`, `None`]) -- Deprecated, use logits. If passed in, a softmax will NOT be applied
-
-
-    * **inference_name** (`Optional`[`str`]) -- Inference name indicator for this inference split.
+  - **inference_name** (`Optional`[`str`]) -- Inference name indicator for this inference split.
     If logging for an inference split, this is required.
 
-
-    * **exclude_embs** (`bool`) -- Optional flag to exclude embeddings from logging. If True and
+  - **exclude_embs** (`bool`) -- Optional flag to exclude embeddings from logging. If True and
     embs is set to None, this will generate random embs for each sample.
-
 
 The expected argument shapes come from the task_type being used
 See dq.docs() for more task specific details on parameter shape
 
+- **Return type**
 
-* **Return type**
-
-    `None`
-
-
+  `None`
 
 ### finish(last_epoch=None, wait=True, create_data_embs=False)
+
 Finishes the current run and invokes a job
 
+- **Parameters**
 
-* **Parameters**
-
-    
-    * **last_epoch** (`Optional`[`int`]) -- If set, only epochs up to this value will be uploaded/processed
+  - **last_epoch** (`Optional`[`int`]) -- If set, only epochs up to this value will be uploaded/processed
     This is inclusive, so setting last_epoch to 5 would upload epochs 0,1,2,3,4,5
 
-
-    * **wait** (`bool`) -- If true, after uploading the data, this will wait for the
+  - **wait** (`bool`) -- If true, after uploading the data, this will wait for the
     run to be processed by the Galileo server. If false, you can manually wait
     for the run by calling dq.wait_for_run() Default True
 
-
-    * **create_data_embs** (`bool`) -- If True, an off-the-shelf transformer will run on the raw
+  - **create_data_embs** (`bool`) -- If True, an off-the-shelf transformer will run on the raw
     text input to generate data-level embeddings. These will be available in the
     data view tab of the Galileo console. You can also access these embeddings
     via dq.metrics.get_data_embeddings()
 
+- **Return type**
 
-
-* **Return type**
-
-    `str`
-
-
+  `str`
 
 ### set_labels_for_run(labels)
+
 Creates the mapping of the labels for the model to their respective indexes.
 
+- **Parameters**
 
-* **Parameters**
-
-    **labels** (`Union`[`List`[`List`[`str`]], `List`[`str`]]) -- An ordered list of labels (ie ['dog','cat','fish']
-
+  **labels** (`Union`[`List`[`List`[`str`]], `List`[`str`]]) -- An ordered list of labels (ie ['dog','cat','fish']
 
 If this is a multi-label type, then labels are a list of lists where each inner
 list indicates the label for the given task
@@ -150,14 +124,12 @@ This order MUST match the order of probabilities that the model outputs.
 In the multi-label case, the outer order (order of the tasks) must match the
 task-order of the task-probabilities logged as well.
 
+- **Return type**
 
-* **Return type**
-
-    `None`
-
-
+  `None`
 
 ### set_tasks_for_run(tasks, binary=True)
+
 Sets the task names for the run (multi-label case only).
 
 This order MUST match the order of the labels list provided in log_input_data
@@ -166,83 +138,65 @@ and the order of the probability vectors provided in log_model_outputs.
 This also must match the order of the labels logged in set_labels_for_run (meaning
 that the first list of labels must be the labels of the first task passed in here)
 
+- **Parameters**
 
-* **Parameters**
+  - **tasks** (`List`[`str`]) -- The list of tasks for your run
 
-    
-    * **tasks** (`List`[`str`]) -- The list of tasks for your run
-
-
-    * **binary** (`bool`) -- Whether this is a binary multi label run. If true, tasks will also
-
+  - **binary** (`bool`) -- Whether this is a binary multi label run. If true, tasks will also
 
 be set as your labels, and you should NOT call dq.set_labels_for_run it will be
 handled for you. Default True
 
+- **Return type**
 
-* **Return type**
-
-    `None`
-
-
+  `None`
 
 ### set_epoch(epoch)
+
 Set the current epoch.
 
 When set, logging model outputs will use this if not logged explicitly
 
+- **Return type**
 
-* **Return type**
-
-    `None`
-
-
+  `None`
 
 ### set_split(split, inference_name=None)
+
 Set the current split.
 
 When set, logging data inputs/model outputs will use this if not logged explicitly
 When setting split to inference, inference_name must be included
 
+- **Return type**
 
-* **Return type**
-
-    `None`
-
-
+  `None`
 
 ### log_data_sample(\*, text, id, \*\*kwargs)
+
 Log a single input example to disk
 
 Fields are expected singular elements. Field names are in the singular of
 log_input_samples (texts -> text)
 The expected arguments come from the task_type being used: See dq.docs() for details
 
+- **Parameters**
 
-* **Parameters**
+  - **text** (`str`) -- List[str] the input samples to your model
 
-    
-    * **text** (`str`) -- List[str] the input samples to your model
+  - **id** (`int`) -- List[int | str] the ids per sample
 
-
-    * **id** (`int`) -- List[int | str] the ids per sample
-
-
-    * **split** -- Optional[str] the split for this data. Can also be set via
+  - **split** -- Optional[str] the split for this data. Can also be set via
     dq.set_split
 
+  - **kwargs** (`Any`) -- See dq.docs() for details on other task specific parameters
 
-    * **kwargs** (`Any`) -- See dq.docs() for details on other task specific parameters
+- **Return type**
 
-
-
-* **Return type**
-
-    `None`
-
-
+  `None`
 
 ### log_dataset(dataset, \*, batch_size=100000, text='text', id='id', split=None, meta=None, \*\*kwargs)
+
 Log an iterable or other dataset to disk. Useful for logging memory mapped files
 
 Dataset provided must be an iterable that can be traversed row by row, and for each
@@ -306,17 +260,13 @@ In the invalid case, use dq.log_data_samples:
 
 Keyword arguments are specific to the task type. See dq.docs() for details
 
+- **Parameters**
 
-* **Parameters**
+  **dataset** (`TypeVar`(`DataSet`, bound= `Union`[`Iterable`, `DataFrame`, `DataFrame`])) -- The iterable or dataframe to log
 
-    **dataset** (`TypeVar`(`DataSet`, bound= `Union`[`Iterable`, `DataFrame`, `DataFrame`])) -- The iterable or dataframe to log
+- **Batch_size**
 
-
-
-* **Batch_size**
-
-    The number of data samples to log at a time. Useful when logging a
-
+  The number of data samples to log at a time. Useful when logging a
 
 memory mapped dataset. A larger batch_size will result in faster logging at the
 expense of more memory usage. Default 100,000
@@ -329,28 +279,22 @@ expense of more memory usage. Default 100,000
 
 > dq.set_split
 
+- **Parameters**
 
-* **Parameters**
-
-    
-    * **meta** (`Optional`[`List`[`Union`[`str`, `int`]]]) -- List[str | int] Additional keys/columns to your input data to be
+  - **meta** (`Optional`[`List`[`Union`[`str`, `int`]]]) -- List[str | int] Additional keys/columns to your input data to be
     logged as metadata. Consider a pandas dataframe, this would be the list of
     columns corresponding to each metadata field to log
 
-
-    * **kwargs** (`Any`) -- See help(dq.get_data_logger().log_dataset) for more details here
-
+  - **kwargs** (`Any`) -- See help(dq.get_data_logger().log_dataset) for more details here
 
 or dq.docs() for more general task details
 
+- **Return type**
 
-* **Return type**
-
-    `None`
-
-
+  `None`
 
 ### auto(hf_data=None, hf_inference_names=None, train_data=None, val_data=None, test_data=None, inference_data=None, max_padding_length=200, hf_model='distilbert-base-uncased', labels=None, project_name=None, run_name=None, wait=True, create_data_embs=False)
+
 Automatically gets insights on a text classification or NER dataset
 
 Given either a pandas dataframe, file_path, or huggingface dataset path, this
@@ -360,91 +304,60 @@ provide Galileo insights via a link to the Galileo Console
 One of hf_data, train_data should be provided. If neither of those are, a
 demo dataset will be loaded by Galileo for training.
 
+- **Parameters**
 
-* **Parameters**
-
-    
-    * **hf_data** (`Union`[`DatasetDict`, `str`, `None`]) -- Union[DatasetDict, str] Use this param if you have huggingface
+  - **hf_data** (`Union`[`DatasetDict`, `str`, `None`]) -- Union[DatasetDict, str] Use this param if you have huggingface
     data in the hub or in memory. Otherwise see train_data, val_data,
     and test_data. If provided, train_data, val_data, and test_data are ignored.
 
-
-    * **hf_inference_names** (`Optional`[`List`[`str`]]) -- Use this param alongside hf_data if you have splits
+  - **hf_inference_names** (`Optional`[`List`[`str`]]) -- Use this param alongside hf_data if you have splits
     you'd like to consider as inference. A list of key names in hf_data
     to be run as inference runs after training. Any keys set must exist in hf_data
 
+  - **train_data** (`Union`[`DataFrame`, `Dataset`, `str`, `None`]) -- Optional training data to use. Can be one of \* Pandas dataframe \* Huggingface dataset \* Path to a local file \* Huggingface dataset hub path
 
-    * **train_data** (`Union`[`DataFrame`, `Dataset`, `str`, `None`]) -- Optional training data to use. Can be one of
-    \* Pandas dataframe
-    \* Huggingface dataset
-    \* Path to a local file
-    \* Huggingface dataset hub path
-
-
-    * **val_data** (`Union`[`DataFrame`, `Dataset`, `str`, `None`]) -- Optional validation data to use. The validation data is what is
+  - **val_data** (`Union`[`DataFrame`, `Dataset`, `str`, `None`]) -- Optional validation data to use. The validation data is what is
     used for the evaluation dataset in huggingface, and what is used for early
     stopping. If not provided, but test_data is, that will be used as the evaluation
     set. If neither val nor test are available, the train data will be randomly
     split 80/20 for use as evaluation data.
-    Can be one of
-    \* Pandas dataframe
-    \* Huggingface dataset
-    \* Path to a local file
-    \* Huggingface dataset hub path
+    Can be one of \* Pandas dataframe \* Huggingface dataset \* Path to a local file \* Huggingface dataset hub path
 
-
-    * **test_data** (`Union`[`DataFrame`, `Dataset`, `str`, `None`]) -- Optional test data to use. The test data, if provided with val,
+  - **test_data** (`Union`[`DataFrame`, `Dataset`, `str`, `None`]) -- Optional test data to use. The test data, if provided with val,
     will be used after training is complete, as the held-out set. If no validation
     data is provided, this will instead be used as the evaluation set.
-    Can be one of
-    \* Pandas dataframe
-    \* Huggingface dataset
-    \* Path to a local file
-    \* Huggingface dataset hub path
+    Can be one of \* Pandas dataframe \* Huggingface dataset \* Path to a local file \* Huggingface dataset hub path
 
-
-    * **inference_data** (`Optional`[`Dict`[`str`, `Union`[`DataFrame`, `Dataset`, `str`]]]) -- User this param to include inference data alongside the
+  - **inference_data** (`Optional`[`Dict`[`str`, `Union`[`DataFrame`, `Dataset`, `str`]]]) -- User this param to include inference data alongside the
     train_data param. If you are passing data via the hf_data parameter, you
     should use the hf_inference_names param. Optional inference datasets to run
     with after training completes. The structure is a dictionary with the
-    key being the inference name and the value one of
-    \* Pandas dataframe
-    \* Huggingface dataset
-    \* Path to a local file
-    \* Huggingface dataset hub path
+    key being the inference name and the value one of \* Pandas dataframe \* Huggingface dataset \* Path to a local file \* Huggingface dataset hub path
 
-
-    * **max_padding_length** (`int`) -- The max length for padding the input text
+  - **max_padding_length** (`int`) -- The max length for padding the input text
     during tokenization. Default 200
 
-
-    * **hf_model** (`str`) -- The pretrained AutoModel from huggingface that will be used to
+  - **hf_model** (`str`) -- The pretrained AutoModel from huggingface that will be used to
     tokenize and train on the provided data. Default distilbert-base-uncased
 
-
-    * **labels** (`Optional`[`List`[`str`]]) -- Optional list of labels for this dataset. If not provided, they
+  - **labels** (`Optional`[`List`[`str`]]) -- Optional list of labels for this dataset. If not provided, they
     will attempt to be extracted from the data
 
-
-    * **project_name** (`Optional`[`str`]) -- Optional project name. If not set, a random name will
+  - **project_name** (`Optional`[`str`]) -- Optional project name. If not set, a random name will
     be generated
 
-
-    * **run_name** (`Optional`[`str`]) -- Optional run name for this data. If not set, a random name will
+  - **run_name** (`Optional`[`str`]) -- Optional run name for this data. If not set, a random name will
     be generated
 
-
-    * **wait** (`bool`) -- Whether to wait for Galileo to complete processing your run.
+  - **wait** (`bool`) -- Whether to wait for Galileo to complete processing your run.
     Default True
 
-
-    * **create_data_embs** (`bool`) -- Whether to create data embeddings for this run. If True,
+  - **create_data_embs** (`bool`) -- Whether to create data embeddings for this run. If True,
     Sentence-Transformers will be used to generate data embeddings for this dataset
     and uploaded with this run. You can access these embeddings via
     dq.metrics.get_data_embeddings in the emb column or
     dq.metrics.get_dataframe(..., include_data_embs=True) in the data_emb col
     Only available for TC currently. NER coming soon. Default False.
-
 
 For text classification datasets, the only required columns are text and label
 
@@ -517,32 +430,29 @@ dq.auto(
 
 An example of using auto with a local CSV file with text and label columns
 
-```python
-```
+.. code-block:: python
 
-import dataquality as dq
+    import dataquality as dq
 
-dq.auto(
+    dq.auto(
 
-    train_data="train.csv",
-    test_data="test.csv",
-    project_name="data_from_local",
-    run_name="run_1_raw_data"
+        train_data="train.csv",
+        test_data="test.csv",
+        project_name="data_from_local",
+        run_name="run_1_raw_data"
 
-)
+    )
 
+- **Return type**
 
-* **Return type**
-
-    `None`
-
+  `None`
 
 # dataquality.integrations.torch
 
-
 ### watch(model, dataloaders=[], last_hidden_state_layer=None, embedding_dim=None, logits_dim=None, classifier_layer=None, embedding_fn=None, logits_fn=None, unpatch_on_start=True)
+
 wraps a PyTorch model and optionally dataloaders to log the
-embeddings and logits to [Galileo]([https://www.rungalileo.io/](https://www.rungalileo.io/)).
+embeddings and logits to [Galileo](<[https://www.rungalileo.io/](https://www.rungalileo.io/)>).
 
 ```python
 dq.log_dataset(train_dataset, split="train")
@@ -557,21 +467,15 @@ for epoch in range(NUM_EPOCHS):
 dq.finish()
 ```
 
+- **Parameters**
 
-* **Parameters**
+  - **model** (`Module`) -- Pytorch Model to be wrapped
 
-    
-    * **model** (`Module`) -- Pytorch Model to be wrapped
+  - **dataloaders** (`Optional`[`List`[`DataLoader`]]) -- List of dataloaders to be wrapped
 
+  - **last_hidden_state_layer** (`Union`[`Module`, `str`, `None`]) -- Layer to extract the embeddings from
 
-    * **dataloaders** (`Optional`[`List`[`DataLoader`]]) -- List of dataloaders to be wrapped
-
-
-    * **last_hidden_state_layer** (`Union`[`Module`, `str`, `None`]) -- Layer to extract the embeddings from
-
-
-    * **embedding_dim** (`Union`[`str`, `int`, `slice`, `Tensor`, `List`, `Tuple`, `None`]) -- Dimension of the embeddings for example "[:, 0]"
-
+  - **embedding_dim** (`Union`[`str`, `int`, `slice`, `Tensor`, `List`, `Tuple`, `None`]) -- Dimension of the embeddings for example "[:, 0]"
 
 to remove the cls token
 :type logits_dim: `Union`[`str`, `int`, `slice`, `Tensor`, `List`, `Tuple`, `None`]
@@ -580,45 +484,37 @@ to remove the cls token
 :rtype: `None`
 :return: None
 
-
 ### unwatch(model=None, force=True)
+
 Unwatches the model. Run after the run is finished.
 :type force: `bool`
 :param force: Force unwatch even if the model is not watched
 
+- **Return type**
 
-* **Return type**
-
-    `None`
-
+  `None`
 
 # dataquality.integrations.transformers_trainer
 
-
 ### watch(trainer, last_hidden_state_layer=None, embedding_dim=None, logits_dim=None, classifier_layer=None, embedding_fn=None, logits_fn=None)
-used to *hook* into to the **trainer**
-to log to [Galileo]([https://www.rungalileo.io/](https://www.rungalileo.io/))
 
+used to _hook_ into to the **trainer**
+to log to [Galileo](<[https://www.rungalileo.io/](https://www.rungalileo.io/)>)
 
-* **Parameters**
+- **Parameters**
 
-    **trainer** (`Trainer`) -- Trainer object
+  **trainer** (`Trainer`) -- Trainer object
 
+- **Return type**
 
+  `None`
 
-* **Return type**
+- **Returns**
 
-    `None`
-
-
-
-* **Returns**
-
-    None
-
-
+  None
 
 ### unwatch(trainer)
+
 unwatch is used to remove the callback from the trainer
 :type trainer: `Trainer`
 :param trainer: Trainer object
@@ -627,8 +523,8 @@ unwatch is used to remove the callback from the trainer
 
 # dataquality.integrations.experimental.keras
 
-
 ### watch(model, layer=None, seed=42)
+
 Watch a model and log the inputs and outputs of a layer.
 :type model: `Layer`
 :param model: The model to watch
@@ -637,84 +533,72 @@ Watch a model and log the inputs and outputs of a layer.
 :type seed: `int`
 :param seed: The seed to use for the model
 
+- **Return type**
 
-* **Return type**
-
-    `None`
-
-
+  `None`
 
 ### unwatch(model)
+
 Unpatches the model. Run after the run is finished
 :type model: `Layer`
 :param model: The model to unpatch
 
+- **Return type**
 
-* **Return type**
-
-    `None`
-
+  `None`
 
 # dataquality.integrations.spacy
 
-
 ### watch(nlp)
+
 Stores the nlp object before calling watch on the ner component within it
 
 We need access to the nlp object so that during training we can capture the
 model's predictions over the raw text by running nlp("user's text") and looking
 at the results
 
+- **Parameters**
 
-* **Parameters**
+  **nlp** (`Language`) -- The spacy nlp Language component.
 
-    **nlp** (`Language`) -- The spacy nlp Language component.
+- **Return type**
 
+  `None`
 
+- **Returns**
 
-* **Return type**
-
-    `None`
-
-
-
-* **Returns**
-
-    None
-
-
+  None
 
 ### unwatch(nlp)
+
 Returns spacy nlp Language component to its original unpatched state.
 
 Unfortunately, spacy does not make this easy, so we replicate spacy's add_pipe
 for logic for using internal spacy methods to add a component object to a specific
 position.
 
+- **Return type**
 
-* **Return type**
-
-    `None`
-
+  `None`
 
 # dataquality
 
 dataquality
 
-
 ### _class_ AggregateFunction(value)
+
 Bases: `str`, `Enum`
 
 An enumeration.
-
 
 ### _class_ Operator(value)
+
 Bases: `str`, `Enum`
 
 An enumeration.
 
-
 ### _class_ Condition(\*\*data)
+
 Bases: `BaseModel`
 
 Class for building custom conditions for data quality checks
@@ -725,31 +609,29 @@ of the condition against a given DataFrame.
 With a bit of thought, complex and custom conditions can be built. To gain an
 intuition for what can be accomplished, consider the following examples:
 
-
 1. Is the average confidence less than 0.3?
 
-    ```python
-    >>> c = Condition(
-    ...     agg=AggregateFunction.avg,
-    ...     metric="confidence",
-    ...     operator=Operator.lt,
-    ...     threshold=0.3,
-    ... )
-    >>> c.evaluate(df)
-    ```
-
+   ```python
+   >>> c = Condition(
+   ...     agg=AggregateFunction.avg,
+   ...     metric="confidence",
+   ...     operator=Operator.lt,
+   ...     threshold=0.3,
+   ... )
+   >>> c.evaluate(df)
+   ```
 
 2. Is the max DEP greater or equal to 0.45?
 
-    ```python
-    >>> c = Condition(
-    ...     agg=AggregateFunction.max,
-    ...     metric="data_error_potential",
-    ...     operator=Operator.gte,
-    ...     threshold=0.45,
-    ... )
-    >>> c.evaluate(df)
-    ```
+   ```python
+   >>> c = Condition(
+   ...     agg=AggregateFunction.max,
+   ...     metric="data_error_potential",
+   ...     operator=Operator.gte,
+   ...     threshold=0.45,
+   ... )
+   >>> c.evaluate(df)
+   ```
 
 By adding filters, you can further narrow down the scope of the condition.
 If the aggregate function is "pct", you don't need to specify a metric,
@@ -758,131 +640,120 @@ If the aggregate function is "pct", you don't need to specify a metric,
 
 For example:
 
-
 1. Alert if over 80% of the dataset has confidence under 0.1
 
-    ```python
-    >>> c = Condition(
-    ...     operator=Operator.gt,
-    ...     threshold=0.8,
-    ...     agg=AggregateFunction.pct,
-    ...     filters=[
-    ...         ConditionFilter(
-    ...             metric="confidence", operator=Operator.lt, value=0.1
-    ...         ),
-    ...     ],
-    ... )
-    >>> c.evaluate(df)
-    ```
-
+   ```python
+   >>> c = Condition(
+   ...     operator=Operator.gt,
+   ...     threshold=0.8,
+   ...     agg=AggregateFunction.pct,
+   ...     filters=[
+   ...         ConditionFilter(
+   ...             metric="confidence", operator=Operator.lt, value=0.1
+   ...         ),
+   ...     ],
+   ... )
+   >>> c.evaluate(df)
+   ```
 
 2. Alert if at least 20% of the dataset has drifted (Inference DataFrames only)
 
-    ```python
-    >>> c = Condition(
-    ...     operator=Operator.gte,
-    ...     threshold=0.2,
-    ...     agg=AggregateFunction.pct,
-    ...     filters=[
-    ...         ConditionFilter(
-    ...             metric="is_drifted", operator=Operator.eq, value=True
-    ...         ),
-    ...     ],
-    ... )
-    >>> c.evaluate(df)
-    ```
-
+   ```python
+   >>> c = Condition(
+   ...     operator=Operator.gte,
+   ...     threshold=0.2,
+   ...     agg=AggregateFunction.pct,
+   ...     filters=[
+   ...         ConditionFilter(
+   ...             metric="is_drifted", operator=Operator.eq, value=True
+   ...         ),
+   ...     ],
+   ... )
+   >>> c.evaluate(df)
+   ```
 
 3. Alert 5% or more of the dataset contains PII
 
-    ```python
-    >>> c = Condition(
-    ...     operator=Operator.gte,
-    ...     threshold=0.05,
-    ...     agg=AggregateFunction.pct,
-    ...     filters=[
-    ...         ConditionFilter(
-    ...             metric="galileo_pii", operator=Operator.neq, value="None"
-    ...         ),
-    ...     ],
-    ... )
-    >>> c.evaluate(df)
-    ```
+   ```python
+   >>> c = Condition(
+   ...     operator=Operator.gte,
+   ...     threshold=0.05,
+   ...     agg=AggregateFunction.pct,
+   ...     filters=[
+   ...         ConditionFilter(
+   ...             metric="galileo_pii", operator=Operator.neq, value="None"
+   ...         ),
+   ...     ],
+   ... )
+   >>> c.evaluate(df)
+   ```
 
 Complex conditions can be built when the filter has a different metric
 than the metric used in the condition. For example:
 
-
 1. Alert if the min confidence of drifted data is less than 0.15
 
-    ```python
-    >>> c = Condition(
-    ...     agg=AggregateFunction.min,
-    ...     metric="confidence",
-    ...     operator=Operator.lt,
-    ...     threshold=0.15,
-    ...     filters=[
-    ...         ConditionFilter(
-    ...             metric="is_drifted", operator=Operator.eq, value=True
-    ...         )
-    ...     ],
-    ... )
-    >>> c.evaluate(df)
-    ```
-
+   ```python
+   >>> c = Condition(
+   ...     agg=AggregateFunction.min,
+   ...     metric="confidence",
+   ...     operator=Operator.lt,
+   ...     threshold=0.15,
+   ...     filters=[
+   ...         ConditionFilter(
+   ...             metric="is_drifted", operator=Operator.eq, value=True
+   ...         )
+   ...     ],
+   ... )
+   >>> c.evaluate(df)
+   ```
 
 2. Alert if over 50% of high DEP (>=0.7) data contains PII
 
-    ```python
-    >>> c = Condition(
-    ...     operator=Operator.gt,
-    ...     threshold=0.5,
-    ...     agg=AggregateFunction.pct,
-    ...     filters=[
-    ...         ConditionFilter(
-    ...             metric="data_error_potential", operator=Operator.gte, value=0.7
-    ...         ),
-    ...         ConditionFilter(
-    ...             metric="galileo_pii", operator=Operator.neq, value="None"
-    ...         ),
-    ...     ],
-    ... )
-    >>> c.evaluate(df)
-    ```
+   ```python
+   >>> c = Condition(
+   ...     operator=Operator.gt,
+   ...     threshold=0.5,
+   ...     agg=AggregateFunction.pct,
+   ...     filters=[
+   ...         ConditionFilter(
+   ...             metric="data_error_potential", operator=Operator.gte, value=0.7
+   ...         ),
+   ...         ConditionFilter(
+   ...             metric="galileo_pii", operator=Operator.neq, value="None"
+   ...         ),
+   ...     ],
+   ... )
+   >>> c.evaluate(df)
+   ```
 
 You can also call conditions directly, which will assert its truth against a df
+
 1. Assert that average confidence less than 0.3
->>> c = Condition(
-...     agg=AggregateFunction.avg,
-...     metric="confidence",
-...     operator=Operator.lt,
-...     threshold=0.3,
-... )
->>> c(df)  # Will raise an AssertionError if False
+   > > > c = Condition(
+   > > > ... agg=AggregateFunction.avg,
+   > > > ... metric="confidence",
+   > > > ... operator=Operator.lt,
+   > > > ... threshold=0.3,
+   > > > ... )
+   > > > c(df) # Will raise an AssertionError if False
 
+- **Parameters**
 
-* **Parameters**
+  - **metric** -- The DF column for evaluating the condition
 
-    
-    * **metric** -- The DF column for evaluating the condition
+  - **agg** -- An aggregate function to apply to the metric
 
-
-    * **agg** -- An aggregate function to apply to the metric
-
-
-    * **operator** -- The operator to use for comparing the agg to the threshold
+  - **operator** -- The operator to use for comparing the agg to the threshold
     (e.g. "gt", "lt", "eq", "neq")
 
+  - **threshold** -- Threshold value for evaluating the condition
 
-    * **threshold** -- Threshold value for evaluating the condition
-
-
-    * **filter** -- Optional filter to apply to the DataFrame before evaluating the
+  - **filter** -- Optional filter to apply to the DataFrame before evaluating the
     condition
 
-
-
 ### _class_ ConditionFilter(\*\*data)
+
 Bases: `BaseModel`
 
 Filter a dataframe based on the column value
@@ -891,12 +762,9 @@ Note that the column used for filtering is the same as the metric used
 
     in the condition.
 
+- **Parameters**
 
-* **Parameters**
-
-    
-    * **operator** -- The operator to use for filtering (e.g. "gt", "lt", "eq", "neq")
+  - **operator** -- The operator to use for filtering (e.g. "gt", "lt", "eq", "neq")
     See Operator
 
-
-    * **value** -- The value to compare against
+  - **value** -- The value to compare against

@@ -122,6 +122,7 @@ def init(
     Optionally provide project and run names to create a new project/run or restart
     existing ones.
 
+
     :param task_type: The task type for modeling. This must be one of the valid
     `dataquality.schemas.task_type.TaskType` options
     :param project_name: The project name. If not passed in, a random one will be

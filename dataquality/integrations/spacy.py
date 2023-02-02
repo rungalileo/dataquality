@@ -141,7 +141,6 @@ def watch(nlp: Language) -> None:
     at the results
 
     :param nlp: The spacy nlp Language component.
-    :return: None
     """
     a.log_function("spacy/watch")
     validate_spacy_version()

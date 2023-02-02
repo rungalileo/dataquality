@@ -103,8 +103,7 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
         :param args: Training arguments
         :param state: Trainer state
         :param model: Model
-        :param kwargs: Keyword arguments (eval_dataloader, train_dataloader, tokenizer)
-        :return: None"""
+        :param kwargs: Keyword arguments (eval_dataloader, train_dataloader, tokenizer)"""
 
         assert dq.config.task_type, GalileoException(
             "dq client must be initialized. "
@@ -157,7 +156,6 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
         :param state: Trainer state
         :param control: Trainer control
         :param kwargs: Keyword arguments (model, eval_dataloader, tokenizer...)
-        :return: None
         """
         if not self._initialized:
             self.setup(args, state, kwargs)
@@ -226,7 +224,6 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
         :param state: Trainer state
         :param control: Trainer control
         :param kwargs: Keyword arguments (including the model, inputs, outputs)
-        :return: None
         """
         self._do_log()
 
@@ -237,7 +234,6 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
         Method to attach hooks to the model by using the hook manager
         :param model: Model
         :param model: pytorch model layer to attach hooks to
-        :return: None
         """
         try:
             self.hook_manager.attach_classifier_hook(
@@ -276,8 +272,6 @@ def watch(
     to log to [Galileo](https://www.rungalileo.io/)
 
     :param trainer: Trainer object
-
-    :return: None
     """
     a.log_function("transformers_trainer/watch")
     helper_data = dq.get_model_logger().logger_config.helper_data
@@ -317,7 +311,6 @@ def unwatch(trainer: Trainer) -> None:
     """
     `unwatch` is used to remove the callback from the trainer
     :param trainer: Trainer object
-    :return: None
     """
     a.log_function("transformers_trainer/unwatch")
     helper_data = dq.get_model_logger().logger_config.helper_data
