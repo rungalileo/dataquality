@@ -19,6 +19,12 @@ dataquality.integrations.transformers_trainer
     :show-inheritance:
     :member-order: bysource
 
+dataquality.integrations.keras
+-----------
+.. automodule:: dataquality.integrations.keras
+    :members: 
+    :show-inheritance:
+
 dataquality.integrations.experimental.keras
 -----------
 .. automodule:: dataquality.integrations.experimental.keras
@@ -33,6 +39,13 @@ dataquality.integrations.spacy
     :show-inheritance:
     :member-order: bysource
 
+
+dataquality.integrations.hf
+-----------
+.. automodule:: dataquality.integrations.hf
+    :members:
+    :show-inheritance:
+    :member-order: bysource
 
 dataquality
 -----------
