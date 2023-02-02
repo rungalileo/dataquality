@@ -1,9 +1,10 @@
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
 import vaex
 import xgboost as xgb
+from sklearn.utils.validation import check_is_fitted
 from vaex.dataframe import DataFrame
 
 from dataquality.clients.objectstore import ObjectStore
@@ -21,111 +22,79 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
 
     def __init__(
         self,
-        model: Optional[xgb.XGBClassifier] = None,
-        X: Optional[np.ndarray] = None,
-        y: Optional[np.ndarray] = None,
-        probs: Optional[np.ndarray] = None,
+        model: xgb.XGBClassifier,
+        X: Union[pd.DataFrame, np.ndarray],
+        y: Optional[Union[List, np.ndarray]] = None,
+        feature_names: Optional[List[str]] = None,
+        split: Optional[Split] = None,
+        inference_name: Optional[str] = None,
     ) -> None:
         super().__init__()
-        self.model: xgb.XGBClassifier = model or xgb.XGBClassifier()
-        self.X: np.ndarray = X if X is not None else np.array([])
-        self.y: np.ndarray = y if y is not None else np.array([])
-        self.probs: np.ndarray = probs if probs is not None else np.array([])
+        self.model = model
+        self.X = X
+        self.y = y
+        self.feature_names = feature_names
+        self.split = split
+        self.inference_name = inference_name
 
-    def validate(self) -> None:
+        self.validate_inputs()
+
+    def validate_inputs(self) -> None:
         """Validates the input data before logging to Minio
 
         Validates:
-            - The split is set and is one of the allowed splits (in super)
-            - If the user is cloud the split is not inference (in super)
-            - The length of the data and probs are the same
+            - The model is an XGBoost classifier
+            - The model is fit
+            - The data is a pandas DataFrame or numpy array
+            - If the split is not inf, the labels are a numpy array
+            - If the split is not inf, the data and labels are the same length
+            - If X is a numpy array, the feature names are provided
+            - If X is a numpy array, the number of features in X and feature names
+                are the same
+
+        Sets:
+            - self.X to a pandas DataFrame if it is a numpy array
+            - self.y to a numpy array if it is a list
         """
-        super().validate()
-        assert len(self.dataset) == len(self.probs), (
-            "Data and probs are not the same length. "
-            f"Data: {len(self.dataset)}, Probs: {len(self.probs)}"
-        )
+        assert isinstance(
+            self.model, xgb.XGBClassifier
+        ), "Logging structured data currently only supports XGBoost for classification."
+        assert check_is_fitted(self.model), "Model must be fit before logging data"
+        assert isinstance(
+            self.X, (pd.DataFrame, np.ndarray)
+        ), f"X must be a pandas DataFrame or numpy array, not {type(self.X)}"
 
-    @classmethod
-    def create_dataset_from_samples(
-        cls, X: np.ndarray, y: Optional[np.ndarray], feature_names: List[str]
-    ) -> pd.DataFrame:
-        """Validates and creates pandas DataFrame from input data
+        if self.split is not None and self.split != Split.inference:
+            assert isinstance(
+                self.y, (List, np.ndarray)
+            ), "y must be a numpy array of labels"
+            self.y = np.array(self.y) if self.y is not None else None
+            assert len(self.X) == len(self.y), (
+                "X and y must be the same length. "
+                f"X: {len(self.X)}, y: {len(self.y)}"
+            )
 
-        Validates:
-            - The number of feature names is the same as the number of features
-            - If the split is not inf, the length of the data and labels is the same
-
-        Args:
-            X: The data to be logged
-            y: The labels to be logged
-            feature_names: The names of the features in the data
-        Returns:
-            A pandas DataFrame with the data and labels
-            The label column is named "gold"
-        """
-        feature_msg = (
-            "The number of feature_names is not the same as the number of "
-            "features in the datset."
-        )
-        assert len(feature_names) == len(X[0]), feature_msg
-
-        dataset = pd.DataFrame(X, columns=feature_names)
-
-        if y is not None and y.any():
-            assert len(X) == len(y), "Data and labels are not the same length. "
-            f"Data: {len(X)}, Labels: {len(y)}"
-            dataset["gold"] = y
-
-        return dataset
+        if isinstance(self.X, np.ndarray):
+            assert self.feature_names is not None, (
+                "feature_names must be provided when logging X as a numpy array. "
+                "If X is a pandas DataFrame, feature_names will be inferred from the "
+                "column names."
+            )
+            assert len(self.X[0]) == len(
+                self.feature_names
+            ), "X and feature_names must have the same number of features"
+            self.X = (
+                pd.DataFrame(self.X, columns=self.feature_names)
+                if isinstance(self.X, np.ndarray)
+                else self.X
+            )
 
     def set_probs(self) -> None:
         """Sets the probs attribute for the class
 
         Assumes model and dataset are set.
-        Assumes dataset is input data X, with optional "id" and "gold" columns
-            that are removed
         """
-        error_msg = (
-            "must be set before setting probs. Try calling `log_structured_dataset`"
-        )
-        assert self.model is not None, f"Model {error_msg}"
-        assert self.dataset is not None, f"Dataset {error_msg}"
-
-        input_data = self.dataset.copy()
-        # Drop gold and id columns if they exist
-        input_data = input_data.drop(["gold", "id"], axis=1, errors="ignore").to_numpy()
-        self.probs = self.model.predict_proba(input_data)
-
-    def log_samples(
-        self,
-        model: xgb.XGBClassifier,
-        X: np.ndarray,
-        feature_names: List[str],
-        y: Optional[np.ndarray],
-        split: str = None,
-        inference_name: str = None,
-    ) -> None:
-        self.model = model
-        self.split = split
-        self.inference_name = inference_name
-        self.dataset = self.create_dataset_from_samples(X, y, feature_names)
-        self.log()
-
-    def log_structured_dataset(
-        self,
-        model: xgb.XGBClassifier,
-        dataset: pd.DataFrame,
-        label: Optional[str],
-        split: str = None,
-        inference_name: str = None,
-    ) -> None:
-        self.model = model
-        self.dataset = dataset
-        self.dataset.rename(columns={label: "gold"}, inplace=True)
-        self.split = split
-        self.inference_name = inference_name
-        self.log()
+        self.probs = self.model.predict_proba(self.X)
 
     def log(self) -> None:
         """Writes input data to disk in .galileo/logs
@@ -144,6 +113,7 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
         that restriction, it will go here after getting data_dict
         """
         self.set_probs()
+        # Validates split and inference name, defined in parent class
         self.validate()
         # E.g. proj-id/run-id/training or proj-id/run-id/inference/my-inference
         object_base_path = f"{self.proj_run}/{self.split_name_path}"
@@ -162,12 +132,15 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
 
     def _get_dfs(self) -> Tuple[DataFrame, DataFrame]:
         """Returns data and probs as vaex DataFrames"""
-        df = vaex.from_pandas(self.dataset)
+        assert isinstance(self.X, pd.DataFrame), (
+            "X must be a pandas DataFrame. " f"X is currently a {type(self.X)}"
+        )
+        df = vaex.from_pandas(self.X)
         n_rows = len(df)
         ids = (
             df.id.to_numpy()
             if "id" in df.get_column_names()
-            else self.dataset.index.to_numpy()
+            else self.X.index.to_numpy()
         )
 
         # Add id, split, data_schema_version, and inference_name to the data
@@ -179,9 +152,8 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
 
         # Create probs DataFrame
         probs_df = vaex.from_arrays(id=ids, prob=self.probs)
-        if self.split != Split.inference and "gold" in self.dataset:
-            probs_df["gold"] = self.dataset["gold"].to_numpy()
-            df = df.drop("gold")
+        if self.split != Split.inference:
+            probs_df["gold"] = self.y
 
         return df, probs_df
 

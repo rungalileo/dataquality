@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -148,16 +148,16 @@ def log_image_dataset(
 
 
 @check_noop
-def log_structured_samples(
+def log(
     model: xgb.XGBClassifier,
-    X: np.ndarray,
-    feature_names: List[str],
+    X: Union[pd.DataFrame, np.ndarray],
     *,
-    y: Optional[np.ndarray] = None,
+    y: Optional[Union[List, np.ndarray]] = None,
+    feature_names: Optional[List[str]] = None,
     split: Optional[Split] = None,
     inference_name: Optional[str] = None,
 ) -> None:
-    """Log a split with raw numpy arrays for structured data
+    """Log data for structured classification models with XGBoost
 
     Example:
     .. code-block:: python
@@ -173,17 +173,20 @@ def log_structured_samples(
         model = xgb.XGBClassifier()
         model.fit(X, y)
 
-        dq.log_dataset(model, X, feature_names, y=y, split="training")
+        dq.log(model, X, y=y, feature_names=feature_names, split="training")
 
         # or for inference
-        dq.log_dataset(
+        dq.log(
             model, X, feature_names, split="inference", inference_name="my_inference"
         )
 
     :param model: XGBClassifier model fit on the training data
-    :param X: np.ndarray of shape (n_samples, n_features)
-    :param feature_names: List[str] of length n_features
-    :param y: Optional[np.ndarray] of shape (n_samples,). Provide for non-inference only
+    :param X: The input data has a numpy array or pandas DataFrame. Data should
+        have shape (n_samples, n_features)
+    :param y: Optional array of ground truth labels with shape (n_samples,).
+        Provide for non-inference only
+    :param feature_names: List of feature names if X is input as numpy array.
+       Must have length n_features
     :param split: Optional[str] the split for this data. Can also be set via
         dq.set_split
     :param inference_name: Optional[str] the inference_name for this data. Can also be
@@ -192,90 +195,15 @@ def log_structured_samples(
     assert all(
         [config.task_type, config.current_project_id, config.current_run_id]
     ), "You must call dataquality.init before logging data"
-    data_logger = get_data_logger()
+    data_logger = get_data_logger(
+        task_type=None, model=model, X=X, y=y, feature_names=feature_names, split=split
+    )
     assert isinstance(data_logger, StructuredClassificationDataLogger), (
         "This method is only supported for structured data tasks. "
         "You must call dq.init('structured_classification') to use this method."
     )
-    assert isinstance(
-        model, xgb.XGBClassifier
-    ), "Logging structured data currently only supports XGBoost for classification."
-    assert isinstance(X, np.ndarray), "X must be a numpy array"
-    if split is not None and split != Split.inference:
-        assert isinstance(y, np.ndarray), "y must be a numpy array of labels"
 
-    data_logger.log_samples(
-        model=model,
-        X=X,
-        y=y,
-        feature_names=feature_names,
-        split=split,
-        inference_name=inference_name,
-    )
-
-
-@check_noop
-def log_structured_dataset(
-    model: xgb.XGBClassifier,
-    dataset: pd.DataFrame,
-    *,
-    label: Optional[str] = "label",
-    split: Optional[Split] = None,
-    inference_name: Optional[str] = None,
-) -> None:
-    """Log a pandas DataFrame for structured data
-
-    Example:
-    .. code-block:: python
-
-        import xgboost as xgb
-        from sklearn.datasets import load_wine
-
-        data = load_wine()
-        X = data.data
-        y = data.target
-        feature_names = data.feature_names
-
-        model = xgb.XGBClassifier()
-        model.fit(X, y)
-
-        dataset = pd.DataFrame(X, columns=feature_names)
-        dataset["label"] = y
-        dq.log_dataset(model, dataset, label="label", split="training")
-
-        # or for inference
-        dataset = pd.DataFrame(X, columns=feature_names)
-        dq.log_dataset(
-            model, dataset, split="inference", inference_name="my_inference"
-        )
-
-    :param model: XGBClassifier model fit on the training data
-    :param dataset: The pandas dataframe to log
-    :param label: Optional[str] The column for gold label in dataset. Default "label"
-    :param split: Optional[str] the split for this data. Can also be set via
-        dq.set_split
-    :param inference_name: Optional[str] the inference_name for this data. Can also be
-        set via dq.set_split
-    """
-    assert all(
-        [config.task_type, config.current_project_id, config.current_run_id]
-    ), "You must call dataquality.init before logging data"
-    data_logger = get_data_logger()
-    assert isinstance(data_logger, StructuredClassificationDataLogger), (
-        "This method is only supported for structured data tasks. "
-        "You must call dq.init('structured_classification') to use this method."
-    )
-    assert isinstance(
-        model, xgb.XGBClassifier
-    ), "Logging structured data currently only supports XGBoost for classification."
-
-    data_logger.log_structured_dataset(
-        model=model,
-        dataset=dataset,
-        label=label,
-        split=split,
-        inference_name=inference_name,
-    )
+    data_logger.log()
 
 
 @check_noop
@@ -407,7 +335,8 @@ def log_model_outputs(
     if embs is None and exclude_embs:
         embs = np.random.rand(len(ids), DEFAULT_RANDOM_EMB_DIM)
 
-    model_logger = get_model_logger()(
+    model_logger = get_model_logger(
+        task_type=None,
         embs=embs,
         ids=ids,
         split=Split[split].value if split else "",
@@ -473,14 +402,18 @@ def set_tagging_schema(tagging_schema: TaggingSchema) -> None:
     get_data_logger().set_tagging_schema(tagging_schema)
 
 
-def get_model_logger(task_type: TaskType = None) -> Type[BaseGalileoModelLogger]:
+def get_model_logger(
+    task_type: TaskType = None, *args: Any, **kwargs: Any
+) -> BaseGalileoModelLogger:
     task_type = _get_task_type(task_type)
-    return BaseGalileoModelLogger.get_logger(task_type)
+    return BaseGalileoModelLogger.get_logger(task_type)(*args, **kwargs)
 
 
-def get_data_logger(task_type: TaskType = None) -> BaseGalileoDataLogger:
+def get_data_logger(
+    task_type: TaskType = None, *args: Any, **kwargs: Any
+) -> BaseGalileoDataLogger:
     task_type = _get_task_type(task_type)
-    return BaseGalileoDataLogger.get_logger(task_type)()
+    return BaseGalileoDataLogger.get_logger(task_type)(*args, **kwargs)
 
 
 def _get_task_type(task_type: TaskType = None) -> TaskType:
