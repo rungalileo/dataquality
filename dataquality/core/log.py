@@ -159,7 +159,11 @@ def log(
 ) -> None:
     """Log data for structured classification models with XGBoost
 
-    Example:
+    X can be logged as a numpy array or pandas DataFrame. If a numpy array is
+    provided, feature_names must be provided. If a pandas DataFrame is provided,
+    feature_names will be inferred from the column names.
+
+    Example with numpy array:
     .. code-block:: python
 
         import xgboost as xgb
@@ -178,6 +182,26 @@ def log(
         # or for inference
         dq.log(
             model, X, feature_names, split="inference", inference_name="my_inference"
+        )
+
+    Example with pandas DataFrame:
+    .. code-block:: python
+
+        import xgboost as xgb
+        from sklearn.datasets import load_wine
+
+        data = load_wine()
+        df = pd.DataFrame(data.data, columns=data.feature_names)
+        y = data.target
+
+        model = xgb.XGBClassifier()
+        model.fit(df, y)
+
+        dq.log(model, X=df, y=y, split="training")
+
+        # or for inference
+        dq.log(
+            model, X=df, split="inference", inference_name="my_inference"
         )
 
     :param model: XGBClassifier model fit on the training data
