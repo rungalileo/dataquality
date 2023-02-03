@@ -336,13 +336,13 @@ class TestStructuredClassificationE2E:
         """Test logging input pandas dfs for training, validation and test splits"""
         set_test_config(task_type="structured_classification")
         dq.set_labels_for_run(sc_data["labels"])
-        dq.log(
+        dq.log_xgboost(
             model=fit_xgboost,
             X=sc_data["training"]["df"],
             y=sc_data["training"]["y"],
             split="training",
         )
-        dq.log(
+        dq.log_xgboost(
             model=fit_xgboost,
             X=sc_data["test"]["df"],
             y=sc_data["test"]["y"],
@@ -380,14 +380,14 @@ class TestStructuredClassificationE2E:
         """Test logging input numpy arrays for training, validation and test splits"""
         set_test_config(task_type="structured_classification")
         dq.set_labels_for_run(sc_data["labels"])
-        dq.log(
+        dq.log_xgboost(
             model=fit_xgboost,
             X=sc_data["training"]["X"],
             feature_names=sc_data["feature_names"],
             y=sc_data["training"]["y"],
             split="training",
         )
-        dq.log(
+        dq.log_xgboost(
             model=fit_xgboost,
             X=sc_data["test"]["X"],
             feature_names=sc_data["feature_names"],
@@ -426,19 +426,19 @@ class TestStructuredClassificationE2E:
         """Test logging input pandas dfs for training and inference splits"""
         set_test_config(task_type="structured_classification")
         dq.set_labels_for_run(sc_data["labels"])
-        dq.log(
+        dq.log_xgboost(
             model=fit_xgboost,
             X=sc_data["training"]["df"],
             y=sc_data["training"]["y"],
             split="training",
         )
-        dq.log(
+        dq.log_xgboost(
             model=fit_xgboost,
             X=sc_data["inf1"]["df"],
             split="inference",
             inference_name="inf1",
         )
-        dq.log(
+        dq.log_xgboost(
             model=fit_xgboost,
             X=sc_data["inf2"]["df"],
             split="inference",
@@ -478,21 +478,21 @@ class TestStructuredClassificationE2E:
         """Test logging input numpy arrays for training and inference splits"""
         set_test_config(task_type="structured_classification")
         dq.set_labels_for_run(sc_data["labels"])
-        dq.log(
+        dq.log_xgboost(
             model=fit_xgboost,
             X=sc_data["training"]["X"],
             y=sc_data["training"]["y"],
             feature_names=sc_data["feature_names"],
             split="training",
         )
-        dq.log(
+        dq.log_xgboost(
             model=fit_xgboost,
             X=sc_data["inf1"]["X"],
             feature_names=sc_data["feature_names"],
             split="inference",
             inference_name="inf1",
         )
-        dq.log(
+        dq.log_xgboost(
             model=fit_xgboost,
             X=sc_data["inf2"]["X"],
             feature_names=sc_data["feature_names"],
@@ -533,13 +533,13 @@ class TestStructuredClassificationE2E:
         """Test logging input data as pandas dfs for inference splits"""
         set_test_config(task_type="structured_classification")
         dq.set_labels_for_run(sc_data["labels"])
-        dq.log(
+        dq.log_xgboost(
             model=fit_xgboost,
             X=sc_data["inf1"]["df"],
             split="inference",
             inference_name="inf1",
         )
-        dq.log(
+        dq.log_xgboost(
             model=fit_xgboost,
             X=sc_data["inf2"]["df"],
             split="inference",
@@ -581,14 +581,14 @@ class TestStructuredClassificationE2E:
         """Test logging input data as numpy arrays for inference splits"""
         set_test_config(task_type="structured_classification")
         dq.set_labels_for_run(sc_data["labels"])
-        dq.log(
+        dq.log_xgboost(
             model=fit_xgboost,
             X=sc_data["inf1"]["X"],
             feature_names=sc_data["feature_names"],
             split="inference",
             inference_name="inf1",
         )
-        dq.log(
+        dq.log_xgboost(
             model=fit_xgboost,
             X=sc_data["inf2"]["X"],
             feature_names=sc_data["feature_names"],

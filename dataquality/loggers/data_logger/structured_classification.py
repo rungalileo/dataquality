@@ -87,11 +87,7 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
             assert len(self.X[0]) == len(
                 self.feature_names
             ), "X and feature_names must have the same number of features"
-            self.X = (
-                pd.DataFrame(self.X, columns=self.feature_names)
-                if isinstance(self.X, np.ndarray)
-                else self.X
-            )
+            self.X = pd.DataFrame(self.X, columns=self.feature_names)
 
         self.set_probs()
 
@@ -141,7 +137,7 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
         ids = (
             df.id.to_numpy()
             if "id" in df.get_column_names()
-            else self.X.index.to_numpy()
+            else np.arange(len(self.X))
         )
 
         # Add id, split, data_schema_version, and inference_name to the data

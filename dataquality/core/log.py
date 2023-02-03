@@ -148,7 +148,7 @@ def log_image_dataset(
 
 
 @check_noop
-def log(
+def log_xgboost(
     model: xgb.XGBClassifier,
     X: Union[pd.DataFrame, np.ndarray],
     *,
@@ -169,18 +169,15 @@ def log(
         import xgboost as xgb
         from sklearn.datasets import load_wine
 
-        data = load_wine()
-        X = data.data
-        y = data.target
-        feature_names = data.feature_names
+        X, y = load_wine(as_frame=True, return_X_y=True)
 
         model = xgb.XGBClassifier()
         model.fit(X, y)
 
-        dq.log(model, X, y=y, feature_names=feature_names, split="training")
+        dq.log_xgboost(model, X, y=y, feature_names=feature_names, split="training")
 
         # or for inference
-        dq.log(
+        dq.log_xgboost(
             model, X, feature_names, split="inference", inference_name="my_inference"
         )
 
@@ -190,17 +187,15 @@ def log(
         import xgboost as xgb
         from sklearn.datasets import load_wine
 
-        data = load_wine()
-        df = pd.DataFrame(data.data, columns=data.feature_names)
-        y = data.target
+        X, y = load_wine(as_frame=True, return_X_y=True)
 
         model = xgb.XGBClassifier()
         model.fit(df, y)
 
-        dq.log(model, X=df, y=y, split="training")
+        dq.log_xgboost(model, X=df, y=y, split="training")
 
         # or for inference
-        dq.log(
+        dq.log_xgboost(
             model, X=df, split="inference", inference_name="my_inference"
         )
 
