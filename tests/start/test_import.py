@@ -13,8 +13,8 @@ from transformers import (
     TrainingArguments,
 )
 
+import dataquality
 import dataquality as dq
-from dataquality import DataQuality
 from dataquality.clients.api import ApiClient
 from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID, LOCATION
@@ -127,7 +127,7 @@ def test_cv_hf(
         eval_dataset=food["test"],
         tokenizer=feature_extractor,
     )
-    with DataQuality(
+    with dataquality(
         trainer,
         labels=labels,
         train_dataset=train_df,

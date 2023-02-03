@@ -1,9 +1,11 @@
 "dataquality"
 
-__version__ = "v0.8.13"
+__version__ = "v0.8.13a0"
 
 import os
+import sys
 import warnings
+from typing import Any, List, Optional
 
 import dataquality.core._config
 import dataquality.integrations
@@ -163,3 +165,41 @@ except (ImportError, ValueError):  # The users limit is higher than our max, whi
 #  a.log_method_call("dataquality.log_data_samples")
 a = Analytics(ApiClient, config)
 a.log_import("dataquality")
+
+
+class _DataQuality:
+    """This class is used to create a singleton instance of the DataQuality class.
+
+    This is done to allow the user to use the same syntax as the original dataquality
+    package. The original package had a singleton instance of the DataQuality class
+    that was created when the package was imported. This class is used to mimic that
+    behavior.
+    """
+
+    _instance: Optional[DataQuality] = None
+
+    def __init__(self) -> None:
+        self._instance = None
+
+    def __call__(self, *args: Any, **kwargs: Any) -> DataQuality:
+        if self._instance is None:
+            self._instance = DataQuality(*args, **kwargs)
+        return self._instance
+
+        # we want to add the __all__ to the module
+
+    def __dir__(self) -> List[str]:
+        return __all__
+
+    def __getattr__(self, name: str) -> Any:
+        if name in __all__:
+            return globals()[name]
+        # We return the wanted import from the original dataquality package
+        else:
+            return getattr(dataquality, name)
+
+
+# Workaround by Guido van Rossum:
+# https://mail.python.org/pipermail/python-ideas/2012-May/014969.html
+# This allows us to use the same syntax as the original dataquality package
+sys.modules[__name__] = _DataQuality()  # type: ignore

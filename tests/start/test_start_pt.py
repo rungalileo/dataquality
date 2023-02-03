@@ -216,8 +216,8 @@ def test_text_pt(
     with DataQuality(
         modeldq,
         labels=labels,
-        train_df=train_df,
-        val_df=test_df,
+        train_dataset=train_df,
+        val_dataset=test_df,
         task="text_classification",
     ):
         split = "training"
