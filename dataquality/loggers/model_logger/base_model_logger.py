@@ -128,16 +128,6 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
 
     def set_split_epoch(self) -> None:
         super().set_split_epoch()
-        # Inference split must have inference name
-        if self.split == Split.inference and self.inference_name is None:
-            if self.logger_config.cur_inference_name is not None:
-                self.inference_name = self.logger_config.cur_inference_name
-            else:
-                raise GalileoException(
-                    "For inference split you must either log an inference name "
-                    "or set it before logging. Use `dataquality.set_split` to set"
-                    "inference_name"
-                )
 
         # Non-inference split must have an epoch
         if self.split != Split.inference and self.epoch is None:

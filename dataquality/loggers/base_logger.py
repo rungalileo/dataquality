@@ -75,16 +75,22 @@ class BaseGalileoLogger:
         self.inference_name: Optional[str] = None
 
     @property
+    def proj_run(self) -> str:
+        """Returns the project and run id
+
+        Example:
+            proj-id/run-id
+        """
+        return f"{config.current_project_id}/{config.current_run_id}"
+
+    @property
     def write_output_dir(self) -> str:
         """Returns the path to the output directory for the current run
 
         Example:
             /Users/username/.galileo/logs/proj-id/run-id
         """
-        return (
-            f"{BaseGalileoLogger.LOG_FILE_DIR}/{config.current_project_id}/"
-            f"{config.current_run_id}"
-        )
+        return f"{BaseGalileoLogger.LOG_FILE_DIR}/{self.proj_run}"
 
     @property
     def split_name(self) -> str:
@@ -100,6 +106,22 @@ class BaseGalileoLogger:
         split = self.split
         if split == Split.inference:
             split = f"{split}_{self.inference_name}"
+        return str(split)
+
+    @property
+    def split_name_path(self) -> str:
+        """Returns the path part of the current split
+
+        If the split is inference, it will return the name of the inference
+        run after the split name
+
+        Example:
+            training
+            inference/inf-name1
+        """
+        split = self.split
+        if split == Split.inference:
+            split = f"{split}/{self.inference_name}"
         return str(split)
 
     @staticmethod
@@ -123,6 +145,18 @@ class BaseGalileoLogger:
                     "You didn't log a split and did not set a split. Use "
                     "'dataquality.set_split' to set the split"
                 )
+
+        # Inference split must have inference name
+        if self.split == Split.inference and self.inference_name is None:
+            if self.logger_config.cur_inference_name is not None:
+                self.inference_name = self.logger_config.cur_inference_name
+            else:
+                raise GalileoException(
+                    "For inference split you must either log an inference name "
+                    "or set it before logging. Use `dataquality.set_split` to set "
+                    "inference_name"
+                )
+
         self.split = self.validate_split(self.split)
         # Set this config variable in validation, right before logging split data
         setattr(self.logger_config, f"{self.split}_logged", True)
