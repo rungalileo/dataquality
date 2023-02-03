@@ -1,4 +1,6 @@
 import importlib
+from types import ModuleType
+from typing import Iterable
 
 
 def torch_available() -> bool:
@@ -29,7 +31,7 @@ def tf_available() -> bool:
 
 
 # Source: https://snarky.ca/lazy-importing-in-python-3-7/
-def lazy_import(importer_name, to_import):
+def lazy_import(importer_name: str, to_import: Iterable[str]) -> tuple:
     """Return the importing module and a callable for lazy importing.
 
     The module named by importer_name represents the module performing the
@@ -51,14 +53,16 @@ def lazy_import(importer_name, to_import):
             _, _, binding = importing.rpartition(".")
         import_mapping[binding] = importing
 
-    def __getattr__(name):
+    def __getattr__(name: str) -> ModuleType:
         if name not in import_mapping:
             message = f"module {importer_name!r} has no attribute {name!r}"
             raise AttributeError(message)
         importing = import_mapping[name]
         # imortlib.import_module() implicitly sets submodules on this module as
         # appropriate for direct imports.
-        imported = importlib.import_module(importing, module.__spec__.parent)
+        imported = importlib.import_module(
+            importing, module.__spec__.parent  # type: ignore
+        )
         setattr(module, name, imported)
         return imported
 

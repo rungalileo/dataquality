@@ -1,121 +1,326 @@
 import abc
 import datetime
-from abc import abstractmethod
-from typing import Any, List
-
-import tensorflow as tf
-import torch
-from spacy.language import Language
-from transformers import Trainer
+import inspect
+from typing import Any, Callable, Dict, List, Optional, Type
 
 import dataquality as dq
 from dataquality import config
 from dataquality.exceptions import GalileoException
-from dataquality.integrations.experimental.keras import unwatch as kerasunwatch
-from dataquality.integrations.experimental.keras import watch as keraswatch
-from dataquality.integrations.spacy import unwatch as spacyunwatch
-from dataquality.integrations.spacy import watch as spacywatch
-from dataquality.integrations.torch import unwatch as ptunwatch
-from dataquality.integrations.torch import watch as ptwatch
-from dataquality.integrations.transformers_trainer import unwatch as trainerunwatch
-from dataquality.integrations.transformers_trainer import watch as trainerwatch
+from dataquality.schemas.model import ModelFramework
 from dataquality.schemas.split import Split
+from dataquality.schemas.task_type import TaskType
 
 
 class BaseInsights(abc.ABC):
-    framework: str
+    """Base class for dq start integrations."""
 
-    def __init__(self, model: Any):
+    framework: ModelFramework
+    watch: Optional[Callable]
+    unwatch: Optional[Callable]
+    call_finish: bool = True
+
+    def __init__(self, model: Any, *args: Any, **kwargs: Any) -> None:
+        """Initialize the base class.
+        :param model: The model to be tracked
+        :param args: Positional arguments to be passed to the watch function
+        :param kwargs: Keyword arguments to be passed to the watch function
+        """
+
         self.model = model
+        self.args, self.kwargs = args, kwargs
 
-    @abstractmethod
     def enter(self) -> None:
-        ...
+        """Call the watch function (called in __enter__)."""
+        if self.watch:
+            func_signature = inspect.signature(self.watch)
+            func_kwargs = {
+                k: v for k, v in self.kwargs.items() if k in func_signature.parameters
+            }
+            self.watch(self.model, **func_kwargs)
 
-    @abstractmethod
     def exit(self) -> None:
-        ...
+        """Call the unwatch function (called in __exit__)."""
+        if self.unwatch:
+            self.unwatch(self.model)
+
+    def set_project_run(
+        self,
+        project: str = "",
+        run: str = "",
+        task: TaskType = TaskType.text_classification,
+    ) -> None:
+        """Set the project and run names. To the class.
+        If project and run are not provided, generate them.
+        :param project: The project name
+        :param run: The run name
+        :param task: The task type
+        """
+        self.task = task
+        if project:
+            self.project = project
+        else:
+            self.project = f"insights_{task}"
+        if run:
+            self.run = run
+        else:
+            current_time = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M")
+            self.run = f"{self.framework}_{current_time}"
+
+    def init_project(
+        self,
+        task: TaskType,
+        project: str = "",
+        run: str = "",
+    ) -> None:
+        """Initialize the project and calls dq.init().
+        :param task: The task type
+        :param project: The project name
+        :param run: The run name
+        """
+        self.set_project_run(project, run, task)
+
+        dq.init(self.task, self.project, self.run)
+        self.project_id = str(config.current_project_id)
+        self.run_id = str(config.current_run_id)
+
+    def setup_training(
+        self, labels: List[str], train_df: Any, test_df: Any = None, val_df: Any = None
+    ) -> None:
+        """Log dataset and labels to the run.
+        :param labels: The labels
+        :param train_df: The training dataset
+        :param test_df: The test dataset
+        :param val_df: The validation dataset
+        """
+        if len(labels):
+            dq.set_labels_for_run(labels)
+        if train_df is not None:
+            dq.log_dataset(train_df, split=Split.train)
+        if test_df is not None:
+            dq.log_dataset(test_df, split=Split.test)
+        if val_df is not None:
+            dq.log_dataset(val_df, split=Split.validation)
+
+    def validate(self, task_type: TaskType, labels: List[str] = []) -> None:
+        """Validate the task type and labels.
+        :param task_type: The task type
+        :param labels: The labels
+        """
+        assert (
+            task_type is not None
+        ), """keyword argument task_type is required,
+    for example task_type='text_classification' """
+        assert len(
+            labels
+        ), """keyword labels is required,
+    for example labels=['neg','pos']"""
 
 
 class TorchInsights(BaseInsights):
-    framework = "pt"
+    framework = ModelFramework.torch
 
-    def enter(self) -> None:
-        ptwatch(self.model)
+    def __init__(self, model: Any) -> None:
+        super().__init__(model)
+        from dataquality.integrations.torch import unwatch as torch_unwatch
+        from dataquality.integrations.torch import watch as torch_watch
 
-    def exit(self) -> None:
-        ptunwatch()
+        self.unwatch = torch_unwatch
+        self.watch = torch_watch
 
 
 class TFInsights(BaseInsights):
-    framework = "tf"
+    framework = ModelFramework.keras
 
-    def enter(self) -> None:
-        keraswatch(self.model)
+    def __init__(self, model: Any) -> None:
+        super().__init__(model)
+        from dataquality.integrations.experimental.keras import unwatch as keras_unwatch
+        from dataquality.integrations.experimental.keras import watch as keras_watch
 
-    def exit(self) -> None:
-        kerasunwatch(self.model)
+        self.unwatch = keras_unwatch
+        self.watch = keras_watch
 
 
 class SpacyInsights(BaseInsights):
-    framework = "spacy"
+    framework = ModelFramework.spacy
+    call_finish = False
+
+    def __init__(self, model: Any) -> None:
+        super().__init__(model)
+        from dataquality.integrations.spacy import unwatch as spacy_unwatch
+        from dataquality.integrations.spacy import watch as spacy_watch
+
+        self.unwatch = spacy_unwatch
+        self.watch = spacy_watch
+
+    def setup_training(
+        self, labels: List[str], train_df: Any, test_df: Any = None, val_df: Any = None
+    ) -> None:
+        """
+        Functionality is actually handled in the training step.
+        Used to be:
+        from dataquality.integrations.spacy import log_input_examples
+        self.model.initialize(lambda: train_df)
+        self.watch(self.model)
+        if train_df is not None:
+           log_input_examples(train_df, split=Split.train)
+        if test_df is not None:
+           log_input_examples(test_df, split=Split.test)
+        if val_df is not None:
+           log_input_examples(val_df, split=Split.validation)
+        """
 
     def enter(self) -> None:
-        spacywatch(self.model)
+        """Not used for spacy."""
+        assert self.watch
 
-    def exit(self) -> None:
-        spacyunwatch(self.model)
+    def validate(self, task_type: TaskType, labels: List[str] = []) -> None:
+        """Validate the task type and labels.
+        :param task_type: The task type
+        :param labels: The labels (not used for spacy)
+        """
+        assert (
+            task_type is not None
+        ), """keyword argument task_type is required,
+        for example task_type='text_ner' """
 
 
 class TrainerInsights(BaseInsights):
-    framework = "transformers"
+    framework = ModelFramework.hf
+
+    def __init__(self, model: Any) -> None:
+        super().__init__(model)
+        from dataquality.integrations.transformers_trainer import (
+            unwatch as trainer_unwatch,
+        )
+        from dataquality.integrations.transformers_trainer import watch as trainer_watch
+
+        self.unwatch = trainer_unwatch
+        self.watch = trainer_watch
+
+
+class AutoInsights(BaseInsights):
+    framework = ModelFramework.auto
+    call_finish = False
+    auto_kwargs: Dict[str, Any]
+
+    def __init__(self, model: Any) -> None:
+        super().__init__(model)
+        from dataquality.dq_auto.auto import auto
+
+        self.auto = auto
+        self.auto_kwargs = {}
+
+    def setup_training(
+        self, labels: List[str], train_df: Any, test_df: Any = None, val_df: Any = None
+    ) -> None:
+        auto_kwargs = self.auto_kwargs
+        if self.task:
+            assert self.task == TaskType.text_classification
+
+        if len(labels):
+            auto_kwargs["labels"] = labels
+        if train_df is not None:
+            auto_kwargs["train_data"] = train_df
+        if test_df is not None:
+            auto_kwargs["test_data"] = test_df
+        if val_df is not None:
+            auto_kwargs["validation_data"] = val_df
+        if self.project:
+            auto_kwargs["project_name"] = self.project
+        if self.run:
+            auto_kwargs["run_name"] = self.run
+        if isinstance(self.model, str):
+            auto_kwargs["hf_model"] = self.model
+
+    def init_project(self, task: TaskType, project: str = "", run: str = "") -> None:
+        self.set_project_run(project, run, task)
 
     def enter(self) -> None:
-        trainerwatch(self.model)
-
-    def exit(self) -> None:
-        trainerunwatch(self.model)
+        self.auto(**self.auto_kwargs)
 
 
-def detect_model(model: Any) -> BaseInsights:
-    if isinstance(model, torch.nn.Module):
-        return TorchInsights(model)
-    elif isinstance(model, tf.keras.layers.Layer):
-        return TFInsights(model)
-    elif isinstance(model, Language):
-        return SpacyInsights(model)
-    elif isinstance(model, Trainer):
-        return TrainerInsights(model)
+def detect_model(model: Any, framework: Optional[ModelFramework]) -> Type[BaseInsights]:
+    """Detect the model type in a lazy way and return the appropriate class.
+    :param model: The model to inspect, if a string, it will be assumed to be auto
+    :param framework: The framework to use, if provided it will be used instead of
+         the model
+    """
+    if hasattr(model, "pipe") or framework == ModelFramework.spacy:
+        return SpacyInsights
+    elif hasattr(model, "fit") or framework == ModelFramework.keras:
+        return TFInsights
+    elif hasattr(model, "register_forward_hook") or framework == ModelFramework.torch:
+        return TorchInsights
+    elif hasattr(model, "push_to_hub") or framework == ModelFramework.hf:
+        return TrainerInsights
+    elif isinstance(model, str) or framework == ModelFramework.auto:
+        return AutoInsights
     else:
-        raise GalileoException("Model type could not be detected model type")
+        raise GalileoException(
+            f"Model type: {type(model)} could not be detected model type"
+        )
 
 
-class Insights:
+class DataQuality:
     def __init__(
         self,
         model: Any,
-        task: str = "text_classification",
+        task: TaskType = TaskType.text_classification,
+        labels: List[str] = [],
         train_df: Any = None,
         test_df: Any = None,
-        labels: List[str] = [],
+        val_df: Any = None,
+        project: str = "",
+        run: str = "",
+        framework: Optional[ModelFramework] = None,
+        *args: Any,
+        **kwargs: Any,
     ) -> None:
-        current_time_to_minute = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M")
-        self.cls = detect_model(model)
-        if not config.current_project_id:
-            self.task = task
-            self.name = f"insights_{task}"
-            self.run = f"{self.cls.framework}_{current_time_to_minute}"
-            dq.init(self.task, self.name, self.run)
-            dq.log_dataset(train_df, split=Split.train)
-            dq.log_dataset(test_df, split=Split.test)
-        else:
-            self.task = str(config.task_type)
-            self.name = str(config.current_project_id)
-            self.run = str(config.current_run_id)
-        if len(labels) > 0:
-            dq.set_labels_for_run(labels)
+        """DataQuality
+        :param model: The model to inspect, if a string, it will be assumed to be auto
+        :param task: Task type for example "text_classification"
+        :param project: Project name
+        :param run: Run name
+        :param train_df: Training data
+        :param test_df: Optional test data
+        :param val_df: Optional: validation data
+        :param labels: The labels for the run
+        :param framework: The framework to use, if provided it will be used instead of
+            inferring it from the model. For example, if you have a spacy model, you
+            can pass framework="spacy". If you have a torch model, you can pass
+            framework="torch"
+        :param args: Additional arguments
+        :param kwargs: Additional keyword arguments
 
+        .. code-block:: python
+
+            from dataquality import DataQuality
+
+            with DataQuality(model, "text_classification",
+                             labels = ["neg", "pos"], train_df = train_df) as dq:
+                model.fit(train_df)
+
+        If you want to train without a model, you can use the auto framework:
+
+        .. code-block:: python
+
+            from dataquality import DataQuality
+
+            with DataQuality(labels = ["neg", "pos"],
+                             train_df = train_df) as dq:
+                dq.finish()
+        """
+        self.args, self.kwargs = args, kwargs
         self.model = model
+        if model:
+            cls = detect_model(model, framework)
+        else:
+            cls = AutoInsights
+
+        self.cls = cls(model)
+        self.cls.validate(task, labels)
+        self.cls.init_project(task, project, run)
+        self.cls.setup_training(labels, train_df, test_df, val_df)
 
     def __enter__(self) -> Any:
         self.cls.enter()
@@ -123,5 +328,13 @@ class Insights:
 
     def __exit__(self, *args: Any, **kwargs: Any) -> None:
         self.cls.exit()
-        dq.finish()
-        # return dq.metrics.get_dataframe(self.name, self.run, "train")
+        if self.cls.call_finish:
+            dq.finish()
+
+    def get_metrics(self, split: Split = Split.training) -> Dict[str, Any]:
+        return dq.metrics.get_metrics(
+            project_name=self.cls.project,
+            run_name=self.cls.run,
+            task=self.cls.task,
+            split=split,
+        )

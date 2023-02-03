@@ -226,7 +226,7 @@ def test_text_pt(
             dq.set_epoch_and_split(epoch, split)
             train(train_dataloader_dq, modeldq)
             # 🔭🌕 Logging the dataset with Galileo
-            dq.set_split("test")
+            dq.set_split("validation")
             evaluate(test_dataloader_dq, modeldq)
         ThreadPoolManager.wait_for_threads()
         validate_unique_ids(vaex.open(f"{LOCATION}/{split}/0/*.hdf5"), "epoch")

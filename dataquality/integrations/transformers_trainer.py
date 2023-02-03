@@ -103,7 +103,8 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
         :param args: Training arguments
         :param state: Trainer state
         :param model: Model
-        :param kwargs: Keyword arguments (eval_dataloader, train_dataloader, tokenizer)
+        :param kwargs: Keyword arguments
+            (eval_dataloader, train_dataloader, tokenizer)
         :return: None"""
 
         assert dq.config.task_type, GalileoException(

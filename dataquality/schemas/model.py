@@ -7,3 +7,4 @@ class ModelFramework(str, Enum):
     keras = "keras"
     hf = "hf"
     spacy = "spacy"
+    auto = "auto"

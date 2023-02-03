@@ -111,4 +111,4 @@ def test_text_keras(
         )
         ThreadPoolManager.wait_for_threads()
         assert len(vaex.open(f"{LOCATION}/training/0/*.hdf5")) == len(train_dataset)
-        assert len(vaex.open(f"{LOCATION}/test/**/*.hdf5")) == len(val_dataset)
+        assert len(vaex.open(f"{LOCATION}/test/0/*.hdf5")) == len(val_dataset)
