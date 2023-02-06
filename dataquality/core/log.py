@@ -1,8 +1,12 @@
-from typing import Any, Dict, List, Optional, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
-import xgboost as xgb
+
+if TYPE_CHECKING:
+    import xgboost as xgb
 
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
@@ -152,7 +156,7 @@ def log_xgboost(
     model: xgb.XGBClassifier,
     X: Union[pd.DataFrame, np.ndarray],
     *,
-    y: Optional[Union[List, np.ndarray]] = None,
+    y: Optional[Union[pd.Series, np.ndarray, List]] = None,
     feature_names: Optional[List[str]] = None,
     split: Optional[Split] = None,
     inference_name: Optional[str] = None,
@@ -163,13 +167,17 @@ def log_xgboost(
     provided, feature_names must be provided. If a pandas DataFrame is provided,
     feature_names will be inferred from the column names.
 
-    Example with numpy array:
+    Example with numpy arrays:
     .. code-block:: python
 
         import xgboost as xgb
         from sklearn.datasets import load_wine
 
-        X, y = load_wine(as_frame=True, return_X_y=True)
+        wine = load_wine()
+
+        X = wine.data
+        y = wine.target
+        feature_names = wine.feature_names
 
         model = xgb.XGBClassifier()
         model.fit(X, y)
@@ -181,7 +189,7 @@ def log_xgboost(
             model, X, feature_names, split="inference", inference_name="my_inference"
         )
 
-    Example with pandas DataFrame:
+    Example with pandas DataFrames:
     .. code-block:: python
 
         import xgboost as xgb
@@ -202,8 +210,8 @@ def log_xgboost(
     :param model: XGBClassifier model fit on the training data
     :param X: The input data has a numpy array or pandas DataFrame. Data should
         have shape (n_samples, n_features)
-    :param y: Optional array of ground truth labels with shape (n_samples,).
-        Provide for non-inference only
+    :param y: Optional pandas Series, List, or numpy array of ground truth labels with
+        shape (n_samples,). Provide for non-inference only
     :param feature_names: List of feature names if X is input as numpy array.
        Must have length n_features
     :param split: Optional[str] the split for this data. Can also be set via

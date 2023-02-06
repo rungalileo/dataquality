@@ -180,8 +180,8 @@ class TestStructuredClassificationValidationErrors:
             "inference_name"
         )
 
-    def test_validate_inputs_model_not_xgb(self) -> None:
-        """Test error is raised if model is not an XGBClassifier"""
+    def test_validate_inputs_model_model_missing_predict_proba(self) -> None:
+        """Test error is raised if model does not have a preodict_proba method"""
         logger = StructuredClassificationDataLogger(
             model=None,
             X=None,
@@ -191,8 +191,8 @@ class TestStructuredClassificationValidationErrors:
             logger.validate_and_prepare_logger()
 
         assert str(e.value) == (
-            "Logging structured data currently only supports XGBoost for "
-            "classification."
+            "Model must have a predict_proba method. "
+            "If you are using a custom model, please implement a predict_proba method."
         )
 
     def test_validate_inputs_model_not_fitted(self) -> None:
@@ -239,7 +239,8 @@ class TestStructuredClassificationValidationErrors:
             logger.validate_and_prepare_logger()
 
         assert str(e.value) == (
-            "y must be a list or numpy array of labels, not <class 'int'>"
+            "y must be a pandas Series, List, or numpy array of labels, "
+            "not <class 'int'>"
         )
 
     def test_validate_inputs_X_and_y_different_lengths(

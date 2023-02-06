@@ -1,9 +1,14 @@
-from typing import List, Optional, Tuple, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
 import vaex
-import xgboost as xgb
+
+if TYPE_CHECKING:
+    import xgboost as xgb
+
 from sklearn.exceptions import NotFittedError
 from sklearn.utils.validation import check_is_fitted
 from vaex.dataframe import DataFrame
@@ -25,7 +30,7 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
         self,
         model: xgb.XGBClassifier = None,
         X: Union[pd.DataFrame, np.ndarray] = None,
-        y: Optional[Union[List, np.ndarray]] = None,
+        y: Optional[Union[pd.Series, List, np.ndarray]] = None,
         feature_names: Optional[List[str]] = None,
         split: Optional[Split] = None,
         inference_name: Optional[str] = None,
@@ -42,7 +47,7 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
         """Validates the input data before logging to Minio
 
         Validates:
-            - The model is an XGBoost classifier
+            - The model has a predict_proba method
             - The model is fit
             - The data is a pandas DataFrame or numpy array
             - If the split is not inf, the labels are a numpy array
@@ -57,9 +62,10 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
         """
         self.validate()
 
-        assert isinstance(
-            self.model, xgb.XGBClassifier
-        ), "Logging structured data currently only supports XGBoost for classification."
+        assert hasattr(self.model, "predict_proba"), (
+            "Model must have a predict_proba method. "
+            "If you are using a custom model, please implement a predict_proba method."
+        )
         try:
             check_is_fitted(self.model)
         except NotFittedError:
@@ -69,10 +75,11 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
         ), f"X must be a pandas DataFrame or numpy array, not {type(self.X)}"
 
         if self.split is not None and self.split != Split.inference:
-            assert isinstance(
-                self.y, (List, np.ndarray)
-            ), f"y must be a list or numpy array of labels, not {type(self.y)}"
-            self.y = np.array(self.y) if self.y is not None else None
+            assert isinstance(self.y, (pd.Series, List, np.ndarray)), (
+                "y must be a pandas Series, List, or numpy array of labels, "
+                f"not {type(self.y)}"
+            )
+            self.y = np.array(self.y)
             assert len(self.X) == len(self.y), (
                 "X and y must be the same length. "
                 f"X has {len(self.X)} rows, y has {len(self.y)} rows"
