@@ -23,6 +23,7 @@ from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
 from dataquality.utils import tqdm
 from dataquality.utils.cloud import is_galileo_cloud
+from dataquality.utils.dq_logger import _shutil_rmtree_retry
 from dataquality.utils.hdf5_store import HDF5_STORE
 from dataquality.utils.helpers import galileo_verbose_logging
 from dataquality.utils.thread_pool import ThreadPoolManager
@@ -230,7 +231,13 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                 create_data_embs,
             )
             in_frame_split.close()
-            shutil.rmtree(in_frame_path)
+            # Sometimes the directory is not deleted immediately
+            # This can happen if the client is using an nfs
+            # again after a short delay
+            try:
+                shutil.rmtree(in_frame_path)
+            except OSError:
+                _shutil_rmtree_retry(in_frame_path)
             gc.collect()
 
     @classmethod
