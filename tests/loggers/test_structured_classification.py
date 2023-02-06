@@ -239,7 +239,8 @@ class TestStructuredClassificationValidationErrors:
             logger.validate_and_prepare_logger()
 
         assert str(e.value) == (
-            "y must be a pandas Series, List, or numpy array of labels, not <class 'int'>"
+            "y must be a pandas Series, List, or numpy array of labels, "
+            "not <class 'int'>"
         )
 
     def test_validate_inputs_X_and_y_different_lengths(

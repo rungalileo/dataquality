@@ -75,10 +75,11 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
         ), f"X must be a pandas DataFrame or numpy array, not {type(self.X)}"
 
         if self.split is not None and self.split != Split.inference:
-            assert isinstance(
-                self.y, (pd.Series, List, np.ndarray)
-            ), f"y must be a pandas Series, List, or numpy array of labels, not {type(self.y)}"
-            self.y = np.array(self.y) if self.y is not None else None
+            assert isinstance(self.y, (pd.Series, List, np.ndarray)), (
+                "y must be a pandas Series, List, or numpy array of labels, "
+                f"not {type(self.y)}"
+            )
+            self.y = np.array(self.y)
             assert len(self.X) == len(self.y), (
                 "X and y must be the same length. "
                 f"X has {len(self.X)} rows, y has {len(self.y)} rows"

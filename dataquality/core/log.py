@@ -177,11 +177,12 @@ def log_xgboost(
 
         X = wine.data
         y = wine.target
+        feature_names = wine.feature_names
 
         model = xgb.XGBClassifier()
         model.fit(X, y)
 
-        dq.log_xgboost(model, X, y=y, feature_names=wine.feature_names, split="training")
+        dq.log_xgboost(model, X, y=y, feature_names=feature_names, split="training")
 
         # or for inference
         dq.log_xgboost(
