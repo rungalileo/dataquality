@@ -125,11 +125,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             raise GalileoException(
                 "Must provide one of imgs_colname or imgs_location_colname."
             )
-        if column_map is None:
-            if imgs_colname is not None:
-                column_map = {id: "id", imgs_colname: imgs_colname}
-            elif imgs_location_colname is not None:
-                column_map = {id: "id", imgs_location_colname: imgs_location_colname}
+        column_map = column_map or {id: "id"}
         if isinstance(dataset, pd.DataFrame):
             _dataset: pd.DataFrame = dataset.rename(columns=column_map)
             chunk: Iterable
