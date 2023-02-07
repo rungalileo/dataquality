@@ -27,15 +27,18 @@ class ObjectStore:
         content_type: str = "application/octet-stream",
         progress: bool = True,
     ) -> None:
+        print("getting presigned url")
         url = api_client.get_presigned_url(
             project_id=object_name.split("/")[0],
             method="put",
             bucket_name=self.ROOT_BUCKET_NAME,
             object_name=object_name,
         )
+        print("uploading file")
         self._upload_file_from_local(
             url=url, file_path=file_path, content_type=content_type, progress=progress
         )
+        print("done uploading file")
 
     def _upload_file_from_local(
         self,
@@ -57,7 +60,9 @@ class ObjectStore:
         # https://gist.github.com/tyhoff/b757e6af83c1fd2b7b83057adf02c139
         open_type = "r" if content_type.startswith("text") else "rb"
 
+        print("creating put_req")
         put_req = partial(requests.put, url, headers={"content-type": content_type})
+        print("opening file")
         with open(file_path, open_type) as f:
             if progress:
                 file_size = os.stat(file_path).st_size
@@ -70,9 +75,11 @@ class ObjectStore:
                     desc="Uploading data to Galileo",
                     leave=False,
                 ) as t:
+                    print("putting with progress")
                     wrapped_file = CallbackIOWrapper(t.update, f, "read")
                     put_req(data=wrapped_file)
             else:
+                print("putting without progress")
                 put_req(data=f)
 
     def create_project_run_object_from_df(
@@ -81,7 +88,9 @@ class ObjectStore:
         """Uploads a Vaex dataframe at the specified object_name location"""
         ext = get_file_extension(object_name)
         with NamedTemporaryFile(suffix=ext) as f:
+            print("exporting to", f.name)
             df.export(f.name)
+            print("creating object", object_name)
             self.create_project_run_object(
                 object_name=object_name,
                 file_path=f.name,

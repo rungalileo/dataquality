@@ -52,7 +52,9 @@ def finish(
     if data_logger.non_inference_logged():
         _reset_run(config.current_project_id, config.current_run_id, config.task_type)
 
+    print("Uploading data...")
     data_logger.upload(last_epoch, create_data_embs=create_data_embs)
+    print("Data uploaded successfully")
     upload_dq_log_file()
 
     body = dict(
