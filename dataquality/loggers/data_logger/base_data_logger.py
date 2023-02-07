@@ -21,6 +21,7 @@ from dataquality.loggers.base_logger import BaseGalileoLogger, BaseLoggerAttribu
 from dataquality.schemas.dataframe import BaseLoggerDataFrames, DFVar
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
+from dataquality.schemas.task_type import TaskType
 from dataquality.utils import tqdm
 from dataquality.utils.cloud import is_galileo_cloud
 from dataquality.utils.dq_logger import _shutil_rmtree_retry
@@ -204,6 +205,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         object_store = ObjectStore()
         proj_run = f"{config.current_project_id}/{config.current_run_id}"
         location = f"{self.LOG_FILE_DIR}/{proj_run}"
+        task_type = config.task_type
 
         for split in Split.get_valid_attributes():
             split_loc = f"{location}/{split}"
@@ -221,7 +223,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                 continue
             in_frame_path = f"{self.input_data_path}/{split}"
             in_frame_split = vaex.open(f"{in_frame_path}/*.arrow")
-            in_frame_split = self.convert_large_string(in_frame_split)
+            if task_type != TaskType.image_classification:
+                in_frame_split = self.convert_large_string(in_frame_split)
             self.upload_split(
                 object_store,
                 in_frame_split,
