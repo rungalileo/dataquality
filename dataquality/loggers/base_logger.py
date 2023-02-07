@@ -16,7 +16,7 @@ from dataquality.loggers.logger_config.base_logger_config import (
 from dataquality.schemas.split import Split, conform_split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.cloud import is_galileo_cloud
-from dataquality.utils.dq_logger import upload_dq_log_file
+from dataquality.utils.dq_logger import _shutil_rmtree_retry, upload_dq_log_file
 from dataquality.utils.imports import hf_available, tf_available, torch_available
 from dataquality.utils.tf import is_tf_2
 
@@ -291,7 +291,14 @@ class BaseGalileoLogger:
             if os.path.isfile(path):
                 os.remove(path)
             else:
-                shutil.rmtree(path)
+                # Sometimes the directory is not deleted immediately
+                # This can happen if the client is using an nfs
+                # so we try again after a short delay
+                try:
+                    shutil.rmtree(path)
+                except OSError:
+                    _shutil_rmtree_retry(path)
+
         cls.logger_config.reset()
 
     def upload(self) -> None:
