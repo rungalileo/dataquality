@@ -1,6 +1,7 @@
 import os
-from typing import Any, List, Optional, Union
+from typing import Any, Dict, Iterable, List, Optional, Union
 
+import numpy as np
 import pandas as pd
 from PIL.Image import Image
 
@@ -118,18 +119,34 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         label: Union[str, int] = "label",
         split: Optional[Split] = None,
         meta: Optional[List[Union[str, int]]] = None,
+        column_map: Optional[Dict[str, str]] = None,
     ) -> None:
         if imgs_colname is None and imgs_location_colname is None:
             raise GalileoException(
                 "Must provide one of imgs_colname or imgs_location_colname."
             )
+        if column_map is None:
+            if imgs_colname is not None:
+                column_map = {id: "id", imgs_colname: imgs_colname}
+            elif imgs_location_colname is not None:
+                column_map = {id: "id", imgs_location_colname: imgs_location_colname}
         if isinstance(dataset, pd.DataFrame):
-            dataset = self._prepare_pandas(
-                dataset,
-                imgs_colname=imgs_colname,
-                imgs_location_colname=imgs_location_colname,
-                imgs_dir=imgs_dir,
-            )
+            _dataset: pd.DataFrame = dataset.rename(columns=column_map)
+            chunk: Iterable
+            assert meta is not None
+            for chunk in enumerate(
+                np.array_split(_dataset, len(_dataset) // ITER_CHUNK_SIZE_IMAGES + 1)
+            ):
+                self._log_df(
+                    df=self._prepare_pandas(
+                        pd.DataFrame(chunk),
+                        imgs_colname=imgs_colname,
+                        imgs_location_colname=imgs_location_colname,
+                        imgs_dir=imgs_dir,
+                    ),
+                    meta=meta,
+                )
+            return
         elif self.is_hf_dataset(dataset):
             dataset = self._prepare_hf(
                 dataset,
