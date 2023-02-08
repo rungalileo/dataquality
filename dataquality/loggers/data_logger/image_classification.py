@@ -1,5 +1,5 @@
 import os
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import Any, Dict, Iterable, List, Optional, Union, TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -17,6 +17,9 @@ from dataquality.loggers.logger_config.image_classification import (
 )
 from dataquality.schemas.split import Split
 from dataquality.utils.cv import _img_path_to_b64_str, _img_to_b64_str
+
+if TYPE_CHECKING:
+    import datasets
 
 # smaller than ITER_CHUNK_SIZE from base_data_logger because very large chunks
 # containing image data often won't fit in memory
@@ -83,7 +86,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         id_: str,
         # returns HF dataset, hard to express in mypy without
         # importing the datasets package
-    ) -> Any:
+    ) -> DataSet:
         import datasets
 
         assert isinstance(dataset, datasets.Dataset)
@@ -139,6 +142,9 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             for chunk in enumerate(
                 np.array_split(_dataset, len(_dataset) // ITER_CHUNK_SIZE_IMAGES + 1)
             ):
+                chunk_df = pd.DataFrame(chunk)
+                print("We have a chunk!")
+                print(chunk_df)
                 self._log_df(
                     df=self._prepare_pandas(
                         pd.DataFrame(chunk),
