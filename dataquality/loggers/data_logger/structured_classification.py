@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
 import vaex
+
+from dataquality.loggers.base_logger import BaseGalileoLogger
 
 if TYPE_CHECKING:
     import xgboost as xgb
@@ -108,55 +111,60 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
         self.probs = self.model.predict_proba(self.X)
 
     def log(self) -> None:
-        """Uploads data and probs df to Minio
+        """Uploads data and probs df to disk in .galileo/logs
 
         Support for batching to come in V1 of structured data project.
 
-        We write the dfs to minio in the following locations:
-        bucket/proj-id/run-id/training/data.hdf5
-        bucket/proj-id/run-id/training/probs.hdf5
+        We write the dfs to disk in the following locations:
+        /Users/username/.galileo/logs/proj-id/run-id/training/data.hdf5
+        /Users/username/.galileo/logs/proj-id/run-id/training/prob.hdf5
 
         NOTE: We don't restrict row or feature counts here for cloud users.
         """
         self.validate_and_prepare_logger()
-        # E.g. proj-id/run-id/training or proj-id/run-id/inference/my-inference
-        object_base_path = f"{self.proj_run}/{self.split_name_path}"
 
+        object_base_path = f"{self.write_output_dir}/{self.split_name_path}"
         data_df, probs_df = self._get_dfs()
 
-        print("☁️ Uploading Data")
-        objectstore = ObjectStore()
-
-        objectstore.create_project_run_object_from_df(
-            data_df, f"{object_base_path}/data/data.hdf5"
-        )
-        objectstore.create_project_run_object_from_df(
-            probs_df, f"{object_base_path}/prob/prob.hdf5"
-        )
+        # Write DFs to disk
+        os.makedirs(f"{object_base_path}/data", exist_ok=True)
+        data_df.export(f"{object_base_path}/data/data.hdf5")
+        os.makedirs(f"{object_base_path}/prob", exist_ok=True)
+        probs_df.export(f"{object_base_path}/prob/prob.hdf5")
 
     def _get_dfs(self) -> Tuple[DataFrame, DataFrame]:
-        """Returns data and probs as vaex DataFrames"""
+        """Returns data and probs as vaex DataFrames
+
+        For tabular data, data DF is just the original input features, with
+        an added "id" column
+
+        Prob DF has:
+        - id
+        - prob
+        - split
+        - data_schema_version
+        - gold (non-inference only)
+        - inference_name (inference only)
+        """
         assert isinstance(self.X, pd.DataFrame), (
             "X must be a pandas DataFrame. " f"X is currently a {type(self.X)}"
         )
+        ids = self.X.id.values if "id" in self.X.columns else np.arange(len(self.X))
+        n_rows = len(self.X)
+
         df = vaex.from_pandas(self.X)
-        n_rows = len(df)
-        ids = (
-            df.id.to_numpy()
-            if "id" in df.get_column_names()
-            else np.arange(len(self.X))
-        )
-
-        # Add id, split, data_schema_version, and inference_name to the data
         df["id"] = ids
-        df["split"] = np.array([self.split] * n_rows)
-        df["data_schema_version"] = np.array([__data_schema_version__] * n_rows)
-        if self.split == Split.inference:
-            df["inference_name"] = np.array([self.inference_name] * n_rows)
 
-        # Create probs DataFrame
-        probs_df = vaex.from_arrays(id=ids, prob=self.probs)
-        if self.split != Split.inference:
+        # Create probs DataFrame with id, split, and data_schema_version
+        probs_df = vaex.from_arrays(
+            id=ids,
+            prob=self.probs,
+            split=np.array([self.split] * n_rows),
+            data_schema_version=np.array([__data_schema_version__] * n_rows),
+        )
+        if self.split == Split.inference:
+            probs_df["inference_name"] = np.array([self.inference_name] * n_rows)
+        else:
             probs_df["gold"] = self.y
 
         return df, probs_df
@@ -166,6 +174,24 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
     ) -> None:
         """Uploads the data and prob files for a given split to Minio
 
-        For structured data we upload the data to Minio on log() instead of here.
-        This is a noop for structured data.
+        Pulls files from disk and uploads them to Minio.
+
+        From disk:
+            /Users/username/.galileo/logs/proj-id/run-id/training/prob.hdf5
+        To Minio:
+            bucket/proj-id/run-id/training/prob.hdf5
         """
+        print("☁️ Uploading Data")
+        objectstore = ObjectStore()
+
+        log_dir = self.write_output_dir
+        # Traverse all files on disk for this proj/run
+        for path, subdirs, files in os.walk(log_dir):
+            for name in files:
+                file_path = f"{path}/{name}"
+                object_name = file_path.replace(
+                    f"{BaseGalileoLogger.LOG_FILE_DIR}/", ""
+                )
+                objectstore.create_project_run_object(
+                    object_name=object_name, file_path=file_path
+                )
