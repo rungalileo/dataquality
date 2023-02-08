@@ -126,7 +126,7 @@ class TestStructuredClassificationDataLogger:
         assert sorted(df.get_column_names()) == sorted(expected_cols)
 
         assert isinstance(probs_df, DataFrame)
-        expected_cols = ["prob", "id", "gold", "split", "data_schema_version"]
+        expected_cols = ["prob", "pred", "id", "gold", "split", "data_schema_version"]
         assert sorted(probs_df.get_column_names()) == sorted(expected_cols)
 
         assert len(df) == len(probs_df)

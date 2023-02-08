@@ -143,6 +143,7 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
         - prob
         - split
         - data_schema_version
+        - pred
         - gold (non-inference only)
         - inference_name (inference only)
         """
@@ -159,6 +160,7 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
         probs_df = vaex.from_arrays(
             id=ids,
             prob=self.probs,
+            pred=np.argmax(self.probs, axis=1),
             split=np.array([self.split] * n_rows),
             data_schema_version=np.array([__data_schema_version__] * n_rows),
         )
