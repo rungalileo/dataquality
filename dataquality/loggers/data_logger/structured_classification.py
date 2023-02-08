@@ -64,7 +64,7 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
             - self.X to a pandas DataFrame if it is a numpy array
             - self.y to a numpy array if it is a list
             - self.feature_names to the column names of X if it is a pandas DataFrame
-            - self.logger_config.feature_names to the column names of X if they aren't set
+            - logger_config.feature_names to the column names of X if they aren't set
         """
         self.validate()
 
@@ -111,6 +111,11 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
                 f"logger_config.feature_names: {self.logger_config.feature_names}"
             )
         else:
+            assert self.feature_names is not None, (
+                "feature_names must be provided when logging X as a numpy array. "
+                "If X is a pandas DataFrame, feature_names will be inferred from the "
+                "column names."
+            )
             self.logger_config.feature_names = self.feature_names
 
         self.set_probs()
