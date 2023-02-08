@@ -116,61 +116,70 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
         Support for batching to come in V1 of structured data project.
 
         We write the dfs to disk in the following locations:
-        /Users/username/.galileo/logs/proj-id/run-id/training/data.hdf5
-        /Users/username/.galileo/logs/proj-id/run-id/training/prob.hdf5
+        /Users/username/.galileo/logs/proj-id/run-id/training/data/data.hdf5
+        /Users/username/.galileo/logs/proj-id/run-id/training/prob/prob.hdf5
+        /Users/username/.galileo/logs/proj-id/run-id/training/features/features.hdf5
 
         NOTE: We don't restrict row or feature counts here for cloud users.
         """
         self.validate_and_prepare_logger()
 
         object_base_path = f"{self.write_output_dir}/{self.split_name_path}"
-        data_df, probs_df = self._get_dfs()
+        df, prob_df, feature_df = self._get_dfs()
 
         # Write DFs to disk
         os.makedirs(f"{object_base_path}/data", exist_ok=True)
-        data_df.export(f"{object_base_path}/data/data.hdf5")
+        df.export(f"{object_base_path}/data/data.hdf5")
         os.makedirs(f"{object_base_path}/prob", exist_ok=True)
-        probs_df.export(f"{object_base_path}/prob/prob.hdf5")
+        prob_df.export(f"{object_base_path}/prob/prob.hdf5")
+        os.makedirs(f"{object_base_path}/features", exist_ok=True)
+        feature_df.export(f"{object_base_path}/features/features.hdf5")
 
-    def _get_dfs(self) -> Tuple[DataFrame, DataFrame]:
-        """Returns data and probs as vaex DataFrames
+    def _get_dfs(self) -> Tuple[DataFrame, DataFrame, DataFrame]:
+        """Returns feature, data and prob as vaex DataFrames
 
-        For tabular data, data DF is just the original input features, with
-        an added "id" column
+        Feature DF is just the input features, with an added "id" column
+
+        Data DF has:
+        - id
+        - pred
+        - split
+        - data_schema_version
+        - inference_name (inference only)
 
         Prob DF has:
         - id
         - prob
-        - split
-        - data_schema_version
-        - pred
         - gold (non-inference only)
-        - inference_name (inference only)
         """
         assert isinstance(self.X, pd.DataFrame), (
             "X must be a pandas DataFrame. " f"X is currently a {type(self.X)}"
         )
         assert self.probs is not None, "probs must be set before getting dfs"
+
         ids = self.X.id.values if "id" in self.X.columns else np.arange(len(self.X))
         n_rows = len(self.X)
 
-        df = vaex.from_pandas(self.X)
-        df["id"] = ids
+        feature_df = vaex.from_pandas(self.X)
+        feature_df["id"] = ids
 
-        # Create probs DataFrame with id, split, and data_schema_version
-        probs_df = vaex.from_arrays(
+        df = vaex.from_arrays(
             id=ids,
-            prob=self.probs,
             pred=np.argmax(self.probs, axis=1),
             split=np.array([self.split] * n_rows),
             data_schema_version=np.array([__data_schema_version__] * n_rows),
         )
         if self.split == Split.inference:
-            probs_df["inference_name"] = np.array([self.inference_name] * n_rows)
-        else:
-            probs_df["gold"] = self.y
+            df["inference_name"] = np.array([self.inference_name] * n_rows)
 
-        return df, probs_df
+        prob_df = vaex.from_arrays(
+            id=ids,
+            prob=self.probs,
+        )
+        if self.split != Split.inference:
+            prob_df["gold"] = self.y
+
+        return df, prob_df, feature_df
 
     def upload(
         self, last_epoch: Optional[int] = None, create_data_embs: bool = False
