@@ -112,30 +112,25 @@ class TestStructuredClassificationDataLogger:
         )
         assert os.path.exists(f"{df_export_path}/data/data.hdf5")
         assert os.path.exists(f"{df_export_path}/prob/prob.hdf5")
-        assert os.path.exists(f"{df_export_path}/features/features.hdf5")
 
     def test_get_dfs(self, create_logger: Callable, sc_data: Dict) -> None:
         # Set up logger with dataset, probs and split
         logger: StructuredClassificationDataLogger = create_logger(split="training")
         logger.validate_and_prepare_logger()
 
-        df, prob_df, feat_df = logger._get_dfs()
+        df, prob_df = logger._get_dfs()
 
         assert isinstance(df, DataFrame)
-        expected_cols = ["pred", "id", "split", "data_schema_version"]
+        expected_cols = sc_data["feature_names"].copy()
+        expected_cols += ["pred", "id", "split", "data_schema_version"]
         assert sorted(df.get_column_names()) == sorted(expected_cols)
 
         assert isinstance(prob_df, DataFrame)
         expected_cols = ["prob", "id", "gold"]
         assert sorted(prob_df.get_column_names()) == sorted(expected_cols)
 
-        assert isinstance(feat_df, DataFrame)
-        expected_cols = sc_data["feature_names"].copy()
-        expected_cols += ["id"]
-        assert sorted(feat_df.get_column_names()) == sorted(expected_cols)
-
         # All dfs should have same number of rows
-        assert len(df) == len(prob_df) == len(feat_df)
+        assert len(df) == len(prob_df)
 
     @mock.patch("dataquality.loggers.data_logger.structured_classification.os.walk")
     @mock.patch.object(ObjectStore, "create_project_run_object")
@@ -160,16 +155,11 @@ class TestStructuredClassificationDataLogger:
                 [],
                 ["prob.hdf5"],
             ),
-            (
-                f"{prefix}/training/features",
-                [],
-                ["features.hdf5"],
-            ),
         ]
         logger: StructuredClassificationDataLogger = create_logger(split="training")
         logger.upload()
 
-        assert mock_create_project_run_object.call_count == 3
+        assert mock_create_project_run_object.call_count == 2
         prefix = (
             f"{BaseGalileoLogger.LOG_FILE_DIR}/{DEFAULT_PROJECT_ID}/{DEFAULT_RUN_ID}"
             "/training"
@@ -185,12 +175,6 @@ class TestStructuredClassificationDataLogger:
                 f"{DEFAULT_PROJECT_ID}/{DEFAULT_RUN_ID}/training/prob/prob.hdf5"
             ),
             file_path=f"{prefix}/prob/prob.hdf5",
-        )
-        mock_create_project_run_object.assert_any_call(
-            object_name=(
-                f"{DEFAULT_PROJECT_ID}/{DEFAULT_RUN_ID}/training/features/features.hdf5"
-            ),
-            file_path=f"{prefix}/features/features.hdf5",
         )
 
 
@@ -402,8 +386,8 @@ class TestStructuredClassificationE2E:
         )
         dq.finish(wait=False)
 
-        # We upload df, prob_df, feat_df for each split (training and test)
-        assert mock_upload_df_to_minio.call_count == 6
+        # We upload df and prob_df for each split (training and test)
+        assert mock_upload_df_to_minio.call_count == 4
         mock_create_job.assert_called_once_with(
             RequestType.POST,
             url="http://localhost:8088/jobs",
@@ -414,6 +398,7 @@ class TestStructuredClassificationE2E:
                 "task_type": "structured_classification",
                 "tasks": None,
                 "ner_labels": [],
+                "feature_names": sc_data["feature_names"],
             },
         )
         self._assert_mocks(mock_upload_dq_log_file, mock_reset_run, mock_version_check)
@@ -448,8 +433,8 @@ class TestStructuredClassificationE2E:
         )
         dq.finish(wait=False)
 
-        # We upload df, prob_df, feat_df for each split (training and test)
-        assert mock_upload_df_to_minio.call_count == 6
+        # We upload df and prob_df for each split (training and test)
+        assert mock_upload_df_to_minio.call_count == 4
         mock_create_job.assert_called_once_with(
             RequestType.POST,
             url="http://localhost:8088/jobs",
@@ -460,6 +445,7 @@ class TestStructuredClassificationE2E:
                 "task_type": "structured_classification",
                 "tasks": None,
                 "ner_labels": [],
+                "feature_names": sc_data["feature_names"],
             },
         )
         self._assert_mocks(mock_upload_dq_log_file, mock_reset_run, mock_version_check)
@@ -498,8 +484,8 @@ class TestStructuredClassificationE2E:
         )
         dq.finish(wait=False)
 
-        # We upload df, prob_df, feat_df for each split (training and 2 inf)
-        assert mock_upload_df_to_minio.call_count == 9
+        # We upload df and prob_df for each split (training and 2 inf)
+        assert mock_upload_df_to_minio.call_count == 6
         mock_create_job.assert_called_once_with(
             RequestType.POST,
             url="http://localhost:8088/jobs",
@@ -512,6 +498,7 @@ class TestStructuredClassificationE2E:
                 "ner_labels": [],
                 "job_name": JobName.inference,
                 "non_inference_logged": True,
+                "feature_names": sc_data["feature_names"],
             },
         )
         self._assert_mocks(mock_upload_dq_log_file, mock_reset_run, mock_version_check)
@@ -553,8 +540,8 @@ class TestStructuredClassificationE2E:
         )
         dq.finish(wait=False)
 
-        # We upload df, prob_df, feat_df for each split (training and 2 inf)
-        assert mock_upload_df_to_minio.call_count == 9
+        # We upload df and prob_df for each split (training and 2 inf)
+        assert mock_upload_df_to_minio.call_count == 6
         mock_create_job.assert_called_once_with(
             RequestType.POST,
             url="http://localhost:8088/jobs",
@@ -567,6 +554,7 @@ class TestStructuredClassificationE2E:
                 "ner_labels": [],
                 "job_name": JobName.inference,
                 "non_inference_logged": True,
+                "feature_names": sc_data["feature_names"],
             },
         )
         self._assert_mocks(mock_upload_dq_log_file, mock_reset_run, mock_version_check)
@@ -599,8 +587,8 @@ class TestStructuredClassificationE2E:
         )
         dq.finish(wait=False)
 
-        # We upload df, prob_df, feat_df for each split (2 inf)
-        assert mock_upload_df_to_minio.call_count == 6
+        # We upload df and prob_df for each split (2 inf)
+        assert mock_upload_df_to_minio.call_count == 4
         mock_create_job.assert_called_once_with(
             RequestType.POST,
             url="http://localhost:8088/jobs",
@@ -613,6 +601,7 @@ class TestStructuredClassificationE2E:
                 "ner_labels": [],
                 "job_name": JobName.inference,
                 "non_inference_logged": False,
+                "feature_names": sc_data["feature_names"],
             },
         )
         self._assert_mocks(
@@ -652,8 +641,8 @@ class TestStructuredClassificationE2E:
         )
         dq.finish(wait=False)
 
-        # We upload df, prob_df, feat_df for each split (2 inf)
-        assert mock_upload_df_to_minio.call_count == 6
+        # We upload df and prob_df for each split (2 inf)
+        assert mock_upload_df_to_minio.call_count == 4
         mock_create_job.assert_called_once_with(
             RequestType.POST,
             url="http://localhost:8088/jobs",
@@ -666,6 +655,7 @@ class TestStructuredClassificationE2E:
                 "ner_labels": [],
                 "job_name": JobName.inference,
                 "non_inference_logged": False,
+                "feature_names": sc_data["feature_names"],
             },
         )
         self._assert_mocks(

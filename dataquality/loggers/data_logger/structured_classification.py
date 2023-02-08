@@ -58,10 +58,13 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
             - If X is a numpy array, the feature names are provided
             - If X is a numpy array, the number of features in X and feature names
                 are the same
+            - Feature names match the feature names logged in a prior split
 
         Sets:
             - self.X to a pandas DataFrame if it is a numpy array
             - self.y to a numpy array if it is a list
+            - self.feature_names to the column names of X if it is a pandas DataFrame
+            - self.logger_config.feature_names to the column names of X if they aren't set
         """
         self.validate()
 
@@ -98,6 +101,17 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
                 self.feature_names
             ), "X and feature_names must have the same number of features"
             self.X = pd.DataFrame(self.X, columns=self.feature_names)
+        elif isinstance(self.X, pd.DataFrame):
+            self.feature_names = self.X.columns.tolist()
+
+        if self.logger_config.feature_names:
+            assert self.feature_names == self.logger_config.feature_names, (
+                "feature_names must match the feature_names logged in a prior split."
+                f"feature_names: {self.feature_names}"
+                f"logger_config.feature_names: {self.logger_config.feature_names}"
+            )
+        else:
+            self.logger_config.feature_names = self.feature_names
 
         self.set_probs()
 
@@ -118,27 +132,22 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
         We write the dfs to disk in the following locations:
         /Users/username/.galileo/logs/proj-id/run-id/training/data/data.hdf5
         /Users/username/.galileo/logs/proj-id/run-id/training/prob/prob.hdf5
-        /Users/username/.galileo/logs/proj-id/run-id/training/features/features.hdf5
 
         NOTE: We don't restrict row or feature counts here for cloud users.
         """
         self.validate_and_prepare_logger()
 
         object_base_path = f"{self.write_output_dir}/{self.split_name_path}"
-        df, prob_df, feature_df = self._get_dfs()
+        df, prob_df = self._get_dfs()
 
         # Write DFs to disk
         os.makedirs(f"{object_base_path}/data", exist_ok=True)
         df.export(f"{object_base_path}/data/data.hdf5")
         os.makedirs(f"{object_base_path}/prob", exist_ok=True)
         prob_df.export(f"{object_base_path}/prob/prob.hdf5")
-        os.makedirs(f"{object_base_path}/features", exist_ok=True)
-        feature_df.export(f"{object_base_path}/features/features.hdf5")
 
-    def _get_dfs(self) -> Tuple[DataFrame, DataFrame, DataFrame]:
-        """Returns feature, data and prob as vaex DataFrames
-
-        Feature DF is just the input features, with an added "id" column
+    def _get_dfs(self) -> Tuple[DataFrame, DataFrame]:
+        """Returns data and prob as vaex DataFrames
 
         Data DF has:
         - id
@@ -146,6 +155,7 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
         - split
         - data_schema_version
         - inference_name (inference only)
+        - **features
 
         Prob DF has:
         - id
@@ -160,15 +170,11 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
         ids = self.X.id.values if "id" in self.X.columns else np.arange(len(self.X))
         n_rows = len(self.X)
 
-        feature_df = vaex.from_pandas(self.X)
-        feature_df["id"] = ids
-
-        df = vaex.from_arrays(
-            id=ids,
-            pred=np.argmax(self.probs, axis=1),
-            split=np.array([self.split] * n_rows),
-            data_schema_version=np.array([__data_schema_version__] * n_rows),
-        )
+        df = vaex.from_pandas(self.X)
+        df["id"] = ids
+        df["pred"] = np.argmax(self.probs, axis=1)
+        df["split"] = np.array([self.split] * n_rows)
+        df["data_schema_version"] = np.array([__data_schema_version__] * n_rows)
         if self.split == Split.inference:
             df["inference_name"] = np.array([self.inference_name] * n_rows)
 
@@ -179,7 +185,7 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
         if self.split != Split.inference:
             prob_df["gold"] = self.y
 
-        return df, prob_df, feature_df
+        return df, prob_df
 
     def upload(
         self, last_epoch: Optional[int] = None, create_data_embs: bool = False
