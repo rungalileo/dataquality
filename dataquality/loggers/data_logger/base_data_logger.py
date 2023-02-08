@@ -223,9 +223,9 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             in_frame_path = f"{self.input_data_path}/{split}"
             print("""in_frame_split = vaex.open(f"{in_frame_path}/*.arrow")""")
             in_frame_split = vaex.open(f"{in_frame_path}/*.arrow")
-            print("""in_frame_split = self.convert_large_string(in_frame_split)""")
-            in_frame_split = self.convert_large_string(in_frame_split)
-            print("""in_frame_split = self.convert_large_string(in_frame_split)""")
+            # print("""in_frame_split = self.convert_large_string(in_frame_split)""")
+            # in_frame_split = self.convert_large_string(in_frame_split)
+            print("""upload_split""")
             self.upload_split(
                 object_store,
                 in_frame_split,
@@ -271,8 +271,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         # Characters are each 1 byte. If more bytes > max, it needs to be large_string
         print("""text_bytes = df_copy["text"].str.len().sum()""")
         text_bytes = df_copy["text"].str.len().sum()
-        print("""if text_bytes > self.STRING_MAX_SIZE_B * len(df_copy["text"]):""")
-        if text_bytes > self.STRING_MAX_SIZE_B * len(df_copy["text"]):
+        print("""if text_bytes > self.STRING_MAX_SIZE_B""")
+        if text_bytes > self.STRING_MAX_SIZE_B:
             print(
                 """df_copy["text"] = df_copy["text"].to_arrow().cast(pa.large_string())"""
             )
