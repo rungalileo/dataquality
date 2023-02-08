@@ -116,7 +116,10 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         def to_large_string(arr: Any) -> DataFrame:
             return arr.cast(pa.large_string())
 
+        print("df.text.dtype", df.text.dtype)
+        print("calling to_large_string")
         df["text"] = df["text"].to_large_string()
+        print("returning df df.text.dtype", df.text.dtype)
         return df
 
     def log_image_dataset(
