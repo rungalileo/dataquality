@@ -21,7 +21,6 @@ from dataquality.loggers.base_logger import BaseGalileoLogger, BaseLoggerAttribu
 from dataquality.schemas.dataframe import BaseLoggerDataFrames, DFVar
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
-from dataquality.schemas.task_type import TaskType
 from dataquality.utils import tqdm
 from dataquality.utils.cloud import is_galileo_cloud
 from dataquality.utils.dq_logger import _shutil_rmtree_retry
@@ -207,6 +206,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         location = f"{self.LOG_FILE_DIR}/{proj_run}"
 
         for split in Split.get_valid_attributes():
+            print("split...", split)
             split_loc = f"{location}/{split}"
             input_logged = os.path.exists(f"{self.input_data_path}/{split}")
             output_logged = os.path.exists(split_loc)

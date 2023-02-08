@@ -4,6 +4,7 @@ from typing import Any, Dict, Iterable, List, Optional, Union
 import numpy as np
 import pandas as pd
 from PIL.Image import Image
+from vaex.dataframe import DataFrame
 
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger.base_data_logger import DataSet, MetasType
@@ -106,6 +107,10 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
                 "Must provide one of imgs_colname or imgs_location_colname."
             )
         return prepared
+
+    def convert_large_string(self, df: DataFrame) -> DataFrame:
+        print("Just return the df")
+        return df
 
     def log_image_dataset(
         self,
