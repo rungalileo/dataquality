@@ -165,13 +165,13 @@ class TestStructuredClassificationDataLogger:
         )
         mock_create_project_run_object.assert_any_call(
             object_name=(
-                f"{DEFAULT_PROJECT_ID}/{DEFAULT_RUN_ID}/training/data/data.hdf5",
+                f"{DEFAULT_PROJECT_ID}/{DEFAULT_RUN_ID}/training/data/data.hdf5"
             ),
             file_path=f"{prefix}/data/data.hdf5",
         )
         mock_create_project_run_object.assert_any_call(
             object_name=(
-                f"{DEFAULT_PROJECT_ID}/{DEFAULT_RUN_ID}/training/prob/prob.hdf5",
+                f"{DEFAULT_PROJECT_ID}/{DEFAULT_RUN_ID}/training/prob/prob.hdf5"
             ),
             file_path=f"{prefix}/prob/prob.hdf5",
         )
