@@ -150,6 +150,7 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
         assert isinstance(self.X, pd.DataFrame), (
             "X must be a pandas DataFrame. " f"X is currently a {type(self.X)}"
         )
+        assert self.probs is not None, "probs must be set before getting dfs"
         ids = self.X.id.values if "id" in self.X.columns else np.arange(len(self.X))
         n_rows = len(self.X)
 
