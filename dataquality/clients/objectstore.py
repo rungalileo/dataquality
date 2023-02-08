@@ -89,6 +89,14 @@ class ObjectStore:
         ext = get_file_extension(object_name)
         with NamedTemporaryFile(suffix=ext) as f:
             print("exporting to", f.name)
+            if f.name.endswith("arrow"):
+                print("Exporting dataframe of len", len(df))
+                for col, dt in zip(df.get_column_names(), df.dtypes):
+                    print(col, dt)
+                    if dt == "large_string":
+                        print(f"converting {col} to not large string")
+                        df[col] = df[col].astype(str)
+                        print("new dtype for", col, "is", df[col].dtype)
             df.export(f.name)
             print("creating object", object_name)
             self.create_project_run_object(

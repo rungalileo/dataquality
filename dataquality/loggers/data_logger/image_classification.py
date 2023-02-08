@@ -114,6 +114,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         return prepared
 
     def convert_large_string(self, df: DataFrame) -> DataFrame:
+        print("HERE CONVERTING")
         return df
 
     def log_image_dataset(
@@ -129,7 +130,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         split: Optional[Split] = None,
         meta: Optional[List[Union[str, int]]] = None,
         column_map: Optional[Dict[str, str]] = None,
-    ) -> None:
+    ) -> datasets.arrow_dataset.Dataset:
         if imgs_colname is None and imgs_location_colname is None:
             raise GalileoException(
                 "Must provide one of imgs_colname or imgs_location_colname."
