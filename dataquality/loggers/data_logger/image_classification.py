@@ -136,7 +136,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             _dataset: pd.DataFrame = dataset.rename(columns=column_map)
             chunk: Iterable
             assert meta is not None
-            for chunk in enumerate(
+            for _, chunk in enumerate(
                 np.array_split(_dataset, len(_dataset) // ITER_CHUNK_SIZE_IMAGES + 1)
             ):
                 self._log_df(
