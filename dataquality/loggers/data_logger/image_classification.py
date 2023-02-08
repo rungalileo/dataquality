@@ -109,7 +109,14 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         return prepared
 
     def convert_large_string(self, df: DataFrame) -> DataFrame:
-        print("Just return the df")
+        import pyarrow as pa
+        import vaex
+
+        @vaex.register_function()
+        def to_large_string(arr: Any) -> DataFrame:
+            return arr.cast(pa.large_string())
+
+        df["text"] = df["text"].to_large_string()
         return df
 
     def log_image_dataset(
