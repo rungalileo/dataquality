@@ -27,6 +27,8 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
     __logger_name__ = "image_classification"
     logger_config: ImageClassificationLoggerConfig = image_classification_logger_config
 
+    DATA_FOLDER_EXTENSION = {"emb": "hdf5", "prob": "hdf5", "data": "arrow"}
+
     def __init__(
         self,
         texts: List[str] = None,
@@ -109,17 +111,6 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         return prepared
 
     def convert_large_string(self, df: DataFrame) -> DataFrame:
-        import pyarrow as pa
-        import vaex
-
-        @vaex.register_function()
-        def to_large_string(arr: Any) -> DataFrame:
-            return arr.cast(pa.large_string())
-
-        print("df.text.dtype", df.text.dtype)
-        print("calling to_large_string")
-        df["text"] = df["text"].to_large_string()
-        print("returning df df.text.dtype", df.text.dtype)
         return df
 
     def log_image_dataset(
