@@ -49,6 +49,16 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             inference_name=inference_name,
         )
 
+    def convert_large_string(self, df: DataFrame) -> DataFrame:
+        """We override to avoid doing the computation to check if the text is over 2GB
+
+        Because this is CV, almost certainly the text will be over the limit, and for
+        really big ones, the computation gets very long (and seems to actually use
+        some memory). We just assume it's over the limit (which is safe) and export
+        """
+        df["text"] = df['astype(text, "large_string")']
+        return df
+
     def _prepare_pandas(
         self,
         dataset: pd.DataFrame,
@@ -111,10 +121,6 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
                 "Must provide one of imgs_colname or imgs_location_colname."
             )
         return prepared
-
-    def convert_large_string(self, df: DataFrame) -> DataFrame:
-        df["text"] = df['astype(text, "large_string")']
-        return df
 
     @classmethod
     def process_in_out_frames(

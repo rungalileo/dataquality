@@ -10,7 +10,6 @@ from typing import Any, Dict, Iterable, List, Optional, TypeVar, Union
 
 import numpy as np
 import pandas as pd
-import pyarrow as pa
 import vaex
 from vaex.dataframe import DataFrame
 
@@ -266,7 +265,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         # Characters are each 1 byte. If more bytes > max, it needs to be large_string
         text_bytes = df_copy["text"].str.len().sum()
         if text_bytes > self.STRING_MAX_SIZE_B:
-            df_copy["text"] = df_copy["text"].to_arrow().cast(pa.large_string())
+            df_copy["text"] = df_copy['astype(text, "large_string")']
         return df_copy
 
     @classmethod
@@ -359,7 +358,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
         # Post concat, string columns come back as bytes and need conversion
         for col in str_cols:
-            out_frame[col] = out_frame[col].as_arrow().astype(str)
+            out_frame[col] = out_frame[f'astype({col}, "large_string")']
         if prob_only:
             out_frame["split"] = vaex.vconstant(
                 split, length=len(out_frame), dtype="str"

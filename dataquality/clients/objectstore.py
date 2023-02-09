@@ -81,9 +81,7 @@ class ObjectStore:
         """Uploads a Vaex dataframe at the specified object_name location"""
         ext = get_file_extension(object_name)
         with NamedTemporaryFile(suffix=ext) as f:
-            print("exporting to", f.name)
             df.export(f.name)
-            print("creating object", object_name)
             self.create_project_run_object(
                 object_name=object_name,
                 file_path=f.name,
