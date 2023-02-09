@@ -206,7 +206,6 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         location = f"{self.LOG_FILE_DIR}/{proj_run}"
 
         for split in Split.get_valid_attributes():
-            print("split...", split)
             split_loc = f"{location}/{split}"
             input_logged = os.path.exists(f"{self.input_data_path}/{split}")
             output_logged = os.path.exists(split_loc)
@@ -221,11 +220,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                 )
                 continue
             in_frame_path = f"{self.input_data_path}/{split}"
-            print("""in_frame_split = vaex.open(f"{in_frame_path}/*.arrow")""")
             in_frame_split = vaex.open(f"{in_frame_path}/*.arrow")
-            print("""in_frame_split = self.convert_large_string(in_frame_split)""")
             in_frame_split = self.convert_large_string(in_frame_split)
-            print("""upload_split""")
             self.upload_split(
                 object_store,
                 in_frame_split,
@@ -266,18 +262,11 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
         We only do this for types that write to HDF5 files
         """
-        print("df = df.copy()")
         df_copy = df.copy()
         # Characters are each 1 byte. If more bytes > max, it needs to be large_string
-        print("""text_bytes = df_copy["text"].str.len().sum()""")
         text_bytes = df_copy["text"].str.len().sum()
-        print("""if text_bytes > self.STRING_MAX_SIZE_B""")
         if text_bytes > self.STRING_MAX_SIZE_B:
-            print(
-                """df_copy["text"] = df_copy["text"].to_arrow().cast(pa.large_string())"""
-            )
             df_copy["text"] = df_copy["text"].to_arrow().cast(pa.large_string())
-        print("return df_copy")
         return df_copy
 
     @classmethod
@@ -330,13 +319,10 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                 cls.create_and_upload_data_embs(input_batch, split, epoch_or_inf)
 
             dir_name = f"{split_loc}/{epoch_or_inf}"
-            print("creating in/out frames...")
             in_out_frames = cls.create_in_out_frames(
                 input_batch, dir_name, prob_only, split, epoch_or_inf
             )
-            print("uploading in/out frames...")
             cls.upload_in_out_frames(object_store, in_out_frames, split, epoch_or_inf)
-            print("done uploading in/out frames")
 
     @classmethod
     def create_in_out_frames(
@@ -361,9 +347,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         :param split: The split we are logging for
         :param epoch_or_inf: The epoch or inference name we are logging for
         """
-        print("str_cols = concat_hdf5_files(dir_name, prob_only)")
         str_cols = concat_hdf5_files(dir_name, prob_only)
-        print("""out_frame = vaex.open(f"{dir_name}/{HDF5_STORE}")""")
         out_frame = vaex.open(f"{dir_name}/{HDF5_STORE}")
 
         if split == Split.inference:
@@ -374,24 +358,16 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             epoch_or_inf_name = "epoch"
 
         # Post concat, string columns come back as bytes and need conversion
-        print("for col in str_cols:")
         for col in str_cols:
-            print(
-                f"out_frame[{col}] = out_frame[{col}].to_arrow().cast(pa.large_string())"
-            )
-            out_frame[col] = out_frame[col].to_arrow().cast(pa.large_string())
-        print(f"if prob_only: {prob_only}")
+            out_frame[col] = out_frame[col].as_arrow().astype(str)
         if prob_only:
-            print("out_frame[split] = vaex.vconstant(")
             out_frame["split"] = vaex.vconstant(
                 split, length=len(out_frame), dtype="str"
             )
-            print("out_frame[epoch_or_inf_name] = vaex.vconstant(")
             out_frame[epoch_or_inf_name] = vaex.vconstant(
                 epoch_or_inf, length=len(out_frame), dtype=dtype
             )
 
-        print("return cls.process_in_out_frames(")
         return cls.process_in_out_frames(
             in_frame, out_frame, prob_only, epoch_or_inf_name, split
         )
@@ -416,24 +392,16 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         :param prob_only: If we are only uploading probabilities, or everything
         :param epoch_or_inf_name: The epoch or inference name we are uploading for
         """
-        print("validate_unique_ids(out_frame, epoch_or_inf_name)")
         validate_unique_ids(out_frame, epoch_or_inf_name)
-        print("in_out = _join_in_out_frames(in_frame, out_frame)")
         in_out = _join_in_out_frames(in_frame, out_frame)
 
-        print("dataframes = cls.separate_dataframe(in_out, prob_only, split)")
         dataframes = cls.separate_dataframe(in_out, prob_only, split)
         # These df vars will be used in upload_in_out_frames
-        print("""dataframes.emb.set_variable("skip_upload", prob_only)""")
         dataframes.emb.set_variable("skip_upload", prob_only)
-        print("""dataframes.data.set_variable("skip_upload", prob_only)""")
         dataframes.data.set_variable("skip_upload", prob_only)
-        print("""epoch_inf_val = out_frame[[epoch_or_inf_name]][0][0]""")
         epoch_inf_val = out_frame[[epoch_or_inf_name]][0][0]
-        print("""dataframes.prob.set_variable("progress_name", str(epoch_inf_val))""")
         dataframes.prob.set_variable("progress_name", str(epoch_inf_val))
 
-        print("return dataframes")
         return dataframes
 
     @classmethod
@@ -455,7 +423,6 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         name = "inf_name" if split == Split.inference else "epoch"
         desc = f"{split} ({name}={epoch_inf})"
 
-        print("for data_folder, df_obj in tqdm(")
         for data_folder, df_obj in tqdm(
             zip(DATA_FOLDERS, [emb, prob, data_df]),
             total=3,
@@ -469,11 +436,9 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             minio_file = (
                 f"{proj_run}/{split}/{epoch_or_inf}/{data_folder}/{data_folder}.{ext}"
             )
-            print("object_store.create_project_run_object_from_df(")
             object_store.create_project_run_object_from_df(
                 df=df_obj, object_name=minio_file
             )
-            print("done with object_store.create_project_run_object_from_df(")
 
     @classmethod
     def prob_only(
