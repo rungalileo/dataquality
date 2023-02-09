@@ -31,6 +31,7 @@ class BaseLoggerConfig(BaseModel):
     report_emails: List[str] = []
     ner_labels: List[str] = []
     int_labels: bool = False
+    feature_names: List[str] = []
 
     class Config:
         validate_assignment = True
