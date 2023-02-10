@@ -358,6 +358,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
         # Post concat, string columns come back as bytes and need conversion
         for col in str_cols:
+            out_frame[col] = out_frame[col].as_arrow().astype("str")
             out_frame[col] = out_frame[f'astype({col}, "large_string")']
         if prob_only:
             out_frame["split"] = vaex.vconstant(
