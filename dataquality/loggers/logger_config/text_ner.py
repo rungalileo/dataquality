@@ -24,7 +24,7 @@ class TextNERLoggerConfig(BaseLoggerConfig):
         if labels is not None:
             assert isinstance(labels, List), "Labels must be a list"
         if labels and len(labels) == 1:
-            labels = [labels[0], f"NOT_{labels[0]}"]
+            labels = [f"NOT_{labels[0]}", labels[0]]
         return labels
 
     def reset(self, factory: bool = False) -> None:
