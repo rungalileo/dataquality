@@ -8,10 +8,10 @@ from typing import List, Optional, Union
 import pandas as pd
 from datasets import Dataset, DatasetDict, load_dataset
 
-from dataquality.core.init import BAD_CHARS_REGEX
 from dataquality.exceptions import GalileoException, GalileoWarning
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
+from dataquality.utils.name import BAD_CHARS_REGEX
 
 
 def load_data_from_str(data: str) -> Union[pd.DataFrame, Dataset]:

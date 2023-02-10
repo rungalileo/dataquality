@@ -1,5 +1,4 @@
 import os
-import re
 import shutil
 import warnings
 from typing import Dict, Optional, Tuple
@@ -21,10 +20,9 @@ from dataquality.loggers import BaseGalileoLogger
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.dq_logger import DQ_LOG_FILE_HOME
 from dataquality.utils.helpers import check_noop
-from dataquality.utils.name import random_name
+from dataquality.utils.name import validate_name
 
 api_client = ApiClient()
-BAD_CHARS_REGEX = r"[^\w -]+"
 
 
 class InitManager:
@@ -83,23 +81,6 @@ class InitManager:
             if not os.path.exists(out_dir):
                 os.makedirs(out_dir)
 
-    def validate_name(self, name: Optional[str]) -> str:
-        """Validates project/run name ensuring only letters, numbers, space, - and _
-
-        If no name is provided, a random name is generated
-        """
-        if not name:
-            name = random_name()
-
-        badchars = re.findall(BAD_CHARS_REGEX, name)
-        if badchars:
-            raise GalileoException(
-                "Only letters, numbers, whitespace, - and _ are allowed in a project "
-                f"or run name. Remove the following characters: {badchars}"
-            )
-
-        return name
-
 
 @check_noop
 def init(
@@ -149,8 +130,8 @@ def init(
         )
         return
 
-    project_name = _init.validate_name(project_name)
-    run_name = _init.validate_name(run_name)
+    project_name = validate_name(project_name)
+    run_name = validate_name(run_name)
 
     project, proj_created = _init.get_or_create_project(project_name, is_public)
     run, run_created = _init.get_or_create_run(project_name, run_name, task_type)

@@ -7,7 +7,10 @@ import numpy as np
 import pandas as pd
 import vaex
 
+from dataquality import config
+from dataquality.clients.api import ApiClient
 from dataquality.loggers.base_logger import BaseGalileoLogger
+from dataquality.utils.name import validate_name
 
 if TYPE_CHECKING:
     import xgboost as xgb
@@ -23,6 +26,8 @@ from dataquality.loggers.logger_config.structured_classification import (
 )
 from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.split import Split
+
+api_client = ApiClient()
 
 
 class StructuredClassificationDataLogger(BaseGalileoDataLogger):
@@ -59,6 +64,7 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
             - If X is a numpy array, the number of features in X and feature names
                 are the same
             - Feature names match the feature names logged in a prior split
+            - Feature names are valid names, no special chars
 
         Sets:
             - self.X to a pandas DataFrame if it is a numpy array
@@ -118,7 +124,11 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
             )
             self.logger_config.feature_names = self.feature_names
 
+        for feature in self.feature_names:
+            validate_name(feature)
+
         self.set_probs()
+        self.save_feature_importances()
 
     def set_probs(self) -> None:
         """Sets the probs attribute for the class
@@ -128,6 +138,25 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
         assert self.model is not None, "Model must be set before setting probs"
         assert self.X is not None, "X must be set before setting probs"
         self.probs = self.model.predict_proba(self.X)
+
+    def save_feature_importances(self) -> None:
+        """Saves feature importances in the DB
+
+        Assumes the model is fit
+        """
+        api_client.set_metric_for_run(
+            config.current_project_id,
+            config.current_run_id,
+            data={
+                "key": "feature_importances",
+                "value": 0,
+                "epoch": 0,
+                "extra": {
+                    f: i
+                    for f, i in zip(self.feature_names, self.model.feature_importances_)
+                },
+            },
+        )
 
     def log(self) -> None:
         """Uploads data and probs df to disk in .galileo/logs
