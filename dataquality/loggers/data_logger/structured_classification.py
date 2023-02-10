@@ -144,6 +144,12 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
 
         Assumes the model is fit
         """
+        suffix = "must be set before saving feature importances"
+        assert self.model, f"Model {suffix}"
+        assert self.feature_names, f"Feature names {suffix}"
+        assert config.current_project_id, f"Project ID {suffix}"
+        assert config.current_run_id, f"Run ID {suffix}"
+
         api_client.set_metric_for_run(
             config.current_project_id,
             config.current_run_id,
