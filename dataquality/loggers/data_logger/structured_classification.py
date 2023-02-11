@@ -157,10 +157,7 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
                 "key": "feature_importances",
                 "value": 0,
                 "epoch": 0,
-                "extra": {
-                    f: i
-                    for f, i in zip(self.feature_names, self.model.feature_importances_)
-                },
+                "extra": dict(zip(self.feature_names, self.model.feature_importances_)),
             },
         )
 
