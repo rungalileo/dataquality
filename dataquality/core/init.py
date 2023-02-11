@@ -130,8 +130,8 @@ def init(
         )
         return
 
-    project_name = validate_name(project_name)
-    run_name = validate_name(run_name)
+    project_name = validate_name(project_name, assign_random=True)
+    run_name = validate_name(run_name, assign_random=True)
 
     project, proj_created = _init.get_or_create_project(project_name, is_public)
     run, run_created = _init.get_or_create_run(project_name, run_name, task_type)
