@@ -14,7 +14,7 @@ from dataquality.loggers.base_logger import BaseLoggerAttributes
 from dataquality.utils import tqdm
 from dataquality.utils.hdf5_store import HDF5_STORE, HDF5Store
 from dataquality.utils.helpers import galileo_verbose_logging
-from dataquality.utils.thread_pool import lock
+from dataquality.utils.log_manager import lock
 
 # To decide between "all-MiniLM-L6-v2" or "all-mpnet-base-v2"
 # https://www.sbert.net/docs/pretrained_models.html#model-overview

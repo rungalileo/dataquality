@@ -16,7 +16,7 @@ from dataquality.loggers.data_logger.text_ner import TextNERDataLogger
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
-from dataquality.utils.thread_pool import ThreadPoolManager
+from dataquality.utils.log_manager import LogManager
 from tests.conftest import TEST_PATH
 from tests.test_utils.ner_constants import (
     GOLD_SPANS,
@@ -388,7 +388,7 @@ def test_ner_logging(
         ids = tf.convert_to_tensor(np.array(ids))
     dataquality.log_model_outputs(embs=embs, probs=pred_prob, ids=ids)
 
-    ThreadPoolManager.wait_for_threads()
+    LogManager.wait_for_loggers()
     c = dataquality.get_data_logger()
     c.validate_labels()
     c.upload()
@@ -464,7 +464,7 @@ def test_ner_logging(
         split="training",
         epoch=0,
     )
-    ThreadPoolManager.wait_for_threads()
+    LogManager.wait_for_loggers()
     c = dataquality.get_data_logger()
     c.validate_labels()
     c.upload()

@@ -13,7 +13,7 @@ from dataquality.schemas.job import JobName
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.dq_logger import DQ_LOG_FILE_HOME, upload_dq_log_file
 from dataquality.utils.helpers import check_noop, open_console_url
-from dataquality.utils.thread_pool import ThreadPoolManager
+from dataquality.utils.log_manager import LogManager
 from dataquality.utils.version import _version_check
 
 api_client = ApiClient()
@@ -40,7 +40,7 @@ def finish(
         via dq.metrics.get_data_embeddings()
     """
     a.log_function("dq/finish")
-    ThreadPoolManager.wait_for_threads()
+    LogManager.wait_for_loggers()
     assert config.current_project_id, "You must have an active project to call finish"
     assert config.current_run_id, "You must have an active run to call finish"
     assert config.task_type, "You must have a task type to call finish"

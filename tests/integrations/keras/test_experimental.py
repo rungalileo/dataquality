@@ -14,7 +14,7 @@ from transformers import (
 import dataquality as dq
 from dataquality.integrations.experimental.keras import unwatch, watch
 from dataquality.schemas.task_type import TaskType
-from dataquality.utils.thread_pool import ThreadPoolManager
+from dataquality.utils.log_manager import LogManager
 from tests.conftest import LOCATION
 
 # from tests.conftest import LOCATION
@@ -132,7 +132,7 @@ def test_hf_watch_e2e_numbered(
 
     model_h.fit(train_dataset, validation_data=test_dataset, epochs=num_epochs)
 
-    ThreadPoolManager.wait_for_threads()
+    LogManager.wait_for_loggers()
     # All data for splits should be logged
     assert len(vaex.open(f"{LOCATION}/training/0/*.hdf5")) == len(
         encoded_train_dataset_number
@@ -225,7 +225,7 @@ def test_tf_watch_e2e_numbered(
 
     model_s.predict(x=x, batch_size=batch_size)
 
-    ThreadPoolManager.wait_for_threads()
+    LogManager.wait_for_loggers()
     assert len(vaex.open(f"{LOCATION}/training/1/*.hdf5")) == len(x)
     assert len(vaex.open(f"{LOCATION}/validation/1/*.hdf5")) == len(x)
     assert len(vaex.open(f"{LOCATION}/test/1/*.hdf5")) == len(val_x)

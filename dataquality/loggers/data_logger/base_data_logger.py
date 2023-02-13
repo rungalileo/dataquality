@@ -25,7 +25,7 @@ from dataquality.utils.cloud import is_galileo_cloud
 from dataquality.utils.dq_logger import _shutil_rmtree_retry
 from dataquality.utils.hdf5_store import HDF5_STORE
 from dataquality.utils.helpers import galileo_verbose_logging
-from dataquality.utils.thread_pool import ThreadPoolManager
+from dataquality.utils.log_manager import LogManager
 from dataquality.utils.vaex import (
     _join_in_out_frames,
     concat_hdf5_files,
@@ -197,7 +197,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         If create_data_embs is True, this will also run an off the shelf transformer
         and upload those text embeddings alongside the models finetuned embeddings
         """
-        ThreadPoolManager.wait_for_threads()
+        LogManager.wait_for_loggers()
         self.check_for_logging_failures()
         print("☁️ Uploading Data")
         object_store = ObjectStore()

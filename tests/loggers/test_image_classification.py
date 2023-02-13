@@ -13,7 +13,7 @@ from PIL import Image
 
 import dataquality
 import dataquality as dq
-from dataquality.utils.thread_pool import ThreadPoolManager
+from dataquality.utils.log_manager import LogManager
 from dataquality.utils.vaex import validate_unique_ids
 from tests.conftest import LOCATION
 
@@ -86,7 +86,7 @@ def test_duplicate_ids_augmented_loop_thread(
             ids=ids,
         )
 
-        ThreadPoolManager.wait_for_threads()
+        LogManager.wait_for_loggers()
         df = vaex.open(f"{LOCATION}/{split}/0/*.hdf5")
         assert len(df) == 5
         validate_unique_ids(df, "epoch")
@@ -139,7 +139,7 @@ def test_duplicate_ids_augmented(set_test_config, cleanup_after_use) -> None:
             ids=ids,
         )
 
-    ThreadPoolManager.wait_for_threads()
+    LogManager.wait_for_loggers()
     for split in ["training", "validation", "test"]:
         df = vaex.open(f"{LOCATION}/{split}/0/*.hdf5")
         assert len(df) == 5
@@ -198,7 +198,7 @@ def test_base64_image_logging(set_test_config, cleanup_after_use) -> None:
         )
 
         # read logged data
-        ThreadPoolManager.wait_for_threads()
+        LogManager.wait_for_loggers()
         df = vaex.open(f"{LOCATION}/input_data/training/data_0.arrow")
 
         base64_images = df["text"].tolist()
@@ -296,7 +296,7 @@ def test_observed_ids_cleaned_up_after_finish(
             ids=ids,
         )
 
-    ThreadPoolManager.wait_for_threads()
+    LogManager.wait_for_loggers()
     for split in ["training", "validation", "test"]:
         df = vaex.open(f"{LOCATION}/{split}/0/*.hdf5")
         assert len(df) == 5
@@ -331,7 +331,7 @@ def _test_hf_image_dataset(name) -> None:
     )
 
     # read logged data
-    ThreadPoolManager.wait_for_threads()
+    LogManager.wait_for_loggers()
     df = vaex.open(f"{LOCATION}/input_data/training/*.arrow")
 
     assert len(df) == len(food_dataset)
@@ -381,7 +381,7 @@ def test_hf_image_dataset_with_paths(set_test_config, cleanup_after_use) -> None
         )
 
         # read logged data
-        ThreadPoolManager.wait_for_threads()
+        LogManager.wait_for_loggers()
         df = vaex.open(f"{LOCATION}/input_data/training/*.arrow")
 
         assert len(df) == len(food_dataset)

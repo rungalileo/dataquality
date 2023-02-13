@@ -19,7 +19,7 @@ from transformers import (
 import dataquality as dq
 from dataquality.integrations.transformers_trainer import watch
 from dataquality.schemas.task_type import TaskType
-from dataquality.utils.thread_pool import ThreadPoolManager
+from dataquality.utils.log_manager import LogManager
 
 B64_CONTENT_TYPE_DELIMITER = ";base64,"
 

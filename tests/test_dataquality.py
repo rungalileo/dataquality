@@ -23,7 +23,7 @@ from dataquality.loggers.model_logger.text_classification import (
     TextClassificationModelLogger,
 )
 from dataquality.schemas.task_type import TaskType
-from dataquality.utils.thread_pool import ThreadPoolManager
+from dataquality.utils.log_manager import LogManager
 from tests.conftest import TEST_PATH
 from tests.test_utils.data_utils import (
     NUM_LOGS,
@@ -51,7 +51,7 @@ def test_threaded_logging_and_upload(
     )
     try:
         # Equivalent to the users `finish` call, but we don't want to clean up files yet
-        ThreadPoolManager.wait_for_threads()
+        LogManager.wait_for_loggers()
         c = dataquality.get_data_logger("text_classification")
         c.validate_labels()
         c.upload()
@@ -60,7 +60,7 @@ def test_threaded_logging_and_upload(
         validate_cleanup_data()
     finally:
         # Mock finish() call without calling the API
-        ThreadPoolManager.wait_for_threads()
+        LogManager.wait_for_loggers()
 
 
 def test_multi_label_logging(
@@ -78,7 +78,7 @@ def test_multi_label_logging(
     )
     try:
         # Equivalent to the users `finish` call, but we don't want to clean up files yet
-        ThreadPoolManager.wait_for_threads()
+        LogManager.wait_for_loggers()
         c = dataquality.get_data_logger()
         c.validate_labels()
         c.upload()
@@ -87,7 +87,7 @@ def test_multi_label_logging(
         validate_cleanup_data()
     finally:
         # Mock finish() call without calling the API
-        ThreadPoolManager.wait_for_threads()
+        LogManager.wait_for_loggers()
 
 
 def test_metadata_logging(
@@ -103,7 +103,7 @@ def test_metadata_logging(
     _log_text_classification_data(meta=meta)
     try:
         # Equivalent to the users `finish` call, but we don't want to clean up files yet
-        ThreadPoolManager.wait_for_threads()
+        LogManager.wait_for_loggers()
         c = dataquality.get_data_logger()
         c.upload()
         validate_uploaded_data(meta_cols=meta_cols)
@@ -111,7 +111,7 @@ def test_metadata_logging(
         validate_cleanup_data()
     finally:
         # Mock finish() call without calling the API
-        ThreadPoolManager.wait_for_threads()
+        LogManager.wait_for_loggers()
 
 
 def test_metadata_logging_different_splits(
@@ -185,7 +185,7 @@ def test_metadata_logging_invalid(
         validate_cleanup_data()
     finally:
         # Mock finish() call without calling the API
-        ThreadPoolManager.wait_for_threads()
+        LogManager.wait_for_loggers()
 
 
 def test_logging_duplicate_ids(
@@ -198,7 +198,7 @@ def test_logging_duplicate_ids(
     _log_text_classification_data(num_records=num_records, unique_ids=False)
     try:
         # Equivalent to the users `finish` call, but we don't want to clean up files yet
-        ThreadPoolManager.wait_for_threads()
+        LogManager.wait_for_loggers()
         c = dataquality.get_data_logger("text_classification")
         with pytest.raises(GalileoException) as e:
             c.upload()
@@ -208,7 +208,7 @@ def test_logging_duplicate_ids(
         )
     finally:
         # Mock finish() call without calling the API
-        ThreadPoolManager.wait_for_threads()
+        LogManager.wait_for_loggers()
 
 
 def test_logging_inference_run(
@@ -243,7 +243,7 @@ def test_logging_inference_run(
     }
     dataquality.log_model_outputs(**output_data)
 
-    ThreadPoolManager.wait_for_threads()
+    LogManager.wait_for_loggers()
     dataquality.get_data_logger().upload()
 
     inference_data_1 = vaex.open(f"{TEST_PATH}/inference/all-customers/data/data.hdf5")
@@ -322,7 +322,7 @@ def test_logging_train_test_inference(
     }
     dataquality.log_model_outputs(**output_data)
 
-    ThreadPoolManager.wait_for_threads()
+    LogManager.wait_for_loggers()
     dataquality.get_data_logger().upload()
 
     train_data = vaex.open(f"{TEST_PATH}/training/0/data/data.hdf5")

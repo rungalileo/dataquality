@@ -24,7 +24,7 @@ from dataquality.integrations.spacy import (
 )
 from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
-from dataquality.utils.thread_pool import ThreadPoolManager
+from dataquality.utils.log_manager import LogManager
 from tests.conftest import LOCATION
 from tests.test_utils.spacy_integration import load_ner_data_from_local, train_model
 from tests.test_utils.spacy_integration_constants import (
@@ -237,7 +237,7 @@ def test_long_sample(
         nlp.update(all_examples, drop=0.5, sgd=optimizer, losses=losses)
 
     TextNERModelLogger.log = old_log
-    ThreadPoolManager.wait_for_threads()
+    LogManager.wait_for_loggers()
     del nlp
 
 

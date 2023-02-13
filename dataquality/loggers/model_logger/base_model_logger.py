@@ -16,7 +16,7 @@ from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.ampli import AmpliMetric
 from dataquality.utils.dq_logger import get_dq_logger
-from dataquality.utils.thread_pool import ThreadPoolManager
+from dataquality.utils.log_manager import LogManager
 from dataquality.utils.vaex import _save_hdf5_file
 
 analytics = Analytics(ApiClient, config)  # type: ignore
@@ -72,7 +72,7 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         data = self._get_data_dict()
         self.write_model_output(data)
 
-    def _add_threaded_log(self) -> None:
+    def _add_async_log(self) -> None:
         try:
             self._log()
         except Exception as e:
@@ -102,7 +102,7 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         get_dq_logger().debug(
             "Starting logging process from thread", split=self.split, epoch=self.epoch
         )
-        ThreadPoolManager.add_thread(target=self._add_threaded_log)
+        LogManager.add_logger(target=self._add_async_log)
 
     def write_model_output(self, data: Dict) -> None:
         """Creates an hdf5 file from the data dict"""

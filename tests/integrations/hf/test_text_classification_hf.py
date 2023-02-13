@@ -18,7 +18,7 @@ import dataquality as dq
 from dataquality import config
 from dataquality.integrations.transformers_trainer import watch
 from dataquality.schemas.task_type import TaskType
-from dataquality.utils.thread_pool import ThreadPoolManager
+from dataquality.utils.log_manager import LogManager
 from tests.conftest import HF_TEST_BERT_PATH, LOCATION, model, tokenizer
 from tests.test_utils.hf_datasets_mock import mock_hf_dataset, mock_hf_dataset_repeat
 from tests.test_utils.mock_request import (
@@ -145,7 +145,7 @@ def test_hf_watch_e2e(
     watch(trainer)
     trainer.train()
     trainer.predict(encoded_test_dataset)
-    ThreadPoolManager.wait_for_threads()
+    LogManager.wait_for_loggers()
     # All data for splits should be logged
     assert len(vaex.open(f"{LOCATION}/training/0/*.hdf5")) == len(train_dataset)
     assert len(vaex.open(f"{LOCATION}/validation/0/*.hdf5")) == len(val_dataset)
@@ -337,7 +337,7 @@ def test_hf_watch_with_pt_dataset_e2e(
     watch(trainer)
     trainer.train()
     trainer.predict(val_dataset)
-    ThreadPoolManager.wait_for_threads()
+    LogManager.wait_for_loggers()
     # All data for splits should be logged
     assert len(vaex.open(f"{LOCATION}/training/0/*.hdf5")) == len(train_dataset)
     assert len(vaex.open(f"{LOCATION}/validation/0/*.hdf5")) == len(val_dataset)
