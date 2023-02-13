@@ -302,3 +302,26 @@ def test_notify_email(mock_make_request: MagicMock, set_test_config: Callable) -
             "emails": ["foo@bar.com"],
         },
     )
+
+
+@mock.patch.object(ApiClient, "make_request")
+def test_set_metric_for_run(
+    mock_make_request: MagicMock, set_test_config: Callable
+) -> None:
+    proj_id, run_id = uuid4(), uuid4()
+    data = {
+        "key": "feature_importances",
+        "value": 0.0,
+        "epoch": 0,
+        "extra": {
+            "feature_0": 0.5,
+            "feature_1": 0.6,
+            "feature_2": 0.7,
+        },
+    }
+    api_client.set_metric_for_run(proj_id, run_id, data)
+    mock_make_request.assert_called_once_with(
+        RequestType.POST,
+        url=f"http://localhost:8088/projects/{proj_id}/runs/{run_id}/metrics",
+        body=data,
+    )
