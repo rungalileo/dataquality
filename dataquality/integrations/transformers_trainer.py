@@ -39,9 +39,9 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
 
     def __init__(
         self,
-        last_hidden_state_layer: Layer = None,
-        embedding_dim: InputDim = None,
-        logits_dim: InputDim = None,
+        last_hidden_state_layer: Optional[Layer] = None,
+        embedding_dim: Optional[InputDim] = None,
+        logits_dim: Optional[InputDim] = None,
         classifier_layer: Layer = "classifier",
         embedding_fn: Optional[Callable] = None,
         logits_fn: Optional[Callable] = None,
@@ -265,10 +265,10 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
 @check_noop
 def watch(
     trainer: Trainer,
-    last_hidden_state_layer: Layer = None,
+    last_hidden_state_layer: Optional[Layer] = None,
     embedding_dim: Optional[DimensionSlice] = None,
     logits_dim: Optional[DimensionSlice] = None,
-    classifier_layer: Layer = None,
+    classifier_layer: Optional[Layer] = None,
     embedding_fn: Optional[Callable] = None,
     logits_fn: Optional[Callable] = None,
 ) -> None:

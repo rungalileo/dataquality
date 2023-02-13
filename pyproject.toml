@@ -10,8 +10,8 @@ home-page = "https://www.github.com/rungalileo/dataquality"
 description-file = "README.md"
 requires-python = ">=3.7"
 requires = [
-    "pydantic==1.8.2",
-    "requests==2.26.0",
+    "pydantic>=1.8.2",
+    "requests>=2.25.1",
     "types-requests==2.25.2",
     "pandas>=0.20.0",
     "pyarrow>=5.0.0",
@@ -19,21 +19,21 @@ requires = [
     "vaex-hdf5>=0.12,<0.13",
     "diskcache==5.2.1",
     "resource==0.2.1",
-    "tqdm==4.62.3",
+    "tqdm>=4.62.3",
     "blake3==0.2.1",
-    "wrapt==1.13.3",
+    "wrapt>=1.13.3",
     "scipy>=1.7.0",
-    "cachetools==5.2.0",
-    "importlib-metadata==4.12.0",
+    "cachetools>=5.2.0",
+    "importlib-metadata",
     "evaluate",
     "datasets>=2.6",
-    "transformers<4.25.0",
+    "transformers>=4.24.0",
     "seqeval",
     "sentence-transformers>=2.2",
     "Pillow",
     "h5py >=3.1.0",
     "numpy<1.24.0",
-    "tenacity==8.1.0"
+    "tenacity>=8.1.0"
 ]
 
 [tool.flit.metadata.urls]
@@ -45,8 +45,8 @@ doc = [
     "mkdocs-material >=5.4.0,<6.0.0",
 ]
 test = [
-    "pytest==7.2.1",
-    "mypy==0.971",
+    "pytest>=7.2.1",
+    "mypy>=1.0.0",
     "freezegun==1.2.2",
     "coverage==7.0.5",
     "pytest-cov==3.0.0",
@@ -56,17 +56,17 @@ test = [
     "spacy==3.2.1",
     "types-setuptools==65.5.0.2",
     "types-cachetools==5.2.1",
-    "torchvision==0.13.1",
-    "torch==1.12.1",
-    "torchtext==0.13.1",
-    "torchdata==0.4.1",
+    "torchvision>=0.13.1",
+    "torch>=1.12.1",
+    "torchtext>=0.13.1",
+    "torchdata>=0.4.1",
     "xgboost>=1.6.2",
 ]
 dev = [
-    "flake8==3.9.2",
-    "black==22.3.0",
-    "isort==5.9.3",
-    "autoflake==1.4",
+    "flake8",
+    "black>=23.1.0",
+    "isort>=5.11.5",
+    "autoflake",
     "jupyter==1.0.0",
 ]
 

@@ -15,6 +15,7 @@ from torchtext.vocab import build_vocab_from_iterator
 import dataquality as dq
 from dataquality import DataQuality
 from dataquality.clients.api import ApiClient
+from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import validate_unique_ids
@@ -54,7 +55,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def collate_batch(batch):
     label_list, text_list, offsets = [], [], [0]
-    for (_label, _text) in batch:
+    for _label, _text in batch:
         label_list.append(label_pipeline(_label))
         processed_text = torch.tensor(text_pipeline(_text), dtype=torch.int64)
         text_list.append(processed_text)
@@ -212,21 +213,20 @@ def test_text_pt(
     test_dataloader_dq = DataLoader(
         ag_test, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_batch
     )
-
     with DataQuality(
         modeldq,
         labels=labels,
         train_data=train_df,
-        val_dataset=test_df,
+        val_data=test_df,
         task="text_classification",
     ):
-        split = "training"
+        split = Split.train
         for epoch in range(0, EPOCHS):
             # 🔭🌕 Logging the dataset with Galileo
             dq.set_epoch_and_split(epoch, split)
             train(train_dataloader_dq, modeldq)
             # 🔭🌕 Logging the dataset with Galileo
-            dq.set_split("validation")
+            dq.set_split(Split.validation)
             evaluate(test_dataloader_dq, modeldq)
         ThreadPoolManager.wait_for_threads()
         validate_unique_ids(vaex.open(f"{LOCATION}/{split}/0/*.hdf5"), "epoch")

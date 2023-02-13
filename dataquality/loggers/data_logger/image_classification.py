@@ -33,12 +33,12 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
 
     def __init__(
         self,
-        texts: List[str] = None,
-        labels: List[str] = None,
-        ids: List[int] = None,
-        split: str = None,
-        meta: MetasType = None,
-        inference_name: str = None,
+        texts: Optional[List[str]] = None,
+        labels: Optional[List[str]] = None,
+        ids: Optional[List[int]] = None,
+        split: Optional[str] = None,
+        meta: Optional[MetasType] = None,
+        inference_name: Optional[str] = None,
     ) -> None:
         super().__init__(
             texts=texts,

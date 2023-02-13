@@ -295,7 +295,7 @@ class ModelHookManager:
         self,
         model: Module,
         hook_fn: Callable,
-        model_layer: Layer = None,
+        model_layer: Optional[Layer] = None,
     ) -> RemovableHandle:
         """Attach hook and save it in our hook list"""
         if model_layer is None:
@@ -310,7 +310,7 @@ class ModelHookManager:
         self,
         model: Module,
         classifier_hook: Callable,
-        model_layer: Layer = None,
+        model_layer: Optional[Layer] = None,
     ) -> RemovableHandle:
         """Attach hook and save it in our hook list"""
         if model_layer is None:

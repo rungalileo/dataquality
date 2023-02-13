@@ -1,5 +1,5 @@
 import warnings
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import tensorflow as tf
@@ -98,18 +98,18 @@ class DataQualityCallback(keras.callbacks.Callback):
     def _clear_logger_config_helper_data(self) -> None:
         dq.get_model_logger().logger_config.helper_data.clear()
 
-    def on_train_batch_begin(self, batch: Any, logs: Dict = None) -> None:
+    def on_train_batch_begin(self, batch: Any, logs: Optional[Dict] = None) -> None:
         self._clear_logger_config_helper_data()
         dq.set_split(Split.train)
 
-    def on_train_batch_end(self, batch: Any, logs: Dict = None) -> None:
+    def on_train_batch_end(self, batch: Any, logs: Optional[Dict] = None) -> None:
         dq.log_model_outputs(**dq.get_model_logger().logger_config.helper_data)
 
-    def on_test_batch_begin(self, batch: Any, logs: Dict = None) -> None:
+    def on_test_batch_begin(self, batch: Any, logs: Optional[Dict] = None) -> None:
         # TODO: Somehow we should figure out whether this is in .fit
         #  (so really this should be val) or .evaluate (so this should be test)
         self._clear_logger_config_helper_data()
         dq.set_split(Split.test)
 
-    def on_test_batch_end(self, batch: Any, logs: Dict = None) -> None:
+    def on_test_batch_end(self, batch: Any, logs: Optional[Dict] = None) -> None:
         dq.log_model_outputs(**dq.get_model_logger().logger_config.helper_data)

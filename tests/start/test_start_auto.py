@@ -2,6 +2,7 @@ from typing import Callable, Generator
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
+from sklearn.datasets import fetch_20newsgroups
 
 import dataquality
 import dataquality as dq
@@ -41,9 +42,26 @@ def test_auto(
     set_test_config(current_project_id=None, current_run_id=None)
     df_train = pd.DataFrame({"text": ["hello"] * 20, "label": ["hello"] * 20})
     df_test = pd.DataFrame({"text": ["hello"] * 20, "label": ["hello"] * 20})
+    df_train.to_csv("tmp/train.csv", index=False)
+    df_test.to_csv("tmp/test.csv", index=False)
+    # with dataquality(
+    #    hf_data="rungalileo/emotion",
+    #    task="text_classification",
+    # ):
+    #    dataquality.get_insights()
+
+    # Load the newsgroups dataset from sklearn
+    newsgroups_train = fetch_20newsgroups(subset="train")
+    newsgroups_test = fetch_20newsgroups(subset="test")
+
+    df_train = pd.DataFrame(
+        {"text": newsgroups_train.data, "label": newsgroups_train.target}
+    ).head(4)
+    df_test = pd.DataFrame(
+        {"text": newsgroups_test.data, "label": newsgroups_test.target}
+    ).head(4)
+
     with dataquality(
-        train_data=df_train,
-        test_data=df_test,
-        task="text_classification",
+        train_data=df_train, test_data=df_test, labels=newsgroups_train.target_names
     ):
         dataquality.get_insights()

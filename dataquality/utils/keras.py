@@ -72,7 +72,11 @@ def generate_split(
     if validation_split and validation_data is None:
         # Create the validation data using the training data. Only supported
         # for `Tensor` and `NumPy` input.
-        (x, y, sample_weight,), validation_data = data_adapter.train_validation_split(
+        (
+            x,
+            y,
+            sample_weight,
+        ), validation_data = data_adapter.train_validation_split(
             (x, y, sample_weight), validation_split=validation_split
         )
 

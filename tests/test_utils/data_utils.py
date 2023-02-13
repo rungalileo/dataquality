@@ -19,7 +19,7 @@ MULTI_LABEL_NUM_TASKS = 4
 
 
 def validate_uploaded_data(
-    expected_num_records: int = None,
+    expected_num_records: Optional[int] = None,
     meta_cols: Optional[List] = None,
     multi_label=False,
 ) -> None:

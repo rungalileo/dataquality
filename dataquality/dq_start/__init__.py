@@ -1,6 +1,7 @@
 import abc
 import datetime
 import inspect
+import random
 from typing import Any, Callable, Dict, List, Optional, Type
 
 import dataquality as dq
@@ -9,6 +10,7 @@ from dataquality.exceptions import GalileoException
 from dataquality.schemas.model import ModelFramework
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
+from dataquality.utils.name import COLORS
 
 
 class BaseInsights(abc.ABC):
@@ -31,7 +33,7 @@ class BaseInsights(abc.ABC):
 
     def enter(self) -> None:
         """Call the watch function (called in __enter__)."""
-        if self.watch:
+        if hasattr(self, "watch") and self.watch:
             func_signature = inspect.signature(self.watch)
             func_kwargs = {
                 k: v for k, v in self.kwargs.items() if k in func_signature.parameters
@@ -40,7 +42,7 @@ class BaseInsights(abc.ABC):
 
     def exit(self) -> None:
         """Call the unwatch function (called in __exit__)."""
-        if self.unwatch:
+        if hasattr(self, "unwatch") and self.unwatch:
             self.unwatch(self.model)
 
     def set_project_run(
@@ -64,7 +66,8 @@ class BaseInsights(abc.ABC):
             self.run = run
         else:
             current_time = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M")
-            self.run = f"{self.framework}_{current_time}"
+            random_word = random.choice(COLORS)
+            self.run = f"{current_time}_{self.framework}_{random_word}"
 
     def init_project(
         self,
@@ -87,8 +90,8 @@ class BaseInsights(abc.ABC):
         self,
         labels: Optional[List[str]],
         train_data: Any,
-        test_data: Any = None,
-        val_data: Any = None,
+        test_data: Optional[Any] = None,
+        val_data: Optional[Any] = None,
     ) -> None:
         """Log dataset and labels to the run.
         :param labels: The labels
@@ -96,7 +99,7 @@ class BaseInsights(abc.ABC):
         :param test_data: The test dataset
         :param val_data: The validation dataset
         """
-        if isinstance(labels, list) and len(labels):
+        if labels is not None and len(labels):
             dq.set_labels_for_run(labels)
         if train_data is not None:
             dq.log_dataset(train_data, split=Split.train)
@@ -114,7 +117,7 @@ class BaseInsights(abc.ABC):
             task_type is not None
         ), """keyword argument task_type is required,
     for example task_type='text_classification' """
-        assert isinstance(labels, list) and len(
+        assert labels is not None and len(
             labels
         ), """keyword labels is required,
     for example labels=['neg','pos']"""
@@ -160,8 +163,8 @@ class SpacyInsights(BaseInsights):
         self,
         labels: Optional[List[str]],
         train_data: Any,
-        test_data: Any = None,
-        val_data: Any = None,
+        test_data: Optional[Any] = None,
+        val_data: Optional[Any] = None,
     ) -> None:
         """
         Functionality is actually handled in the training step.
@@ -223,8 +226,8 @@ class AutoInsights(BaseInsights):
         self,
         labels: Optional[List[str]],
         train_data: Any,
-        test_data: Any = None,
-        val_data: Any = None,
+        test_data: Optional[Any] = None,
+        val_data: Optional[Any] = None,
     ) -> None:
         """Setup auto by creating the parameters for the auto function.
         :param labels: Labels for the training
@@ -236,7 +239,7 @@ class AutoInsights(BaseInsights):
         if self.task:
             assert self.task == TaskType.text_classification
 
-        if isinstance(labels, list) and len(labels):
+        if labels is not None and len(labels):
             auto_kwargs["labels"] = labels
         if train_data is not None:
             auto_kwargs["train_data"] = train_data
@@ -296,12 +299,12 @@ def detect_model(model: Any, framework: Optional[ModelFramework]) -> Type[BaseIn
 class DataQuality:
     def __init__(
         self,
-        model: Any = None,
+        model: Optional[Any] = None,
         task: TaskType = TaskType.text_classification,
         labels: Optional[List[str]] = None,
-        train_data: Any = None,
-        test_data: Any = None,
-        val_data: Any = None,
+        train_data: Optional[Any] = None,
+        test_data: Optional[Any] = None,
+        val_data: Optional[Any] = None,
         project: str = "",
         run: str = "",
         framework: Optional[ModelFramework] = None,

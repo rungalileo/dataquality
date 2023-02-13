@@ -45,8 +45,8 @@ def load_data_from_str(data: str) -> Union[pd.DataFrame, Dataset]:
 
 def try_load_dataset_dict(
     demo_datasets: List[str],
-    hf_data: Union[DatasetDict, str] = None,
-    train_data: Union[pd.DataFrame, Dataset, str] = None,
+    hf_data: Optional[Union[DatasetDict, str]] = None,
+    train_data: Optional[Union[pd.DataFrame, Dataset, str]] = None,
 ) -> Optional[DatasetDict]:
     """Tries to load the DatasetDict if available
 
@@ -140,8 +140,8 @@ def _get_task_type_from_train(
 
 
 def get_task_type_from_data(
-    hf_data: Union[DatasetDict, str] = None,
-    train_data: Union[pd.DataFrame, Dataset, str] = None,
+    hf_data: Optional[Union[DatasetDict, str]] = None,
+    train_data: Optional[Union[pd.DataFrame, Dataset, str]] = None,
 ) -> TaskType:
     """Determines the task type of the dataset by the dataset contents
 
