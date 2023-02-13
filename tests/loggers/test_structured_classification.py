@@ -65,12 +65,10 @@ class TestStructuredClassificationDataLogger:
         )
         logger.validate()
 
-    @mock.patch.object(StructuredClassificationDataLogger, "save_feature_importances")
     @mock.patch.object(StructuredClassificationDataLogger, "set_probs")
     def test_validate_inputs(
         self,
         mock_set_probs: mock.MagicMock,
-        mock_save_feature_importances: mock.MagicMock,
         fit_xgboost: xgb.XGBClassifier,
         sc_data: Dict,
     ) -> None:
@@ -90,9 +88,9 @@ class TestStructuredClassificationDataLogger:
         logger.validate_and_prepare_logger()
         assert isinstance(logger.X, pd.DataFrame)
         assert isinstance(logger.y, np.ndarray)
+        assert logger.logger_config.feature_importances is not None
 
         mock_set_probs.assert_called_once_with()
-        mock_save_feature_importances.assert_called_once_with()
 
     def test_set_probs(self, fit_xgboost: xgb.XGBClassifier, sc_data: Dict) -> None:
         logger = StructuredClassificationDataLogger(
@@ -123,6 +121,8 @@ class TestStructuredClassificationDataLogger:
             feature_names=sc_data["feature_names"],
             split="training",
         )
+        # We need to call this to set logger config feature importances
+        logger.validate_and_prepare_logger()
         logger.save_feature_importances()
         mock_set_metrics.assert_called_once_with(
             DEFAULT_PROJECT_ID,
@@ -198,12 +198,14 @@ class TestStructuredClassificationDataLogger:
         # All dfs should have same number of rows
         assert len(df) == len(prob_df)
 
+    @mock.patch.object(StructuredClassificationDataLogger, "save_feature_importances")
     @mock.patch("dataquality.loggers.data_logger.structured_classification.os.walk")
     @mock.patch.object(ObjectStore, "create_project_run_object")
     def test_upload(
         self,
         mock_create_project_run_object: mock.MagicMock,
         mock_os_walk: mock.MagicMock,
+        mock_save_importances: mock.MagicMock,
         create_logger: Callable,
     ) -> None:
         """Test upload uploads to Minio"""
@@ -242,6 +244,7 @@ class TestStructuredClassificationDataLogger:
             ),
             file_path=f"{prefix}/prob/prob.hdf5",
         )
+        mock_save_importances.assert_called_once_with()
 
 
 class TestStructuredClassificationValidationErrors:
@@ -291,10 +294,7 @@ class TestStructuredClassificationValidationErrors:
         with pytest.raises(AssertionError) as e:
             logger.validate_and_prepare_logger()
 
-        assert str(e.value) == (
-            "Model must have a predict_proba method. "
-            "If you are using a custom model, please implement a predict_proba method."
-        )
+        assert str(e.value) == "Model must be included to log data."
 
     def test_validate_inputs_model_not_fitted(self) -> None:
         """Test error is raised if model is not already fit"""
@@ -492,7 +492,7 @@ class TestStructuredClassificationE2E:
 
         # We upload df and prob_df for each split (training and test)
         assert mock_upload_df_to_minio.call_count == 4
-        assert mock_save_feature_importances.call_count == 2
+        assert mock_save_feature_importances.call_count == 1
         mock_create_job.assert_called_once_with(
             RequestType.POST,
             url="http://localhost:8088/jobs",
@@ -541,7 +541,7 @@ class TestStructuredClassificationE2E:
 
         # We upload df and prob_df for each split (training and test)
         assert mock_upload_df_to_minio.call_count == 4
-        assert mock_save_feature_importances.call_count == 2
+        assert mock_save_feature_importances.call_count == 1
         mock_create_job.assert_called_once_with(
             RequestType.POST,
             url="http://localhost:8088/jobs",
@@ -594,7 +594,7 @@ class TestStructuredClassificationE2E:
 
         # We upload df and prob_df for each split (training and 2 inf)
         assert mock_upload_df_to_minio.call_count == 6
-        assert mock_save_feature_importances.call_count == 3
+        assert mock_save_feature_importances.call_count == 1
         mock_create_job.assert_called_once_with(
             RequestType.POST,
             url="http://localhost:8088/jobs",
@@ -652,7 +652,7 @@ class TestStructuredClassificationE2E:
 
         # We upload df and prob_df for each split (training and 2 inf)
         assert mock_upload_df_to_minio.call_count == 6
-        assert mock_save_feature_importances.call_count == 3
+        assert mock_save_feature_importances.call_count == 1
         mock_create_job.assert_called_once_with(
             RequestType.POST,
             url="http://localhost:8088/jobs",
@@ -701,7 +701,7 @@ class TestStructuredClassificationE2E:
 
         # We upload df and prob_df for each split (2 inf)
         assert mock_upload_df_to_minio.call_count == 4
-        assert mock_save_feature_importances.call_count == 2
+        assert mock_save_feature_importances.call_count == 1
         mock_create_job.assert_called_once_with(
             RequestType.POST,
             url="http://localhost:8088/jobs",
@@ -757,7 +757,7 @@ class TestStructuredClassificationE2E:
 
         # We upload df and prob_df for each split (2 inf)
         assert mock_upload_df_to_minio.call_count == 4
-        assert mock_save_feature_importances.call_count == 2
+        assert mock_save_feature_importances.call_count == 1
         mock_create_job.assert_called_once_with(
             RequestType.POST,
             url="http://localhost:8088/jobs",
