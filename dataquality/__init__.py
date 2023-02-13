@@ -1,10 +1,6 @@
 "dataquality"
 
-<<<<<<< HEAD
-__version__ = "v0.8.13a0"
-=======
 __version__ = "v0.8.14"
->>>>>>> main
 
 import os
 import sys
@@ -193,6 +189,9 @@ class _DataQuality:
         return self._instance
 
         # we want to add the __all__ to the module
+
+    def get_insights(self) -> None:
+        return
 
     def __dir__(self) -> List[str]:
         return __all__

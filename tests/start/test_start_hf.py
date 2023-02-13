@@ -130,7 +130,7 @@ def test_cv_hf(
     with DataQuality(
         trainer,
         labels=labels,
-        train_dataset=train_df,
+        train_data=train_df,
         val_dataset=test_df,
         task="text_classification",
     ):

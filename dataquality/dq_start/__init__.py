@@ -86,24 +86,24 @@ class BaseInsights(abc.ABC):
     def setup_training(
         self,
         labels: List[str],
-        train_dataset: Any,
-        test_dataset: Any = None,
-        val_dataset: Any = None,
+        train_data: Any,
+        test_data: Any = None,
+        val_data: Any = None,
     ) -> None:
         """Log dataset and labels to the run.
         :param labels: The labels
-        :param train_dataset: The training dataset
-        :param test_dataset: The test dataset
-        :param val_dataset: The validation dataset
+        :param train_data: The training dataset
+        :param test_data: The test dataset
+        :param val_data: The validation dataset
         """
         if len(labels):
             dq.set_labels_for_run(labels)
-        if train_dataset is not None:
-            dq.log_dataset(train_dataset, split=Split.train)
-        if test_dataset is not None:
-            dq.log_dataset(test_dataset, split=Split.test)
-        if val_dataset is not None:
-            dq.log_dataset(val_dataset, split=Split.validation)
+        if train_data is not None:
+            dq.log_dataset(train_data, split=Split.train)
+        if test_data is not None:
+            dq.log_dataset(test_data, split=Split.test)
+        if val_data is not None:
+            dq.log_dataset(val_data, split=Split.validation)
 
     def validate(self, task_type: TaskType, labels: List[str] = []) -> None:
         """Validate the task type and labels.
@@ -159,23 +159,24 @@ class SpacyInsights(BaseInsights):
     def setup_training(
         self,
         labels: List[str],
-        train_dataset: Any,
-        test_dataset: Any = None,
-        val_dataset: Any = None,
+        train_data: Any,
+        test_data: Any = None,
+        val_data: Any = None,
     ) -> None:
         """
         Functionality is actually handled in the training step.
         Used to be:
         from dataquality.integrations.spacy import log_input_examples
-        self.model.initialize(lambda: train_dataset)
+        self.model.initialize(lambda: train_data)
         self.watch(self.model)
-        if train_dataset is not None:
-           log_input_examples(train_dataset, split=Split.train)
-        if test_dataset is not None:
-           log_input_examples(test_dataset, split=Split.test)
-        if val_dataset is not None:
-           log_input_examples(val_dataset, split=Split.validation)
+        if train_data is not None:
+           log_input_examples(train_data, split=Split.train)
+        if test_data is not None:
+           log_input_examples(test_data, split=Split.test)
+        if val_data is not None:
+           log_input_examples(val_data, split=Split.validation)
         """
+        pass
 
     def enter(self) -> None:
         """Not used for spacy."""
@@ -220,29 +221,29 @@ class AutoInsights(BaseInsights):
 
     def setup_training(
         self,
-        labels: List[str],
-        train_dataset: Any,
-        test_dataset: Any = None,
-        val_dataset: Any = None,
+        labels: Optional[List[str]],
+        train_data: Any,
+        test_data: Any = None,
+        val_data: Any = None,
     ) -> None:
         """Setup auto by creating the parameters for the auto function.
         :param labels: Labels for the training
-        :param train_dataset: Training dataset
-        :param test_dataset: Test dataset
-        :param val_dataset: Validation dataset
+        :param train_data: Training dataset
+        :param test_data: Test dataset
+        :param val_data: Validation dataset
         """
         auto_kwargs = self.auto_kwargs
         if self.task:
             assert self.task == TaskType.text_classification
 
-        if len(labels):
+        if isinstance(labels, list) and len(labels):
             auto_kwargs["labels"] = labels
-        if train_dataset is not None:
-            auto_kwargs["train_data"] = train_dataset
-        if test_dataset is not None:
-            auto_kwargs["test_data"] = test_dataset
-        if val_dataset is not None:
-            auto_kwargs["validation_data"] = val_dataset
+        if train_data is not None:
+            auto_kwargs["train_data"] = train_data
+        if test_data is not None:
+            auto_kwargs["test_data"] = test_data
+        if val_data is not None:
+            auto_kwargs["validation_data"] = val_data
         if self.project:
             auto_kwargs["project_name"] = self.project
         if self.run:
@@ -261,6 +262,14 @@ class AutoInsights(BaseInsights):
     def enter(self) -> None:
         """Call auto function with the generated paramters."""
         self.auto(**self.auto_kwargs)
+
+    def validate(self, task_type: TaskType, labels: Optional[List[str]] = []) -> None:
+        """Validate the task type and labels.
+        :param task_type: The task type
+        :param labels: The labels (not used for spacy)
+        """
+        pass
+
 
 
 def detect_model(model: Any, framework: Optional[ModelFramework]) -> Type[BaseInsights]:
@@ -288,12 +297,12 @@ def detect_model(model: Any, framework: Optional[ModelFramework]) -> Type[BaseIn
 class DataQuality:
     def __init__(
         self,
-        model: Any,
+        model: Any = None,
         task: TaskType = TaskType.text_classification,
-        labels: List[str] = [],
-        train_dataset: Any = None,
-        test_dataset: Any = None,
-        val_dataset: Any = None,
+        labels: Optional[List[str]] = None,
+        train_data: Any = None,
+        test_data: Any = None,
+        val_data: Any = None,
         project: str = "",
         run: str = "",
         framework: Optional[ModelFramework] = None,
@@ -305,9 +314,9 @@ class DataQuality:
         :param task: Task type for example "text_classification"
         :param project: Project name
         :param run: Run name
-        :param train_dataset: Training data
-        :param test_dataset: Optional test data
-        :param val_dataset: Optional: validation data
+        :param train_data: Training data
+        :param test_data: Optional test data
+        :param val_data: Optional: validation data
         :param labels: The labels for the run
         :param framework: The framework to use, if provided it will be used instead of
             inferring it from the model. For example, if you have a spacy model, you
@@ -321,8 +330,9 @@ class DataQuality:
             from dataquality import DataQuality
 
             with DataQuality(model, "text_classification",
-                             labels = ["neg", "pos"], train_dataset = train_dataset) as dq:
-                model.fit(train_dataset)
+                             labels = ["neg", "pos"],
+                             train_data = train_data) as dq:
+                model.fit(train_data)
 
         If you want to train without a model, you can use the auto framework:
 
@@ -331,7 +341,7 @@ class DataQuality:
             from dataquality import DataQuality
 
             with DataQuality(labels = ["neg", "pos"],
-                             train_dataset = train_dataset) as dq:
+                             train_data = train_data) as dq:
                 dq.finish()
         """
         self.args, self.kwargs = args, kwargs
@@ -344,7 +354,7 @@ class DataQuality:
         self.cls = cls(model)
         self.cls.validate(task, labels)
         self.cls.init_project(task, project, run)
-        self.cls.setup_training(labels, train_dataset, test_dataset, val_dataset)
+        self.cls.setup_training(labels, train_data, test_data, val_data)
 
     def __enter__(self) -> Any:
         self.cls.enter()

@@ -97,9 +97,9 @@ def test_text_keras(
     with DataQuality(
         model_s,
         labels=labels,
-        train_dataset=train_dataset,
+        train_data=train_dataset,
         val_dataset=val_dataset,
-        test_dataset=val_dataset,
+        test_data=val_dataset,
         task="text_classification",
     ):
         model_s.fit(

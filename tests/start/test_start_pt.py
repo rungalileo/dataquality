@@ -216,7 +216,7 @@ def test_text_pt(
     with DataQuality(
         modeldq,
         labels=labels,
-        train_dataset=train_df,
+        train_data=train_df,
         val_dataset=test_df,
         task="text_classification",
     ):
