@@ -85,7 +85,7 @@ class BaseInsights(abc.ABC):
 
     def setup_training(
         self,
-        labels: List[str],
+        labels: Optional[List[str]],
         train_data: Any,
         test_data: Any = None,
         val_data: Any = None,
@@ -96,7 +96,7 @@ class BaseInsights(abc.ABC):
         :param test_data: The test dataset
         :param val_data: The validation dataset
         """
-        if len(labels):
+        if isinstance(labels, list) and len(labels):
             dq.set_labels_for_run(labels)
         if train_data is not None:
             dq.log_dataset(train_data, split=Split.train)
@@ -105,7 +105,7 @@ class BaseInsights(abc.ABC):
         if val_data is not None:
             dq.log_dataset(val_data, split=Split.validation)
 
-    def validate(self, task_type: TaskType, labels: List[str] = []) -> None:
+    def validate(self, task_type: TaskType, labels: Optional[List[str]]) -> None:
         """Validate the task type and labels.
         :param task_type: The task type
         :param labels: The labels
@@ -114,7 +114,7 @@ class BaseInsights(abc.ABC):
             task_type is not None
         ), """keyword argument task_type is required,
     for example task_type='text_classification' """
-        assert len(
+        assert isinstance(labels, list) and len(
             labels
         ), """keyword labels is required,
     for example labels=['neg','pos']"""
@@ -158,7 +158,7 @@ class SpacyInsights(BaseInsights):
 
     def setup_training(
         self,
-        labels: List[str],
+        labels: Optional[List[str]],
         train_data: Any,
         test_data: Any = None,
         val_data: Any = None,
@@ -182,7 +182,7 @@ class SpacyInsights(BaseInsights):
         """Not used for spacy."""
         assert self.watch
 
-    def validate(self, task_type: TaskType, labels: List[str] = []) -> None:
+    def validate(self, task_type: TaskType, labels: Optional[List[str]]) -> None:
         """Validate the task type and labels.
         :param task_type: The task type
         :param labels: The labels (not used for spacy)
@@ -269,7 +269,6 @@ class AutoInsights(BaseInsights):
         :param labels: The labels (not used for spacy)
         """
         pass
-
 
 
 def detect_model(model: Any, framework: Optional[ModelFramework]) -> Type[BaseInsights]:

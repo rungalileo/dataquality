@@ -1,12 +1,13 @@
 from typing import Callable, Generator
 from unittest.mock import MagicMock, patch
 
+import pandas as pd
+
 import dataquality
 import dataquality as dq
 from dataquality.clients.api import ApiClient
 from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID
-from tests.test_utils.hf_datasets_mock import mock_hf_dataset
-import pandas as pd
+
 
 @patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
 @patch.object(dq.core.finish, "_version_check")
@@ -38,12 +39,8 @@ def test_auto(
     mock_get_project_by_name.return_value = {"id": DEFAULT_PROJECT_ID}
     mock_create_run.return_value = {"id": DEFAULT_RUN_ID}
     set_test_config(current_project_id=None, current_run_id=None)
-    df_train = pd.DataFrame(
-            {"text": ["hello"] * 20, "label": ["hello"] * 20}
-        )
-    df_test = pd.DataFrame(
-            {"text": ["hello"] * 20, "label": ["hello"] * 20}
-        )
+    df_train = pd.DataFrame({"text": ["hello"] * 20, "label": ["hello"] * 20})
+    df_test = pd.DataFrame({"text": ["hello"] * 20, "label": ["hello"] * 20})
     with dataquality(
         train_data=df_train,
         test_data=df_test,

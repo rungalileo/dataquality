@@ -30,7 +30,6 @@ def tf_available() -> bool:
         return False
 
 
-# Source: https://snarky.ca/lazy-importing-in-python-3-7/
 def lazy_import(importer_name: str, to_import: Iterable[str]) -> tuple:
     """Return the importing module and a callable for lazy importing.
 
