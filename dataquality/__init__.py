@@ -141,6 +141,7 @@ __all__ = [
     "enable_galileo_verbose",
     "enable_galileo",
     "auto",
+    "auto_notebook",
 ]
 
 try:
