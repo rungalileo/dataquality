@@ -785,3 +785,13 @@ class ApiClient:
                 f"{Route.inference_names}"
             ),
         )
+
+    def set_metric_for_run(self, project_id: UUID4, run_id: UUID4, data: Dict) -> Dict:
+        return self.make_request(
+            RequestType.POST,
+            url=(
+                f"{config.api_url}/{Route.projects}/{project_id}/{Route.runs}/{run_id}/"
+                f"{Route.metrics}"
+            ),
+            body=data,
+        )
