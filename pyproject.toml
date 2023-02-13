@@ -33,7 +33,7 @@ requires = [
     "Pillow",
     "h5py >=3.1.0",
     "numpy<1.24.0",
-    "tenacity>=8.1.0"
+    "tenacity==8.1.0"
 ]
 
 [tool.flit.metadata.urls]
@@ -60,6 +60,7 @@ test = [
     "torch==1.12.1",
     "torchtext==0.13.1",
     "torchdata==0.4.1",
+    "xgboost>=1.6.2",
 ]
 dev = [
     "flake8==3.9.2",

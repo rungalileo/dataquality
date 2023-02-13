@@ -1,6 +1,10 @@
 "dataquality"
 
+<<<<<<< HEAD
 __version__ = "v0.8.13a0"
+=======
+__version__ = "v0.8.14"
+>>>>>>> main
 
 import os
 import sys
@@ -37,6 +41,7 @@ from dataquality.core.log import (
     log_dataset,
     log_image_dataset,
     log_model_outputs,
+    log_xgboost,
     set_epoch,
     set_epoch_and_split,
     set_labels_for_run,
@@ -130,6 +135,7 @@ __all__ = [
     "log_data_sample",
     "log_dataset",
     "log_image_dataset",
+    "log_xgboost",
     "get_dq_log_file",
     "build_run_report",
     "register_run_report",

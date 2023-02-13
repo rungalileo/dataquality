@@ -29,9 +29,9 @@ BAD_CHARS_REGEX = r"[^\w -]+"
 
 class InitManager:
     @retry(
+        retry=retry_if_exception_type(GalileoException),
         wait=wait_exponential_jitter(initial=0.1, max=2),
         stop=stop_after_attempt(5),
-        retry=retry_if_exception_type(GalileoException),
     )
     def get_or_create_project(
         self, project_name: str, is_public: bool

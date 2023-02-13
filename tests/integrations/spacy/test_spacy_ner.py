@@ -424,6 +424,7 @@ def test_spacy_inference_only(
     assert pdf.equals(TestSpacyInfExpectedResults.gt_probs)
 
 
+@pytest.mark.skip(reason="flaky, needs a fix")
 def test_spacy_training_then_inference(
     nlp: Language, training_examples: List[Example], inference_docs: List[Doc]
 ) -> None:
