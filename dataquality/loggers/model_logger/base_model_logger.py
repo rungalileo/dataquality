@@ -25,10 +25,10 @@ analytics = Analytics(ApiClient, config)  # type: ignore
 class BaseGalileoModelLogger(BaseGalileoLogger):
     def __init__(
         self,
-        embs: Union[List, np.ndarray] = None,
-        probs: Union[List, np.ndarray] = None,
-        logits: Union[List, np.ndarray] = None,
-        ids: Union[List, np.ndarray] = None,
+        embs: Optional[Union[List, np.ndarray]] = None,
+        probs: Optional[Union[List, np.ndarray]] = None,
+        logits: Optional[Union[List, np.ndarray]] = None,
+        ids: Optional[Union[List, np.ndarray]] = None,
         split: str = "",
         epoch: Optional[int] = None,
         inference_name: Optional[str] = None,

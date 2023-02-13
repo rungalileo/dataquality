@@ -13,11 +13,13 @@ from torchtext.datasets import AG_NEWS
 from torchtext.vocab import build_vocab_from_iterator
 
 import dataquality as dq
-from dataquality.integrations.torch import unwatch, watch
+from dataquality import DataQuality
+from dataquality.clients.api import ApiClient
+from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import validate_unique_ids
-from tests.conftest import LOCATION
+from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID, LOCATION
 
 train_iter = iter(AG_NEWS(split="train"))
 tokenizer = get_tokenizer("basic_english")
@@ -175,104 +177,57 @@ labels.sort()
 @patch.object(dq.core.finish, "upload_dq_log_file")
 @patch.object(dq.clients.api.ApiClient, "make_request")
 @patch.object(dq.core.finish, "wait_for_run")
-def test_end_to_end_with_callback(
+@patch.object(ApiClient, "get_project_by_name")
+@patch.object(ApiClient, "create_project")
+@patch.object(ApiClient, "get_project_run_by_name", return_value={})
+@patch.object(ApiClient, "create_run")
+@patch("dataquality.core.init._check_dq_version")
+@patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
+def test_text_pt(
+    mock_valid_user: MagicMock,
+    mock_check_dq_version: MagicMock,
+    mock_create_run: MagicMock,
+    mock_get_project_run_by_name: MagicMock,
+    mock_create_project: MagicMock,
+    mock_get_project_by_name: MagicMock,
+    set_test_config: Callable,
     mock_wait_for_run: MagicMock,
     mock_make_request: MagicMock,
     mock_upload_log_file: MagicMock,
     mock_reset_run: MagicMock,
     mock_version_check: MagicMock,
-    mock_valid_user: MagicMock,
-    set_test_config: Callable,
     cleanup_after_use: Generator,
 ) -> None:
-    global train_df, test_df
+    mock_get_project_by_name.return_value = {"id": DEFAULT_PROJECT_ID}
+    mock_create_run.return_value = {"id": DEFAULT_RUN_ID}
+    set_test_config(current_project_id=None, current_run_id=None)
 
     set_test_config(default_task_type=TaskType.text_classification)
-    dq.set_labels_for_run(labels)
-    # Preprocessing
-    dq.log_dataset(train_df, split="train")
-    dq.log_dataset(test_df, split="test")
 
     train_dataloader_dq = DataLoader(
         ag_train,
         batch_size=BATCH_SIZE,
-        num_workers=2,
         shuffle=True,
         collate_fn=collate_batch,
-        # persistent_workers=True,
-        # pin_memory=False,
     )
     test_dataloader_dq = DataLoader(
         ag_test, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_batch
     )
-    unwatch(modeldq)
-    # 🔭🌕 Logging the dataset with Galileo
-    watch(
+    with DataQuality(
         modeldq,
-        [train_dataloader_dq, test_dataloader_dq],
-        classifier_layer="classifier",
-    )
-    split = "training"
-    for epoch in range(0, EPOCHS):
-        # 🔭🌕 Logging the dataset with Galileo
-        dq.set_epoch_and_split(epoch, split)
-        train(train_dataloader_dq, modeldq)
-        # 🔭🌕 Logging the dataset with Galileo
-        dq.set_split("test")
-        evaluate(test_dataloader_dq, modeldq)
-    unwatch()
-    ThreadPoolManager.wait_for_threads()
-    validate_unique_ids(vaex.open(f"{LOCATION}/{split}/0/*.hdf5"), "epoch")
-    validate_unique_ids(vaex.open(f"{LOCATION}/{split}/1/*.hdf5"), "epoch")
-    dq.finish()
-
-
-@patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
-@patch.object(dq.core.finish, "_version_check")
-@patch.object(dq.core.finish, "_reset_run")
-@patch.object(dq.core.finish, "upload_dq_log_file")
-@patch.object(dq.clients.api.ApiClient, "make_request")
-@patch.object(dq.core.finish, "wait_for_run")
-def test_end_to_end_old_patch(
-    mock_wait_for_run: MagicMock,
-    mock_make_request: MagicMock,
-    mock_upload_log_file: MagicMock,
-    mock_reset_run: MagicMock,
-    mock_version_check: MagicMock,
-    mock_valid_user: MagicMock,
-    set_test_config: Callable,
-    cleanup_after_use: Generator,
-) -> None:
-    set_test_config(default_task_type=TaskType.text_classification)
-    # Preprocessing
-    global train_df, test_df
-
-    dq.set_labels_for_run(labels)
-
-    dq.log_dataset(train_df, split="train")
-    dq.log_dataset(test_df, split="test")
-
-    train_dataloader_dq = DataLoader(
-        ag_train, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_batch
-    )
-    test_dataloader_dq = DataLoader(
-        ag_test, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_batch
-    )
-
-    # 🔭🌕 Logging the dataset with Galileo
-    watch(
-        modeldq,
-        [train_dataloader_dq, test_dataloader_dq],
-        classifier_layer="classifier",
-    )
-    split = "training"
-    for epoch in range(0, 2):
-        # 🔭🌕 Logging the dataset with Galileo
-        dq.set_epoch_and_split(epoch, split)
-        train(train_dataloader_dq, modeldq)
-        # 🔭🌕 Logging the dataset with Galileo
-        dq.set_split("test")
-        evaluate(test_dataloader_dq, modeldq)
-    unwatch()
-    ThreadPoolManager.wait_for_threads()
-    validate_unique_ids(vaex.open(f"{LOCATION}/{split}/0/*.hdf5"), "epoch")
+        labels=labels,
+        train_data=train_df,
+        val_data=test_df,
+        task="text_classification",
+    ):
+        split = Split.train
+        for epoch in range(0, EPOCHS):
+            # 🔭🌕 Logging the dataset with Galileo
+            dq.set_epoch_and_split(epoch, split)
+            train(train_dataloader_dq, modeldq)
+            # 🔭🌕 Logging the dataset with Galileo
+            dq.set_split(Split.validation)
+            evaluate(test_dataloader_dq, modeldq)
+        ThreadPoolManager.wait_for_threads()
+        validate_unique_ids(vaex.open(f"{LOCATION}/{split}/0/*.hdf5"), "epoch")
+        validate_unique_ids(vaex.open(f"{LOCATION}/{split}/1/*.hdf5"), "epoch")

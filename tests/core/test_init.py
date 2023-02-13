@@ -522,6 +522,7 @@ def test_init_bad_task(
 
 @patch("dataquality.login")
 def test_reconfigure_sets_env_vars(mock_login: MagicMock) -> None:
+    os.environ["DQ_TELEMETRICS"] = "False"
     os.environ["GALILEO_CONSOLE_URL"] = "https://console.fakecompany.io"
     dataquality.configure()
     assert dataquality.config.api_url == config.api_url == "https://api.fakecompany.io"

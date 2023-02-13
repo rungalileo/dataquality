@@ -38,7 +38,7 @@ def log_data_samples(
     *,
     texts: List[str],
     ids: List[int],
-    meta: Dict[str, List[Union[str, float, int]]] = None,
+    meta: Optional[Dict[str, List[Union[str, float, int]]]] = None,
     **kwargs: Any,
 ) -> None:
     """Logs a batch of input samples for model training/test/validation/inference.
@@ -335,9 +335,9 @@ def log_model_outputs(
     ids: Union[List, np.ndarray],
     split: Optional[Split] = None,
     epoch: Optional[int] = None,
-    logits: Union[List, np.ndarray] = None,
-    probs: Union[List, np.ndarray] = None,
-    inference_name: str = None,
+    logits: Optional[Union[List, np.ndarray]] = None,
+    probs: Optional[Union[List, np.ndarray]] = None,
+    inference_name: Optional[str] = None,
     exclude_embs: bool = False,
 ) -> None:
     """Logs model outputs for model during training/test/validation.
@@ -436,20 +436,20 @@ def set_tagging_schema(tagging_schema: TaggingSchema) -> None:
 
 
 def get_model_logger(
-    task_type: TaskType = None, *args: Any, **kwargs: Any
+    task_type: Optional[TaskType] = None, *args: Any, **kwargs: Any
 ) -> BaseGalileoModelLogger:
     task_type = _get_task_type(task_type)
     return BaseGalileoModelLogger.get_logger(task_type)(*args, **kwargs)
 
 
 def get_data_logger(
-    task_type: TaskType = None, *args: Any, **kwargs: Any
+    task_type: Optional[TaskType] = None, *args: Any, **kwargs: Any
 ) -> BaseGalileoDataLogger:
     task_type = _get_task_type(task_type)
     return BaseGalileoDataLogger.get_logger(task_type)(*args, **kwargs)
 
 
-def _get_task_type(task_type: TaskType = None) -> TaskType:
+def _get_task_type(task_type: Optional[TaskType] = None) -> TaskType:
     task = task_type or config.task_type
     if not task:
         raise GalileoException(

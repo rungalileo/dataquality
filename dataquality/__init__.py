@@ -4,6 +4,7 @@ __version__ = "v0.8.14"
 
 import os
 import warnings
+from typing import Optional
 
 import dataquality.core._config
 import dataquality.integrations
@@ -88,7 +89,7 @@ def configure(do_login: bool = True) -> None:
 
 
 @check_noop
-def set_console_url(console_url: str = None) -> None:
+def set_console_url(console_url: Optional[str] = None) -> None:
     """For Enterprise users. Set the console URL to your Galileo Environment.
 
     You can also set GALILEO_CONSOLE_URL before importing dataquality to bypass this
