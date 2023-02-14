@@ -301,6 +301,7 @@ def test_ner_logging(
     * 3 rows
     """
     set_test_config(task_type=TaskType.text_ner)
+    LogManager.wait_for_loggers()
     dataquality.set_tagging_schema("BIO")
     dataquality.set_split(Split.training)
 
@@ -389,6 +390,7 @@ def test_ner_logging(
     dataquality.log_model_outputs(embs=embs, probs=pred_prob, ids=ids)
 
     LogManager.wait_for_loggers()
+    dataquality.get_data_logger().check_for_logging_failures()
     c = dataquality.get_data_logger()
     c.validate_labels()
     c.upload()

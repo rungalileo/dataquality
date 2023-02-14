@@ -156,30 +156,13 @@ class TextMultiLabelModelLogger(TextClassificationModelLogger):
                 data[k].append(record[k])
         return data
 
-
-    def _set_num_labels(self) -> None:
-        arr = self.logits if self._has_len(self.logits) else self.probs
+    def _set_num_labels(self, data: Dict) -> None:
         num_labels_per_task = []
         for task_num in range(self.logger_config.observed_num_tasks):
-            num_labels = self._get_arr_len(arr[task_num])
+            len(data[f"prob_{task_num}"][0])
+            num_labels = len(data[f"prob_{task_num}"][0])
             num_labels_per_task.append(num_labels)
         self.logger_config.observed_num_labels = num_labels_per_task
-
-    # def _set_num_labels(self) -> None:
-    #     num_labels_per_task = []
-    #     for task_num in range(self.logger_config.observed_num_tasks):
-    #         len(data[f"prob_{task_num}"][0])
-    #         num_labels = len(data[f"prob_{task_num}"][0])
-    #         num_labels_per_task.append(num_labels)
-    #     self.logger_config.observed_num_labels = num_labels_per_task
-
-    def __setattr__(self, key: Any, value: Any) -> None:
-        if key not in self.get_valid_attributes() and not key.startswith("prob_"):
-            raise AttributeError(
-                f"{key} is not a valid attribute of {self.__logger_name__} logger. "
-                f"Only {self.get_valid_attributes()}"
-            )
-        super().__setattr__(key, value)
 
     def convert_logits_to_prob_binary(self, sample_logits: np.ndarray) -> np.ndarray:
         """Converts logits to probs in the binary case

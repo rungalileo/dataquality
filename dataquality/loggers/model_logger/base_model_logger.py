@@ -43,6 +43,12 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         self.epoch = epoch
         self.split: str = split
         self.inference_name = inference_name
+        # The model logger is created in the main process, but then used in a forked
+        # child process. In order to maintain access to the (read only) logger config,
+        # we load it into the _instance_ of the class, rather than the class itself
+        # which, when forked, will give the child process access to the logger_config
+        # in the exact state it was in when the child process forked
+        self.logger_config = self.logger_config.copy()
 
     def _log(self) -> None:
         """Threaded logger target
@@ -90,6 +96,9 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
                 analytics.capture_exception(e, AmpliMetric.dq_validation_error)
             except Exception:
                 pass
+            # TODO: In NER, because it's a forked process (we use multiprocessing in
+            #  NER), this won't have an affect, because it's not going modify the
+            #  parent process. What can we do here? Maybe write a file to disk?
             self.logger_config.exception = err_msg
 
     def log(self) -> None:
@@ -102,7 +111,7 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         get_dq_logger().debug(
             "Starting logging process from thread", split=self.split, epoch=self.epoch
         )
-        LogManager.add_logger(target=self._add_async_log)
+        LogManager.add_logger(self._add_async_log, TaskType[self.__logger_name__])
 
     def write_model_output(self, data: Dict) -> None:
         """Creates an hdf5 file from the data dict"""

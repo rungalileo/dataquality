@@ -115,13 +115,6 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
             has_len = bool(arr.shape[0])
         return has_len
 
-    def _get_arr_len(self, arr: Any) -> int:
-        """See _has_len"""
-        try:
-            return len(arr[0])
-        except TypeError:
-            return arr.shape[1]
-
     def validate(self) -> None:
         """
         Validates that the current config is correct.
@@ -178,9 +171,9 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
             if self.epoch > self.logger_config.last_epoch:
                 self.logger_config.last_epoch = self.epoch
 
-    def log(self) -> None:
-        self._set_num_labels()
-        super().log()
+    def write_model_output(self, model_output: Dict) -> None:
+        self._set_num_labels(model_output)
+        super().write_model_output(model_output)
 
     def _get_data_dict(self) -> Dict[str, Any]:
         # Handle the binary case by converting it to 2-class classification
@@ -201,17 +194,5 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
             data["inference_name"] = [self.inference_name] * num_samples_in_batch
         return data
 
-    def _set_num_labels(self) -> None:
-        if self._has_len(self.logits):
-            self.logger_config.observed_num_labels = self._get_arr_len(self.logits)
-        else:
-            self.logger_config.observed_num_labels = self._get_arr_len(self.probs)
-
-
-    def __setattr__(self, key: Any, value: Any) -> None:
-        if key not in self.get_valid_attributes():
-            raise AttributeError(
-                f"{key} is not a valid attribute of {self.__logger_name__} logger. "
-                f"Only {self.get_valid_attributes()}"
-            )
-        super().__setattr__(key, value)
+    def _set_num_labels(self, data: Dict) -> None:
+        self.logger_config.observed_num_labels = len(data["prob"][0])
