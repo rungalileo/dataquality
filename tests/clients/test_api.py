@@ -321,7 +321,7 @@ def test_set_metric_for_run(
     }
     api_client.set_metric_for_run(proj_id, run_id, data)
     mock_make_request.assert_called_once_with(
-        RequestType.POST,
+        RequestType.PUT,
         url=f"http://localhost:8088/projects/{proj_id}/runs/{run_id}/metrics",
         body=data,
     )
