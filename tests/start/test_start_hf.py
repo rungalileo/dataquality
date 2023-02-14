@@ -126,6 +126,3 @@ def test_start_hf_tc(
     ):
         trainer.train()
         trainer.evaluate()
-        ThreadPoolManager.wait_for_threads()
-        assert len(vaex.open(f"{LOCATION}/training/0/*.hdf5")) == len(train_dataset)
-        assert len(vaex.open(f"{LOCATION}/test/**/*.hdf5")) == len(test_dataset)

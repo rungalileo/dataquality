@@ -1,10 +1,36 @@
-"dataquality"
+"""dataquality is a library for tracking and analyzing your machine learning models.
+:param model: The model to inspect, if a string, it will be assumed to be auto
+:param task: Task type for example "text_classification"
+:param project: Project name
+:param run: Run name
+:param train_data: Training data
+:param test_data: Optional test data
+:param val_data: Optional: validation data
+:param labels: The labels for the run
+:param framework: The framework to use, if provided it will be used instead of
+    inferring it from the model. For example, if you have a spacy model, you
+    can pass framework="spacy". If you have a torch model, you can pass
+    framework="torch"
+:param args: Additional arguments
+:param kwargs: Additional keyword arguments
+.. code-block:: python
+    import dataquality
+    with dataquality(model, "text_classification",
+                     labels = ["neg", "pos"],
+                     train_data = train_data):
+        model.fit(train_data)
+If you want to train without a model, you can use the auto framework:
+.. code-block:: python
+    import dataquality
+    with dataquality(labels = ["neg", "pos"],
+                     train_data = train_data):
+        dataquality.get_insights()
+"""
 
 __version__ = "v0.8.14"
 
-import os
+
 import sys
-import warnings
 from typing import Any, List, Optional
 
 import dataquality.core._config
@@ -12,9 +38,6 @@ import dataquality.integrations
 
 # We try/catch this in case the user installed dq inside of jupyter. You need to
 # restart the kernel after the install and we want to make that clear. This is because
-# of vaex: https://github.com/vaexio/vaex/pull/2226
-from dataquality.exceptions import GalileoWarning
-
 try:
     import dataquality.metrics
     from dataquality.analytics import Analytics
@@ -24,6 +47,7 @@ except (FileNotFoundError, AttributeError):
         "It looks like you've installed dataquality from a notebook. "
         "Please restart the kernel before continuing"
     ) from None
+from dataquality.core import configure, set_console_url
 from dataquality.core._config import config
 from dataquality.core.auth import login, logout
 from dataquality.core.finish import finish, get_run_status, wait_for_run
@@ -56,55 +80,11 @@ from dataquality.schemas.condition import (
 )
 from dataquality.utils.dq_logger import get_dq_log_file
 from dataquality.utils.helpers import (
-    check_noop,
     disable_galileo,
     disable_galileo_verbose,
     enable_galileo,
     enable_galileo_verbose,
 )
-
-
-@check_noop
-def configure(do_login: bool = True) -> None:
-    """[Not for cloud users] Update your active config with new information
-
-    You can use environment variables to set the config, or wait for prompts
-    Available environment variables to update:
-    * GALILEO_CONSOLE_URL
-    * GALILEO_USERNAME
-    * GALILEO_PASSWORD
-    """
-    a.log_function("dq/configure")
-    warnings.warn(
-        "configure is deprecated, use dq.set_console_url and dq.login", GalileoWarning
-    )
-
-    if "GALILEO_API_URL" in os.environ:
-        del os.environ["GALILEO_API_URL"]
-    updated_config = dataquality.core._config.reset_config(cloud=False)
-    for k, v in updated_config.dict().items():
-        config.__setattr__(k, v)
-    config.token = None
-    config.update_file_config()
-    if do_login:
-        login()
-
-
-@check_noop
-def set_console_url(console_url: Optional[str] = None) -> None:
-    """For Enterprise users. Set the console URL to your Galileo Environment.
-
-    You can also set GALILEO_CONSOLE_URL before importing dataquality to bypass this
-
-    :param console_url: If set, that will be used. Otherwise, if an environment variable
-    GALILEO_CONSOLE_URL is set, that will be used. Otherwise, you will be prompted for
-    a url.
-    """
-    a.log_function("dq/set_console_url")
-    if console_url:
-        os.environ["GALILEO_CONSOLE_URL"] = console_url
-    configure(do_login=False)
-
 
 __all__ = [
     "__version__",
@@ -184,6 +164,7 @@ class _DataQuality:
         self._instance = None
 
     def __call__(self, *args: Any, **kwargs: Any) -> DataQuality:
+        """Return the singleton instance of the DataQuality class."""
         if self._instance is None:
             self._instance = DataQuality(*args, **kwargs)
         return self._instance

@@ -357,8 +357,13 @@ class DataQuality:
         self.cls.validate(task, labels)
         self.cls.init_project(task, project, run)
         self.cls.setup_training(labels, train_data, test_data, val_data)
+        if cls == AutoInsights:
+            self.cls.enter()
+            self.finished = True
 
     def __enter__(self) -> Any:
+        if getattr(self, "finished", False):
+            return dq
         self.cls.enter()
         return dq
 

@@ -30,6 +30,7 @@ class Route(str, Enum):
     epochs = "epochs"
     summary = "insights/summary"
     groupby = "insights/groupby"
+    metrics = "metrics"
     distribution = "insights/distribution"
     xray = "insights/xray"
     export = "export"
