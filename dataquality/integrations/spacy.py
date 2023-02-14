@@ -501,7 +501,7 @@ class GalileoParserStepModel(ThincModelWrapper):
     def _self_get_valid_logits(self, docs: Dict[int, Doc]) -> DefaultDict:
         helper_data = self._self_model_logger.log_helper_data
         docs_predictions = convert_spacy_ents_for_doc_to_predictions(
-            docs, self._self_model_logger.logger_config.labels
+            docs, text_ner_logger_config.labels
         )
         docs_valid_logits = defaultdict(list)
         for doc_id, doc_logits in helper_data["logits"].items():
@@ -560,7 +560,13 @@ class GalileoParserStepModel(ThincModelWrapper):
 
             # Now that we have valid logits and embs, fill out the log
             self._self_populate_model_logger(docs_valid_logits)
-            self._self_model_logger.log()
+            # self._self_model_logger.log()
+            dataquality.log_model_outputs(
+                embs=self._self_model_logger.embs,
+                ids=self._self_model_logger.ids,
+                logits=self._self_model_logger.logits,
+                probs=self._self_model_logger.probs,
+            )
             helper_data["already_logged"] = True
 
         return scores, backprop_fn
