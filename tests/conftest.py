@@ -90,7 +90,6 @@ def set_test_config(
     default_task_type: TaskType = TaskType.text_classification,
     default_api_url: str = DEFAULT_API_URL,
 ) -> Callable:
-    os.environ["GALILEO_MULTI_PROC"] = "True"
     config.token = default_token
     config.task_type = default_task_type
     config.api_url = default_api_url

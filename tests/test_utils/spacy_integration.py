@@ -1,13 +1,11 @@
-import hashlib
 from typing import List, Tuple, Union
 
 import numpy as np
 import pandas as pd
 import vaex
-from spacy.language import Doc, Language
+from spacy.language import Language
 from spacy.training import Example
 from spacy.util import minibatch
-from thinc.model import Model
 from tqdm import tqdm
 from vaex.dataframe import DataFrameLocal
 
@@ -92,37 +90,3 @@ def load_ner_data_from_local(
         split_output_data["emb"],  # can't convert nested arrays to pandas df
         split_output_data["prob"],  # can't convert nested arrays to pandas df
     )
-
-
-def _calculate_emb_from_doc(doc: Doc) -> np.ndarray:
-    hash_seed = int(hashlib.sha256(doc.text.encode("utf-8")).hexdigest(), 16) % 10**8
-    np.random.seed(hash_seed)
-    return np.random.rand(len(doc), 64)
-
-
-class MockParserStepModel(Model):
-    def __init__(self, docs: List[Doc]) -> None:
-        self._func = self.mock_parser_step_model_forward
-
-        tokvecs = []
-        for doc in docs:
-            tokvecs.extend(_calculate_emb_from_doc(doc))
-        self.tokvecs = np.array(tokvecs)
-
-    def mock_parser_step_model_forward(self, X, *args, **kwargs) -> None:
-        """Returns logits that should construct an actual state"""
-
-
-class MockTransitionBasedParserModel(Model):
-    def __init__(self) -> None:
-        self._func = self.mock_transition_based_parser_model_forward
-
-    def mock_transition_based_parser_model_forward(self, X, *args, **kwargs) -> None:
-        """Mocks TransitionBasedParser Model's forward func
-
-        Returns a MockParserStepModel and a noop backprop_fn
-        """
-        # TODO: probably need to clean this up
-        return MockParserStepModel(X), lambda d_output: 0.0
-        # TODO: Does noop backprop_fn need to return some number?
-        # I would guess it returns d_input

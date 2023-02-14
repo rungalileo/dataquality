@@ -1,3 +1,4 @@
+import os
 import pickle
 from typing import Dict, List, Tuple
 from unittest import mock
@@ -382,6 +383,7 @@ def test_log_input_docs(nlp_watch: Language, inference_docs: List[Doc]) -> None:
     assert logged_token_indices == expected_token_indices
 
 
+@mock.patch.dict(os.environ, {"GALILEO_MULTI_PROC": "false"})
 @mock.patch.object(TextNERModelLogger, "_extract_pred_spans")
 def test_spacy_inference_only(
     mock_extract_pred_spans: MagicMock, nlp_watch: Language, inference_docs: List[Doc]

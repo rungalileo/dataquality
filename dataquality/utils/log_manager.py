@@ -1,8 +1,8 @@
 # from concurrent.futures.process import ProcessPoolExecutor
 import multiprocessing as mp
-from concurrent.futures.process import ProcessPoolExecutor
-from concurrent.futures.thread import ThreadPoolExecutor
-from typing import Callable
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, Future
+from os import environ
+from typing import Callable, List
 
 from dataquality.schemas.task_type import TaskType
 
@@ -27,7 +27,8 @@ class LogManager:
     MAX_LOGGERS = 3
     PEXECUTOR = ProcessPoolExecutor(max_workers=MAX_LOGGERS)
     TEXECUTOR = ThreadPoolExecutor(max_workers=MAX_LOGGERS)
-    FUTS = []
+    PROCESSES: List[Future] = []
+
     @staticmethod
     def add_logger(target: Callable, task_type: TaskType) -> None:
         """
@@ -37,15 +38,14 @@ class LogManager:
         :param args: The arguments to the function
         :return: None
         """
-        import os
-        mutli_proc = os.environ.get("GALILEO_MULTI_PROC") in ("True", "TRUE", "true", 1)
+
+        mutli_proc = environ.get("GALILEO_MULTI_PROC", 1) in ("True", "TRUE", "true", 1)
         executor = (
             LogManager.PEXECUTOR
             if task_type == TaskType.text_ner and mutli_proc
             else LogManager.TEXECUTOR
         )
-        print("Got exc", executor)
-        LogManager.FUTS.append(executor.submit(target))
+        LogManager.PROCESSES.append(executor.submit(target))
 
     @staticmethod
     def wait_for_loggers() -> None:
@@ -54,11 +54,9 @@ class LogManager:
 
         :return: None
         """
-        print(LogManager.FUTS)
         LogManager.TEXECUTOR.shutdown()
         LogManager.PEXECUTOR.shutdown()
-        print("After shutdown")
-        print(LogManager.FUTS[0].result())
-        print(LogManager.FUTS[0].exception())
+        if LogManager.PROCESSES:
+            LogManager.PROCESSES[0].exception()
         LogManager.PEXECUTOR = ProcessPoolExecutor(max_workers=LogManager.MAX_LOGGERS)
         LogManager.TEXECUTOR = ThreadPoolExecutor(max_workers=LogManager.MAX_LOGGERS)

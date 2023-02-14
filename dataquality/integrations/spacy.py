@@ -143,8 +143,6 @@ def watch(nlp: Language) -> None:
     :param nlp: The spacy nlp Language component.
     :return: None
     """
-    import os
-    os.environ["GALILEO_MULTI_PROC"] = "False"
     a.log_function("spacy/watch")
     validate_spacy_version()
     validate_spacy_is_not_using_gpu()

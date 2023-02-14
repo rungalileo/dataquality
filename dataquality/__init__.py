@@ -3,6 +3,7 @@
 __version__ = "v0.8.14"
 
 import os
+
 os.environ["GALILEO_MULTI_PROC"] = "True"
 import warnings
 
