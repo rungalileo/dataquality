@@ -48,8 +48,8 @@ def _run_button_on_clicked(
                 project_name=project_name,
                 run_name=run_name,
             )
-        except Exception as e:
-            print(f"Could not read test data: {e}")
+        except Exception:
+            print("Could not read test data. Proceeding with training data only.")
             dq.auto(
                 train_data=df_train,
                 labels=labels,
