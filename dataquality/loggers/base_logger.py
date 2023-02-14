@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, Type, TypeVar, Union
 
 import numpy as np
 
-from dataquality.core._config import ConfigData, config
+from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.logger_config.base_logger_config import (
     BaseLoggerConfig,
@@ -16,6 +16,7 @@ from dataquality.loggers.logger_config.base_logger_config import (
 from dataquality.schemas.split import Split, conform_split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.cloud import is_galileo_cloud
+from dataquality.utils.constants import ConfigData
 from dataquality.utils.dq_logger import _shutil_rmtree_retry, upload_dq_log_file
 from dataquality.utils.imports import hf_available, tf_available, torch_available
 from dataquality.utils.tf import is_tf_2
@@ -344,12 +345,13 @@ class BaseGalileoLogger:
     def check_for_logging_failures(cls) -> None:
         """When a threaded logging call fails, it sets the logger_config.exception
 
-        If that field is set, raise an exception here and stop the main process
+        If that exception file is set, raise an exception here and stop the main process
         """
         # If a currently active thread crashed, check and raise a top level exception
-        if cls.logger_config.exception:
+        exc = cls.logger_config.get_exception(str(config.current_run_id))
+        if exc:
             upload_dq_log_file()
-            raise GalileoException(cls.logger_config.exception)
+            raise GalileoException(exc)
 
     @classmethod
     def is_hf_dataset(cls, df: Any) -> bool:

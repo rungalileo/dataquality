@@ -24,7 +24,7 @@ class LogManager:
     variable write access, so it's safe to be using a ProcessPoolExecutor
     """
 
-    MAX_LOGGERS = 3
+    MAX_LOGGERS = 2
     PEXECUTOR = ProcessPoolExecutor(max_workers=MAX_LOGGERS)
     TEXECUTOR = ThreadPoolExecutor(max_workers=MAX_LOGGERS)
     PROCESSES: List[Future] = []
@@ -38,10 +38,10 @@ class LogManager:
         :param args: The arguments to the function
         :return: None
         """
-        mutli_proc = environ.get("GALILEO_MULTI_PROC", 1) in ("True", "TRUE", "true", 1)
+        multi_proc = environ.get("GALILEO_MULTI_PROC", 1) in ("True", "TRUE", "true", 1)
         executor = (
             LogManager.PEXECUTOR
-            if task_type == TaskType.text_ner and mutli_proc
+            if task_type == TaskType.text_ner and multi_proc
             else LogManager.TEXECUTOR
         )
         LogManager.PROCESSES.append(executor.submit(target))
@@ -57,5 +57,5 @@ class LogManager:
         LogManager.PEXECUTOR.shutdown()
         if LogManager.PROCESSES:
             LogManager.PROCESSES[0].exception()
-        LogManager.PEXECUTOR = ProcessPoolExecutor(max_workers=LogManager.MAX_LOGGERS)
         LogManager.TEXECUTOR = ThreadPoolExecutor(max_workers=LogManager.MAX_LOGGERS)
+        LogManager.PEXECUTOR = ProcessPoolExecutor(max_workers=LogManager.MAX_LOGGERS)

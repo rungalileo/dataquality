@@ -421,7 +421,8 @@ def test_log_invalid_model_outputs(
         time.sleep(1)  # ensure the first one records a failure
         dataquality.log_model_outputs(**output_data)
 
-    assert dataquality.get_model_logger().logger_config.exception != ""
+    run_id = str(dataquality.config.current_run_id)
+    assert dataquality.get_model_logger().logger_config.get_exception(run_id) != ""
     assert str(e.value).startswith("An issue occurred while logging model outputs.")
 
 
@@ -437,7 +438,8 @@ def test_log_invalid_model_outputs_final_thread(
     input_data: Callable,
 ) -> None:
     """Validate that we error on finish if issues occur while logging"""
-    assert dataquality.get_model_logger().logger_config.exception == ""
+    run_id = str(dataquality.config.current_run_id)
+    assert dataquality.get_model_logger().logger_config.get_exception(run_id) == ""
     dataquality.set_labels_for_run(["APPLE", "ORANGE"])
     training_data = input_data(meta={"training_meta": [1.414, 123]})
     dataquality.log_data_samples(**training_data)
@@ -458,7 +460,8 @@ def test_log_invalid_model_outputs_final_thread(
         mock_upload_from_local.return_value = None
         dataquality.get_data_logger().upload()
 
-    assert dataquality.get_model_logger().logger_config.exception != ""
+    run_id = str(dataquality.config.current_run_id)
+    assert dataquality.get_model_logger().logger_config.get_exception(run_id) != ""
     assert str(e.value).startswith("An issue occurred while logging model outputs.")
 
 

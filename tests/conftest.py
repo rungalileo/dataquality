@@ -12,6 +12,7 @@ import dataquality
 from dataquality import AggregateFunction, Condition, ConditionFilter, Operator, config
 from dataquality.clients import objectstore
 from dataquality.loggers import BaseGalileoLogger
+from dataquality.loggers.logger_config.base_logger_config import EXC_DIR
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.dq_logger import DQ_LOG_FILE_HOME
 from tests.test_utils.mock_request import MockResponse
@@ -68,6 +69,8 @@ def cleanup_after_use() -> Generator:
     try:
         if os.path.isdir(BaseGalileoLogger.LOG_FILE_DIR):
             shutil.rmtree(BaseGalileoLogger.LOG_FILE_DIR)
+        if os.path.exists(EXC_DIR):
+            shutil.rmtree(EXC_DIR)
         if not os.path.isdir(TEST_PATH):
             for split in SPLITS:
                 for subdir in SUBDIRS:
@@ -80,6 +83,8 @@ def cleanup_after_use() -> Generator:
             shutil.rmtree(BaseGalileoLogger.LOG_FILE_DIR)
         if os.path.exists(DQ_LOG_FILE_LOCATION):
             shutil.rmtree(DQ_LOG_FILE_LOCATION)
+        if os.path.exists(EXC_DIR):
+            shutil.rmtree(EXC_DIR)
         for task_type in list(TaskType):
             dataquality.get_data_logger(task_type).logger_config.reset()
 

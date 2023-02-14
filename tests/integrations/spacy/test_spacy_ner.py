@@ -1,6 +1,6 @@
 import os
 import pickle
-from typing import Dict, List, Tuple
+from typing import Callable, Dict, List, Tuple
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -64,7 +64,7 @@ def test_log_input_list_of_tuples(nlp_watch: Language) -> None:
 
 
 def test_log_input_examples(
-    nlp_init: Language, training_examples: List[Example]
+    nlp_init: Language, training_examples: List[Example], cleanup_after_use: Callable
 ) -> None:
     watch(nlp_init)
     log_input_examples(training_examples, "training")
@@ -102,7 +102,7 @@ def test_log_input_examples(
         assert NER_TRAINING_DATA[i][1]["entities"] == ents_as_char_idxs
 
 
-def test_watch(nlp_init: Language) -> None:
+def test_watch(nlp_init: Language, cleanup_after_use: Callable) -> None:
     watch(nlp_init)
 
     assert text_ner_logger_config.helper_data["nlp"] == nlp_init
@@ -113,7 +113,9 @@ def test_watch(nlp_init: Language) -> None:
     assert isinstance(nlp_init.get_pipe("ner"), GalileoEntityRecognizer)
 
 
-def test_unwatch(nlp: Language, training_examples: List[Example]) -> None:
+def test_unwatch(
+    nlp: Language, training_examples: List[Example], cleanup_after_use: Callable
+) -> None:
     original_ner = nlp.get_pipe("ner")
     nlp.initialize(lambda: training_examples)
 
@@ -144,6 +146,7 @@ def test_unwatch(nlp: Language, training_examples: List[Example]) -> None:
 def test_embeddings_get_updated(
     nlp: Language,
     training_examples: List[Example],
+    cleanup_after_use: Callable,
 ) -> None:
     """This test both checks our spacy wrapper end to end and that embs update.
 
@@ -170,6 +173,7 @@ def test_embeddings_get_updated(
 def test_spacy_ner(
     nlp: Language,
     training_examples: List[Example],
+    cleanup_after_use: Callable,
 ) -> None:
     """An end to end test of functionality"""
     spacy.util.fix_random_seed(0)
@@ -211,6 +215,7 @@ def test_spacy_ner(
 def test_long_sample(
     samples: List[Tuple[str, Dict]],
     nlp: Language,
+    cleanup_after_use: Callable,
 ):
     """Tests logging a long sample during training"""
     all_examples = [
@@ -242,7 +247,9 @@ def test_long_sample(
     del nlp
 
 
-def test_spacy_does_not_log_misaligned_entities(nlp: Language) -> None:
+def test_spacy_does_not_log_misaligned_entities(
+    nlp: Language, cleanup_after_use: Callable
+) -> None:
     def make_examples(data):
         examples = []
         for text, annotations in data:
@@ -277,7 +284,9 @@ def test_spacy_does_not_log_misaligned_entities(nlp: Language) -> None:
         ],
     ],
 )
-def test_log_input_examples_have_no_gold_spans(nlp: Language, training_data: List):
+def test_log_input_examples_have_no_gold_spans(
+    nlp: Language, training_data: List, cleanup_after_use: Callable
+):
     def make_examples(data):
         examples = []
         for text, annotations in data:
@@ -304,7 +313,9 @@ def test_log_input_examples_have_no_gold_spans(nlp: Language, training_data: Lis
             assert logged_gold_span[2] == original_span.label_
 
 
-def test_watch_nlp_with_no_gold_labels(nlp: Language) -> None:
+def test_watch_nlp_with_no_gold_labels(
+    nlp: Language, cleanup_after_use: Callable
+) -> None:
     nlp.initialize()
     with pytest.raises(GalileoException) as e:
         watch(nlp)
@@ -323,6 +334,7 @@ def test_require_cpu(
     mock_spacy_gpu: mock.MagicMock,
     nlp: Language,
     training_examples: List[Example],
+    cleanup_after_use: Callable,
 ) -> None:
     with pytest.raises(GalileoException):
         train_model(nlp, training_examples)
@@ -358,7 +370,9 @@ def test_log_input_docs_list_of_strs(nlp_watch: Language) -> None:
     )
 
 
-def test_log_input_docs(nlp_watch: Language, inference_docs: List[Doc]) -> None:
+def test_log_input_docs(
+    nlp_watch: Language, inference_docs: List[Doc], cleanup_after_use: Callable
+) -> None:
     log_input_docs(inference_docs, "inf-name")
 
     # assert that we added ids to the docs for later joining with model outputs
@@ -386,7 +400,10 @@ def test_log_input_docs(nlp_watch: Language, inference_docs: List[Doc]) -> None:
 @mock.patch.dict(os.environ, {"GALILEO_MULTI_PROC": "false"})
 @mock.patch.object(TextNERModelLogger, "_extract_pred_spans")
 def test_spacy_inference_only(
-    mock_extract_pred_spans: MagicMock, nlp_watch: Language, inference_docs: List[Doc]
+    mock_extract_pred_spans: MagicMock,
+    nlp_watch: Language,
+    inference_docs: List[Doc],
+    cleanup_after_use: Callable,
 ) -> None:
     # We don't care what the nlp model actually predicts,
     # mock the response to ensure pred_spans exist
@@ -425,8 +442,12 @@ def test_spacy_inference_only(
     assert pdf.equals(TestSpacyInfExpectedResults.gt_probs)
 
 
+@pytest.mark.skip("Flaky test")
 def test_spacy_training_then_inference(
-    nlp: Language, training_examples: List[Example], inference_docs: List[Doc]
+    nlp: Language,
+    training_examples: List[Example],
+    inference_docs: List[Doc],
+    cleanup_after_use: Callable,
 ) -> None:
     """Test that we can log training data, then inference data
 

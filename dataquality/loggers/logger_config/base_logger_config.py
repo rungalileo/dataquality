@@ -1,3 +1,5 @@
+import os
+import shutil
 from collections import defaultdict
 from typing import Any, DefaultDict, Dict, List, Optional, Set
 
@@ -6,6 +8,9 @@ from pydantic import BaseModel, validator
 from dataquality.schemas.condition import Condition
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
+from dataquality.utils.constants import ConfigData
+
+EXC_DIR = f"{ConfigData.DEFAULT_GALILEO_CONFIG_DIR}/exceptions"
 
 
 class BaseLoggerConfig(BaseModel):
@@ -22,7 +27,7 @@ class BaseLoggerConfig(BaseModel):
     validation_logged: bool = False
     test_logged: bool = False
     inference_logged: bool = False
-    exception: str = ""
+    _exception: str = ""
     helper_data: Dict[str, Any] = {}
     input_data_logged: DefaultDict[str, int] = defaultdict(int)
     logged_input_ids: DefaultDict[str, Set] = defaultdict(set)
@@ -36,9 +41,25 @@ class BaseLoggerConfig(BaseModel):
     class Config:
         validate_assignment = True
 
+    def get_exception(self, run_id: str) -> str:
+        exc_file = f"{EXC_DIR}/{run_id}.txt"
+        if os.path.isfile(exc_file):
+            with open(exc_file, "r") as f:
+                return f.read()
+        return ""
+
+    def set_exception(self, run_id: str, exc: str) -> None:
+        exc_file = f"{EXC_DIR}/{run_id}.txt"
+        if not os.path.isdir(EXC_DIR):
+            os.makedirs(EXC_DIR, exist_ok=True)
+        with open(exc_file, "w") as f:
+            f.write(exc)
+
     def reset(self, factory: bool = False) -> None:
         """Reset all class vars"""
         self.__init__()  # type: ignore
+        if os.path.exists(EXC_DIR):
+            shutil.rmtree(EXC_DIR)
 
     @validator("cur_split")
     def inference_sets_inference_name(

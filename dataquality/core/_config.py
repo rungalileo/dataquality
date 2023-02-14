@@ -2,7 +2,6 @@ import json
 import os
 import warnings
 from enum import Enum
-from pathlib import Path
 from typing import Dict, Optional
 
 import requests
@@ -16,6 +15,7 @@ from dataquality import __version__ as dq_version
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.route import Route
 from dataquality.schemas.task_type import TaskType
+from dataquality.utils.constants import ConfigData
 from dataquality.utils.helpers import galileo_disabled
 
 CLOUD_URL = "https://console.cloud.rungalileo.io"
@@ -41,11 +41,6 @@ class GalileoConfigVars(str, Enum):
     @staticmethod
     def auto_init_vars_available() -> bool:
         return bool(os.getenv("GALILEO_API_URL"))
-
-
-class ConfigData(str, Enum):
-    DEFAULT_GALILEO_CONFIG_DIR = f"{os.environ.get('HOME', str(Path.home()))}/.galileo"
-    DEFAULT_GALILEO_CONFIG_FILE = f"{DEFAULT_GALILEO_CONFIG_DIR}/config.json"
 
 
 class Config(BaseModel):

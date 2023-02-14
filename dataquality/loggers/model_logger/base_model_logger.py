@@ -90,10 +90,7 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
                 analytics.capture_exception(e, AmpliMetric.dq_validation_error)
             except Exception:
                 pass
-            # TODO: In NER, because it's a forked process (we use multiprocessing in
-            #  NER), this won't have an affect, because it's not going modify the
-            #  parent process. What can we do here? Maybe write a file to disk?
-            self.logger_config.exception = err_msg
+            self.logger_config.set_exception(str(config.current_run_id), err_msg)
 
     def log(self) -> None:
         """The top level log function that try/excepts its child"""
