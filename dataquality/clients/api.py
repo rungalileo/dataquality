@@ -563,19 +563,35 @@ class ApiClient:
                 )
 
     def get_presigned_url(
-        self, project_id: str, method: str, bucket_name: str, object_name: str
+        self,
+        method: str,
+        bucket_name: str,
+        object_name: str,
+        project_id: Optional[str] = None,
+        image_id: Optional[str] = None,
     ) -> str:
+        params = {
+            "api_url": config.api_url,
+            "bucket_name": bucket_name,
+            "object_name": object_name,
+            "method": method.upper(),
+        }
+        if image_id is not None:
+            params["image_id"] = image_id
+        elif project_id is not None:
+            params["project_id"] = project_id
+        else:
+            raise GalileoException(
+                "You must provide either an image_id "
+                "or a project_id to create a presigned url."
+            )
+
         response = self.make_request(
             request=RequestType.GET,
             url=f"{config.api_url}/{Route.presigned_url}",
-            params={
-                "api_url": config.api_url,
-                "bucket_name": bucket_name,
-                "object_name": object_name,
-                "method": method.upper(),
-                "project_id": project_id,
-            },
+            params=params,
         )
+
         return response["url"]
 
     def get_run_summary(
