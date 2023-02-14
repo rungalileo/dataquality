@@ -386,7 +386,6 @@ def test_log_input_docs(nlp_watch: Language, inference_docs: List[Doc]) -> None:
 def test_spacy_inference_only(
     mock_extract_pred_spans: MagicMock, nlp_watch: Language, inference_docs: List[Doc]
 ) -> None:
-    spacy.util.fix_random_seed(0)
     # We don't care what the nlp model actually predicts,
     # mock the response to ensure pred_spans exist
     mock_extract_pred_spans.side_effect = NER_INFERENCE_PRED_TOKEN_SPANS
@@ -424,7 +423,6 @@ def test_spacy_inference_only(
     assert pdf.equals(TestSpacyInfExpectedResults.gt_probs)
 
 
-@pytest.mark.skip(reason="flaky, needs a fix")
 def test_spacy_training_then_inference(
     nlp: Language, training_examples: List[Example], inference_docs: List[Doc]
 ) -> None:
@@ -433,8 +431,6 @@ def test_spacy_training_then_inference(
     We don't assert exact values here, just that the data is logged to the correct files
     and a few simple assertions about the DF lengths and split names.
     """
-    spacy.util.fix_random_seed(0)
-
     # first log the training run
     num_epochs = 2
     train_model(nlp, training_examples, num_epochs=num_epochs)
@@ -469,4 +465,4 @@ def test_spacy_training_then_inference(
     assert len(inf_data) == 5
     assert inf_data.split.tolist() == ["inference"] * 5
     assert inf_data.inference_name.tolist() == ["inf-name"] * 5
-    assert len(inf_embs) == len(inf_probs) == 7
+    assert len(inf_embs) == len(inf_probs) == 5

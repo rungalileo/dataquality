@@ -144,6 +144,7 @@ def watch(nlp: Language) -> None:
     :return: None
     """
     import os
+
     os.environ["GALILEO_MULTI_PROC"] = "False"
     a.log_function("spacy/watch")
     validate_spacy_version()

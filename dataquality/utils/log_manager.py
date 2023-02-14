@@ -28,6 +28,7 @@ class LogManager:
     PEXECUTOR = ProcessPoolExecutor(max_workers=MAX_LOGGERS)
     TEXECUTOR = ThreadPoolExecutor(max_workers=MAX_LOGGERS)
     FUTS = []
+
     @staticmethod
     def add_logger(target: Callable, task_type: TaskType) -> None:
         """
@@ -38,6 +39,7 @@ class LogManager:
         :return: None
         """
         import os
+
         mutli_proc = os.environ.get("GALILEO_MULTI_PROC") in ("True", "TRUE", "true", 1)
         executor = (
             LogManager.PEXECUTOR
