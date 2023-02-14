@@ -38,16 +38,24 @@ def _run_button_on_clicked(
         )
     else:
         df_train = pd.read_csv(train_filename)
-        df_test = pd.read_csv(test_filename)
         labels = list(set(df_train.label))
-
-    dq.auto(
-        train_data=df_train,
-        test_data=df_test,
-        labels=labels,
-        project_name=project_name,
-        run_name=run_name,
-    )
+        try:
+            df_test = pd.read_csv(test_filename)
+            dq.auto(
+                train_data=df_train,
+                test_data=df_test,
+                labels=labels,
+                project_name=project_name,
+                run_name=run_name,
+            )
+        except Exception as e:
+            print(f"Could not read test data: {e}")
+            dq.auto(
+                train_data=df_train,
+                labels=labels,
+                project_name=project_name,
+                run_name=run_name,
+            )
 
 
 def auto_notebook(
