@@ -27,7 +27,7 @@ class LogManager:
     MAX_LOGGERS = 3
     PEXECUTOR = ProcessPoolExecutor(max_workers=MAX_LOGGERS)
     TEXECUTOR = ThreadPoolExecutor(max_workers=MAX_LOGGERS)
-
+    FUTS = []
     @staticmethod
     def add_logger(target: Callable, task_type: TaskType) -> None:
         """
@@ -37,12 +37,15 @@ class LogManager:
         :param args: The arguments to the function
         :return: None
         """
+        import os
+        mutli_proc = os.environ.get("GALILEO_MULTI_PROC") in ("True", "TRUE", "true", 1)
         executor = (
             LogManager.PEXECUTOR
-            if task_type == TaskType.text_ner
+            if task_type == TaskType.text_ner and mutli_proc
             else LogManager.TEXECUTOR
         )
-        executor.submit(target)
+        print("Got exc", executor)
+        LogManager.FUTS.append(executor.submit(target))
 
     @staticmethod
     def wait_for_loggers() -> None:
@@ -51,7 +54,11 @@ class LogManager:
 
         :return: None
         """
+        print(LogManager.FUTS)
         LogManager.TEXECUTOR.shutdown()
         LogManager.PEXECUTOR.shutdown()
+        print("After shutdown")
+        print(LogManager.FUTS[0].result())
+        print(LogManager.FUTS[0].exception())
         LogManager.PEXECUTOR = ProcessPoolExecutor(max_workers=LogManager.MAX_LOGGERS)
         LogManager.TEXECUTOR = ThreadPoolExecutor(max_workers=LogManager.MAX_LOGGERS)

@@ -7,7 +7,8 @@ import numpy as np
 from numpy import ndarray
 
 from dataquality.exceptions import LogBatchError
-from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
+from dataquality.loggers.logger_config.text_ner import text_ner_logger_config, \
+    TextNERLoggerConfig
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.ner import NERErrorType, NERProbMethod, TaggingSchema
@@ -134,6 +135,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         self.pred_loss_prob_label: List[List[int]] = []
         # Used for helper data, does not get logged
         self.log_helper_data: Dict[str, Any] = {}
+
 
     @staticmethod
     def get_valid_attributes() -> List[str]:
