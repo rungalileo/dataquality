@@ -47,8 +47,10 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         # child process. In order to maintain access to the (read only) logger config,
         # we load it into the _instance_ of the class, rather than the class itself
         # which, when forked, will give the child process access to the logger_config
-        # in the exact state it was in when the child process forked
-        self.logger_config = self.logger_config.copy()
+        # in the exact state it was in when the child process forked. If we don't do
+        # this, the forked process will have the logger_config in the state that it was
+        # when the class was _defined_, not _instantiated_
+        self.logger_config = self.logger_config
 
     def _log(self) -> None:
         """Threaded logger target
