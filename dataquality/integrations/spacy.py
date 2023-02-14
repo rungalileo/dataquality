@@ -560,7 +560,6 @@ class GalileoParserStepModel(ThincModelWrapper):
 
             # Now that we have valid logits and embs, fill out the log
             self._self_populate_model_logger(docs_valid_logits)
-            # self._self_model_logger.log()
             dataquality.log_model_outputs(
                 embs=self._self_model_logger.embs,
                 ids=self._self_model_logger.ids,

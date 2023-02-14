@@ -135,7 +135,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         self.pred_loss_prob_label: List[List[int]] = []
         # Used for helper data, does not get logged
         self.log_helper_data: Dict[str, Any] = {}
-        self.logger_config = TextNERModelLogger.logger_config.copy()
         # The model logger is created in the main process, but then used in a forked
         # child process. In order to maintain access to the (read only) logger config,
         # we load it into the _instance_ of the class, rather than the class itself
@@ -146,6 +145,8 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         # This only applies to NER because NER uses multiprocessing, where other tasks
         # use multithreading. This is because NER logging is heavily CPU bound.
         # See `dataquality/utils/log_manager` for more details
+        self.logger_config = TextNERModelLogger.logger_config.copy()
+        # We unset all helper data in this copied
         self.logger_config.helper_data = {}
 
 
