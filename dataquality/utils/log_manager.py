@@ -1,6 +1,6 @@
 # from concurrent.futures.process import ProcessPoolExecutor
 import multiprocessing as mp
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, Future
+from concurrent.futures import Future, ProcessPoolExecutor, ThreadPoolExecutor
 from os import environ
 from typing import Callable, List
 
@@ -38,7 +38,6 @@ class LogManager:
         :param args: The arguments to the function
         :return: None
         """
-
         mutli_proc = environ.get("GALILEO_MULTI_PROC", 1) in ("True", "TRUE", "true", 1)
         executor = (
             LogManager.PEXECUTOR
