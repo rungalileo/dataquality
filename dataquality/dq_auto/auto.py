@@ -172,7 +172,7 @@ def auto(
     """
     # Remove all output from transformers and torch except the progress bar
     set_global_logging_level(logging.ERROR, ["torch"])
-    set_global_logging_level(logging.WARNING, ["transformers"])
+    set_global_logging_level(logging.ERROR, ["transformers"])
 
     # We need to import auto down here instead of at the top of the file like normal
     # because we simultaneously want analytic tracking on the files we import while
