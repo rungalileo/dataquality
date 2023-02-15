@@ -62,12 +62,12 @@ class BaseDatasetManager:
 
     def get_dataset_dict(
         self,
-        hf_data: Union[DatasetDict, str] = None,
-        hf_inference_names: List[str] = None,
-        train_data: Union[pd.DataFrame, Dataset, str] = None,
-        val_data: Union[pd.DataFrame, Dataset, str] = None,
-        test_data: Union[pd.DataFrame, Dataset, str] = None,
-        inference_data: Dict[str, Union[pd.DataFrame, Dataset, str]] = None,
+        hf_data: Optional[Union[DatasetDict, str]] = None,
+        hf_inference_names: Optional[List[str]] = None,
+        train_data: Optional[Union[pd.DataFrame, Dataset, str]] = None,
+        val_data: Optional[Union[pd.DataFrame, Dataset, str]] = None,
+        test_data: Optional[Union[pd.DataFrame, Dataset, str]] = None,
+        inference_data: Optional[Dict[str, Union[pd.DataFrame, Dataset, str]]] = None,
         labels: Optional[List[str]] = None,
     ) -> DatasetDict:
         """Creates and/or validates the DatasetDict provided by the user.

@@ -39,8 +39,8 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
 
     def __init__(
         self,
-        model: xgb.XGBClassifier = None,
-        X: Union[pd.DataFrame, np.ndarray] = None,
+        model: Optional[xgb.XGBClassifier] = None,
+        X: Optional[Union[pd.DataFrame, np.ndarray]] = None,
         y: Optional[Union[pd.Series, List, np.ndarray]] = None,
         feature_names: Optional[List[str]] = None,
         split: Optional[Split] = None,

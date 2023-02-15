@@ -43,7 +43,8 @@ class Analytics(Borg):
     _telemetrics_disabled: bool = True
 
     def __init__(self, ApiClient: Type[ApiClient], config: Config) -> None:
-        """To initialize the Analytics class you need to pass in an ApiClient and the dq config.
+        """To initialize the Analytics class you need
+        to pass in an ApiClient and the dq config.
         :param ApiClient: The ApiClient class
         :param config: The dq config
         """
@@ -127,7 +128,7 @@ class Analytics(Borg):
         etype: Type[BaseException],
         evalue: BaseException,
         tb: TracebackType,
-        tb_offset: Any = None,
+        tb_offset: Optional[Any] = None,
     ) -> None:
         """This function is used to handle exceptions in ipython."""
 

@@ -11,6 +11,7 @@ from vaex.dataframe import DataFrameLocal
 
 import dataquality
 from dataquality.integrations.spacy import log_input_examples, watch
+from dataquality.schemas.split import Split
 from tests.conftest import SUBDIRS, TEST_PATH
 
 MINIBATCH_SZ = 3
@@ -32,20 +33,20 @@ def train_model(
 
     # Galileo code
     watch(nlp)
-    log_input_examples(training_examples, "training")
-    log_input_examples(training_examples, "test")
+    log_input_examples(training_examples, Split.training)
+    log_input_examples(training_examples, Split.test)
 
     training_losses = []
     for itn in range(num_epochs):
         dataquality.set_epoch(itn)
         batches = minibatch(training_examples, MINIBATCH_SZ)
 
-        dataquality.set_split("training")
+        dataquality.set_split(Split.training)
         for batch in tqdm(batches):
             training_loss = nlp.update(batch, drop=0.5, sgd=optimizer)
             training_losses.append(training_loss["ner"])
 
-        dataquality.set_split("test")
+        dataquality.set_split(Split.test)
         nlp.evaluate(training_examples, batch_size=MINIBATCH_SZ)
 
     # TODO: need to support the following line for inference

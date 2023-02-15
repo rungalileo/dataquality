@@ -98,10 +98,10 @@ class TextNERModelLogger(BaseGalileoModelLogger):
 
     def __init__(
         self,
-        embs: List[np.ndarray] = None,
-        probs: List[np.ndarray] = None,
-        logits: List[np.ndarray] = None,
-        ids: Union[List, np.ndarray] = None,
+        embs: Optional[List[np.ndarray]] = None,
+        probs: Optional[List[np.ndarray]] = None,
+        logits: Optional[List[np.ndarray]] = None,
+        ids: Optional[Union[List, np.ndarray]] = None,
         split: str = "",
         epoch: Optional[int] = None,
         inference_name: Optional[str] = None,

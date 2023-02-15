@@ -355,7 +355,7 @@ class BaseGalileoLogger:
 
     @classmethod
     def is_hf_dataset(cls, df: Any) -> bool:
-        if hf_available:
+        if hf_available():
             import datasets
 
             return isinstance(df, datasets.Dataset)

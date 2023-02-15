@@ -59,7 +59,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
     DATA_FOLDER_EXTENSION = {data_folder: "hdf5" for data_folder in DATA_FOLDERS}
 
-    def __init__(self, meta: MetasType = None) -> None:
+    def __init__(self, meta: Optional[MetasType] = None) -> None:
         super().__init__()
         self.meta: Dict = meta or {}
         self.log_export_progress = True
@@ -73,7 +73,9 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         """
         return f"{self.write_output_dir}/{BaseGalileoDataLogger.INPUT_DATA_BASE}"
 
-    def input_data_file(self, input_num: int = None, split: str = None) -> str:
+    def input_data_file(
+        self, input_num: Optional[int] = None, split: Optional[str] = None
+    ) -> str:
         """Return the path to the input data file.
 
         Example:
@@ -548,7 +550,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     @classmethod
     @abstractmethod
     def separate_dataframe(
-        cls, df: DataFrame, prob_only: bool = False, split: str = None
+        cls, df: DataFrame, prob_only: bool = False, split: Optional[str] = None
     ) -> BaseLoggerDataFrames:
         ...
 

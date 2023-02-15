@@ -53,7 +53,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def collate_batch(batch):
     label_list, text_list, offsets = [], [], [0]
-    for (_label, _text) in batch:
+    for _label, _text in batch:
         label_list.append(label_pipeline(_label))
         processed_text = torch.tensor(text_pipeline(_text), dtype=torch.int64)
         text_list.append(processed_text)
@@ -185,7 +185,6 @@ def test_end_to_end_with_callback(
     set_test_config: Callable,
     cleanup_after_use: Generator,
 ) -> None:
-
     global train_df, test_df
 
     set_test_config(default_task_type=TaskType.text_classification)
@@ -244,7 +243,6 @@ def test_end_to_end_old_patch(
     set_test_config: Callable,
     cleanup_after_use: Generator,
 ) -> None:
-
     set_test_config(default_task_type=TaskType.text_classification)
     # Preprocessing
     global train_df, test_df

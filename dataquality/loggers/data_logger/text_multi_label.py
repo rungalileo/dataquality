@@ -71,11 +71,11 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
 
     def __init__(
         self,
-        texts: List[str] = None,
-        labels: List[List[str]] = None,
-        ids: List[int] = None,
-        split: str = None,
-        meta: MetasType = None,
+        texts: Optional[List[str]] = None,
+        labels: Optional[List[List[str]]] = None,
+        ids: Optional[List[int]] = None,
+        split: Optional[str] = None,
+        meta: Optional[MetasType] = None,
     ) -> None:
         """Create data logger.
 
@@ -138,8 +138,8 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
         ids: List[int],
         labels: Optional[List[str]] = None,
         split: Optional[Split] = None,
-        inference_name: str = None,
-        meta: MetasType = None,
+        inference_name: Optional[str] = None,
+        meta: Optional[MetasType] = None,
         task_labels: Optional[List[List[str]]] = None,
         **kwargs: Any,
     ) -> None:
@@ -176,7 +176,11 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
         return batches
 
     def _log_dict(
-        self, d: Dict, meta: Dict, split: Split = None, inference_name: str = None
+        self,
+        d: Dict,
+        meta: Dict,
+        split: Optional[Split] = None,
+        inference_name: Optional[str] = None,
     ) -> None:
         self.log_data_samples(
             texts=d["text"],

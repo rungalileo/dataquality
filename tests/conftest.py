@@ -122,7 +122,7 @@ def input_data() -> Callable:
     def curry(
         split: str = "training",
         inference_name: str = "all-customers",
-        meta: Dict = None,
+        meta: Optional[Dict] = None,
     ) -> Dict:
         data = {
             "texts": ["sentence_1", "sentence_2"],

@@ -12,4 +12,4 @@ class StructuredClassificationModelLogger(BaseGalileoModelLogger):
     logger_config = structured_classification_logger_config
 
     def _get_data_dict(self) -> Dict:
-        pass
+        return {}
