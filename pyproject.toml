@@ -46,6 +46,8 @@ doc = [
     "sphinx-autodoc-typehints",
     "myst-parser",
     "sphinx-markdown-builder",
+    "sphinx-autobuild",
+    "sphinx-markdown-builder"
 ]
 test = [
     "pytest>=7.2.1",

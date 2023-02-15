@@ -3,8 +3,7 @@ name: docs
 on:
   push:
     branches:
-      - feature/sphinx_documentation
-    
+      - main
 
 env:
   GALILEO_API_URL: "http://localhost:8000"
@@ -32,7 +31,7 @@ jobs:
         env:
           API_TOKEN_GITHUB: ${{ secrets.GH_TOKEN }}
         with:
-          source-directory: 'docs/_build/markdown'
+          source-directory: 'docs/autodocs/_build/markdown'
           target-directory: 'autodocs'
           destination-github-username: 'rungalileo'
           destination-repository-name: 'docs'

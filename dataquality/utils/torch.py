@@ -318,7 +318,7 @@ class ModelHookManager:
             selected_layer = self.get_layer_by_name(model, model_layer)
         else:
             selected_layer = model_layer
-        
+
         return self.attach_hook(selected_layer, classifier_hook)
 
     def attach_hook(self, selected_layer: Module, hook: Callable) -> RemovableHandle:

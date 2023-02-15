@@ -258,7 +258,6 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
             self.hook_manager.attach_hook(model, self._dq_logit_hook)
 
 
-# https://github.com/pytorch/pytorch/blob/master/torch/nn/functional.py
 @check_noop
 def watch(
     trainer: Trainer,

@@ -55,6 +55,21 @@
     * [`unwatch()`](api/dataquality.md#dataquality.integrations.transformers_trainer.unwatch)
 
 
+* [dataquality.integrations.keras](api/dataquality.md#dataquality-integrations-keras)
+
+
+    * [`DataQualityCallback`](api/dataquality.md#dataquality.integrations.keras.DataQualityCallback)
+
+
+    * [`DataQualityLoggingLayer`](api/dataquality.md#dataquality.integrations.keras.DataQualityLoggingLayer)
+
+
+    * [`add_ids_to_numpy_arr()`](api/dataquality.md#dataquality.integrations.keras.add_ids_to_numpy_arr)
+
+
+    * [`add_sample_ids()`](api/dataquality.md#dataquality.integrations.keras.add_sample_ids)
+
+
 * [dataquality.integrations.experimental.keras](api/dataquality.md#dataquality-integrations-experimental-keras)
 
 
@@ -71,6 +86,21 @@
 
 
     * [`unwatch()`](api/dataquality.md#dataquality.integrations.spacy.unwatch)
+
+
+* [dataquality.integrations.hf](api/dataquality.md#dataquality-integrations-hf)
+
+
+    * [`infer_schema()`](api/dataquality.md#dataquality.integrations.hf.infer_schema)
+
+
+    * [`tokenize_and_log_dataset()`](api/dataquality.md#dataquality.integrations.hf.tokenize_and_log_dataset)
+
+
+    * [`TextDataset`](api/dataquality.md#dataquality.integrations.hf.TextDataset)
+
+
+    * [`get_dataloader()`](api/dataquality.md#dataquality.integrations.hf.get_dataloader)
 
 
 * [dataquality](api/dataquality.md#id1)

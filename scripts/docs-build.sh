@@ -1,6 +1,6 @@
 #!/bin/sh -ex
 
-cd docs
+cd docs/autodocs
 
 make markdown
 
