@@ -1,4 +1,4 @@
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 from uuid import uuid4
 
 import dataquality
@@ -17,7 +17,7 @@ class MockResponse:
         self,
         json_data: Union[Dict, List],
         status_code: int,
-        headers: Dict = None,
+        headers: Optional[Dict] = None,
     ) -> None:
         self.headers = headers or {}
         self.json_data = json_data

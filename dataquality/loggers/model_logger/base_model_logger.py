@@ -25,10 +25,10 @@ analytics = Analytics(ApiClient, config)  # type: ignore
 class BaseGalileoModelLogger(BaseGalileoLogger):
     def __init__(
         self,
-        embs: Union[List, np.ndarray] = None,
-        probs: Union[List, np.ndarray] = None,
-        logits: Union[List, np.ndarray] = None,
-        ids: Union[List, np.ndarray] = None,
+        embs: Optional[Union[List, np.ndarray]] = None,
+        probs: Optional[Union[List, np.ndarray]] = None,
+        logits: Optional[Union[List, np.ndarray]] = None,
+        ids: Optional[Union[List, np.ndarray]] = None,
         split: str = "",
         epoch: Optional[int] = None,
         inference_name: Optional[str] = None,
@@ -128,16 +128,6 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
 
     def set_split_epoch(self) -> None:
         super().set_split_epoch()
-        # Inference split must have inference name
-        if self.split == Split.inference and self.inference_name is None:
-            if self.logger_config.cur_inference_name is not None:
-                self.inference_name = self.logger_config.cur_inference_name
-            else:
-                raise GalileoException(
-                    "For inference split you must either log an inference name "
-                    "or set it before logging. Use `dataquality.set_split` to set"
-                    "inference_name"
-                )
 
         # Non-inference split must have an epoch
         if self.split != Split.inference and self.epoch is None:

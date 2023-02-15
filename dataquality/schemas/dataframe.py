@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from vaex.dataframe import DataFrame
 
 
-class BaseLoggerInOutFrames(BaseModel):
+class BaseLoggerDataFrames(BaseModel):
     prob: DataFrame
     emb: DataFrame
     data: DataFrame

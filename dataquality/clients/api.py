@@ -67,10 +67,10 @@ class ApiClient:
         self,
         request: RequestType,
         url: str,
-        body: Dict = None,
-        data: Dict = None,
-        params: Dict = None,
-        header: Dict = None,
+        body: Optional[Dict] = None,
+        data: Optional[Dict] = None,
+        params: Optional[Dict] = None,
+        header: Optional[Dict] = None,
         timeout: Union[int, None] = None,
     ) -> Any:
         """Makes an HTTP request.
@@ -259,7 +259,10 @@ class ApiClient:
         return project, run
 
     def get_labels_for_run(
-        self, project_name: str = None, run_name: str = None, task: str = None
+        self,
+        project_name: Optional[str] = None,
+        run_name: Optional[str] = None,
+        task: Optional[str] = None,
     ) -> List[str]:
         """Gets the labels for a given run, else the currently initialized project/run
 
@@ -280,7 +283,7 @@ class ApiClient:
         return res["labels"]
 
     def get_tasks_for_run(
-        self, project_name: str = None, run_name: str = None
+        self, project_name: Optional[str] = None, run_name: Optional[str] = None
     ) -> List[str]:
         """Gets the task names for a given multi-label run,
 
@@ -320,9 +323,9 @@ class ApiClient:
 
     def reprocess_run(
         self,
-        project_name: str = None,
-        run_name: str = None,
-        labels: Union[List, List[List]] = None,
+        project_name: Optional[str] = None,
+        run_name: Optional[str] = None,
+        labels: Optional[Union[List, List[List]]] = None,
     ) -> Dict:
         """Reinitiate a project/run that has already been finished
 
@@ -440,7 +443,7 @@ class ApiClient:
         col_mapping: Optional[Dict[str, str]] = None,
         hf_format: bool = False,
         tagging_schema: Optional[TaggingSchema] = None,
-        filter_params: Dict = None,
+        filter_params: Optional[Dict] = None,
     ) -> None:
         """Export a project/run to disk as a file
 
@@ -580,9 +583,9 @@ class ApiClient:
         project_name: str,
         run_name: str,
         split: str,
-        task: str = None,
-        inference_name: str = None,
-        filter_params: Dict = None,
+        task: Optional[str] = None,
+        inference_name: Optional[str] = None,
+        filter_params: Optional[Dict] = None,
     ) -> Dict:
         """Gets overall run summary, or summary of a filtered subset.
 
@@ -609,10 +612,10 @@ class ApiClient:
         project_name: str,
         run_name: str,
         split: str,
-        task: str = None,
-        inference_name: str = None,
+        task: Optional[str] = None,
+        inference_name: Optional[str] = None,
         category: str = "gold",
-        filter_params: Dict = None,
+        filter_params: Optional[Dict] = None,
     ) -> Dict[str, List]:
         project, run = self._get_project_run_id(project_name, run_name)
         split = conform_split(split)
@@ -638,10 +641,10 @@ class ApiClient:
         project_name: str,
         run_name: str,
         split: str,
-        task: str = None,
-        inference_name: str = None,
+        task: Optional[str] = None,
+        inference_name: Optional[str] = None,
         column: str = "data_error_potential",
-        filter_params: Dict = None,
+        filter_params: Optional[Dict] = None,
     ) -> Dict[str, List]:
         project, run = self._get_project_run_id(project_name, run_name)
         split = conform_split(split)
@@ -664,7 +667,11 @@ class ApiClient:
         return self.make_request(RequestType.POST, url, body=body, params=params)
 
     def get_xray_cards(
-        self, project_name: str, run_name: str, split: str, inference_name: str = None
+        self,
+        project_name: str,
+        run_name: str,
+        split: str,
+        inference_name: Optional[str] = None,
     ) -> List[Dict[str, str]]:
         """Queries API for xray cards for a run/split"""
         project, run = self._get_project_run_id(project_name, run_name)
@@ -674,7 +681,11 @@ class ApiClient:
         return self.make_request(RequestType.GET, url, params=params)
 
     def get_edits(
-        self, project_name: str, run_name: str, split: str, inference_name: str = None
+        self,
+        project_name: str,
+        run_name: str,
+        split: str,
+        inference_name: Optional[str] = None,
     ) -> List:
         """Gets all edits for a run/split"""
         project, run = self._get_project_run_id(project_name, run_name)
@@ -692,7 +703,7 @@ class ApiClient:
         run_name: str,
         split: str,
         file_name: str,
-        inference_name: str = None,
+        inference_name: Optional[str] = None,
         include_cols: Optional[List[str]] = None,
         col_mapping: Optional[Dict[str, str]] = None,
         hf_format: bool = False,
@@ -784,4 +795,14 @@ class ApiClient:
                 f"{config.api_url}/{Route.projects}/{project_id}/{Route.runs}/{run_id}/"
                 f"{Route.inference_names}"
             ),
+        )
+
+    def set_metric_for_run(self, project_id: UUID4, run_id: UUID4, data: Dict) -> Dict:
+        return self.make_request(
+            RequestType.PUT,
+            url=(
+                f"{config.api_url}/{Route.projects}/{project_id}/{Route.runs}/{run_id}/"
+                f"{Route.metrics}"
+            ),
+            body=data,
         )

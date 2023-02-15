@@ -1,6 +1,6 @@
 from collections import defaultdict
 from enum import Enum, unique
-from typing import Any, DefaultDict, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, DefaultDict, Dict, Iterable, List, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -19,6 +19,7 @@ from dataquality.loggers.logger_config.text_classification import (
     text_classification_logger_config,
 )
 from dataquality.schemas import __data_schema_version__
+from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.split import Split
 from dataquality.utils.vaex import rename_df
 
@@ -75,12 +76,12 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
 
     def __init__(
         self,
-        texts: List[str] = None,
-        labels: List[str] = None,
-        ids: List[int] = None,
-        split: str = None,
-        meta: MetasType = None,
-        inference_name: str = None,
+        texts: Optional[List[str]] = None,
+        labels: Optional[List[str]] = None,
+        ids: Optional[List[int]] = None,
+        split: Optional[str] = None,
+        meta: Optional[MetasType] = None,
+        inference_name: Optional[str] = None,
     ) -> None:
         """Create data logger.
 
@@ -255,9 +256,9 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         text: Union[str, int],
         id: Union[str, int],
         meta: List[Union[str, int]],
-        label: Union[str, int] = None,
-        split: Split = None,
-        inference_name: str = None,
+        label: Optional[Union[str, int]] = None,
+        split: Optional[Split] = None,
+        inference_name: Optional[str] = None,
     ) -> None:
         """Helper function to log a huggingface dataset
 
@@ -298,9 +299,9 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         text: Union[str, int],
         id: Union[str, int],
         meta: List[Union[str, int]],
-        label: Union[str, int] = None,
-        split: Split = None,
-        inference_name: str = None,
+        label: Optional[Union[str, int]] = None,
+        split: Optional[Split] = None,
+        inference_name: Optional[str] = None,
     ) -> None:
         batches = defaultdict(list)
         metas = defaultdict(list)
@@ -328,7 +329,11 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         return batches
 
     def _log_dict(
-        self, d: Dict, meta: Dict, split: Split = None, inference_name: str = None
+        self,
+        d: Dict,
+        meta: Dict,
+        split: Optional[Split] = None,
+        inference_name: Optional[str] = None,
     ) -> None:
         self.log_data_samples(
             texts=d["text"],
@@ -342,7 +347,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
     def _log_df(
         self, df: Union[pd.DataFrame, DataFrame], meta: List[Union[str, int]]
     ) -> None:
-        """Helper to log a pandas or vex df"""
+        """Helper to log a pandas or vaex df"""
         self.texts = df["text"].tolist()
         self.ids = df["id"].tolist()
         # Inference case
@@ -455,10 +460,10 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         return vaex.from_pandas(pd.DataFrame(inp))
 
     @classmethod
-    def split_dataframe(
-        cls, df: DataFrame, prob_only: bool, split: str
-    ) -> Tuple[DataFrame, DataFrame, DataFrame]:
-        """Splits the singular dataframe into its 3 components
+    def separate_dataframe(
+        cls, df: DataFrame, prob_only: bool = True, split: Optional[str] = None
+    ) -> BaseLoggerDataFrames:
+        """Separates the singular dataframe into its 3 components
 
         Gets the probability df, the embedding df, and the "data" df containing
         all other columns
@@ -479,7 +484,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
 
         emb = df_copy[emb_cols]
         data_df = df_copy[other_cols]
-        return prob, emb, data_df
+        return BaseLoggerDataFrames(prob=prob, emb=emb, data=data_df)
 
     @classmethod
     def _get_prob_cols(cls) -> List[str]:

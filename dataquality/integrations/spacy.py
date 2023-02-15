@@ -1,5 +1,16 @@
+from abc import ABC, abstractmethod
 from collections import defaultdict
-from typing import Any, Callable, DefaultDict, Dict, Generator, List, Tuple, Union
+from typing import (
+    Any,
+    Callable,
+    DefaultDict,
+    Dict,
+    Generator,
+    List,
+    Optional,
+    Tuple,
+    Union,
+)
 
 import numpy as np
 import thinc
@@ -39,7 +50,7 @@ a.log_import("spacy")
 def log_input_docs(
     docs: List[Doc],
     inference_name: str,
-    meta: Dict[str, List[Union[str, float, int]]] = None,
+    meta: Optional[Dict[str, List[Union[str, float, int]]]] = None,
 ) -> None:
     """Logs the input docs to the data logger.
 
@@ -84,7 +95,7 @@ def log_input_docs(
 def log_input_examples(
     examples: List[Example],
     split: Union[Split, str],
-    meta: Dict[str, List[Union[str, float, int]]] = None,
+    meta: Optional[Dict[str, List[Union[str, float, int]]]] = None,
 ) -> None:
     """Logs a list of Spacy Examples using the dataquality client"""
     split = conform_split(split)
@@ -324,7 +335,7 @@ def create_galileo_ner(nlp: Language, name: str) -> GalileoEntityRecognizer:
     return GalileoEntityRecognizer(nlp.get_pipe("ner"))
 
 
-class ThincModelWrapper(CallableObjectProxy):
+class ThincModelWrapper(CallableObjectProxy, ABC):
     """A Thinc Model obj wrapper using the wrapt library.
 
     wrapt primer: https://wrapt.readthedocs.io/en/latest/wrappers.html
@@ -354,6 +365,7 @@ class ThincModelWrapper(CallableObjectProxy):
         self.__wrapped__._func = self._self_orig_forward
         return self.__wrapped__
 
+    @abstractmethod
     def _self_forward(
         self, model: thinc.model.Model, X: Any, is_train: bool
     ) -> Tuple[Any, Any]:

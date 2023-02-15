@@ -39,9 +39,9 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
 
     def __init__(
         self,
-        last_hidden_state_layer: Layer = None,
-        embedding_dim: InputDim = None,
-        logits_dim: InputDim = None,
+        last_hidden_state_layer: Optional[Layer] = None,
+        embedding_dim: Optional[InputDim] = None,
+        logits_dim: Optional[InputDim] = None,
         classifier_layer: Layer = "classifier",
         embedding_fn: Optional[Callable] = None,
         logits_fn: Optional[Callable] = None,
@@ -103,7 +103,8 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
         :param args: Training arguments
         :param state: Trainer state
         :param model: Model
-        :param kwargs: Keyword arguments (eval_dataloader, train_dataloader, tokenizer)"""
+        :param kwargs: Keyword arguments
+            (eval_dataloader, train_dataloader, tokenizer)"""
 
         assert dq.config.task_type, GalileoException(
             "dq client must be initialized. "
@@ -261,10 +262,10 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
 @check_noop
 def watch(
     trainer: Trainer,
-    last_hidden_state_layer: Layer = None,
+    last_hidden_state_layer: Optional[Layer] = None,
     embedding_dim: Optional[DimensionSlice] = None,
     logits_dim: Optional[DimensionSlice] = None,
-    classifier_layer: Layer = None,
+    classifier_layer: Optional[Layer] = None,
     embedding_fn: Optional[Callable] = None,
     logits_fn: Optional[Callable] = None,
 ) -> None:

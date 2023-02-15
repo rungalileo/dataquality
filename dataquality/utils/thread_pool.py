@@ -2,7 +2,7 @@ import os
 import threading
 from threading import Thread
 from time import sleep
-from typing import Any, Callable, Iterable, List
+from typing import Any, Callable, Iterable, List, Optional
 
 from dataquality.exceptions import GalileoException
 
@@ -18,7 +18,7 @@ class ThreadPoolManager:
     MAX_THREADS = os.cpu_count() or 10
 
     @staticmethod
-    def add_thread(target: Callable, args: Iterable[Any] = None) -> None:
+    def add_thread(target: Callable, args: Optional[Iterable[Any]] = None) -> None:
         """
         Start a new function in a thread and store that in the global list of threads
 

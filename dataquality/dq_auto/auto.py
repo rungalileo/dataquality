@@ -1,4 +1,4 @@
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 
 import pandas as pd
 from datasets import Dataset, DatasetDict
@@ -13,17 +13,17 @@ AUTO_PROJECT_NAME = {
 
 
 def auto(
-    hf_data: Union[DatasetDict, str] = None,
-    hf_inference_names: List[str] = None,
-    train_data: Union[pd.DataFrame, Dataset, str] = None,
-    val_data: Union[pd.DataFrame, Dataset, str] = None,
-    test_data: Union[pd.DataFrame, Dataset, str] = None,
-    inference_data: Dict[str, Union[pd.DataFrame, Dataset, str]] = None,
+    hf_data: Optional[Union[DatasetDict, str]] = None,
+    hf_inference_names: Optional[List[str]] = None,
+    train_data: Optional[Union[pd.DataFrame, Dataset, str]] = None,
+    val_data: Optional[Union[pd.DataFrame, Dataset, str]] = None,
+    test_data: Optional[Union[pd.DataFrame, Dataset, str]] = None,
+    inference_data: Optional[Dict[str, Union[pd.DataFrame, Dataset, str]]] = None,
     max_padding_length: int = 200,
     hf_model: str = "distilbert-base-uncased",
-    labels: List[str] = None,
-    project_name: str = None,
-    run_name: str = None,
+    labels: Optional[List[str]] = None,
+    project_name: Optional[str] = None,
+    run_name: Optional[str] = None,
     wait: bool = True,
     create_data_embs: bool = False,
 ) -> None:

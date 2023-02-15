@@ -8,6 +8,7 @@ import tensorflow as tf
 import vaex
 
 import dataquality
+from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger.base_data_logger import DataSet
 from dataquality.loggers.data_logger.text_classification import (
     TextClassificationDataLogger,
@@ -34,12 +35,13 @@ class TestTextClassificationDataLoggerInference:
 
     def test_validate_inference_missing_inference_name(self):
         logger = self._setup()
-        with pytest.raises(AssertionError) as e:
+        with pytest.raises(GalileoException) as e:
             logger.validate()
 
-        assert e.value.args[0] == (
-            "Inference name must be set when logging an inference split. Use "
-            "set_split('inference', inference_name) to set inference name"
+        assert str(e.value) == (
+            "For inference split you must either log an inference name "
+            "or set it before logging. Use `dataquality.set_split` to set "
+            "inference_name"
         )
 
     @pytest.mark.parametrize(
