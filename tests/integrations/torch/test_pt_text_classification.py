@@ -197,7 +197,7 @@ def test_end_to_end_with_callback(
     train_dataloader_dq = DataLoader(
         ag_train,
         batch_size=BATCH_SIZE,
-        num_workers=0,
+        num_workers=2,
         shuffle=True,
         collate_fn=collate_batch,
         # persistent_workers=True,
