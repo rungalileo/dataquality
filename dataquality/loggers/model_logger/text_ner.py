@@ -12,7 +12,6 @@ from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelL
 from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.ner import NERErrorType, NERProbMethod, TaggingSchema
 from dataquality.schemas.split import Split
-from dataquality.utils.dq_logger import get_dq_logger
 from dataquality.utils.ml import select_span_token_for_prob
 
 
@@ -148,9 +147,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         * embs, probs, and ids must exist and be the same length
         :return:
         """
-        get_dq_logger().debug(
-            "Validating the output log.", split=self.split, epoch=self.epoch
-        )
         if len(self.logits):
             self.probs = self.convert_logits_to_probs(self.logits).tolist()
         elif len(self.probs):
@@ -199,9 +195,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
 
         For inference mode, only prediction spans should be logged.
         """
-        get_dq_logger().debug(
-            "Processing a sample.", split=self.split, epoch=self.epoch
-        )
         # To extract metadata about the sample we are looking at
         sample_key = self.logger_config.get_sample_key(Split(self.split), sample_id)
 
@@ -274,9 +267,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         We take the average of the token embeddings per span and use that as the span
         level embedding
         """
-        get_dq_logger().debug(
-            "Extracting span embeddings.", split=self.split, epoch=self.epoch
-        )
         embeddings = []
         for span in spans:
             start = span["start"]
@@ -312,9 +302,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         List[int]
             The gold label indices of token chosen for loss (needed for DEP calculation)
         """
-        get_dq_logger().debug(
-            "Extracting span probs.", split=self.split, epoch=self.epoch
-        )
         probs = []
         gold_labels = []
         gold_sequence_str = gold_sequence or []
@@ -348,9 +335,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         """
         # use length of the tokens stored to strip the pads
         # Drop the spans post first PAD
-        get_dq_logger().debug(
-            "Extracting pred spans.", split=self.split, epoch=self.epoch
-        )
         argmax_indices: List[int] = pred_prob.argmax(axis=1)
         pred_sequence: List[str] = [
             self.logger_config.labels[x] for x in argmax_indices
@@ -514,9 +498,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         gold_sequence = [O, O, O, O, O, B-nothing, I-nothing, I-nothing, O, O] for BIO
         gold_sequence = [O, O, O, O, O, B-nothing, I-nothing, L-nothing, O, O] for BILOU
         """
-        get_dq_logger().debug(
-            "Constructing a gold sequence", split=self.split, epoch=self.epoch
-        )
         gold_sequence = ["O"] * len_sequence
         for span in gold_spans:
             start = span["start"]
@@ -552,8 +533,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
 
         NOTE: All spans are at the token level in this fn
         """
-        get_dq_logger().debug("Getting data dict.", split=self.split, epoch=self.epoch)
-
         if self.split == Split.inference:
             return self._get_data_dict_inference()
 
@@ -809,9 +788,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         In this function, we only look at spans that don't have pred/gold alignment,
         so the error can only be span_shift or missed_label.
         """
-        get_dq_logger().debug(
-            "Getting span error type.", split=self.split, epoch=self.epoch
-        )
         gold_start, gold_end = gold_span
         # We start by assuming missed_label (because it's the worst case)
         # and update if we see overlap
@@ -845,9 +821,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         """Converts logits to probs via softmax per sample"""
         # axis ensures that in a matrix of probs with dims num_samples x num_classes
         # we take the softmax for each sample
-        get_dq_logger().debug(
-            "Converting logits to probs.", split=self.split, epoch=self.epoch
-        )
         token_probs = []
         for token_logits in sample_logits:
             token_probs.append(super().convert_logits_to_probs(token_logits))
