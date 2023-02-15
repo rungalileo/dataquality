@@ -132,7 +132,6 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
         for feature in self.feature_names:
             validate_name(feature)
 
-
         if not self.logger_config.feature_importances and hasattr(
             self.model, "feature_importances_"
         ):
