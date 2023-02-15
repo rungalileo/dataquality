@@ -8,6 +8,9 @@ from dataquality.schemas.task_type import TaskType
 
 lock = mp.Lock()
 
+GALILEO_MULTI_PROC = "GALILEO_MULTI_PROC"
+GALILEO_NUM_LOGGERS = "GALILEO_NUM_LOGGERS"
+
 
 class LogManager:
     """
@@ -24,7 +27,7 @@ class LogManager:
     variable write access, so it's safe to be using a ProcessPoolExecutor
     """
 
-    MAX_LOGGERS = 2
+    MAX_LOGGERS = int(environ.get(GALILEO_NUM_LOGGERS, 2))
     PEXECUTOR = ProcessPoolExecutor(max_workers=MAX_LOGGERS)
     TEXECUTOR = ThreadPoolExecutor(max_workers=MAX_LOGGERS)
     PROCESSES: List[Future] = []
@@ -38,7 +41,7 @@ class LogManager:
         :param args: The arguments to the function
         :return: None
         """
-        multi_proc = environ.get("GALILEO_MULTI_PROC", 1) in ("True", "TRUE", "true", 1)
+        multi_proc = environ.get(GALILEO_MULTI_PROC, "1").lower() in ("true", "1")
         executor = (
             LogManager.PEXECUTOR
             if task_type == TaskType.text_ner and multi_proc
