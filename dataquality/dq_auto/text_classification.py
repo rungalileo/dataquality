@@ -137,7 +137,7 @@ def auto(
     project_name: str = "auto_tc",
     run_name: Optional[str] = None,
     wait: bool = True,
-    create_data_embs: bool = False,
+    create_data_embs: Optional[bool] = None,
 ) -> None:
     """Automatically gets insights on a text classification dataset
 
