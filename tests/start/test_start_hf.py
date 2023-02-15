@@ -1,20 +1,12 @@
 from typing import Callable, Generator
 from unittest.mock import MagicMock, patch
 
-import vaex
 from datasets import load_metric
 from transformers import Trainer, TrainingArguments
 
 import dataquality
 from dataquality.clients.api import ApiClient
-from dataquality.utils.thread_pool import ThreadPoolManager
-from tests.conftest import (
-    DEFAULT_PROJECT_ID,
-    DEFAULT_RUN_ID,
-    LOCATION,
-    model,
-    tokenizer,
-)
+from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID, model, tokenizer
 from tests.test_utils.hf_datasets_mock import mock_hf_dataset, mock_hf_dataset_repeat
 
 metric = load_metric("accuracy")
