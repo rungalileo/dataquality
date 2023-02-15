@@ -12,7 +12,6 @@ from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelL
 from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.ner import NERErrorType, NERProbMethod, TaggingSchema
 from dataquality.schemas.split import Split
-from dataquality.utils.dq_logger import get_dq_logger
 from dataquality.utils.ml import select_span_token_for_prob
 
 
