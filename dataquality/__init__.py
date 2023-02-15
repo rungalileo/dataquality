@@ -15,9 +15,12 @@
 :param kwargs: Additional keyword arguments
 .. code-block:: python
     import dataquality
-    with dataquality(model, "text_classification",
-                     labels = ["neg", "pos"],
-                     train_data = train_data):
+    with dataquality(
+        model, 
+        "text_classification",
+        labels = ["neg", "pos"],
+        train_data = train_data
+    ):
         model.fit(train_data)
 If you want to train without a model, you can use the auto framework:
 .. code-block:: python
