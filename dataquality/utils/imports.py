@@ -1,8 +1,3 @@
-import importlib
-from types import ModuleType
-from typing import Iterable
-
-
 def torch_available() -> bool:
     try:
         import torch  # noqa: F401
@@ -28,4 +23,3 @@ def tf_available() -> bool:
         return True
     except ImportError:
         return False
-

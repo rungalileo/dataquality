@@ -1,4 +1,5 @@
 "dataquality"
+import os
 
 __version__ = "v0.8.14"
 
