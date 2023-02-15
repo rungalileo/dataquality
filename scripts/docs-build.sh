@@ -1,5 +1,7 @@
 #!/bin/sh -ex
 
-mkdocs build
+cd docs/autodocs
 
-cp ./docs/index.md ./README.md
+make markdown
+
+cd ..

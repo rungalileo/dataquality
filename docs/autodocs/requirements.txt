@@ -1,0 +1,8 @@
+# requirements for readthedocs generation
+# TODO COMMON requirements
+sphinx==5.3.0
+sphinx-autobuild
+sphinx-autodoc-typehints
+furo
+myst-parser
+sphinx-markdown-builder

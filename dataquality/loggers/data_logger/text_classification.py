@@ -372,7 +372,6 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         labels must be None)
         * Text and Labels must be the same length
         * If ids exist, it must be the same length as text/labels
-        :return: None
 
         If the user logged labels as ints, convert them to the string labels.
         In the next optimization, we will support the API having int labels, but for
