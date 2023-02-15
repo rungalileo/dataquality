@@ -1,7 +1,7 @@
 import datasets
 
 from dataquality.exceptions import GalileoException
-from dataquality.utils.cv import _bytes_to_b64_str, _img_path_to_b64_str
+from dataquality.utils.cv import _bytes_to_img, _write_image_bytes_to_objectstore
 
 
 def _hf_map_image_feature(example: dict, imgs_colname: str) -> dict:
@@ -10,16 +10,15 @@ def _hf_map_image_feature(example: dict, imgs_colname: str) -> dict:
     if image["bytes"] is None:
         # sometimes the Image feature only contains a path
         # example: beans dataset
-        example["text"] = _img_path_to_b64_str(
-            # assume abs paths for HF
+        # assume abs path for hf
+        example["text"] = _write_image_bytes_to_objectstore(
             img_path=image["path"],
         )
     else:
-        example["text"] = _bytes_to_b64_str(
-            # assume abs paths for HF
-            img_bytes=image["bytes"],
-            img_path=image["path"],
+        example["text"] = _write_image_bytes_to_objectstore(
+            img=_bytes_to_img(image["bytes"]),
         )
+
     return example
 
 
@@ -42,9 +41,9 @@ def process_hf_image_feature_for_logging(
 
 
 def _hf_map_image_file_path(example: dict, imgs_location_colname: str) -> dict:
-    example["text"] = _img_path_to_b64_str(
+    example["text"] = _write_image_bytes_to_objectstore(
         # assume abs paths for HF
-        example[imgs_location_colname]
+        img_path=example[imgs_location_colname]
     )
     return example
 
