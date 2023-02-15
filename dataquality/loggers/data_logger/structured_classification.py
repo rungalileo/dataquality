@@ -7,7 +7,10 @@ import numpy as np
 import pandas as pd
 import vaex
 
+from dataquality import config
+from dataquality.clients.api import ApiClient
 from dataquality.loggers.base_logger import BaseGalileoLogger
+from dataquality.utils.name import validate_name
 
 if TYPE_CHECKING:
     import xgboost as xgb
@@ -19,15 +22,20 @@ from vaex.dataframe import DataFrame
 from dataquality.clients.objectstore import ObjectStore
 from dataquality.loggers.data_logger.base_data_logger import BaseGalileoDataLogger
 from dataquality.loggers.logger_config.structured_classification import (
+    StructuredClassificationLoggerConfig,
     structured_classification_logger_config,
 )
 from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.split import Split
 
+api_client = ApiClient()
+
 
 class StructuredClassificationDataLogger(BaseGalileoDataLogger):
     __logger_name__ = "structured_classification"
-    logger_config = structured_classification_logger_config
+    logger_config: StructuredClassificationLoggerConfig = (
+        structured_classification_logger_config
+    )
 
     def __init__(
         self,
@@ -59,6 +67,7 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
             - If X is a numpy array, the number of features in X and feature names
                 are the same
             - Feature names match the feature names logged in a prior split
+            - Feature names are valid names, no special chars
 
         Sets:
             - self.X to a pandas DataFrame if it is a numpy array
@@ -67,6 +76,8 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
             - logger_config.feature_names to the column names of X if they aren't set
         """
         self.validate()
+
+        assert self.model is not None, "Model must be included to log data."
 
         assert hasattr(self.model, "predict_proba"), (
             "Model must have a predict_proba method. "
@@ -118,6 +129,16 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
             )
             self.logger_config.feature_names = self.feature_names
 
+        for feature in self.feature_names:
+            validate_name(feature)
+
+        if not self.logger_config.feature_importances and hasattr(
+            self.model, "feature_importances_"
+        ):
+            self.logger_config.feature_importances = dict(
+                zip(self.feature_names, self.model.feature_importances_.tolist())
+            )
+
         self.set_probs()
 
     def set_probs(self) -> None:
@@ -128,6 +149,26 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
         assert self.model is not None, "Model must be set before setting probs"
         assert self.X is not None, "X must be set before setting probs"
         self.probs = self.model.predict_proba(self.X)
+
+    def save_feature_importances(self) -> None:
+        """Saves feature importances in the DB
+
+        Assumes the model is fit
+        """
+        template = " {inp} must be set before saving feature importances"
+        assert config.current_project_id, print(template.format(inp="Project ID"))
+        assert config.current_run_id, print(template.format(inp="Run ID"))
+
+        api_client.set_metric_for_run(
+            config.current_project_id,
+            config.current_run_id,
+            data={
+                "key": "feature_importances",
+                "value": 0,
+                "epoch": 0,
+                "extra": self.logger_config.feature_importances,
+            },
+        )
 
     def log(self) -> None:
         """Uploads data and probs df to disk in .galileo/logs
@@ -204,6 +245,8 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
         To Minio:
             bucket/proj-id/run-id/training/prob.hdf5
         """
+        self.save_feature_importances()
+
         print("☁️ Uploading Data")
         objectstore = ObjectStore()
 

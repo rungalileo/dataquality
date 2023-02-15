@@ -22,11 +22,12 @@ def sc_data() -> Dict:
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42, shuffle=False
     )
-    train_df = pd.DataFrame(X_train, columns=wine.feature_names)
-    test_df = pd.DataFrame(X_test, columns=wine.feature_names)
+    feature_names = [f"feature_{i}" for i in range(len(wine.feature_names))]
+    train_df = pd.DataFrame(X_train, columns=feature_names)
+    test_df = pd.DataFrame(X_test, columns=feature_names)
 
     return {
-        "feature_names": wine.feature_names,
+        "feature_names": feature_names,
         "labels": wine.target_names,
         "training": {"X": X_train, "y": y_train, "df": train_df},
         "test": {"X": X_test, "y": y_test, "df": test_df},

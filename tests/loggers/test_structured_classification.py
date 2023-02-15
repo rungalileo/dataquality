@@ -1,5 +1,5 @@
 import os
-from typing import Callable, Dict, Optional
+from typing import Callable, Dict, Generator, Optional
 from unittest import mock
 
 import numpy as np
@@ -65,8 +65,19 @@ class TestStructuredClassificationDataLogger:
         )
         logger.validate()
 
-    def validate_inputs(self, fit_xgboost: xgb.XGBClassifier, sc_data: Dict) -> None:
-        """Test that validate_inputs casts X and y to the correct types"""
+    @mock.patch.object(StructuredClassificationDataLogger, "set_probs")
+    def test_validate_inputs(
+        self,
+        mock_set_probs: mock.MagicMock,
+        fit_xgboost: xgb.XGBClassifier,
+        sc_data: Dict,
+    ) -> None:
+        """Test that validate_inputs casts X and y to the correct types
+
+        Also test that validate calls:
+        - set probs
+        - save feature importances
+        """
         logger = StructuredClassificationDataLogger(
             model=fit_xgboost,
             X=sc_data["training"]["X"],
@@ -77,6 +88,9 @@ class TestStructuredClassificationDataLogger:
         logger.validate_and_prepare_logger()
         assert isinstance(logger.X, pd.DataFrame)
         assert isinstance(logger.y, np.ndarray)
+        assert logger.logger_config.feature_importances is not None
+
+        mock_set_probs.assert_called_once_with()
 
     def test_set_probs(self, fit_xgboost: xgb.XGBClassifier, sc_data: Dict) -> None:
         logger = StructuredClassificationDataLogger(
@@ -91,8 +105,54 @@ class TestStructuredClassificationDataLogger:
         # 3 since wine dataset has 3 classes
         assert logger.probs.shape == (len(logger.X), 3)
 
+    @mock.patch.object(ApiClient, "set_metric_for_run")
+    def test_save_feature_importances(
+        self,
+        mock_set_metrics: mock.MagicMock,
+        fit_xgboost: xgb.XGBClassifier,
+        sc_data: Dict,
+        set_test_config: Callable,
+    ) -> None:
+        set_test_config(task_type="structured_classification")
+        logger = StructuredClassificationDataLogger(
+            model=fit_xgboost,
+            X=sc_data["training"]["X"],
+            y=sc_data["training"]["y"],
+            feature_names=sc_data["feature_names"],
+            split="training",
+        )
+        # We need to call this to set logger config feature importances
+        logger.validate_and_prepare_logger()
+        logger.save_feature_importances()
+        mock_set_metrics.assert_called_once_with(
+            DEFAULT_PROJECT_ID,
+            DEFAULT_RUN_ID,
+            data={
+                "key": "feature_importances",
+                "value": 0,
+                "epoch": 0,
+                "extra": {
+                    "feature_0": mock.ANY,
+                    "feature_1": mock.ANY,
+                    "feature_2": mock.ANY,
+                    "feature_3": mock.ANY,
+                    "feature_4": mock.ANY,
+                    "feature_5": mock.ANY,
+                    "feature_6": mock.ANY,
+                    "feature_7": mock.ANY,
+                    "feature_8": mock.ANY,
+                    "feature_9": mock.ANY,
+                    "feature_10": mock.ANY,
+                    "feature_11": mock.ANY,
+                    "feature_12": mock.ANY,
+                },
+            },
+        )
+
+    @mock.patch.object(StructuredClassificationDataLogger, "save_feature_importances")
     def test_log(
         self,
+        mock_save_feature_importances: mock.MagicMock,
         set_test_config: Callable,
         create_logger: Callable,
     ) -> None:
@@ -113,7 +173,13 @@ class TestStructuredClassificationDataLogger:
         assert os.path.exists(f"{df_export_path}/data/data.hdf5")
         assert os.path.exists(f"{df_export_path}/prob/prob.hdf5")
 
-    def test_get_dfs(self, create_logger: Callable, sc_data: Dict) -> None:
+    @mock.patch.object(StructuredClassificationDataLogger, "save_feature_importances")
+    def test_get_dfs(
+        self,
+        mock_save_feature_importances: mock.MagicMock,
+        create_logger: Callable,
+        sc_data: Dict,
+    ) -> None:
         # Set up logger with dataset, probs and split
         logger: StructuredClassificationDataLogger = create_logger(split="training")
         logger.validate_and_prepare_logger()
@@ -132,12 +198,14 @@ class TestStructuredClassificationDataLogger:
         # All dfs should have same number of rows
         assert len(df) == len(prob_df)
 
+    @mock.patch.object(StructuredClassificationDataLogger, "save_feature_importances")
     @mock.patch("dataquality.loggers.data_logger.structured_classification.os.walk")
     @mock.patch.object(ObjectStore, "create_project_run_object")
     def test_upload(
         self,
         mock_create_project_run_object: mock.MagicMock,
         mock_os_walk: mock.MagicMock,
+        mock_save_importances: mock.MagicMock,
         create_logger: Callable,
     ) -> None:
         """Test upload uploads to Minio"""
@@ -176,6 +244,7 @@ class TestStructuredClassificationDataLogger:
             ),
             file_path=f"{prefix}/prob/prob.hdf5",
         )
+        mock_save_importances.assert_called_once_with()
 
 
 class TestStructuredClassificationValidationErrors:
@@ -225,10 +294,7 @@ class TestStructuredClassificationValidationErrors:
         with pytest.raises(AssertionError) as e:
             logger.validate_and_prepare_logger()
 
-        assert str(e.value) == (
-            "Model must have a predict_proba method. "
-            "If you are using a custom model, please implement a predict_proba method."
-        )
+        assert str(e.value) == "Model must be included to log data."
 
     def test_validate_inputs_model_not_fitted(self) -> None:
         """Test error is raised if model is not already fit"""
@@ -333,6 +399,42 @@ class TestStructuredClassificationValidationErrors:
             "X and feature_names must have the same number of features"
         )
 
+    @pytest.mark.parametrize(
+        "name,badchars",
+        [
+            ("test!", "['!']"),
+            ("feature/name", "['/']"),
+            ("this,should,fail", "[',', ',']"),
+        ],
+    )
+    def test_validate_inputs_bad_feature_name(
+        self,
+        name: str,
+        badchars: str,
+        fit_xgboost: xgb.XGBClassifier,
+        sc_data: Dict,
+        set_test_config: Callable,
+        cleanup_after_use: Generator,
+    ) -> None:
+        """Test that validate_inputs casts X and y to the correct types"""
+        set_test_config()
+        feature_names = sc_data["feature_names"].copy()
+        feature_names[0] = name
+        logger = StructuredClassificationDataLogger(
+            model=fit_xgboost,
+            X=sc_data["training"]["X"],
+            y=list(sc_data["training"]["y"]),
+            feature_names=feature_names,
+            split="training",
+        )
+        with pytest.raises(GalileoException) as e:
+            logger.validate_and_prepare_logger()
+
+        assert str(e.value) == (
+            "Only letters, numbers, whitespace, - and _ are allowed in a project "
+            f"or run name. Remove the following characters: {badchars}"
+        )
+
 
 @mock.patch.object(ObjectStore, "create_project_run_object")
 @mock.patch("dataquality.core.finish._version_check")
@@ -341,6 +443,7 @@ class TestStructuredClassificationValidationErrors:
 @mock.patch.object(
     ApiClient, "make_request", return_value={"link": "link", "job_name": "job_name"}
 )
+@mock.patch.object(StructuredClassificationDataLogger, "save_feature_importances")
 class TestStructuredClassificationE2E:
     def _assert_mocks(
         self,
@@ -360,6 +463,7 @@ class TestStructuredClassificationE2E:
 
     def test_log_pandas_e2e(
         self,
+        mock_save_feature_importances: mock.MagicMock,
         mock_create_job: mock.MagicMock,
         mock_upload_dq_log_file: mock.MagicMock,
         mock_reset_run: mock.MagicMock,
@@ -388,6 +492,7 @@ class TestStructuredClassificationE2E:
 
         # We upload df and prob_df for each split (training and test)
         assert mock_upload_df_to_minio.call_count == 4
+        assert mock_save_feature_importances.call_count == 1
         mock_create_job.assert_called_once_with(
             RequestType.POST,
             url="http://localhost:8088/jobs",
@@ -405,6 +510,7 @@ class TestStructuredClassificationE2E:
 
     def test_log_arrays_e2e(
         self,
+        mock_save_feature_importances: mock.MagicMock,
         mock_create_job: mock.MagicMock,
         mock_upload_dq_log_file: mock.MagicMock,
         mock_reset_run: mock.MagicMock,
@@ -435,6 +541,7 @@ class TestStructuredClassificationE2E:
 
         # We upload df and prob_df for each split (training and test)
         assert mock_upload_df_to_minio.call_count == 4
+        assert mock_save_feature_importances.call_count == 1
         mock_create_job.assert_called_once_with(
             RequestType.POST,
             url="http://localhost:8088/jobs",
@@ -452,6 +559,7 @@ class TestStructuredClassificationE2E:
 
     def test_log_pandas_e2e_inference(
         self,
+        mock_save_feature_importances: mock.MagicMock,
         mock_create_job: mock.MagicMock,
         mock_upload_dq_log_file: mock.MagicMock,
         mock_reset_run: mock.MagicMock,
@@ -486,6 +594,7 @@ class TestStructuredClassificationE2E:
 
         # We upload df and prob_df for each split (training and 2 inf)
         assert mock_upload_df_to_minio.call_count == 6
+        assert mock_save_feature_importances.call_count == 1
         mock_create_job.assert_called_once_with(
             RequestType.POST,
             url="http://localhost:8088/jobs",
@@ -505,6 +614,7 @@ class TestStructuredClassificationE2E:
 
     def test_log_arrays_e2e_inference(
         self,
+        mock_save_feature_importances: mock.MagicMock,
         mock_create_job: mock.MagicMock,
         mock_upload_dq_log_file: mock.MagicMock,
         mock_reset_run: mock.MagicMock,
@@ -542,6 +652,7 @@ class TestStructuredClassificationE2E:
 
         # We upload df and prob_df for each split (training and 2 inf)
         assert mock_upload_df_to_minio.call_count == 6
+        assert mock_save_feature_importances.call_count == 1
         mock_create_job.assert_called_once_with(
             RequestType.POST,
             url="http://localhost:8088/jobs",
@@ -561,6 +672,7 @@ class TestStructuredClassificationE2E:
 
     def test_log_pandas_e2e_inference_only(
         self,
+        mock_save_feature_importances: mock.MagicMock,
         mock_create_job: mock.MagicMock,
         mock_upload_dq_log_file: mock.MagicMock,
         mock_reset_run: mock.MagicMock,
@@ -589,6 +701,7 @@ class TestStructuredClassificationE2E:
 
         # We upload df and prob_df for each split (2 inf)
         assert mock_upload_df_to_minio.call_count == 4
+        assert mock_save_feature_importances.call_count == 1
         mock_create_job.assert_called_once_with(
             RequestType.POST,
             url="http://localhost:8088/jobs",
@@ -613,6 +726,7 @@ class TestStructuredClassificationE2E:
 
     def test_log_arrays_e2e_inference_only(
         self,
+        mock_save_feature_importances: mock.MagicMock,
         mock_create_job: mock.MagicMock,
         mock_upload_dq_log_file: mock.MagicMock,
         mock_reset_run: mock.MagicMock,
@@ -643,6 +757,7 @@ class TestStructuredClassificationE2E:
 
         # We upload df and prob_df for each split (2 inf)
         assert mock_upload_df_to_minio.call_count == 4
+        assert mock_save_feature_importances.call_count == 1
         mock_create_job.assert_called_once_with(
             RequestType.POST,
             url="http://localhost:8088/jobs",
