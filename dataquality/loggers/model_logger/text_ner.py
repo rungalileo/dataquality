@@ -113,10 +113,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             epoch=epoch,
             inference_name=inference_name,
         )
-        # Explicit cast to List from parent
-        self.embs: List[np.ndarray] = list(self.embs)
-        self.logits: List[np.ndarray] = list(self.logits)
-        self.probs: List[np.ndarray] = list(self.probs)
 
         # Calculated internally
         self.gold_emb: List[List[np.ndarray]] = []
@@ -148,15 +144,17 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         :return:
         """
         if len(self.logits):
-            self.probs = self.convert_logits_to_probs(self.logits).tolist()
+            self.probs = self.convert_logits_to_probs(self.logits)
         elif len(self.probs):
             warnings.warn("Usage of probs is deprecated, use logits instead")
+            self.probs = self._convert_tensor_ndarray(self.probs)
 
         embs_len = len(self.embs)
         probs_len = len(self.probs)
         ids_len = len(self.ids)
 
         self.ids = self._convert_tensor_ndarray(self.ids)
+        self.embs = self._convert_tensor_ndarray(self.embs)
 
         assert all([embs_len, probs_len, ids_len]), (
             f"All of emb, probs, and ids for your logger must be set, but "
@@ -173,8 +171,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         logged_sample_ids = []
         for sample_id, sample_emb, sample_prob in zip(self.ids, self.embs, self.probs):
             # This will return True if there was a prediction or gold span
-            sample_emb = self._convert_tensor_ndarray(sample_emb)
-            sample_prob = self._convert_tensor_ndarray(sample_prob)
             if self._process_sample(sample_id, sample_emb, sample_prob):
                 logged_sample_ids.append(sample_id)
 
@@ -814,15 +810,3 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 f"Only {self.get_valid_attributes()}"
             )
         super().__setattr__(key, value)
-
-    def convert_logits_to_probs(
-        self, sample_logits: Union[List[np.ndarray], np.ndarray]
-    ) -> np.ndarray:
-        """Converts logits to probs via softmax per sample"""
-        # axis ensures that in a matrix of probs with dims num_samples x num_classes
-        # we take the softmax for each sample
-        token_probs = []
-        for token_logits in sample_logits:
-            token_probs.append(super().convert_logits_to_probs(token_logits))
-
-        return np.array(token_probs, dtype=object)
