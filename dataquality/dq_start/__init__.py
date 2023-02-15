@@ -329,11 +329,14 @@ class DataQuality:
 
         .. code-block:: python
 
-            from dataquality import DataQuality
+            import dataquality as dq
 
-            with DataQuality(model, "text_classification",
-                             labels = ["neg", "pos"],
-                             train_data = train_data) as dq:
+            with dq(
+                model, 
+                "text_classification",
+                labels = ["neg", "pos"],
+                train_data = train_data
+            ):
                 model.fit(train_data)
 
         If you want to train without a model, you can use the auto framework:
