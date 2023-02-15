@@ -1,6 +1,4 @@
-import base64
 import os.path
-from io import BytesIO
 from tempfile import TemporaryDirectory
 from unittest import mock
 from unittest.mock import MagicMock
