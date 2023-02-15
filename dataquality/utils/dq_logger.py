@@ -73,7 +73,7 @@ def upload_dq_log_file() -> None:
     obj_name = dq_log_object_name(config.current_project_id, config.current_run_id)
     file_path = dq_log_file_path()
     if os.path.isfile(file_path):
-        obj_store.create_project_run_object(
+        obj_store.create_object(
             object_name=obj_name,
             file_path=file_path,
             content_type="text/plain",

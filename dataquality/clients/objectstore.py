@@ -2,6 +2,7 @@ import os
 import sys
 from functools import partial
 from tempfile import NamedTemporaryFile
+from typing import Optional
 
 import requests
 from tqdm.auto import tqdm
@@ -11,26 +12,29 @@ from vaex.dataframe import DataFrame
 from dataquality.core.auth import api_client
 from dataquality.utils.file import get_file_extension
 
+IMAGES_BUCKET_NAME = "galileo-images"
 ROOT_BUCKET_NAME = "galileo-project-runs"
 RESULTS_BUCKET_NAME = "galileo-project-runs-results"
 
 
 class ObjectStore:
+    IMAGES_BUCKET_NAME = IMAGES_BUCKET_NAME
     ROOT_BUCKET_NAME = ROOT_BUCKET_NAME
     RESULTS_BUCKET_NAME = RESULTS_BUCKET_NAME
     DOWNLOAD_CHUNK_SIZE_MB = 256
 
-    def create_project_run_object(
+    def create_object(
         self,
         object_name: str,
         file_path: str,
         content_type: str = "application/octet-stream",
         progress: bool = True,
+        bucket_name: Optional[str] = None,
     ) -> None:
         url = api_client.get_presigned_url(
             project_id=object_name.split("/")[0],
             method="put",
-            bucket_name=self.ROOT_BUCKET_NAME,
+            bucket_name=bucket_name or self.ROOT_BUCKET_NAME,
             object_name=object_name,
         )
         self._upload_file_from_local(
@@ -82,7 +86,7 @@ class ObjectStore:
         ext = get_file_extension(object_name)
         with NamedTemporaryFile(suffix=ext) as f:
             df.export(f.name)
-            self.create_project_run_object(
+            self.create_object(
                 object_name=object_name,
                 file_path=f.name,
             )
