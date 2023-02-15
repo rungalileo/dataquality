@@ -343,10 +343,9 @@ class DataQuality:
 
         .. code-block:: python
 
-            from dataquality import DataQuality
+            import dataquality as dq
 
-            with DataQuality(labels = ["neg", "pos"],
-                             train_data = train_data) as dq:
+            with dq(train_data = train_data):
                 dq.finish()
         """
         self.args, self.kwargs = args, kwargs
