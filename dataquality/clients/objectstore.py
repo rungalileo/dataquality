@@ -11,9 +11,13 @@ from vaex.dataframe import DataFrame
 from dataquality.core.auth import api_client
 from dataquality.utils.file import get_file_extension
 
+ROOT_BUCKET_NAME = "galileo-project-runs"
+RESULTS_BUCKET_NAME = "galileo-project-runs-results"
+
 
 class ObjectStore:
-    ROOT_BUCKET_NAME = "galileo-project-runs"
+    ROOT_BUCKET_NAME = ROOT_BUCKET_NAME
+    RESULTS_BUCKET_NAME = RESULTS_BUCKET_NAME
     DOWNLOAD_CHUNK_SIZE_MB = 256
 
     def create_project_run_object(
@@ -83,7 +87,9 @@ class ObjectStore:
                 file_path=f.name,
             )
 
-    def download_file(self, object_name: str, file_path: str) -> str:
+    def download_file(
+        self, object_name: str, file_path: str, bucket: str = ROOT_BUCKET_NAME
+    ) -> str:
         """download_file
 
         Args:
@@ -96,7 +102,7 @@ class ObjectStore:
         url = api_client.get_presigned_url(
             project_id=object_name.split("/")[0],
             method="get",
-            bucket_name=self.ROOT_BUCKET_NAME,
+            bucket_name=bucket,
             object_name=object_name,
         )
         return self._local_download_from_url(url=url, file_path=file_path)

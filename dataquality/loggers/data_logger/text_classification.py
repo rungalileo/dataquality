@@ -1,6 +1,6 @@
 from collections import defaultdict
 from enum import Enum, unique
-from typing import Any, DefaultDict, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, DefaultDict, Dict, Iterable, List, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -19,6 +19,7 @@ from dataquality.loggers.logger_config.text_classification import (
     text_classification_logger_config,
 )
 from dataquality.schemas import __data_schema_version__
+from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.split import Split
 from dataquality.utils.vaex import rename_df
 
@@ -342,7 +343,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
     def _log_df(
         self, df: Union[pd.DataFrame, DataFrame], meta: List[Union[str, int]]
     ) -> None:
-        """Helper to log a pandas or vex df"""
+        """Helper to log a pandas or vaex df"""
         self.texts = df["text"].tolist()
         self.ids = df["id"].tolist()
         # Inference case
@@ -368,12 +369,28 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         * Text and Labels must be the same length
         * If ids exist, it must be the same length as text/labels
         :return: None
+
+        If the user logged labels as ints, convert them to the string labels.
+        In the next optimization, we will support the API having int labels, but for
+        now it expects string labels. When we make that change, we will do the opposite
+        and always convert to the int index of the labels.
         """
         super().validate()
         label_len = len(self.labels)
         text_len = len(self.texts)
         id_len = len(self.ids)
 
+        set_labels_are_ints = self.logger_config.int_labels
+
+        if self.split != Split.inference and str(self.labels[0]).isnumeric():
+            # labels must be set if numeric
+            assert self.logger_config.labels is not None, (
+                "You must set labels before logging input data,"
+                " when label column is numeric"
+            )
+
+        if label_len and isinstance(self.labels[0], int) and not set_labels_are_ints:
+            self.labels = [self.logger_config.labels[lbl] for lbl in self.labels]
         if not isinstance(self.texts, list):
             self.texts = list(self._convert_tensor_ndarray(self.texts))
         clean_labels = self._convert_tensor_ndarray(self.labels, attr="Labels")
@@ -440,10 +457,10 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         return vaex.from_pandas(pd.DataFrame(inp))
 
     @classmethod
-    def split_dataframe(
-        cls, df: DataFrame, prob_only: bool, split: str
-    ) -> Tuple[DataFrame, DataFrame, DataFrame]:
-        """Splits the singular dataframe into its 3 components
+    def separate_dataframe(
+        cls, df: DataFrame, prob_only: bool = True, split: str = None
+    ) -> BaseLoggerDataFrames:
+        """Separates the singular dataframe into its 3 components
 
         Gets the probability df, the embedding df, and the "data" df containing
         all other columns
@@ -464,7 +481,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
 
         emb = df_copy[emb_cols]
         data_df = df_copy[other_cols]
-        return prob, emb, data_df
+        return BaseLoggerDataFrames(prob=prob, emb=emb, data=data_df)
 
     @classmethod
     def _get_prob_cols(cls) -> List[str]:

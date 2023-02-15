@@ -275,11 +275,11 @@ def test_logging_inference_run(
 
     assert (
         inference_prob_1.prob.to_numpy()
-        == dataquality.get_model_logger()().convert_logits_to_probs(logits_1)
+        == dataquality.get_model_logger().convert_logits_to_probs(logits_1)
     ).all()
     assert (
         inference_prob_2.prob.to_numpy()
-        == dataquality.get_model_logger()().convert_logits_to_probs(logits_2)
+        == dataquality.get_model_logger().convert_logits_to_probs(logits_2)
     ).all()
 
 
@@ -362,15 +362,15 @@ def test_logging_train_test_inference(
 
     assert (
         train_prob_data.prob.to_numpy()
-        == dataquality.get_model_logger()().convert_logits_to_probs(train_logits)
+        == dataquality.get_model_logger().convert_logits_to_probs(train_logits)
     ).all()
     assert (
         test_prob_data.prob.to_numpy()
-        == dataquality.get_model_logger()().convert_logits_to_probs(test_logits)
+        == dataquality.get_model_logger().convert_logits_to_probs(test_logits)
     ).all()
     assert (
         inference_prob_data.prob.to_numpy()
-        == dataquality.get_model_logger()().convert_logits_to_probs(inf_logits)
+        == dataquality.get_model_logger().convert_logits_to_probs(inf_logits)
     ).all()
 
 
@@ -786,3 +786,4 @@ def test_int_labels(set_test_config: Callable) -> None:
         "4",
         "5",
     ]
+    assert dataquality.get_data_logger().logger_config.int_labels is True

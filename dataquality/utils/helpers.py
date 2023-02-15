@@ -99,6 +99,7 @@ def open_console_url(link: Optional[str] = "") -> None:
     if not link:
         return
     try:
+
         webbrowser.open(link)
     # In some environments, webbrowser will raise. Other times it fails silently (colab)
     except Exception:

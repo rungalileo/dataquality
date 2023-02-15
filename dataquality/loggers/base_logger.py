@@ -16,7 +16,7 @@ from dataquality.loggers.logger_config.base_logger_config import (
 from dataquality.schemas.split import Split, conform_split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.cloud import is_galileo_cloud
-from dataquality.utils.dq_logger import upload_dq_log_file
+from dataquality.utils.dq_logger import _shutil_rmtree_retry, upload_dq_log_file
 from dataquality.utils.imports import hf_available, tf_available, torch_available
 from dataquality.utils.tf import is_tf_2
 
@@ -74,16 +74,54 @@ class BaseGalileoLogger:
         self.split: Optional[str] = None
         self.inference_name: Optional[str] = None
 
-    def write_output_dir(self) -> str:
-        return (
-            f"{BaseGalileoLogger.LOG_FILE_DIR}/{config.current_project_id}/"
-            f"{config.current_run_id}"
-        )
+    @property
+    def proj_run(self) -> str:
+        """Returns the project and run id
 
+        Example:
+            proj-id/run-id
+        """
+        return f"{config.current_project_id}/{config.current_run_id}"
+
+    @property
+    def write_output_dir(self) -> str:
+        """Returns the path to the output directory for the current run
+
+        Example:
+            /Users/username/.galileo/logs/proj-id/run-id
+        """
+        return f"{BaseGalileoLogger.LOG_FILE_DIR}/{self.proj_run}"
+
+    @property
     def split_name(self) -> str:
+        """Returns the name of the current split
+
+        If the split is inference, it will return the name of the inference
+        concatenated to the end of the split name
+
+        Example:
+            training
+            inference_inf-name1
+        """
         split = self.split
         if split == Split.inference:
             split = f"{split}_{self.inference_name}"
+        return str(split)
+
+    @property
+    def split_name_path(self) -> str:
+        """Returns the path part of the current split
+
+        If the split is inference, it will return the name of the inference
+        run after the split name
+
+        Example:
+            training
+            inference/inf-name1
+        """
+        split = self.split
+        if split == Split.inference:
+            split = f"{split}/{self.inference_name}"
         return str(split)
 
     @staticmethod
@@ -95,6 +133,10 @@ class BaseGalileoLogger:
         """Validates params passed in during logging. Implemented by child"""
 
     def set_split_epoch(self) -> None:
+        """Sets the split for the current logger
+
+        If the split is not set, it will use the split set in the logger config
+        """
         if not self.split:
             if self.logger_config.cur_split:
                 self.split = self.logger_config.cur_split
@@ -103,6 +145,18 @@ class BaseGalileoLogger:
                     "You didn't log a split and did not set a split. Use "
                     "'dataquality.set_split' to set the split"
                 )
+
+        # Inference split must have inference name
+        if self.split == Split.inference and self.inference_name is None:
+            if self.logger_config.cur_inference_name is not None:
+                self.inference_name = self.logger_config.cur_inference_name
+            else:
+                raise GalileoException(
+                    "For inference split you must either log an inference name "
+                    "or set it before logging. Use `dataquality.set_split` to set "
+                    "inference_name"
+                )
+
         self.split = self.validate_split(self.split)
         # Set this config variable in validation, right before logging split data
         setattr(self.logger_config, f"{self.split}_logged", True)
@@ -206,8 +260,11 @@ class BaseGalileoLogger:
         return v
 
     @staticmethod
-    def validate_task(task_type: Union[str, TaskType]) -> None:
-        if task_type not in TaskType.get_valid_tasks():
+    def validate_task(task_type: Union[str, TaskType]) -> TaskType:
+        """Raises error if task type is not a valid TaskType"""
+        try:
+            return TaskType[task_type]
+        except KeyError:
             raise GalileoException(
                 f"Task type {task_type} not valid. Choose one of "
                 f"{TaskType.get_valid_tasks()}"
@@ -215,8 +272,13 @@ class BaseGalileoLogger:
 
     @classmethod
     def _cleanup(cls) -> None:
-        """
-        Cleans up the current run data and metadata locally
+        """Cleans up the current run data and metadata locally
+
+        Does so by deleting the run directory and resetting the logger config
+
+        Example:
+            # Deletes all files in the run directory
+            /Users/username/.galileo/logs/proj-id/run-id
         """
         assert config.current_project_id
         assert config.current_run_id
@@ -229,7 +291,14 @@ class BaseGalileoLogger:
             if os.path.isfile(path):
                 os.remove(path)
             else:
-                shutil.rmtree(path)
+                # Sometimes the directory is not deleted immediately
+                # This can happen if the client is using an nfs
+                # so we try again after a short delay
+                try:
+                    shutil.rmtree(path)
+                except OSError:
+                    _shutil_rmtree_retry(path)
+
         cls.logger_config.reset()
 
     def upload(self) -> None:
@@ -257,6 +326,10 @@ class BaseGalileoLogger:
 
     @classmethod
     def validate_split(cls, split: Union[str, Split]) -> str:
+        """Raises error if split is not a valid Split
+
+        Also raises if a cloud user tries to log inference data
+        """
         split = conform_split(split).value
         if is_galileo_cloud() and split == Split.inference:
             raise GalileoException(

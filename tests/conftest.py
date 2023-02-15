@@ -53,7 +53,8 @@ def disable_network_calls(request, monkeypatch):
         """Unless it's a mocked call to healthcheck, disable network access"""
         if "healthcheck" in url:
             return MockResponse(
-                json_data={"minimum_dq_version": "0.0.0"}, status_code=200
+                json_data={"minimum_dq_version": "0.0.0", "api_version": "100.0.0"},
+                status_code=200,
             )
         raise RuntimeError("Network access not allowed during testing!")
 
@@ -63,7 +64,7 @@ def disable_network_calls(request, monkeypatch):
 @pytest.fixture(scope="function")
 def cleanup_after_use() -> Generator:
     for task_type in list(TaskType):
-        dataquality.get_model_logger(task_type).logger_config.reset()
+        dataquality.get_data_logger(task_type).logger_config.reset()
     try:
         if os.path.isdir(BaseGalileoLogger.LOG_FILE_DIR):
             shutil.rmtree(BaseGalileoLogger.LOG_FILE_DIR)
@@ -80,7 +81,7 @@ def cleanup_after_use() -> Generator:
         if os.path.exists(DQ_LOG_FILE_LOCATION):
             shutil.rmtree(DQ_LOG_FILE_LOCATION)
         for task_type in list(TaskType):
-            dataquality.get_model_logger(task_type).logger_config.reset()
+            dataquality.get_data_logger(task_type).logger_config.reset()
 
 
 @pytest.fixture()

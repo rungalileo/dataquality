@@ -1,4 +1,34 @@
 import random
+import re
+from typing import Optional
+
+from dataquality.exceptions import GalileoException
+
+BAD_CHARS_REGEX = r"[^\w -]+"
+
+
+def validate_name(name: Optional[str], assign_random: bool = False) -> str:
+    """Validates project/run name ensuring only letters, numbers, space, - and _
+
+    If no name is provided, a random name is generated
+    """
+    if not name and assign_random:
+        name = random_name()
+
+    if not name:
+        raise GalileoException(
+            "Name is required. Set assign_random to True to generate a random name"
+        )
+
+    badchars = re.findall(BAD_CHARS_REGEX, name)
+    if badchars:
+        raise GalileoException(
+            "Only letters, numbers, whitespace, - and _ are allowed in a project "
+            f"or run name. Remove the following characters: {badchars}"
+        )
+
+    return name
+
 
 ADJECTIVES = [
     "able",

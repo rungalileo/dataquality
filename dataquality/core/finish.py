@@ -62,6 +62,7 @@ def finish(
         task_type=config.task_type.value,
         tasks=data_logger.logger_config.tasks,
         ner_labels=data_logger.logger_config.ner_labels,
+        feature_names=data_logger.logger_config.feature_names,
     )
     if data_logger.logger_config.inference_logged:
         body.update(
@@ -93,8 +94,12 @@ def finish(
         wait_for_run()
         open_console_url(res["link"])
 
-    # Reset the environment
+    # Reset the data logger
     data_logger._cleanup()
+
+    # Reset the model logger
+    dataquality.get_model_logger()._cleanup()
+
     return res.get("link") or ""
 
 

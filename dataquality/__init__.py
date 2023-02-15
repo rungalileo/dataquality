@@ -1,8 +1,9 @@
 "dataquality"
 
-__version__ = "v0.8.6a0"
+__version__ = "v0.8.14"
 
 import os
+import warnings
 
 import dataquality.core._config
 import dataquality.integrations
@@ -10,6 +11,8 @@ import dataquality.integrations
 # We try/catch this in case the user installed dq inside of jupyter. You need to
 # restart the kernel after the install and we want to make that clear. This is because
 # of vaex: https://github.com/vaexio/vaex/pull/2226
+from dataquality.exceptions import GalileoWarning
+
 try:
     import dataquality.metrics
     from dataquality.analytics import Analytics
@@ -32,6 +35,7 @@ from dataquality.core.log import (
     log_dataset,
     log_image_dataset,
     log_model_outputs,
+    log_xgboost,
     set_epoch,
     set_epoch_and_split,
     set_labels_for_run,
@@ -68,6 +72,9 @@ def configure(do_login: bool = True) -> None:
     * GALILEO_PASSWORD
     """
     a.log_function("dq/configure")
+    warnings.warn(
+        "configure is deprecated, use dq.set_console_url and dq.login", GalileoWarning
+    )
 
     if "GALILEO_API_URL" in os.environ:
         del os.environ["GALILEO_API_URL"]
@@ -121,6 +128,7 @@ __all__ = [
     "log_data_sample",
     "log_dataset",
     "log_image_dataset",
+    "log_xgboost",
     "get_dq_log_file",
     "build_run_report",
     "register_run_report",

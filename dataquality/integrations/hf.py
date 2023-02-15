@@ -101,6 +101,7 @@ def _validate_dataset(dd: DatasetDict) -> DatasetDict:
         ds = dd[key]
         # Filter out the samples with no tokens
         ds = ds.filter(lambda row: len(row[HFCol.tokens]) != 0)
+        # Non-inference split must have ner_tags or tags column (the labels)
         if HFCol.ner_tags not in ds.features and key in Split.get_valid_keys():
             if HFCol.tags in ds.features:
                 ds = ds.rename_column(HFCol.tags, HFCol.ner_tags)
