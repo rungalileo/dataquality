@@ -1,3 +1,5 @@
+from typing import Dict
+
 from dataquality.loggers.logger_config.text_classification import (
     TextClassificationLoggerConfig,
 )
@@ -5,7 +7,7 @@ from dataquality.loggers.logger_config.text_classification import (
 
 class StructuredClassificationLoggerConfig(TextClassificationLoggerConfig):
     # NOTE: By inheriting from TCLoggerCongif we get cleaned labels
-    pass
+    feature_importances: Dict[str, float] = {}
 
 
 structured_classification_logger_config = StructuredClassificationLoggerConfig()

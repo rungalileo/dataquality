@@ -22,6 +22,7 @@ from vaex.dataframe import DataFrame
 from dataquality.clients.objectstore import ObjectStore
 from dataquality.loggers.data_logger.base_data_logger import BaseGalileoDataLogger
 from dataquality.loggers.logger_config.structured_classification import (
+    StructuredClassificationLoggerConfig,
     structured_classification_logger_config,
 )
 from dataquality.schemas import __data_schema_version__
@@ -32,7 +33,9 @@ api_client = ApiClient()
 
 class StructuredClassificationDataLogger(BaseGalileoDataLogger):
     __logger_name__ = "structured_classification"
-    logger_config = structured_classification_logger_config
+    logger_config: StructuredClassificationLoggerConfig = (
+        structured_classification_logger_config
+    )
 
     def __init__(
         self,
@@ -73,6 +76,8 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
             - logger_config.feature_names to the column names of X if they aren't set
         """
         self.validate()
+
+        assert self.model is not None, "Model must be included to log data."
 
         assert hasattr(self.model, "predict_proba"), (
             "Model must have a predict_proba method. "
@@ -127,6 +132,14 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
         for feature in self.feature_names:
             validate_name(feature)
 
+
+        if not self.logger_config.feature_importances and hasattr(
+            self.model, "feature_importances_"
+        ):
+            self.logger_config.feature_importances = dict(
+                zip(self.feature_names, self.model.feature_importances_.tolist())
+            )
+
         self.set_probs()
         self.save_feature_importances()
 
@@ -144,11 +157,9 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
 
         Assumes the model is fit
         """
-        suffix = "must be set before saving feature importances"
-        assert self.model, f"Model {suffix}"
-        assert self.feature_names, f"Feature names {suffix}"
-        assert config.current_project_id, f"Project ID {suffix}"
-        assert config.current_run_id, f"Run ID {suffix}"
+        template = " {inp} must be set before saving feature importances"
+        assert config.current_project_id, print(template.format(inp="Project ID"))
+        assert config.current_run_id, print(template.format(inp="Run ID"))
 
         api_client.set_metric_for_run(
             config.current_project_id,
@@ -157,7 +168,7 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
                 "key": "feature_importances",
                 "value": 0,
                 "epoch": 0,
-                "extra": dict(zip(self.feature_names, self.model.feature_importances_)),
+                "extra": self.logger_config.feature_importances,
             },
         )
 
@@ -236,6 +247,8 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
         To Minio:
             bucket/proj-id/run-id/training/prob.hdf5
         """
+        self.save_feature_importances()
+
         print("☁️ Uploading Data")
         objectstore = ObjectStore()
 

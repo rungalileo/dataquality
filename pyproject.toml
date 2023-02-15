@@ -24,7 +24,7 @@ requires = [
     "wrapt>=1.13.3",
     "scipy>=1.7.0",
     "cachetools>=5.2.0",
-    "importlib-metadata",
+    "importlib-metadata<5.0.0",
     "evaluate",
     "datasets>=2.6",
     "transformers>=4.24.0",
