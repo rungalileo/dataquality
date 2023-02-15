@@ -1,6 +1,0 @@
-root: ./docs/_build/markdown/
-
-​structure:  
-    Start: index.md
-    Reference: api/dataquality.md
-    Table of Contents: api/index.md
