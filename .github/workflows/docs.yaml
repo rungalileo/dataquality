@@ -35,4 +35,4 @@ jobs:
           target-directory: 'autodocs'
           destination-github-username: 'rungalileo'
           destination-repository-name: 'docs'
-          user-email: franz@rungalileo.io
+          user-email: team@rungalileo.io
