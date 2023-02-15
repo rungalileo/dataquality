@@ -50,7 +50,6 @@ def test_call_auto_pandas_train_df(
     mock_watch: mock.MagicMock,
     mock_finish: mock.MagicMock,
 ) -> None:
-
     df_train = base_df.copy()
     trainer = mock.MagicMock()
     encoded_data = {}
@@ -81,7 +80,6 @@ def test_call_auto_pandas_with_inference(
     mock_finish: mock.MagicMock,
     set_test_config: Callable,
 ) -> None:
-
     df_train = base_df.copy()
     df_inf = pd.DataFrame({"tokens": ["some", "new", "tokens", "heree"]})
     trainer = mock.MagicMock()

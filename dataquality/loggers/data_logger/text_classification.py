@@ -76,12 +76,12 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
 
     def __init__(
         self,
-        texts: List[str] = None,
-        labels: List[str] = None,
-        ids: List[int] = None,
-        split: str = None,
-        meta: MetasType = None,
-        inference_name: str = None,
+        texts: Optional[List[str]] = None,
+        labels: Optional[List[str]] = None,
+        ids: Optional[List[int]] = None,
+        split: Optional[str] = None,
+        meta: Optional[MetasType] = None,
+        inference_name: Optional[str] = None,
     ) -> None:
         """Create data logger.
 
@@ -256,9 +256,9 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         text: Union[str, int],
         id: Union[str, int],
         meta: List[Union[str, int]],
-        label: Union[str, int] = None,
-        split: Split = None,
-        inference_name: str = None,
+        label: Optional[Union[str, int]] = None,
+        split: Optional[Split] = None,
+        inference_name: Optional[str] = None,
     ) -> None:
         """Helper function to log a huggingface dataset
 
@@ -299,9 +299,9 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         text: Union[str, int],
         id: Union[str, int],
         meta: List[Union[str, int]],
-        label: Union[str, int] = None,
-        split: Split = None,
-        inference_name: str = None,
+        label: Optional[Union[str, int]] = None,
+        split: Optional[Split] = None,
+        inference_name: Optional[str] = None,
     ) -> None:
         batches = defaultdict(list)
         metas = defaultdict(list)
@@ -329,7 +329,11 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         return batches
 
     def _log_dict(
-        self, d: Dict, meta: Dict, split: Split = None, inference_name: str = None
+        self,
+        d: Dict,
+        meta: Dict,
+        split: Optional[Split] = None,
+        inference_name: Optional[str] = None,
     ) -> None:
         self.log_data_samples(
             texts=d["text"],
@@ -458,7 +462,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
 
     @classmethod
     def separate_dataframe(
-        cls, df: DataFrame, prob_only: bool = True, split: str = None
+        cls, df: DataFrame, prob_only: bool = True, split: Optional[str] = None
     ) -> BaseLoggerDataFrames:
         """Separates the singular dataframe into its 3 components
 
