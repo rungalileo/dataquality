@@ -465,6 +465,8 @@ class TextNERDataLogger(BaseGalileoDataLogger):
                 f"({gold_span_len},{text_len},{text_tokenized_len})"
             )
 
+        self.text_token_indices_flat = []
+
         for sample_id, sample_spans, sample_indices, sample_text in zip(
             self.ids,
             self.gold_spans or [None] * id_len,  # type: ignore
