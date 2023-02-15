@@ -26,7 +26,7 @@ def auto(
     project_name: Optional[str] = None,
     run_name: Optional[str] = None,
     wait: bool = True,
-    create_data_embs: bool = False,
+    create_data_embs: Optional[bool] = None,
 ) -> None:
     """Automatically gets insights on a text classification or NER dataset
 
@@ -92,7 +92,8 @@ def auto(
         and uploaded with this run. You can access these embeddings via
         `dq.metrics.get_data_embeddings` in the `emb` column or
         `dq.metrics.get_dataframe(..., include_data_embs=True)` in the `data_emb` col
-        Only available for TC currently. NER coming soon. Default False.
+        Only available for TC currently. NER coming soon. Default True if a GPU is
+        available, else default False.
 
     For text classification datasets, the only required columns are `text` and `label`
 
