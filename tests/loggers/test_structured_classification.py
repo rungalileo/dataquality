@@ -92,9 +92,6 @@ class TestStructuredClassificationDataLogger:
 
         mock_set_probs.assert_called_once_with()
 
-        mock_set_probs.assert_called_once_with()
-        mock_save_feature_importances.assert_called_once_with()
-
     def test_set_probs(self, fit_xgboost: xgb.XGBClassifier, sc_data: Dict) -> None:
         logger = StructuredClassificationDataLogger(
             model=fit_xgboost,

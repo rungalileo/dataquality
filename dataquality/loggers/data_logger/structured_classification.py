@@ -140,7 +140,6 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
             )
 
         self.set_probs()
-        self.save_feature_importances()
 
     def set_probs(self) -> None:
         """Sets the probs attribute for the class
