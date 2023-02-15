@@ -31,12 +31,10 @@ class ObjectStore:
         progress: bool = True,
         bucket_name: Optional[str] = None,
     ) -> None:
-        if not bucket_name:
-            bucket_name = self.ROOT_BUCKET_NAME
         url = api_client.get_presigned_url(
             project_id=object_name.split("/")[0],
             method="put",
-            bucket_name=bucket_name,
+            bucket_name=bucket_name or self.ROOT_BUCKET_NAME,
             object_name=object_name,
         )
         self._upload_file_from_local(
