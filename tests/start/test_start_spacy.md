@@ -1,9 +1,13 @@
+TODO: Add tests for spacy start
+
 from typing import Callable, Generator
 from unittest.mock import MagicMock, patch
+from dataquality.schemas.split import Split
 
 import spacy
 import vaex
 from spacy.training import Example
+from spacy.util import minibatch
 
 import dataquality as dq
 from dataquality import DataQuality
@@ -50,14 +54,24 @@ def test_spacy_txt(
     for text, annotations in NER_TRAINING_DATA:
         doc = nlp.make_doc(text)
         training_examples.append(Example.from_dict(doc, annotations))
-
-    num_epochs = 2
+    optimizer = nlp.initialize(lambda: training_examples)
+    num_epochs = 1
+    MINIBATCH_SZ = 3
     with DataQuality(
         nlp,
-        labels=[],
-        train_df=training_examples,
+        train_data=training_examples,
         task="text_ner",
-    ):
-        train_model(nlp, training_examples, num_epochs=num_epochs)
+    ) as dq:
+        training_losses = []
+        for itn in range(num_epochs):
+            dq.set_epoch(itn)
+            batches = minibatch(training_examples, MINIBATCH_SZ)
+            dq.set_split(Split.training)
+            for batch in batches:
+                training_loss = nlp.update(batch, drop=0.5, sgd=optimizer)
+                training_losses.append(training_loss["ner"])
+
+            dq.set_split(Split.test)
+            nlp.evaluate(training_examples, batch_size=MINIBATCH_SZ)
         ThreadPoolManager.wait_for_threads()
         assert len(vaex.open(f"{LOCATION}/training/0/*.hdf5"))

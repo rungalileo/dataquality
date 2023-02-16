@@ -61,7 +61,6 @@ def test_auto(
         {"text": newsgroups_test.data, "label": newsgroups_test.target}
     ).head(4)
 
-    with dataquality(
+    dataquality(
         train_data=df_train, test_data=df_test, labels=newsgroups_train.target_names
-    ):
-        dataquality.get_insights()
+    )

@@ -168,22 +168,17 @@ class SpacyInsights(BaseInsights):
     ) -> None:
         """
         Functionality is actually handled in the training step.
-        Used to be:
+        """
         from dataquality.integrations.spacy import log_input_examples
-        self.model.initialize(lambda: train_data)
+
         self.watch(self.model)
         if train_data is not None:
-           log_input_examples(train_data, split=Split.train)
-        if test_data is not None:
-           log_input_examples(test_data, split=Split.test)
-        if val_data is not None:
-           log_input_examples(val_data, split=Split.validation)
-        """
-        pass
+            log_input_examples(train_data, split=Split.train)
+            # log_input_examples(test_data, split=Split.validation)
 
     def enter(self) -> None:
         """Not used for spacy."""
-        assert self.watch
+        pass
 
     def validate(self, task_type: TaskType, labels: Optional[List[str]]) -> None:
         """Validate the task type and labels.
@@ -194,6 +189,7 @@ class SpacyInsights(BaseInsights):
             task_type is not None
         ), """keyword argument task_type is required,
         for example task_type='text_ner' """
+        assert task_type == TaskType.text_ner, "task_type must be text_ner"
 
 
 class TrainerInsights(BaseInsights):
@@ -281,7 +277,8 @@ def detect_model(model: Any, framework: Optional[ModelFramework]) -> Type[BaseIn
          the model
     """
     if hasattr(model, "pipe") or framework == ModelFramework.spacy:
-        return SpacyInsights
+        # return SpacyInsights
+        raise GalileoException("Spacy is not supported yet")
     elif hasattr(model, "fit") or framework == ModelFramework.keras:
         return TFInsights
     elif hasattr(model, "register_forward_hook") or framework == ModelFramework.torch:
@@ -329,23 +326,21 @@ class DataQuality:
 
         .. code-block:: python
 
-            import dataquality as dq
+            from dataquality import DataQuality
 
-            with dq(
-                model, 
-                "text_classification",
-                labels = ["neg", "pos"],
-                train_data = train_data
-            ):
+            with DataQuality(model, "text_classification",
+                             labels = ["neg", "pos"],
+                             train_data = train_data) as dq:
                 model.fit(train_data)
 
         If you want to train without a model, you can use the auto framework:
 
         .. code-block:: python
 
-            import dataquality as dq
+            from dataquality import DataQuality
 
-            with dq(train_data = train_data):
+            with DataQuality(labels = ["neg", "pos"],
+                             train_data = train_data) as dq:
                 dq.finish()
         """
         self.args, self.kwargs = args, kwargs
