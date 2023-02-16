@@ -114,9 +114,9 @@ def gpu_available() -> bool:
 
 
 def mps_available() -> bool:
-    """Checks for a compatible mps device on Apple Silicon.
+    """Checks for an MPS compatible GPU on Apple machines.
 
-    This will enabled Metal acceleration for model training on supported machines.
+    This will enabled Metal acceleration for model training when supported.
     """
     import torch
 
