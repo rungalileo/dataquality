@@ -105,3 +105,9 @@ def open_console_url(link: Optional[str] = "") -> None:
         pass
     finally:
         print(f"Click here to see your run! {link}")
+
+
+def gpu_available() -> bool:
+    import torch
+
+    return torch.cuda.is_available()
