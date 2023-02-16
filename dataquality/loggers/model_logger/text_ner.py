@@ -235,14 +235,13 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 sample_gold_spans, sample_prob, NERProbMethod.confidence
             )
             gold_loss_prob, gold_loss_label = self._extract_span_probs(
-                sample_gold_spans, sample_prob, NERProbMethod.loss, gold_sequence
+                sample_gold_spans, sample_prob, NERProbMethod.loss,
+                gold_sequence_str=gold_sequence
             )
-            argmax_indices: List[int] = sample_prob.argmax(axis=1).tolist()
-            pred_sequence: List[str] = [
-                self.logger_config.labels[x] for x in argmax_indices
-            ]
+            pred_sequence_idx = sample_prob.argmax(axis=1)
             pred_loss_prob, pred_gold_label = self._extract_span_probs(
-                sample_pred_spans, sample_prob, NERProbMethod.loss, pred_sequence
+                sample_pred_spans, sample_prob, NERProbMethod.loss,
+                gold_sequence_idx=pred_sequence_idx
             )
 
             self.gold_spans.append(sample_gold_spans)
@@ -277,7 +276,8 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         spans: List[Dict],
         prob: np.ndarray,
         method: NERProbMethod,
-        gold_sequence: Optional[List[str]] = None,
+        gold_sequence_str: Optional[List[str]] = None,
+        gold_sequence_idx: Optional[List[int]] = None,
     ) -> Tuple[List[np.ndarray], List[int]]:
         """Get the probs for each span, on a per-sample basis
 
@@ -300,15 +300,17 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         """
         probs = []
         gold_labels = []
-        gold_sequence_str = gold_sequence or []
-        gold_sequence_idx = self.labels_to_idx(gold_sequence_str)
+        if gold_sequence_idx is None and gold_sequence_str is not None:
+            gold_sequence_idx = self.labels_to_idx(gold_sequence_str)
+
+        has_gold_sequence = gold_sequence_idx is not None and len(gold_sequence_idx) >= 0
 
         for span in spans:
             start = span["start"]
             end = span["end"]
             span_probs = prob[start:end, :]
             span_gold_seq = (
-                gold_sequence_idx[start:end] if gold_sequence_idx.size > 0 else None
+                gold_sequence_idx[start:end] if has_gold_sequence else None
             )
             # We select a token prob to represent the span prob
             span_prob, gold_label = select_span_token_for_prob(
