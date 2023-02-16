@@ -374,7 +374,7 @@ class BaseGalileoLogger:
         >>> label_idx_map(labels)
         {"O": 0, "B-PER": 1, "I-PER": 2, "B-LOC": 3, "I-LOC": 4}
         """
-        return self._label_idx_map(tuple(self.logger_config.labels))
+        return self._label_idx_map(tuple(self.logger_config.labels or []))
 
     def labels_to_idx(self, gold_sequence: List[str]) -> np.ndarray:
         """Convert a list of labels to a np array of indices
