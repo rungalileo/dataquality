@@ -111,3 +111,13 @@ def gpu_available() -> bool:
     import torch
 
     return torch.cuda.is_available()
+
+
+def mps_available() -> bool:
+    """Checks for a compatible mps device on Apple Silicon.
+
+    This will enabled Metal acceleration for model training on supported machines.
+    """
+    import torch
+
+    return torch.backends.mps.is_available()
