@@ -147,13 +147,9 @@ def test_duplicate_ids_augmented(set_test_config, cleanup_after_use) -> None:
         validate_unique_ids(df, "epoch")
 
 
-@mock.patch.object(
-    dataquality.clients.api.ApiClient,
-    "get_presigned_url",
-    return_value="https://google.com",
-)
+@mock.patch("dataquality.clients.objectstore.ObjectStore.create_object")
 def test_base64_image_logging(
-    mock_presigned_url: mock.MagicMock, set_test_config, cleanup_after_use
+    mock_create_object: mock.MagicMock, set_test_config, cleanup_after_use
 ) -> None:
     """
     Tests that dq.log_image_dataset logs base64-encoded image data when passed image
@@ -335,13 +331,9 @@ def _test_hf_image_dataset(name) -> None:
     assert len(df) == len(food_dataset)
 
 
-@mock.patch.object(
-    dataquality.clients.api.ApiClient,
-    "get_presigned_url",
-    return_value="https://google.com",
-)
+@mock.patch("dataquality.clients.objectstore.ObjectStore.create_object")
 def test_hf_dataset_food(
-    mock_presigned_url: mock.MagicMock,
+    mock_create_object: mock.MagicMock,
     cleanup_after_use,
     set_test_config,
 ) -> None:
@@ -349,13 +341,9 @@ def test_hf_dataset_food(
     _test_hf_image_dataset("food")
 
 
-@mock.patch.object(
-    dataquality.clients.api.ApiClient,
-    "get_presigned_url",
-    return_value="https://google.com",
-)
+@mock.patch("dataquality.clients.objectstore.ObjectStore.create_object")
 def test_hf_dataset_mnist(
-    mock_presigned_url: mock.MagicMock,
+    mock_create_object: mock.MagicMock,
     cleanup_after_use,
     set_test_config,
 ) -> None:
@@ -363,13 +351,9 @@ def test_hf_dataset_mnist(
     _test_hf_image_dataset("mnist")
 
 
-@mock.patch.object(
-    dataquality.clients.api.ApiClient,
-    "get_presigned_url",
-    return_value="https://google.com",
-)
+@mock.patch("dataquality.clients.objectstore.ObjectStore.create_object")
 def test_hf_dataset_cifar10(
-    mock_presigned_url: mock.MagicMock,
+    mock_create_object: mock.MagicMock,
     cleanup_after_use,
     set_test_config,
 ) -> None:
@@ -377,13 +361,9 @@ def test_hf_dataset_cifar10(
     _test_hf_image_dataset("cifar10")
 
 
-@mock.patch.object(
-    dataquality.clients.api.ApiClient,
-    "get_presigned_url",
-    return_value="https://google.com",
-)
+@mock.patch("dataquality.clients.objectstore.ObjectStore.create_object")
 def test_hf_image_dataset_with_paths(
-    mock_presigned_url: mock.MagicMock,
+    mock_create_object: mock.MagicMock,
     set_test_config,
     cleanup_after_use,
 ) -> None:
