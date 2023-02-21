@@ -524,12 +524,17 @@ class GalileoParserStepModel(ThincModelWrapper):
     def _self_populate_model_logger(self, docs_valid_logits: DefaultDict) -> None:
         model_logger = self._self_model_logger
         helper_data = model_logger.log_helper_data
-        model_logger.ids = list(model_logger.ids)  # for mypy's sake
+        logits = list(model_logger.logits)
+        ids = list(model_logger.ids)
+        embs = list(model_logger.embs)
         for doc_id, doc_valid_logits in docs_valid_logits.items():
-            model_logger.logits.append(np.array(doc_valid_logits))
+            logits.append(np.array(doc_valid_logits))
             doc_embs = helper_data["embs"][doc_id]
-            model_logger.embs.append(np.array(doc_embs))
-            model_logger.ids.append(doc_id)
+            embs.append(np.array(doc_embs))
+            ids.append(doc_id)
+        model_logger.ids = np.concatenate(ids)
+        model_logger.embs = np.concatenate(embs)
+        model_logger.logits = np.concatenate(logits)
 
     def _self_get_docs_copy(self) -> Dict[int, Doc]:
         spacy_states = self._self_model_logger.log_helper_data["spacy_states"]
