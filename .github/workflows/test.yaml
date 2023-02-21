@@ -6,6 +6,8 @@ on:
       - main
   pull_request:
     types: [opened, synchronize]
+  merge_group:
+    types: [checks_requested]
 
 env:
   GALILEO_API_URL: "http://localhost:8000"
