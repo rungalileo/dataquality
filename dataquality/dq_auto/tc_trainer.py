@@ -18,6 +18,7 @@ from transformers import (
 )
 
 from dataquality.schemas.split import Split
+from dataquality.utils.helpers import mps_available
 
 EVAL_METRIC = "f1"
 
@@ -77,6 +78,7 @@ def get_trainer(
         push_to_hub=False,
         report_to=["all"],
         seed=42,
+        use_mps_device=mps_available(),
     )
 
     # We pass huggingface datasets here but typing expects torch datasets, so we ignore

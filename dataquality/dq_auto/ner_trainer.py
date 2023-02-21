@@ -18,6 +18,7 @@ import dataquality as dq
 from dataquality.integrations.hf import tokenize_and_log_dataset
 from dataquality.schemas.hf import HFCol
 from dataquality.schemas.split import Split
+from dataquality.utils.helpers import mps_available
 
 # For NER training, there is only 1 evaluation tool
 # https://huggingface.co/course/chapter7/2#metrics
@@ -89,6 +90,7 @@ def get_trainer(
         logging_strategy=IntervalStrategy.EPOCH,
         logging_dir="./logs",
         seed=42,
+        use_mps_device=mps_available(),
     )
 
     # We pass huggingface datasets here but typing expects torch datasets, so we ignore
