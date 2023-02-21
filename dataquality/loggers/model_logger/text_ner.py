@@ -235,13 +235,17 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 sample_gold_spans, sample_prob, NERProbMethod.confidence
             )
             gold_loss_prob, gold_loss_label = self._extract_span_probs(
-                sample_gold_spans, sample_prob, NERProbMethod.loss,
-                gold_sequence_str=gold_sequence
+                sample_gold_spans,
+                sample_prob,
+                NERProbMethod.loss,
+                gold_sequence_str=gold_sequence,
             )
             pred_sequence_idx = sample_prob.argmax(axis=1)
             pred_loss_prob, pred_gold_label = self._extract_span_probs(
-                sample_pred_spans, sample_prob, NERProbMethod.loss,
-                gold_sequence_idx=pred_sequence_idx
+                sample_pred_spans,
+                sample_prob,
+                NERProbMethod.loss,
+                gold_sequence_idx=pred_sequence_idx,
             )
 
             self.gold_spans.append(sample_gold_spans)
