@@ -10,6 +10,7 @@ from typing import (
     Optional,
     Tuple,
     Union,
+    cast,
 )
 
 import numpy as np
@@ -536,8 +537,8 @@ class GalileoParserStepModel(ThincModelWrapper):
                 doc_valid_logits = np.pad(doc_valid_logits, pad_config)
                 doc_embs = np.pad(doc_embs, pad_config, constant_values=np.nan)
 
-            model_logger.logits.append(np.array(doc_valid_logits))
-            model_logger.embs.append(np.array(doc_embs))
+            cast(List, model_logger.logits).append(np.array(doc_valid_logits))
+            cast(List, model_logger.embs).append(np.array(doc_embs))
             model_logger.ids.append(doc_id)
 
     def _self_get_docs_copy(self) -> Dict[int, Doc]:
