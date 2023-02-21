@@ -277,7 +277,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         prob: np.ndarray,
         method: NERProbMethod,
         gold_sequence_str: Optional[List[str]] = None,
-        gold_sequence_idx: Optional[List[int]] = None,
+        gold_sequence_idx: Optional[np.ndarray] = None,
     ) -> Tuple[List[np.ndarray], List[int]]:
         """Get the probs for each span, on a per-sample basis
 
@@ -303,14 +303,15 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         if gold_sequence_idx is None and gold_sequence_str is not None:
             gold_sequence_idx = self.labels_to_idx(gold_sequence_str)
 
-        has_gold_sequence = gold_sequence_idx is not None and len(gold_sequence_idx) >= 0
+        if gold_sequence_idx is not None and len(gold_sequence_idx) == 0:
+            gold_sequence_idx = None
 
         for span in spans:
             start = span["start"]
             end = span["end"]
             span_probs = prob[start:end, :]
             span_gold_seq = (
-                gold_sequence_idx[start:end] if has_gold_sequence else None
+                gold_sequence_idx[start:end] if gold_sequence_idx is not None else None
             )
             # We select a token prob to represent the span prob
             span_prob, gold_label = select_span_token_for_prob(
