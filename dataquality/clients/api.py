@@ -563,7 +563,11 @@ class ApiClient:
                 )
 
     def get_presigned_url(
-        self, project_id: str, method: str, bucket_name: str, object_name: str
+        self,
+        method: str,
+        bucket_name: str,
+        object_name: str,
+        project_id: str,
     ) -> str:
         response = self.make_request(
             request=RequestType.GET,

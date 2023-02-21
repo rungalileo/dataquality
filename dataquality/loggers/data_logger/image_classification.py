@@ -16,7 +16,7 @@ from dataquality.loggers.logger_config.image_classification import (
 )
 from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.split import Split
-from dataquality.utils.cv import _img_path_to_b64_str, _img_to_b64_str
+from dataquality.utils.cv import _write_image_bytes_to_objectstore
 
 # smaller than ITER_CHUNK_SIZE from base_data_logger because very large chunks
 # containing image data often won't fit in memory
@@ -71,7 +71,9 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         if imgs_location_colname is not None:
             # image paths
             dataset["text"] = dataset[imgs_location_colname].apply(
-                lambda x: _img_path_to_b64_str(img_path=os.path.join(imgs_dir, x))
+                lambda x: _write_image_bytes_to_objectstore(
+                    img_path=os.path.join(imgs_dir, x),
+                )
             )
         else:
             # PIL images in a DataFrame column - weird, but we'll allow it
@@ -83,7 +85,9 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
                     "image paths, pass imgs_location_colname instead."
                 )
 
-            dataset["text"] = dataset[imgs_colname].apply(_img_to_b64_str)
+            dataset["text"] = dataset[imgs_colname].apply(
+                _write_image_bytes_to_objectstore
+            )
 
         return dataset
 
@@ -120,6 +124,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             raise GalileoException(
                 "Must provide one of imgs_colname or imgs_location_colname."
             )
+
         return prepared
 
     @classmethod

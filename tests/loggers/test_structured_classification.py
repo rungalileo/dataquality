@@ -200,10 +200,10 @@ class TestStructuredClassificationDataLogger:
 
     @mock.patch.object(StructuredClassificationDataLogger, "save_feature_importances")
     @mock.patch("dataquality.loggers.data_logger.structured_classification.os.walk")
-    @mock.patch.object(ObjectStore, "create_project_run_object")
+    @mock.patch.object(ObjectStore, "create_object")
     def test_upload(
         self,
-        mock_create_project_run_object: mock.MagicMock,
+        mock_create_object: mock.MagicMock,
         mock_os_walk: mock.MagicMock,
         mock_save_importances: mock.MagicMock,
         create_logger: Callable,
@@ -227,18 +227,18 @@ class TestStructuredClassificationDataLogger:
         logger: StructuredClassificationDataLogger = create_logger(split="training")
         logger.upload()
 
-        assert mock_create_project_run_object.call_count == 2
+        assert mock_create_object.call_count == 2
         prefix = (
             f"{BaseGalileoLogger.LOG_FILE_DIR}/{DEFAULT_PROJECT_ID}/{DEFAULT_RUN_ID}"
             "/training"
         )
-        mock_create_project_run_object.assert_any_call(
+        mock_create_object.assert_any_call(
             object_name=(
                 f"{DEFAULT_PROJECT_ID}/{DEFAULT_RUN_ID}/training/data/data.hdf5"
             ),
             file_path=f"{prefix}/data/data.hdf5",
         )
-        mock_create_project_run_object.assert_any_call(
+        mock_create_object.assert_any_call(
             object_name=(
                 f"{DEFAULT_PROJECT_ID}/{DEFAULT_RUN_ID}/training/prob/prob.hdf5"
             ),
@@ -436,7 +436,7 @@ class TestStructuredClassificationValidationErrors:
         )
 
 
-@mock.patch.object(ObjectStore, "create_project_run_object")
+@mock.patch.object(ObjectStore, "create_object")
 @mock.patch("dataquality.core.finish._version_check")
 @mock.patch("dataquality.core.finish._reset_run")
 @mock.patch("dataquality.core.finish.upload_dq_log_file")

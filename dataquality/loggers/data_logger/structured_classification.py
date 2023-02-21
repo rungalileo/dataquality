@@ -258,6 +258,4 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
                 object_name = file_path.replace(
                     f"{BaseGalileoLogger.LOG_FILE_DIR}/", ""
                 )
-                objectstore.create_project_run_object(
-                    object_name=object_name, file_path=file_path
-                )
+                objectstore.create_object(object_name=object_name, file_path=file_path)

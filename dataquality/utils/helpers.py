@@ -105,3 +105,19 @@ def open_console_url(link: Optional[str] = "") -> None:
         pass
     finally:
         print(f"Click here to see your run! {link}")
+
+
+def gpu_available() -> bool:
+    import torch
+
+    return torch.cuda.is_available()
+
+
+def mps_available() -> bool:
+    """Checks for an MPS compatible GPU on Apple machines.
+
+    This will enabled Metal acceleration for model training when supported.
+    """
+    import torch
+
+    return torch.backends.mps.is_available()
