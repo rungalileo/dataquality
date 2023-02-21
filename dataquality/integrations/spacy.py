@@ -535,7 +535,7 @@ class GalileoParserStepModel(ThincModelWrapper):
                 # Pad just the end of the matrix with pad_size arrays
                 pad_config = ((0, pad_size), (0, 0))
                 doc_valid_logits = np.pad(doc_valid_logits, pad_config)
-                doc_embs = np.pad(doc_embs, pad_config, constant_values=np.nan)
+                doc_embs = np.pad(doc_embs, pad_config, constant_values=0)
 
             cast(List, model_logger.logits).append(np.array(doc_valid_logits))
             cast(List, model_logger.embs).append(np.array(doc_embs))

@@ -304,17 +304,24 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         """
         probs = []
         gold_labels = []
-        gold_seq_idx: np.ndarray = np.ndarray([])
         if gold_sequence_idx is None and gold_sequence_str is not None:
-            gold_seq_idx = self.labels_to_idx(gold_sequence_str)
+            gold_sequence_idx = self.labels_to_idx(gold_sequence_str)
 
-        has_gold_sequence = gold_seq_idx is not None and len(gold_seq_idx) >= 0
+        has_gold_sequence = (
+            gold_sequence_idx is not None and len(gold_sequence_idx) >= 0
+        )
 
         for span in spans:
             start = span["start"]
             end = span["end"]
             span_probs = prob[start:end, :]
-            span_gold_seq = gold_seq_idx[start:end] if has_gold_sequence else None
+            # We ignore because if `has_gold_sequence` then has_gold_sequence must exist
+            # (see above), but mypy can't figure that out
+            span_gold_seq = (
+                gold_sequence_idx[start:end]  # type: ignore
+                if has_gold_sequence
+                else None
+            )
             # We select a token prob to represent the span prob
             span_prob, gold_label = select_span_token_for_prob(
                 span_probs, method, span_gold_seq
