@@ -409,11 +409,6 @@ class GalileoTransitionBasedParserModel(ThincModelWrapper):
                 "inference_name='some_name')` to continue."
             )
         helper_data = model_logger.log_helper_data
-        # TODO: For some reason this didnt work. I had to pad it in the
-        #  _self_populate_model_logger function which seems less efficient
-        # max_doc_len = max(len(doc) for doc in X)
-        # helper_data["logits"] = {doc.user_data["id"]: [None] * max_doc_len for doc in X}
-        # helper_data["embs"] = {doc.user_data["id"]: [None] * max_doc_len for doc in X}
         helper_data["logits"] = {doc.user_data["id"]: [None] * len(doc) for doc in X}
         helper_data["embs"] = {doc.user_data["id"]: [None] * len(doc) for doc in X}
         helper_data["spacy_states"] = defaultdict(list)
@@ -536,10 +531,10 @@ class GalileoParserStepModel(ThincModelWrapper):
             # Pad the input to the max logits/embs input
             pad_size = max_doc_len - len(doc_valid_logits)
             if pad_size:
-                logits_pad = np.zeros((pad_size, len(doc_valid_logits[0])))
-                doc_valid_logits = np.concatenate([doc_valid_logits, logits_pad])
-                emb_pad = np.zeros((pad_size, len(doc_embs[0])))
-                doc_embs = np.concatenate([doc_embs, emb_pad])
+                # Pad just the end of the matrix with pad_size arrays
+                pad_config = ((0, pad_size), (0, 0))
+                doc_valid_logits = np.pad(doc_valid_logits, pad_config)
+                doc_embs = np.pad(doc_embs, pad_config, constant_values=np.nan)
 
             model_logger.logits.append(np.array(doc_valid_logits))
             model_logger.embs.append(np.array(doc_embs))
