@@ -4,7 +4,7 @@ from abc import abstractmethod
 from enum import Enum, unique
 from functools import lru_cache
 from glob import glob
-from typing import Any, Dict, List, Optional, Type, TypeVar, Union, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar, Union
 
 import numpy as np
 

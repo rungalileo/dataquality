@@ -235,13 +235,17 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 sample_gold_spans, sample_prob, NERProbMethod.confidence
             )
             gold_loss_prob, gold_loss_label = self._extract_span_probs(
-                sample_gold_spans, sample_prob, NERProbMethod.loss,
-                gold_sequence_str=gold_sequence
+                sample_gold_spans,
+                sample_prob,
+                NERProbMethod.loss,
+                gold_sequence_str=gold_sequence,
             )
             pred_sequence_idx = sample_prob.argmax(axis=1)
             pred_loss_prob, pred_gold_label = self._extract_span_probs(
-                sample_pred_spans, sample_prob, NERProbMethod.loss,
-                gold_sequence_idx=pred_sequence_idx
+                sample_pred_spans,
+                sample_prob,
+                NERProbMethod.loss,
+                gold_sequence_idx=pred_sequence_idx,
             )
 
             self.gold_spans.append(sample_gold_spans)
@@ -303,15 +307,15 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         if gold_sequence_idx is None and gold_sequence_str is not None:
             gold_sequence_idx = self.labels_to_idx(gold_sequence_str)
 
-        has_gold_sequence = gold_sequence_idx is not None and len(gold_sequence_idx) >= 0
+        has_gold_sequence = (
+            gold_sequence_idx is not None and len(gold_sequence_idx) >= 0
+        )
 
         for span in spans:
             start = span["start"]
             end = span["end"]
             span_probs = prob[start:end, :]
-            span_gold_seq = (
-                gold_sequence_idx[start:end] if has_gold_sequence else None
-            )
+            span_gold_seq = gold_sequence_idx[start:end] if has_gold_sequence else None
             # We select a token prob to represent the span prob
             span_prob, gold_label = select_span_token_for_prob(
                 span_probs, method, span_gold_seq

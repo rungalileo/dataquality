@@ -1,5 +1,5 @@
 import pickle
-from typing import Dict, List, Tuple
+from typing import Callable, Dict, List, Tuple
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -42,7 +42,8 @@ from tests.test_utils.spacy_integration_constants_inference import (
 )
 
 
-def test_log_input_examples_without_watch():
+def test_log_input_examples_without_watch(set_test_config: Callable):
+    set_test_config(task_type="text_ner")
     with pytest.raises(GalileoException) as e:
         log_input_examples(NER_TRAINING_DATA, split="training")
     assert (
