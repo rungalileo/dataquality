@@ -325,7 +325,7 @@ def _test_hf_image_dataset(name) -> None:
     ThreadPoolManager.wait_for_threads()
     df = vaex.open(f"{LOCATION}/input_data/training/*.arrow")
 
-    assert len(df) == len(food_dataset)
+    assert len(df) == len(TESTING_DATASETS[name]["dataset"])
 
 
 @mock.patch("dataquality.clients.objectstore.ObjectStore.create_object")
