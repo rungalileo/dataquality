@@ -9,7 +9,6 @@ from torch.utils.data import DataLoader
 from torch.utils.data.dataset import random_split
 from torchtext.data.functional import to_map_style_dataset
 from torchtext.data.utils import get_tokenizer
-from torchtext.datasets import AG_NEWS
 from torchtext.vocab import build_vocab_from_iterator
 
 import dataquality as dq
@@ -18,10 +17,15 @@ from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import validate_unique_ids
 from tests.conftest import LOCATION
+from torchdata.datapipes.iter import IterableWrapper
 
-train_iter = iter(AG_NEWS(split="train"))
+def csv_to_torch(path):
+  df = pd.read_csv(path)
+  data_dp = IterableWrapper(df.to_dict("records"))
+  return data_dp.map(fn=lambda x: (x["label"], x["text"]))
+
+train_iter = iter(csv_to_torch("tests/assets/ag_train_test.csv"))
 tokenizer = get_tokenizer("basic_english")
-train_iter = AG_NEWS(split="train")
 
 
 def yield_tokens(data_iter):
@@ -64,7 +68,7 @@ def collate_batch(batch):
     return label_list.to(device), text_list.to(device), offsets.to(device)
 
 
-train_iter = AG_NEWS(split="train")
+train_iter = csv_to_torch("tests/assets/ag_train_test.csv")
 dataloader = DataLoader(
     train_iter, batch_size=8, shuffle=False, collate_fn=collate_batch
 )
@@ -90,7 +94,7 @@ class TextClassificationModel(nn.Module):
         return self.classifier(embedded)
 
 
-train_iter = AG_NEWS(split="train")
+train_iter = csv_to_torch("tests/assets/ag_train_test.csv")
 num_class = len(set([label for (label, text) in train_iter]))
 vocab_size = len(vocab)
 emsize = 64
@@ -151,17 +155,17 @@ criterion = torch.nn.CrossEntropyLoss()
 optimizer = torch.optim.SGD(model.parameters(), lr=LR)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1.0, gamma=0.1)
 total_accu = None
-train_iter, test_iter = AG_NEWS()
+train_iter, test_iter = csv_to_torch("tests/assets/ag_train_test.csv"), csv_to_torch("tests/assets/ag_train_test.csv")
 train_dataset = to_map_style_dataset(train_iter)
 num_train = int(len(train_dataset) * 0.95)
 split_train_, split_valid_ = random_split(
     train_dataset, [num_train, len(train_dataset) - num_train]
 )
 
-ag_train = to_map_style_dataset(AG_NEWS(split="train"))[:192]
-ag_test = to_map_style_dataset(AG_NEWS(split="test"))[192:220]
-train_df = pd.DataFrame(ag_train)
-test_df = pd.DataFrame(ag_test)
+ag_train = csv_to_torch("tests/assets/ag_train_test.csv")
+ag_test = csv_to_torch("tests/assets/ag_train_test.csv")
+train_df = pd.DataFrame(csv_to_torch("tests/assets/ag_train_test.csv"))
+test_df = pd.DataFrame(csv_to_torch("tests/assets/ag_train_test.csv"))
 train_df = train_df.reset_index().rename(columns={0: "label", 1: "text", "index": "id"})
 train_df["id"] = train_df["id"] + 10000
 test_df = test_df.reset_index().rename(columns={0: "label", 1: "text", "index": "id"})
