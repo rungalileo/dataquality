@@ -1,3 +1,4 @@
+import os
 from typing import Callable, Generator
 from unittest.mock import MagicMock, patch
 
@@ -175,6 +176,7 @@ labels.sort()
 @patch.object(dq.clients.api.ApiClient, "make_request")
 @patch.object(dq.core.finish, "wait_for_run")
 def test_end_to_end_with_callback(
+    # mock_configure: MagicMock,
     mock_wait_for_run: MagicMock,
     mock_make_request: MagicMock,
     mock_upload_log_file: MagicMock,
@@ -184,9 +186,10 @@ def test_end_to_end_with_callback(
     set_test_config: Callable,
     cleanup_after_use: Generator,
 ) -> None:
-    global train_df, test_df
+    global train_df, test_df, modeldq
 
     set_test_config(default_task_type=TaskType.text_classification)
+
     dq.set_labels_for_run(labels)
     # Preprocessing
     dq.log_dataset(train_df, split="train")
@@ -195,11 +198,9 @@ def test_end_to_end_with_callback(
     train_dataloader_dq = DataLoader(
         train_iter,
         batch_size=BATCH_SIZE,
-        num_workers=2,
+        num_workers=0,
         shuffle=True,
         collate_fn=collate_batch,
-        # persistent_workers=True,
-        # pin_memory=False,
     )
     test_dataloader_dq = DataLoader(
         test_iter, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_batch
@@ -242,6 +243,8 @@ def test_end_to_end_old_patch(
     set_test_config: Callable,
     cleanup_after_use: Generator,
 ) -> None:
+    _modeldq = TextClassificationModel(vocab_size, emsize, num_class).to(device)
+
     set_test_config(default_task_type=TaskType.text_classification)
     # Preprocessing
     global train_df, test_df
@@ -260,7 +263,7 @@ def test_end_to_end_old_patch(
 
     # 🔭🌕 Logging the dataset with Galileo
     watch(
-        modeldq,
+        _modeldq,
         [train_dataloader_dq, test_dataloader_dq],
         classifier_layer="classifier",
     )
@@ -268,10 +271,10 @@ def test_end_to_end_old_patch(
     for epoch in range(0, 2):
         # 🔭🌕 Logging the dataset with Galileo
         dq.set_epoch_and_split(epoch, split)
-        train(train_dataloader_dq, modeldq)
+        train(train_dataloader_dq, _modeldq)
         # 🔭🌕 Logging the dataset with Galileo
         dq.set_split("test")
-        evaluate(test_dataloader_dq, modeldq)
+        evaluate(test_dataloader_dq, _modeldq)
     unwatch()
     ThreadPoolManager.wait_for_threads()
     validate_unique_ids(vaex.open(f"{LOCATION}/{split}/0/*.hdf5"), "epoch")
