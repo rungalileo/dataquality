@@ -1,0 +1,69 @@
+{
+  "builder_name": "cifar10",
+  "citation": "@TECHREPORT{Krizhevsky09learningmultiple,\n    author = {Alex Krizhevsky},\n    title = {Learning multiple layers of features from tiny images},\n    institution = {},\n    year = {2009}\n}\n",
+  "config_name": "plain_text",
+  "dataset_size": 136627390,
+  "description": "The CIFAR-10 dataset consists of 60000 32x32 colour images in 10 classes, with 6000 images\nper class. There are 50000 training images and 10000 test images.\n",
+  "download_checksums": {
+    "https://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz": {
+      "num_bytes": 170498071,
+      "checksum": null
+    }
+  },
+  "download_size": 170498071,
+  "features": {
+    "img": {
+      "_type": "Image"
+    },
+    "label": {
+      "names": [
+        "airplane",
+        "automobile",
+        "bird",
+        "cat",
+        "deer",
+        "dog",
+        "frog",
+        "horse",
+        "ship",
+        "truck"
+      ],
+      "_type": "ClassLabel"
+    }
+  },
+  "homepage": "https://www.cs.toronto.edu/~kriz/cifar.html",
+  "license": "",
+  "size_in_bytes": 307125461,
+  "splits": {
+    "train": {
+      "name": "train",
+      "num_bytes": 113854560,
+      "num_examples": 50000,
+      "dataset_name": "cifar10"
+    },
+    "test": {
+      "name": "test",
+      "num_bytes": 22772830,
+      "num_examples": 10000,
+      "dataset_name": "cifar10"
+    }
+  },
+  "supervised_keys": {
+    "input": "img",
+    "output": "label"
+  },
+  "task_templates": [
+    {
+      "task": "image-classification",
+      "image_column": "img",
+      "label_column": "label"
+    }
+  ],
+  "version": {
+    "version_str": "1.0.0",
+    "description": "",
+    "major": 1,
+    "minor": 0,
+    "patch": 0
+  }
+}

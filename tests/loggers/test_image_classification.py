@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 import numpy as np
 import pandas as pd
 import vaex
-from datasets import load_dataset
+from datasets import load_from_disk
 from PIL import Image
 
 import dataquality
@@ -15,14 +15,11 @@ from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import validate_unique_ids
 from tests.conftest import LOCATION
 
-food_dataset = load_dataset("sasha/dog-food", split="train")
-food_dataset = food_dataset.select(range(20))
+food_dataset = load_from_disk("./tests/assets/dog-food.dataset")["train"]
 
-mnist_dataset = load_dataset("mnist", split="train")
-mnist_dataset = mnist_dataset.select(range(20))
+mnist_dataset = load_from_disk("./tests/assets/mnist.dataset")["train"]
 
-cifar10_dataset = load_dataset("cifar10", split="train")
-cifar10_dataset = cifar10_dataset.select(range(20))
+cifar10_dataset = load_from_disk("./tests/assets/cifar10.dataset")["train"]
 
 TESTING_DATASETS = {
     "food": dict(

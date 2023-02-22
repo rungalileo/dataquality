@@ -5,9 +5,7 @@ import pandas as pd
 import torch
 import vaex
 from torch import nn
-from torch.utils.data import DataLoader
-from torch.utils.data.dataset import random_split
-from torchtext.data.functional import to_map_style_dataset
+from torch.utils.data import DataLoader, Dataset
 from torchtext.data.utils import get_tokenizer
 from torchtext.vocab import build_vocab_from_iterator
 
@@ -17,23 +15,35 @@ from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import validate_unique_ids
 from tests.conftest import LOCATION
-from torchdata.datapipes.iter import IterableWrapper
 
-def csv_to_torch(path):
-  df = pd.read_csv(path)
-  data_dp = IterableWrapper(df.to_dict("records"))
-  return data_dp.map(fn=lambda x: (x["label"], x["text"]))
+train_df = pd.read_csv("./tests/assets/ag_train_train.csv").groupby("label").head(2)
+test_df = pd.read_csv("./tests/assets/ag_train_test.csv").groupby("label").head(2)
 
-train_iter = iter(csv_to_torch("tests/assets/ag_train_test.csv"))
+
+class TorchData(Dataset):
+    def __init__(self, df):
+        self.df = df
+
+    def __getitem__(self, idx):
+        row = self.df.iloc[idx]
+        return row["label"], row["text"]
+
+    def __len__(self):
+        return len(self.df)
+
+
+train_iter = TorchData(train_df)
+test_iter = TorchData(test_df)
+texts = [x[1] for x in train_iter] + [x[1] for x in test_iter]
 tokenizer = get_tokenizer("basic_english")
 
 
 def yield_tokens(data_iter):
-    for _, text in data_iter:
+    for text in data_iter:
         yield tokenizer(text)
 
 
-vocab = build_vocab_from_iterator(yield_tokens(train_iter), specials=["<unk>"])
+vocab = build_vocab_from_iterator(yield_tokens(texts), specials=["<unk>"])
 vocab.set_default_index(vocab["<unk>"])
 
 vocab(["here", "is", "an", "example"])
@@ -68,11 +78,6 @@ def collate_batch(batch):
     return label_list.to(device), text_list.to(device), offsets.to(device)
 
 
-train_iter = csv_to_torch("tests/assets/ag_train_test.csv")
-dataloader = DataLoader(
-    train_iter, batch_size=8, shuffle=False, collate_fn=collate_batch
-)
-
 """ Define the model """
 
 
@@ -94,7 +99,6 @@ class TextClassificationModel(nn.Module):
         return self.classifier(embedded)
 
 
-train_iter = csv_to_torch("tests/assets/ag_train_test.csv")
 num_class = len(set([label for (label, text) in train_iter]))
 vocab_size = len(vocab)
 emsize = 64
@@ -149,23 +153,14 @@ def evaluate(dataloader, model):
 # Hyperparameters
 EPOCHS = 2  # epoch
 LR = 5  # learning rate
-BATCH_SIZE = 8  # batch size for training
+BATCH_SIZE = 16  # batch size for training
 
 criterion = torch.nn.CrossEntropyLoss()
 optimizer = torch.optim.SGD(model.parameters(), lr=LR)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1.0, gamma=0.1)
 total_accu = None
-train_iter, test_iter = csv_to_torch("tests/assets/ag_train_test.csv"), csv_to_torch("tests/assets/ag_train_test.csv")
-train_dataset = to_map_style_dataset(train_iter)
-num_train = int(len(train_dataset) * 0.95)
-split_train_, split_valid_ = random_split(
-    train_dataset, [num_train, len(train_dataset) - num_train]
-)
 
-ag_train = csv_to_torch("tests/assets/ag_train_test.csv")
-ag_test = csv_to_torch("tests/assets/ag_train_test.csv")
-train_df = pd.DataFrame(csv_to_torch("tests/assets/ag_train_test.csv"))
-test_df = pd.DataFrame(csv_to_torch("tests/assets/ag_train_test.csv"))
+
 train_df = train_df.reset_index().rename(columns={0: "label", 1: "text", "index": "id"})
 train_df["id"] = train_df["id"] + 10000
 test_df = test_df.reset_index().rename(columns={0: "label", 1: "text", "index": "id"})
@@ -198,7 +193,7 @@ def test_end_to_end_with_callback(
     dq.log_dataset(test_df, split="test")
 
     train_dataloader_dq = DataLoader(
-        ag_train,
+        train_iter,
         batch_size=BATCH_SIZE,
         num_workers=2,
         shuffle=True,
@@ -207,7 +202,7 @@ def test_end_to_end_with_callback(
         # pin_memory=False,
     )
     test_dataloader_dq = DataLoader(
-        ag_test, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_batch
+        test_iter, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_batch
     )
     unwatch(modeldq)
     # 🔭🌕 Logging the dataset with Galileo
@@ -257,10 +252,10 @@ def test_end_to_end_old_patch(
     dq.log_dataset(test_df, split="test")
 
     train_dataloader_dq = DataLoader(
-        ag_train, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_batch
+        train_iter, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_batch
     )
     test_dataloader_dq = DataLoader(
-        ag_test, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_batch
+        test_iter, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_batch
     )
 
     # 🔭🌕 Logging the dataset with Galileo

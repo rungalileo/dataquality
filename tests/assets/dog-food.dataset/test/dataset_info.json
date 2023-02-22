@@ -1,0 +1,45 @@
+{
+  "citation": "",
+  "dataset_size": 285390835,
+  "description": "",
+  "download_checksums": {
+    "https://huggingface.co/datasets/sasha/dog-food/resolve/9880353aa4e35baf9e6a6d06ace7f081e8f8f4b7/data/test-00000-of-00001-6ea6ccdcc8fa38d5.parquet": {
+      "num_bytes": 85821984,
+      "checksum": null
+    },
+    "https://huggingface.co/datasets/sasha/dog-food/resolve/9880353aa4e35baf9e6a6d06ace7f081e8f8f4b7/data/train-00000-of-00001-9bf5abf8b080cbba.parquet": {
+      "num_bytes": 199267931,
+      "checksum": null
+    }
+  },
+  "download_size": 285089915,
+  "features": {
+    "image": {
+      "_type": "Image"
+    },
+    "label": {
+      "names": [
+        "dog",
+        "food"
+      ],
+      "_type": "ClassLabel"
+    }
+  },
+  "homepage": "",
+  "license": "",
+  "size_in_bytes": 570480750,
+  "splits": {
+    "test": {
+      "name": "test",
+      "num_bytes": 85927595,
+      "num_examples": 900,
+      "dataset_name": "parquet"
+    },
+    "train": {
+      "name": "train",
+      "num_bytes": 199463240,
+      "num_examples": 2100,
+      "dataset_name": "parquet"
+    }
+  }
+}
