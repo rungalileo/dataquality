@@ -2,8 +2,9 @@ import os
 import shutil
 from abc import abstractmethod
 from enum import Enum, unique
+from functools import lru_cache
 from glob import glob
-from typing import Any, Dict, List, Optional, Type, TypeVar, Union
+from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar, Union
 
 import numpy as np
 
@@ -358,6 +359,11 @@ class BaseGalileoLogger:
             return isinstance(df, datasets.Dataset)
         return False
 
+    @staticmethod
+    @lru_cache(1)
+    def _label_idx_map(labels: Tuple[str]) -> Dict[str, int]:
+        return {label: idx for idx, label in enumerate(labels)}
+
     @property
     def label_idx_map(self) -> Dict[str, int]:
         """Convert a list of labels to a dictionary of label to index
@@ -368,7 +374,7 @@ class BaseGalileoLogger:
         >>> label_idx_map(labels)
         {"O": 0, "B-PER": 1, "I-PER": 2, "B-LOC": 3, "I-LOC": 4}
         """
-        return {label: idx for idx, label in enumerate(self.logger_config.labels or [])}
+        return self._label_idx_map(tuple(self.logger_config.labels or []))
 
     def labels_to_idx(self, gold_sequence: List[str]) -> np.ndarray:
         """Convert a list of labels to a np array of indices
