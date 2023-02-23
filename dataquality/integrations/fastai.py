@@ -358,13 +358,7 @@ class FastAiDQCallback(Callback):
         :return: Pandas DataFrame with the data from the DataLoader.
         """
         df = dl.items.copy()
-        rename_options = {}
-        if "x_col" != "text":
-            rename_options[x_col] = "text"
-        if "y_col" != "text":
-            rename_options[x_col] = "label"
-        if rename_options:
-            df = df.rename(columns=rename_options)
+        df = df.rename(columns={x_col: "text", y_col: "label"})
         if "id" not in df.columns:
             df["id"] = df.index
         return df
