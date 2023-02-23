@@ -1,30 +1,35 @@
+import os
 from enum import Enum
-from typing import Any, Callable, Dict
-from fastai.callback.core import Callback
 from functools import partial
+from typing import Any, Callable, Dict, List, Optional
 
+import numpy as np
+import pandas as pd
+from fastai.callback.core import Callback
+from fastai.data.load import DataLoader
 from torch.nn import Module
-import dataquality as dq
-from dataquality.schemas.split import Split
-from dataquality.utils.fastai import convert_dl_to_df, forward_hook_with_store
+from torch.utils.hooks import RemovableHandle
+
+import dataquality
+from dataquality.loggers.logger_config.base_logger_config import BaseLoggerConfig
 
 
 class FastAiKeys(Enum):
-    dl_next_idx_ids = "dl_next_idx_ids"
-    dl_curent_batch_ids = "dl_curent_batch_ids"
+    dataloader_indices = "dataloader_indices"
+    idx_queue = "idx_queue"
     model_input = "model_input"
     model_output = "model_output"
     ids = "ids"
 
 
-class IdxLogPatch:
+class _PatchDLGetIdxs:
     """
     Patch the DataLoader to store the indices of the batches.
     For example:
-    self.dl.get_idxs = IdxLogPatch(self.dl.get_idxs, self.idx_log)
+    self.dl.get_idxs = _PatchDLGetIdxs(self.dl.get_idxs, self.idx_log)
     """
 
-    def __init__(self, old_func: Callable, store: Dict[str, Any]):
+    def __init__(self, old_func: Callable, store: Dict[FastAiKeys, Any]) -> None:
         """
         Patch the DataLoader to store the indices of the batches.
         For example:
@@ -34,52 +39,95 @@ class IdxLogPatch:
         """
         self.old_func = old_func
         self.store = store
-        self.store[FastAiKeys.dl_next_idx_ids] = []
+        self.store[FastAiKeys.dataloader_indices] = []
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         """
         Call the original function and store the indices.
         :param args: The arguments to pass to the original function.
         :param kwargs: The keyword arguments to pass to the original function.
-
         """
         res = self.old_func(*args, **kwargs)
         if res:
-            self.store[FastAiKeys.dl_next_idx_ids].append(res)
+            self.store[FastAiKeys.dataloader_indices].append(res)
         return res
 
 
-class DQFastAiCallback(Callback):
+class FastAiDQCallback(Callback):
     """
-    Callback to log the model training for data quality.
+    Dataquality logs the model embeddings and logtis to measure the quality
+    of the dataset. Provide the label names and the classifier layer to log
+    the embeddings and logits. If no classifier layer is provided,
+    the last layer of the model will be used.
+    Here is how to take the last layer of the model:
+    `dqc = DataqualityCallback(labels=['negative','positive'], layer=model.fc)`
+    End to end example:
+    ```python
+    from fastai.vision.all import *
+    from fastai.callback.galileo import DataqualityCallback
+    path = untar_data(URLs.PETS)/'images'
+    image_files = get_image_files(path)#[:107]
+    label_func = lambda x: x[0].isupper()
+    dls = ImageDataLoaders.from_name_func(
+        path, image_files, valid_pct=0.2,
+        label_func=label_func, item_tfms=Resize(224),
+        num_workers=1)
+    learn = vision_learner(dls, 'resnet34', metrics=error_rate)
+    dqc = DataqualityCallback(labels=["nocat","cat"])
+    learn.add_cb(dqc)
+    learn.fine_tune(2)
+    ```
     """
 
-    current_model_outputs = {}
-    idx_outputs = {FastAiKeys.dl_curent_batch_ids: []}
     hook = None
-    layer = None
-    disable_dq = False
     is_initialized = False
     labels = None
+    model_outputs_log: Dict[FastAiKeys, Any]
+    current_idx: List[int]
+    logger_config: BaseLoggerConfig
+    idx_store: Dict[FastAiKeys, List[Any]]
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        labels: List[str],
+        layer: Any = None,
+        log_dataset: bool = True,
+        task_type: str = "image_classification",
+        options: Dict[str, Any] = {},
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
         """
-        Callback to log the model training for data quality.
+        Dataquality logs the model embeddings and logits to measure the quality
+        of the dataset. This helps to find mislabelled samples in a
+        data centric approach.
         :param layer: Classifier layer with embeddings as input and logits as output.
+        :param log_dataset: Enable automatic extraction of the dataset to data quality.
         :param disable_dq: Disable data quality logging.
         :param args: The arguments to pass to the super class.
         :param kwargs: The keyword arguments to pass to the super class.
         """
         super().__init__(*args, **kwargs)
-        self.disable_dq = kwargs.pop("disable_dq", False)
-        self.layer = kwargs.pop("layer", None)
-        self.labels = kwargs.pop("labels", None)
-        assert (
-            self.labels is not None
-        ), "Labels must be provided. DQFastAiCallback(labels=['negative','positive'])"
+        self.disable_dq = os.environ.get("DQ_NOOP", False)
+        self.labels = labels
+        self.log_dataset = log_dataset
+        self.options = options
+        self.layer = layer
+        self.model_outputs_log = {}
+        self.current_idx = []
+        self.idx_store = {FastAiKeys.idx_queue: []}
+        self.counter = 0
+        self.options["task_type"] = task_type
+
+        if self.labels is None:
+            raise ValueError(
+                """Labels must be provided. For example:
+           DataqualityCallback(labels=['negative','positive'])"""
+            )
 
         if not self.disable_dq:
-            dq.init(*args, **kwargs)
+            dataquality.init(**options)
+            self.logger_config = dataquality.get_model_logger().logger_config
 
     def get_layer(self) -> Module:
         """
@@ -94,120 +142,229 @@ class DQFastAiCallback(Callback):
             return self.layer
 
     def before_epoch(self) -> None:
-        """
-        Sets the epoch in data quality.
-        """
         if not self.disable_dq:
-            dq.set_epoch(self.epoch)
+            dataquality.set_epoch(self.epoch)
+
+    def before_fit(self) -> None:
+        if self.is_initialized or self.disable_dq:
+            return
+        self.wrap_indices()
+        self.register_hooks()
+        self.log_data()
+        self.is_initialized = True
 
     def before_train(self) -> None:
         """
         Sets the split in data quality and registers the classifier layer hook.
         """
-        if not self.disable_dq:
-            dq.set_split(Split.train)
-            self.wrap_indices()
-            if self.is_initialized:
-                return
-            self.register_hooks()
-            self.log_data()
-            self.is_initialized = True
+        if self.disable_dq:
+            return
+        dataquality.set_split(dataquality.schemas.split.Split.train)
+        self.wrap_indices()
+        if self.is_initialized:
+            return
+        self.register_hooks()
+        self.log_data()
+        self.is_initialized = True
+
+    def log_data(self) -> None:
+        """
+        Log datasets to dataquality
+        """
+        if self.disable_dq or not self.log_dataset:
+            return
+        if self.labels is not None:
+            dataquality.set_labels_for_run(self.labels)
+        else:
+            raise ValueError(
+                """Labels must be provided. For example:
+              DataqualityCallback(labels=['negative','positive'])"""
+            )
+        num_datasets = self.dls.n_subsets
+        train_dl, valid_dl, test_dl = None, None, None
+        if num_datasets == 1:
+            train_dl = self.dls
+        elif num_datasets == 2:
+            train_dl, valid_dl = self.dls
+        elif num_datasets == 3:
+            train_dl, valid_dl, test_dl = self.dls
+        if self.options.get("task_type") == "image_classification":
+            if train_dl is not None:
+                dataquality.log_image_dataset(
+                    self.convert_img_dl_to_df(train_dl),
+                    imgs_colname="image",
+                    imgs_location_colname="path",
+                    split=dataquality.schemas.split.Split.training,
+                )
+            if valid_dl is not None:
+                dataquality.log_image_dataset(
+                    self.convert_img_dl_to_df(valid_dl),
+                    imgs_colname="image",
+                    imgs_location_colname="path",
+                    split=dataquality.schemas.split.Split.validation,
+                )
+        else:
+            if train_dl is not None:
+                dataquality.log_dataset(
+                    self.convert_tab_dl_to_df(train_dl),
+                    split=dataquality.schemas.split.Split.training,
+                )
+            if valid_dl is not None:
+                dataquality.log_dataset(
+                    self.convert_tab_dl_to_df(valid_dl),
+                    split=dataquality.schemas.split.Split.validation,
+                )
 
     def wrap_indices(self) -> None:
         """
         Wraps the get_idxs function of the dataloader to store the indices.
         """
-        if not isinstance(self.dl.get_idxs, IdxLogPatch):
-            self.dl.get_idxs = IdxLogPatch(self.dl.get_idxs, self.idx_outputs)
+        if not hasattr(self, "dl"):
+            return
+        if not isinstance(self.dl.get_idxs, _PatchDLGetIdxs):
+            self.dl.get_idxs = _PatchDLGetIdxs(self.dl.get_idxs, self.idx_store)
 
-    def before_validate(self):
+    def after_validate(self) -> None:
+        dataquality.set_split(dataquality.schemas.split.Split.train)
+
+    def before_validate(self) -> None:
         """
         Sets the split in data quality and registers the classifier layer hook.
         """
-        if not self.disable_dq:
-            dq.set_split(Split.validation)
         self.wrap_indices()
+        if self.disable_dq:
+            return
+        self.disable_dq = True
+        dataquality.set_split(dataquality.schemas.split.Split.validation)
+        self.idx_store[FastAiKeys.idx_queue] = []
 
-    def log_data(self):
+    def after_fit(self) -> None:
         """
         Uploads data to galileo and removes the classifier layer hook.
         """
-        if not self.disable_dq:
-            dq.set_labels_for_run(self.labels)
-            train_dl, valid_dl = self.dls
-            dq.log_image_dataset(  # TODO: add support for other datasets
-                convert_dl_to_df(train_dl),
-                imgs_colname="image",
-                imgs_location_colname="path",
-                split=Split.train,
-            )
-            dq.log_image_dataset(
-                convert_dl_to_df(valid_dl),
-                imgs_colname="image",
-                imgs_location_colname="path",
-                split=Split.validation,
-            )
+        if (self.n_epoch - 1) == self.epoch:
+            self.counter += 1
 
-    def after_fit(self):
-        """
-        Uploads data to galileo and removes the classifier layer hook.
-        """
-        if not self.disable_dq:
-            dq.finish()
+        if self.counter != 2:
+            return
+        print("Finishing dataquality")
         try:
             self.h.remove()
         except Exception:
             pass
+        dataquality.finish()
 
-    def before_batch(self):
+    def before_batch(self) -> None:
         """
         Clears the model outputs log.
         """
         self.model_outputs_log.clear()
 
-    def after_batch(self) -> None:
+    def after_pred(self) -> None:
         """
         Logs the model outputs.
         """
-        # If the current batch is empty, get the next batch ids from the store
-        if len(self.idx_outputs[FastAiKeys.dl_curent_batch_ids]) == 0:
-            self.idx_outputs[FastAiKeys.dl_curent_batch_ids] = self.idx_outputs[
-                FastAiKeys.dl_next_idx_ids
-            ].pop(0)
         # Get the current batch size
-        bs_len = len(self.model_outputs_log[FastAiKeys.model_input])
+        bs_len = len(self.model_outputs_log[FastAiKeys.model_output])
         # Store the current batch ids by trimming the stored ids by
         # the batch size length
-        self.model_outputs_log[FastAiKeys.ids] = self.idx_outputs[
-            FastAiKeys.dl_curent_batch_ids
-        ][:bs_len]
-        self.current_idx = self.current_idx[bs_len:]
+        indices = self.idx_store[FastAiKeys.dataloader_indices][-1][:bs_len].copy()
+        idx_store = self.idx_store[FastAiKeys.dataloader_indices][-1][bs_len:]
+        self.idx_store[FastAiKeys.dataloader_indices][-1] = idx_store
+        try:
+            cur_split = self.logger_config.cur_split
+            if cur_split is not None:
+                id_map = self.logger_config.idx_to_id_map[cur_split]
+                ids = np.array([id_map[i] for i in indices])
+            else:
+                print("current split needs to be set")
+                return
+        except Exception as e:
+            print("cur_split error", cur_split, e)
+            return
         # Log the model outputs
         embs = self.model_outputs_log[FastAiKeys.model_input][0].detach().cpu().numpy()
         logits = self.model_outputs_log[FastAiKeys.model_output].detach().cpu().numpy()
-        ids = self.model_outputs_log[FastAiKeys.ids]
-        log = not self.disable_dq
         equal_len = len(embs) == len(logits) and len(ids) == len(embs)
         if not equal_len:
-            print("length not equal", len(logits), len(ids), len(embs))
-        if log and equal_len:
-            dq.log_model_outputs(embs=embs, logits=logits, ids=ids)
+            print(
+                f"length not equal. logits: {len(logits)},ids: {len(ids)},\
+ embs: {len(embs)}"
+            )
+        if self.disable_dq or not equal_len:
+            return
+        dataquality.log_model_outputs(embs=embs, logits=logits, ids=ids)
 
-    def register_hooks(self) -> None:
+    def register_hooks(self) -> Optional[RemovableHandle]:
         """
         Registers the classifier layer hook.
         """
         h = None
         if not self.hook:
-            forward_hook = partial(forward_hook_with_store, self.model_outputs_log)
+            forward_hook = partial(self.forward_hook_with_store, self.model_outputs_log)
             h = self.get_layer().register_forward_hook(forward_hook)
             self.hook = h
         return h
 
-    def __call__(self, event_name, *args: Any, **kwargs: Any):
+    def forward_hook_with_store(
+        self,
+        store: Dict[FastAiKeys, Any],
+        layer: Module,
+        model_input: Any,
+        model_output: Any,
+    ) -> None:
         """
-        Calling the callback for the given event.
-        :param event_name: The event name (before_train, before_batch, after_fit... etc)
+        Forward hook to store the output of a layer.
+        :param store: Dictionary to store the output in.
+        :param layer: Layer to store the output of.
+        :param model_input: Input to the model.
+        :param model_output: Output of the model.
+        :return: None
         """
-        if hasattr(self, event_name):
-            getattr(self, event_name)()
+        store[FastAiKeys.model_input] = model_input
+        store[FastAiKeys.model_output] = model_output
+
+    def convert_img_dl_to_df(
+        self, dl: DataLoader, x_col: str = "image"
+    ) -> pd.DataFrame:
+        """
+        Converts a fastai DataLoader to a pandas DataFrame.
+        :param dl: Fast ai DataLoader to convert.
+        :param x_col: Name of the column to use for the x values, for example image.
+        :return: Pandas DataFrame with the data from the DataLoader.
+        """
+        additional_data = {}
+        if x_col == "image":
+            additional_data["path"] = dl.items
+        x, y = [], []
+        for x_item, y_item in dl.dataset:
+            x.append(x_item)
+            y.append(int(y_item))
+        ids = dl.vocab.o2i.keys()
+        if len(ids) == 2 and isinstance(next(iter(ids)), bool):
+            ids = dl.dataset.splits[dl.dataset.split_idx]
+        df = pd.DataFrame({"id": ids, x_col: x, "label": y, **additional_data})
+        del additional_data, x, y
+        return df
+
+    def convert_tab_dl_to_df(
+        self, dl: DataLoader, x_col: str = "text", y_col: str = "label"
+    ) -> pd.DataFrame:
+        """
+        Converts a fastai DataLoader to a pandas DataFrame.
+        :param dl: Fast ai DataLoader to convert.
+        :param x_col: Name of the column to use for the x values, for example text.
+        :param y_col: Name of the column to use for the y values, for example label.
+        :return: Pandas DataFrame with the data from the DataLoader.
+        """
+        df = dl.items.copy()
+        rename_options = {}
+        if "x_col" != "text":
+            rename_options[x_col] = "text"
+        if "y_col" != "text":
+            rename_options[x_col] = "label"
+        if rename_options:
+            df = df.rename(columns=rename_options)
+        if "id" not in df.columns:
+            df["id"] = df.index
+        return df

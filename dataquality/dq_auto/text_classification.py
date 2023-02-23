@@ -39,7 +39,7 @@ class TCDatasetManager(BaseDatasetManager):
         return df
 
     def _add_class_label_to_dataset(
-        self, ds: Dataset, labels: List[str] = None
+        self, ds: Dataset, labels: Optional[List[str]] = None
     ) -> Dataset:
         """Map a not ClassLabel 'label' column to a ClassLabel, if possible"""
         if "label" not in ds.features or isinstance(ds.features["label"], ClassLabel):
@@ -56,7 +56,7 @@ class TCDatasetManager(BaseDatasetManager):
         return ds
 
     def _convert_df_to_dataset(
-        self, df: pd.DataFrame, labels: List[str] = None
+        self, df: pd.DataFrame, labels: Optional[List[str]] = None
     ) -> Dataset:
         """Converts a pandas dataframe to a well-formed huggingface dataset
 
@@ -125,19 +125,19 @@ def _log_dataset_dict(dd: DatasetDict) -> None:
 
 
 def auto(
-    hf_data: Union[DatasetDict, str] = None,
-    hf_inference_names: List[str] = None,
-    train_data: Union[pd.DataFrame, Dataset, str] = None,
-    val_data: Union[pd.DataFrame, Dataset, str] = None,
-    test_data: Union[pd.DataFrame, Dataset, str] = None,
-    inference_data: Dict[str, Union[pd.DataFrame, Dataset, str]] = None,
+    hf_data: Optional[Union[DatasetDict, str]] = None,
+    hf_inference_names: Optional[List[str]] = None,
+    train_data: Optional[Union[pd.DataFrame, Dataset, str]] = None,
+    val_data: Optional[Union[pd.DataFrame, Dataset, str]] = None,
+    test_data: Optional[Union[pd.DataFrame, Dataset, str]] = None,
+    inference_data: Optional[Dict[str, Union[pd.DataFrame, Dataset, str]]] = None,
     max_padding_length: int = 200,
     hf_model: str = "distilbert-base-uncased",
-    labels: List[str] = None,
+    labels: Optional[List[str]] = None,
     project_name: str = "auto_tc",
-    run_name: str = None,
+    run_name: Optional[str] = None,
     wait: bool = True,
-    create_data_embs: bool = False,
+    create_data_embs: Optional[bool] = None,
 ) -> None:
     """Automatically gets insights on a text classification dataset
 

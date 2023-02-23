@@ -81,7 +81,7 @@ class TestBaseLoggersInference:
 
         assert e.value.args[0] == (
             "For inference split you must either log an inference name or set "
-            "it before logging. Use `dataquality.set_split` to setinference_name"
+            "it before logging. Use `dataquality.set_split` to set inference_name"
         )
 
     @mock.patch(

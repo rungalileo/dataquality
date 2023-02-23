@@ -143,7 +143,7 @@ class LabelTokenizer:
     def _adjust_label_at_index(self, w_index_bpe: int, span_label_suffix: str) -> None:
         if self.schema == TaggingSchema.BILOU:
             self.adjusted_labels[w_index_bpe] = f"U-{span_label_suffix}"
-        if self.schema == TaggingSchema.BIOES:
+        elif self.schema == TaggingSchema.BIOES:
             self.adjusted_labels[w_index_bpe] = f"S-{span_label_suffix}"
         else:
             self.adjusted_labels[w_index_bpe] = f"B-{span_label_suffix}"
@@ -174,7 +174,7 @@ class LabelTokenizer:
     def _adjust_last_bpe(self, w_index_bpe: int, span_label_suffix: str) -> None:
         if self.schema == TaggingSchema.BILOU:
             self.adjusted_labels[w_index_bpe] = f"L-{span_label_suffix}"
-        if self.schema == TaggingSchema.BIOES:
+        elif self.schema == TaggingSchema.BIOES:
             self.adjusted_labels[w_index_bpe] = f"E-{span_label_suffix}"
         else:
             self.adjusted_labels[w_index_bpe] = f"I-{span_label_suffix}"

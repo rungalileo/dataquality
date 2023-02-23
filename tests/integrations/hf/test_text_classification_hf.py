@@ -249,7 +249,6 @@ def _dq_embedding_hook(model: Module, model_input: Any, model_output: Any) -> No
     :param model: Model pytorch model
     :param model_input: Model input
     :param model_output: Model output
-    :return: None
     """
     global historic_embeddings
     if hasattr(model_output, "last_hidden_state"):

@@ -1,9 +1,10 @@
 "dataquality"
 
-__version__ = "v0.8.13"
+__version__ = "v0.8.16"
 
 import os
 import warnings
+from typing import Optional
 
 import dataquality.core._config
 import dataquality.integrations
@@ -35,6 +36,7 @@ from dataquality.core.log import (
     log_dataset,
     log_image_dataset,
     log_model_outputs,
+    log_xgboost,
     set_epoch,
     set_epoch_and_split,
     set_labels_for_run,
@@ -44,6 +46,7 @@ from dataquality.core.log import (
 )
 from dataquality.core.report import build_run_report, register_run_report
 from dataquality.dq_auto.auto import auto
+from dataquality.dq_auto.notebook import auto_notebook
 from dataquality.schemas.condition import (
     AggregateFunction,
     Condition,
@@ -61,8 +64,8 @@ from dataquality.utils.helpers import (
 
 
 @check_noop
-def configure(do_login: bool = True) -> None:
-    """[Not for cloud users] Update your active config with new information
+def configure(do_login: bool = True, _internal: bool = False) -> None:
+    """For internal use only. Update your active config with new information
 
     You can use environment variables to set the config, or wait for prompts
     Available environment variables to update:
@@ -71,9 +74,11 @@ def configure(do_login: bool = True) -> None:
     * GALILEO_PASSWORD
     """
     a.log_function("dq/configure")
-    warnings.warn(
-        "configure is deprecated, use dq.set_console_url and dq.login", GalileoWarning
-    )
+    if not _internal:
+        warnings.warn(
+            "configure is deprecated, use dq.set_console_url and dq.login",
+            GalileoWarning,
+        )
 
     if "GALILEO_API_URL" in os.environ:
         del os.environ["GALILEO_API_URL"]
@@ -87,7 +92,7 @@ def configure(do_login: bool = True) -> None:
 
 
 @check_noop
-def set_console_url(console_url: str = None) -> None:
+def set_console_url(console_url: Optional[str] = None) -> None:
     """For Enterprise users. Set the console URL to your Galileo Environment.
 
     You can also set GALILEO_CONSOLE_URL before importing dataquality to bypass this
@@ -99,7 +104,7 @@ def set_console_url(console_url: str = None) -> None:
     a.log_function("dq/set_console_url")
     if console_url:
         os.environ["GALILEO_CONSOLE_URL"] = console_url
-    configure(do_login=False)
+    configure(do_login=False, _internal=True)
 
 
 __all__ = [
@@ -127,6 +132,7 @@ __all__ = [
     "log_data_sample",
     "log_dataset",
     "log_image_dataset",
+    "log_xgboost",
     "get_dq_log_file",
     "build_run_report",
     "register_run_report",
@@ -139,6 +145,7 @@ __all__ = [
     "enable_galileo_verbose",
     "enable_galileo",
     "auto",
+    "auto_notebook",
 ]
 
 try:

@@ -114,13 +114,13 @@ class TextNERDataLogger(BaseGalileoDataLogger):
 
     def __init__(
         self,
-        texts: List[str] = None,
-        text_token_indices: List[List[Tuple[int, int]]] = None,
-        gold_spans: List[List[Dict]] = None,
-        ids: List[int] = None,
-        split: str = None,
-        meta: MetasType = None,
-        inference_name: str = None,
+        texts: Optional[List[str]] = None,
+        text_token_indices: Optional[List[List[Tuple[int, int]]]] = None,
+        gold_spans: Optional[List[List[Dict]]] = None,
+        ids: Optional[List[int]] = None,
+        split: Optional[str] = None,
+        meta: Optional[MetasType] = None,
+        inference_name: Optional[str] = None,
     ) -> None:
         """Create data logger.
 
@@ -159,8 +159,8 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         *,
         texts: List[str],
         ids: List[int],
-        text_token_indices: List[List[Tuple[int, int]]] = None,
-        gold_spans: List[List[Dict]] = None,
+        text_token_indices: Optional[List[List[Tuple[int, int]]]] = None,
+        gold_spans: Optional[List[List[Dict]]] = None,
         split: Optional[Split] = None,
         inference_name: Optional[str] = None,
         meta: Optional[MetasType] = None,
@@ -204,8 +204,8 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         *,
         text: str,
         id: int,
-        text_token_indices: List[Tuple[int, int]] = None,
-        gold_spans: List[Dict] = None,
+        text_token_indices: Optional[List[Tuple[int, int]]] = None,
+        gold_spans: Optional[List[Dict]] = None,
         split: Optional[Split] = None,
         inference_name: Optional[str] = None,
         meta: Optional[MetaType] = None,
@@ -419,7 +419,6 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         gold_spans must be None)
         * Text and Labels must be the same length
         * If ids exist, it must be the same length as text/labels
-        :return: None
         """
         super().validate()
         assert self.logger_config.labels, (
@@ -464,6 +463,8 @@ class TextNERDataLogger(BaseGalileoDataLogger):
                 f"split {self.split}, but got (gold spans, text, text_token) "
                 f"({gold_span_len},{text_len},{text_tokenized_len})"
             )
+
+        self.text_token_indices_flat = []
 
         for sample_id, sample_spans, sample_indices, sample_text in zip(
             self.ids,
@@ -660,7 +661,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
 
     @classmethod
     def separate_dataframe(
-        cls, df: DataFrame, prob_only: bool = True, split: str = None
+        cls, df: DataFrame, prob_only: bool = True, split: Optional[str] = None
     ) -> BaseLoggerDataFrames:
         """Splits the dataframe into logical grouping for minio storage
 

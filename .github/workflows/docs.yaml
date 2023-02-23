@@ -1,0 +1,38 @@
+name: docs
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  GALILEO_API_URL: "http://localhost:8000"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.8]
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: set up python
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: install dependencies
+        run: scripts/install.sh
+      - name: docs
+        run: scripts/docs-build.sh
+      - name: Pushes to another repository
+        uses: cpina/github-action-push-to-another-repository@main
+        env:
+          API_TOKEN_GITHUB: ${{ secrets.GH_TOKEN }}
+        with:
+          source-directory: 'docs/autodocs/_build/markdown'
+          target-directory: 'autodocs'
+          destination-github-username: 'rungalileo'
+          destination-repository-name: 'docs'
+          user-email: team@rungalileo.io

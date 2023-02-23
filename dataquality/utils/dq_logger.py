@@ -1,5 +1,6 @@
 import logging
 import os
+import warnings
 from typing import Any, Optional, Tuple
 
 from pydantic import UUID4
@@ -8,6 +9,7 @@ from requests import HTTPError
 from dataquality.clients.api import ApiClient
 from dataquality.clients.objectstore import ObjectStore
 from dataquality.core._config import ConfigData, config
+from dataquality.exceptions import GalileoWarning
 from dataquality.utils.helpers import check_noop
 
 DQ_LOG_FILE_HOME = f"{ConfigData.DEFAULT_GALILEO_CONFIG_DIR}/out"
@@ -71,7 +73,7 @@ def upload_dq_log_file() -> None:
     obj_name = dq_log_object_name(config.current_project_id, config.current_run_id)
     file_path = dq_log_file_path()
     if os.path.isfile(file_path):
-        obj_store.create_project_run_object(
+        obj_store.create_object(
             object_name=obj_name,
             file_path=file_path,
             content_type="text/plain",
@@ -99,3 +101,33 @@ def get_dq_log_file(
     except HTTPError:
         print("No log file found for run")
         return None
+
+
+def _shutil_rmtree_retry(dir_path: str) -> None:
+    """_shutil_rmtree_retry
+
+    Attempts to remove a directory and all its contents.
+
+    Args:
+        dir_path (str): the path to the directory to remove
+    """
+    import shutil
+    import time
+
+    max_retry = 3
+    retry = 0
+    while retry < max_retry:
+        try:
+            shutil.rmtree(dir_path)
+            return
+        except OSError as e:
+            warnings.warn(
+                f"Failed to remove path:{dir_path} due to error:{e}. Trying again.",
+                GalileoWarning,
+            )
+            retry += 1
+            time.sleep(1)
+
+    # If the directory still hasn't cleared, raise a warning
+    if retry == max_retry:
+        warnings.warn(f"Failed to remove path:{dir_path} after {max_retry} attempts.")

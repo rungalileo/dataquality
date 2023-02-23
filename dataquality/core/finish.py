@@ -12,7 +12,7 @@ from dataquality.schemas import RequestType, Route
 from dataquality.schemas.job import JobName
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.dq_logger import DQ_LOG_FILE_HOME, upload_dq_log_file
-from dataquality.utils.helpers import check_noop, open_console_url
+from dataquality.utils.helpers import check_noop, gpu_available, open_console_url
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.version import _version_check
 
@@ -24,7 +24,7 @@ a = Analytics(ApiClient, config)  # type: ignore
 def finish(
     last_epoch: Optional[int] = None,
     wait: bool = True,
-    create_data_embs: bool = False,
+    create_data_embs: Optional[bool] = None,
 ) -> str:
     """
     Finishes the current run and invokes a job
@@ -37,9 +37,12 @@ def finish(
     :param create_data_embs: If True, an off-the-shelf transformer will run on the raw
         text input to generate data-level embeddings. These will be available in the
         `data view` tab of the Galileo console. You can also access these embeddings
-        via dq.metrics.get_data_embeddings()
+        via dq.metrics.get_data_embeddings(). Default True if a GPU is
+        available, else default False.
     """
     a.log_function("dq/finish")
+    if create_data_embs is None:
+        create_data_embs = gpu_available()
     ThreadPoolManager.wait_for_threads()
     assert config.current_project_id, "You must have an active project to call finish"
     assert config.current_run_id, "You must have an active run to call finish"
@@ -62,6 +65,7 @@ def finish(
         task_type=config.task_type.value,
         tasks=data_logger.logger_config.tasks,
         ner_labels=data_logger.logger_config.ner_labels,
+        feature_names=data_logger.logger_config.feature_names,
     )
     if data_logger.logger_config.inference_logged:
         body.update(

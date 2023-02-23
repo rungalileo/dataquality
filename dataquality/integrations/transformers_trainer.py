@@ -39,9 +39,9 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
 
     def __init__(
         self,
-        last_hidden_state_layer: Layer = None,
-        embedding_dim: InputDim = None,
-        logits_dim: InputDim = None,
+        last_hidden_state_layer: Optional[Layer] = None,
+        embedding_dim: Optional[InputDim] = None,
+        logits_dim: Optional[InputDim] = None,
         classifier_layer: Layer = "classifier",
         embedding_fn: Optional[Callable] = None,
         logits_fn: Optional[Callable] = None,
@@ -103,8 +103,8 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
         :param args: Training arguments
         :param state: Trainer state
         :param model: Model
-        :param kwargs: Keyword arguments (eval_dataloader, train_dataloader, tokenizer)
-        :return: None"""
+        :param kwargs: Keyword arguments
+            (eval_dataloader, train_dataloader, tokenizer)"""
 
         assert dq.config.task_type, GalileoException(
             "dq client must be initialized. "
@@ -157,7 +157,6 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
         :param state: Trainer state
         :param control: Trainer control
         :param kwargs: Keyword arguments (model, eval_dataloader, tokenizer...)
-        :return: None
         """
         if not self._initialized:
             self.setup(args, state, kwargs)
@@ -226,7 +225,6 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
         :param state: Trainer state
         :param control: Trainer control
         :param kwargs: Keyword arguments (including the model, inputs, outputs)
-        :return: None
         """
         self._do_log()
 
@@ -237,7 +235,6 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
         Method to attach hooks to the model by using the hook manager
         :param model: Model
         :param model: pytorch model layer to attach hooks to
-        :return: None
         """
         try:
             self.hook_manager.attach_classifier_hook(
@@ -264,18 +261,17 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
 @check_noop
 def watch(
     trainer: Trainer,
-    last_hidden_state_layer: Layer = None,
+    last_hidden_state_layer: Optional[Layer] = None,
     embedding_dim: Optional[DimensionSlice] = None,
     logits_dim: Optional[DimensionSlice] = None,
-    classifier_layer: Layer = None,
+    classifier_layer: Optional[Layer] = None,
     embedding_fn: Optional[Callable] = None,
     logits_fn: Optional[Callable] = None,
 ) -> None:
-    """
-    [`watch`] is used to hook into to the trainer
+    """used to *hook* into to the **trainer**
     to log to [Galileo](https://www.rungalileo.io/)
+
     :param trainer: Trainer object
-    :return: None
     """
     a.log_function("transformers_trainer/watch")
     helper_data = dq.get_model_logger().logger_config.helper_data
@@ -313,9 +309,8 @@ def watch(
 
 def unwatch(trainer: Trainer) -> None:
     """
-    [`unwatch`] is used to remove the callback from the trainer
+    `unwatch` is used to remove the callback from the trainer
     :param trainer: Trainer object
-    :return: None
     """
     a.log_function("transformers_trainer/unwatch")
     helper_data = dq.get_model_logger().logger_config.helper_data

@@ -1,6 +1,12 @@
-from typing import Any, Dict, List, Optional, Type, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 import numpy as np
+import pandas as pd
+
+if TYPE_CHECKING:
+    import xgboost as xgb
 
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
@@ -10,6 +16,9 @@ from dataquality.loggers.data_logger import BaseGalileoDataLogger
 from dataquality.loggers.data_logger.base_data_logger import ITER_CHUNK_SIZE, DataSet
 from dataquality.loggers.data_logger.image_classification import (
     ImageClassificationDataLogger,
+)
+from dataquality.loggers.data_logger.structured_classification import (
+    StructuredClassificationDataLogger,
 )
 from dataquality.loggers.logger_config.text_multi_label import (
     text_multi_label_logger_config,
@@ -29,7 +38,7 @@ def log_data_samples(
     *,
     texts: List[str],
     ids: List[int],
-    meta: Dict[str, List[Union[str, float, int]]] = None,
+    meta: Optional[Dict[str, List[Union[str, float, int]]]] = None,
     **kwargs: Any,
 ) -> None:
     """Logs a batch of input samples for model training/test/validation/inference.
@@ -143,6 +152,94 @@ def log_image_dataset(
 
 
 @check_noop
+def log_xgboost(
+    model: xgb.XGBClassifier,
+    X: Union[pd.DataFrame, np.ndarray],
+    *,
+    y: Optional[Union[pd.Series, np.ndarray, List]] = None,
+    feature_names: Optional[List[str]] = None,
+    split: Optional[Split] = None,
+    inference_name: Optional[str] = None,
+) -> None:
+    """Log data for structured classification models with XGBoost
+
+    X can be logged as a numpy array or pandas DataFrame. If a numpy array is
+    provided, feature_names must be provided. If a pandas DataFrame is provided,
+    feature_names will be inferred from the column names.
+
+    Example with numpy arrays:
+    .. code-block:: python
+
+        import xgboost as xgb
+        from sklearn.datasets import load_wine
+
+        wine = load_wine()
+
+        X = wine.data
+        y = wine.target
+        feature_names = wine.feature_names
+
+        model = xgb.XGBClassifier()
+        model.fit(X, y)
+
+        dq.log_xgboost(model, X, y=y, feature_names=feature_names, split="training")
+
+        # or for inference
+        dq.log_xgboost(
+            model, X, feature_names, split="inference", inference_name="my_inference"
+        )
+
+    Example with pandas DataFrames:
+    .. code-block:: python
+
+        import xgboost as xgb
+        from sklearn.datasets import load_wine
+
+        X, y = load_wine(as_frame=True, return_X_y=True)
+
+        model = xgb.XGBClassifier()
+        model.fit(df, y)
+
+        dq.log_xgboost(model, X=df, y=y, split="training")
+
+        # or for inference
+        dq.log_xgboost(
+            model, X=df, split="inference", inference_name="my_inference"
+        )
+
+    :param model: XGBClassifier model fit on the training data
+    :param X: The input data has a numpy array or pandas DataFrame. Data should
+        have shape (n_samples, n_features)
+    :param y: Optional pandas Series, List, or numpy array of ground truth labels with
+        shape (n_samples,). Provide for non-inference only
+    :param feature_names: List of feature names if X is input as numpy array.
+       Must have length n_features
+    :param split: Optional[str] the split for this data. Can also be set via
+        dq.set_split
+    :param inference_name: Optional[str] the inference_name for this data. Can also be
+        set via dq.set_split
+    """
+    assert all(
+        [config.task_type, config.current_project_id, config.current_run_id]
+    ), "You must call dataquality.init before logging data"
+    data_logger = get_data_logger(
+        task_type=None,
+        model=model,
+        X=X,
+        y=y,
+        feature_names=feature_names,
+        split=split,
+        inference_name=inference_name,
+    )
+    assert isinstance(data_logger, StructuredClassificationDataLogger), (
+        "This method is only supported for structured data tasks. "
+        "You must call dq.init('structured_classification') to use this method."
+    )
+
+    data_logger.log()
+
+
+@check_noop
 def log_dataset(
     dataset: DataSet,
     *,
@@ -203,8 +300,8 @@ def log_dataset(
 
     :param dataset: The iterable or dataframe to log
     :batch_size: The number of data samples to log at a time. Useful when logging a
-    memory mapped dataset. A larger batch_size will result in faster logging at the
-    expense of more memory usage. Default 100,000
+        memory mapped dataset. A larger batch_size will result in faster logging at the
+        expense of more memory usage. Default 100,000
     :param text: str | int The column, key, or int index for text data. Default "text"
     :param id: str | int The column, key, or int index for id data. Default "id"
     :param split: Optional[str] the split for this data. Can also be set via
@@ -238,9 +335,9 @@ def log_model_outputs(
     ids: Union[List, np.ndarray],
     split: Optional[Split] = None,
     epoch: Optional[int] = None,
-    logits: Union[List, np.ndarray] = None,
-    probs: Union[List, np.ndarray] = None,
-    inference_name: str = None,
+    logits: Optional[Union[List, np.ndarray]] = None,
+    probs: Optional[Union[List, np.ndarray]] = None,
+    inference_name: Optional[str] = None,
     exclude_embs: bool = False,
 ) -> None:
     """Logs model outputs for model during training/test/validation.
@@ -271,7 +368,8 @@ def log_model_outputs(
     if embs is None and exclude_embs:
         embs = np.random.rand(len(ids), DEFAULT_RANDOM_EMB_DIM)
 
-    model_logger = get_model_logger()(
+    model_logger = get_model_logger(
+        task_type=None,
         embs=embs,
         ids=ids,
         split=Split[split].value if split else "",
@@ -337,17 +435,21 @@ def set_tagging_schema(tagging_schema: TaggingSchema) -> None:
     get_data_logger().set_tagging_schema(tagging_schema)
 
 
-def get_model_logger(task_type: TaskType = None) -> Type[BaseGalileoModelLogger]:
+def get_model_logger(
+    task_type: Optional[TaskType] = None, *args: Any, **kwargs: Any
+) -> BaseGalileoModelLogger:
     task_type = _get_task_type(task_type)
-    return BaseGalileoModelLogger.get_logger(task_type)
+    return BaseGalileoModelLogger.get_logger(task_type)(*args, **kwargs)
 
 
-def get_data_logger(task_type: TaskType = None) -> BaseGalileoDataLogger:
+def get_data_logger(
+    task_type: Optional[TaskType] = None, *args: Any, **kwargs: Any
+) -> BaseGalileoDataLogger:
     task_type = _get_task_type(task_type)
-    return BaseGalileoDataLogger.get_logger(task_type)()
+    return BaseGalileoDataLogger.get_logger(task_type)(*args, **kwargs)
 
 
-def _get_task_type(task_type: TaskType = None) -> TaskType:
+def _get_task_type(task_type: Optional[TaskType] = None) -> TaskType:
     task = task_type or config.task_type
     if not task:
         raise GalileoException(

@@ -10,7 +10,6 @@ from typing import Any, Dict, Iterable, List, Optional, TypeVar, Union
 
 import numpy as np
 import pandas as pd
-import pyarrow as pa
 import vaex
 from vaex.dataframe import DataFrame
 
@@ -23,6 +22,7 @@ from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
 from dataquality.utils import tqdm
 from dataquality.utils.cloud import is_galileo_cloud
+from dataquality.utils.dq_logger import _shutil_rmtree_retry
 from dataquality.utils.hdf5_store import HDF5_STORE
 from dataquality.utils.helpers import galileo_verbose_logging
 from dataquality.utils.thread_pool import ThreadPoolManager
@@ -59,7 +59,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
     DATA_FOLDER_EXTENSION = {data_folder: "hdf5" for data_folder in DATA_FOLDERS}
 
-    def __init__(self, meta: MetasType = None) -> None:
+    def __init__(self, meta: Optional[MetasType] = None) -> None:
         super().__init__()
         self.meta: Dict = meta or {}
         self.log_export_progress = True
@@ -73,7 +73,9 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         """
         return f"{self.write_output_dir}/{BaseGalileoDataLogger.INPUT_DATA_BASE}"
 
-    def input_data_file(self, input_num: int = None, split: str = None) -> str:
+    def input_data_file(
+        self, input_num: Optional[int] = None, split: Optional[str] = None
+    ) -> str:
         """Return the path to the input data file.
 
         Example:
@@ -230,7 +232,13 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                 create_data_embs,
             )
             in_frame_split.close()
-            shutil.rmtree(in_frame_path)
+            # Sometimes the directory is not deleted immediately
+            # This can happen if the client is using an nfs
+            # again after a short delay
+            try:
+                shutil.rmtree(in_frame_path)
+            except OSError:
+                _shutil_rmtree_retry(in_frame_path)
             gc.collect()
 
     @classmethod
@@ -259,7 +267,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         # Characters are each 1 byte. If more bytes > max, it needs to be large_string
         text_bytes = df_copy["text"].str.len().sum()
         if text_bytes > self.STRING_MAX_SIZE_B:
-            df_copy["text"] = df_copy["text"].to_arrow().cast(pa.large_string())
+            df_copy["text"] = df_copy['astype(text, "large_string")']
         return df_copy
 
     @classmethod
@@ -352,7 +360,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
         # Post concat, string columns come back as bytes and need conversion
         for col in str_cols:
-            out_frame[col] = out_frame[col].to_arrow().cast(pa.large_string())
+            out_frame[col] = out_frame[col].as_arrow().astype("str")
+            out_frame[col] = out_frame[f'astype({col}, "large_string")']
         if prob_only:
             out_frame["split"] = vaex.vconstant(
                 split, length=len(out_frame), dtype="str"
@@ -415,6 +424,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
         name = "inf_name" if split == Split.inference else "epoch"
         desc = f"{split} ({name}={epoch_inf})"
+
         for data_folder, df_obj in tqdm(
             zip(DATA_FOLDERS, [emb, prob, data_df]),
             total=3,
@@ -424,7 +434,6 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         ):
             if df_obj.variables.get(DFVar.skip_upload):
                 continue
-
             ext = cls.DATA_FOLDER_EXTENSION[data_folder]
             minio_file = (
                 f"{proj_run}/{split}/{epoch_or_inf}/{data_folder}/{data_folder}.{ext}"
@@ -541,7 +550,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     @classmethod
     @abstractmethod
     def separate_dataframe(
-        cls, df: DataFrame, prob_only: bool = False, split: str = None
+        cls, df: DataFrame, prob_only: bool = False, split: Optional[str] = None
     ) -> BaseLoggerDataFrames:
         ...
 

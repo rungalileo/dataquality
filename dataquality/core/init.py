@@ -1,5 +1,4 @@
 import os
-import re
 import shutil
 import warnings
 from typing import Dict, Optional, Tuple
@@ -21,17 +20,16 @@ from dataquality.loggers import BaseGalileoLogger
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.dq_logger import DQ_LOG_FILE_HOME
 from dataquality.utils.helpers import check_noop
-from dataquality.utils.name import random_name
+from dataquality.utils.name import validate_name
 
 api_client = ApiClient()
-BAD_CHARS_REGEX = r"[^\w -]+"
 
 
 class InitManager:
     @retry(
+        retry=retry_if_exception_type(GalileoException),
         wait=wait_exponential_jitter(initial=0.1, max=2),
         stop=stop_after_attempt(5),
-        retry=retry_if_exception_type(GalileoException),
     )
     def get_or_create_project(
         self, project_name: str, is_public: bool
@@ -83,23 +81,6 @@ class InitManager:
             if not os.path.exists(out_dir):
                 os.makedirs(out_dir)
 
-    def validate_name(self, name: Optional[str]) -> str:
-        """Validates project/run name ensuring only letters, numbers, space, - and _
-
-        If no name is provided, a random name is generated
-        """
-        if not name:
-            name = random_name()
-
-        badchars = re.findall(BAD_CHARS_REGEX, name)
-        if badchars:
-            raise GalileoException(
-                "Only letters, numbers, whitespace, - and _ are allowed in a project "
-                f"or run name. Remove the following characters: {badchars}"
-            )
-
-        return name
-
 
 @check_noop
 def init(
@@ -121,6 +102,7 @@ def init(
 
     Optionally provide project and run names to create a new project/run or restart
     existing ones.
+
 
     :param task_type: The task type for modeling. This must be one of the valid
     `dataquality.schemas.task_type.TaskType` options
@@ -149,8 +131,8 @@ def init(
         )
         return
 
-    project_name = _init.validate_name(project_name)
-    run_name = _init.validate_name(run_name)
+    project_name = validate_name(project_name, assign_random=True)
+    run_name = validate_name(run_name, assign_random=True)
 
     project, proj_created = _init.get_or_create_project(project_name, is_public)
     run, run_created = _init.get_or_create_run(project_name, run_name, task_type)
