@@ -2,6 +2,7 @@ import os
 from enum import Enum
 from functools import partial
 from typing import Any, Callable, Dict, List, Optional
+from dataquality import config
 
 import numpy as np
 import pandas as pd
@@ -124,9 +125,13 @@ class FastAiDQCallback(Callback):
                 """Labels must be provided. For example:
            DataqualityCallback(labels=['negative','positive'])"""
             )
+        project_initialized = (
+            config.current_project_id and config.current_run_id and config.task_type
+        )
 
         if not self.disable_dq:
-            dataquality.init(**options)
+            if not project_initialized:
+                dataquality.init(**options)
             self.logger_config = dataquality.get_model_logger().logger_config
 
     def get_layer(self) -> Module:
