@@ -1,17 +1,14 @@
+from glob import glob
 from pathlib import Path
 from typing import Callable, Generator
 from unittest.mock import MagicMock, patch
-from glob import glob
-import dataquality as dq
-from dataquality.integrations.fastai import FastAiDQCallback
-from dataquality.integrations.torch import unwatch, watch
-from dataquality.schemas.task_type import TaskType
-from dataquality.utils.thread_pool import ThreadPoolManager
-from dataquality.utils.vaex import validate_unique_ids
-from tests.conftest import LOCATION
-from fastai.vision.all import ImageDataLoaders, Resize, vision_learner, error_rate
 
+from fastai.vision.all import ImageDataLoaders, Resize, error_rate, vision_learner
+
+import dataquality as dq
 from dataquality.clients.api import ApiClient
+from dataquality.integrations.fastai import FastAiDQCallback
+from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID
 
 

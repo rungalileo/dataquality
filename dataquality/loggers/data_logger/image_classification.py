@@ -1,8 +1,8 @@
+import concurrent.futures
 import os
 from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
-from pandarallel import pandarallel
 from PIL.Image import Image
 from vaex.dataframe import DataFrame
 
@@ -24,7 +24,6 @@ from dataquality.utils.cv import _write_image_bytes_to_objectstore
 from dataquality.utils.vaex import validate_unique_ids
 
 ITER_CHUNK_SIZE_IMAGES = 10000
-pandarallel.initialize(progress_bar=True)
 
 
 class ImageClassificationDataLogger(TextClassificationDataLogger):
@@ -75,25 +74,30 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             print(
                 f"Writing images to object store (from col {imgs_location_colname})..."
             )
-            dataset["text"] = dataset[imgs_location_colname].parallel_apply(
-                lambda x: _write_image_bytes_to_objectstore(
-                    img_path=os.path.join(imgs_dir, x),
-                ),
+            process_col = imgs_location_colname
+            process_func = lambda x: _write_image_bytes_to_objectstore(  # noqa: E731
+                img_path=os.path.join(imgs_dir, x),
             )
-        else:
+        elif imgs_colname is not None:
             # PIL images in a DataFrame column - weird, but we'll allow it
-            example = dataset[imgs_location_colname].values[0]
+            example = dataset[imgs_colname].values[0]
             if not isinstance(example, Image):
                 raise GalileoException(
                     f"Got imgs_colname={repr(imgs_colname)}, but that "
                     "dataset column does not contain images. If you have "
                     "image paths, pass imgs_location_colname instead."
                 )
-
-            dataset["text"] = dataset[imgs_colname].parallel_apply(
-                _write_image_bytes_to_objectstore,
+            process_col = imgs_colname
+            process_func = _write_image_bytes_to_objectstore
+            print(f"Writing images to object store (from col {imgs_colname})...")
+        else:
+            raise GalileoException(
+                "Must provide one of imgs_colname or imgs_location_colname."
             )
-
+        MAX_THREADS = 10
+        with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_THREADS) as executor:
+            result = executor.map(process_func, dataset[process_col])
+        dataset["text"] = list(result)
         print("Done writing images to object store. Returning dataset...")
         return dataset
 

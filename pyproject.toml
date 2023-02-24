@@ -33,8 +33,7 @@ requires = [
     "Pillow",
     "h5py >=3.1.0",
     "numpy<1.24.0",
-    "tenacity>=8.1.0",
-    "pandarallel >=1.6.4",
+    "tenacity>=8.1.0"
 ]
 
 [tool.flit.metadata.urls]
