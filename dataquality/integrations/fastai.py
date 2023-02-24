@@ -189,6 +189,7 @@ class FastAiDQCallback(Callback):
         elif num_datasets == 3:
             train_dl, valid_dl, test_dl = self.dls
         if self.options.get("task_type") == "image_classification":
+            print("Logging image dataset")
             if train_dl is not None:
                 dataquality.log_image_dataset(
                     self.convert_img_dl_to_df(train_dl),
@@ -204,6 +205,7 @@ class FastAiDQCallback(Callback):
                     split=dataquality.schemas.split.Split.validation,
                 )
         else:
+            print("Logging tabular dataset")
             if train_dl is not None:
                 dataquality.log_dataset(
                     self.convert_tab_dl_to_df(train_dl),
