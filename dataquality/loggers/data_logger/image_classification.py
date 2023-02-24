@@ -70,6 +70,9 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
 
         if imgs_location_colname is not None:
             # image paths
+            print(
+                f"Writing images to object store (from col {imgs_location_colname})..."
+            )
             dataset["text"] = dataset[imgs_location_colname].apply(
                 lambda x: _write_image_bytes_to_objectstore(
                     img_path=os.path.join(imgs_dir, x),
@@ -89,6 +92,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
                 _write_image_bytes_to_objectstore
             )
 
+        print("Done writing images to object store. Returning dataset...")
         return dataset
 
     def _prepare_hf(
@@ -213,6 +217,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             )
         column_map = column_map or {id: "id"}
         if isinstance(dataset, pd.DataFrame):
+            print("Pandas dataset detected")
             dataset = dataset.rename(columns=column_map)
             dataset = self._prepare_pandas(
                 dataset,
@@ -221,6 +226,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
                 imgs_dir=imgs_dir,
             )
         elif self.is_hf_dataset(dataset):
+            print("HF dataset detected")
             dataset = self._prepare_hf(
                 dataset,
                 imgs_colname=imgs_colname,
@@ -231,6 +237,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             raise GalileoException(
                 f"Dataset must be one of pandas or HF, but got {type(dataset)}"
             )
+        print("Logging dataset")
         self.log_dataset(
             dataset=dataset,
             batch_size=batch_size,

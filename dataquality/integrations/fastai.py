@@ -2,7 +2,6 @@ import os
 from enum import Enum
 from functools import partial
 from typing import Any, Callable, Dict, List, Optional
-from dataquality import config
 
 import numpy as np
 import pandas as pd
@@ -12,6 +11,7 @@ from torch.nn import Module
 from torch.utils.hooks import RemovableHandle
 
 import dataquality
+from dataquality import config
 from dataquality.loggers.logger_config.base_logger_config import BaseLoggerConfig
 
 
@@ -196,6 +196,7 @@ class FastAiDQCallback(Callback):
         if self.options.get("task_type") == "image_classification":
             print("Logging image dataset")
             if train_dl is not None:
+                print("Logging training dataset")
                 dataquality.log_image_dataset(
                     self.convert_img_dl_to_df(train_dl),
                     imgs_colname="image",
@@ -203,6 +204,7 @@ class FastAiDQCallback(Callback):
                     split=dataquality.schemas.split.Split.training,
                 )
             if valid_dl is not None:
+                print("Logging validation dataset")
                 dataquality.log_image_dataset(
                     self.convert_img_dl_to_df(valid_dl),
                     imgs_colname="image",
