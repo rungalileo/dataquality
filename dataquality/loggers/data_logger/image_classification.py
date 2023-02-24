@@ -78,7 +78,8 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             dataset["text"] = dataset[imgs_location_colname].parallel_apply(
                 lambda x: _write_image_bytes_to_objectstore(
                     img_path=os.path.join(imgs_dir, x),
-                )
+                ),
+                axis=1,
             )
         else:
             # PIL images in a DataFrame column - weird, but we'll allow it
@@ -91,7 +92,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
                 )
 
             dataset["text"] = dataset[imgs_colname].parallel_apply(
-                _write_image_bytes_to_objectstore
+                _write_image_bytes_to_objectstore, axis=1
             )
 
         print("Done writing images to object store. Returning dataset...")
