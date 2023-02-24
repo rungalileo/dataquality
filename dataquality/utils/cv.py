@@ -92,6 +92,7 @@ def _write_image_bytes_to_objectstore(
     img: Optional[Any] = None,
     img_path: Optional[str] = None,
     image_id: Optional[UUID4] = None,
+    progress: bool = False,
 ) -> str:
     if project_id is None:
         project_id = config.current_project_id
@@ -109,6 +110,7 @@ def _write_image_bytes_to_objectstore(
         object_name=object_name,
         file_path=file_path,
         bucket_name=object_store.IMAGES_BUCKET_NAME,
+        progress=progress,
     )
     os.remove(file_path)
     return object_name
