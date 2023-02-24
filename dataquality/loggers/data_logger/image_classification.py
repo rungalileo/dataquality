@@ -2,6 +2,7 @@ import os
 from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
+from pandarallel import pandarallel
 from PIL.Image import Image
 from vaex.dataframe import DataFrame
 
@@ -23,6 +24,7 @@ from dataquality.utils.cv import _write_image_bytes_to_objectstore
 from dataquality.utils.vaex import validate_unique_ids
 
 ITER_CHUNK_SIZE_IMAGES = 10000
+pandarallel.initialize(progress_bar=True)
 
 
 class ImageClassificationDataLogger(TextClassificationDataLogger):
@@ -73,7 +75,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             print(
                 f"Writing images to object store (from col {imgs_location_colname})..."
             )
-            dataset["text"] = dataset[imgs_location_colname].apply(
+            dataset["text"] = dataset[imgs_location_colname].parallel_apply(
                 lambda x: _write_image_bytes_to_objectstore(
                     img_path=os.path.join(imgs_dir, x),
                 )
@@ -88,7 +90,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
                     "image paths, pass imgs_location_colname instead."
                 )
 
-            dataset["text"] = dataset[imgs_colname].apply(
+            dataset["text"] = dataset[imgs_colname].parallel_apply(
                 _write_image_bytes_to_objectstore
             )
 
