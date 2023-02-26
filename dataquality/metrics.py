@@ -739,7 +739,7 @@ def _index_df(df: DataFrame, labels: List, tasks: Optional[List] = None) -> Data
         # If multi label, must do it per task. If TC, then it's just 1 list of labels
         task_labels = labels[ind] if task else labels
         for col in ["gold", "pred", "label"]:
-            if col not in df.get_column_names() or df[col].dtype != int:
+            if col not in df.get_column_names() or df[col].dtype == int:
                 continue
             df_col = f"{col}_{task}" if task else col
             df[f"{df_col}_idx"] = df[df_col]
