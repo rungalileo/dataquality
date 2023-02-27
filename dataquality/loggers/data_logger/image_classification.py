@@ -9,6 +9,7 @@ import pyarrow.parquet as pq
 from PIL.Image import Image
 from vaex.dataframe import DataFrame
 
+from dataquality import config
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger.base_data_logger import DataSet, MetasType
 from dataquality.loggers.data_logger.text_classification import (
@@ -122,7 +123,14 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         temp_name = tempfile.NamedTemporaryFile(suffix=".parquet")
         pq.write_table(pq_ds, temp_name.name, compression="snappy")
         _upload_image_parquet_to_project(parquet_path=temp_name.name)
-        dataset["text"] = pq_ds["hash"].to_numpy()
+
+        # project_id/md5.file_ext
+        project_id = config.current_project_id
+        md5_hashes = pq_ds["hash"].to_numpy()
+        file_exts = [os.path.splitext(f)[1] for f in file_list]
+        dataset["text"] = [
+            f"{project_id}/{md5}{ext}" for md5, ext in zip(md5_hashes, file_exts)
+        ]
         return dataset
 
     def _prepare_hf(
