@@ -1,10 +1,12 @@
 import concurrent.futures
 import os
 from typing import Any, Dict, List, Optional, Union
+from dataquality import config
 
 import pandas as pd
 from PIL.Image import Image
 from vaex.dataframe import DataFrame
+from tqdm import tqdm
 
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger.base_data_logger import DataSet, MetasType
@@ -75,7 +77,11 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
                 f"Writing images to object store (from col {imgs_location_colname})..."
             )
             process_col = imgs_location_colname
+            project_id = config.current_project_id
             process_func = lambda x: _write_image_bytes_to_objectstore(  # noqa: E731
+                project_id=project_id,
+                progress=False,
+
                 img_path=os.path.join(imgs_dir, x),
             )
         elif imgs_colname is not None:
