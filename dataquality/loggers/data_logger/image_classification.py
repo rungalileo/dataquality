@@ -180,7 +180,8 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         else:
             remove_cols = emb_df.get_column_names() + prob_df.get_column_names()
 
-            # The data df needs pred, which is in the prob_df, so we join just on that col
+            # The data df needs pred, which is in the prob_df, so we join just on that
+            # col
             # TODO: We should update runner processing so it can grab the pred from the
             #  prob_df on the server. This is confusing code
             data_cols = in_frame.get_column_names() + ["pred"]
