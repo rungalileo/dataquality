@@ -124,7 +124,7 @@ def _write_image_bytes_to_objectstore(
 def _upload_image_parquet_to_project(
     parquet_path: str,
     project_id: Optional[UUID4] = None,
-) -> str:
+) -> None:
     if project_id is None:
         project_id = config.current_project_id
     if project_id is None:

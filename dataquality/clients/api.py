@@ -593,17 +593,16 @@ class ApiClient:
         self,
         project_id: str,
         file_path: str,
-    ) -> str:
-        response = self.make_request(
+    ) -> None:
+        self.make_request(
             request=RequestType.POST,
-            url=f"{config.api_url}/{Route.upload}/{project_id}\
-                ?task_type={TaskType.image_classification}",
+            url=f"{config.api_url}/{Route.upload}/{project_id}"
+            f"?task_type={TaskType.image_classification}",
             params={
                 "api_url": config.api_url,
             },
             files={"file": open(file_path, "rb")},
         )
-        return response["url"]
 
     def get_run_summary(
         self,

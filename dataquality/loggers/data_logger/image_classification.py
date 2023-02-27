@@ -122,7 +122,6 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         temp_name = tempfile.NamedTemporaryFile(suffix=".parquet")
         pq.write_table(pq_ds, temp_name.name, compression="snappy")
         _upload_image_parquet_to_project(parquet_path=temp_name.name)
-
         dataset["text"] = pq_ds["hash"].to_numpy()
         return dataset
 
