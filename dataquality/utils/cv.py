@@ -125,8 +125,7 @@ def _upload_image_parquet_to_project(
     parquet_path: str,
     project_id: Optional[UUID4] = None,
 ) -> None:
-    if project_id is None:
-        project_id = config.current_project_id
+    project_id = project_id or config.current_project_id
     if project_id is None:
         raise GalileoException(
             "project_id is not set in your config. Have you run dq.init()?"
