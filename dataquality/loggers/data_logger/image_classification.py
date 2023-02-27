@@ -117,9 +117,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         # of dictionaries with the file path and bytes
         byte_list = map(load_bytes_from_file, [f for f in file_list])
         # Create a BytesDataset from the RecordBatch
-        pq_ds = pa.Table.from_batches(
-            [pa.RecordBatch.from_pylist(list(byte_list), schema=schema)]
-        )
+        pq_ds = pa.Table.from_pylist(list(byte_list), schema=schema)
         # Write the dataset to a Parquet file
         temp_name = tempfile.NamedTemporaryFile(suffix=".parquet")
         pq.write_table(pq_ds, temp_name, compression="snappy")
