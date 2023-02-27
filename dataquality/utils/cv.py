@@ -5,6 +5,10 @@ from io import BytesIO
 from typing import Any, Optional
 from uuid import uuid4
 
+import pandas as pd
+import pyarrow as pa
+import pyarrow.dataset as ds
+import pyarrow.parquet as pq
 from PIL import Image
 from pydantic import UUID4
 
@@ -112,3 +116,45 @@ def _write_image_bytes_to_objectstore(
     )
     os.remove(file_path)
     return object_name
+
+
+def _write_images_to_parquet_file(
+    df: pd.DataFrame,
+    image_path_col_name: Optional[str] = None,
+) -> str:
+    def read_bytes_from_file(file_path: str) -> dict:
+        with open(file_path, "rb") as f:
+            return {"file_path": file_path, "bytes": f.read()}
+
+    output_file = "images.parquet"
+    if output_file in os.listdir():
+        os.remove(output_file)
+
+    schema = pa.schema(
+        [
+            ("file_path", pa.string()),
+            ("bytes", pa.binary()),
+        ]
+    )
+    file_list = df[image_path_col_name].tolist()
+    byte_list = list(map(read_bytes_from_file, [f for f in file_list]))
+    record_batch = pa.RecordBatch.from_arrays(
+        [
+            pa.array([f["file_path"] for f in byte_list]),
+            pa.array([f["bytes"] for f in byte_list]),
+        ],
+        schema=schema,
+    )
+
+    # Create a BytesDataset from the RecordBatch
+    dataset = pa.Table.from_batches([record_batch])
+    pq.write_table(
+        dataset,
+        output_file,
+        compression="snappy",
+    )
+
+    # upload the parquet file to the api for processing
+    object_name = f"{config.current_project_id}/{output_file}"
+
+    return output_file, df
