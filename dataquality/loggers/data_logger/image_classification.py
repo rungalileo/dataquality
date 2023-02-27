@@ -176,7 +176,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
 
         if prob_only:
             emb_df = out_frame[["id"]]
-            data_df = in_frame.join(out_frame[["id"]], on="id")["id"]
+            data_df = out_frame[["id"]]
         else:
             remove_cols = emb_df.get_column_names() + prob_df.get_column_names()
 
