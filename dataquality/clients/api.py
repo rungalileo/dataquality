@@ -596,7 +596,7 @@ class ApiClient:
     ) -> None:
         self.make_request(
             request=RequestType.POST,
-            url=f"{config.api_url}/{Route.upload}/{project_id}"
+            url=f"{config.api_url}/{Route.projects}/{project_id}/{Route.upload_dataset}"
             f"?task_type={TaskType.image_classification}",
             params={
                 "api_url": config.api_url,
