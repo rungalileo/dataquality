@@ -75,13 +75,14 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         process_col = imgs_location_colname or imgs_colname
 
         # PIL images in a DataFrame column - weird, but we'll allow it
-        example = dataset[process_col].values[0]
-        if not isinstance(example, Image):
-            raise GalileoException(
-                f"Got imgs_colname={repr(imgs_colname)}, but that "
-                "dataset column does not contain images. If you have "
-                "image paths, pass imgs_location_colname instead."
-            )
+        if imgs_colname is not None:
+            example = dataset[imgs_colname].values[0]
+            if not isinstance(example, Image):
+                raise GalileoException(
+                    f"Got imgs_colname={repr(imgs_colname)}, but that "
+                    "dataset column does not contain images. If you have "
+                    "image paths, pass imgs_location_colname instead."
+                )
 
         # Define the schema for the dataset
         schema = pa.schema(
@@ -112,18 +113,19 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
                     "hash": hashlib.md5(img).hexdigest(),
                 }
 
-        # Map the list of file paths to a list of dictionaries with the file path and bytes
+        # Map the list of file paths to a list
+        # of dictionaries with the file path and bytes
         byte_list = map(load_bytes_from_file, [f for f in file_list])
         # Create a BytesDataset from the RecordBatch
-        dataset = pa.Table.from_batches(
-            [pa.RecordBatch.from_pylist(byte_list, schema=schema)]
+        pq_ds = pa.Table.from_batches(
+            [pa.RecordBatch.from_pylist(list(byte_list), schema=schema)]
         )
         # Write the dataset to a Parquet file
         temp_name = tempfile.NamedTemporaryFile(suffix=".parquet")
-        pq.write_table(dataset, temp_name, compression="snappy")
+        pq.write_table(pq_ds, temp_name, compression="snappy")
         _upload_image_parquet_to_project(parquet_path=temp_name.name)
 
-        dataset["text"] = dataset["hash"].tolist()
+        dataset["text"] = pq_ds["hash"].to_numpy()
         return dataset
 
     def _prepare_hf(
