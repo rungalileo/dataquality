@@ -119,10 +119,18 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         byte_list = map(load_bytes_from_file, [f for f in file_list])
         # Create a BytesDataset from the RecordBatch
         pq_ds = pa.Table.from_pylist(list(byte_list), schema=schema)
+
         # Write the dataset to a Parquet file
-        temp_name = tempfile.NamedTemporaryFile(suffix=".parquet")
-        pq.write_table(pq_ds, temp_name.name, compression="snappy")
-        _upload_image_parquet_to_project(parquet_path=temp_name.name)
+        # temp_name = tempfile.NamedTemporaryFile(suffix=".parquet")
+        # pq.write_table(pq_ds, temp_name.name, compression="snappy")
+        # _upload_image_parquet_to_project(parquet_path=temp_name.name)
+
+        # Write the dataset to an arrow file
+        temp_name = tempfile.NamedTemporaryFile(suffix=".arrow")
+        with pa.OSFile(temp_name.name, "wb") as sink:
+            with pa.ipc.new_file(sink, schema=schema) as writer:
+                batch = pa.record_batch([byte_list], schema=schema)
+                writer.write(batch)
 
         # project_id/md5.file_ext
         project_id = config.current_project_id
@@ -131,6 +139,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         dataset["text"] = [
             f"{project_id}/{md5}{ext}" for md5, ext in zip(md5_hashes, file_exts)
         ]
+
         return dataset
 
     def _prepare_hf(
