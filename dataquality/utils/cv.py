@@ -13,11 +13,14 @@ from PIL import Image
 from pydantic import UUID4
 
 from dataquality import config
+from dataquality.clients.api import ApiClient
 from dataquality.clients.objectstore import ObjectStore
 from dataquality.exceptions import GalileoException
 
 object_store = ObjectStore()
 B64_CONTENT_TYPE_DELIMITER = ";base64,"
+
+api_client = ApiClient()
 
 
 def _b64_image_data_prefix(mimetype: str) -> bytes:
@@ -118,43 +121,17 @@ def _write_image_bytes_to_objectstore(
     return object_name
 
 
-def _write_images_to_parquet_file(
-    df: pd.DataFrame,
-    image_path_col_name: Optional[str] = None,
+def _upload_image_parquet_to_project(
+    parquet_path: str,
+    project_id: Optional[UUID4] = None,
 ) -> str:
-    def read_bytes_from_file(file_path: str) -> dict:
-        with open(file_path, "rb") as f:
-            return {"file_path": file_path, "bytes": f.read()}
-
-    output_file = "images.parquet"
-    if output_file in os.listdir():
-        os.remove(output_file)
-
-    schema = pa.schema(
-        [
-            ("file_path", pa.string()),
-            ("bytes", pa.binary()),
-        ]
+    if project_id is None:
+        project_id = config.current_project_id
+    if project_id is None:
+        raise GalileoException(
+            "project_id is not set in your config. Have you run dq.init()?"
+        )
+    return api_client.upload_image_dataset(
+        project_id=project_id,
+        file_path=parquet_path,
     )
-    file_list = df[image_path_col_name].tolist()
-    byte_list = list(map(read_bytes_from_file, [f for f in file_list]))
-    record_batch = pa.RecordBatch.from_arrays(
-        [
-            pa.array([f["file_path"] for f in byte_list]),
-            pa.array([f["bytes"] for f in byte_list]),
-        ],
-        schema=schema,
-    )
-
-    # Create a BytesDataset from the RecordBatch
-    dataset = pa.Table.from_batches([record_batch])
-    pq.write_table(
-        dataset,
-        output_file,
-        compression="snappy",
-    )
-
-    # upload the parquet file to the api for processing
-    object_name = f"{config.current_project_id}/{output_file}"
-
-    return output_file, df
