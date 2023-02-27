@@ -36,6 +36,7 @@ class Route(str, Enum):
     export = "export"
     edits = "edits"
     export_edits = "edits/export"
+    upload = "upload"
     ampli = "ampli"
     notify = "notify/email"
     token = "get-token"
