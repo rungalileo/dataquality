@@ -211,7 +211,8 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         """
         validate_unique_ids(out_frame, epoch_or_inf_name)
 
-        emb_df = out_frame[["id", "emb"]]
+        emb_cols = ["id"] if prob_only else ["id", "emb"]
+        emb_df = out_frame[emb_cols]
         # The in_frame has gold, so we join with the out_frame to get the probabilities
         prob_df = out_frame.join(in_frame[["id", "gold"]], on="id")[
             cls._get_prob_cols()
