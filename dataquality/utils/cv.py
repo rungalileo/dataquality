@@ -128,6 +128,6 @@ def _upload_image_parquet_to_project(
             "project_id is not set in your config. Have you run dq.init()?"
         )
     return api_client.upload_image_dataset(
-        project_id=project_id,
+        project_id=str(project_id),
         file_path=parquet_path,
     )
