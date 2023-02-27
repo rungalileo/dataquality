@@ -178,6 +178,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             emb_df = out_frame[["id"]]
             data_df = out_frame[["id"]]
         else:
+            emb_df = out_frame[["id", "emb"]]
             remove_cols = emb_df.get_column_names() + prob_df.get_column_names()
 
             # The data df needs pred, which is in the prob_df, so we join just on that
@@ -186,7 +187,6 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             #  prob_df on the server. This is confusing code
             data_cols = in_frame.get_column_names() + ["pred"]
             data_cols = ["id"] + [c for c in data_cols if c not in remove_cols]
-            emb_df = out_frame[["id", "emb"]]
             data_df = in_frame.join(out_frame[["id", "pred"]], on="id")[data_cols]
 
         dataframes = BaseLoggerDataFrames(prob=prob_df, emb=emb_df, data=data_df)
