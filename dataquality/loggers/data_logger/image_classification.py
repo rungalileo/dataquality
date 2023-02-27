@@ -4,7 +4,6 @@ import tempfile
 from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
-import pyarrow as pa
 import vaex
 from PIL.Image import Image
 from vaex.dataframe import DataFrame
