@@ -5,10 +5,6 @@ from io import BytesIO
 from typing import Any, Optional
 from uuid import uuid4
 
-import pandas as pd
-import pyarrow as pa
-import pyarrow.dataset as ds
-import pyarrow.parquet as pq
 from PIL import Image
 from pydantic import UUID4
 
@@ -121,8 +117,8 @@ def _write_image_bytes_to_objectstore(
     return object_name
 
 
-def _upload_image_parquet_to_project(
-    parquet_path: str,
+def _upload_image_df_to_project(
+    file_path: str,
     project_id: Optional[UUID4] = None,
 ) -> None:
     project_id = project_id or config.current_project_id
@@ -132,5 +128,5 @@ def _upload_image_parquet_to_project(
         )
     return api_client.upload_image_dataset(
         project_id=str(project_id),
-        file_path=parquet_path,
+        file_path=file_path,
     )

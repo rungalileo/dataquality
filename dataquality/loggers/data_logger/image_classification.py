@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 import pyarrow as pa
-import pyarrow.parquet as pq
+import vaex
 from PIL.Image import Image
 from vaex.dataframe import DataFrame
 
@@ -21,7 +21,7 @@ from dataquality.loggers.logger_config.image_classification import (
 )
 from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.split import Split
-from dataquality.utils.cv import _upload_image_parquet_to_project
+from dataquality.utils.cv import _upload_image_df_to_project
 
 # smaller than ITER_CHUNK_SIZE from base_data_logger because very large chunks
 # containing image data often won't fit in memory
@@ -85,15 +85,6 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
                     "image paths, pass imgs_location_colname instead."
                 )
 
-        # Define the schema for the dataset
-        schema = pa.schema(
-            [
-                ("file_path", pa.string()),
-                ("bytes", pa.binary()),
-                ("hash", pa.string()),
-            ]
-        )
-
         # Create a list of dictionaries where each dictionary represents a file
         file_list = dataset[process_col].tolist()
         if imgs_location_colname is not None:
@@ -105,40 +96,28 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
 
         # Define a function to read the bytes from a file and
         # return a dictionary with the file path and bytes
+        project_id = config.current_project_id
+
         def load_bytes_from_file(file_path: str) -> Dict[str, Union[str, bytes]]:
             with open(file_path, "rb") as f:
                 img = f.read()
+                hash = hashlib.md5(img).hexdigest()
+                ext = os.path.splitext(file_path)[1]
                 return {
                     "file_path": file_path,
                     "bytes": img,
-                    "hash": hashlib.md5(img).hexdigest(),
+                    "hash": hash,
+                    "id": f"{project_id}/{hash}{ext}",
                 }
 
         # Map the list of file paths to a list
         # of dictionaries with the file path and bytes
-        byte_list = map(load_bytes_from_file, [f for f in file_list])
-        # Create a BytesDataset from the RecordBatch
-        pq_ds = pa.Table.from_pylist(list(byte_list), schema=schema)
-
-        # Write the dataset to a Parquet file
-        # temp_name = tempfile.NamedTemporaryFile(suffix=".parquet")
-        # pq.write_table(pq_ds, temp_name.name, compression="snappy")
-        # _upload_image_parquet_to_project(parquet_path=temp_name.name)
-
         # Write the dataset to an arrow file
         temp_name = tempfile.NamedTemporaryFile(suffix=".arrow")
-        with pa.OSFile(temp_name.name, "wb") as sink:
-            with pa.ipc.new_file(sink, schema=schema) as writer:
-                batch = pa.record_batch([byte_list], schema=schema)
-                writer.write(batch)
-
-        # project_id/md5.file_ext
-        project_id = config.current_project_id
-        md5_hashes = pq_ds["hash"].to_numpy()
-        file_exts = [os.path.splitext(f)[1] for f in file_list]
-        dataset["text"] = [
-            f"{project_id}/{md5}{ext}" for md5, ext in zip(md5_hashes, file_exts)
-        ]
+        df = vaex.from_records(list(map(load_bytes_from_file, [f for f in file_list])))
+        df[["file_path", "bytes", "hash"]].export(temp_name.name)
+        _upload_image_df_to_project(temp_name.name, project_id)
+        dataset["text"] = df["id"].to_numpy()
 
         return dataset
 
