@@ -10,7 +10,6 @@ from pydantic import UUID4
 
 from dataquality import config
 from dataquality.clients.api import ApiClient
-from dataquality.clients.api import ApiClient
 from dataquality.clients.objectstore import ObjectStore
 from dataquality.exceptions import GalileoException
 

@@ -73,7 +73,7 @@ class ApiClient:
         header: Optional[Dict] = None,
         timeout: Union[int, None] = None,
         files: Optional[Dict] = None,
-        files: Optional[Dict] = None,
+      
     ) -> Any:
         """Makes an HTTP request.
 
@@ -83,13 +83,6 @@ class ApiClient:
         self.__check_login()
         header = header or headers(config.token)
         res = RequestType.get_method(request.value)(
-            url,
-            json=body,
-            params=params,
-            headers=header,
-            data=data,
-            timeout=timeout,
-            files=files,
             url,
             json=body,
             params=params,
