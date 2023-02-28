@@ -10,11 +10,14 @@ from pydantic import UUID4
 
 from dataquality import config
 from dataquality.clients.api import ApiClient
+from dataquality.clients.api import ApiClient
 from dataquality.clients.objectstore import ObjectStore
 from dataquality.exceptions import GalileoException
 
 object_store = ObjectStore()
 B64_CONTENT_TYPE_DELIMITER = ";base64,"
+
+api_client = ApiClient()
 
 api_client = ApiClient()
 
