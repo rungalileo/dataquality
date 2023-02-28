@@ -148,8 +148,15 @@ def test_duplicate_ids_augmented(set_test_config, cleanup_after_use) -> None:
 
 
 @mock.patch("dataquality.clients.objectstore.ObjectStore.create_object")
+@mock.patch.object(
+    dataquality.clients.api.ApiClient,
+    "make_request",
+)
 def test_base64_image_logging(
-    mock_create_object: mock.MagicMock, set_test_config, cleanup_after_use
+    mock_create_object: mock.MagicMock,
+    mocked_upload_image_dataset: MagicMock,
+    set_test_config,
+    cleanup_after_use,
 ) -> None:
     """
     Tests that dq.log_image_dataset logs base64-encoded image data when passed image

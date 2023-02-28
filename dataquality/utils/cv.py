@@ -9,11 +9,14 @@ from PIL import Image
 from pydantic import UUID4
 
 from dataquality import config
+from dataquality.clients.api import ApiClient
 from dataquality.clients.objectstore import ObjectStore
 from dataquality.exceptions import GalileoException
 
 object_store = ObjectStore()
 B64_CONTENT_TYPE_DELIMITER = ";base64,"
+
+api_client = ApiClient()
 
 
 def _b64_image_data_prefix(mimetype: str) -> bytes:
@@ -114,3 +117,18 @@ def _write_image_bytes_to_objectstore(
     )
     os.remove(file_path)
     return object_name
+
+
+def _upload_image_df_to_project(
+    file_path: str,
+    project_id: Optional[UUID4] = None,
+) -> None:
+    project_id = project_id or config.current_project_id
+    if project_id is None:
+        raise GalileoException(
+            "project_id is not set in your config. Have you run dq.init()?"
+        )
+    return api_client.upload_image_dataset(
+        project_id=str(project_id),
+        file_path=file_path,
+    )
