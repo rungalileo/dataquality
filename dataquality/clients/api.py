@@ -598,9 +598,6 @@ class ApiClient:
             request=RequestType.POST,
             url=f"{config.api_url}/{Route.projects}/{project_id}/{Route.upload_dataset}"
             f"?task_type={TaskType.image_classification}",
-            params={
-                "api_url": config.api_url,
-            },
             files={"file": open(file_path, "rb")},
         )
 
