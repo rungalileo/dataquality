@@ -1,10 +1,14 @@
+import hashlib
 import os
+import tempfile
 from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
+import vaex
 from PIL.Image import Image
 from vaex.dataframe import DataFrame
 
+from dataquality import config
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger.base_data_logger import DataSet, MetasType
 from dataquality.loggers.data_logger.text_classification import (
@@ -16,7 +20,7 @@ from dataquality.loggers.logger_config.image_classification import (
 )
 from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.split import Split
-from dataquality.utils.cv import _write_image_bytes_to_objectstore
+from dataquality.utils.cv import _upload_image_df_to_project
 
 # smaller than ITER_CHUNK_SIZE from base_data_logger because very large chunks
 # containing image data often won't fit in memory
@@ -68,16 +72,11 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
     ) -> pd.DataFrame:
         imgs_dir = imgs_dir or ""
 
-        if imgs_location_colname is not None:
-            # image paths
-            dataset["text"] = dataset[imgs_location_colname].apply(
-                lambda x: _write_image_bytes_to_objectstore(
-                    img_path=os.path.join(imgs_dir, x),
-                )
-            )
-        else:
-            # PIL images in a DataFrame column - weird, but we'll allow it
-            example = dataset[imgs_location_colname].values[0]
+        process_col = imgs_location_colname or imgs_colname
+
+        # PIL images in a DataFrame column - weird, but we'll allow it
+        if imgs_colname is not None:
+            example = dataset[imgs_colname].values[0]
             if not isinstance(example, Image):
                 raise GalileoException(
                     f"Got imgs_colname={repr(imgs_colname)}, but that "
@@ -85,9 +84,41 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
                     "image paths, pass imgs_location_colname instead."
                 )
 
-            dataset["text"] = dataset[imgs_colname].apply(
-                _write_image_bytes_to_objectstore
+        # Create a list of dictionaries where each dictionary represents a file
+        file_list = dataset[process_col].tolist()
+        if imgs_location_colname is not None:
+            # image paths
+            file_list = [
+                os.path.join(imgs_dir, f)
+                for f in dataset[imgs_location_colname].tolist()
+            ]
+
+        # Define a function to read the bytes from a file and
+        # return a dictionary with the file path and bytes
+        project_id = config.current_project_id
+
+        def load_bytes_from_file(file_path: str) -> Dict[str, Union[str, bytes]]:
+            with open(file_path, "rb") as f:
+                img = f.read()
+                hash = hashlib.md5(img).hexdigest()
+                ext = os.path.splitext(file_path)[1]
+                return {
+                    "file_path": file_path,
+                    "bytes": img,
+                    "hash": hash,
+                    "id": f"{project_id}/{hash}{ext}",
+                }
+
+        # Map the list of file paths to a list
+        # of dictionaries with the file path and bytes
+        # Write the dataset to an arrow file
+        with tempfile.NamedTemporaryFile(suffix=".arrow") as temp_file:
+            df = vaex.from_records(
+                list(map(load_bytes_from_file, [f for f in file_list]))
             )
+            df[["file_path", "bytes", "hash"]].export(temp_file.name)
+            _upload_image_df_to_project(temp_file.name, project_id)
+            dataset["text"] = df["id"].to_numpy()
 
         return dataset
 
@@ -169,6 +200,8 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         """
         validate_unique_ids(out_frame, epoch_or_inf_name)
 
+        emb_cols = ["id"] if prob_only else ["id", "emb"]
+        emb_df = out_frame[emb_cols]
         # The in_frame has gold, so we join with the out_frame to get the probabilities
         prob_df = out_frame.join(in_frame[["id", "gold"]], on="id")[
             cls._get_prob_cols()
