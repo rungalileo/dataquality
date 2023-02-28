@@ -2,13 +2,11 @@ import hashlib
 import os
 import tempfile
 from typing import Any, Dict, List, Optional, Union
-from dataquality import config
 
 import pandas as pd
 import vaex
 from PIL.Image import Image
 from vaex.dataframe import DataFrame
-from tqdm import tqdm
 
 from dataquality import config
 from dataquality.exceptions import GalileoException
@@ -74,16 +72,11 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
     ) -> pd.DataFrame:
         imgs_dir = imgs_dir or ""
 
-        if imgs_location_colname is not None:
-            # image paths
-            dataset["text"] = dataset[imgs_location_colname].apply(
-                lambda x: _write_image_bytes_to_objectstore(
-                    img_path=os.path.join(imgs_dir, x),
-                )
-            )
-        else:
-            # PIL images in a DataFrame column - weird, but we'll allow it
-            example = dataset[imgs_location_colname].values[0]
+        process_col = imgs_location_colname or imgs_colname
+
+        # PIL images in a DataFrame column - weird, but we'll allow it
+        if imgs_colname is not None:
+            example = dataset[imgs_colname].values[0]
             if not isinstance(example, Image):
                 raise GalileoException(
                     f"Got imgs_colname={repr(imgs_colname)}, but that "
@@ -91,9 +84,41 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
                     "image paths, pass imgs_location_colname instead."
                 )
 
-            dataset["text"] = dataset[imgs_colname].apply(
-                _write_image_bytes_to_objectstore
+        # Create a list of dictionaries where each dictionary represents a file
+        file_list = dataset[process_col].tolist()
+        if imgs_location_colname is not None:
+            # image paths
+            file_list = [
+                os.path.join(imgs_dir, f)
+                for f in dataset[imgs_location_colname].tolist()
+            ]
+
+        # Define a function to read the bytes from a file and
+        # return a dictionary with the file path and bytes
+        project_id = config.current_project_id
+
+        def load_bytes_from_file(file_path: str) -> Dict[str, Union[str, bytes]]:
+            with open(file_path, "rb") as f:
+                img = f.read()
+                hash = hashlib.md5(img).hexdigest()
+                ext = os.path.splitext(file_path)[1]
+                return {
+                    "file_path": file_path,
+                    "bytes": img,
+                    "hash": hash,
+                    "id": f"{project_id}/{hash}{ext}",
+                }
+
+        # Map the list of file paths to a list
+        # of dictionaries with the file path and bytes
+        # Write the dataset to an arrow file
+        with tempfile.NamedTemporaryFile(suffix=".arrow") as temp_file:
+            df = vaex.from_records(
+                list(map(load_bytes_from_file, [f for f in file_list]))
             )
+            df[["file_path", "bytes", "hash"]].export(temp_file.name)
+            _upload_image_df_to_project(temp_file.name, project_id)
+            dataset["text"] = df["id"].to_numpy()
 
         return dataset
 
@@ -227,7 +252,6 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             )
         column_map = column_map or {id: "id"}
         if isinstance(dataset, pd.DataFrame):
-            print("Pandas dataset detected")
             dataset = dataset.rename(columns=column_map)
             dataset = self._prepare_pandas(
                 dataset,
@@ -236,7 +260,6 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
                 imgs_dir=imgs_dir,
             )
         elif self.is_hf_dataset(dataset):
-            print("HF dataset detected")
             dataset = self._prepare_hf(
                 dataset,
                 imgs_colname=imgs_colname,
@@ -247,7 +270,6 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             raise GalileoException(
                 f"Dataset must be one of pandas or HF, but got {type(dataset)}"
             )
-        print("Logging dataset")
         self.log_dataset(
             dataset=dataset,
             batch_size=batch_size,
