@@ -73,7 +73,6 @@ class ApiClient:
         header: Optional[Dict] = None,
         timeout: Union[int, None] = None,
         files: Optional[Dict] = None,
-      
     ) -> Any:
         """Makes an HTTP request.
 

@@ -4,8 +4,6 @@ import tempfile
 from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
-import pyarrow as pa
-import pyarrow.parquet as pq
 import vaex
 from PIL.Image import Image
 from vaex.dataframe import DataFrame
@@ -22,6 +20,7 @@ from dataquality.loggers.logger_config.image_classification import (
 )
 from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.split import Split
+from dataquality.utils.cv import _upload_image_df_to_project
 
 # smaller than ITER_CHUNK_SIZE from base_data_logger because very large chunks
 # containing image data often won't fit in memory
@@ -78,11 +77,6 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         # PIL images in a DataFrame column - weird, but we'll allow it
         if imgs_colname is not None:
             example = dataset[imgs_colname].values[0]
-        process_col = imgs_location_colname or imgs_colname
-
-        # PIL images in a DataFrame column - weird, but we'll allow it
-        if imgs_colname is not None:
-            example = dataset[imgs_colname].values[0]
             if not isinstance(example, Image):
                 raise GalileoException(
                     f"Got imgs_colname={repr(imgs_colname)}, but that "
@@ -126,37 +120,6 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             _upload_image_df_to_project(temp_file.name, project_id)
             dataset["text"] = df["id"].to_numpy()
 
-        # Create a list of dictionaries where each dictionary represents a file
-        file_list = dataset[process_col].tolist()
-        if imgs_location_colname is not None:
-            # image paths
-            file_list = [
-                os.path.join(imgs_dir, f)
-                for f in dataset[imgs_location_colname].tolist()
-            ]
-
-        # Define a function to read the bytes from a file and
-        # return a dictionary with the file path and bytes
-        def load_bytes_from_file(file_path: str) -> Dict[str, Union[str, bytes]]:
-            with open(file_path, "rb") as f:
-                img = f.read()
-                return {
-                    "file_path": file_path,
-                    "bytes": img,
-                    "hash": hashlib.md5(img).hexdigest(),
-                }
-
-        # Map the list of file paths to a list
-        # of dictionaries with the file path and bytes
-        byte_list = map(load_bytes_from_file, [f for f in file_list])
-        # Create a BytesDataset from the RecordBatch
-        pq_ds = pa.Table.from_pylist(list(byte_list), schema=schema)
-        # Write the dataset to a Parquet file
-        temp_name = tempfile.NamedTemporaryFile(suffix=".parquet")
-        pq.write_table(pq_ds, temp_name.name, compression="snappy")
-        _upload_image_parquet_to_project(parquet_path=temp_name.name)
-
-        dataset["text"] = pq_ds["hash"].to_numpy()
         return dataset
 
     def _prepare_hf(
