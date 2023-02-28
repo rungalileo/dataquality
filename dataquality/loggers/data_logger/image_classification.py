@@ -112,11 +112,13 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         # Map the list of file paths to a list
         # of dictionaries with the file path and bytes
         # Write the dataset to an arrow file
-        temp_name = tempfile.NamedTemporaryFile(suffix=".arrow")
-        df = vaex.from_records(list(map(load_bytes_from_file, [f for f in file_list])))
-        df[["file_path", "bytes", "hash"]].export(temp_name.name)
-        _upload_image_df_to_project(temp_name.name, project_id)
-        dataset["text"] = df["id"].to_numpy()
+        with tempfile.NamedTemporaryFile(suffix=".arrow") as temp_file:
+            df = vaex.from_records(
+                list(map(load_bytes_from_file, [f for f in file_list]))
+            )
+            df[["file_path", "bytes", "hash"]].export(temp_file.name)
+            _upload_image_df_to_project(temp_file.name, project_id)
+            dataset["text"] = df["id"].to_numpy()
 
         return dataset
 
