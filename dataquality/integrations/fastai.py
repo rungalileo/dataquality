@@ -90,7 +90,7 @@ class FastAiDQCallback(Callback):
 
     def __init__(
         self,
-        labels: List[str],
+        labels: Optional[List[str]],
         layer: Any = None,
         log_dataset: bool = True,
         task_type: str = "image_classification",
@@ -120,7 +120,7 @@ class FastAiDQCallback(Callback):
         self.counter = 0
         self.options["task_type"] = task_type
 
-        if self.labels is None:
+        if self.labels is None and log_dataset:
             raise ValueError(
                 """Labels must be provided. For example:
            DataqualityCallback(labels=['negative','positive'])"""
