@@ -1,10 +1,14 @@
 import base64
 import mimetypes
 import os
+import queue
+import time
 from io import BytesIO
+from threading import Thread
 from typing import Any, Optional
 from uuid import uuid4
 
+import vaex
 from PIL import Image
 from pydantic import UUID4
 
@@ -130,3 +134,62 @@ def _upload_image_df_to_project(
         project_id=str(project_id),
         file_path=file_path,
     )
+
+
+def upload_images_in_parallel(
+    temp_file_name: str,
+    df: vaex.DataFrame,
+    step: int = 100,
+    number_of_workers: int = 10,
+    project_id: Optional[UUID4] = None,
+) -> list:
+    STOP_VAL = ""
+
+    if project_id is None:
+        project_id = config.current_project_id
+
+    class ImageUploadWorker(Thread):
+        def __init__(self, request_queue: queue.Queue) -> None:
+            Thread.__init__(self)
+            self.queue = request_queue
+            self.results: list = []
+
+        def run(self) -> None:
+            while True:
+                content = self.queue.get()
+                if content == "":
+                    break
+                i, j = content
+                print(f"uploading batch {i} to {j}")
+                ext_split = os.path.splitext(temp_file_name)
+                file_path = f"{ext_split[0]}_{i}{ext_split[1]}"
+                df[["file_path", "bytes", "hash"]][i:j].export(file_path)
+                print("submitting ")
+                _upload_image_df_to_project(file_path, project_id)
+
+    # Create queue and add the ends of the batchess
+    q: queue.Queue = queue.Queue()
+    for i in range(0, len(df), step):
+        q.put((i, i + step))
+
+    # Tell the queue when to stop
+    for _ in range(number_of_workers):
+        q.put(STOP_VAL)
+
+    # Create workers and add to the queue
+    workers = []
+    for _ in range(number_of_workers):
+        worker = ImageUploadWorker(q)
+        worker.start()
+        workers.append(worker)
+
+    # Join workers to main thread and wait for them to finish
+    for worker in workers:
+        worker.join()
+
+    # Combine results from all workers
+    r = []
+    for worker in workers:
+        r.extend(worker.results)
+
+    return r
