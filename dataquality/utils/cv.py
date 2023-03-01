@@ -1,14 +1,8 @@
-import base64
-import mimetypes
 import os
-import queue
-import time
 from io import BytesIO
-from threading import Thread
 from typing import Any, Optional
 from uuid import uuid4
 
-import vaex
 from PIL import Image
 from pydantic import UUID4
 
@@ -29,38 +23,6 @@ def _b64_image_data_prefix(mimetype: str) -> bytes:
 
 def _bytes_to_img(b: bytes) -> Image:
     return Image.open(BytesIO(b))
-
-
-def _img_to_b64(img: Image) -> bytes:
-    img_bytes = BytesIO()
-    img.save(img_bytes, format=img.format)
-    return base64.b64encode(img_bytes.getvalue())
-
-
-def _img_to_b64_str(img: Image) -> str:
-    prefix = _b64_image_data_prefix(mimetype=img.get_format_mimetype())
-    data = _img_to_b64(img=img)
-    return (prefix + data).decode("utf-8")
-
-
-def _bytes_to_b64_str(img_bytes: bytes, img_path: Optional[str] = None) -> Image:
-    mimetype = None
-
-    if img_path is not None:
-        # try to guess from path without loading image
-        mimetype, _ = mimetypes.guess_type(img_path)
-
-    if mimetype is None:
-        # slow path - load image and read mimetype
-        mimetype = _bytes_to_img(img_bytes).get_format_mimetype()
-    prefix = _b64_image_data_prefix(mimetype=mimetype)
-    b64_data = base64.b64encode(img_bytes)
-    return (prefix + b64_data).decode("utf-8")
-
-
-def _img_path_to_b64_str(img_path: str) -> str:
-    with open(img_path, "rb") as f:
-        return _bytes_to_b64_str(img_bytes=f.read(), img_path=img_path)
 
 
 def _write_img_bytes_to_file(
@@ -119,76 +81,3 @@ def _write_image_bytes_to_objectstore(
     )
     os.remove(file_path)
     return object_name
-
-
-def _upload_image_df_to_project(
-    file_path: str,
-    project_id: Optional[UUID4] = None,
-) -> None:
-    project_id = project_id or config.current_project_id
-    if project_id is None:
-        raise GalileoException(
-            "project_id is not set in your config. Have you run dq.init()?"
-        )
-    return api_client.upload_image_dataset(
-        project_id=str(project_id),
-        file_path=file_path,
-    )
-
-
-def upload_images_in_parallel(
-    temp_file_name: str,
-    df: vaex.DataFrame,
-    step: int = 1000,
-    number_of_workers: int = 10,
-    project_id: Optional[UUID4] = None,
-) -> list:
-    STOP_VAL = ""
-
-    if project_id is None:
-        project_id = config.current_project_id
-
-    class ImageUploadWorker(Thread):
-        def __init__(self, request_queue: queue.Queue) -> None:
-            Thread.__init__(self)
-            self.queue = request_queue
-            self.results: list = []
-
-        def run(self) -> None:
-            while True:
-                content = self.queue.get()
-                if content == "":
-                    break
-                i, j = content
-                print(f"uploading chunk {i} to {j}")
-                ext_split = os.path.splitext(temp_file_name)
-                file_path = f"{ext_split[0]}_{i}{ext_split[1]}"
-                df[["file_path", "bytes", "hash"]][i:j].export(file_path)
-                print("submitting ")
-                _upload_image_df_to_project(file_path, project_id)
-
-    # Create queue and add the ends of the chunks
-    q: queue.Queue = queue.Queue()
-    for i in range(0, len(df), step):
-        q.put((i, i + step))
-
-    for _ in range(number_of_workers):
-        q.put(STOP_VAL)
-
-    # Create workers and add tot the queue
-    workers = []
-    for _ in range(number_of_workers):
-        worker = ImageUploadWorker(q)
-        worker.start()
-        workers.append(worker)
-
-    # Join workers to wait till they finished
-    for worker in workers:
-        worker.join()
-
-    # Combine results from all workers
-    r = []
-    for worker in workers:
-        r.extend(worker.results)
-
-    return r
