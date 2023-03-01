@@ -167,7 +167,7 @@ def upload_images_in_parallel(
                 print("submitting ")
                 _upload_image_df_to_project(file_path, project_id)
 
-    # Create queue and add the ends of the batchess
+    # Create queue and add the ends of the batches
     q: queue.Queue = queue.Queue()
     for i in range(0, len(df), step):
         q.put((i, i + step))
