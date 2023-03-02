@@ -140,7 +140,7 @@ def upload_images_in_parallel(
     temp_file_name: str,
     df: vaex.DataFrame,
     step: int = 100,
-    number_of_workers: int = 10,
+    num_workers: int = 10,
     project_id: Optional[UUID4] = None,
 ) -> list:
     STOP_VAL = ""
@@ -160,32 +160,32 @@ def upload_images_in_parallel(
                 if content == "":
                     break
                 i, j = content
-                print(f"uploading batch {i} to {j}")
                 ext_split = os.path.splitext(temp_file_name)
                 file_path = f"{ext_split[0]}_{i}{ext_split[1]}"
                 df[["file_path", "bytes", "hash"]][i:j].export(file_path)
-                print("submitting ")
                 _upload_image_df_to_project(file_path, project_id)
 
-    # Create queue and add the ends of the batchess
+    # Create queue and add the ends of the batches
     q: queue.Queue = queue.Queue()
     for i in range(0, len(df), step):
         q.put((i, i + step))
 
     # Tell the queue when to stop
-    for _ in range(number_of_workers):
+    for _ in range(num_workers):
         q.put(STOP_VAL)
 
     # Create workers and add to the queue
     workers = []
-    for _ in range(number_of_workers):
+    for _ in range(num_workers):
         worker = ImageUploadWorker(q)
         worker.start()
         workers.append(worker)
 
     # Join workers to main thread and wait for them to finish
+    print(f"🎬 Starting {num_workers} workers to upload content")
     for worker in workers:
         worker.join()
+    print("🎬 All workers finished uploading content")
 
     # Combine results from all workers
     r = []
