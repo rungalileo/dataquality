@@ -139,7 +139,7 @@ def upload_images_in_parallel(
     temp_file_name: str,
     df: vaex.DataFrame,
     step: int = 100,
-    num_workers: int = 10,
+    num_workers: int = 5,
     project_id: Optional[UUID4] = None,
 ) -> list:
     STOP_VAL = ""
