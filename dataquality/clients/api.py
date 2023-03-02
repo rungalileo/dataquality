@@ -18,14 +18,17 @@ from dataquality.schemas.split import conform_split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.auth import headers
 
+MAX_RETRIES = 5
+RETRY_WAIT = 5
+
 
 class ApiClient:
     def __check_login(self) -> None:
         if not config.token:
             raise GalileoException("You are not logged in. Call dataquality.login()")
 
-    def _validate_response(self, res: Response) -> None:
-        if not res.ok:
+    def _validate_response(self, res: Response, retry: bool = False) -> None:
+        if not res.ok and not retry:
             msg = (
                 "Something didn't go quite right. The api returned a non-ok status "
                 f"code {res.status_code} with output: {res.text}"
@@ -63,6 +66,9 @@ class ApiClient:
         except GalileoException:
             return False
 
+    def _is_server_error(self, res: Response) -> bool:
+        return str(res.status_code).startswith("5")
+
     def make_request(
         self,
         request: RequestType,
@@ -73,6 +79,8 @@ class ApiClient:
         header: Optional[Dict] = None,
         timeout: Union[int, None] = None,
         files: Optional[Dict] = None,
+        retry: bool = False,
+        num_retries: int = 0,
     ) -> Any:
         """Makes an HTTP request.
 
@@ -90,7 +98,24 @@ class ApiClient:
             timeout=timeout,
             files=files,
         )
-        self._validate_response(res)
+        self._validate_response(res, retry=retry)
+        if retry and self._is_server_error(res):
+            if not retry and num_retries < MAX_RETRIES:
+                self._validate_response(res, retry=False)
+            else:
+                sleep(RETRY_WAIT)
+                return self.make_request(
+                    request,
+                    url,
+                    body,
+                    data,
+                    params,
+                    header,
+                    timeout,
+                    files,
+                    retry=True,
+                    num_retries=num_retries + 1,
+                )
         return res.json()
 
     def get_project(self, project_id: UUID4) -> Dict:
