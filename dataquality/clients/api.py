@@ -18,6 +18,9 @@ from dataquality.schemas.split import conform_split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.auth import headers
 
+MAX_RETRIES = 5
+RETRY_WAIT = 60
+
 
 class ApiClient:
     def __check_login(self) -> None:
@@ -63,6 +66,9 @@ class ApiClient:
         except GalileoException:
             return False
 
+    def _is_server_error(self, res: Response) -> bool:
+        return str(res.status_code).startswith("5")
+
     def make_request(
         self,
         request: RequestType,
@@ -73,6 +79,8 @@ class ApiClient:
         header: Optional[Dict] = None,
         timeout: Union[int, None] = None,
         files: Optional[Dict] = None,
+        retry: bool = False,
+        num_retries: int = 0,
     ) -> Any:
         """Makes an HTTP request.
 
@@ -90,7 +98,25 @@ class ApiClient:
             timeout=timeout,
             files=files,
         )
-        self._validate_response(res)
+        if self._is_server_error(res) and retry and num_retries < MAX_RETRIES:
+            try:
+                self._validate_response(res)
+            except GalileoException:
+                sleep(RETRY_WAIT)
+                return self.make_request(
+                    request,
+                    url,
+                    body,
+                    data,
+                    params,
+                    header,
+                    timeout,
+                    files,
+                    retry=True,
+                    num_retries=num_retries + 1,
+                )
+        else:
+            self._validate_response(res)
         return res.json()
 
     def get_project(self, project_id: UUID4) -> Dict:

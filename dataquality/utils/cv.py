@@ -2,10 +2,9 @@ import base64
 import mimetypes
 import os
 import queue
-import time
 from io import BytesIO
 from threading import Thread
-from typing import Any, Optional
+from typing import Any, List, Optional
 from uuid import uuid4
 
 import vaex
@@ -136,7 +135,14 @@ def _upload_image_df_to_project(
     )
 
 
-def upload_images_in_parallel(
+def upload_images_from_hf_in_parallel(
+    dataset_chunk: List[str],
+) -> None:
+    # TODO
+    pass
+
+
+def upload_images_in_parallel_from_vaex_df(
     temp_file_name: str,
     df: vaex.DataFrame,
     step: int = 100,
