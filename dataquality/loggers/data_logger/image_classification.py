@@ -21,7 +21,10 @@ from dataquality.loggers.logger_config.image_classification import (
 )
 from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.split import Split
-from dataquality.utils.cv import upload_images_in_parallel
+from dataquality.utils.cv import (
+    upload_images_in_parallel,
+    upload_images_in_parallel_from_vaex_df,
+)
 
 # smaller than ITER_CHUNK_SIZE from base_data_logger because very large chunks
 # containing image data often won't fit in memory
@@ -116,21 +119,32 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         # of dictionaries with the file path and bytes
         # Write the dataset to an arrow file
         print("Writing to arrow file...")
-        with tempfile.NamedTemporaryFile(suffix=".arrow") as temp_file:
-            print("building df from records")
-            df = vaex.from_records(
-                list(map(load_bytes_from_file, [f for f in file_list]))
-            )
-            df[["file_path", "bytes", "hash"]].export(temp_file.name)
-            t = time.time()
-            upload_images_in_parallel(
-                temp_file_name=temp_file.name,
-                project_id=project_id,
-                df=df,
-            )
-            print(f"uploaded in {time.time() - t} seconds")
-
-            dataset["text"] = df["id"].to_numpy()
+        file_iter_batch_size = 100
+        for _file_iter in range(0, len(file_list), file_iter_batch_size):
+            with tempfile.NamedTemporaryFile(suffix=".arrow") as temp_file:
+                print("building df from records")
+                df = vaex.from_records(
+                    list(
+                        map(
+                            load_bytes_from_file,
+                            [
+                                f
+                                for f in file_list[
+                                    _file_iter : _file_iter + file_iter_batch_size
+                                ]
+                            ],
+                        )
+                    )
+                )
+                df[["file_path", "bytes", "hash"]].export(temp_file.name)
+                t = time.time()
+                upload_images_in_parallel_from_vaex_df(
+                    temp_file_name=temp_file.name,
+                    project_id=project_id,
+                    df=df,
+                )
+                print(f"uploaded in {time.time() - t} seconds")
+                dataset["text"] = df["id"].to_numpy()
 
         return dataset
 
@@ -288,6 +302,9 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             text="text",
             id=id,
             label=label,
+            split=split,
+            meta=meta,
+        )
             split=split,
             meta=meta,
         )
