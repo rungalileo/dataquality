@@ -19,7 +19,7 @@ from dataquality.schemas.task_type import TaskType
 from dataquality.utils.auth import headers
 
 MAX_RETRIES = 5
-RETRY_WAIT = 10
+RETRY_WAIT = 60
 
 
 class ApiClient:
@@ -27,8 +27,8 @@ class ApiClient:
         if not config.token:
             raise GalileoException("You are not logged in. Call dataquality.login()")
 
-    def _validate_response(self, res: Response, retry: bool = False) -> None:
-        if not res.ok and not retry:
+    def _validate_response(self, res: Response) -> None:
+        if not res.ok:
             msg = (
                 "Something didn't go quite right. The api returned a non-ok status "
                 f"code {res.status_code} with output: {res.text}"
@@ -100,7 +100,7 @@ class ApiClient:
         )
         if self._is_server_error(res) and retry and num_retries < MAX_RETRIES:
             try:
-                self._validate_response(res, retry=False)
+                self._validate_response(res)
             except GalileoException:
                 sleep(RETRY_WAIT)
                 return self.make_request(
@@ -116,7 +116,7 @@ class ApiClient:
                     num_retries=num_retries + 1,
                 )
         else:
-            self._validate_response(res, retry=False)
+            self._validate_response(res)
         return res.json()
 
     def get_project(self, project_id: UUID4) -> Dict:
