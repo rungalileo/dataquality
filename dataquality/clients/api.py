@@ -19,7 +19,7 @@ from dataquality.schemas.task_type import TaskType
 from dataquality.utils.auth import headers
 
 MAX_RETRIES = 5
-RETRY_WAIT = 5
+RETRY_WAIT = 10
 
 
 class ApiClient:
