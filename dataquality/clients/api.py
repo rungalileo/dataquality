@@ -98,11 +98,10 @@ class ApiClient:
             timeout=timeout,
             files=files,
         )
-        self._validate_response(res, retry=retry)
-        if retry and self._is_server_error(res):
-            if not retry and num_retries < MAX_RETRIES:
+        if self._is_server_error(res) and retry and num_retries < MAX_RETRIES:
+            try:
                 self._validate_response(res, retry=False)
-            else:
+            except GalileoException:
                 sleep(RETRY_WAIT)
                 return self.make_request(
                     request,
@@ -116,6 +115,8 @@ class ApiClient:
                     retry=True,
                     num_retries=num_retries + 1,
                 )
+        else:
+            self._validate_response(res, retry=False)
         return res.json()
 
     def get_project(self, project_id: UUID4) -> Dict:
