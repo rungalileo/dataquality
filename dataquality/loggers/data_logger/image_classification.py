@@ -2,7 +2,6 @@ import hashlib
 import os
 import tempfile
 import time
-from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
@@ -22,7 +21,7 @@ from dataquality.loggers.logger_config.image_classification import (
 )
 from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.split import Split
-from dataquality.utils.cv import _upload_image_df_to_project, upload_images_in_parallel
+from dataquality.utils.cv import upload_images_in_parallel
 
 # smaller than ITER_CHUNK_SIZE from base_data_logger because very large chunks
 # containing image data often won't fit in memory

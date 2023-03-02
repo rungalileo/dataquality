@@ -2,7 +2,6 @@ import base64
 import mimetypes
 import os
 import queue
-import time
 from io import BytesIO
 from threading import Thread
 from typing import Any, Optional
