@@ -87,10 +87,11 @@ class FastAiDQCallback(Callback):
     current_idx: List[int]
     logger_config: BaseLoggerConfig
     idx_store: Dict[FastAiKeys, List[Any]]
+    disable_dq: bool = False
 
     def __init__(
         self,
-        labels: Optional[List[str]],
+        labels: Optional[List[str]] = None,
         layer: Any = None,
         log_dataset: bool = True,
         task_type: str = "image_classification",
@@ -243,7 +244,6 @@ class FastAiDQCallback(Callback):
         self.wrap_indices()
         if self.disable_dq:
             return
-        self.disable_dq = True
         dataquality.set_split(dataquality.schemas.split.Split.validation)
         self.idx_store[FastAiKeys.idx_queue] = []
 
@@ -294,7 +294,7 @@ class FastAiDQCallback(Callback):
         # Log the model outputs
         embs = self.model_outputs_log[FastAiKeys.model_input][0].detach().cpu().numpy()
         logits = self.model_outputs_log[FastAiKeys.model_output].detach().cpu().numpy()
-        equal_len = len(embs) == len(logits) and len(ids) == len(embs)
+        equal_len = len(embs) == len(logits) == len(ids) == len(embs)
         if not equal_len:
             print(
                 f"length not equal. logits: {len(logits)},ids: {len(ids)},\

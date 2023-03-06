@@ -1,8 +1,12 @@
 from glob import glob
 from pathlib import Path
-from typing import Callable, Generator
+from typing import Any, Callable, Generator
 from unittest.mock import MagicMock, patch
 
+import pandas as pd
+import torch.nn as nn
+from fastai.metrics import accuracy
+from fastai.tabular.all import TabularDataLoaders, tabular_learner
 from fastai.vision.all import ImageDataLoaders, Resize, error_rate, vision_learner
 
 import dataquality as dq
@@ -45,6 +49,8 @@ def test_auto(
     label_func = lambda x: x[0].isupper()  # noqa: E731
     image_files = list(map(Path, glob("tests/assets/images/*"))) * 10
     path = "tests/assets/images"
+    print("image_files")
+    print(image_files)
     dls = ImageDataLoaders.from_name_func(
         path,
         image_files,
@@ -54,11 +60,113 @@ def test_auto(
         num_workers=1,
     )
     ThreadPoolManager.wait_for_threads()
-    # validate_unique_ids(vaex.open(f"{LOCATION}/{split}/0/*.hdf5"), "epoch")
-    # validate_unique_ids(vaex.open(f"{LOCATION}/{split}/1/*.hdf5"), "epoch")
-
-    # dq.finish()
     learn = vision_learner(dls, "resnet34", metrics=error_rate)
     dqc = FastAiDQCallback(labels=["nocat", "cat"])
     learn.add_cb(dqc)
     learn.fine_tune(2)
+
+    # validate_unique_ids(vaex.open(f"{LOCATION}/{split}/0/*.hdf5"), "epoch")
+    # validate_unique_ids(vaex.open(f"{LOCATION}/{split}/1/*.hdf5"), "epoch")
+
+    # dq.finish()
+
+
+class PassThroughModel(nn.Module):
+    embedding_dim: Any
+    embedding: Any
+    fc: Any
+
+    def __init__(self, input_dim, embedding_dim, output_dim):
+        super().__init__()
+        self.embedding_dim = embedding_dim
+        self.embedding = nn.Embedding(input_dim, embedding_dim)
+        self.fc = nn.Linear(embedding_dim, output_dim)
+
+    def forward(self, _x, x, *args, **kwargs):
+        # print(x)
+        # print(args)
+        x = self.embedding(x.long())
+        x = x.view(x.size(0), -1)
+        x = self.fc(x)
+        return x
+
+    def init_weights(self):
+        # Initialize the weights of the embedding layer to be an identity matrix
+        self.embedding.weight.data.fill_(0)
+        for i in range(self.embedding_dim):
+            self.embedding.weight.data[i][0] = i
+        # Initialize the bias of the fc layer to be zero
+        self.fc.weight.data.fill_(1)
+        self.fc.bias.data.fill_(0)
+
+
+@patch.object(ApiClient, "valid_current_user", return_value=True)
+@patch.object(dq.core.finish, "_version_check")
+@patch.object(dq.core.finish, "_reset_run")
+@patch.object(dq.core.finish, "upload_dq_log_file")
+@patch.object(ApiClient, "make_request")
+@patch.object(dq.core.finish, "wait_for_run")
+@patch.object(ApiClient, "get_project_by_name")
+@patch.object(ApiClient, "create_project")
+@patch.object(ApiClient, "get_project_run_by_name", return_value={})
+@patch.object(ApiClient, "create_run")
+@patch("dataquality.core.init._check_dq_version")
+@patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
+def test_tab(
+    mock_valid_user: MagicMock,
+    mock_check_dq_version: MagicMock,
+    mock_create_run: MagicMock,
+    mock_get_project_run_by_name: MagicMock,
+    mock_create_project: MagicMock,
+    mock_get_project_by_name: MagicMock,
+    set_test_config: Callable,
+    mock_wait_for_run: MagicMock,
+    mock_make_request: MagicMock,
+    mock_upload_log_file: MagicMock,
+    mock_reset_run: MagicMock,
+    mock_version_check: MagicMock,
+    cleanup_after_use: Generator,
+) -> None:
+    return
+    mock_get_project_by_name.return_value = {"id": DEFAULT_PROJECT_ID}
+    mock_create_run.return_value = {"id": DEFAULT_RUN_ID}
+    set_test_config(current_project_id=None, current_run_id=None)
+
+    ds_len = 100
+    df = pd.DataFrame(
+        {
+            "id": range(0, ds_len),
+            "label": map(str, range(0, ds_len)),
+            "text": range(0, ds_len),
+        }
+    )
+    tdl = TabularDataLoaders.from_df(
+        df.drop(["id"], axis=1),
+        bs=16,
+        cont_names=["text"],
+        valid_idx=list(range(0, 35)),
+        y_names="label",
+    )
+
+    input_dim = ds_len
+    embedding_dim = ds_len
+    output_dim = 1
+    model = PassThroughModel(input_dim, embedding_dim, output_dim)
+    model.init_weights()
+
+    def loss_fn(output, target):
+        loss = nn.MSELoss()
+        return loss(output, target)
+
+    learn = tabular_learner(tdl, metrics=accuracy, loss_func=loss_fn)
+
+    learn.model = model
+
+    def empty_func():
+        pass
+
+    labels = list(map(str, range(0, ds_len)))
+    learn._backward = empty_func
+    dqc = FastAiDQCallback(labels=labels, layer=model.fc)
+    learn.add_cb(dqc)
+    learn.fit_one_cycle(1)

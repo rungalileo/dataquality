@@ -21,10 +21,7 @@ from dataquality.loggers.logger_config.image_classification import (
 )
 from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.split import Split
-from dataquality.utils.cv import (
-    upload_images_in_parallel,
-    upload_images_in_parallel_from_vaex_df,
-)
+from dataquality.utils.cv import upload_images_in_parallel_from_vaex_df
 
 # smaller than ITER_CHUNK_SIZE from base_data_logger because very large chunks
 # containing image data often won't fit in memory
@@ -302,9 +299,6 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             text="text",
             id=id,
             label=label,
-            split=split,
-            meta=meta,
-        )
             split=split,
             meta=meta,
         )
