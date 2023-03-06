@@ -171,6 +171,8 @@ class SpacyInsights(BaseInsights):
         """
         from dataquality.integrations.spacy import log_input_examples
 
+        if not (hasattr(self, "watch") and self.watch):
+            raise GalileoException("watch function missing in the trainer")
         self.watch(self.model)
         if train_data is not None:
             log_input_examples(train_data, split=Split.train)

@@ -16,7 +16,7 @@
 .. code-block:: python
     import dataquality
     with dataquality(
-        model, 
+        model,
         "text_classification",
         labels = ["neg", "pos"],
         train_data = train_data
@@ -73,8 +73,8 @@ from dataquality.core.log import (
 )
 from dataquality.core.report import build_run_report, register_run_report
 from dataquality.dq_auto.auto import auto
-from dataquality.dq_start import DataQuality
 from dataquality.dq_auto.notebook import auto_notebook
+from dataquality.dq_start import DataQuality
 from dataquality.schemas.condition import (
     AggregateFunction,
     Condition,
@@ -128,7 +128,7 @@ __all__ = [
     "enable_galileo",
     "auto",
     "DataQuality",
-    "auto_notebook"
+    "auto_notebook",
 ]
 
 try:
