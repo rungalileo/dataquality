@@ -48,7 +48,7 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
         embedding_fn: Optional[Callable] = None,
         logits_fn: Optional[Callable] = None,
         helper_data: Dict[str, Any] = {},
-        model_outputs_fn: Optional[Callable] = None,
+        model_output_fn: Optional[Callable] = None,
     ) -> None:
         # Access the dq logger helper data
         self.helper_data = helper_data
@@ -62,7 +62,7 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
         self.embedding_fn = embedding_fn
         self.logits_fn = logits_fn
         self._init_dimension(embedding_dim, logits_dim)
-        self.model_outputs_fn = model_outputs_fn
+        self.model_output_fn = model_output_fn
 
     def _clear_logger_config_curr_model_outputs(self) -> None:
         self.model_outputs_store.clear()
@@ -261,7 +261,7 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
         :param model: Model
         :param model: pytorch model layer to attach hooks to
         """
-        if self.model_outputs_fn is not None:
+        if self.model_output_fn is not None:
             self.hook_manager.attach_hook(model, self._dq_model_output_hook)
         try:
             self.hook_manager.attach_classifier_hook(
@@ -294,7 +294,7 @@ def watch(
     classifier_layer: Optional[Layer] = None,
     embedding_fn: Optional[Callable] = None,
     logits_fn: Optional[Callable] = None,
-    model_outputs_fn: Optional[Callable] = None,
+    model_output_fn: Optional[Callable] = None,
 ) -> None:
     """used to *hook* into to the **trainer**
     to log to [Galileo](https://www.rungalileo.io/)
@@ -312,7 +312,7 @@ def watch(
         embedding_fn=embedding_fn,
         logits_fn=logits_fn,
         helper_data=helper_data,
-        model_outputs_fn=model_outputs_fn,
+        model_output_fn=model_output_fn,
     )
     # The columns needed for the forward process
     signature_cols = add_id_to_signature_columns(trainer)
