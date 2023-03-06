@@ -1,11 +1,13 @@
 # Imports for the hook manager
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional, Tuple, Union
 from warnings import warn
 
 from datasets import Dataset
+from torch import Tensor
 from torch.nn import Module
 from torch.utils.data import Dataset as TorchDataset
 from transformers import Trainer
+from transformers.modeling_outputs import BaseModelOutput
 from transformers.trainer_callback import TrainerCallback, TrainerControl, TrainerState
 from transformers.training_args import TrainingArguments
 
@@ -46,6 +48,7 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
         embedding_fn: Optional[Callable] = None,
         logits_fn: Optional[Callable] = None,
         helper_data: Dict[str, Any] = {},
+        model_outputs_fn: Optional[Callable] = None,
     ) -> None:
         # Access the dq logger helper data
         self.helper_data = helper_data
@@ -59,6 +62,7 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
         self.embedding_fn = embedding_fn
         self.logits_fn = logits_fn
         self._init_dimension(embedding_dim, logits_dim)
+        self.model_outputs_fn = model_outputs_fn
 
     def _clear_logger_config_curr_model_outputs(self) -> None:
         self.model_outputs_store.clear()
@@ -80,6 +84,22 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
         # 🔭🌕 Galileo logging
         dq.log_model_outputs(**self.model_outputs_store)
         self._clear_logger_config_curr_model_outputs()
+
+    def _dq_model_output_hook(
+        self,
+        model: Module,
+        model_input: Optional[
+            Tensor
+        ],  # the classifier hook does not pass a model input
+        model_output: Union[Tuple[Tensor], BaseModelOutput, Tensor],
+    ) -> None:
+        if self.model_output_fn is not None:
+            embs, logits = self.model_output_fn(model_output)
+            model_outputs_store = self.helper_data[HelperData.model_outputs_store]
+            model_outputs_store["embs"] = embs
+            model_outputs_store["logits"] = logits
+        else:
+            raise GalileoException("Model output function is missing")
 
     def on_init_end(
         self,
@@ -114,7 +134,9 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
         model: Module = kwargs["model"]
         # Attach hooks to the model
         self._attach_hooks_to_model(
-            model, self.classifier_layer, self.last_hidden_state_layer
+            model,
+            self.classifier_layer,
+            self.last_hidden_state_layer,
         )
         train_dataloader = kwargs["train_dataloader"]
         train_dataloader_ds = train_dataloader.dataset
@@ -229,13 +251,18 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
         self._do_log()
 
     def _attach_hooks_to_model(
-        self, model: Module, classifier_layer: Layer, last_hidden_state_layer: Layer
+        self,
+        model: Module,
+        classifier_layer: Layer,
+        last_hidden_state_layer: Layer,
     ) -> None:
         """
         Method to attach hooks to the model by using the hook manager
         :param model: Model
         :param model: pytorch model layer to attach hooks to
         """
+        if self.model_outputs_fn is not None:
+            self.hook_manager.attach_hook(model, self._dq_model_output_hook)
         try:
             self.hook_manager.attach_classifier_hook(
                 model, self._classifier_hook, classifier_layer
@@ -267,6 +294,7 @@ def watch(
     classifier_layer: Optional[Layer] = None,
     embedding_fn: Optional[Callable] = None,
     logits_fn: Optional[Callable] = None,
+    model_outputs_fn: Optional[Callable] = None,
 ) -> None:
     """used to *hook* into to the **trainer**
     to log to [Galileo](https://www.rungalileo.io/)
@@ -284,6 +312,7 @@ def watch(
         embedding_fn=embedding_fn,
         logits_fn=logits_fn,
         helper_data=helper_data,
+        model_outputs_fn=model_outputs_fn,
     )
     # The columns needed for the forward process
     signature_cols = add_id_to_signature_columns(trainer)
