@@ -4,6 +4,7 @@ from typing import Any, Callable, Generator
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
+import torch
 import torch.nn as nn
 from fastai.metrics import accuracy
 from fastai.tabular.all import TabularDataLoaders, tabular_learner
@@ -127,7 +128,6 @@ def test_tab(
     mock_version_check: MagicMock,
     cleanup_after_use: Generator,
 ) -> None:
-    return
     mock_get_project_by_name.return_value = {"id": DEFAULT_PROJECT_ID}
     mock_create_run.return_value = {"id": DEFAULT_RUN_ID}
     set_test_config(current_project_id=None, current_run_id=None)
@@ -140,6 +140,7 @@ def test_tab(
             "text": range(0, ds_len),
         }
     )
+    
     tdl = TabularDataLoaders.from_df(
         df.drop(["id"], axis=1),
         bs=16,
@@ -147,12 +148,19 @@ def test_tab(
         valid_idx=list(range(0, 35)),
         y_names="label",
     )
-
+    tdl.device = torch.device("cpu")
+    labels = list(map(str, range(0, ds_len)))
+    dq.set_labels_for_run(labels)
+    dq.log_dataset(df, split="training")
+    dq.log_dataset(df, split="test")
+    dq.log_dataset(df, split="validation")
     input_dim = ds_len
     embedding_dim = ds_len
     output_dim = 1
     model = PassThroughModel(input_dim, embedding_dim, output_dim)
     model.init_weights()
+    model.cpu()
+
 
     def loss_fn(output, target):
         loss = nn.MSELoss()
@@ -165,8 +173,12 @@ def test_tab(
     def empty_func():
         pass
 
-    labels = list(map(str, range(0, ds_len)))
     learn._backward = empty_func
-    dqc = FastAiDQCallback(labels=labels, layer=model.fc)
+    dqc = FastAiDQCallback(labels=labels,
+                           layer=model.fc,
+                           log_dataset=False,
+                           finish=False
+                           )
     learn.add_cb(dqc)
-    learn.fit_one_cycle(1)
+    learn.fit_one_cycle(2)
+    print("done")

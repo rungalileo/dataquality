@@ -93,9 +93,10 @@ class FastAiDQCallback(Callback):
         self,
         labels: Optional[List[str]] = None,
         layer: Any = None,
-        log_dataset: bool = True,
         task_type: str = "image_classification",
         options: Dict[str, Any] = {},
+        log_dataset: bool = True,
+        finish: bool = True,
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -113,6 +114,7 @@ class FastAiDQCallback(Callback):
         self.disable_dq = os.environ.get("DQ_NOOP", False)
         self.labels = labels
         self.log_dataset = log_dataset
+        self.finish = finish
         self.options = options
         self.layer = layer
         self.model_outputs_log = {}
@@ -261,7 +263,8 @@ class FastAiDQCallback(Callback):
             self.h.remove()
         except Exception:
             pass
-        dataquality.finish()
+        if self.finish:
+            dataquality.finish()
 
     def before_batch(self) -> None:
         """
@@ -302,6 +305,10 @@ class FastAiDQCallback(Callback):
             )
         if self.disable_dq or not equal_len:
             return
+        print(self.logger_config.cur_split)
+        print("logging", embs[:, 0])
+        print("logits", logits)
+        print("ids", ids)
         dataquality.log_model_outputs(embs=embs, logits=logits, ids=ids)
 
     def register_hooks(self) -> Optional[RemovableHandle]:
