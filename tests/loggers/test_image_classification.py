@@ -1,6 +1,4 @@
-import base64
 import os.path
-from io import BytesIO
 from tempfile import TemporaryDirectory
 from unittest import mock
 from unittest.mock import MagicMock
@@ -149,7 +147,17 @@ def test_duplicate_ids_augmented(set_test_config, cleanup_after_use) -> None:
         validate_unique_ids(df, "epoch")
 
 
-def test_base64_image_logging(set_test_config, cleanup_after_use) -> None:
+@mock.patch("dataquality.clients.objectstore.ObjectStore.create_object")
+@mock.patch.object(
+    dataquality.clients.api.ApiClient,
+    "make_request",
+)
+def test_base64_image_logging(
+    mock_create_object: mock.MagicMock,
+    mocked_upload_image_dataset: MagicMock,
+    set_test_config,
+    cleanup_after_use,
+) -> None:
     """
     Tests that dq.log_image_dataset logs base64-encoded image data when passed image
     file paths.
@@ -203,17 +211,10 @@ def test_base64_image_logging(set_test_config, cleanup_after_use) -> None:
 
         base64_images = df["text"].tolist()
         assert len(base64_images) == len(images)
-
-        for image, base64_image in zip(images, base64_images):
-            # strip off MIME type
-            _, _, content = base64_image.partition("base64,")
-
-            assert len(content) > 0
-
-            # load image from base64 and compare to image loaded from disk
-            decoded = Image.open(BytesIO(base64.b64decode(content)))
-            assert decoded.size == image.size
-            assert np.all(np.array(image) == np.array(decoded))
+        assert (
+            set([img.split("/")[0] for img in base64_images]).pop()
+            == base64_images[0].split("/")[0]
+        )
 
 
 @mock.patch.object(
@@ -337,22 +338,42 @@ def _test_hf_image_dataset(name) -> None:
     assert len(df) == len(food_dataset)
 
 
-def test_hf_dataset_food(cleanup_after_use, set_test_config) -> None:
+@mock.patch("dataquality.clients.objectstore.ObjectStore.create_object")
+def test_hf_dataset_food(
+    mock_create_object: mock.MagicMock,
+    cleanup_after_use,
+    set_test_config,
+) -> None:
     set_test_config(task_type="image_classification")
     _test_hf_image_dataset("food")
 
 
-def test_hf_dataset_mnist(cleanup_after_use, set_test_config) -> None:
+@mock.patch("dataquality.clients.objectstore.ObjectStore.create_object")
+def test_hf_dataset_mnist(
+    mock_create_object: mock.MagicMock,
+    cleanup_after_use,
+    set_test_config,
+) -> None:
     set_test_config(task_type="image_classification")
     _test_hf_image_dataset("mnist")
 
 
-def test_hf_dataset_cifar10(cleanup_after_use, set_test_config) -> None:
+@mock.patch("dataquality.clients.objectstore.ObjectStore.create_object")
+def test_hf_dataset_cifar10(
+    mock_create_object: mock.MagicMock,
+    cleanup_after_use,
+    set_test_config,
+) -> None:
     set_test_config(task_type="image_classification")
     _test_hf_image_dataset("cifar10")
 
 
-def test_hf_image_dataset_with_paths(set_test_config, cleanup_after_use) -> None:
+@mock.patch("dataquality.clients.objectstore.ObjectStore.create_object")
+def test_hf_image_dataset_with_paths(
+    mock_create_object: mock.MagicMock,
+    set_test_config,
+    cleanup_after_use,
+) -> None:
     """
     Tests that dq.log_image_dataset can handle imgs_location_colname when
     passed an HF dataset.

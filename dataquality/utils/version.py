@@ -1,5 +1,4 @@
 import requests
-from setuptools.version import pkg_resources  # type: ignore
 
 from dataquality import __version__ as dq_client_version
 from dataquality.core._config import config
@@ -18,8 +17,8 @@ def _version_check() -> None:
     Returns:
         None
     """
-    client_semver = _parse_version(_get_client_version())
-    server_semver = _parse_version(_get_api_version())
+    client_semver = _get_client_version()
+    server_semver = _get_api_version()
     try:
         assert _major_version(client_semver) == _major_version(server_semver)
     except AssertionError:
@@ -29,15 +28,8 @@ def _version_check() -> None:
         )
 
 
-def _major_version(v: pkg_resources.extern.packaging.version.Version) -> str:
-    if hasattr(v, "major"):
-        return str(v.major)
-    else:
-        return str(v.base_version).split(".")[0]
-
-
-def _parse_version(version: str) -> pkg_resources.extern.packaging.version.Version:
-    return pkg_resources.parse_version(version)
+def _major_version(v: str) -> str:
+    return str(v).split(".")[0]
 
 
 def _get_client_version() -> str:

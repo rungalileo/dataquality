@@ -30,7 +30,7 @@ If you want to train without a model, you can use the auto framework:
         dataquality.get_insights()
 """
 
-__version__ = "v0.8.14"
+__version__ = "v0.8.16"
 
 import sys
 from typing import Any, List, Optional
@@ -74,6 +74,7 @@ from dataquality.core.log import (
 from dataquality.core.report import build_run_report, register_run_report
 from dataquality.dq_auto.auto import auto
 from dataquality.dq_start import DataQuality
+from dataquality.dq_auto.notebook import auto_notebook
 from dataquality.schemas.condition import (
     AggregateFunction,
     Condition,
@@ -127,6 +128,7 @@ __all__ = [
     "enable_galileo",
     "auto",
     "DataQuality",
+    "auto_notebook"
 ]
 
 try:

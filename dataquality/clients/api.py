@@ -72,6 +72,7 @@ class ApiClient:
         params: Optional[Dict] = None,
         header: Optional[Dict] = None,
         timeout: Union[int, None] = None,
+        files: Optional[Dict] = None,
     ) -> Any:
         """Makes an HTTP request.
 
@@ -81,7 +82,13 @@ class ApiClient:
         self.__check_login()
         header = header or headers(config.token)
         res = RequestType.get_method(request.value)(
-            url, json=body, params=params, headers=header, data=data, timeout=timeout
+            url,
+            json=body,
+            params=params,
+            headers=header,
+            data=data,
+            timeout=timeout,
+            files=files,
         )
         self._validate_response(res)
         return res.json()
@@ -563,7 +570,11 @@ class ApiClient:
                 )
 
     def get_presigned_url(
-        self, project_id: str, method: str, bucket_name: str, object_name: str
+        self,
+        method: str,
+        bucket_name: str,
+        object_name: str,
+        project_id: str,
     ) -> str:
         response = self.make_request(
             request=RequestType.GET,
@@ -577,6 +588,18 @@ class ApiClient:
             },
         )
         return response["url"]
+
+    def upload_image_dataset(
+        self,
+        project_id: str,
+        file_path: str,
+    ) -> None:
+        self.make_request(
+            request=RequestType.POST,
+            url=f"{config.api_url}/{Route.projects}/{project_id}/{Route.upload_dataset}"
+            f"?task_type={TaskType.image_classification}",
+            files={"file": open(file_path, "rb")},
+        )
 
     def get_run_summary(
         self,

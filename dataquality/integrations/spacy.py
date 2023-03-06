@@ -10,6 +10,7 @@ from typing import (
     Optional,
     Tuple,
     Union,
+    cast,
 )
 
 import numpy as np
@@ -153,7 +154,6 @@ def watch(nlp: Language) -> None:
     at the results
 
     :param nlp: The spacy nlp Language component.
-    :return: None
     """
     a.log_function("spacy/watch")
     validate_spacy_version()
@@ -526,11 +526,30 @@ class GalileoParserStepModel(ThincModelWrapper):
     def _self_populate_model_logger(self, docs_valid_logits: DefaultDict) -> None:
         model_logger = self._self_model_logger
         helper_data = model_logger.log_helper_data
+
         model_logger.ids = list(model_logger.ids)  # for mypy's sake
+        # Set up the padded logits. We pad them to predict the O tag always, so
+        # they are never considered when we extract the spans from the tags
+        num_logits = len(next(iter(docs_valid_logits.values()))[0])
+        o_tag_idx = model_logger.logger_config.labels.index("O")
+        o_logits = np.array([1.0 if i == o_tag_idx else 0.0 for i in range(num_logits)])
+        max_doc_len = max(len(logits) for logits in docs_valid_logits.values())
         for doc_id, doc_valid_logits in docs_valid_logits.items():
-            model_logger.logits.append(np.array(doc_valid_logits))
             doc_embs = helper_data["embs"][doc_id]
-            model_logger.embs.append(np.array(doc_embs))
+            # Pad the input to the max logits/embs input
+            pad_size = max_doc_len - len(doc_valid_logits)
+            if pad_size:
+                # Pad just the end of the matrix with pad_size arrays
+                pad_config = ((0, pad_size), (0, 0))
+                doc_embs = np.pad(doc_embs, pad_config, constant_values=0)
+                # For logits, we use our special logits to ensure it's an O prediction
+                doc_valid_logits = np.resize(
+                    doc_valid_logits, (max_doc_len, num_logits)
+                )
+                doc_valid_logits[-pad_size:, :] = o_logits
+
+            cast(List, model_logger.logits).append(np.array(doc_valid_logits))
+            cast(List, model_logger.embs).append(np.array(doc_embs))
             model_logger.ids.append(doc_id)
 
     def _self_get_docs_copy(self) -> Dict[int, Doc]:
