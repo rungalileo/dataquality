@@ -18,9 +18,6 @@ from dataquality.schemas.split import conform_split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.auth import headers
 
-MAX_RETRIES = 5
-RETRY_WAIT = 60
-
 
 class ApiClient:
     def __check_login(self) -> None:
@@ -66,9 +63,6 @@ class ApiClient:
         except GalileoException:
             return False
 
-    def _is_server_error(self, res: Response) -> bool:
-        return str(res.status_code).startswith("5")
-
     def make_request(
         self,
         request: RequestType,
@@ -78,9 +72,6 @@ class ApiClient:
         params: Optional[Dict] = None,
         header: Optional[Dict] = None,
         timeout: Union[int, None] = None,
-        files: Optional[Dict] = None,
-        retry: bool = False,
-        num_retries: int = 0,
     ) -> Any:
         """Makes an HTTP request.
 
@@ -96,27 +87,8 @@ class ApiClient:
             headers=header,
             data=data,
             timeout=timeout,
-            files=files,
         )
-        if self._is_server_error(res) and retry and num_retries < MAX_RETRIES:
-            try:
-                self._validate_response(res)
-            except GalileoException:
-                sleep(RETRY_WAIT)
-                return self.make_request(
-                    request,
-                    url,
-                    body,
-                    data,
-                    params,
-                    header,
-                    timeout,
-                    files,
-                    retry=True,
-                    num_retries=num_retries + 1,
-                )
-        else:
-            self._validate_response(res)
+        self._validate_response(res)
         return res.json()
 
     def get_project(self, project_id: UUID4) -> Dict:
@@ -614,18 +586,6 @@ class ApiClient:
             },
         )
         return response["url"]
-
-    def upload_image_dataset(
-        self,
-        project_id: str,
-        file_path: str,
-    ) -> None:
-        self.make_request(
-            request=RequestType.POST,
-            url=f"{config.api_url}/{Route.projects}/{project_id}/{Route.upload_dataset}"
-            f"?task_type={TaskType.image_classification}",
-            files={"file": open(file_path, "rb")},
-        )
 
     def get_run_summary(
         self,
