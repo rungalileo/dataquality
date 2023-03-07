@@ -13,6 +13,7 @@ from torch.utils.hooks import RemovableHandle
 import dataquality
 from dataquality import config
 from dataquality.loggers.logger_config.base_logger_config import BaseLoggerConfig
+from dataquality.schemas.split import Split
 
 
 class FastAiKeys(Enum):
@@ -38,9 +39,14 @@ class _PatchDLGetIdxs:
         :param old_func: The original function to patch.
         :param store: The store to store the indices in.
         """
+        self.logger_config = dataquality.get_model_logger().logger_config
         self.old_func = old_func
         self.store = store
-        self.store[FastAiKeys.dataloader_indices] = []
+        self.store[FastAiKeys.dataloader_indices] = {
+            Split.training: [],
+            Split.validation: [],
+            Split.test: [],
+        }
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         """
@@ -50,7 +56,9 @@ class _PatchDLGetIdxs:
         """
         res = self.old_func(*args, **kwargs)
         if res:
-            self.store[FastAiKeys.dataloader_indices].append(res)
+            self.store[FastAiKeys.dataloader_indices][
+                self.logger_config.cur_split
+            ].append(res)
         return res
 
 
@@ -86,7 +94,7 @@ class FastAiDQCallback(Callback):
     model_outputs_log: Dict[FastAiKeys, Any]
     current_idx: List[int]
     logger_config: BaseLoggerConfig
-    idx_store: Dict[FastAiKeys, List[Any]]
+    idx_store: Dict[FastAiKeys, Any]
     disable_dq: bool = False
 
     def __init__(
@@ -154,6 +162,9 @@ class FastAiDQCallback(Callback):
             dataquality.set_epoch(self.epoch)
 
     def before_fit(self) -> None:
+        assert (
+            self.dls.drop_last is not None and not self.dls.drop_last
+        ), "DataLoader must be initialized with drop_last=False"
         if self.is_initialized or self.disable_dq:
             return
         self.wrap_indices()
@@ -232,11 +243,15 @@ class FastAiDQCallback(Callback):
         Wraps the get_idxs function of the dataloader to store the indices.
         """
         if not hasattr(self, "dl"):
+            print("Dataloader not found")
             return
         if not isinstance(self.dl.get_idxs, _PatchDLGetIdxs):
+            print("Wrapping dataloader")
             self.dl.get_idxs = _PatchDLGetIdxs(self.dl.get_idxs, self.idx_store)
 
     def after_validate(self) -> None:
+        if self.disable_dq:
+            return
         dataquality.set_split(dataquality.schemas.split.Split.train)
 
     def before_validate(self) -> None:
@@ -280,11 +295,15 @@ class FastAiDQCallback(Callback):
         bs_len = len(self.model_outputs_log[FastAiKeys.model_output])
         # Store the current batch ids by trimming the stored ids by
         # the batch size length
-        indices = self.idx_store[FastAiKeys.dataloader_indices][-1][:bs_len].copy()
-        idx_store = self.idx_store[FastAiKeys.dataloader_indices][-1][bs_len:]
-        self.idx_store[FastAiKeys.dataloader_indices][-1] = idx_store
+        cur_split = self.logger_config.cur_split
+        indices = self.idx_store[FastAiKeys.dataloader_indices][cur_split][-1][
+            :bs_len
+        ].copy()
+        idx_store = self.idx_store[FastAiKeys.dataloader_indices][cur_split][-1][
+            bs_len:
+        ]
+        self.idx_store[FastAiKeys.dataloader_indices][cur_split][-1] = idx_store
         try:
-            cur_split = self.logger_config.cur_split
             if cur_split is not None:
                 id_map = self.logger_config.idx_to_id_map[cur_split]
                 ids = np.array([id_map[i] for i in indices])
@@ -305,12 +324,7 @@ class FastAiDQCallback(Callback):
             )
         if self.disable_dq or not equal_len:
             return
-        print()
-        print(self.logger_config.cur_split, self.logger_config.cur_epoch)
-        print("logging", embs[:, 0])
-        print("logits", logits[:, 0])
-        print("ids", ids)
-        print()
+
         dataquality.log_model_outputs(embs=embs, logits=logits, ids=ids)
 
     def register_hooks(self) -> Optional[RemovableHandle]:
