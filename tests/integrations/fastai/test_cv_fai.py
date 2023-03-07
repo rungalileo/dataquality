@@ -145,7 +145,7 @@ def test_tab(
         df.drop(["id"], axis=1),
         bs=16,
         cont_names=["text"],
-        valid_idx=list(range(0, 35)),
+        valid_idx=list(range(len(df) - 35, len(df))),
         y_names="label",
     )
     tdl.device = torch.device("cpu")

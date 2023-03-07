@@ -305,10 +305,12 @@ class FastAiDQCallback(Callback):
             )
         if self.disable_dq or not equal_len:
             return
-        print(self.logger_config.cur_split)
+        print()
+        print(self.logger_config.cur_split, self.logger_config.cur_epoch)
         print("logging", embs[:, 0])
-        print("logits", logits)
+        print("logits", logits[:, 0])
         print("ids", ids)
+        print()
         dataquality.log_model_outputs(embs=embs, logits=logits, ids=ids)
 
     def register_hooks(self) -> Optional[RemovableHandle]:
