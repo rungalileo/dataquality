@@ -59,6 +59,7 @@ def test_auto(
         label_func=label_func,
         item_tfms=Resize(224),
         num_workers=1,
+        drop_last=False
     )
     ThreadPoolManager.wait_for_threads()
     learn = vision_learner(dls, "resnet34", metrics=error_rate)
@@ -140,13 +141,14 @@ def test_tab(
             "text": range(0, ds_len),
         }
     )
-    
+
     tdl = TabularDataLoaders.from_df(
         df.drop(["id"], axis=1),
         bs=16,
         cont_names=["text"],
         valid_idx=list(range(len(df) - 35, len(df))),
         y_names="label",
+        drop_last=False
     )
     tdl.device = torch.device("cpu")
     labels = list(map(str, range(0, ds_len)))
@@ -161,7 +163,6 @@ def test_tab(
     model.init_weights()
     model.cpu()
 
-
     def loss_fn(output, target):
         loss = nn.MSELoss()
         return loss(output, target)
@@ -174,11 +175,9 @@ def test_tab(
         pass
 
     learn._backward = empty_func
-    dqc = FastAiDQCallback(labels=labels,
-                           layer=model.fc,
-                           log_dataset=False,
-                           finish=False
-                           )
+    dqc = FastAiDQCallback(
+        labels=labels, layer=model.fc, log_dataset=False, finish=False
+    )
     learn.add_cb(dqc)
     learn.fit_one_cycle(2)
     print("done")

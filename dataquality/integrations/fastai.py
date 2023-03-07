@@ -119,7 +119,7 @@ class FastAiDQCallback(Callback):
         :param kwargs: The keyword arguments to pass to the super class.
         """
         super().__init__(*args, **kwargs)
-        self.disable_dq = os.environ.get("DQ_NOOP", False)
+        self.disable_dq = bool(os.environ.get("DQ_NOOP", False))
         self.labels = labels
         self.log_dataset = log_dataset
         self.finish = finish
