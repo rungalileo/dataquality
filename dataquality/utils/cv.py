@@ -7,9 +7,9 @@ from threading import Thread
 from typing import Any, List, Optional
 from uuid import uuid4
 
-import vaex
 from PIL import Image
 from pydantic import UUID4
+from vaex.dataframe import DataFrame
 
 from dataquality import config
 from dataquality.clients.api import ApiClient
@@ -144,7 +144,7 @@ def upload_images_from_hf_in_parallel(
 
 def upload_images_in_parallel_from_vaex_df(
     temp_file_name: str,
-    df: vaex.DataFrame,
+    df: DataFrame,
     step: int = 100,
     num_workers: int = 2,
     project_id: Optional[UUID4] = None,

@@ -1,7 +1,6 @@
 import hashlib
 import os
 import tempfile
-import time
 from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
@@ -21,7 +20,7 @@ from dataquality.loggers.logger_config.image_classification import (
 )
 from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.split import Split
-from dataquality.utils.cv import upload_images_in_parallel_from_vaex_df
+from dataquality.utils.cv import _upload_image_df_to_project
 
 # smaller than ITER_CHUNK_SIZE from base_data_logger because very large chunks
 # containing image data often won't fit in memory
@@ -86,11 +85,9 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
                 )
 
         # Create a list of dictionaries where each dictionary represents a file
-        print("building file list")
         file_list = dataset[process_col].tolist()
         if imgs_location_colname is not None:
             # image paths
-            print(f"setting file paths based on {imgs_location_colname} column")
             file_list = [
                 os.path.join(imgs_dir, f)
                 for f in dataset[imgs_location_colname].tolist()
@@ -115,33 +112,13 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         # Map the list of file paths to a list
         # of dictionaries with the file path and bytes
         # Write the dataset to an arrow file
-        print("Writing to arrow file...")
-        file_iter_batch_size = 100
-        for _file_iter in range(0, len(file_list), file_iter_batch_size):
-            with tempfile.NamedTemporaryFile(suffix=".arrow") as temp_file:
-                print("building df from records")
-                df = vaex.from_records(
-                    list(
-                        map(
-                            load_bytes_from_file,
-                            [
-                                f
-                                for f in file_list[
-                                    _file_iter : _file_iter + file_iter_batch_size
-                                ]
-                            ],
-                        )
-                    )
-                )
-                df[["file_path", "bytes", "hash"]].export(temp_file.name)
-                t = time.time()
-                upload_images_in_parallel_from_vaex_df(
-                    temp_file_name=temp_file.name,
-                    project_id=project_id,
-                    df=df,
-                )
-                print(f"uploaded in {time.time() - t} seconds")
-                dataset["text"] = df["id"].to_numpy()
+        with tempfile.NamedTemporaryFile(suffix=".arrow") as temp_file:
+            df = vaex.from_records(
+                list(map(load_bytes_from_file, [f for f in file_list]))
+            )
+            df[["file_path", "bytes", "hash"]].export(temp_file.name)
+            _upload_image_df_to_project(temp_file.name, project_id)
+            dataset["text"] = df["id"].to_numpy()
 
         return dataset
 
