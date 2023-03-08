@@ -17,6 +17,7 @@ from dataquality.clients.api import ApiClient
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.logger_config.base_logger_config import BaseLoggerConfig
 from dataquality.schemas.split import Split
+from dataquality.utils.helpers import galileo_disabled
 
 a = Analytics(ApiClient, config)
 a.log_import("fastai")
@@ -121,7 +122,7 @@ class FastAiDQCallback(Callback):
         """
         super().__init__(*args, **kwargs)
         a.log_function("fastai/callback")
-        self.disable_dq = bool(os.environ.get("DQ_NOOP", False))
+        self.disable_dq = galileo_disabled()
         self.finish = finish
         self.layer = layer
         self.model_outputs_log = {}
