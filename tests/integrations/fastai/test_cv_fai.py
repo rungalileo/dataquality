@@ -59,6 +59,7 @@ def test_auto(
         num_workers=1,
         drop_last=False,
     )
+    dq.init(task_type="image_classification")
     dq.set_labels_for_run(["nocat", "cat"])
     for data, split in zip(dls, ["training", "validation"]):
         df = convert_img_dl_to_df(data)
@@ -136,7 +137,7 @@ def test_tab(
     mock_get_project_by_name.return_value = {"id": DEFAULT_PROJECT_ID}
     mock_create_run.return_value = {"id": DEFAULT_RUN_ID}
     set_test_config(current_project_id=None, current_run_id=None)
-
+    dq.init(task_type="image_classification")
     ds_len = 100
     df = pd.DataFrame(
         {
