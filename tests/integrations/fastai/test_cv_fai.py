@@ -59,7 +59,7 @@ def test_auto(
         label_func=label_func,
         item_tfms=Resize(224),
         num_workers=1,
-        drop_last=False
+        drop_last=False,
     )
     ThreadPoolManager.wait_for_threads()
     learn = vision_learner(dls, "resnet34", metrics=error_rate)
@@ -148,7 +148,7 @@ def test_tab(
         cont_names=["text"],
         valid_idx=list(range(len(df) - 35, len(df))),
         y_names="label",
-        drop_last=False
+        drop_last=False,
     )
     tdl.device = torch.device("cpu")
     labels = list(map(str, range(0, ds_len)))
