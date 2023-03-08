@@ -12,7 +12,7 @@ from fastai.vision.all import ImageDataLoaders, Resize, error_rate, vision_learn
 
 import dataquality as dq
 from dataquality.clients.api import ApiClient
-from dataquality.integrations.fastai import FastAiDQCallback
+from dataquality.integrations.fastai import FastAiDQCallback, convert_img_dl_to_df
 from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID
 
@@ -50,8 +50,6 @@ def test_auto(
     label_func = lambda x: x[0].isupper()  # noqa: E731
     image_files = list(map(Path, glob("tests/assets/images/*"))) * 10
     path = "tests/assets/images"
-    print("image_files")
-    print(image_files)
     dls = ImageDataLoaders.from_name_func(
         path,
         image_files,
@@ -61,9 +59,15 @@ def test_auto(
         num_workers=1,
         drop_last=False,
     )
+    dq.set_labels_for_run(["nocat", "cat"])
+    for data, split in zip(dls, ["training", "validation"]):
+        df = convert_img_dl_to_df(data)
+        df["text"] = "s3://..."
+        dq.log_image_dataset(df, split=split, imgs_location_colname="text")
+
     ThreadPoolManager.wait_for_threads()
     learn = vision_learner(dls, "resnet34", metrics=error_rate)
-    dqc = FastAiDQCallback(labels=["nocat", "cat"])
+    dqc = FastAiDQCallback()
     learn.add_cb(dqc)
     learn.fine_tune(2)
 
@@ -156,6 +160,7 @@ def test_tab(
     dq.log_dataset(df, split="training")
     dq.log_dataset(df, split="test")
     dq.log_dataset(df, split="validation")
+
     input_dim = ds_len
     embedding_dim = ds_len
     output_dim = 1
@@ -175,9 +180,7 @@ def test_tab(
         pass
 
     learn._backward = empty_func
-    dqc = FastAiDQCallback(
-        labels=labels, layer=model.fc, log_dataset=False, finish=False
-    )
+    dqc = FastAiDQCallback(layer=model.fc, finish=False)
     learn.add_cb(dqc)
     learn.fit_one_cycle(2)
     print("done")

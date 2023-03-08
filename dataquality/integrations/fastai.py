@@ -12,8 +12,14 @@ from torch.utils.hooks import RemovableHandle
 
 import dataquality
 from dataquality import config
+from dataquality.analytics import Analytics
+from dataquality.clients.api import ApiClient
+from dataquality.exceptions import GalileoException
 from dataquality.loggers.logger_config.base_logger_config import BaseLoggerConfig
 from dataquality.schemas.split import Split
+
+a = Analytics(ApiClient, config)
+a.log_import("fastai")
 
 
 class FastAiKeys(Enum):
@@ -71,21 +77,22 @@ class FastAiDQCallback(Callback):
     Here is how to take the last layer of the model:
     `dqc = DataqualityCallback(labels=['negative','positive'], layer=model.fc)`
     End to end example:
-    ```python
-    from fastai.vision.all import *
-    from fastai.callback.galileo import DataqualityCallback
-    path = untar_data(URLs.PETS)/'images'
-    image_files = get_image_files(path)#[:107]
-    label_func = lambda x: x[0].isupper()
-    dls = ImageDataLoaders.from_name_func(
-        path, image_files, valid_pct=0.2,
-        label_func=label_func, item_tfms=Resize(224),
-        num_workers=1)
-    learn = vision_learner(dls, 'resnet34', metrics=error_rate)
-    dqc = DataqualityCallback(labels=["nocat","cat"])
-    learn.add_cb(dqc)
-    learn.fine_tune(2)
-    ```
+    .. code-block:: python
+
+        from fastai.vision.all import *
+        from fastai.callback.galileo import DataqualityCallback
+        path = untar_data(URLs.PETS)/'images'
+        image_files = get_image_files(path)#[:107]
+        label_func = lambda x: x[0].isupper()
+        dls = ImageDataLoaders.from_name_func(
+            path, image_files, valid_pct=0.2,
+            label_func=label_func, item_tfms=Resize(224),
+            num_workers=1, drop_last=False)
+        learn = vision_learner(dls, 'resnet34', metrics=error_rate)
+        dqc = DataqualityCallback(labels=["nocat","cat"])
+        learn.add_cb(dqc)
+        learn.fine_tune(2)
+
     """
 
     hook = None
@@ -99,11 +106,7 @@ class FastAiDQCallback(Callback):
 
     def __init__(
         self,
-        labels: Optional[List[str]] = None,
         layer: Any = None,
-        task_type: str = "image_classification",
-        options: Dict[str, Any] = {},
-        log_dataset: bool = True,
         finish: bool = True,
         *args: Any,
         **kwargs: Any,
@@ -113,36 +116,26 @@ class FastAiDQCallback(Callback):
         of the dataset. This helps to find mislabelled samples in a
         data centric approach.
         :param layer: Classifier layer with embeddings as input and logits as output.
-        :param log_dataset: Enable automatic extraction of the dataset to data quality.
+        :param finish: Upload after training is complete
         :param disable_dq: Disable data quality logging.
-        :param args: The arguments to pass to the super class.
-        :param kwargs: The keyword arguments to pass to the super class.
         """
         super().__init__(*args, **kwargs)
+        a.log_function("fastai/callback")
         self.disable_dq = bool(os.environ.get("DQ_NOOP", False))
-        self.labels = labels
-        self.log_dataset = log_dataset
         self.finish = finish
-        self.options = options
         self.layer = layer
         self.model_outputs_log = {}
         self.current_idx = []
         self.idx_store = {FastAiKeys.idx_queue: []}
         self.counter = 0
-        self.options["task_type"] = task_type
-
-        if self.labels is None and log_dataset:
-            raise ValueError(
-                """Labels must be provided. For example:
-           DataqualityCallback(labels=['negative','positive'])"""
+        if config.task_type not in ["text_classification", "image_classification"]:
+            raise GalileoException(
+                f"task_type {str(config.task_type)} is not supported yet.\
+                    Try dq.init(task_type='image_classification' or\
+                          'text_classification')"
             )
-        project_initialized = (
-            config.current_project_id and config.current_run_id and config.task_type
-        )
 
         if not self.disable_dq:
-            if not project_initialized:
-                dataquality.init(**options)
             self.logger_config = dataquality.get_model_logger().logger_config
 
     def get_layer(self) -> Module:
@@ -169,7 +162,7 @@ class FastAiDQCallback(Callback):
             return
         self.wrap_indices()
         self.register_hooks()
-        self.log_data()
+
         self.is_initialized = True
 
     def before_train(self) -> None:
@@ -183,60 +176,8 @@ class FastAiDQCallback(Callback):
         if self.is_initialized:
             return
         self.register_hooks()
-        self.log_data()
-        self.is_initialized = True
 
-    def log_data(self) -> None:
-        """
-        Log datasets to dataquality
-        """
-        if self.disable_dq or not self.log_dataset:
-            return
-        if self.labels is not None:
-            dataquality.set_labels_for_run(self.labels)
-        else:
-            raise ValueError(
-                """Labels must be provided. For example:
-              DataqualityCallback(labels=['negative','positive'])"""
-            )
-        num_datasets = self.dls.n_subsets
-        train_dl, valid_dl, test_dl = None, None, None
-        if num_datasets == 1:
-            train_dl = self.dls
-        elif num_datasets == 2:
-            train_dl, valid_dl = self.dls
-        elif num_datasets == 3:
-            train_dl, valid_dl, test_dl = self.dls
-        if self.options.get("task_type") == "image_classification":
-            print("Logging image dataset")
-            if train_dl is not None:
-                print("Logging training dataset")
-                dataquality.log_image_dataset(
-                    self.convert_img_dl_to_df(train_dl),
-                    imgs_colname="image",
-                    imgs_location_colname="path",
-                    split=dataquality.schemas.split.Split.training,
-                )
-            if valid_dl is not None:
-                print("Logging validation dataset")
-                dataquality.log_image_dataset(
-                    self.convert_img_dl_to_df(valid_dl),
-                    imgs_colname="image",
-                    imgs_location_colname="path",
-                    split=dataquality.schemas.split.Split.validation,
-                )
-        else:
-            print("Logging tabular dataset")
-            if train_dl is not None:
-                dataquality.log_dataset(
-                    self.convert_tab_dl_to_df(train_dl),
-                    split=dataquality.schemas.split.Split.training,
-                )
-            if valid_dl is not None:
-                dataquality.log_dataset(
-                    self.convert_tab_dl_to_df(valid_dl),
-                    split=dataquality.schemas.split.Split.validation,
-                )
+        self.is_initialized = True
 
     def wrap_indices(self) -> None:
         """
@@ -318,8 +259,9 @@ class FastAiDQCallback(Callback):
         logits = self.model_outputs_log[FastAiKeys.model_output].detach().cpu().numpy()
         equal_len = len(embs) == len(logits) == len(ids) == len(embs)
         if not equal_len:
-            print(
-                f"length not equal. logits: {len(logits)},ids: {len(ids)},\
+            raise GalileoException(
+                f"Logging failed: length not equal.\
+                    logits: {len(logits)},ids: {len(ids)},\
  embs: {len(embs)}"
             )
         if self.disable_dq or not equal_len:
@@ -356,41 +298,43 @@ class FastAiDQCallback(Callback):
         store[FastAiKeys.model_input] = model_input
         store[FastAiKeys.model_output] = model_output
 
-    def convert_img_dl_to_df(
-        self, dl: DataLoader, x_col: str = "image"
-    ) -> pd.DataFrame:
-        """
-        Converts a fastai DataLoader to a pandas DataFrame.
-        :param dl: Fast ai DataLoader to convert.
-        :param x_col: Name of the column to use for the x values, for example image.
-        :return: Pandas DataFrame with the data from the DataLoader.
-        """
-        additional_data = {}
-        if x_col == "image":
-            additional_data["path"] = dl.items
-        x, y = [], []
-        for x_item, y_item in dl.dataset:
-            x.append(x_item)
-            y.append(int(y_item))
-        ids = dl.vocab.o2i.keys()
-        if len(ids) == 2 and isinstance(next(iter(ids)), bool):
-            ids = dl.dataset.splits[dl.dataset.split_idx]
-        df = pd.DataFrame({"id": ids, x_col: x, "label": y, **additional_data})
-        del additional_data, x, y
-        return df
 
-    def convert_tab_dl_to_df(
-        self, dl: DataLoader, x_col: str = "text", y_col: str = "label"
-    ) -> pd.DataFrame:
-        """
-        Converts a fastai DataLoader to a pandas DataFrame.
-        :param dl: Fast ai DataLoader to convert.
-        :param x_col: Name of the column to use for the x values, for example text.
-        :param y_col: Name of the column to use for the y values, for example label.
-        :return: Pandas DataFrame with the data from the DataLoader.
-        """
-        df = dl.items.copy()
-        df = df.rename(columns={x_col: "text", y_col: "label"})
-        if "id" not in df.columns:
-            df["id"] = df.index
-        return df
+def convert_img_dl_to_df(dl: DataLoader, x_col: str = "image") -> pd.DataFrame:
+    """
+    Converts a fastai DataLoader to a pandas DataFrame.
+    :param dl: Fast ai DataLoader to convert.
+    :param x_col: Name of the column to use for the x values, for example image.
+    :return: Pandas DataFrame with the data from the DataLoader.
+    """
+    a.log_function("fastai/convert_img_dl_to_df")
+    additional_data = {}
+    if x_col == "image":
+        additional_data["text"] = dl.items
+    x, y = [], []
+    for x_item, y_item in dl.dataset:
+        x.append(x_item)
+        y.append(int(y_item))
+    ids = dl.vocab.o2i.keys()
+    if len(ids) == 2 and isinstance(next(iter(ids)), bool):
+        ids = dl.dataset.splits[dl.dataset.split_idx]
+    df = pd.DataFrame({"id": ids, x_col: x, "label": y, **additional_data})
+    del additional_data, x, y
+    return df
+
+
+def convert_tab_dl_to_df(
+    dl: DataLoader, x_col: str = "text", y_col: str = "label"
+) -> pd.DataFrame:
+    """
+    Converts a fastai DataLoader to a pandas DataFrame.
+    :param dl: Fast ai DataLoader to convert.
+    :param x_col: Name of the column to use for the x values, for example text.
+    :param y_col: Name of the column to use for the y values, for example label.
+    :return: Pandas DataFrame with the data from the DataLoader.
+    """
+    a.log_function("fastai/convert_tab_dl_to_df")
+    df = dl.items.copy()
+    df = df.rename(columns={x_col: "text", y_col: "label"})
+    if "id" not in df.columns:
+        df["id"] = df.index
+    return df
