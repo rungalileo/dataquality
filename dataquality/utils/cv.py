@@ -1,7 +1,7 @@
+import hashlib
 import os
 from io import BytesIO
 from typing import Any, Optional
-from uuid import uuid4
 
 from PIL import Image
 from pydantic import UUID4
@@ -17,10 +17,6 @@ B64_CONTENT_TYPE_DELIMITER = ";base64,"
 api_client = ApiClient()
 
 
-def _b64_image_data_prefix(mimetype: str) -> bytes:
-    return f"data:{mimetype}{B64_CONTENT_TYPE_DELIMITER}".encode("utf-8")
-
-
 def _bytes_to_img(b: bytes) -> Image:
     return Image.open(BytesIO(b))
 
@@ -28,11 +24,8 @@ def _bytes_to_img(b: bytes) -> Image:
 def _write_img_bytes_to_file(
     img: Optional[Any] = None,
     img_path: Optional[str] = None,
-    image_id: Optional[UUID4] = None,
+    image_id: Optional[str] = None,
 ) -> str:
-    if image_id is None:
-        image_id = uuid4()
-
     img_bytes = BytesIO()
     if img_path is not None:
         with open(img_path, "rb") as f:
@@ -47,6 +40,9 @@ def _write_img_bytes_to_file(
     else:
         raise ValueError("img or img_path must be provided")
 
+    if image_id is None:
+        image_id = hashlib.md5(img_bytes.getvalue()).hexdigest()
+
     with open(
         f"{image_id}.{str(_format).lower()}",
         "wb",
@@ -60,7 +56,7 @@ def _write_image_bytes_to_objectstore(
     project_id: Optional[UUID4] = None,
     img: Optional[Any] = None,
     img_path: Optional[str] = None,
-    image_id: Optional[UUID4] = None,
+    image_id: Optional[str] = None,
 ) -> str:
     if project_id is None:
         project_id = config.current_project_id

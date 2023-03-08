@@ -1,19 +1,45 @@
-"dataquality"
+"""dataquality is a library for tracking and analyzing your machine learning models.
+:param model: The model to inspect, if a string, it will be assumed to be auto
+:param task: Task type for example "text_classification"
+:param project: Project name
+:param run: Run name
+:param train_data: Training data
+:param test_data: Optional test data
+:param val_data: Optional: validation data
+:param labels: The labels for the run
+:param framework: The framework to use, if provided it will be used instead of
+    inferring it from the model. For example, if you have a spacy model, you
+    can pass framework="spacy". If you have a torch model, you can pass
+    framework="torch"
+:param args: Additional arguments
+:param kwargs: Additional keyword arguments
+.. code-block:: python
+    import dataquality
+    with dataquality(
+        model,
+        "text_classification",
+        labels = ["neg", "pos"],
+        train_data = train_data
+    ):
+        model.fit(train_data)
+If you want to train without a model, you can use the auto framework:
+.. code-block:: python
+    import dataquality
+    with dataquality(labels = ["neg", "pos"],
+                     train_data = train_data):
+        dataquality.get_insights()
+"""
 
 __version__ = "v0.8.16"
 
-import os
-import warnings
-from typing import Optional
+import sys
+from typing import Any, List, Optional
 
 import dataquality.core._config
 import dataquality.integrations
 
 # We try/catch this in case the user installed dq inside of jupyter. You need to
 # restart the kernel after the install and we want to make that clear. This is because
-# of vaex: https://github.com/vaexio/vaex/pull/2226
-from dataquality.exceptions import GalileoWarning
-
 try:
     import dataquality.metrics
     from dataquality.analytics import Analytics
@@ -23,6 +49,7 @@ except (FileNotFoundError, AttributeError):
         "It looks like you've installed dataquality from a notebook. "
         "Please restart the kernel before continuing"
     ) from None
+from dataquality.core import configure, set_console_url
 from dataquality.core._config import config
 from dataquality.core.auth import login, logout
 from dataquality.core.finish import finish, get_run_status, wait_for_run
@@ -47,6 +74,7 @@ from dataquality.core.log import (
 from dataquality.core.report import build_run_report, register_run_report
 from dataquality.dq_auto.auto import auto
 from dataquality.dq_auto.notebook import auto_notebook
+from dataquality.dq_start import DataQuality
 from dataquality.schemas.condition import (
     AggregateFunction,
     Condition,
@@ -55,57 +83,11 @@ from dataquality.schemas.condition import (
 )
 from dataquality.utils.dq_logger import get_dq_log_file
 from dataquality.utils.helpers import (
-    check_noop,
     disable_galileo,
     disable_galileo_verbose,
     enable_galileo,
     enable_galileo_verbose,
 )
-
-
-@check_noop
-def configure(do_login: bool = True, _internal: bool = False) -> None:
-    """For internal use only. Update your active config with new information
-
-    You can use environment variables to set the config, or wait for prompts
-    Available environment variables to update:
-    * GALILEO_CONSOLE_URL
-    * GALILEO_USERNAME
-    * GALILEO_PASSWORD
-    """
-    a.log_function("dq/configure")
-    if not _internal:
-        warnings.warn(
-            "configure is deprecated, use dq.set_console_url and dq.login",
-            GalileoWarning,
-        )
-
-    if "GALILEO_API_URL" in os.environ:
-        del os.environ["GALILEO_API_URL"]
-    updated_config = dataquality.core._config.reset_config(cloud=False)
-    for k, v in updated_config.dict().items():
-        config.__setattr__(k, v)
-    config.token = None
-    config.update_file_config()
-    if do_login:
-        login()
-
-
-@check_noop
-def set_console_url(console_url: Optional[str] = None) -> None:
-    """For Enterprise users. Set the console URL to your Galileo Environment.
-
-    You can also set GALILEO_CONSOLE_URL before importing dataquality to bypass this
-
-    :param console_url: If set, that will be used. Otherwise, if an environment variable
-    GALILEO_CONSOLE_URL is set, that will be used. Otherwise, you will be prompted for
-    a url.
-    """
-    a.log_function("dq/set_console_url")
-    if console_url:
-        os.environ["GALILEO_CONSOLE_URL"] = console_url
-    configure(do_login=False, _internal=True)
-
 
 __all__ = [
     "__version__",
@@ -145,6 +127,7 @@ __all__ = [
     "enable_galileo_verbose",
     "enable_galileo",
     "auto",
+    "DataQuality",
     "auto_notebook",
 ]
 
@@ -168,3 +151,45 @@ except (ImportError, ValueError):  # The users limit is higher than our max, whi
 #  a.log_method_call("dataquality.log_data_samples")
 a = Analytics(ApiClient, config)
 a.log_import("dataquality")
+
+
+class _DataQuality:
+    """This class is used to create a singleton instance of the DataQuality class.
+
+    This is done to allow the user to use the same syntax as the original dataquality
+    package. The original package had a singleton instance of the DataQuality class
+    that was created when the package was imported. This class is used to mimic that
+    behavior.
+    """
+
+    _instance: Optional[DataQuality] = None
+
+    def __init__(self) -> None:
+        self._instance = None
+
+    def __call__(self, *args: Any, **kwargs: Any) -> DataQuality:
+        """Return the singleton instance of the DataQuality class."""
+        if self._instance is None:
+            self._instance = DataQuality(*args, **kwargs)
+        return self._instance
+
+        # we want to add the __all__ to the module
+
+    def get_insights(self) -> None:
+        return
+
+    def __dir__(self) -> List[str]:
+        return __all__
+
+    def __getattr__(self, name: str) -> Any:
+        if name in __all__:
+            return globals()[name]
+        # We return the wanted import from the original dataquality package
+        else:
+            return getattr(dataquality, name)
+
+
+# Workaround by Guido van Rossum:
+# https://mail.python.org/pipermail/python-ideas/2012-May/014969.html
+# This allows us to use the same syntax as the original dataquality package
+sys.modules[__name__] = _DataQuality()  # type: ignore

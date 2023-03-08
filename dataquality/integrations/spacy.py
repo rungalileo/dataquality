@@ -27,7 +27,7 @@ from thinc.api import set_dropout_rate
 from wrapt import CallableObjectProxy
 
 import dataquality
-from dataquality import check_noop, config
+from dataquality import config
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
 from dataquality.exceptions import GalileoException
@@ -35,6 +35,7 @@ from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split, conform_split
+from dataquality.utils.helpers import check_noop
 from dataquality.utils.spacy_integration import (
     convert_spacy_ents_for_doc_to_predictions,
     convert_spacy_ner_logits_to_valid_logits,
