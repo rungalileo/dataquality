@@ -44,32 +44,6 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         self.split: str = split
         self.inference_name = inference_name
 
-        self._handle_numpy_floats()
-
-    def _handle_numpy_floats(self) -> None:
-        """Validate that the provided embeddings, logits, and probabilities are
-        all float32s. This is done because vaex does not support float16."""
-        if (
-            hasattr(self.embs, "dtype")
-            and self.embs.dtype != np.float32
-            and hasattr(self.embs, "astype")
-        ):
-            self.embs = self.embs.astype(np.float32)
-
-        if (
-            hasattr(self.probs, "dtype")
-            and self.probs.dtype != np.float32
-            and hasattr(self.probs, "astype")
-        ):
-            self.probs = self.probs.astype(np.float32)
-
-        if (
-            hasattr(self.logits, "dtype")
-            and self.logits.dtype != np.float32
-            and hasattr(self.logits, "astype")
-        ):
-            self.logits = self.logits.astype(np.float32)
-
     def _log(self) -> None:
         """Threaded logger target
 
