@@ -44,6 +44,18 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         self.split: str = split
         self.inference_name = inference_name
 
+        self._fix_floats()
+
+    def _validate_floats(self) -> np.ndarray:
+        """Validate that the provided embeddings, logits, and probabilities are
+        all float32s"""
+        if self.embs.dtype != np.float32:
+            self.embs = self.embs.astype(np.float32)
+        if self.probs.dtype != np.float32:
+            self.probs = self.probs.astype(np.float32)
+        if self.logits.dtype != np.float32:
+            self.logits = self.logits.astype(np.float32)
+
     def _log(self) -> None:
         """Threaded logger target
 
