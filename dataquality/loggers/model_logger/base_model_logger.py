@@ -44,9 +44,9 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         self.split: str = split
         self.inference_name = inference_name
 
-        self._fix_floats()
+        self._handle_floats()
 
-    def _validate_floats(self) -> np.ndarray:
+    def _handle_floats(self) -> np.ndarray:
         """Validate that the provided embeddings, logits, and probabilities are
         all float32s"""
         for arr in [self.embs, self.probs, self.logits]:
