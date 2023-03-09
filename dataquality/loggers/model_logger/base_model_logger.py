@@ -49,12 +49,10 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
     def _validate_floats(self) -> np.ndarray:
         """Validate that the provided embeddings, logits, and probabilities are
         all float32s"""
-        if self.embs.dtype != np.float32:
-            self.embs = self.embs.astype(np.float32)
-        if self.probs.dtype != np.float32:
-            self.probs = self.probs.astype(np.float32)
-        if self.logits.dtype != np.float32:
-            self.logits = self.logits.astype(np.float32)
+        for arr in [self.embs, self.probs, self.logits]:
+            if hasattr(arr, "dtype"):
+                if arr.dtype != np.float32:
+                    arr = arr.astype(np.float32)
 
     def _log(self) -> None:
         """Threaded logger target
