@@ -260,8 +260,8 @@ def test_logging_inference_run(
         f"{TEST_PATH}/inference/last-week-customers/emb/emb.hdf5"
     )
 
-    assert (inference_emb_1.emb.to_numpy() == embs_1).all()
-    assert (inference_emb_2.emb.to_numpy() == embs_2).all()
+    assert np.isclose(inference_emb_1.emb.to_numpy(), embs_1).all()
+    assert np.isclose(inference_emb_2.emb.to_numpy(), embs_2).all()
 
     inference_prob_1 = vaex.open(f"{TEST_PATH}/inference/all-customers/prob/prob.hdf5")
     inference_prob_2 = vaex.open(
@@ -273,13 +273,13 @@ def test_logging_inference_run(
     assert "prob" in inference_prob_1.get_column_names()
     assert "prob" in inference_prob_2.get_column_names()
 
-    assert (
-        inference_prob_1.prob.to_numpy()
-        == dataquality.get_model_logger().convert_logits_to_probs(logits_1)
+    assert np.isclose(
+        inference_prob_1.prob.to_numpy(),
+        dataquality.get_model_logger().convert_logits_to_probs(logits_1),
     ).all()
-    assert (
-        inference_prob_2.prob.to_numpy()
-        == dataquality.get_model_logger().convert_logits_to_probs(logits_2)
+    assert np.isclose(
+        inference_prob_2.prob.to_numpy(),
+        dataquality.get_model_logger().convert_logits_to_probs(logits_2),
     ).all()
 
 
@@ -338,9 +338,9 @@ def test_logging_train_test_inference(
     test_emb_data = vaex.open(f"{TEST_PATH}/test/0/emb/emb.hdf5")
     inference_emb_data = vaex.open(f"{TEST_PATH}/inference/all-customers/emb/emb.hdf5")
 
-    assert (train_emb_data.emb.to_numpy() == train_embs).all()
-    assert (test_emb_data.emb.to_numpy() == test_embs).all()
-    assert (inference_emb_data.emb.to_numpy() == inf_embs).all()
+    assert np.isclose(train_emb_data.emb.to_numpy(), train_embs).all()
+    assert np.isclose(test_emb_data.emb.to_numpy(), test_embs).all()
+    assert np.isclose(inference_emb_data.emb.to_numpy(), inf_embs).all()
 
     train_prob_data = vaex.open(f"{TEST_PATH}/training/0/prob/prob.hdf5")
     test_prob_data = vaex.open(f"{TEST_PATH}/test/0/prob/prob.hdf5")
@@ -360,17 +360,17 @@ def test_logging_train_test_inference(
     assert "logits" not in test_prob_data.get_column_names()
     assert "logits" not in inference_prob_data.get_column_names()
 
-    assert (
-        train_prob_data.prob.to_numpy()
-        == dataquality.get_model_logger().convert_logits_to_probs(train_logits)
+    assert np.isclose(
+        train_prob_data.prob.to_numpy(),
+        dataquality.get_model_logger().convert_logits_to_probs(train_logits),
     ).all()
-    assert (
-        test_prob_data.prob.to_numpy()
-        == dataquality.get_model_logger().convert_logits_to_probs(test_logits)
+    assert np.isclose(
+        test_prob_data.prob.to_numpy(),
+        dataquality.get_model_logger().convert_logits_to_probs(test_logits),
     ).all()
-    assert (
-        inference_prob_data.prob.to_numpy()
-        == dataquality.get_model_logger().convert_logits_to_probs(inf_logits)
+    assert np.isclose(
+        inference_prob_data.prob.to_numpy(),
+        dataquality.get_model_logger().convert_logits_to_probs(inf_logits),
     ).all()
 
 

@@ -438,9 +438,19 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             minio_file = (
                 f"{proj_run}/{split}/{epoch_or_inf}/{data_folder}/{data_folder}.{ext}"
             )
+            cls._handle_numpy_floats(df=df_obj)
             object_store.create_project_run_object_from_df(
                 df=df_obj, object_name=minio_file
             )
+
+    @classmethod
+    def _handle_numpy_floats(cls, df: DataFrame) -> None:
+        """Validate that the provided embeddings, logits, and probabilities are
+        all float32s. This is done because vaex does not support float16."""
+        if "emb" in df.get_column_names() and df.emb.dtype == "float16":
+            df.emb = df.emb.astype("float32")
+        if "prob" in df.get_column_names() and df.prob.dtype == "float16":
+            df.prob = df.prob.astype("float32")
 
     @classmethod
     def prob_only(
