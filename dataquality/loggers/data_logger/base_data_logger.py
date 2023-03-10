@@ -49,8 +49,16 @@ except NameError:
 
 
 class BaseGalileoDataLogger(BaseGalileoLogger):
+    """Base class for data loggers.
+
+    A document col is a large str > 1k chars < 10k chars
+    To avoid massive files, we limit the number of documents logged
+    """
+
     MAX_META_COLS = 25  # Limit the number of metadata attrs a user can log
-    MAX_STR_LEN = 1000  # Max characters in a string metadata attribute
+    MAX_STR_LEN = 1_000  # Max characters in a string metadata attribute
+    MAX_DOC_LEN = 10_000  # Max characters in document metadata attribute
+    LIMIT_NUM_DOCS = 3  # Limit the number of documents logged per split
     INPUT_DATA_BASE = "input_data"
     MAX_DATA_SIZE_CLOUD = 300_000
     # 2GB max size for arrow strings. We use 1.5GB for some buffer
@@ -495,8 +503,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         # completely, just warn them and remove that metadata column
         # Cast to list for in-place dictionary mutation
         reserved_keys = BaseLoggerAttributes.get_valid()
-        valid_meta = {}
-        for key, values in list(self.meta.items())[: self.MAX_META_COLS]:
+        valid_meta_cols = []
+        for key, values in list(self.meta.items()):
             # Key must not override a default
             if key in reserved_keys:
                 warnings.warn(
@@ -525,22 +533,53 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                 continue
             # Values must be a point, not an iterable
             valid_types = (str, int, float, np.floating, np.integer)
-            invalid_values = filter(
-                lambda t: not isinstance(t, valid_types)
-                or (isinstance(t, str) and len(t) > self.MAX_STR_LEN),
-                values,
-            )
+            invalid_values = filter(lambda t: not isinstance(t, valid_types), values)
             bad_val = next(invalid_values, None)
             if bad_val:
                 warnings.warn(
                     f"Metadata column {key} has one or more invalid values {bad_val} "
-                    f"of type {type(bad_val)}. Only strings of "
-                    f"len < {self.MAX_STR_LEN} and numbers can be logged.",
+                    f"of type {type(bad_val)}.",
                     GalileoWarning,
                 )
                 continue
-            valid_meta[key] = values
-        self.meta = valid_meta
+            valid_meta_cols.append(key)
+
+        def valid_str_col(df: DataFrame, key: str) -> bool:
+            """Valid str col checks length of longest str in metadata col"""
+            if df[key].dtype != "string":
+                return True
+
+            max_str_len = df[key].str.len().max()
+            if max_str_len > self.MAX_DOC_LEN:
+                warnings.warn(
+                    f"Metadata column {key} has one or more strings that are longer "
+                    f"than max document length of {self.MAX_DOC_LEN} characters. "
+                    "Will not log this metadata column.",
+                    GalileoWarning,
+                )
+                return False
+            if max_str_len > self.MAX_STR_LEN:
+                if len(self.logger_config.metadata_documents) >= self.LIMIT_NUM_DOCS:
+                    warnings.warn(
+                        "You have already logged limit of 3 document columns. A "
+                        "document column is a column that has max str length between"
+                        f"1,000 and 10,000 characters. Metadata column {key} has one "
+                        f"or more strings that are longer than {self.MAX_STR_LEN} "
+                        "characters. Will not log this metadata column.",
+                        GalileoWarning,
+                    )
+                    return False
+                else:
+                    self.logger_config.metadata_documents.add(key)
+
+            return True
+
+        df: DataFrame = vaex.from_dict(
+            {k: v for k, v in self.meta.items() if k in valid_meta_cols}
+        )
+        valid_meta_cols = [k for k in valid_meta_cols if valid_str_col(df, k)]
+        valid_meta_cols = valid_meta_cols[: self.MAX_META_COLS]  # Take first 25
+        self.meta = {k: v for k, v in self.meta.items() if k in valid_meta_cols}
 
     @staticmethod
     def get_data_logger_attr(cls: object) -> str:

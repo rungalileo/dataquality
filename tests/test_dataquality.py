@@ -35,6 +35,7 @@ from tests.test_utils.data_utils import (
 
 MAX_META_COLS = BaseGalileoDataLogger.MAX_META_COLS
 MAX_STR_LEN = BaseGalileoDataLogger.MAX_STR_LEN
+MAX_DOC_LEN = BaseGalileoDataLogger.MAX_DOC_LEN
 
 
 def test_threaded_logging_and_upload(
@@ -160,8 +161,14 @@ def test_metadata_logging_invalid(
     meta = {
         "test1": [random() for _ in range(NUM_RECORDS * NUM_LOGS)],
         "meta2": [random() for _ in range(NUM_RECORDS * NUM_LOGS)],
-        "bad_attr": [
+        "doc1": ["te" * MAX_STR_LEN for _ in range(NUM_RECORDS * NUM_LOGS)],
+        "doc2": ["te" * MAX_STR_LEN for _ in range(NUM_RECORDS * NUM_LOGS)],
+        "doc3": ["te" * MAX_STR_LEN for _ in range(NUM_RECORDS * NUM_LOGS)],
+        "too_many_doc": [
             "te" * MAX_STR_LEN for _ in range(NUM_RECORDS * NUM_LOGS)
+        ],  # 4th doc, ignored
+        "doc_too_long": [
+            "te" * MAX_DOC_LEN for _ in range(NUM_RECORDS * NUM_LOGS)
         ],  # String too long
         "another_bad_attr": ["test", "test", "test"],  # Wrong number of values
         # Right length, but can't contain a list
@@ -173,19 +180,15 @@ def test_metadata_logging_invalid(
     for i in range(MAX_META_COLS):
         meta[f"attr_{i}"] = [random() for _ in range(NUM_RECORDS * NUM_LOGS)]
 
-    _log_text_classification_data(meta=meta)
-    valid_meta_cols = ["test1", "meta2"]
-    valid_meta_cols += [f"attr_{i}" for i in range(MAX_META_COLS - len(meta))]
-    try:
-        # Equivalent to the users `finish` call, but we don't want to clean up files yet
-        c = dataquality.get_data_logger("text_classification")
-        c.upload()
-        validate_uploaded_data(meta_cols=valid_meta_cols)
-        c._cleanup()
-        validate_cleanup_data()
-    finally:
-        # Mock finish() call without calling the API
-        ThreadPoolManager.wait_for_threads()
+    c = dataquality.get_data_logger("text_classification")
+    c.meta = meta
+    c.validate_metadata(NUM_RECORDS * NUM_LOGS)
+
+    removed_cols = ["too_many_doc", "doc_too_long", "another_bad_attr", "bad_attr_3"]
+    for col in removed_cols:
+        assert col not in c.meta
+
+    assert len(c.meta) == MAX_META_COLS
 
 
 def test_logging_duplicate_ids(
