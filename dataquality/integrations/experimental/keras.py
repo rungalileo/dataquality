@@ -285,7 +285,7 @@ def select_model_layer(
     """Selects the classifier layer from the model.
     :param model: The model.
     :param layer: The layer to select. If None, the layer with the name
-    'classifier' is selected."""+
+    'classifier' is selected."""
     chosen_layer = None
     if isinstance(layer, tf.keras.layers.Layer):
         chosen_layer = layer
