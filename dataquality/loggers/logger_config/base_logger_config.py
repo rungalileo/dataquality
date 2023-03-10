@@ -32,7 +32,7 @@ class BaseLoggerConfig(BaseModel):
     ner_labels: List[str] = []
     int_labels: bool = False
     feature_names: List[str] = []
-    metadata_documents: Set = set()
+    metadata_documents: Set = set()  # A document is a large str > 1k chars < 10k chars
 
     class Config:
         validate_assignment = True
