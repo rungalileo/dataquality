@@ -220,7 +220,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                 split_dfs.append(
                     get_output_df(
                         f"{_loc}/{epoch}",
-                        prob_only=True,
+                        prob_only=False,
                         split=split_,
                         epoch_or_inf=epoch,
                     )
