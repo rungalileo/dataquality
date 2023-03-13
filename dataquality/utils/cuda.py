@@ -3,7 +3,7 @@ from typing import Optional
 import numpy as np
 
 
-def cuda_available() -> bool:
+def cuml_available() -> bool:
     try:
         import cuml  # noqa F401
 
@@ -23,7 +23,7 @@ def get_pca_embeddings(embs: np.ndarray) -> np.ndarray:
     return pca.fit_transform(embs)
 
 
-def get_umap_embeddings(embs: np.ndarray) -> Optional[np.ndarray]:
+def get_umap_embeddings(embs: np.ndarray) -> np.ndarray:
     """Uses Cuda and GPUs to create the UMAP embeddings before uploading
 
     Should only be called if cuda ML available (`cuda_available()`)

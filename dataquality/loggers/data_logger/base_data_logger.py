@@ -1,7 +1,6 @@
 import gc
 import glob
 import os
-import shutil
 import sys
 import warnings
 from abc import abstractmethod
@@ -22,15 +21,17 @@ from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
 from dataquality.utils import tqdm
 from dataquality.utils.cloud import is_galileo_cloud
-from dataquality.utils.dq_logger import _shutil_rmtree_retry
+from dataquality.utils.cuda import cuml_available
+from dataquality.utils.file import _shutil_rmtree_retry, get_largest_epoch_for_split
 from dataquality.utils.hdf5_store import HDF5_STORE
 from dataquality.utils.helpers import galileo_verbose_logging
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import (
     _join_in_out_frames,
-    concat_hdf5_files,
+    add_umap_pca_to_df,
     create_data_embs,
     filter_df,
+    get_output_df,
     validate_unique_ids,
 )
 
@@ -206,6 +207,34 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         proj_run = f"{config.current_project_id}/{config.current_run_id}"
         location = f"{self.LOG_FILE_DIR}/{proj_run}"
 
+        if cuml_available():
+            # Get the correct epoch to process for each split
+            split_epoch = {}
+            split_dfs = []
+            for split in [Split.train, Split.test, Split.validation]:
+                _loc = f"{location}/{split}"
+                if not os.path.exists(_loc):
+                    continue
+                split_epoch[split.value] = get_largest_epoch_for_split(_loc, last_epoch)
+            for split_, epoch in split_epoch.items():
+                split_dfs.append(
+                    get_output_df(
+                        f"{_loc}/{epoch}",
+                        prob_only=True,
+                        split=split_,
+                        epoch_or_inf=epoch,
+                    )
+                )
+            concat_df = vaex.concat(split_dfs)
+            df_emb = add_umap_pca_to_df(concat_df)
+            for split_, epoch in split_epoch.items():
+                split_loc = f"{location}/{split_}/{epoch}/{HDF5_STORE}"
+                tmp_loc = f"{location}/{split_}/{epoch}/tmp_{HDF5_STORE}"
+                df = df_emb[df_emb["split"] == split_]
+                df.export(tmp_loc)
+                os.remove(split_loc)
+                os.rename(tmp_loc, split_loc)
+
         for split in Split.get_valid_attributes():
             split_loc = f"{location}/{split}"
             input_logged = os.path.exists(f"{self.input_data_path}/{split}")
@@ -235,10 +264,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             # Sometimes the directory is not deleted immediately
             # This can happen if the client is using an nfs
             # again after a short delay
-            try:
-                shutil.rmtree(in_frame_path)
-            except OSError:
-                _shutil_rmtree_retry(in_frame_path)
+            _shutil_rmtree_retry(in_frame_path)
             gc.collect()
 
     @classmethod
@@ -301,7 +327,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             file=sys.stdout,
         ):
             input_batch = in_frame.copy()
-            prob_only = cls.prob_only(epochs_or_infs, split, epoch_or_inf)
+            prob_only = cls.prob_only(epochs_or_infs, split, epoch_or_inf, last_epoch)
             if split == Split.inference:
                 input_batch = filter_df(input_batch, "inference_name", epoch_or_inf)
                 if not len(input_batch):
@@ -348,28 +374,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         :param split: The split we are logging for
         :param epoch_or_inf: The epoch or inference name we are logging for
         """
-        str_cols = concat_hdf5_files(dir_name, prob_only)
-        out_frame = vaex.open(f"{dir_name}/{HDF5_STORE}")
-
-        if split == Split.inference:
-            dtype: Union[str, None] = "str"
-            epoch_or_inf_name = "inference_name"
-        else:
-            dtype = None
-            epoch_or_inf_name = "epoch"
-
-        # Post concat, string columns come back as bytes and need conversion
-        for col in str_cols:
-            out_frame[col] = out_frame[col].as_arrow().astype("str")
-            out_frame[col] = out_frame[f'astype({col}, "large_string")']
-        if prob_only:
-            out_frame["split"] = vaex.vconstant(
-                split, length=len(out_frame), dtype="str"
-            )
-            out_frame[epoch_or_inf_name] = vaex.vconstant(
-                epoch_or_inf, length=len(out_frame), dtype=dtype
-            )
-
+        out_frame = get_output_df(dir_name, prob_only, split, epoch_or_inf)
+        epoch_or_inf_name = "inference_name" if split == Split.inference else "epoch"
         return cls.process_in_out_frames(
             in_frame, out_frame, prob_only, epoch_or_inf_name, split
         )
@@ -444,7 +450,11 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
     @classmethod
     def prob_only(
-        cls, epochs: List[str], split: str, epoch_or_inf_name: Union[int, str]
+        cls,
+        epochs: List[str],
+        split: str,
+        epoch_or_inf_name: Union[int, str],
+        last_epoch: Optional[int],
     ) -> bool:
         """Determines if we are only uploading probabilities
 
@@ -456,7 +466,9 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
         # If split is not inference, epoch_or_inf must be epoch
         epoch = int(epoch_or_inf_name)
-        max_epoch_for_split = max([int(i) for i in epochs])
+        max_epoch_for_split = last_epoch
+        if max_epoch_for_split is None:
+            max_epoch_for_split = max([int(i) for i in epochs])
         return bool(epoch < max_epoch_for_split - 1)
 
     def validate(self) -> None:

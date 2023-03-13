@@ -1,7 +1,13 @@
-from typing import Optional, Tuple, Type
+import os
+import sys
+from typing import List, Optional, Tuple, Type
 
 import h5py
 import numpy as np
+import vaex
+from vaex.arrow.convert import arrow_string_array_from_buffers as convert_bytes
+
+from dataquality.utils import tqdm
 
 HDF5_STORE = "hdf5_store.hdf5"
 
@@ -58,3 +64,78 @@ class HDF5Store(object):
             dset[self.i :] = values
             self.i += values.shape[0]
             h5f.flush()
+
+
+def _valid_prob_col(col: str) -> bool:
+    return (
+        col.endswith("id")
+        or "gold" in col
+        or "pred" in col
+        or "prob" in col  # encapsulates prob, conf_prob, and loss_prob
+        or col.startswith("span")
+        or col.startswith("galileo")
+    )
+
+
+def concat_hdf5_files(location: str, prob_only: bool) -> List[str]:
+    """Concatenates all hdf5 in a directory using an HDF5 store
+
+    Vaex stores a dataframe as an hdf5 file in a predictable format using groups
+
+    Each column gets its own group, following "/table/columns/{col}/data
+
+    We can exploit that by concatenating our datasets with that structure, so vaex
+    can open the final file as a single dataframe
+
+    :param location: The directory containing the files
+    :param prob_only: If True, only the id, prob, and gold columns will be concatted
+    """
+    str_cols = []
+    stores = {}
+    files = os.listdir(location)
+    df = vaex.open(f"{location}/{files[0]}")
+
+    # Construct a store per column
+    if prob_only:
+        cols = [c for c in df.get_column_names() if _valid_prob_col(c)]
+    else:
+        cols = df.get_column_names()
+    for col in cols:
+        group = f"/table/columns/{col}/data"
+        cval = df[col].to_numpy()
+        if cval.ndim == 2:
+            shape = cval[0].shape
+        else:
+            shape = ()
+        dtype = df[col].dtype.numpy
+        if not np.issubdtype(dtype, np.number) and not np.issubdtype(dtype, np.bool_):
+            dtype = h5py.string_dtype(encoding="utf-8")
+            str_cols.append(col)
+        stores[col] = HDF5Store(f"{location}/{HDF5_STORE}", group, shape, dtype=dtype)
+
+    for file in tqdm(
+        files,
+        leave=False,
+        desc="Processing data for upload",
+        file=sys.stdout,
+    ):
+        fname = f"{location}/{file}"
+        with h5py.File(fname, "r") as f:
+            dset = f["table"]["columns"]
+            keys = dset.keys()
+            keys = [key for key in keys if key in cols]
+            for key in keys:
+                col_data = dset[key]
+                # We have a string column, need to parse it
+                if "indices" in col_data.keys():
+                    assert key in str_cols, f"Unexpected string column ({key}) found"
+                    indcs = col_data["indices"][:]
+                    data = col_data["data"][:]
+                    d = convert_bytes(data, indcs, None).to_numpy(zero_copy_only=False)
+                else:
+                    d = col_data["data"][:]
+                if key in str_cols:
+                    d = d.astype(h5py.string_dtype(encoding="utf-8"))
+                stores[key].append(d)
+        os.remove(fname)
+    return str_cols
