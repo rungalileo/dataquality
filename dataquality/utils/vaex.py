@@ -1,7 +1,6 @@
 import os
 from typing import Dict, List, Union
 
-import h5py
 import numpy as np
 import pyarrow as pa
 import vaex
@@ -17,44 +16,11 @@ from dataquality.utils.cuda import (
 )
 from dataquality.utils.hdf5_store import HDF5_STORE, concat_hdf5_files
 from dataquality.utils.helpers import galileo_verbose_logging
-from dataquality.utils.thread_pool import lock
 
 # To decide between "all-MiniLM-L6-v2" or "all-mpnet-base-v2"
 # https://www.sbert.net/docs/pretrained_models.html#model-overview
 GALILEO_DATA_EMBS_ENCODER = "GALILEO_DATA_EMBS_ENCODER"
 DEFAULT_DATA_EMBS_MODEL = "all-MiniLM-L6-v2"
-
-
-def _save_hdf5_file(location: str, file_name: str, data: Dict) -> None:
-    """
-    Helper function to save a dictionary as an hdf5 file that can be read by vaex
-    """
-    if not os.path.isdir(location):
-        with lock:
-            os.makedirs(location, exist_ok=True)
-    file_path = f"{location}/{file_name}"
-    with h5py.File(file_path, "w") as f:
-        for col in data:
-            group = f.create_group(f"/table/columns/{col}")
-            col_data = np.array(data[col])
-            if None in col_data:
-                # h5py expects np.nan instead of None
-                col_data = col_data.astype(np.float_)
-
-            # String columns
-            ctype = col_data.dtype
-            if not np.issubdtype(ctype, np.number) and not np.issubdtype(
-                ctype, np.bool_
-            ):
-                dtype = h5py.string_dtype()
-                col_data = col_data.astype(dtype)
-            else:
-                dtype = col_data.dtype
-
-            shape = col_data.shape
-            group.create_dataset(
-                "data", data=col_data, dtype=dtype, shape=shape, chunks=shape
-            )
 
 
 def _join_in_out_frames(in_df: DataFrame, out_df: DataFrame) -> DataFrame:

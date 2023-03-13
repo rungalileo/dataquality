@@ -1,6 +1,6 @@
 import os
 import sys
-from typing import List, Optional, Tuple, Type
+from typing import List, Optional, Tuple, Type, Dict
 
 import h5py
 import numpy as np
@@ -8,6 +8,7 @@ import vaex
 from vaex.arrow.convert import arrow_string_array_from_buffers as convert_bytes
 
 from dataquality.utils import tqdm
+from dataquality.utils.thread_pool import lock
 
 HDF5_STORE = "hdf5_store.hdf5"
 
@@ -64,6 +65,38 @@ class HDF5Store(object):
             dset[self.i :] = values
             self.i += values.shape[0]
             h5f.flush()
+
+
+def _save_hdf5_file(location: str, file_name: str, data: Dict) -> None:
+    """
+    Helper function to save a dictionary as an hdf5 file that can be read by vaex
+    """
+    if not os.path.isdir(location):
+        with lock:
+            os.makedirs(location, exist_ok=True)
+    file_path = f"{location}/{file_name}"
+    with h5py.File(file_path, "w") as f:
+        for col in data:
+            group = f.create_group(f"/table/columns/{col}")
+            col_data = np.array(data[col])
+            if None in col_data:
+                # h5py expects np.nan instead of None
+                col_data = col_data.astype(np.float_)
+
+            # String columns
+            ctype = col_data.dtype
+            if not np.issubdtype(ctype, np.number) and not np.issubdtype(
+                ctype, np.bool_
+            ):
+                dtype = h5py.string_dtype()
+                col_data = col_data.astype(dtype)
+            else:
+                dtype = col_data.dtype
+
+            shape = col_data.shape
+            group.create_dataset(
+                "data", data=col_data, dtype=dtype, shape=shape, chunks=shape
+            )
 
 
 def _valid_prob_col(col: str) -> bool:

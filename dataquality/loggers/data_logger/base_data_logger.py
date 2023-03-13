@@ -227,7 +227,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                     split_loc, last_epoch
                 )
             for split_name, epoch in split_epoch.items():
-                split_loc = f"{location}/{split}"
+                split_loc = f"{location}/{split_name}"
                 split_dfs.append(
                     get_output_df(
                         f"{split_loc}/{epoch}",
