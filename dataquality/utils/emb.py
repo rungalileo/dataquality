@@ -6,7 +6,7 @@ from vaex.dataframe import DataFrame
 
 from dataquality.utils.file import get_largest_epoch_for_splits
 from dataquality.utils.hdf5_store import HDF5_STORE
-from dataquality.utils.vaex import add_umap_pca_to_df, get_output_df
+from dataquality.utils.vaex import add_umap_pca_to_df, create_data_embs, get_output_df
 
 
 def get_concat_emb_df(run_dir: str, split_epoch: Dict[str, int]) -> DataFrame:
@@ -60,3 +60,10 @@ def apply_umap_to_embs(run_dir: str, last_epoch: Optional[int]) -> None:
     concat_df = get_concat_emb_df(run_dir, split_epoch)
     df_emb = add_umap_pca_to_df(concat_df)
     save_processed_emb_dfs(df_emb, split_epoch, run_dir)
+
+
+def add_umap_to_data_embs(df: DataFrame) -> DataFrame:
+    """Creates data embeddings on raw text, and then applies PCA and UMAP"""
+    df_emb = create_data_embs(df, for_upload=False)
+    df_emb = add_umap_pca_to_df(df_emb)
+    return df_emb

@@ -786,6 +786,11 @@ class TextNERDataLogger(BaseGalileoDataLogger):
     def set_tagging_schema(cls, tagging_schema: TaggingSchema) -> None:
         cls.logger_config.tagging_schema = tagging_schema
 
+    @property
+    def support_data_embs(self) -> bool:
+        """Not yet supported for NER. Coming soon!"""
+        return False
+
     @classmethod
     def create_and_upload_data_embs(
         cls, df: DataFrame, split: str, epoch_or_inf: str

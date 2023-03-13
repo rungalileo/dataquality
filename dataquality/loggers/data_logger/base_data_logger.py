@@ -22,8 +22,7 @@ from dataquality.schemas.split import Split
 from dataquality.utils import tqdm
 from dataquality.utils.cloud import is_galileo_cloud
 from dataquality.utils.cuda import cuml_available
-from dataquality.utils.emb import apply_umap_to_embs
-from dataquality.utils.file import _shutil_rmtree_retry
+from dataquality.utils.emb import add_umap_to_data_embs, apply_umap_to_embs
 from dataquality.utils.helpers import galileo_verbose_logging
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import (
@@ -196,6 +195,10 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         df.close()
         self.logger_config.input_data_logged[str(self.split)] += 1
 
+    @property
+    def support_data_embs(self) -> bool:
+        return True
+
     def upload(
         self, last_epoch: Optional[int] = None, create_data_embs: bool = False
     ) -> None:
@@ -217,6 +220,10 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         if cuml_available():
             apply_umap_to_embs(location, last_epoch)
 
+        in_frame = vaex.open(f"{self.input_data_path}/**/data*.arrow")
+        if cuml_available() and create_data_embs and self.support_data_embs:
+            in_frame = add_umap_to_data_embs(in_frame)
+
         for split in Split.get_valid_attributes():
             split_loc = f"{location}/{split}"
             input_logged = os.path.exists(f"{self.input_data_path}/{split}")
@@ -231,8 +238,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                     GalileoWarning,
                 )
                 continue
-            in_frame_path = f"{self.input_data_path}/{split}"
-            in_frame_split = vaex.open(f"{in_frame_path}/*.arrow")
+            in_frame_split = in_frame[in_frame["split"] == split].extract()
             in_frame_split = self.convert_large_string(in_frame_split)
             self.upload_split(
                 object_store,
@@ -242,11 +248,6 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                 last_epoch,
                 create_data_embs,
             )
-            in_frame_split.close()
-            # Sometimes the directory is not deleted immediately
-            # This can happen if the client is using an nfs
-            # again after a short delay
-            _shutil_rmtree_retry(in_frame_path)
             gc.collect()
 
     @classmethod
@@ -256,8 +257,11 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         """Uploads off the shelf data embeddings for a split"""
         object_store = ObjectStore()
         df_copy = df.copy()
-        # Create
-        data_embs = create_data_embs(df_copy)
+        # Create - they may have already been created during `upload` (if cuml is avl)
+        if "emb" not in df_copy.get_column_names():
+            data_embs = create_data_embs(df_copy)
+        else:
+            data_embs = df_copy
         proj_run_split = f"{config.current_project_id}/{config.current_run_id}/{split}"
         minio_file = f"{proj_run_split}/{epoch_or_inf}/data_emb/data_emb.hdf5"
         # And upload

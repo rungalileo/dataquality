@@ -120,10 +120,11 @@ def add_umap_pca_to_df(df: DataFrame, data_embs: bool = False) -> DataFrame:
     if not cuml_available():
         return df
     dfc = df.copy()
-    print("Found cuda ML libraries")
-    print("Applying dimensionality reduction step 1/2")
+    note = "[data embs]" if data_embs else "[embs]"
+    print(f"{note} Found cuda ML libraries")
+    print(f"{note} Applying dimensionality reduction step 1/2")
     emb_pca = get_pca_embeddings(dfc["emb"].to_numpy())
-    print("Applying dimensionality reduction step 2/2")
+    print(f"{note} Applying dimensionality reduction step 2/2")
     emb_xy = get_umap_embeddings(emb_pca)
     x, y = ("data_x", "data_y") if data_embs else ("x", "y")
     dfc["emb_pca"] = emb_pca
@@ -132,8 +133,14 @@ def add_umap_pca_to_df(df: DataFrame, data_embs: bool = False) -> DataFrame:
     return dfc
 
 
-def create_data_embs(df: DataFrame) -> DataFrame:
-    """Runs sentence transformer on raw text to get off the shelf data embeddings"""
+def create_data_embs(df: DataFrame, for_upload: bool = True) -> DataFrame:
+    """Runs sentence transformer on raw text to get off the shelf data embeddings
+
+    :param df: The dataframe to get data embeddings for. Must have text col
+    :param for_upload: If true, we lazily apply the model and only return the id and
+        embeddings, because it will be uploaded immediately. Otherwise we apply the
+        model directly and return all columns.
+    """
     # This import takes up to 25 seconds, so we don't want to eagerly import it
     import transformers
     from sentence_transformers import SentenceTransformer
@@ -147,14 +154,13 @@ def create_data_embs(df: DataFrame) -> DataFrame:
     def apply_sentence_transformer(text: pa.array) -> np.ndarray:
         return data_model.encode(text.to_pylist(), show_progress_bar=False)
 
-    if cuml_available():
-        df_copy["emb"] = data_model.encode(df_copy["text"].tolist())
-        df_copy = add_umap_pca_to_df(df_copy, data_embs=True)
-        return df_copy[["id", "emb", "emb_pca", "data_x", "data_y"]]
-    else:
+    if for_upload:
         df_copy["emb"] = df_copy["text"].apply_sentence_transformer()
         transformers.logging.enable_progress_bar()
         return df_copy[["id", "emb"]]
+    else:
+        df_copy["emb"] = data_model.encode(df_copy["text"].tolist())
+        return df_copy
 
 
 def get_output_df(
