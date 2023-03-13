@@ -75,5 +75,12 @@ dev = [
     "jupyter==1.0.0",
 ]
 
+cuda = [
+    "cudf-cu11",
+    "dask-cudf-cu11",
+    "cuml-cu11",
+    "cugraph-cu11",
+]
+
 [tool.isort]
 profile = "black"

@@ -12,6 +12,8 @@ from vaex.dataframe import DataFrame
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.base_logger import BaseLoggerAttributes
 from dataquality.utils import tqdm
+from dataquality.utils.cuda import cuda_available, get_pca_embeddings, \
+    get_umap_embeddings
 from dataquality.utils.hdf5_store import HDF5_STORE, HDF5Store
 from dataquality.utils.helpers import galileo_verbose_logging
 from dataquality.utils.thread_pool import lock
@@ -218,6 +220,26 @@ def rename_df(df: DataFrame, columns: Dict) -> DataFrame:
     return df_copy
 
 
+def add_umap_pca_to_df(df: DataFrame, data_embs: bool = False) -> DataFrame:
+    """Adds the PCA embeddings and UMAP xy embeddings if possible
+
+    If data_embs is True, the x and y values from umap will be named data_x and data_y
+    """
+    if not cuda_available():
+        return df
+    dfc = df.copy()
+    print("Found cuda ML libraries")
+    print("Applying dimensionality reduction step 1/2")
+    emb_pca = get_pca_embeddings(dfc["emb"].to_numpy())
+    print("Applying dimensionality reduction step 2/2")
+    emb_xy = get_umap_embeddings(emb_pca)
+    x, y = ("data_x", "data_y") if data_embs else ("x", "y")
+    dfc["emb_pca"] = emb_pca
+    dfc[x] = emb_xy[:, 0]
+    dfc[y] = emb_xy[:, 1]
+    return dfc
+
+
 def create_data_embs(df: DataFrame) -> DataFrame:
     """Runs sentence transformer on raw text to get off the shelf data embeddings"""
     # This import takes up to 25 seconds, so we don't want to eagerly import it
@@ -233,6 +255,11 @@ def create_data_embs(df: DataFrame) -> DataFrame:
     def apply_sentence_transformer(text: pa.array) -> np.ndarray:
         return data_model.encode(text.to_pylist(), show_progress_bar=False)
 
-    df_copy["emb"] = df_copy["text"].apply_sentence_transformer()
-    transformers.logging.enable_progress_bar()
-    return df_copy[["id", "emb"]]
+    if cuda_available():
+        df_copy["emb"] = data_model.encode(df_copy["text"].tolist())
+        df_copy = add_umap_pca_to_df(df_copy, data_embs=True)
+        return df_copy[["id", "emb", "emb_pca", "data_x", "data_y"]]
+    else:
+        df_copy["emb"] = df_copy["text"].apply_sentence_transformer()
+        transformers.logging.enable_progress_bar()
+        return df_copy[["id", "emb"]]
