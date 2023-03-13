@@ -4,7 +4,7 @@ import time
 import warnings
 from typing import Optional
 
-from dataquality import GalileoWarning
+from dataquality.exceptions import GalileoWarning
 
 
 def get_file_extension(path: str) -> str:
