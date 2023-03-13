@@ -16,8 +16,8 @@ from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.ampli import AmpliMetric
 from dataquality.utils.dq_logger import get_dq_logger
-from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.hdf5_store import _save_hdf5_file
+from dataquality.utils.thread_pool import ThreadPoolManager
 
 analytics = Analytics(ApiClient, config)  # type: ignore
 

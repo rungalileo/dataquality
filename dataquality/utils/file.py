@@ -2,14 +2,22 @@ import os
 import shutil
 import time
 import warnings
-from typing import Optional
+from typing import Dict, Optional
 
 from dataquality.exceptions import GalileoWarning
+from dataquality.schemas.split import Split
 
 
 def get_file_extension(path: str) -> str:
     """Returns the file extension"""
     return os.path.splitext(path)[-1]
+
+
+def _get_dir_size(dir_: str) -> int:
+    """Returns dir size in bytes"""
+    return sum(
+        os.path.getsize(f"{dir_}/{f}") for f in os.listdir(dir_) if f.endswith(".hdf5")
+    )
 
 
 def get_largest_epoch_for_split(split_dir: str, last_epoch: Optional[int]) -> int:
@@ -21,11 +29,32 @@ def get_largest_epoch_for_split(split_dir: str, last_epoch: Optional[int]) -> in
     """
     if last_epoch is None:
         last_epoch = max([int(i) for i in os.listdir(split_dir)])
-    if last_epoch == 0:
+    if not os.path.exists(f"{split_dir}/{last_epoch-1}"):
         return last_epoch
-    last_epoch_size = os.path.getsize(f"{split_dir}/{last_epoch}")
-    next_last_epoch_size = os.path.getsize(f"{split_dir}/{last_epoch-1}")
+    last_epoch_size = _get_dir_size(f"{split_dir}/{last_epoch}")
+    next_last_epoch_size = _get_dir_size(f"{split_dir}/{last_epoch-1}")
     return last_epoch if last_epoch_size >= next_last_epoch_size else last_epoch - 1
+
+
+def get_largest_epoch_for_splits(
+    run_dir: str, last_epoch: Optional[int]
+) -> Dict[str, int]:
+    """For each available (non inf) split, return the largest epoch
+
+    The 'largest' epoch is the last epoch in the split, unless early stopping occurred,
+    in which case it's the second to last epoch
+
+    :param run_dir: The location on disk to the run data
+    :param last_epoch: The user can optionally tell us to only upload up to a specific
+        epoch. If they did, this will indicate that
+    """
+    split_epoch = {}
+    for split in [Split.train, Split.test, Split.validation]:
+        split_loc = f"{run_dir}/{split}"
+        if not os.path.exists(split_loc):
+            continue
+        split_epoch[split.value] = get_largest_epoch_for_split(split_loc, last_epoch)
+    return split_epoch
 
 
 def _shutil_rmtree_retry(dir_path: str) -> None:

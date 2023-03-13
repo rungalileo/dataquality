@@ -22,13 +22,12 @@ from dataquality.schemas.split import Split
 from dataquality.utils import tqdm
 from dataquality.utils.cloud import is_galileo_cloud
 from dataquality.utils.cuda import cuml_available
-from dataquality.utils.file import _shutil_rmtree_retry, get_largest_epoch_for_split
-from dataquality.utils.hdf5_store import HDF5_STORE
+from dataquality.utils.emb import apply_umap_to_embs
+from dataquality.utils.file import _shutil_rmtree_retry
 from dataquality.utils.helpers import galileo_verbose_logging
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import (
     _join_in_out_frames,
-    add_umap_pca_to_df,
     create_data_embs,
     filter_df,
     get_output_df,
@@ -216,35 +215,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         location = f"{self.LOG_FILE_DIR}/{proj_run}"
 
         if cuml_available():
-            # Get the correct epoch to process for each split
-            split_epoch = {}
-            split_dfs = []
-            for split in [Split.train, Split.test, Split.validation]:
-                split_loc = f"{location}/{split}"
-                if not os.path.exists(split_loc):
-                    continue
-                split_epoch[split.value] = get_largest_epoch_for_split(
-                    split_loc, last_epoch
-                )
-            for split_name, epoch in split_epoch.items():
-                split_loc = f"{location}/{split_name}"
-                split_dfs.append(
-                    get_output_df(
-                        f"{split_loc}/{epoch}",
-                        prob_only=False,
-                        split=split_name,
-                        epoch_or_inf=epoch,
-                    )
-                )
-            concat_df = vaex.concat(split_dfs)
-            df_emb = add_umap_pca_to_df(concat_df)
-            for split_name, epoch in split_epoch.items():
-                split_loc = f"{location}/{split_name}/{epoch}/{HDF5_STORE}"
-                tmp_loc = f"{location}/{split_name}/{epoch}/tmp_{HDF5_STORE}"
-                df = df_emb[df_emb["split"] == split_name]
-                df.export(tmp_loc)
-                os.remove(split_loc)
-                os.rename(tmp_loc, split_loc)
+            apply_umap_to_embs(location, last_epoch)
 
         for split in Split.get_valid_attributes():
             split_loc = f"{location}/{split}"

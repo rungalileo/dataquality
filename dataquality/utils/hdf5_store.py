@@ -1,6 +1,6 @@
 import os
 import sys
-from typing import List, Optional, Tuple, Type, Dict
+from typing import Dict, List, Optional, Tuple, Type
 
 import h5py
 import numpy as np
