@@ -81,7 +81,12 @@ class ApiClient:
         self.__check_login()
         header = header or headers(config.token)
         res = RequestType.get_method(request.value)(
-            url, json=body, params=params, headers=header, data=data, timeout=timeout
+            url,
+            json=body,
+            params=params,
+            headers=header,
+            data=data,
+            timeout=timeout,
         )
         self._validate_response(res)
         return res.json()
