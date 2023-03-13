@@ -220,25 +220,28 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             split_epoch = {}
             split_dfs = []
             for split in [Split.train, Split.test, Split.validation]:
-                _loc = f"{location}/{split}"
-                if not os.path.exists(_loc):
+                split_loc = f"{location}/{split}"
+                if not os.path.exists(split_loc):
                     continue
-                split_epoch[split.value] = get_largest_epoch_for_split(_loc, last_epoch)
-            for split_, epoch in split_epoch.items():
+                split_epoch[split.value] = get_largest_epoch_for_split(
+                    split_loc, last_epoch
+                )
+            for split_name, epoch in split_epoch.items():
+                split_loc = f"{location}/{split}"
                 split_dfs.append(
                     get_output_df(
-                        f"{_loc}/{epoch}",
+                        f"{split_loc}/{epoch}",
                         prob_only=False,
-                        split=split_,
+                        split=split_name,
                         epoch_or_inf=epoch,
                     )
                 )
             concat_df = vaex.concat(split_dfs)
             df_emb = add_umap_pca_to_df(concat_df)
-            for split_, epoch in split_epoch.items():
-                split_loc = f"{location}/{split_}/{epoch}/{HDF5_STORE}"
-                tmp_loc = f"{location}/{split_}/{epoch}/tmp_{HDF5_STORE}"
-                df = df_emb[df_emb["split"] == split_]
+            for split_name, epoch in split_epoch.items():
+                split_loc = f"{location}/{split_name}/{epoch}/{HDF5_STORE}"
+                tmp_loc = f"{location}/{split_name}/{epoch}/tmp_{HDF5_STORE}"
+                df = df_emb[df_emb["split"] == split_name]
                 df.export(tmp_loc)
                 os.remove(split_loc)
                 os.rename(tmp_loc, split_loc)

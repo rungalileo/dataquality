@@ -699,6 +699,10 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         emb_cols = (
             [NERCols.id.value] if prob_only else [NERCols.id.value, NERCols.emb.value]
         )
+        # In the event that we did dimensionality reduction locally with nvidia
+        for col in ["x", "y", "emb_pca"]:
+            if col in df_copy.get_column_names():
+                emb_cols.append(col)
         emb = df_copy[emb_cols]
         return BaseLoggerDataFrames(prob=prob, emb=emb, data=df_copy)
 

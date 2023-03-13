@@ -33,6 +33,9 @@ def _shutil_rmtree_retry(dir_path: str) -> None:
 
     Attempts to remove a directory and all its contents.
 
+    This is because in certain environments (like nfs), the file takes time and retries
+    to be deleted
+
     Args:
         dir_path (str): the path to the directory to remove
     """

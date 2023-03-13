@@ -141,7 +141,7 @@ def init(
         warnings.warn(
             f"Run: {project_name}/{run_name} already exists! "
             "The existing run will get overwritten on call to finish()!",
-            GalileoWarning
+            GalileoWarning,
         )
 
     config.current_project_id = project["id"]
