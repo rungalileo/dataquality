@@ -6,13 +6,19 @@ from pydantic import UUID4
 from vaex.dataframe import DataFrame
 
 from dataquality.clients.objectstore import ObjectStore
-from dataquality.utils.file import get_largest_epoch_for_splits, \
-    get_last_epoch_for_splits
+from dataquality.utils.file import (
+    get_largest_epoch_for_splits,
+    get_last_epoch_for_splits,
+)
 from dataquality.utils.hdf5_store import HDF5_STORE
-from dataquality.utils.vaex import add_umap_pca_to_df, create_data_embs_df, get_output_df
-
+from dataquality.utils.vaex import (
+    add_umap_pca_to_df,
+    create_data_embs_df,
+    get_output_df,
+)
 
 DATA_EMB_PATH = "data_emb/data_emb.hdf5"
+
 
 def get_concat_emb_df(run_dir: str, split_epoch: Dict[str, int]) -> DataFrame:
     """Returns the concatenated embedding df for all available (non inf) splits"""
@@ -67,14 +73,24 @@ def apply_umap_to_embs(run_dir: str, last_epoch: Optional[int]) -> None:
     save_processed_emb_dfs(df_emb, split_epoch, run_dir)
 
 
-# def add_umap_to_data_embs(df: DataFrame) -> DataFrame:
-#     """Creates data embeddings on raw text, and then applies PCA and UMAP"""
-#     df_emb = create_data_embs(df, lazy=False)
-#     df_emb = add_umap_pca_to_df(df_emb, data_embs=True)
-#     return df_emb
+def upload_umap_data_embs(
+    project_id: UUID4,
+    run_id: UUID4,
+    input_data_dir: str,
+    run_dir: str,
+    last_epoch: Optional[int],
+) -> None:
+    """Given the location to _all_ input text, create and upload the data embs
 
+    Read in all of the text samples from all splits, create the data embeddings,
+    apply PCA over all samples, then UMAP, then upload each split to its respective
+    location in object storage.
 
-def upload_umap_data_embs(project_id: UUID4, run_id: UUID4, input_data_dir: str, run_dir: str, last_epoch: Optional[int]) -> None:
+    Data embeddings are _always_ stored in the final epoch of the dataset, so we
+    use `get_last_epoch_for_splits` to find that for each split. Similarly, for
+    inference, we store it in the inference name. So when the split is inference,
+    we further filter the dataframe by inference name and upload the df.
+    """
     object_store = ObjectStore()
     df = vaex.open(f"{input_data_dir}/**/data*.arrow")
     df_emb = create_data_embs_df(df, lazy=False)
@@ -84,16 +100,14 @@ def upload_umap_data_embs(project_id: UUID4, run_id: UUID4, input_data_dir: str,
     for split in df_emb["split"].unique():
         proj_run_split = f"{project_id}/{run_id}/{split}"
         df_split = df_emb[df_emb["split"] == split]
+        # Upload for each split
         if split in ["training", "test", "validation"]:
             minio_file = f"{proj_run_split}/{split_epoch[split]}/{DATA_EMB_PATH}"
             df_split = df_split[data_emb_cols]
             object_store.create_project_run_object_from_df(df_split, minio_file)
         else:
+            # We need to split for each inference name and upload individually
             for inf_name in df_split["inference_name"].unique():
                 df_inf = df_split[df_split["inference_name"] == inf_name][data_emb_cols]
                 minio_file = f"{proj_run_split}/{inf_name}/{DATA_EMB_PATH}"
                 object_store.create_project_run_object_from_df(df_inf, minio_file)
-
-
-
-

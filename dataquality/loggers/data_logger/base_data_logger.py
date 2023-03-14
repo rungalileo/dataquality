@@ -22,8 +22,11 @@ from dataquality.schemas.split import Split
 from dataquality.utils import tqdm
 from dataquality.utils.cloud import is_galileo_cloud
 from dataquality.utils.cuda import cuml_available
-from dataquality.utils.emb import apply_umap_to_embs, \
-    upload_umap_data_embs, DATA_EMB_PATH
+from dataquality.utils.emb import (
+    DATA_EMB_PATH,
+    apply_umap_to_embs,
+    upload_umap_data_embs,
+)
 from dataquality.utils.file import _shutil_rmtree_retry
 from dataquality.utils.helpers import galileo_verbose_logging
 from dataquality.utils.thread_pool import ThreadPoolManager
@@ -212,6 +215,10 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         If create_data_embs is True, this will also run an off the shelf transformer
         and upload those text embeddings alongside the models finetuned embeddings
         """
+        # For linting
+        assert (
+            config.current_project_id and config.current_run_id
+        ), "You must call dq.init and train a model before calling finish"
         ThreadPoolManager.wait_for_threads()
         self.check_for_logging_failures()
         print("☁️ Uploading Data")
@@ -222,11 +229,15 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         if cuml_available():
             apply_umap_to_embs(location, last_epoch)
 
-        # in_frame = vaex.open(f"{self.input_data_path}/**/data*.arrow")
-        # in_frame = self.convert_large_string(in_frame)
         if cuml_available() and create_data_embs and self.support_data_embs:
             print("Creating and uploading data embeddings")
-            upload_umap_data_embs(config.current_project_id, config.current_run_id, self.input_data_path, location, last_epoch)
+            upload_umap_data_embs(
+                config.current_project_id,
+                config.current_run_id,
+                self.input_data_path,
+                location,
+                last_epoch,
+            )
             # We have already created them here, so don't try again later
             create_data_embs = False
 
@@ -245,7 +256,6 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                     GalileoWarning,
                 )
                 continue
-            # in_frame_split = in_frame[in_frame["split"] == split].extract()
             in_frame_split = vaex.open(f"{in_frame_path}/*.arrow")
             in_frame_split = self.convert_large_string(in_frame_split)
             self.upload_split(
@@ -267,15 +277,6 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         """Uploads off the shelf data embeddings for a split"""
         object_store = ObjectStore()
         df_copy = df.copy()
-        # Create - they may have already been created during `upload` (if cuml is avl)
-        # if "emb" not in df_copy.get_column_names():
-        #     print(f"Creating and uploading data embeddings for {split}")
-        #     data_embs = create_data_embs(df_copy)
-        # else:
-        #     print(f"Uploading data embeddings for {split}")
-        #     emb_cols = ["id", "data_emb", "data_emb_pca", "data_x", "data_y"]
-        #     emb_cols = [i for i in emb_cols if i in df_copy.get_column_names()]
-        #     data_embs = df_copy[emb_cols]
         data_embs = create_data_embs_df(df_copy)
         proj_run_split = f"{config.current_project_id}/{config.current_run_id}/{split}"
         minio_file = f"{proj_run_split}/{epoch_or_inf}/{DATA_EMB_PATH}"
@@ -477,9 +478,9 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
         # If split is not inference, epoch_or_inf must be epoch
         epoch = int(epoch_or_inf_name)
-        max_epoch_for_split = last_epoch
-        if max_epoch_for_split is None:
-            max_epoch_for_split = max([int(i) for i in epochs])
+        max_epoch_for_split = max([int(i) for i in epochs])
+        if last_epoch is not None:
+            max_epoch_for_split = min(max_epoch_for_split, last_epoch)
         return bool(epoch < max_epoch_for_split - 1)
 
     def validate(self) -> None:
