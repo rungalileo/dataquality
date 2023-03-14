@@ -70,7 +70,8 @@ def get_last_epoch_for_splits(
         if not os.path.exists(split_loc):
             continue
         final_epoch = max([int(i) for i in os.listdir(split_loc)])
-        split_epoch[split.value] = min(last_epoch, final_epoch)
+        epoch = min(last_epoch, final_epoch) if last_epoch is not None else final_epoch
+        split_epoch[split.value] = epoch
     return split_epoch
 
 

@@ -179,6 +179,7 @@ def create_data_embs_df(df: DataFrame, lazy: bool = True) -> DataFrame:
     transformers.logging.disable_progress_bar()
     sentence_encoder = os.getenv(GALILEO_DATA_EMBS_ENCODER, DEFAULT_DATA_EMBS_MODEL)
     data_model = SentenceTransformer(sentence_encoder)
+    transformers.logging.enable_progress_bar()
     df_copy = df.copy()
 
     @vaex.register_function()
@@ -189,11 +190,8 @@ def create_data_embs_df(df: DataFrame, lazy: bool = True) -> DataFrame:
         df_copy["emb"] = df_copy["text"].apply_sentence_transformer()
         df_copy = df_copy[["id", "emb"]]
     else:
-        # If we aren't immediately uploading, we denote these embeddings as the data
-        # embeddings with `data_emb`
-        df_copy["emb"] = data_model.encode(df_copy["text"].tolist())
+        df_copy["emb"] = data_model.encode(df_copy["text"].tolist(), show_progress_bar=True)
 
-    transformers.logging.enable_progress_bar()
     return df_copy
 
 
