@@ -65,5 +65,5 @@ def apply_umap_to_embs(run_dir: str, last_epoch: Optional[int]) -> None:
 def add_umap_to_data_embs(df: DataFrame) -> DataFrame:
     """Creates data embeddings on raw text, and then applies PCA and UMAP"""
     df_emb = create_data_embs(df, for_upload=False)
-    df_emb = add_umap_pca_to_df(df_emb)
+    df_emb = add_umap_pca_to_df(df_emb, data_embs=True)
     return df_emb

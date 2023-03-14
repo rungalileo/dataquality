@@ -221,7 +221,9 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             apply_umap_to_embs(location, last_epoch)
 
         in_frame = vaex.open(f"{self.input_data_path}/**/data*.arrow")
+        in_frame = self.convert_large_string(in_frame)
         if cuml_available() and create_data_embs and self.support_data_embs:
+            print("Creating data embeddings")
             in_frame = add_umap_to_data_embs(in_frame)
 
         for split in Split.get_valid_attributes():
@@ -239,7 +241,6 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                 )
                 continue
             in_frame_split = in_frame[in_frame["split"] == split].extract()
-            in_frame_split = self.convert_large_string(in_frame_split)
             self.upload_split(
                 object_store,
                 in_frame_split,
@@ -259,9 +260,13 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         df_copy = df.copy()
         # Create - they may have already been created during `upload` (if cuml is avl)
         if "emb" not in df_copy.get_column_names():
+            print(f"Creating and uploading data embeddings for {split}")
             data_embs = create_data_embs(df_copy)
         else:
-            data_embs = df_copy
+            print(f"Uploading data embeddings for {split}")
+            emb_cols = ["id", "emb", "emb_pca", "data_x", "data_y"]
+            emb_cols = [i for i in emb_cols if i in df_copy.get_column_names()]
+            data_embs = df_copy[emb_cols]
         proj_run_split = f"{config.current_project_id}/{config.current_run_id}/{split}"
         minio_file = f"{proj_run_split}/{epoch_or_inf}/data_emb/data_emb.hdf5"
         # And upload
@@ -327,8 +332,6 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             if create_data_embs and (
                 split == Split.inference or epoch_or_inf == largest_epoch
             ):
-                name = f"{split}/{epoch_or_inf}" if split == Split.inference else split
-                print(f"Creating and uploading data embeddings for {name}")
                 cls.create_and_upload_data_embs(input_batch, split, epoch_or_inf)
 
             dir_name = f"{split_loc}/{epoch_or_inf}"
