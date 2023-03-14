@@ -280,7 +280,7 @@ def store_model_ids(store: Dict[str, Any]) -> Callable:
 
 
 def select_model_layer(
-    model: tf.keras.layers.Layer, layer: Union[tf.keras.layers.Layer, str] = None
+    model: tf.keras.layers.Layer, layer: Union[tf.keras.layers.Layer, str, None] = None
 ) -> tf.keras.layers.Layer:
     """Selects the classifier layer from the model.
     :param model: The model.
