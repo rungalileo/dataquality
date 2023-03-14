@@ -78,10 +78,13 @@ dev = [
 ]
 
 cuda = [
-    "cudf-cu11",
-    "dask-cudf-cu11",
-    "cuml-cu11",
-    "cugraph-cu11",
+    "ucx-py-cu11<0.30",
+    "rmm-cu11==22.12",
+    "raft-dask-cu11==22.12",
+    "pylibraft-cu11==22.12",
+    "dask-cudf-cu11==22.12",
+    "cudf-cu11==22.12",
+    "cuml-cu11==22.12"
 ]
 
 [tool.isort]
