@@ -246,7 +246,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                 )
                 continue
             # in_frame_split = in_frame[in_frame["split"] == split].extract()
-            in_frame_split = vaex.open(in_frame_path)
+            in_frame_split = vaex.open(f"{in_frame_path}/*.arrow")
             in_frame_split = self.convert_large_string(in_frame_split)
             self.upload_split(
                 object_store,
