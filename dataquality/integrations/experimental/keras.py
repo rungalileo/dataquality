@@ -299,7 +299,7 @@ def select_model_layer(
             if model_layer.name == "classifier":
                 chosen_layer = model_layer
                 break
-    
+
     assert chosen_layer is not None, GalileoException(
         f"Layer {layer} could not be found"
     )
