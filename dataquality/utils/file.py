@@ -39,7 +39,7 @@ def get_largest_epoch_for_split(split_dir: str, last_epoch: Optional[int]) -> in
 def get_largest_epoch_for_splits(
     run_dir: str, last_epoch: Optional[int]
 ) -> Dict[str, int]:
-    """For each available (non inf) split, return the largest epoch
+    """For each available (non inf) split, return the largest epoch in terms of bytes
 
     The 'largest' epoch is the last epoch in the split, unless early stopping occurred,
     in which case it's the second to last epoch
@@ -54,6 +54,23 @@ def get_largest_epoch_for_splits(
         if not os.path.exists(split_loc):
             continue
         split_epoch[split.value] = get_largest_epoch_for_split(split_loc, last_epoch)
+    return split_epoch
+
+
+def get_last_epoch_for_splits(
+    run_dir: str, last_epoch: Optional[int]
+) -> Dict[str, int]:
+    """For each available (non inf) split, return the last epoch of training
+
+    If `last_epoch` is provided, consider that as the last (if it exists)
+    """
+    split_epoch = {}
+    for split in [Split.train, Split.test, Split.validation]:
+        split_loc = f"{run_dir}/{split}"
+        if not os.path.exists(split_loc):
+            continue
+        final_epoch = max([int(i) for i in os.listdir(split_loc)])
+        split_epoch[split.value] = min(last_epoch, final_epoch)
     return split_epoch
 
 

@@ -22,12 +22,14 @@ from dataquality.schemas.split import Split
 from dataquality.utils import tqdm
 from dataquality.utils.cloud import is_galileo_cloud
 from dataquality.utils.cuda import cuml_available
-from dataquality.utils.emb import add_umap_to_data_embs, apply_umap_to_embs
+from dataquality.utils.emb import apply_umap_to_embs, \
+    upload_umap_data_embs, DATA_EMB_PATH
+from dataquality.utils.file import _shutil_rmtree_retry
 from dataquality.utils.helpers import galileo_verbose_logging
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import (
     _join_in_out_frames,
-    create_data_embs,
+    create_data_embs_df,
     filter_df,
     get_output_df,
     validate_unique_ids,
@@ -220,15 +222,18 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         if cuml_available():
             apply_umap_to_embs(location, last_epoch)
 
-        in_frame = vaex.open(f"{self.input_data_path}/**/data*.arrow")
-        in_frame = self.convert_large_string(in_frame)
+        # in_frame = vaex.open(f"{self.input_data_path}/**/data*.arrow")
+        # in_frame = self.convert_large_string(in_frame)
         if cuml_available() and create_data_embs and self.support_data_embs:
-            print("Creating data embeddings")
-            in_frame = add_umap_to_data_embs(in_frame)
+            print("Creating and uploading data embeddings")
+            upload_umap_data_embs(config.current_project_id, config.current_run_id, self.input_data_path, location, last_epoch)
+            # We have already created them here, so don't try again later
+            create_data_embs = False
 
         for split in Split.get_valid_attributes():
             split_loc = f"{location}/{split}"
-            input_logged = os.path.exists(f"{self.input_data_path}/{split}")
+            in_frame_path = f"{self.input_data_path}/{split}"
+            input_logged = os.path.exists(in_frame_path)
             output_logged = os.path.exists(split_loc)
             if not output_logged:
                 continue
@@ -240,7 +245,9 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                     GalileoWarning,
                 )
                 continue
-            in_frame_split = in_frame[in_frame["split"] == split].extract()
+            # in_frame_split = in_frame[in_frame["split"] == split].extract()
+            in_frame_split = vaex.open(in_frame_path)
+            in_frame_split = self.convert_large_string(in_frame_split)
             self.upload_split(
                 object_store,
                 in_frame_split,
@@ -249,6 +256,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                 last_epoch,
                 create_data_embs,
             )
+            in_frame_split.close()
+            _shutil_rmtree_retry(in_frame_path)
             gc.collect()
 
     @classmethod
@@ -259,16 +268,17 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         object_store = ObjectStore()
         df_copy = df.copy()
         # Create - they may have already been created during `upload` (if cuml is avl)
-        if "emb" not in df_copy.get_column_names():
-            print(f"Creating and uploading data embeddings for {split}")
-            data_embs = create_data_embs(df_copy)
-        else:
-            print(f"Uploading data embeddings for {split}")
-            emb_cols = ["id", "emb", "emb_pca", "data_x", "data_y"]
-            emb_cols = [i for i in emb_cols if i in df_copy.get_column_names()]
-            data_embs = df_copy[emb_cols]
+        # if "emb" not in df_copy.get_column_names():
+        #     print(f"Creating and uploading data embeddings for {split}")
+        #     data_embs = create_data_embs(df_copy)
+        # else:
+        #     print(f"Uploading data embeddings for {split}")
+        #     emb_cols = ["id", "data_emb", "data_emb_pca", "data_x", "data_y"]
+        #     emb_cols = [i for i in emb_cols if i in df_copy.get_column_names()]
+        #     data_embs = df_copy[emb_cols]
+        data_embs = create_data_embs_df(df_copy)
         proj_run_split = f"{config.current_project_id}/{config.current_run_id}/{split}"
-        minio_file = f"{proj_run_split}/{epoch_or_inf}/data_emb/data_emb.hdf5"
+        minio_file = f"{proj_run_split}/{epoch_or_inf}/{DATA_EMB_PATH}"
         # And upload
         object_store.create_project_run_object_from_df(data_embs, minio_file)
 
@@ -332,6 +342,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             if create_data_embs and (
                 split == Split.inference or epoch_or_inf == largest_epoch
             ):
+                name = f"{split}/{epoch_or_inf}" if split == Split.inference else split
+                print(f"Creating and uploading data embeddings for {name}")
                 cls.create_and_upload_data_embs(input_batch, split, epoch_or_inf)
 
             dir_name = f"{split_loc}/{epoch_or_inf}"

@@ -1,5 +1,7 @@
 import os
-from typing import Dict, List, Union
+from typing import Dict
+from typing import List
+from typing import Union
 
 import numpy as np
 import pyarrow as pa
@@ -9,12 +11,11 @@ from vaex.dataframe import DataFrame
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.base_logger import BaseLoggerAttributes
 from dataquality.schemas.split import Split
-from dataquality.utils.cuda import (
-    cuml_available,
-    get_pca_embeddings,
-    get_umap_embeddings,
-)
-from dataquality.utils.hdf5_store import HDF5_STORE, concat_hdf5_files
+from dataquality.utils.cuda import cuml_available
+from dataquality.utils.cuda import get_pca_embeddings
+from dataquality.utils.cuda import get_umap_embeddings
+from dataquality.utils.hdf5_store import HDF5_STORE
+from dataquality.utils.hdf5_store import concat_hdf5_files
 from dataquality.utils.helpers import galileo_verbose_logging
 
 # To decide between "all-MiniLM-L6-v2" or "all-mpnet-base-v2"
@@ -133,13 +134,43 @@ def add_umap_pca_to_df(df: DataFrame, data_embs: bool = False) -> DataFrame:
     return dfc
 
 
-def create_data_embs(df: DataFrame, for_upload: bool = True) -> DataFrame:
+# def create_data_embs(df: DataFrame, for_upload: bool = True) -> DataFrame:
+#     """Runs sentence transformer on raw text to get off the shelf data embeddings
+#
+#     :param df: The dataframe to get data embeddings for. Must have text col
+#     :param for_upload: If true, we lazily apply the model and only return the id and
+#         embeddings, because it will be uploaded immediately. Otherwise we apply the
+#         model directly and return all columns.
+#     """
+#     # This import takes up to 25 seconds, so we don't want to eagerly import it
+#     import transformers
+#     from sentence_transformers import SentenceTransformer
+#
+#     transformers.logging.disable_progress_bar()
+#     sentence_encoder = os.getenv(GALILEO_DATA_EMBS_ENCODER, DEFAULT_DATA_EMBS_MODEL)
+#     data_model = SentenceTransformer(sentence_encoder)
+#     df_copy = df.copy()
+#
+#     @vaex.register_function()
+#     def apply_sentence_transformer(text: pa.array) -> np.ndarray:
+#         return data_model.encode(text.to_pylist(), show_progress_bar=False)
+#
+#     if for_upload:
+#         df_copy["emb"] = df_copy["text"].apply_sentence_transformer()
+#         transformers.logging.enable_progress_bar()
+#         return df_copy[["id", "emb"]]
+#     else:
+#         # If we aren't immediately uploading, we denote these embeddings as the data
+#         # embeddings with `data_emb`
+#         df_copy["data_emb"] = data_model.encode(df_copy["text"].tolist())
+#         return df_copy
+
+
+def create_data_embs_df(df: DataFrame, lazy: bool = True) -> DataFrame:
     """Runs sentence transformer on raw text to get off the shelf data embeddings
 
     :param df: The dataframe to get data embeddings for. Must have text col
-    :param for_upload: If true, we lazily apply the model and only return the id and
-        embeddings, because it will be uploaded immediately. Otherwise we apply the
-        model directly and return all columns.
+    :param lazy: If true, we lazily apply the model to encode the text
     """
     # This import takes up to 25 seconds, so we don't want to eagerly import it
     import transformers
@@ -154,13 +185,17 @@ def create_data_embs(df: DataFrame, for_upload: bool = True) -> DataFrame:
     def apply_sentence_transformer(text: pa.array) -> np.ndarray:
         return data_model.encode(text.to_pylist(), show_progress_bar=False)
 
-    if for_upload:
+    if lazy:
         df_copy["emb"] = df_copy["text"].apply_sentence_transformer()
-        transformers.logging.enable_progress_bar()
-        return df_copy[["id", "emb"]]
+        df_copy = df_copy[["id", "emb"]]
     else:
+        # If we aren't immediately uploading, we denote these embeddings as the data
+        # embeddings with `data_emb`
         df_copy["emb"] = data_model.encode(df_copy["text"].tolist())
-        return df_copy
+
+    transformers.logging.enable_progress_bar()
+    return df_copy
+
 
 
 def get_output_df(
