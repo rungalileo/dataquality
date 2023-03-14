@@ -1,4 +1,3 @@
-"""A notebook friendly `dq.auto` interface for an upload button to auto"""
 from typing import Any, Dict
 
 import dataquality as dq
@@ -25,6 +24,7 @@ def auto_notebook() -> None:
 
     def auto(*args: Any) -> None:
         """On button click, run auto"""
+        print("Running Galileo! This may take a minute to begin")
         dq.auto(train_data=TRAIN_FILE)
 
     run_button = widgets.Button(description="Run Galileo 🔭", disabled=True)
@@ -32,14 +32,22 @@ def auto_notebook() -> None:
 
     def save_file(inputs: Dict) -> None:
         """On upload, save file to disk, enable run-auto button"""
-        print("Now click the 'Run Galileo' button!")
-        key = list(inputs["new"].keys())[0]
-        content = inputs["new"][key]["content"]
+        keys = list(inputs["new"].keys())
+        if not keys:
+            return
+        key = keys[0]
+
+        key_obj = inputs["new"][key]
+        if isinstance(key_obj, list):
+            content = key_obj[0]["content"].tobytes()
+        else:
+            content = key_obj["content"]
         with open(TRAIN_FILE, "w") as f:
             f.write(content.decode("utf-8"))
         run_button.disabled = False
+        print("Now click the 'Run Galileo' button!")
 
     upload = widgets.FileUpload(accept=".csv")
 
-    upload.observe(save_file, names="value")
+    upload.observe(save_file)
     display(widgets.HBox([upload, run_button]))
