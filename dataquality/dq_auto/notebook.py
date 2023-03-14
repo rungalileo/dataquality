@@ -16,6 +16,7 @@ TRAIN_FILE = "train.csv"
 
 def auto_notebook() -> None:
     """"""
+    print("Welcome to notebook! Upload a file to begin")
     if not NOTEBOOK_ENABLED:
         raise GalileoException(
             "To use `auto_notebook`, you must have IPython and ipywidgets installed."
@@ -31,6 +32,7 @@ def auto_notebook() -> None:
 
     def save_file(inputs: Dict) -> None:
         """On upload, save file to disk, enable run-auto button"""
+        print("Now click the 'Run Galileo' button!")
         key = list(inputs["new"].keys())[0]
         content = inputs["new"][key]["content"]
         with open(TRAIN_FILE, "w") as f:
