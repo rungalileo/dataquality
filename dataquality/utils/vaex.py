@@ -1,57 +1,26 @@
 import os
-import sys
-from typing import Dict, List
+from typing import Dict, List, Union
 
-import h5py
 import numpy as np
 import pyarrow as pa
 import vaex
-from vaex.arrow.convert import arrow_string_array_from_buffers as convert_bytes
 from vaex.dataframe import DataFrame
 
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.base_logger import BaseLoggerAttributes
-from dataquality.utils import tqdm
-from dataquality.utils.hdf5_store import HDF5_STORE, HDF5Store
+from dataquality.schemas.split import Split
+from dataquality.utils.cuda import (
+    cuml_available,
+    get_pca_embeddings,
+    get_umap_embeddings,
+)
+from dataquality.utils.hdf5_store import HDF5_STORE, concat_hdf5_files
 from dataquality.utils.helpers import galileo_verbose_logging
-from dataquality.utils.thread_pool import lock
 
 # To decide between "all-MiniLM-L6-v2" or "all-mpnet-base-v2"
 # https://www.sbert.net/docs/pretrained_models.html#model-overview
 GALILEO_DATA_EMBS_ENCODER = "GALILEO_DATA_EMBS_ENCODER"
 DEFAULT_DATA_EMBS_MODEL = "all-MiniLM-L6-v2"
-
-
-def _save_hdf5_file(location: str, file_name: str, data: Dict) -> None:
-    """
-    Helper function to save a dictionary as an hdf5 file that can be read by vaex
-    """
-    if not os.path.isdir(location):
-        with lock:
-            os.makedirs(location, exist_ok=True)
-    file_path = f"{location}/{file_name}"
-    with h5py.File(file_path, "w") as f:
-        for col in data:
-            group = f.create_group(f"/table/columns/{col}")
-            col_data = np.array(data[col])
-            if None in col_data:
-                # h5py expects np.nan instead of None
-                col_data = col_data.astype(np.float_)
-
-            # String columns
-            ctype = col_data.dtype
-            if not np.issubdtype(ctype, np.number) and not np.issubdtype(
-                ctype, np.bool_
-            ):
-                dtype = h5py.string_dtype()
-                col_data = col_data.astype(dtype)
-            else:
-                dtype = col_data.dtype
-
-            shape = col_data.shape
-            group.create_dataset(
-                "data", data=col_data, dtype=dtype, shape=shape, chunks=shape
-            )
 
 
 def _join_in_out_frames(in_df: DataFrame, out_df: DataFrame) -> DataFrame:
@@ -108,81 +77,6 @@ def get_dup_ids(df: DataFrame) -> List:
     return dup_df[dup_df["count"] > 1].to_records()
 
 
-def _valid_prob_col(col: str) -> bool:
-    return (
-        col.endswith("id")
-        or "gold" in col
-        or "pred" in col
-        or "prob" in col  # encapsulates prob, conf_prob, and loss_prob
-        or col.startswith("span")
-        or col.startswith("galileo")
-    )
-
-
-def concat_hdf5_files(location: str, prob_only: bool) -> List[str]:
-    """Concatenates all hdf5 in a directory using an HDF5 store
-
-    Vaex stores a dataframe as an hdf5 file in a predictable format using groups
-
-    Each column gets its own group, following "/table/columns/{col}/data
-
-    We can exploit that by concatenating our datasets with that structure, so vaex
-    can open the final file as a single dataframe
-
-    :param location: The directory containing the files
-    :param prob_only: If True, only the id, prob, and gold columns will be concatted
-    """
-    str_cols = []
-    stores = {}
-    files = os.listdir(location)
-    df = vaex.open(f"{location}/{files[0]}")
-
-    # Construct a store per column
-    if prob_only:
-        cols = [c for c in df.get_column_names() if _valid_prob_col(c)]
-    else:
-        cols = df.get_column_names()
-    for col in cols:
-        group = f"/table/columns/{col}/data"
-        cval = df[col].to_numpy()
-        if cval.ndim == 2:
-            shape = cval[0].shape
-        else:
-            shape = ()
-        dtype = df[col].dtype.numpy
-        if not np.issubdtype(dtype, np.number) and not np.issubdtype(dtype, np.bool_):
-            dtype = h5py.string_dtype(encoding="utf-8")
-            str_cols.append(col)
-        stores[col] = HDF5Store(f"{location}/{HDF5_STORE}", group, shape, dtype=dtype)
-
-    for file in tqdm(
-        files,
-        leave=False,
-        desc="Processing data for upload",
-        file=sys.stdout,
-    ):
-        fname = f"{location}/{file}"
-        with h5py.File(fname, "r") as f:
-            dset = f["table"]["columns"]
-            keys = dset.keys()
-            keys = [key for key in keys if key in cols]
-            for key in keys:
-                col_data = dset[key]
-                # We have a string column, need to parse it
-                if "indices" in col_data.keys():
-                    assert key in str_cols, f"Unexpected string column ({key}) found"
-                    indcs = col_data["indices"][:]
-                    data = col_data["data"][:]
-                    d = convert_bytes(data, indcs, None).to_numpy(zero_copy_only=False)
-                else:
-                    d = col_data["data"][:]
-                if key in str_cols:
-                    d = d.astype(h5py.string_dtype(encoding="utf-8"))
-                stores[key].append(d)
-        os.remove(fname)
-    return str_cols
-
-
 def drop_empty_columns(df: DataFrame) -> DataFrame:
     """Drops any columns that have no values"""
     if len(df) == 0:
@@ -218,8 +112,33 @@ def rename_df(df: DataFrame, columns: Dict) -> DataFrame:
     return df_copy
 
 
-def create_data_embs(df: DataFrame) -> DataFrame:
-    """Runs sentence transformer on raw text to get off the shelf data embeddings"""
+def add_umap_pca_to_df(df: DataFrame, data_embs: bool = False) -> DataFrame:
+    """Adds the PCA embeddings and UMAP xy embeddings if possible
+
+    If data_embs is True, the x and y values from umap will be named data_x and data_y
+    """
+    if not cuml_available():
+        return df
+    dfc = df.copy()
+    note = "[data embs]" if data_embs else "[embs]"
+    print(f"{note} Found cuda ML libraries")
+    print(f"{note} Applying dimensionality reduction step 1/2")
+    emb_pca = get_pca_embeddings(dfc["emb"].to_numpy())
+    print(f"{note} Applying dimensionality reduction step 2/2")
+    emb_xy = get_umap_embeddings(emb_pca)
+    x, y = ("data_x", "data_y") if data_embs else ("x", "y")
+    dfc["emb_pca"] = emb_pca
+    dfc[x] = emb_xy[:, 0]
+    dfc[y] = emb_xy[:, 1]
+    return dfc
+
+
+def create_data_embs_df(df: DataFrame, lazy: bool = True) -> DataFrame:
+    """Runs sentence transformer on raw text to get off the shelf data embeddings
+
+    :param df: The dataframe to get data embeddings for. Must have text col
+    :param lazy: If true, we lazily apply the model to encode the text
+    """
     # This import takes up to 25 seconds, so we don't want to eagerly import it
     import transformers
     from sentence_transformers import SentenceTransformer
@@ -227,12 +146,57 @@ def create_data_embs(df: DataFrame) -> DataFrame:
     transformers.logging.disable_progress_bar()
     sentence_encoder = os.getenv(GALILEO_DATA_EMBS_ENCODER, DEFAULT_DATA_EMBS_MODEL)
     data_model = SentenceTransformer(sentence_encoder)
+    transformers.logging.enable_progress_bar()
     df_copy = df.copy()
 
     @vaex.register_function()
     def apply_sentence_transformer(text: pa.array) -> np.ndarray:
         return data_model.encode(text.to_pylist(), show_progress_bar=False)
 
-    df_copy["emb"] = df_copy["text"].apply_sentence_transformer()
-    transformers.logging.enable_progress_bar()
-    return df_copy[["id", "emb"]]
+    if lazy:
+        df_copy["emb"] = df_copy["text"].apply_sentence_transformer()
+        df_copy = df_copy[["id", "emb"]]
+    else:
+        df_copy["emb"] = data_model.encode(
+            df_copy["text"].tolist(), show_progress_bar=True
+        )
+
+    return df_copy
+
+
+def get_output_df(
+    dir_name: str,
+    prob_only: bool,
+    split: str,
+    epoch_or_inf: Union[str, int],
+) -> DataFrame:
+    """Creates the single hdf5 file for the output data of a split/epoch
+
+    Applies the necessary conversions post-concatenation of files
+    (see `concat_hdf5_files`)
+    """
+    out_frame_path = f"{dir_name}/{HDF5_STORE}"
+    # It's possible the files were already concatenated and handled. In that case
+    # just open the processed file
+    if os.path.isfile(out_frame_path):
+        return vaex.open(out_frame_path)
+    str_cols = concat_hdf5_files(dir_name, prob_only)
+    out_frame = vaex.open(out_frame_path)
+
+    if split == Split.inference:
+        dtype: Union[str, None] = "str"
+        epoch_or_inf_name = "inference_name"
+    else:
+        dtype = None
+        epoch_or_inf_name = "epoch"
+
+    # Post concat, string columns come back as bytes and need conversion
+    for col in str_cols:
+        out_frame[col] = out_frame[col].as_arrow().astype("str")
+        out_frame[col] = out_frame[f'astype({col}, "large_string")']
+    if prob_only:
+        out_frame["split"] = vaex.vconstant(split, length=len(out_frame), dtype="str")
+        out_frame[epoch_or_inf_name] = vaex.vconstant(
+            epoch_or_inf, length=len(out_frame), dtype=dtype
+        )
+    return out_frame

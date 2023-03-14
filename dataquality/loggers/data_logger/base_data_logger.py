@@ -1,7 +1,6 @@
 import gc
 import glob
 import os
-import shutil
 import sys
 import warnings
 from abc import abstractmethod
@@ -22,15 +21,20 @@ from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
 from dataquality.utils import tqdm
 from dataquality.utils.cloud import is_galileo_cloud
-from dataquality.utils.dq_logger import _shutil_rmtree_retry
-from dataquality.utils.hdf5_store import HDF5_STORE
+from dataquality.utils.cuda import cuml_available
+from dataquality.utils.emb import (
+    DATA_EMB_PATH,
+    apply_umap_to_embs,
+    upload_umap_data_embs,
+)
+from dataquality.utils.file import _shutil_rmtree_retry
 from dataquality.utils.helpers import galileo_verbose_logging
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import (
     _join_in_out_frames,
-    concat_hdf5_files,
-    create_data_embs,
+    create_data_embs_df,
     filter_df,
+    get_output_df,
     validate_unique_ids,
 )
 
@@ -196,6 +200,10 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         df.close()
         self.logger_config.input_data_logged[str(self.split)] += 1
 
+    @property
+    def support_data_embs(self) -> bool:
+        return True
+
     def upload(
         self, last_epoch: Optional[int] = None, create_data_embs: bool = False
     ) -> None:
@@ -207,6 +215,10 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         If create_data_embs is True, this will also run an off the shelf transformer
         and upload those text embeddings alongside the models finetuned embeddings
         """
+        # For linting
+        assert (
+            config.current_project_id and config.current_run_id
+        ), "You must call dq.init and train a model before calling finish"
         ThreadPoolManager.wait_for_threads()
         self.check_for_logging_failures()
         print("☁️ Uploading Data")
@@ -214,9 +226,25 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         proj_run = f"{config.current_project_id}/{config.current_run_id}"
         location = f"{self.LOG_FILE_DIR}/{proj_run}"
 
+        if cuml_available():
+            apply_umap_to_embs(location, last_epoch)
+
+        if cuml_available() and create_data_embs and self.support_data_embs:
+            print("Creating and uploading data embeddings")
+            upload_umap_data_embs(
+                config.current_project_id,
+                config.current_run_id,
+                self.input_data_path,
+                location,
+                last_epoch,
+            )
+            # We have already created them here, so don't try again later
+            create_data_embs = False
+
         for split in Split.get_valid_attributes():
             split_loc = f"{location}/{split}"
-            input_logged = os.path.exists(f"{self.input_data_path}/{split}")
+            in_frame_path = f"{self.input_data_path}/{split}"
+            input_logged = os.path.exists(in_frame_path)
             output_logged = os.path.exists(split_loc)
             if not output_logged:
                 continue
@@ -228,7 +256,6 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                     GalileoWarning,
                 )
                 continue
-            in_frame_path = f"{self.input_data_path}/{split}"
             in_frame_split = vaex.open(f"{in_frame_path}/*.arrow")
             in_frame_split = self.convert_large_string(in_frame_split)
             self.upload_split(
@@ -240,13 +267,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                 create_data_embs,
             )
             in_frame_split.close()
-            # Sometimes the directory is not deleted immediately
-            # This can happen if the client is using an nfs
-            # again after a short delay
-            try:
-                shutil.rmtree(in_frame_path)
-            except OSError:
-                _shutil_rmtree_retry(in_frame_path)
+            _shutil_rmtree_retry(in_frame_path)
             gc.collect()
 
     @classmethod
@@ -256,10 +277,9 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         """Uploads off the shelf data embeddings for a split"""
         object_store = ObjectStore()
         df_copy = df.copy()
-        # Create
-        data_embs = create_data_embs(df_copy)
+        data_embs = create_data_embs_df(df_copy)
         proj_run_split = f"{config.current_project_id}/{config.current_run_id}/{split}"
-        minio_file = f"{proj_run_split}/{epoch_or_inf}/data_emb/data_emb.hdf5"
+        minio_file = f"{proj_run_split}/{epoch_or_inf}/{DATA_EMB_PATH}"
         # And upload
         object_store.create_project_run_object_from_df(data_embs, minio_file)
 
@@ -309,7 +329,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             file=sys.stdout,
         ):
             input_batch = in_frame.copy()
-            prob_only = cls.prob_only(epochs_or_infs, split, epoch_or_inf)
+            prob_only = cls.prob_only(epochs_or_infs, split, epoch_or_inf, last_epoch)
             if split == Split.inference:
                 input_batch = filter_df(input_batch, "inference_name", epoch_or_inf)
                 if not len(input_batch):
@@ -356,28 +376,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         :param split: The split we are logging for
         :param epoch_or_inf: The epoch or inference name we are logging for
         """
-        str_cols = concat_hdf5_files(dir_name, prob_only)
-        out_frame = vaex.open(f"{dir_name}/{HDF5_STORE}")
-
-        if split == Split.inference:
-            dtype: Union[str, None] = "str"
-            epoch_or_inf_name = "inference_name"
-        else:
-            dtype = None
-            epoch_or_inf_name = "epoch"
-
-        # Post concat, string columns come back as bytes and need conversion
-        for col in str_cols:
-            out_frame[col] = out_frame[col].as_arrow().astype("str")
-            out_frame[col] = out_frame[f'astype({col}, "large_string")']
-        if prob_only:
-            out_frame["split"] = vaex.vconstant(
-                split, length=len(out_frame), dtype="str"
-            )
-            out_frame[epoch_or_inf_name] = vaex.vconstant(
-                epoch_or_inf, length=len(out_frame), dtype=dtype
-            )
-
+        out_frame = get_output_df(dir_name, prob_only, split, epoch_or_inf)
+        epoch_or_inf_name = "inference_name" if split == Split.inference else "epoch"
         return cls.process_in_out_frames(
             in_frame, out_frame, prob_only, epoch_or_inf_name, split
         )
@@ -462,7 +462,11 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
     @classmethod
     def prob_only(
-        cls, epochs: List[str], split: str, epoch_or_inf_name: Union[int, str]
+        cls,
+        epochs: List[str],
+        split: str,
+        epoch_or_inf_name: Union[int, str],
+        last_epoch: Optional[int],
     ) -> bool:
         """Determines if we are only uploading probabilities
 
@@ -475,6 +479,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         # If split is not inference, epoch_or_inf must be epoch
         epoch = int(epoch_or_inf_name)
         max_epoch_for_split = max([int(i) for i in epochs])
+        if last_epoch is not None:
+            max_epoch_for_split = min(max_epoch_for_split, last_epoch)
         return bool(epoch < max_epoch_for_split - 1)
 
     def validate(self) -> None:

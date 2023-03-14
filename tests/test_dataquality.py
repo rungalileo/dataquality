@@ -385,11 +385,16 @@ def test_prob_only(set_test_config) -> None:
     val_split_runs = ["0", "1", "3", "4"]
     test_split_runs = ["0"]
 
-    assert logger.prob_only(train_split_runs, "training", "0")
-    assert not logger.prob_only(train_split_runs, "training", "5")
-    assert logger.prob_only(val_split_runs, "validation", "0")
-    assert not logger.prob_only(val_split_runs, "validation", "5")
-    assert not logger.prob_only(test_split_runs, "test", "0")
+    assert logger.prob_only(train_split_runs, "training", "0", last_epoch=None)
+    assert not logger.prob_only(train_split_runs, "training", "5", last_epoch=None)
+    # Last epoch of 9 is invalid because the largest epoch is 5
+    assert not logger.prob_only(test_split_runs, "test", "5", last_epoch=9)
+    assert not logger.prob_only(train_split_runs, "training", "3", last_epoch=4)
+    assert logger.prob_only(val_split_runs, "validation", "0", last_epoch=None)
+    assert not logger.prob_only(val_split_runs, "validation", "5", last_epoch=None)
+    assert not logger.prob_only(test_split_runs, "test", "0", last_epoch=None)
+    # Last epoch of 2 is invalid because the largest epoch is 0
+    assert not logger.prob_only(test_split_runs, "test", "0", last_epoch=2)
 
 
 @mock.patch.object(dataquality.clients.api.ApiClient, "get_presigned_url")

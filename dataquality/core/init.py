@@ -15,7 +15,7 @@ import dataquality
 from dataquality.clients.api import ApiClient
 from dataquality.core._config import _check_dq_version, config
 from dataquality.core.auth import login
-from dataquality.exceptions import GalileoException
+from dataquality.exceptions import GalileoException, GalileoWarning
 from dataquality.loggers import BaseGalileoLogger
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.dq_logger import DQ_LOG_FILE_HOME
@@ -140,7 +140,8 @@ def init(
     if not run_created:
         warnings.warn(
             f"Run: {project_name}/{run_name} already exists! "
-            "The existing run will get overwritten on call to finish()!"
+            "The existing run will get overwritten on call to finish()!",
+            GalileoWarning,
         )
 
     config.current_project_id = project["id"]
