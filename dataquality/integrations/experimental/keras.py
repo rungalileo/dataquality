@@ -295,13 +295,14 @@ def select_model_layer(
                 chosen_layer = model_layer
                 break
     else:
+        layer = "dense"
         for model_layer in model.layers:
-            if model_layer.name == "classifier":
+            if model_layer.name == layer:
                 chosen_layer = model_layer
                 break
 
     assert chosen_layer is not None, GalileoException(
-        f"Layer {layer} could not be found"
+        f"Layer {layer} cannot be found, check that it exists in the model's summary."
     )
     return chosen_layer
 
