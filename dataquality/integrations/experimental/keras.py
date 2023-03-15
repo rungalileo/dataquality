@@ -295,7 +295,7 @@ def select_model_layer(
                 chosen_layer = model_layer
                 break
     else:
-        layer = "dense"
+        layer = "classifier"
         for model_layer in model.layers:
             if model_layer.name == layer:
                 chosen_layer = model_layer
