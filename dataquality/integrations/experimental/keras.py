@@ -280,26 +280,29 @@ def store_model_ids(store: Dict[str, Any]) -> Callable:
 
 
 def select_model_layer(
-    model: tf.keras.layers.Layer, layer: Optional[Union[tf.keras.layers.Layer, str]]
+    model: tf.keras.layers.Layer, layer: Union[tf.keras.layers.Layer, str, None] = None
 ) -> tf.keras.layers.Layer:
     """Selects the classifier layer from the model.
     :param model: The model.
-    :param layer: The layer to select. If the layer with the name
+    :param layer: The layer to select. If None, the layer with the name
     'classifier' is selected."""
-    chosen_layer = layer
-    if isinstance(chosen_layer, str) is None:
+    chosen_layer = None
+    if isinstance(layer, tf.keras.layers.Layer):
+        chosen_layer = layer
+    elif isinstance(layer, str):
         for model_layer in model.layers:
             if model_layer.name == layer:
                 chosen_layer = model_layer
                 break
     else:
+        layer = "classifier"
         for model_layer in model.layers:
-            if model_layer.name == "classifier":
+            if model_layer.name == layer:
                 chosen_layer = model_layer
                 break
-    assert chosen_layer is not None, GalileoException("Layer could not be found")
-    assert not isinstance(chosen_layer, str), GalileoException(
-        "Layer could not be found"
+
+    assert chosen_layer is not None, GalileoException(
+        f"Layer {layer} cannot be found, check that it exists in the model's summary."
     )
     return chosen_layer
 
