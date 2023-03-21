@@ -13,7 +13,7 @@ a = Analytics(ApiClient, config)
 
 
 @check_noop
-def configure(do_login: bool = True) -> None:
+def configure(do_login: bool = True, _internal: bool = False) -> None:
     """[Not for cloud users] Update your active config with new information
 
     You can use environment variables to set the config, or wait for prompts
@@ -23,9 +23,11 @@ def configure(do_login: bool = True) -> None:
     * GALILEO_PASSWORD
     """
     a.log_function("dq/configure")
-    warnings.warn(
-        "configure is deprecated, use dq.set_console_url and dq.login", GalileoWarning
-    )
+    if not _internal:
+        warnings.warn(
+            "configure is deprecated, use dq.set_console_url and dq.login",
+            GalileoWarning,
+        )
 
     if "GALILEO_API_URL" in os.environ:
         del os.environ["GALILEO_API_URL"]
@@ -51,4 +53,4 @@ def set_console_url(console_url: Optional[str] = None) -> None:
     a.log_function("dq/set_console_url")
     if console_url:
         os.environ["GALILEO_CONSOLE_URL"] = console_url
-    configure(do_login=False)
+    configure(do_login=False, _internal=True)

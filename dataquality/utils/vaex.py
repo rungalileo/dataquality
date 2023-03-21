@@ -151,15 +151,21 @@ def create_data_embs_df(df: DataFrame, lazy: bool = True) -> DataFrame:
 
     @vaex.register_function()
     def apply_sentence_transformer(text: pa.array) -> np.ndarray:
-        return data_model.encode(text.to_pylist(), show_progress_bar=False)
+        return data_model.encode(text.to_pylist(), show_progress_bar=False).astype(
+            np.float32
+        )
 
     if lazy:
         df_copy["emb"] = df_copy["text"].apply_sentence_transformer()
         df_copy = df_copy[["id", "emb"]]
     else:
-        df_copy["emb"] = data_model.encode(
-            df_copy["text"].tolist(), show_progress_bar=True
-        )
+        import torch
+
+        # Downcasts to float16 where possible, speeds up processing by 10 it/sec
+        with torch.autocast("cuda"):
+            df_copy["emb"] = data_model.encode(
+                df_copy["text"].tolist(), show_progress_bar=True
+            ).astype(np.float32)
 
     return df_copy
 

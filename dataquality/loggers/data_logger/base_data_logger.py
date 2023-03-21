@@ -228,6 +228,13 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
         if cuml_available():
             apply_umap_to_embs(location, last_epoch)
+        else:
+            print(
+                "CuML libraries not found, running standard process. "
+                "For faster Galileo processing, consider installing\n"
+                "`pip install 'dataquality[cuda]' --extra-index-url="
+                "https://pypi.ngc.nvidia.com/`"
+            )
 
         if cuml_available() and create_data_embs and self.support_data_embs:
             print("Creating and uploading data embeddings")
