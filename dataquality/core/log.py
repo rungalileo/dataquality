@@ -370,12 +370,12 @@ def log_model_outputs(
 
     model_logger = get_model_logger(
         task_type=None,
-        embs=embs,
+        embs=embs.astype(np.float32) if isinstance(embs, np.ndarray) else embs,
         ids=ids,
         split=Split[split].value if split else "",
         epoch=epoch,
-        logits=logits,
-        probs=probs,
+        logits=logits.astype(np.float32) if isinstance(logits, np.ndarray) else logits,
+        probs=probs.astype(np.float32) if isinstance(probs, np.ndarray) else probs,
         inference_name=inference_name,
     )
     model_logger.log()
