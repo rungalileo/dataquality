@@ -175,9 +175,12 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         # we take the softmax for each sample
         if not isinstance(sample_logits, np.ndarray):
             sample_logits = self._convert_tensor_ndarray(sample_logits)
-        if len(sample_logits.shape) == 1 or sample_logits.shape[1] == 1:
+
+        # If shape is (num_samples, 1) or (num_samples,) then we have a binary case
+        if len(sample_logits.shape) == 1 or sample_logits.shape[-1] == 1:
             if len(sample_logits.shape) > 1:
                 # Remove final empty dimension if it's there
                 sample_logits = sample_logits.reshape(-1)
             return self.convert_logits_to_prob_binary(sample_logits)
+
         return softmax(np.array(sample_logits), axis=-1)
