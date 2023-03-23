@@ -671,7 +671,7 @@ def get_labels_for_run(
         pid, rid = api_client._get_project_run_id(project_name, run_name)
         labels_object = f"{pid}/{rid}/labels/labels.json"
         labels_path = object_store.download_file(
-            labels_object, "/tmp/labels.json", object_store.RESULTS_BUCKET_NAME
+            labels_object, "/tmp/labels.json", object_store.results_bucket_name
         )
         with open(labels_path) as f:
             return json.loads(f.read())

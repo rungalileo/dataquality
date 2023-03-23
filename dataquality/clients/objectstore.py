@@ -12,16 +12,24 @@ from vaex.dataframe import DataFrame
 from dataquality.core.auth import api_client
 from dataquality.utils.file import get_file_extension
 
-IMAGES_BUCKET_NAME = "galileo-images"
-ROOT_BUCKET_NAME = "galileo-project-runs"
-RESULTS_BUCKET_NAME = "galileo-project-runs-results"
-
 
 class ObjectStore:
-    IMAGES_BUCKET_NAME = IMAGES_BUCKET_NAME
-    ROOT_BUCKET_NAME = ROOT_BUCKET_NAME
-    RESULTS_BUCKET_NAME = RESULTS_BUCKET_NAME
     DOWNLOAD_CHUNK_SIZE_MB = 256
+
+    def __init__(self) -> None:
+        bucket_names = api_client.get_bucket_names()
+        self.images_bucket_name = bucket_names.get(
+            "images",
+            "galileo-images",
+        )
+        self.root_bucket_name = bucket_names.get(
+            "root",
+            "galileo-projects-runs",
+        )
+        self.results_bucket_name = bucket_names.get(
+            "results",
+            "galileo-projects-runs-results",
+        )
 
     def create_object(
         self,
@@ -31,10 +39,17 @@ class ObjectStore:
         progress: bool = True,
         bucket_name: Optional[str] = None,
     ) -> None:
+        _bucket_name = bucket_name or self.root_bucket_name
+        assert _bucket_name is not None, (
+            "No bucket name provided to create_object. Please provide "
+            "a bucket_name by setting the root_bucket_name in your config with "
+            "`dq.config.root_bucket_name = 'my-bucket-name'` or by passing a "
+            "bucket_name to this function."
+        )
         url = api_client.get_presigned_url(
             project_id=object_name.split("/")[0],
             method="put",
-            bucket_name=bucket_name or self.ROOT_BUCKET_NAME,
+            bucket_name=_bucket_name,
             object_name=object_name,
         )
         self._upload_file_from_local(
@@ -92,17 +107,27 @@ class ObjectStore:
             )
 
     def download_file(
-        self, object_name: str, file_path: str, bucket: str = ROOT_BUCKET_NAME
+        self, object_name: str, file_path: str, bucket: Optional[str] = None
     ) -> str:
         """download_file
 
         Args:
             object_name (str): The object name.
             file_path (str): Where to write the object data locally.
+            bucket (Optional[str]): The bucket name. If None,
+                the root bucket name is used.
 
         Returns:
             str: The local file where the object name was written.
         """
+        if bucket is None:
+            bucket = self.root_bucket_name
+        assert bucket is not None, (
+            "No bucket name provided to create_object. Please provide "
+            "a bucket_name by setting the root_bucket_name in your config with "
+            "`dq.config.root_bucket_name = 'my-bucket-name'` or by passing a "
+            "bucket_name to this function."
+        )
         url = api_client.get_presigned_url(
             project_id=object_name.split("/")[0],
             method="get",

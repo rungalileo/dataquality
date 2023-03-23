@@ -114,7 +114,7 @@ def _check_dq_version() -> None:
     """Check that user is running valid version of DQ client
     Pings backend to check minimum DQ version requirements.
     """
-    r = requests.get(f"{config.api_url}/{Route.healthcheck}/dq")
+    r = requests.get(f"{config.api_url}/{Route.healthcheck_dq}")
     if not r.ok:
         if r.status_code == 404:
             # We don't want to raise error if api doesn't have dq healthcheck yet
