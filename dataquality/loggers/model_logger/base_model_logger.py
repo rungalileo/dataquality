@@ -55,7 +55,7 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         (this batch is bad, but we can continue logging)
         """
         try:
-            self.validate()
+            self.validate_and_format()
         except AssertionError as e:
             get_dq_logger().error(
                 "Validation of data failed", split=self.split, epoch=self.epoch
