@@ -57,7 +57,6 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         *,
         imgs_colname: Optional[str] = None,
         imgs_location_colname: Optional[str] = None,
-        imgs_dir: Optional[str] = None,
         batch_size: int = ITER_CHUNK_SIZE_IMAGES,
         id: str = "id",
         label: Union[str, int] = "label",
