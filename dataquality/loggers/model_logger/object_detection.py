@@ -6,7 +6,7 @@ import torch
 
 from dataquality.loggers.logger_config.object_detection import (
     BoxFormat,
-    ObjectDetectionLoggerConfig,
+    object_detection_logger_config
 )
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 
@@ -65,7 +65,7 @@ IOU_THRESH = 0.3
 
 class ObjectDetectionModelLogger(BaseGalileoModelLogger):
     __logger_name__ = "object_detection"
-    logger_config = ObjectDetectionLoggerConfig
+    logger_config = object_detection_logger_config
 
     def __init__(
         self,
@@ -79,6 +79,7 @@ class ObjectDetectionModelLogger(BaseGalileoModelLogger):
         logits: Optional[Union[List, np.ndarray]] = None,
         ids: Optional[Union[List, np.ndarray]] = None,
         split: str = "",
+        img_size: Optional[Tuple[int, int]] = None,
         epoch: Optional[int] = None,
         inference_name: Optional[str] = None,
     ) -> None:
@@ -111,43 +112,63 @@ class ObjectDetectionModelLogger(BaseGalileoModelLogger):
         self.deps = []
         self.is_gold = []
         self.is_pred = []
-        self.image_dep = float(np.nan)
+        self.image_dep = []
 
     def validate_and_format(self) -> None:
-        # check for box format
 
-        # check to make sure boxes are not empty
+         # check for box format
+        if self.logger_config.box_format == BoxFormat.tlxywh:
+            self.gold_boxes = convert_tlxywh_xyxy(
+                self.gold_boxes
+            )  # func to convert tlxywh to xyxy
+        elif self.logger_config.box_format == BoxFormat.cxywh:
+            self.gold_boxes = convert_cxywh_xyxy(self.gold_boxes)
 
-        if self.gold_boxes is not None and self.pred_boxes is not None:
-            if self.logger_config.box_format == BoxFormat.tlxywh:
-                self.gold_boxes = convert_tlxywh_xyxy(
-                    self.gold_boxes
-                )  # func to convert tlxywh to xyxy
-            elif self.logger_config.box_format == BoxFormat.cxywh:
-                self.gold_boxes = convert_cxywh_xyxy(self.gold_boxes)
-
-            matching = match_bboxes(self.pred_boxes, self.gold_boxes)
+        # scale boxes if all less than 1
+        if np.all(self.gold_boxes < 1):
+            self.gold_boxes = scale_boxes(self.gold_boxes, self.img_size[0])
+        
+        for id in self.ids:
+            matching = match_bboxes(self.pred_boxes[id], self.gold_boxes[id])
 
             # stuff below here may not be vectorizable
-            gt_dep, pred_dep, image_dep = dep(
-                self.gold_boxes, self.pred_boxes, self.labels, self.probs
+            deps, all_boxes, embs, gt_or_pred, image_dep = dep_and_boxes(
+                self.gold_boxes[id], self.pred_boxes[id], self.labels[id], self.probs[id], self.pred_embs[id], self.gold_embs[id], matching
             )
-            self.embs, self.deps, gt_or_pred = self.process_deps_embeddings(
-                gt_dep, pred_dep, self.gold_embs, self.pred_embs, matching
-            )
-        else:
-            if self.gold_boxes is None:
-                self.gold_boxes = torch.empty
-            pass  # handle the empty case
 
-        self.all_boxes = get_boxes(matching)  # some func gets all the matching boxes
-        self.is_gold = gt_or_pred == 0
-        self.is_pred = gt_or_pred == 1
-        self.image_dep = image_dep
+            self.all_boxes.append(np.array(all_boxes))
+            self.deps.append(np.array(deps))
+            self.image_dep.append(np.array(image_dep))
+            self.is_gold.append(~np.array(gt_or_pred))
+            self.is_pred.append(np.array(gt_or_pred))
+            self.embs.append(np.array(embs))
+
 
     def log():
         pass
 
+def scale_boxes(bboxes: np.ndarray, img_size: Tuple[int, int]) -> np.ndarray:
+    # scale boxes to image size
+    bboxes[:, 0] *= img_size[0]
+    bboxes[:, 1] *= img_size[1]
+    bboxes[:, 2] *= img_size[0]
+    bboxes[:, 3] *= img_size[1]
+    return bboxes
+
+def convert_cxywh_xyxy(bboxes: np.ndarray) -> np.ndarray:
+    # converts center point xywh boxes to xyxy can be in either integer coords or 0-1
+    x, y, w, h = bboxes[:, 0], bboxes[:, 1], bboxes[:, 2], bboxes[:, 3]
+    x1, x2 = x - w / 2, x + w / 2
+    y1, y2 = y - h / 2, y + h / 2
+    bboxes[:, 0], bboxes[:, 1], bboxes[:, 2], bboxes[:, 3] = x1, y1, x2, y2
+    return bboxes
+
+def convert_tlxywh_xyxy(bboxes: np.ndarray) -> np.ndarray:
+    # convert top left xywh boxes to xyxy can be in either integer coords or 0-1
+    x, y, w, h = bboxes[:, 0], bboxes[:, 1], bboxes[:, 2], bboxes[:, 3]
+    x2, y2 = x + w, y + h
+    bboxes[:, 0], bboxes[:, 1], bboxes[:, 2], bboxes[:, 3] = x, y, x2, y2
+    return bboxes
 
 def bbox_iou(boxA, boxB):
     # https://www.pyimagesearch.com/2016/11/07/intersection-over-union-iou-for-object-detection/
@@ -177,7 +198,7 @@ def bbox_iou(boxA, boxB):
 
 def match_bboxes(
     bbox_gt: np.ndarray, bbox_pred: np.ndarray, iou_thresh: float = IOU_THRESH
-) -> Tuple[np.ndarray]:
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Given sets of true and predicted bounding-boxes,
     determine the best possible match.
@@ -244,11 +265,11 @@ def dep_match(iou: float, probs: np.ndarray, gt_label: int) -> float:
     gt_logit = probs[gt_label.long()]
     # get the highest logit that is not equal to the gt logit
     if len(probs) > 1:
-        pred_logit = torch.topk(probs, 2)[0]
-        if pred_logit[0] == gt_logit:
-            pred_logit = pred_logit[1]
+        top_idx_prob, second_idx = np.argsort(probs)[:2]
+        if probs[top_idx_prob] == gt_logit:
+            pred_logit = probs[second_idx]
         else:
-            pred_logit = pred_logit[0]
+            pred_logit = probs[top_idx_prob]
         margin = gt_logit - pred_logit
         dep_cls = (1 - margin) / 2
     else:
@@ -267,8 +288,14 @@ def dep_no_match_pred(probs: np.ndarray) -> float:
     return float(probs.max())
 
 
-def dep(
-    gt_boxes: np.ndarray, pred_boxes: np.ndarray, labels: np.ndarray, probs: np.ndarray
+def dep_and_boxes(
+    gt_boxes: np.ndarray,
+    pred_boxes: np.ndarray,
+    labels: np.ndarray,
+    probs: np.ndarray,
+    pred_embs: np.ndarray,
+    gt_embs: np.ndarray,
+    matching: np.ndarray
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, float]:
     """Calculates box-level and image-lev
 
@@ -290,41 +317,58 @@ def dep(
 
     Takes in gt boxes, pred_boxes, gt_labels, probs and returns a per box dep and image dep
     """
+    with torch.no_grad():
+        pred_deps, gold_deps, deps = np.ones(len(pred_boxes)), np.ones(len(gt_boxes)), []
+        all_boxes, gt_or_pred = [], []
+        embeddings = []
 
-    pred_deps, gold_deps, deps = np.ones(len(pred_boxes)), np.ones(len(gold_deps)), []
+        pred_idxs, gt_idxs, ious = matching[0], matching[1], matching[2]
 
-    # If no GT and no preds, detection is perfect
-    if len(pred_boxes) == len(gt_boxes) == 0:
-        return (
-            deps,
-            pred_deps,
-            gold_deps,
-        )
+        # empty box to be used for no match
+        EMPTY_BOX = np.array([-1, -1, -1, -1])
 
-    gt_idxs, pred_idxs, ious = match_bboxes(gt_boxes, pred_boxes)
+        # dep for matches
+        for gt_idx, pred_idx, iou in zip(gt_idxs, pred_idxs, ious):
+            dep_match_score = dep_match(iou, probs[pred_idx], labels[gt_idx])
+            deps.append(dep_match_score)
+            pred_deps[pred_idx] = dep_match_score
+            gold_deps[gt_idx] = dep_match_score
 
-    # dep for matches
-    for gt_idx, pred_idx, iou in zip(gt_idxs, pred_idxs, ious):
-        dep_match = dep_match(iou, probs[pred_idx], labels[gt_idx])
-        deps.append(dep_match)
-        pred_deps[pred_idx] = dep_match
-        gold_deps[gt_idx] = dep_match
+            #add embeddings and boxes
+            embeddings.append(np.array(pred_embs[pred_idx]))
+            arr = np.array([pred_boxes[pred_idx], gt_boxes[gt_idx]])
+            all_boxes.append(arr)
+            gt_or_pred.append(True)
 
-    # dep for extra GT
-    n_gts = gt_boxes.shape[0]
-    for gt_extra_index in set(range(n_gts)).difference(gt_idxs):
-        dep_no_match_gt = dep_no_match_gt()
-        deps.append(dep_no_match_gt)
-        gold_deps[gt_extra_index] = dep_no_match_gt
+        # dep for extra GT
+        n_gts = gt_boxes.shape[0]
+        for gt_extra_index in set(range(n_gts)).difference(gt_idxs):
+            dep_no_match_gt_score = dep_no_match_gt()
+            deps.append(dep_no_match_gt_score)
+            gold_deps[gt_extra_index] = dep_no_match_gt_score
 
-    # dep for extra Pred
-    n_preds = pred_boxes.shape[0]
-    for pred_extra_index in set(range(n_preds)).difference(pred_idxs):
-        # take the max of the pred scores - works for both seq and scalars
-        dep_no_match_pred = dep_no_match_pred(max(probs[pred_extra_index]))
-        deps.append(dep_no_match_pred)
-        pred_deps[pred_extra_index] = dep_no_match_pred
+            #add embeddings and boxes
+            embeddings.append(np.array(gt_embs[gt_extra_index]))
+            # create a numpy array of the empty box and the gt box
+            arr = np.array([EMPTY_BOX, gt_boxes[gt_extra_index]])
+            all_boxes.append(arr)
+            gt_or_pred.append(False)
 
-    image_dep = float(sum(deps) / len(deps))
+        # dep for extra Pred
+        n_preds = pred_boxes.shape[0]
+        for pred_extra_index in set(range(n_preds)).difference(pred_idxs):
+            # take the max of the pred scores - works for both seq and scalars
+            dep_no_match_pred_score = dep_no_match_pred(max(probs[pred_extra_index]))
+            deps.append(dep_no_match_pred_score)
+            pred_deps[pred_extra_index] = dep_no_match_pred_score
 
-    return deps, gold_deps, pred_deps, image_dep
+            #add embeddings and boxes
+            embeddings.append(np.array(pred_embs[pred_extra_index]))
+            arr = np.array([pred_boxes[pred_extra_index], EMPTY_BOX])
+            all_boxes.append(arr)
+            gt_or_pred.append(True)
+
+        image_dep = float(sum(deps) / len(deps))
+
+        return deps, all_boxes, embeddings, gt_or_pred, image_dep
+
