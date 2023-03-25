@@ -127,6 +127,8 @@ class ObjectDetectionModelLogger(BaseGalileoModelLogger):
         # scale boxes if all less than 1
         if np.all(self.gold_boxes < 1):
             self.gold_boxes = scale_boxes(self.gold_boxes, self.img_size[0])
+        if np.all(self.pred_boxes < 1):
+            self.pred_boxes = scale_boxes(self.pred_boxes, self.img_size[0])
         
         for id in self.ids:
             matching = match_bboxes(self.pred_boxes[id], self.gold_boxes[id])
