@@ -144,6 +144,16 @@ class ObjectDetectionModelLogger(BaseGalileoModelLogger):
             self.embs.append(np.array(embs))
 
 
+        """
+        self.all_boxes: (bs, n, 2, 4)) n = boxes first four are pred, last four are gold [-1] * 4 for empty boxes
+        self.deps: (bs, n) n = boxes, all boxes have a dep
+        self.image_dep: (bs, 1) image dep aggregated
+        self.is_gold: (bs, n) n = boxes True if gold, False if pred
+        self.is_pred: (bs, n) n = boxes True if pred, False if gold
+        self.embs: (bs, n, dim) n = boxes embedding for each box
+        """
+
+
     def log():
         pass
 
