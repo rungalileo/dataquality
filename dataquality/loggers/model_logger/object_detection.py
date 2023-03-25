@@ -170,7 +170,7 @@ def convert_tlxywh_xyxy(bboxes: np.ndarray) -> np.ndarray:
     bboxes[:, 0], bboxes[:, 1], bboxes[:, 2], bboxes[:, 3] = x, y, x2, y2
     return bboxes
 
-def bbox_iou(boxA, boxB):
+def bbox_iou(boxA: np.ndarray, boxB: np.ndarray) -> float:
     # https://www.pyimagesearch.com/2016/11/07/intersection-over-union-iou-for-object-detection/
     # ^^ corrected.
     # FROM https://gist.github.com/AruniRC/c629c2df0e68e23aff7dcaeef87c72d4
@@ -296,7 +296,7 @@ def dep_and_boxes(
     pred_embs: np.ndarray,
     gt_embs: np.ndarray,
     matching: np.ndarray
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, float]:
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, float]:
     """Calculates box-level and image-lev
 
     :param pred_boxes: Pred boxes for an image
