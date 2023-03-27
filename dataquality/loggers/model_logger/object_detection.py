@@ -1,5 +1,4 @@
-
-from typing import List, Optional, Tuple, Union, Dict
+from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -8,13 +7,7 @@ from dataquality.loggers.logger_config.object_detection import (
     object_detection_logger_config,
 )
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
-from dataquality.utils.od import (
-    convert_cxywh_xyxy,
-    convert_tlxywh_xyxy,
-    dep_and_boxes,
-    match_bboxes,
-    scale_boxes,
-)
+from dataquality.utils.od import convert_cxywh_xyxy, convert_tlxywh_xyxy, scale_boxes
 
 """ Dereks stuff
 'gold_labels', 
@@ -127,6 +120,7 @@ class ObjectDetectionModelLogger(BaseGalileoModelLogger):
         self.image_dep = []
         self.image_size = image_size
 
+
     def validate_and_format(self) -> None:
         for image_id in self.image_ids:
             # check for box format
@@ -144,6 +138,8 @@ class ObjectDetectionModelLogger(BaseGalileoModelLogger):
                 self.pred_boxes[image_id] = scale_boxes(
                     self.pred_boxes[image_id], self.image_size
                 )
+            
+
                 
             # matching = match_bboxes(self.pred_boxes[idx], self.gold_boxes[idx])
 
@@ -180,29 +176,52 @@ class ObjectDetectionModelLogger(BaseGalileoModelLogger):
         When constructing the data for the batch, we store all preds first, then
         all golds. So we do the same here to map the IDs properly
         """
-        ids = []
+        pred_box_ids = []
+        gold_box_ids = []
+        # If the particular image has no boxes, it's shape[0] will be 
+        # 0, so no ids will be added, which is what we want
         for image_id in self.image_ids:
-            prob_shape = self.probs[image_id].shape[0]
-            ids.extend([image_id ]* prob_shape)
-        for image_id in self.image_ids:
-            gold_shape = self.gold_embs[image_id].shape[0]
-            ids.extend([image_id] * gold_shape)
+            num_preds_for_image = self.pred_embs[image_id].shape[0]
+            pred_box_ids.extend([image_id ]* num_preds_for_image)
 
-        return ids
-        
+            num_gold_for_image = self.gold_embs[image_id].shape[0]
+            gold_box_ids.extend([image_id] * num_gold_for_image)
+        return pred_box_ids + gold_box_ids
         
     
     def _get_data_dict(self) -> Dict:
+        """Filters out the pred/gold arrays that are actually empty
+        
+        For each image, we pass in a List[np.ndarray] to represent the gold/pred 
+        boxes for that image. In the event that an image has no gold or no pred boxes,
+        they are passed in as empty numpy arrays like np.array([]). We need to filter
+        those out properly before adding them to the data dict, otherwise we won't have
+        a well formed numpy array. We do this here by checking the shape != (0,) which
+        is the shape of an empty numpy array. We similarly construct the image ids
+        in `construct_image_ids` to have the same length, 
+        """
+        image_ids = self.construct_image_ids()
+        pred_emb_arrays = np.concatenate([arr for arr in self.pred_embs if arr.shape[0] != 0])
+        gold_emb_arrays = np.concatenate([arr for arr in self.gold_embs if arr.shape[0] != 0])
+        pred_prob_arrays = np.concatenate([arr for arr in self.probs if arr.shape[0] != 0])
         # We pad gold probabilities with 0s to be able to fit it into a numpy matrix
         # Shape is (len(gold_embs), num_classes)
-        gold_prob_shape = (len(self.gold_embs), self.probs.shape[1])
-        num_pred = len(self.pred_embs)
-        num_gold = len(self.gold_embs)
-        image_ids = self.construct_image_ids()
-        return {
-            "image_id": image_ids,
-            "emb": np.concatenate([self.pred_embs, self.gold_embs]),
-            "prob": np.concatenate([self.probs, np.zeros(gold_prob_shape)]),
-            "is_pred": np.array([True]*num_pred + [False]*num_gold),
-            "is_gold": np.array([False]*num_pred + [True]*num_gold),
-        }
+        gold_prob_shape = (len(self.gold_embs), len(self.logger_config.labels))
+        num_pred = pred_emb_arrays.shape[0]
+        num_gold = gold_emb_arrays.shape[0]
+        try:
+            obj = {
+                "image_id": image_ids,
+                "emb": np.concatenate([pred_emb_arrays, gold_emb_arrays]),
+                "prob": np.concatenate([pred_prob_arrays, np.zeros(gold_prob_shape)]),
+                "is_pred": np.array([True]*num_pred + [False]*num_gold),
+                "is_gold": np.array([False]*num_pred + [True]*num_gold),
+                "split": [self.split] * len(image_ids),
+                "epoch": [0] * len(image_ids),
+                "gold": np.concatenate([[-1]* num_pred,  np.concatenate(self.labels)])
+            }
+        except ValueError:
+            print('Thank you copilot')
+
+
+        return obj
