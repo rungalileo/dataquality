@@ -209,19 +209,16 @@ class ObjectDetectionModelLogger(BaseGalileoModelLogger):
         gold_prob_shape = (len(self.gold_embs), len(self.logger_config.labels))
         num_pred = pred_emb_arrays.shape[0]
         num_gold = gold_emb_arrays.shape[0]
-        try:
-            obj = {
-                "image_id": image_ids,
-                "emb": np.concatenate([pred_emb_arrays, gold_emb_arrays]),
-                "prob": np.concatenate([pred_prob_arrays, np.zeros(gold_prob_shape)]),
-                "is_pred": np.array([True]*num_pred + [False]*num_gold),
-                "is_gold": np.array([False]*num_pred + [True]*num_gold),
-                "split": [self.split] * len(image_ids),
-                "epoch": [0] * len(image_ids),
-                "gold": np.concatenate([[-1]* num_pred,  np.concatenate(self.labels)])
-            }
-        except ValueError:
-            print('Thank you copilot')
+        obj = {
+            "image_id": image_ids,
+            "emb": np.concatenate([pred_emb_arrays, gold_emb_arrays]),
+            "prob": np.concatenate([pred_prob_arrays, np.zeros(gold_prob_shape)]),
+            "is_pred": np.array([True]*num_pred + [False]*num_gold),
+            "is_gold": np.array([False]*num_pred + [True]*num_gold),
+            "split": [self.split] * len(image_ids),
+            "epoch": [0] * len(image_ids),
+            "gold": np.concatenate([[-1]* num_pred,  np.concatenate(self.labels)])
+        }
 
 
         return obj
