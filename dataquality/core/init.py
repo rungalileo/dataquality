@@ -146,6 +146,10 @@ def init(
 
     config.current_project_id = project["id"]
     config.current_run_id = run["id"]
+    _bucket_names = api_client.get_bucket_names()
+    config.root_bucket_name = _bucket_names["root"]
+    config.results_bucket_name = _bucket_names["results"]
+    config.images_bucket_name = _bucket_names["images"]
 
     proj_created_str = "new" if proj_created else "existing"
     run_created_str = "new" if run_created else "existing"

@@ -233,7 +233,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                 "CuML libraries not found, running standard process. "
                 "For faster Galileo processing, consider installing\n"
                 "`pip install 'dataquality[cuda]' --extra-index-url="
-                "https://pypi.nvidia.com/`"
+                "https://pypi.ngc.nvidia.com/`"
             )
 
         if cuml_available() and create_data_embs and self.support_data_embs:

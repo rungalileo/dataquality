@@ -23,6 +23,7 @@ from dataquality.schemas.split import Split, conform_split
 from dataquality.schemas.task_type import TaskType
 
 api_client = ApiClient()
+object_store = ObjectStore()
 a = Analytics(ApiClient, config)  # type: ignore
 a.log_import("dq/metrics")
 
@@ -431,7 +432,6 @@ def _process_exported_dataframe(
     """Process dataframe after export of run or edits.
 
     See `get_dataframe` and `get_edited_dataframe` for details"""
-    object_store = ObjectStore()
     split = conform_split(split)
     # See docstring. In this case, we need span-level data
     # You can't attach embeddings/probs to the huggingface data, since the HF format is
@@ -440,9 +440,7 @@ def _process_exported_dataframe(
     embs = include_embs or include_data_embs
     if (embs or include_probs) and task_type == TaskType.text_ner and not hf_format:
         # In NER, the `probabilities` contains the span level data
-        span_df = get_probabilities(
-            project_name, run_name, split, object_store, inference_name
-        )
+        span_df = get_probabilities(project_name, run_name, split, inference_name)
         keep_cols = [i for i in span_df.get_column_names() if "prob" not in i]
         span_df = span_df[keep_cols]
         # These are the token (not char) indices, lets make that clear
@@ -458,7 +456,7 @@ def _process_exported_dataframe(
     if task_type == TaskType.text_multi_label:
         tasks = api_client.get_tasks_for_run(project_name, run_name)
         # Don't provide a task, get all task-labels
-        labels = get_labels_for_run(project_name, run_name, object_store=object_store)
+        labels = get_labels_for_run(project_name, run_name)
         data_df = _index_df(data_df, labels, tasks)
         data_df = _clean_mltc_df(data_df)
     if task_type == TaskType.text_classification:
@@ -472,13 +470,7 @@ def _process_exported_dataframe(
                 "Embeddings are not available in HF format, ignoring", GalileoWarning
             )
         else:
-            emb_df = get_embeddings(
-                project_name,
-                run_name,
-                split,
-                object_store,
-                inference_name,
-            )
+            emb_df = get_embeddings(project_name, run_name, split, inference_name)
             data_df = data_df.join(emb_df, on="id")
     if include_data_embs:
         # Embeddings are span level, but huggingface is sample level, so can't combine
@@ -488,11 +480,7 @@ def _process_exported_dataframe(
             )
         else:
             emb_df = get_data_embeddings(
-                project_name,
-                run_name,
-                split,
-                object_store,
-                inference_name,
+                project_name, run_name, split, inference_name
             ).copy()
             emb_df.rename("emb", "data_emb")
             data_df = data_df.join(emb_df, on="id")
@@ -502,13 +490,7 @@ def _process_exported_dataframe(
                 "Probabilities are not available in HF format, ignoring", GalileoWarning
             )
         else:
-            prob_df = get_probabilities(
-                project_name,
-                run_name,
-                split,
-                object_store,
-                inference_name,
-            )
+            prob_df = get_probabilities(project_name, run_name, split, inference_name)
             # Includes `prob` for TC, `prob_#` for MLTC, and `conf/loss_prob` for NER
             prob_cols = prob_df.get_column_names(regex=r".*prob*") + ["id"]
             data_df = data_df.join(prob_df[prob_cols], on="id")
@@ -519,9 +501,7 @@ def _process_exported_dataframe(
                 "Token indices are only available for NER, ignoring", GalileoWarning
             )
         else:
-            raw_tokens = get_raw_data(
-                project_name, run_name, split, object_store=object_store
-            )
+            raw_tokens = get_raw_data(project_name, run_name, split)
             raw_tokens = raw_tokens[["id", "text_token_indices"]]
             if "sample_id" in data_df.get_column_names():
                 data_df.rename("sample_id", "id")
@@ -555,7 +535,6 @@ def get_embeddings(
     project_name: str,
     run_name: str,
     split: Split,
-    object_store: ObjectStore,
     inference_name: str = "",
     epoch: Optional[int] = None,
 ) -> DataFrame:
@@ -578,7 +557,6 @@ def get_embeddings(
         run_name,
         split,
         "emb/emb.hdf5",
-        object_store,
         inference_name,
         epoch,
     )
@@ -588,7 +566,6 @@ def get_data_embeddings(
     project_name: str,
     run_name: str,
     split: Split,
-    object_store: ObjectStore,
     inference_name: str = "",
 ) -> DataFrame:
     """Downloads the data (off the shelf) embeddings for a run/split
@@ -606,7 +583,6 @@ def get_data_embeddings(
         run_name,
         split,
         "data_emb/data_emb.hdf5",
-        object_store,
         inference_name,
     )
 
@@ -615,7 +591,6 @@ def get_probabilities(
     project_name: str,
     run_name: str,
     split: Split,
-    object_store: ObjectStore,
     inference_name: str = "",
     epoch: Optional[int] = None,
 ) -> DataFrame:
@@ -633,13 +608,7 @@ def get_probabilities(
     """
     split = conform_split(split)
     return _get_hdf5_file_for_epoch(
-        project_name,
-        run_name,
-        split,
-        "prob/prob.hdf5",
-        object_store,
-        inference_name,
-        epoch,
+        project_name, run_name, split, "prob/prob.hdf5", inference_name, epoch
     )
 
 
@@ -647,7 +616,6 @@ def get_raw_data(
     project_name: str,
     run_name: str,
     split: Split,
-    object_store: ObjectStore,
     inference_name: str = "",
     epoch: Optional[int] = None,
 ) -> DataFrame:
@@ -671,13 +639,7 @@ def get_raw_data(
     else:
         object_name = "data/data.hdf5"
     return _get_hdf5_file_for_epoch(
-        project_name,
-        run_name,
-        split,
-        object_name,
-        object_store,
-        inference_name,
-        epoch,
+        project_name, run_name, split, object_name, inference_name, epoch
     )
 
 
@@ -693,10 +655,7 @@ def get_xray_cards(
 
 
 def get_labels_for_run(
-    project_name: str,
-    run_name: str,
-    object_store: ObjectStore,
-    task: Optional[str] = None,
+    project_name: str, run_name: str, task: Optional[str] = None
 ) -> List:
     """Gets labels for a given run.
 
@@ -712,7 +671,7 @@ def get_labels_for_run(
         pid, rid = api_client._get_project_run_id(project_name, run_name)
         labels_object = f"{pid}/{rid}/labels/labels.json"
         labels_path = object_store.download_file(
-            labels_object, "/tmp/labels.json", object_store.results_bucket_name
+            labels_object, "/tmp/labels.json", config.results_bucket_name
         )
         with open(labels_path) as f:
             return json.loads(f.read())
@@ -729,7 +688,6 @@ def _get_hdf5_file_for_epoch(
     run_name: str,
     split: Split,
     object_name: str,
-    object_store: ObjectStore,
     inference_name: str = "",
     epoch: Optional[int] = None,
 ) -> DataFrame:

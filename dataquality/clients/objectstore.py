@@ -9,27 +9,13 @@ from tqdm.auto import tqdm
 from tqdm.utils import CallbackIOWrapper
 from vaex.dataframe import DataFrame
 
+from dataquality.core._config import config
 from dataquality.core.auth import api_client
 from dataquality.utils.file import get_file_extension
 
 
 class ObjectStore:
     DOWNLOAD_CHUNK_SIZE_MB = 256
-
-    def __init__(self) -> None:
-        bucket_names = api_client.get_bucket_names()
-        self.images_bucket_name = bucket_names.get(
-            "images",
-            "galileo-images",
-        )
-        self.root_bucket_name = bucket_names.get(
-            "root",
-            "galileo-projects-runs",
-        )
-        self.results_bucket_name = bucket_names.get(
-            "results",
-            "galileo-projects-runs-results",
-        )
 
     def create_object(
         self,
@@ -39,7 +25,7 @@ class ObjectStore:
         progress: bool = True,
         bucket_name: Optional[str] = None,
     ) -> None:
-        _bucket_name = bucket_name or self.root_bucket_name
+        _bucket_name = bucket_name or config.root_bucket_name
         assert _bucket_name is not None, (
             "No bucket name provided to create_object. Please provide "
             "a bucket_name by setting the root_bucket_name in your config with "
@@ -121,7 +107,7 @@ class ObjectStore:
             str: The local file where the object name was written.
         """
         if bucket is None:
-            bucket = self.root_bucket_name
+            bucket = config.root_bucket_name
         assert bucket is not None, (
             "No bucket name provided to create_object. Please provide "
             "a bucket_name by setting the root_bucket_name in your config with "
