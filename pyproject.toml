@@ -67,7 +67,8 @@ test = [
     "torchdata>=0.4.1",
     "xgboost>=1.6.2",
     "timm>=0.6.12",
-    "fastai>=2.7.11"
+    "fastai>=2.7.11",
+    "portalocker==2.7.0"
 ]
 dev = [
     "flake8",
