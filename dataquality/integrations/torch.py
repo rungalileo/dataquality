@@ -206,7 +206,7 @@ def watch(
         for epoch in range(NUM_EPOCHS):
             dq.set_epoch_and_split(epoch,"training")
             train()
-            dq.set_split("validate")
+            dq.set_split("validation")
             validate()
         dq.finish()
 
