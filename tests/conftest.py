@@ -53,7 +53,15 @@ def disable_network_calls(request, monkeypatch):
         """Unless it's a mocked call to healthcheck, disable network access"""
         if "healthcheck" in url:
             return MockResponse(
-                json_data={"minimum_dq_version": "0.0.0", "api_version": "100.0.0"},
+                json_data={
+                    "minimum_dq_version": "0.0.0",
+                    "api_version": "100.0.0",
+                    "bucket_names": {
+                        "images": "galileo-images",
+                        "results": "galileo-project-runs-results",
+                        "root": "galileo-project-runs",
+                    },
+                },
                 status_code=200,
             )
         raise RuntimeError("Network access not allowed during testing!")

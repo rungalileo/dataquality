@@ -12,11 +12,21 @@ from dataquality.utils.dq_logger import dq_log_file_path
 @mock.patch("dataquality.core.finish._version_check")
 @mock.patch.object(dq.clients.api.ApiClient, "make_request")
 @mock.patch.object(dq.clients.api.ApiClient, "get_presigned_url")
+@mock.patch.object(
+    dq.clients.api.ApiClient,
+    "get_bucket_names",
+    return_value={
+        "images": "galileo-images",
+        "results": "galileo-project-runs-results",
+        "root": "galileo-project-runs",
+    },
+)
 @mock.patch.object(dq.clients.objectstore.ObjectStore, "download_file")
 @mock.patch.object(dq.clients.objectstore.ObjectStore, "_upload_file_from_local")
 def test_std_log(
     mock_upload_from_local: MagicMock,
     mock_download: MagicMock,
+    mock_bucket_names: MagicMock,
     mock_presigned_url: MagicMock,
     mock_finish: MagicMock,
     mock_version_check: MagicMock,
