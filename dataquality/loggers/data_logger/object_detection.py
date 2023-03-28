@@ -33,14 +33,8 @@ class ObjectDetectionDataLogger(BaseGalileoDataLogger):
         inference_name: Optional[str] = None,
     ) -> None:
         super().__init__(
-            texts=texts,
-            labels=labels,
-            ids=ids,
-            split=split,
             meta=meta,
-            inference_name=inference_name,
         )
-        # hi this is so exciting!
 
     def log_dataset(
         self,
@@ -54,5 +48,6 @@ class ObjectDetectionDataLogger(BaseGalileoDataLogger):
         **kwargs: Any,
     ) -> None:
         raise GalileoException(
-            "Object detection does not support log_dataset. Use watch(model, [dataloaders])"
+            "Object detection does not support log_dataset. "
+            "Use watch(model, [dataloaders])"
         )
