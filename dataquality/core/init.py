@@ -13,7 +13,13 @@ from tenacity import (
 
 import dataquality
 from dataquality.clients.api import ApiClient
-from dataquality.core._config import _check_dq_version, config
+from dataquality.core._config import (
+    GALILEO_DEFAULT_IMG_BUCKET_NAME,
+    GALILEO_DEFAULT_RESULT_BUCKET_NAME,
+    GALILEO_DEFAULT_RUN_BUCKET_NAME,
+    _check_dq_version,
+    config,
+)
 from dataquality.core.auth import login
 from dataquality.exceptions import GalileoException, GalileoWarning
 from dataquality.loggers import BaseGalileoLogger
@@ -147,9 +153,18 @@ def init(
     config.current_project_id = project["id"]
     config.current_run_id = run["id"]
     _bucket_names = api_client.get_bucket_names()
-    config.root_bucket_name = _bucket_names["root"]
-    config.results_bucket_name = _bucket_names["results"]
-    config.images_bucket_name = _bucket_names["images"]
+    config.root_bucket_name = _bucket_names.get(
+        "root",
+        GALILEO_DEFAULT_IMG_BUCKET_NAME,
+    )
+    config.results_bucket_name = _bucket_names.get(
+        "results",
+        GALILEO_DEFAULT_RUN_BUCKET_NAME,
+    )
+    config.images_bucket_name = _bucket_names.get(
+        "images",
+        GALILEO_DEFAULT_RESULT_BUCKET_NAME,
+    )
 
     proj_created_str = "new" if proj_created else "existing"
     run_created_str = "new" if run_created else "existing"
