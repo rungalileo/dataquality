@@ -822,4 +822,4 @@ class ApiClient:
         )
 
     def get_bucket_names(self) -> Dict:
-        return self.get_healthcheck_dq()["bucket_names"]
+        return self.get_healthcheck_dq().get("bucket_names", {})
