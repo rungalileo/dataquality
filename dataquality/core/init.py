@@ -155,15 +155,15 @@ def init(
     _bucket_names = api_client.get_bucket_names()
     config.root_bucket_name = _bucket_names.get(
         "root",
-        GALILEO_DEFAULT_IMG_BUCKET_NAME,
+        GALILEO_DEFAULT_RUN_BUCKET_NAME,
     )
     config.results_bucket_name = _bucket_names.get(
         "results",
-        GALILEO_DEFAULT_RUN_BUCKET_NAME,
+        GALILEO_DEFAULT_RESULT_BUCKET_NAME,
     )
     config.images_bucket_name = _bucket_names.get(
         "images",
-        GALILEO_DEFAULT_RESULT_BUCKET_NAME,
+        GALILEO_DEFAULT_IMG_BUCKET_NAME,
     )
 
     proj_created_str = "new" if proj_created else "existing"
