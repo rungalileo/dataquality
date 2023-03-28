@@ -136,7 +136,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         """
         return GalileoModelLoggerAttributes.get_valid()
 
-    def validate(self) -> None:
+    def validate_and_format(self) -> None:
         """
         Validates that the current config is correct.
         * embs, probs, and ids must exist and be the same length
