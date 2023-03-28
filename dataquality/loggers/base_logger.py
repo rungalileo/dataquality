@@ -131,7 +131,7 @@ class BaseGalileoLogger:
         return BaseLoggerAttributes.get_valid()
 
     @abstractmethod
-    def validate(self) -> None:
+    def validate_and_format(self) -> None:
         """Validates params passed in during logging. Implemented by child"""
 
     def set_split_epoch(self) -> None:
@@ -165,7 +165,7 @@ class BaseGalileoLogger:
 
     def is_valid(self) -> bool:
         try:
-            self.validate()
+            self.validate_and_format()
         except AssertionError:
             return False
         return True

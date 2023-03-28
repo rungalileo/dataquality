@@ -63,7 +63,7 @@ class TestStructuredClassificationDataLogger:
         logger: StructuredClassificationDataLogger = create_logger(
             split=split, inference_name=inference_name
         )
-        logger.validate()
+        logger.validate_and_format()
 
     @mock.patch.object(StructuredClassificationDataLogger, "set_probs")
     def test_validate_inputs(
@@ -258,7 +258,7 @@ class TestStructuredClassificationValidationErrors:
             feature_names=sc_data["feature_names"],
         )
         with pytest.raises(GalileoException) as e:
-            logger.validate()
+            logger.validate_and_format()
 
         assert str(e.value) == (
             "You didn't log a split and did not set a split. Use "
@@ -276,7 +276,7 @@ class TestStructuredClassificationValidationErrors:
             split="inference",
         )
         with pytest.raises(GalileoException) as e:
-            logger.validate()
+            logger.validate_and_format()
 
         assert str(e.value) == (
             "For inference split you must either log an inference name "
