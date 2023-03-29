@@ -429,7 +429,7 @@ class ApiClient:
         project, run = self._get_project_run_id(project_name, run_name)
         split = conform_split(split)
         url = f"{config.api_url}/{Route.content_path(project, run, split)}/meta/columns"
-        return self.make_request(RequestType.GET, url)
+        return self.make_request(RequestType.POST, url, body={})
 
     def get_task_type(self, project_id: UUID4, run_id: UUID4) -> TaskType:
         return TaskType.get_mapping(
