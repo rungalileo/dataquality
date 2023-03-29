@@ -18,6 +18,7 @@ class Route(str, Enum):
     login = "login"
     current_user = "current_user"
     healthcheck = "healthcheck"
+    healthcheck_dq = "healthcheck/dq"
     slices = "slices"
     split_path = "split"
     splits = "splits"

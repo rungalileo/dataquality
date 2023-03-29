@@ -73,7 +73,7 @@ def _write_image_bytes_to_objectstore(
     object_store.create_object(
         object_name=object_name,
         file_path=file_path,
-        bucket_name=object_store.IMAGES_BUCKET_NAME,
+        bucket_name=config.images_bucket_name,
     )
     os.remove(file_path)
     return object_name
