@@ -27,7 +27,9 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
     def __init__(
         self,
         image_ids: List[int],
-        gt_masks: List[np.ndarray],
+        gt_masks: np.ndarray,
+        gold_boundary_masks: np.ndarray,
+        pred_boundary_masks: np.ndarray,
         # Below fields must be present, linting from parent class
         embs: Optional[Union[List, np.ndarray]] = None,
         probs: Optional[Union[List, np.ndarray]] = None,
@@ -38,6 +40,15 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         inference_name: Optional[str] = None,
     ) -> None:
         """Takes in SemSeg inputs as a list of batches
+
+        Args:
+            image_ids: List of image ids
+            gt_masks: List of ground truth masks
+                np.ndarray of shape (batch_size, height, width)
+            gold_boundary_masks: List of gold boundary masks
+                np.ndarray of shape (batch_size, height, width)
+            pred_boundary_masks: List of predicted boundary masks
+                np.ndarray of shape (batch_size, height, width)
         """
         super().__init__(
             embs=embs,
@@ -50,6 +61,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         )
         self.image_ids = image_ids
         self.gt_masks = gt_masks
+        self.gold_bounary_masks = gold_boundary_masks
+        self.pred_boundary_masks = pred_boundary_masks
         assert ids is not None
 
 
