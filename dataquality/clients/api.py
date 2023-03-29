@@ -820,6 +820,3 @@ class ApiClient:
         return self.make_request(
             RequestType.GET, url=f"{config.api_url}/{Route.healthcheck_dq}"
         )
-
-    def get_bucket_names(self) -> Dict:
-        return self.get_healthcheck_dq().get("bucket_names", {})

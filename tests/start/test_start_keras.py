@@ -25,11 +25,14 @@ from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID, LOCATION
 @patch("dataquality.core.init._check_dq_version")
 @patch.object(
     dq.clients.api.ApiClient,
-    "get_bucket_names",
+    "get_healthcheck_dq",
     return_value={
-        "images": "galileo-images",
-        "results": "galileo-project-runs-results",
-        "root": "galileo-project-runs",
+        "bucket_names": {
+            "images": "galileo-images",
+            "results": "galileo-project-runs-results",
+            "root": "galileo-project-runs",
+        },
+        "minio_fqdn": "127.0.0.1:9000",
     },
 )
 @patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
