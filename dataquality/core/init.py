@@ -152,7 +152,8 @@ def init(
 
     config.current_project_id = project["id"]
     config.current_run_id = run["id"]
-    _bucket_names = api_client.get_bucket_names()
+    _dq_healthcheck_response = api_client.get_healthcheck_dq()
+    _bucket_names = _dq_healthcheck_response.get("bucket_names", {})
     config.root_bucket_name = _bucket_names.get(
         "root",
         GALILEO_DEFAULT_RUN_BUCKET_NAME,
@@ -164,6 +165,9 @@ def init(
     config.images_bucket_name = _bucket_names.get(
         "images",
         GALILEO_DEFAULT_IMG_BUCKET_NAME,
+    )
+    config.minio_fqdn = _dq_healthcheck_response.get(
+        "minio_fqdn", os.getenv("MINIO_FQDN", None)
     )
 
     proj_created_str = "new" if proj_created else "existing"

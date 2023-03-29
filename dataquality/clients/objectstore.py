@@ -5,6 +5,7 @@ from tempfile import NamedTemporaryFile
 from typing import Optional
 
 import requests
+from minio import Minio
 from tqdm.auto import tqdm
 from tqdm.utils import CallbackIOWrapper
 from vaex.dataframe import DataFrame
@@ -13,9 +14,31 @@ from dataquality.core._config import config
 from dataquality.core.auth import api_client
 from dataquality.utils.file import get_file_extension
 
+EXOSCALE_FQDN_SUFFIX = ".exo.io"
+
 
 class ObjectStore:
     DOWNLOAD_CHUNK_SIZE_MB = 256
+
+    def __init__(self) -> None:
+        self._minio_client = None
+        if config.minio_fqdn is not None and config.minio_fqdn.endswith(
+            EXOSCALE_FQDN_SUFFIX
+        ):
+            access_key = os.environ.get("EXOSCALE_API_KEY_ACCESS_KEY")
+            secret_key = os.environ.get("EXOSCALE_API_KEY_ACCESS_SECRET")
+            assert access_key is not None and secret_key is not None, (
+                "EXOSCALE_API_KEY_ACCESS_KEY and EXOSCALE_API_KEY_ACCESS_SECRET "
+                "environment variables must be set. "
+                "Please set these variables with the values from your Exoscale "
+                "API Key."
+            )
+            self._minio_client = Minio(
+                endpoint=config.minio_fqdn,
+                access_key=access_key,
+                secret_key=secret_key,
+                secure=True,
+            )
 
     def create_object(
         self,
@@ -32,14 +55,42 @@ class ObjectStore:
             "`dq.config.root_bucket_name = 'my-bucket-name'` or by passing a "
             "bucket_name to this function."
         )
-        url = api_client.get_presigned_url(
-            project_id=object_name.split("/")[0],
-            method="put",
-            bucket_name=_bucket_name,
+        if config.minio_fqdn is not None and config.minio_fqdn.endswith(
+            EXOSCALE_FQDN_SUFFIX
+        ):
+            self._create_object_exoscale(
+                object_name=object_name,
+                file_path=file_path,
+                content_type=content_type,
+                bucket_name=_bucket_name,
+            )
+        else:
+            url = api_client.get_presigned_url(
+                project_id=object_name.split("/")[0],
+                method="put",
+                bucket_name=_bucket_name,
+                object_name=object_name,
+            )
+            self._upload_file_from_local(
+                url=url,
+                file_path=file_path,
+                content_type=content_type,
+                progress=progress,
+            )
+
+    def _create_object_exoscale(
+        self,
+        object_name: str,
+        file_path: str,
+        content_type: str = "application/octet-stream",
+        bucket_name: Optional[str] = None,
+    ) -> None:
+        assert self._minio_client is not None
+        self._minio_client.fput_object(
+            bucket_name=bucket_name,
             object_name=object_name,
-        )
-        self._upload_file_from_local(
-            url=url, file_path=file_path, content_type=content_type, progress=progress
+            file_path=file_path,
+            content_type=content_type,
         )
 
     def _upload_file_from_local(
