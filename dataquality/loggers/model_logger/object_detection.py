@@ -7,7 +7,7 @@ from dataquality.loggers.logger_config.object_detection import (
     object_detection_logger_config,
 )
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
-from dataquality.utils.od import convert_cxywh_xyxy, convert_tlxywh_xyxy, scale_boxes
+from dataquality.utils.od import convert_cxywh_xyxy, convert_tlxywh_xyxy
 
 """ Dereks stuff
 'gold_labels',
@@ -123,27 +123,30 @@ class ObjectDetectionModelLogger(BaseGalileoModelLogger):
         self.image_size = image_size
 
     def validate_and_format(self) -> None:
-        for image_id in self.image_ids:
+        assert (
+            len(self.pred_embs) == len(self.gold_embs) == len(self.image_ids)
+        ), """There must be 1 entry in pred_embs and gold_embs for every image"""
+        assert (
+            len(self.pred_boxes) == len(self.gold_boxes) == len(self.image_ids)
+        ), """There must be 1 entry in pred_boxes and gold_boxes for every image"""
+        for idx, image_id in enumerate(self.image_ids):
             # check for box format
             if self.logger_config.box_format == BoxFormat.tlxywh:
-                self.gold_boxes[image_id] = convert_tlxywh_xyxy(
-                    self.gold_boxes[image_id]
-                )
+                self.gold_boxes[idx] = convert_tlxywh_xyxy(self.gold_boxes[idx])
             elif self.logger_config.box_format == BoxFormat.cxywh:
-                self.gold_boxes[image_id] = convert_cxywh_xyxy(
-                    self.gold_boxes[image_id]
-                )
+                self.gold_boxes[idx] = convert_cxywh_xyxy(self.gold_boxes[idx])
 
             # scale boxes if they are normalized
             # (ie the bounding boxes are between 0 and 1)
-            if np.all(self.gold_boxes[image_id] <= 1) and self.image_size:
-                self.gold_boxes[image_id] = scale_boxes(
-                    self.gold_boxes[image_id], self.image_size
-                )
-            if np.all(self.pred_boxes[image_id] <= 1) and self.image_size:
-                self.pred_boxes[image_id] = scale_boxes(
-                    self.pred_boxes[image_id], self.image_size
-                )
+            # TODO: Scaling boxes is broken, doesn't consider padding (@Franz)
+            # if np.all(self.gold_boxes[image_id] <= 1) and self.image_size:
+            #     self.gold_boxes[image_id] = scale_boxes(
+            #         self.gold_boxes[image_id], self.image_size
+            #     )
+            # if np.all(self.pred_boxes[image_id] <= 1) and self.image_size:
+            #     self.pred_boxes[image_id] = scale_boxes(
+            #         self.pred_boxes[image_id], self.image_size
+            #     )
 
             # matching = match_bboxes(self.pred_boxes[idx], self.gold_boxes[idx])
 
@@ -184,11 +187,11 @@ class ObjectDetectionModelLogger(BaseGalileoModelLogger):
         gold_box_ids = []
         # If the particular image has no boxes, it's shape[0] will be
         # 0, so no ids will be added, which is what we want
-        for image_id in self.image_ids:
-            num_preds_for_image = self.pred_embs[image_id].shape[0]
+        for idx, image_id in enumerate(self.image_ids):
+            num_preds_for_image = self.pred_embs[idx].shape[0]
             pred_box_ids.extend([image_id] * num_preds_for_image)
 
-            num_gold_for_image = self.gold_embs[image_id].shape[0]
+            num_gold_for_image = self.gold_embs[idx].shape[0]
             gold_box_ids.extend([image_id] * num_gold_for_image)
         return pred_box_ids + gold_box_ids
 
@@ -213,20 +216,30 @@ class ObjectDetectionModelLogger(BaseGalileoModelLogger):
         pred_prob_arrays = np.concatenate(
             [arr for arr in self.probs if arr.shape[0] != 0]
         )
+        gold_box_arrays = np.concatenate(
+            [arr for arr in self.gold_boxes if arr.shape[0] != 0]
+        )
+        pred_box_arrays = np.concatenate(
+            [arr for arr in self.pred_boxes if arr.shape[0] != 0]
+        )
         # We pad gold probabilities with 0s to be able to fit it into a numpy matrix
         # Shape is (len(gold_embs), num_classes)
-        gold_prob_shape = (len(self.gold_embs), len(self.logger_config.labels))
         num_pred = pred_emb_arrays.shape[0]
         num_gold = gold_emb_arrays.shape[0]
+        gold_prob_shape = (num_gold, len(self.logger_config.labels))
         obj = {
             "image_id": image_ids,
             "emb": np.concatenate([pred_emb_arrays, gold_emb_arrays]),
             "prob": np.concatenate([pred_prob_arrays, np.zeros(gold_prob_shape)]),
+            "bbox": np.concatenate([pred_box_arrays, gold_box_arrays]),
             "is_pred": np.array([True] * num_pred + [False] * num_gold),
             "is_gold": np.array([False] * num_pred + [True] * num_gold),
             "split": [self.split] * len(image_ids),
             "epoch": [0] * len(image_ids),
             "gold": np.concatenate([[-1] * num_pred, np.concatenate(self.labels)]),
         }
+        import vaex
+
+        vaex.from_arrays(**obj)
 
         return obj

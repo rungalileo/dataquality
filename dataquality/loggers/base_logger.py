@@ -17,7 +17,6 @@ from dataquality.loggers.logger_config.base_logger_config import (
 from dataquality.schemas.split import Split, conform_split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.cloud import is_galileo_cloud
-from dataquality.utils.dq_logger import upload_dq_log_file
 from dataquality.utils.file import _shutil_rmtree_retry
 from dataquality.utils.imports import hf_available, tf_available, torch_available
 from dataquality.utils.tf import is_tf_2
@@ -349,7 +348,7 @@ class BaseGalileoLogger:
         """
         # If a currently active thread crashed, check and raise a top level exception
         if cls.logger_config.exception:
-            upload_dq_log_file()
+            # upload_dq_log_file()
             raise GalileoException(cls.logger_config.exception)
 
     @classmethod

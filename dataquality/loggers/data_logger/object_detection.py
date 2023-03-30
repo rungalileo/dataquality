@@ -15,13 +15,7 @@ from dataquality.loggers.logger_config.object_detection import (
     object_detection_logger_config,
 )
 from dataquality.schemas import __data_schema_version__
-from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.split import Split
-
-# smaller than ITER_CHUNK_SIZE from base_data_logger because very large chunks
-# containing image data often won't fit in memory
-
-ITER_CHUNK_SIZE_IMAGES = 10000
 
 
 class ObjectDetectionDataLogger(BaseGalileoDataLogger):
@@ -83,16 +77,13 @@ class ObjectDetectionDataLogger(BaseGalileoDataLogger):
             self.cls.append(img["cls"])
         self.log()
 
-    @classmethod
-    def process_in_out_frames(
-        cls,
-        in_frame: DataFrame,
-        out_frame: DataFrame,
-        prob_only: bool,
-        epoch_or_inf_name: str,
-        split: str,
-    ) -> BaseLoggerDataFrames:
-        pass
-
-    def validate_and_format(self) -> None:
-        pass
+    # @classmethod
+    # def process_in_out_frames(
+    #     cls,
+    #     in_frame: DataFrame,
+    #     out_frame: DataFrame,
+    #     prob_only: bool,
+    #     epoch_or_inf_name: str,
+    #     split: str,
+    # ) -> BaseLoggerDataFrames:
+    #     pass

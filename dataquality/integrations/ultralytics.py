@@ -253,7 +253,7 @@ class Callback:
         data_logger = get_data_logger()
         assert isinstance(data_logger, ObjectDetectionDataLogger), (
             "This method is only supported for image tasks. "
-            "Please use dq.log_samples for text tasks."
+            "Please use dq.log_dataset for text tasks."
         )
         data_logger.log_dataset(ds, split=Split.validation)
 
@@ -341,7 +341,8 @@ def add_callback(model: YOLO, cb: Callback) -> None:
 
 def watch(model: YOLO) -> None:
     assert dq.config.task_type == TaskType.object_detection, GalileoException(
-        "dq client must be initialized. " "For example: dq.init('text_classification')"
+        "dq client must be initialized for Object Detection. For example: "
+        "dq.init('object_detection')"
     )
     cb = Callback(nms_fn=non_max_suppression)
     add_callback(model, cb)

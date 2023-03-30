@@ -6,7 +6,7 @@ from dataquality.clients.api import ApiClient
 from dataquality.integrations.ultralytics import watch
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
-from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID
+from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID, LOCATION
 
 
 @patch.object(ApiClient, "valid_current_user", return_value=True)
@@ -21,7 +21,7 @@ from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID
 @patch.object(ApiClient, "create_run")
 @patch("dataquality.core.init._check_dq_version")
 @patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
-def test_end_yolov8(
+def test_end2end_yolov8(
     mock_valid_user: MagicMock,
     mock_check_dq_version: MagicMock,
     mock_create_run: MagicMock,
@@ -42,7 +42,8 @@ def test_end_yolov8(
     from ultralytics import YOLO
 
     dq.init(TaskType.object_detection)
-    model = YOLO("yolov8n.pt")
+    # TODO: Make this path better using the current file location
+    model = YOLO("./tests/integrations/ultralytics/yolov8n.pt")
     watch(model)
     preds = model.val(data="tests/integrations/ultralytics/coco.yaml")
 
@@ -53,4 +54,12 @@ def test_end_yolov8(
     # validate_unique_ids(vaex.open(f"{LOCATION}/{split}/0/*.hdf5"), "epoch")
     # validate_unique_ids(vaex.open(f"{LOCATION}/{split}/1/*.hdf5"), "epoch")
 
+    import vaex
+
+    # print(os.popen(f"tree {LOCATION}").read())
+    image_df = vaex.open(f"{LOCATION}/input_data/validation/data_0.arrow")
+    box_df = vaex.open(f"{LOCATION}/validation/0/*.hdf5")
+    # Need to make sure that all image_ids in the box df exist in image df.
+    # It's possible image_df has more, when an image has no GT and no pred boxes
+    assert set(box_df["image_id"].unique()).issubset(image_df["id"].tolist())
     # dq.finish()
