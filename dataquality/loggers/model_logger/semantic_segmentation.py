@@ -58,7 +58,6 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         self.gold_boundary_masks = gold_boundary_masks
         self.pred_boundary_masks = pred_boundary_masks
         # assert ids is not None
-        self._get_data_dict()
 
     def validate_and_format(self) -> None:
         return

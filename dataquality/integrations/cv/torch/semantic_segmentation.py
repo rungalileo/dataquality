@@ -10,9 +10,10 @@ from dataquality.loggers.model_logger.semantic_segmentation import (
 
 
 # edited mask to boundary function with np.where to avoid unexpected behaviour
-def mask_to_boundary(mask, dilation_ratio=0.02):
+def mask_to_boundary(mask: np.ndarray, dilation_ratio: float = 0.02) -> np.ndarray:
     """
     Convert binary mask to boundary mask.
+
     :param mask (numpy array, uint8): binary mask
     :param dilation_ratio (float): ratio to calculate dilation = dilation_ratio * image_diagonal
     :return: boundary mask (numpy array)
