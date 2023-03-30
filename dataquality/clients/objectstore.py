@@ -2,10 +2,9 @@ import os
 import sys
 from functools import partial
 from tempfile import NamedTemporaryFile
-from typing import Optional
+from typing import Any, Optional
 
 import requests
-from minio import Minio
 from tqdm.auto import tqdm
 from tqdm.utils import CallbackIOWrapper
 from vaex.dataframe import DataFrame
@@ -18,7 +17,16 @@ from dataquality.utils.file import get_file_extension
 class ObjectStore:
     DOWNLOAD_CHUNK_SIZE_MB = 256
 
-    def create_minio_client_for_exoscale_cluster(self) -> Minio:
+    def create_minio_client_for_exoscale_cluster(self) -> Any:
+        try:
+            from minio import Minio
+        except ImportError:
+            raise ImportError(
+                "🚨 The minio package is required to use the Exoscale cluster. "
+                "Please run `pip install dataquality[minio]` to install minio "
+                "with dataquality."
+            )
+
         """Creates a Minio client for the Exoscale cluster.
 
         Exoscale does not support presigned urls, so we need to
