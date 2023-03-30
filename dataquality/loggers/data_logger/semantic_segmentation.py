@@ -21,7 +21,9 @@ ITER_CHUNK_SIZE_IMAGES = 10000
 
 class SemanticSegmentationDataLogger(BaseGalileoDataLogger):
     __logger_name__ = "semantic_segmentation"
-    logger_config: SemanticSegmentationLoggerConfig = semantic_segmentation_logger_config
+    logger_config: SemanticSegmentationLoggerConfig = (
+        semantic_segmentation_logger_config
+    )
 
     def __init__(
         self,
