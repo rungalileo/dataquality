@@ -1,21 +1,12 @@
-from glob import glob
-from pathlib import Path
-from typing import Any, Callable, Generator
+from typing import Callable, Generator
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
-import torch
-import torch.nn as nn
-from fastai.metrics import accuracy
-from fastai.tabular.all import TabularDataLoaders, tabular_learner
-from fastai.vision.all import ImageDataLoaders, Resize, error_rate, vision_learner
 
 import dataquality as dq
 from dataquality.clients.api import ApiClient
-from dataquality.integrations.fastai import FastAiDQCallback, convert_img_dl_to_df
-from dataquality.integrations.ultralytics import Callback, add_callback
+from dataquality.integrations.ultralytics import watch
 from dataquality.utils.thread_pool import ThreadPoolManager
-from dataquality.utils.ultralytics import non_max_suppression
 from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID
 
 
@@ -31,7 +22,7 @@ from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID
 @patch.object(ApiClient, "create_run")
 @patch("dataquality.core.init._check_dq_version")
 @patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
-def test_auto(
+def test_end_yolov8(
     mock_valid_user: MagicMock,
     mock_check_dq_version: MagicMock,
     mock_create_run: MagicMock,
@@ -51,16 +42,12 @@ def test_auto(
     set_test_config(current_project_id=None, current_run_id=None)
     from ultralytics import YOLO
 
-    model = YOLO('yolov8n.pt')  
-    cb = Callback(nms_fn=non_max_suppression)
-    add_callback(model, cb)
-    preds = model.val(data="coco.yaml")
+    dq.init("object_detection")
+    model = YOLO("yolov8n.pt")
+    watch(model)
+    preds = model.val(data="tests/integrations/ultralytics/coco.yaml")
 
-    df = pd.DataFrame(
-        cb.validator.dataloader.dataset.get_labels()
-    )
-
-    #df_lookup = df.reset_index().set_index("im_file")["index"].to_dict()
+    # df_lookup = df.reset_index().set_index("im_file")["index"].to_dict()
 
     ThreadPoolManager.wait_for_threads()
 
