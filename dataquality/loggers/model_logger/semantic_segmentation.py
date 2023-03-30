@@ -1,7 +1,6 @@
-from typing import Dict, List, Optional, Set, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import cv2
-import evaluate
 import numpy as np
 import torch
 
@@ -10,6 +9,12 @@ from dataquality.loggers.logger_config.semantic_segmentation import (
     semantic_segmentation_logger_config,
 )
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
+from dataquality.utils.semantic_segmentation import (
+    calculate_false_positives,
+    calculate_mean_iou,
+    calculate_missing_segments,
+    probs_to_preds,
+)
 
 
 class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
@@ -21,9 +26,10 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
     def __init__(
         self,
         image_ids: List[int],
-        gt_masks: np.ndarray,
-        gold_boundary_masks: np.ndarray,
-        pred_boundary_masks: np.ndarray,
+        gt_masks: torch.Tensor,
+        gold_boundary_masks: torch.Tensor,
+        pred_boundary_masks: torch.Tensor,
+        output_probs: torch.Tensor,
         # Below fields must be present, linting from parent class
         embs: Optional[Union[List, np.ndarray]] = None,
         probs: Optional[Union[List, np.ndarray]] = None,
@@ -44,29 +50,26 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             pred_boundary_masks: List of predicted boundary masks
                 np.ndarray of shape (batch_size, height, width)
         """
-        super().__init__(
-            embs=embs,
-            probs=probs,
-            logits=logits,
-            ids=ids,
-            split=split,
-            epoch=epoch,
-            inference_name=inference_name,
-        )
+        # super().__init__(
+        #     embs=embs,
+        #     probs=probs,
+        #     logits=logits,
+        #     ids=ids,
+        #     split=split,
+        #     epoch=epoch,
+        #     inference_name=inference_name,
+        # )
         self.image_ids = image_ids
         self.gt_masks = gt_masks
         self.gold_boundary_masks = gold_boundary_masks
         self.pred_boundary_masks = pred_boundary_masks
+        self.output_probs = output_probs
         # assert ids is not None
 
     def validate_and_format(self) -> None:
         return
 
-    def probs_to_preds(self, probs: np.ndarray) -> np.ndarray:
-        """Takes pixel-wise arg-max to return preds"""
-        return np.argmax(probs, axis=-1)
-
-    def create_contours(self, pred_mask: np.ndarray) -> Dict[int, List]:
+    def create_contours(self, pred_mask: torch.Tensor) -> Dict[int, List]:
         """Returns a list of GT contours from the pred mask
 
         A contour is a list of points that make up the boundary of a shape.
@@ -115,105 +118,6 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         """
         return list(map(tuple, contour.squeeze(1).tolist()))
 
-    def calculate_dep_heatmap(
-        self, probs: np.ndarray, gt_masks: np.ndarray, logits: bool = False
-    ) -> float:
-        """Calculates the Data Error Potential (DEP) for each image in the batch"""
-        # probs: float, (bs, n_rows, n_classes)
-        # y: int, (bs, n_rows,)
-        # if `logits` is True, we convert the probabilities to logits, and compute the margin on the logits.
-        bs = probs.shape[0]
-        if logits:
-            # if we have probabilities, we can convert to logits by taking a logarithm.
-            # we clip the probabilities first to avoid taking the log of 0.
-            values = torch.log(torch.clamp(probs, min=1e-8))
-        else:
-            values = probs
-
-        # CHANGE TO PASS IN AS TORCH
-        gt_masks = torch.tensor(gt_masks, dtype=torch.int64)
-        values = torch.tensor(values, dtype=torch.int64)
-        gt_indices = gt_masks.reshape((bs, -1, 1)).expand(-1, -1, values.shape[2])
-        value_at_ground_truth = torch.gather(values, 2, gt_indices)[:, :, 0]
-
-        next_highest = values.clone()
-        next_highest.scatter_(2, gt_indices, 0)
-        next_highest = next_highest.max(dim=2).values
-
-        return 1 - (value_at_ground_truth - next_highest)
-
-    def calculate_image_dep(self, dep_heatmap: np.ndarray) -> List[float]:
-        """Calculates the Data Error Potential (DEP) for each image in the batch"""
-        return dep_heatmap.sum(axis=1)
-
-    def calculate_mean_iou(
-        self, probs: List[np.ndarray], gt_masks: List[np.ndarray], nc: int = 21
-    ) -> List[float]:
-        """Calculates the Mean Intersection Over Union (mIoU) for each image in the batch"""
-        metric = evaluate.load("mean_iou")
-        ious = []
-        for i in range(len(probs)):
-            iou = metric._compute(
-                probs[i : i + 1].cpu(),
-                gt_masks[i : i + 1].cpu(),
-                num_labels=nc,
-                ignore_index=255,
-            )
-            ious.append(iou["mean_iou"].item().cpu().numpy())
-        return ious
-
-    def calculate_boundary_iou(
-        self, probs: List[np.ndarray], gt_masks: List[np.ndarray]
-    ) -> List[float]:
-        """Calculates the Boundary Intersection Over Union (bIoU) for each image in the batch"""
-        raise NotImplementedError
-
-    def calculate_false_positives(
-        self, preds: List[np.ndarray], gt_masks: List[np.ndarray]
-    ) -> List[Set[int]]:
-        """Calculates a set of False Positive classes for each image in the batch
-
-        For each image, returns a set of classes that were predicted but not
-            present in the ground truth.
-        """
-        false_positives: List[Set[int]] = []
-        for image in range(len(preds)):
-            pred_mask = preds[image]
-            gt_mask = gt_masks[image]
-
-            # Calculate classes present in predictions and ground truth
-            pred_classes = set(np.unique(pred_mask).astype(int))
-            gt_classes = set(np.unique(gt_mask).astype(int))
-
-            # Calculate classes present in predictions but not ground truth
-            fp_classes = pred_classes.difference(gt_classes)
-            false_positives.append(fp_classes)
-
-        return false_positives
-
-    def calculate_missing_segments(
-        self, preds: List[np.ndarray], gt_masks: List[np.ndarray]
-    ) -> List[Set[int]]:
-        """Calculates a set of Missing Segment classes for each image in the batch
-
-        For each image, returns a set of classes that were in the ground truth but not
-            present in the predictions.
-        """
-        missing_segments: List[Set[int]] = []
-        for image in range(len(preds)):
-            pred_mask = preds[image]
-            gt_mask = gt_masks[image]
-
-            # Calculate classes present in predictions and ground truth
-            pred_classes = set(np.unique(pred_mask).astype(int))
-            gt_classes = set(np.unique(gt_mask).astype(int))
-
-            # Calculate classes present in predictions but not ground truth
-            ms_classes = gt_classes.difference(pred_classes)
-            missing_segments.append(ms_classes)
-
-        return missing_segments
-
     def _upload_contour(self, image_id: int, contour: Dict[int, List]) -> None:
         """Uploads a contour to the cloud for a given image"""
         # assert self.logger_config.image_cloud_path is not None, (
@@ -233,50 +137,35 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         #     "Must have image cloud path, set using `dq.set_image_cloud_path`. "
         #     "Must be set before training model."
         # )
-        self.probs = self.convert_logits_to_probs(self.logits)
-        del self.logits
+        # dep_heatmaps = calculate_dep_heatmap(self.output_probs, self.gt_masks)
+        # image_dep = calculate_image_dep(dep_heatmaps)
 
-        pred_masks = self.probs_to_preds(self.probs)
-        contours = [self.create_contours(pred_mask) for pred_mask in pred_masks]
-        self.upload_contours(contours)
+        # probs = self._convert_tensor_ndarray(self.output_probs)
+        pred_masks = probs_to_preds(self.output_probs)
+        # contours = [self.create_contours(pred_mask) for pred_mask in pred_masks]
+        # self.upload_contours(contours)
+
+        mean_ious = calculate_mean_iou(pred_masks, self.gt_masks)
+        boundary_ious = calculate_mean_iou(
+            self.pred_boundary_masks, self.gold_boundary_masks
+        )
+        false_positives = calculate_false_positives(pred_masks, self.gt_masks)
+        missing_segments = calculate_missing_segments(pred_masks, self.gt_masks)
         import pdb
 
-        # pdb.set_trace()
-
-        dep_heatmaps = self.calculate_dep_heatmap(self.probs, self.gt_masks)
-        image_dep = self.calculate_image_dep(dep_heatmaps)
-        import pdb
-
-        # pdb.set_trace()
-        mean_ious = self.calculate_mean_iou(pred_masks, self.gt_masks)
-        import pdb
-
-        # pdb.set_trace()
-        boundary_ious = self.calculate_boundary_iou([pred_masks], self.gt_masks)
-        import pdb
-
-        # pdb.set_trace()
-        false_positives = self.calculate_false_positives(pred_masks, self.gt_masks)
-        import pdb
-
-        # pdb.set_trace()
-        missing_segments = self.calculate_missing_segments(pred_masks, self.gt_masks)
-        import pdb
-
-        # pdb.set_trace()
+        pdb.set_trace()
 
         obj = {
-            "id": self.ids,
+            # "id": self.ids,
             "image_id": self.image_ids,
             "height": [img.shape[0] for img in self.probs],
             "width": [img.shape[1] for img in self.probs],
-            "data_error_potential": dep_heatmaps,
-            "image_dep": image_dep,
+            # "data_error_potential": image_dep,
             "mean_iou": mean_ious,
             "boundary_iou": boundary_ious,
             "error_false_positive": false_positives,
             "error_missing_segment": missing_segments,
-            "split": [self.split] * len(self.image_ids),
+            # "split": [self.split] * len(self.image_ids),
         }
 
         return obj

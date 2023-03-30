@@ -78,29 +78,30 @@ class Manager:
             if preds.shape[1] == self.number_classes:
                 preds = preds.permute(0, 2, 3, 1)
 
-            argmax = torch.argmax(preds.permute(0, 2, 3, 1).clone(), dim=-1).unsqueeze(
-                1
-            )
-            self.logits = preds.cpu().numpy()  # (bs, w, h, classes)
-            self.boundary_gold_masks = mask_to_boundary(
+            argmax = torch.argmax(preds.clone(), dim=-1).unsqueeze(1)
+            logits = preds.cpu()  # (bs, w, h, classes)
+            gold_boundary_masks = mask_to_boundary(
                 logging_data["mask"].clone().cpu().numpy()
             )  # (bs, w, h)
-            self.boundary_pred_masks = mask_to_boundary(
+            pred_boundary_masks = mask_to_boundary(
                 argmax.clone().cpu().numpy()
             )  # (bs, w, h)
             if logging_data["mask"].shape[1] == 1:
                 logging_data["mask"] = logging_data["mask"].squeeze(1)  # (bs, w, h)
-            self.gold_mask = logging_data["mask"].cpu().numpy()  # (bs, w, h)
-            self.img_ids = logging_data["idx"].cpu().numpy()  # np.ndarray (bs,)
+            gold_mask = logging_data["mask"].cpu()  # (bs, w, h)
+            img_ids = logging_data["idx"].cpu()  # np.ndarray (bs,)
+
+            probs = torch.nn.Softmax(dim=1)(logits).cpu()  # (bs, w, h, classes)
             # dq log model output
             logger = SemanticSegmentationModelLogger(
-                self.img_ids,
-                self.gold_mask,
-                self.boundary_gold_masks,
-                self.boundary_pred_masks,
-                logits=self.logits,
+                image_ids=img_ids.tolist(),
+                gt_masks=gold_mask,  # Torch tensor
+                gold_boundary_masks=torch.tensor(gold_boundary_masks),  # Torch tensor
+                pred_boundary_masks=torch.tensor(pred_boundary_masks),  # Torch tensor
+                output_probs=probs,  # Torch tensor
             )
-            logger.log()
+            logger._get_data_dict()
+            # logger.log()
 
     def register_hooks(self, model):
         self.step_embs.h = model.register_forward_hook(self.step_embs.hook)

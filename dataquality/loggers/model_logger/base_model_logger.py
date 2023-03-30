@@ -56,6 +56,9 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         try:
             self.validate_and_format()
         except AssertionError as e:
+            import pdb
+
+            pdb.set_trace()
             get_dq_logger().error(
                 "Validation of data failed", split=self.split, epoch=self.epoch
             )
@@ -68,10 +71,10 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
                 GalileoWarning,
             )
             return
-        data = self._get_data_dict()
         import pdb
 
         pdb.set_trace()
+        data = self._get_data_dict()
         self.write_model_output(data)
 
     def _add_threaded_log(self) -> None:
@@ -100,7 +103,7 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         # We validate split and epoch before entering the thread because we reference
         # global variables (cur_split and cur_epoch) that are subject to change
         # between subsequent threads
-        self.set_split_epoch()
+        # self.set_split_epoch()
         # ThreadPoolManager.add_thread(target=self._add_threaded_log)
         self._add_threaded_log()
 
