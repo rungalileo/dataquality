@@ -440,11 +440,14 @@ class TestStructuredClassificationValidationErrors:
 @mock.patch("dataquality.core.finish._version_check")
 @mock.patch.object(
     dq.clients.api.ApiClient,
-    "get_bucket_names",
+    "get_healthcheck_dq",
     return_value={
-        "images": "galileo-images",
-        "results": "galileo-project-runs-results",
-        "root": "galileo-project-runs",
+        "bucket_names": {
+            "images": "galileo-images",
+            "results": "galileo-project-runs-results",
+            "root": "galileo-project-runs",
+        },
+        "minio_fqdn": "127.0.0.1:9000",
     },
 )
 @mock.patch("dataquality.core.finish._reset_run")

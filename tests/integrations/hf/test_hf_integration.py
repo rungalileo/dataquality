@@ -136,7 +136,7 @@ def test_tokenize_and_log_dataset(
                 "validation": mock_ds,
             }
         )
-        output = tokenize_and_log_dataset(ds_dict, mock_tokenizer)
+        output = tokenize_and_log_dataset(ds_dict, mock_tokenizer, label_names)
 
     for split in ds_dict.keys():
         split_output = output[split]
@@ -269,7 +269,9 @@ def test_tokenize_and_log_dataset_with_meta(
         ds_dict = datasets.DatasetDict(
             {"train": mock_ds, "test": mock_ds_meta, "validation": mock_ds_meta}
         )
-        output = tokenize_and_log_dataset(ds_dict, mock_tokenizer, meta=["test_meta_1"])
+        output = tokenize_and_log_dataset(
+            ds_dict, mock_tokenizer, label_names, meta=["test_meta_1"]
+        )
     for split in ds_dict.keys():
         split_output = output[split]
         for k in ADJUSTED_TOKEN_DATA:
