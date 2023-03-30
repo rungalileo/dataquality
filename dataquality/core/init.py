@@ -14,6 +14,7 @@ from tenacity import (
 import dataquality
 from dataquality.clients.api import ApiClient
 from dataquality.core._config import (
+    EXOSCALE_FQDN_SUFFIX,
     GALILEO_DEFAULT_IMG_BUCKET_NAME,
     GALILEO_DEFAULT_RESULT_BUCKET_NAME,
     GALILEO_DEFAULT_RUN_BUCKET_NAME,
@@ -169,6 +170,10 @@ def init(
     config.minio_fqdn = _dq_healthcheck_response.get(
         "minio_fqdn", os.getenv("MINIO_FQDN", None)
     )
+    if config.minio_fqdn is not None and config.minio_fqdn.endswith(
+        EXOSCALE_FQDN_SUFFIX
+    ):
+        config.is_exoscale_cluster = True
 
     proj_created_str = "new" if proj_created else "existing"
     run_created_str = "new" if run_created else "existing"

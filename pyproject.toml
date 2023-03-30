@@ -33,8 +33,7 @@ requires = [
     "Pillow",
     "h5py >=3.1.0",
     "numpy<1.24.0",
-    "tenacity>=8.1.0",
-    "minio>=7.1.0,<7.2.0",
+    "tenacity>=8.1.0"
 ]
 
 [tool.flit.metadata.urls]
@@ -89,6 +88,10 @@ cuda = [
     "dask-cudf-cu11==22.12",
     "cudf-cu11==22.12",
     "cuml-cu11==22.12"
+]
+
+minio = [
+    "minio>=7.1.0,<7.2.0"
 ]
 
 [tool.isort]

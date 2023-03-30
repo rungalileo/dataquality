@@ -14,31 +14,42 @@ from dataquality.core._config import config
 from dataquality.core.auth import api_client
 from dataquality.utils.file import get_file_extension
 
-EXOSCALE_FQDN_SUFFIX = ".exo.io"
-
 
 class ObjectStore:
     DOWNLOAD_CHUNK_SIZE_MB = 256
 
+    def create_minio_client_for_exoscale_cluster(self) -> Minio:
+        """Creates a Minio client for the Exoscale cluster.
+
+        Exoscale does not support presigned urls, so we need to
+        use the Minio client to upload files to the object store.
+
+        To instantiate this, the user simply sets the EXOSCALE_API_KEY_ACCESS_KEY
+        and EXOSCALE_API_KEY_ACCESS_SECRET environment variables with the values
+        from their Exoscale API Key.
+
+        Returns:
+            Minio: A Minio client.
+        """
+        access_key = os.environ.get("EXOSCALE_API_KEY_ACCESS_KEY")
+        secret_key = os.environ.get("EXOSCALE_API_KEY_ACCESS_SECRET")
+        assert access_key is not None and secret_key is not None, (
+            "EXOSCALE_API_KEY_ACCESS_KEY and EXOSCALE_API_KEY_ACCESS_SECRET "
+            "environment variables must be set. "
+            "Please set these variables with the values from your Exoscale "
+            "API Key."
+        )
+        return Minio(
+            endpoint=config.minio_fqdn,
+            access_key=access_key,
+            secret_key=secret_key,
+            secure=True,
+        )
+
     def __init__(self) -> None:
         self._minio_client = None
-        if config.minio_fqdn is not None and config.minio_fqdn.endswith(
-            EXOSCALE_FQDN_SUFFIX
-        ):
-            access_key = os.environ.get("EXOSCALE_API_KEY_ACCESS_KEY")
-            secret_key = os.environ.get("EXOSCALE_API_KEY_ACCESS_SECRET")
-            assert access_key is not None and secret_key is not None, (
-                "EXOSCALE_API_KEY_ACCESS_KEY and EXOSCALE_API_KEY_ACCESS_SECRET "
-                "environment variables must be set. "
-                "Please set these variables with the values from your Exoscale "
-                "API Key."
-            )
-            self._minio_client = Minio(
-                endpoint=config.minio_fqdn,
-                access_key=access_key,
-                secret_key=secret_key,
-                secure=True,
-            )
+        if config.is_exoscale_cluster:
+            self._minio_client = self.create_minio_client_for_exoscale_cluster()
 
     def create_object(
         self,
@@ -55,9 +66,7 @@ class ObjectStore:
             "`dq.config.root_bucket_name = 'my-bucket-name'` or by passing a "
             "bucket_name to this function."
         )
-        if config.minio_fqdn is not None and config.minio_fqdn.endswith(
-            EXOSCALE_FQDN_SUFFIX
-        ):
+        if config.is_exoscale_cluster:
             self._create_object_exoscale(
                 object_name=object_name,
                 file_path=file_path,
@@ -85,6 +94,22 @@ class ObjectStore:
         content_type: str = "application/octet-stream",
         bucket_name: Optional[str] = None,
     ) -> None:
+        """_create_object_exoscale
+
+        This is a helper function for the Exoscale cluster. It uses the Minio
+        client to upload files to the object store.
+
+        This is necessary because Exoscale does not support presigned urls.
+
+        Args:
+            object_name (str): The name of the object to create.
+            file_path (str): The path to the file to upload.
+            content_type (str): The content type of the upload request.
+            bucket_name (str): The name of the bucket to upload to.
+
+        Returns:
+            None
+        """
         assert self._minio_client is not None
         self._minio_client.fput_object(
             bucket_name=bucket_name,
