@@ -131,17 +131,21 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         else:
             values = probs
 
-        y_indices = y.reshape((bs, -1, 1)).expand(-1, -1, values.shape[2])
-        value_at_ground_truth = torch.gather(values, 2, y_indices)[:, :, 0]
+        # CHANGE TO PASS IN AS TORCH
+        gt_masks = torch.tensor(gt_masks, dtype=torch.int64)
+        values = torch.tensor(values, dtype=torch.int64)
+        gt_indices = gt_masks.reshape((bs, -1, 1)).expand(-1, -1, values.shape[2])
+        value_at_ground_truth = torch.gather(values, 2, gt_indices)[:, :, 0]
 
         next_highest = values.clone()
-        next_highest.scatter_(2, y_indices, 0)
+        next_highest.scatter_(2, gt_indices, 0)
         next_highest = next_highest.max(dim=2).values
 
         return 1 - (value_at_ground_truth - next_highest)
 
     def calculate_image_dep(self, dep_heatmap: np.ndarray) -> List[float]:
         """Calculates the Data Error Potential (DEP) for each image in the batch"""
+        return dep_heatmap.sum(axis=1)
 
     def calculate_mean_iou(
         self, probs: List[np.ndarray], gt_masks: List[np.ndarray], nc: int = 21
@@ -157,7 +161,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 ignore_index=255,
             )
             ious.append(iou["mean_iou"].item().cpu().numpy())
-        return iou
+        return ious
 
     def calculate_boundary_iou(
         self, probs: List[np.ndarray], gt_masks: List[np.ndarray]
@@ -238,36 +242,37 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         self.upload_contours(contours)
         import pdb
 
-        pdb.set_trace()
+        # pdb.set_trace()
 
         dep_heatmaps = self.calculate_dep_heatmap(self.probs, self.gt_masks)
-        self.calculate_image_dep(dep_heatmaps)
+        image_dep = self.calculate_image_dep(dep_heatmaps)
         import pdb
 
-        pdb.set_trace()
+        # pdb.set_trace()
         mean_ious = self.calculate_mean_iou(pred_masks, self.gt_masks)
         import pdb
 
-        pdb.set_trace()
+        # pdb.set_trace()
         boundary_ious = self.calculate_boundary_iou([pred_masks], self.gt_masks)
         import pdb
 
-        pdb.set_trace()
+        # pdb.set_trace()
         false_positives = self.calculate_false_positives(pred_masks, self.gt_masks)
         import pdb
 
-        pdb.set_trace()
+        # pdb.set_trace()
         missing_segments = self.calculate_missing_segments(pred_masks, self.gt_masks)
         import pdb
 
-        pdb.set_trace()
+        # pdb.set_trace()
 
         obj = {
             "id": self.ids,
             "image_id": self.image_ids,
             "height": [img.shape[0] for img in self.probs],
             "width": [img.shape[1] for img in self.probs],
-            "data_error_potential": deps,
+            "data_error_potential": dep_heatmaps,
+            "image_dep": image_dep,
             "mean_iou": mean_ious,
             "boundary_iou": boundary_ious,
             "error_false_positive": false_positives,
