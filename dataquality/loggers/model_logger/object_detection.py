@@ -7,7 +7,7 @@ from dataquality.loggers.logger_config.object_detection import (
     object_detection_logger_config,
 )
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
-from dataquality.utils.od import convert_cxywh_xyxy, convert_tlxywh_xyxy
+from dataquality.utils.od import convert_cxywh_xyxy, convert_tlxywh_xyxy, scale_boxes
 
 """ Dereks stuff
 'gold_labels',
@@ -139,14 +139,14 @@ class ObjectDetectionModelLogger(BaseGalileoModelLogger):
             # scale boxes if they are normalized
             # (ie the bounding boxes are between 0 and 1)
             # TODO: Scaling boxes is broken, doesn't consider padding (@Franz)
-            # if np.all(self.gold_boxes[image_id] <= 1) and self.image_size:
-            #     self.gold_boxes[image_id] = scale_boxes(
-            #         self.gold_boxes[image_id], self.image_size
-            #     )
-            # if np.all(self.pred_boxes[image_id] <= 1) and self.image_size:
-            #     self.pred_boxes[image_id] = scale_boxes(
-            #         self.pred_boxes[image_id], self.image_size
-            #     )
+            if np.all(self.gold_boxes[idx] <= 1) and self.image_size:
+                self.gold_boxes[idx] = scale_boxes(
+                    self.gold_boxes[idx], self.image_size
+                )
+            if np.all(self.pred_boxes[idx] <= 1) and self.image_size:
+                self.pred_boxes[idx] = scale_boxes(
+                    self.pred_boxes[idx], self.image_size
+                )
 
             # matching = match_bboxes(self.pred_boxes[idx], self.gold_boxes[idx])
 

@@ -171,6 +171,7 @@ class Callback:
                 logging_data[i]["pred_embs"] = (
                     embedding_fn(features, pred, batch_img_shape).cpu().numpy()
                 )
+                # TODO @franz should we be scaling bbox_gold the same way?
                 logging_data[i]["bbox_pred_scaled"] = scale_boxes(
                     batch_img_shape,
                     logging_data[i]["bbox_pred"].clone(),
@@ -216,7 +217,8 @@ class Callback:
         probs = []
         ids = []
         for i in range(len(self.logging_data)):
-            pred_boxes.append(self.logging_data[i]["bbox_pred"])
+            # TODO @franz should this be "bbox_pred_scaled"?
+            pred_boxes.append(self.logging_data[i]["bbox_pred_scaled"].cpu().numpy())
             gold_boxes.append(self.logging_data[i]["bbox_gold"])
             labels.append(self.logging_data[i]["labels"])
             pred_embs.append(self.logging_data[i]["pred_embs"])
