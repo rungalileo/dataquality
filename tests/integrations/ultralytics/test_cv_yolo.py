@@ -1,11 +1,10 @@
 from typing import Callable, Generator
 from unittest.mock import MagicMock, patch
 
-import pandas as pd
-
 import dataquality as dq
 from dataquality.clients.api import ApiClient
 from dataquality.integrations.ultralytics import watch
+from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID
 
@@ -42,7 +41,7 @@ def test_end_yolov8(
     set_test_config(current_project_id=None, current_run_id=None)
     from ultralytics import YOLO
 
-    dq.init("object_detection")
+    dq.init(TaskType.object_detection)
     model = YOLO("yolov8n.pt")
     watch(model)
     preds = model.val(data="tests/integrations/ultralytics/coco.yaml")

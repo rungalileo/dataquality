@@ -65,16 +65,16 @@ class ObjectDetectionModelLogger(BaseGalileoModelLogger):
 
     def __init__(
         self,
+        ids: Union[List, np.ndarray],
         pred_boxes: List[np.ndarray],
         gold_boxes: List[np.ndarray],
         labels: List[np.ndarray],
         pred_embs: List[np.ndarray],
         gold_embs: List[np.ndarray],
-        image_size: Tuple[int, int],
+        image_size: Optional[Tuple[int, int]],
         embs: Optional[Union[List, np.ndarray]] = None,
         probs: Optional[Union[List, np.ndarray]] = None,
         logits: Optional[Union[List, np.ndarray]] = None,
-        ids: Optional[Union[List, np.ndarray]] = None,
         split: str = "",
         epoch: Optional[int] = None,
         inference_name: Optional[str] = None,
@@ -136,11 +136,11 @@ class ObjectDetectionModelLogger(BaseGalileoModelLogger):
 
             # scale boxes if they are normalized
             # (ie the bounding boxes are between 0 and 1)
-            if np.all(self.gold_boxes[image_id] <= 1):
+            if np.all(self.gold_boxes[image_id] <= 1) and self.image_size:
                 self.gold_boxes[image_id] = scale_boxes(
                     self.gold_boxes[image_id], self.image_size
                 )
-            if np.all(self.pred_boxes[image_id] <= 1):
+            if np.all(self.pred_boxes[image_id] <= 1) and self.image_size:
                 self.pred_boxes[image_id] = scale_boxes(
                     self.pred_boxes[image_id], self.image_size
                 )

@@ -1,11 +1,12 @@
 import time
 from typing import Any, Dict, List, Optional, Tuple
+
+import cv2
+import numpy as np
 import torch
 import torchvision
-import cv2
-from ultralytics.yolo.utils.plotting import Colors
 from torchvision.ops.boxes import box_convert, box_iou
-import numpy as np
+from ultralytics.yolo.utils.plotting import Colors
 
 colors = Colors()
 

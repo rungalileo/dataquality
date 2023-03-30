@@ -1,5 +1,6 @@
 from dataquality.loggers.data_logger import (
     image_classification,
+    object_detection,
     structured_classification,
     text_classification,
     text_multi_label,
@@ -13,5 +14,6 @@ __all__ = [
     "structured_classification",
     "text_multi_label",
     "text_ner",
+    "object_detection",
     "BaseGalileoDataLogger",
 ]

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
+
+from dataquality.loggers.model_logger.object_detection import ObjectDetectionModelLogger
 
 if TYPE_CHECKING:
     import xgboost as xgb
@@ -374,6 +376,64 @@ def log_model_outputs(
         epoch=epoch,
         logits=logits.astype(np.float32) if isinstance(logits, np.ndarray) else logits,
         probs=probs.astype(np.float32) if isinstance(probs, np.ndarray) else probs,
+        inference_name=inference_name,
+    )
+    model_logger.log()
+
+
+@check_noop
+def log_od_model_outputs(
+    *,
+    ids: Union[List, np.ndarray],
+    pred_boxes: List[np.ndarray],
+    gold_boxes: List[np.ndarray],
+    labels: List[np.ndarray],
+    pred_embs: List[np.ndarray],
+    gold_embs: List[np.ndarray],
+    image_size: Optional[Tuple[int, int]],
+    embs: Optional[Union[List, np.ndarray]] = None,
+    probs: Optional[Union[List, np.ndarray]] = None,
+    logits: Optional[Union[List, np.ndarray]] = None,
+    split: str = "",
+    epoch: Optional[int] = None,
+    inference_name: Optional[str] = None,
+) -> None:
+    """Logs model outputs for model during training/test/validation.
+
+    :param embs: The embeddings per output sample
+    :param ids: The ids for each sample. Must match input ids of logged samples
+    :param split: The current split. Must be set either here or via dq.set_split
+    :param epoch: The current epoch. Must be set either here or via dq.set_epoch
+    :param logits: The logits for each sample
+    :param probs: Deprecated, use logits. If passed in, a softmax will NOT be applied
+    :param inference_name: Inference name indicator for this inference split.
+        If logging for an inference split, this is required.
+    :param exclude_embs: Optional flag to exclude embeddings from logging. If True and
+        embs is set to None, this will generate random embs for each sample.
+
+    The expected argument shapes come from the task_type being used
+    See dq.docs() for more task specific details on parameter shape
+    """
+    assert all(
+        [config.task_type, config.current_project_id, config.current_run_id]
+    ), "You must call dataquality.init before logging data"
+    assert (probs is not None) or (
+        logits is not None
+    ), "You must provide either logits or probs"
+
+    model_logger = ObjectDetectionModelLogger(
+        ids=ids,
+        pred_boxes=pred_boxes,
+        gold_boxes=gold_boxes,
+        labels=labels,
+        pred_embs=pred_embs,
+        gold_embs=gold_embs,
+        image_size=image_size,
+        embs=embs,
+        probs=probs,
+        logits=logits,
+        split=split,
+        epoch=epoch,
         inference_name=inference_name,
     )
     model_logger.log()

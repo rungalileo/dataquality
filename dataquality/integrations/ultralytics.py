@@ -1,17 +1,22 @@
-import torch
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+
 import numpy as np
+import torch
 import ultralytics
+from torchvision.ops.boxes import box_convert
 from ultralytics import YOLO
+from ultralytics.yolo.engine.predictor import BasePredictor
 from ultralytics.yolo.engine.trainer import BaseTrainer
 from ultralytics.yolo.engine.validator import BaseValidator
-from ultralytics.yolo.engine.predictor import BasePredictor
-from typing import Any, Callable, List, Optional, Tuple, Union
-from ultralytics.yolo.utils.tal import dist2bbox, make_anchors
 from ultralytics.yolo.utils.ops import scale_boxes
-from torchvision.ops.boxes import box_convert
-from dataquality.exceptions import GalileoException
-from dataquality.schemas.split import Split
+from ultralytics.yolo.utils.tal import dist2bbox, make_anchors
+
 import dataquality as dq
+from dataquality import get_data_logger
+from dataquality.exceptions import GalileoException
+from dataquality.loggers.data_logger.object_detection import ObjectDetectionDataLogger
+from dataquality.schemas.split import Split
+from dataquality.schemas.task_type import TaskType
 from dataquality.utils.ultralytics import get_batch_data, non_max_suppression
 
 ultralytics.checks()
@@ -85,7 +90,8 @@ class BatchLogger:
 
 
 class Callback:
-    split: Optional[Split] = None
+    split: Optional[Split]
+    file_map: Dict
 
     def __init__(self, nms_fn: Optional[Callable] = None) -> None:
         self.step_embs = StoreHook()
@@ -94,6 +100,7 @@ class Callback:
         self.nms_fn = nms_fn
         self.hooked = False
         self.split = None
+        self.file_map = {}
 
     def postprocess(self, batch: torch.Tensor) -> Any:
         ref_model = self.step_embs.model
@@ -150,6 +157,7 @@ class Callback:
 
             for i in range(len(nms)):
                 logging_data[i]["fn"] = batch["im_file"][i]
+                logging_data[i]["id"] = self.file_map[batch["im_file"][i]]
                 ratio_pad = batch["ratio_pad"][i]
                 shape = batch["ori_shape"][i]
                 batch_img_shape = batch["img"][i].shape[1:]
@@ -214,9 +222,22 @@ class Callback:
             pred_embs.append(self.logging_data[i]["pred_embs"])
             gold_embs.append(self.logging_data[i]["gt_embs"])
             probs.append(self.logging_data[i]["probs"])
-            ids.append(self.logging_data[i]["fn"])
+            ids.append(self.logging_data[i]["id"])
 
-        # dq.log_model_output()
+        # TODO: replace properly
+        dq.core.log.log_od_model_outputs(
+            pred_boxes=pred_boxes,
+            gold_boxes=gold_boxes,
+            labels=labels,
+            pred_embs=pred_embs,
+            gold_embs=gold_embs,
+            image_size=None,
+            probs=probs,
+            logits=probs,
+            ids=ids,
+            split=Split.validation,
+            epoch=0,
+        )
 
     def register_hooks(self, model: Any) -> None:
         h = model.register_forward_hook(self.step_pred.hook)
@@ -224,6 +245,41 @@ class Callback:
         h = model.model[-1].register_forward_hook(self.step_embs.hook)
         self.step_embs.store_hook(h)
         self.hooked = True
+
+    def init_run(self) -> None:
+        dq.set_labels_for_run(list(self.validator.dataloader.dataset.names.values()))
+        ds = self.convert_dataset(self.validator.dataloader.dataset)
+        # TODO: replace with data logger
+        data_logger = get_data_logger()
+        assert isinstance(data_logger, ObjectDetectionDataLogger), (
+            "This method is only supported for image tasks. "
+            "Please use dq.log_samples for text tasks."
+        )
+        data_logger.log_dataset(ds, split=Split.validation)
+
+    def convert_dataset(self, dataset: Any) -> List:
+        assert len(dataset) > 0
+        processed_dataset = []
+        for i, image in enumerate(dataset):
+            self.file_map[image["im_file"]] = i
+            batch_img_shape = image["img"].shape[-2:]
+            shape = image["ori_shape"]
+            bbox = image["bboxes"].clone()
+            height, width = batch_img_shape
+            tbox = box_convert(bbox, "cxcywh", "xyxy") * torch.tensor(
+                (width, height, width, height)
+            )
+            ratio_pad = image["ratio_pad"]
+            bbox_gold = scale_boxes(batch_img_shape, tbox, shape, ratio_pad=ratio_pad)
+            processed_dataset.append(
+                {
+                    "id": i,
+                    "file_name": image["im_file"],
+                    "bbox": bbox_gold,
+                    "cls": image["cls"],
+                }
+            )
+        return processed_dataset
 
     def on_train_start(self, trainer: BaseTrainer) -> None:
         self.split = Split.training
@@ -248,6 +304,7 @@ class Callback:
             self.bl = BatchLogger(validator.preprocess)
             validator.preprocess = self.bl
             self.hooked = True
+            self.init_run()
 
     # -- Predictor callbacks --
     def on_predict_start(self, predictor: BasePredictor) -> None:
@@ -283,7 +340,7 @@ def add_callback(model: YOLO, cb: Callback) -> None:
 
 
 def watch(model: YOLO) -> None:
-    assert dq.config.task_type == "object_detection", GalileoException(
+    assert dq.config.task_type == TaskType.object_detection, GalileoException(
         "dq client must be initialized. " "For example: dq.init('text_classification')"
     )
     cb = Callback(nms_fn=non_max_suppression)
