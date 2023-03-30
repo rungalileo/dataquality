@@ -659,7 +659,7 @@ def test_log_model_outputs_with_embs_exclude_emb_true(
 )
 @mock.patch.object(
     dataquality.loggers.model_logger.base_model_logger.BaseGalileoModelLogger,
-    "validate",
+    "validate_and_format",
 )
 def test_log_batch_error_warns(
     mock_validate: mock.MagicMock,
@@ -687,7 +687,7 @@ def test_log_batch_error_warns(
 )
 @mock.patch.object(
     dataquality.loggers.model_logger.base_model_logger.BaseGalileoModelLogger,
-    "validate",
+    "validate_and_format",
 )
 def test_log_assertion_error_raises(
     mock_validate: mock.MagicMock,

@@ -365,7 +365,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         """
         return GalileoDataLoggerAttributes.get_valid()
 
-    def validate(self) -> None:
+    def validate_and_format(self) -> None:
         """
         Validates that the current config is correct.
         * Text and Labels must both exist (unless split is 'inference' in which case
@@ -378,7 +378,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         now it expects string labels. When we make that change, we will do the opposite
         and always convert to the int index of the labels.
         """
-        super().validate()
+        super().validate_and_format()
         label_len = len(self.labels)
         text_len = len(self.texts)
         id_len = len(self.ids)

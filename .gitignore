@@ -174,3 +174,5 @@ data/
 yolov8n.pt
 runs
 VIA2COCO
+coco_dataset/
+coco.ipynb
