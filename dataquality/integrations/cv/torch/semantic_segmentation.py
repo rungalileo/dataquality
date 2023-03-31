@@ -97,10 +97,10 @@ class Manager:
             logger = SemanticSegmentationModelLogger(
                 image_ids=img_ids.tolist(),
                 gt_masks=gold_mask,  # Torch tensor
+                pred_mask=argmax,  # Torch tensor
                 gold_boundary_masks=torch.tensor(gold_boundary_masks),  # Torch tensor
                 pred_boundary_masks=torch.tensor(pred_boundary_masks),  # Torch tensor
                 output_probs=probs,  # Torch tensor
-                pred_mask=argmax,  # Torch tensor
             )
             logger._get_data_dict()
             # logger.log()

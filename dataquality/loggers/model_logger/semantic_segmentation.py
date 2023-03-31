@@ -9,11 +9,17 @@ from dataquality.loggers.logger_config.semantic_segmentation import (
     semantic_segmentation_logger_config,
 )
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
-from dataquality.utils.semantic_segmentation import (
+from dataquality.utils.cv.semantic_segmentation.contours import (
+    find_and_upload_contours,
+)
+from dataquality.utils.cv.semantic_segmentation.errors import (
     calculate_false_positives,
-    calculate_mean_iou,
     calculate_missing_segments,
-    probs_to_preds,
+)
+from dataquality.utils.cv.semantic_segmentation.metrics import (
+    calculate_dep_heatmap,
+    calculate_image_dep,
+    calculate_mean_iou,
 )
 
 
@@ -71,87 +77,23 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
     def validate_and_format(self) -> None:
         return
 
-    def create_contours(self, pred_mask: torch.Tensor) -> Dict[int, List]:
-        """Returns a list of GT contours from the pred mask
-
-        A contour is a list of points that make up the boundary of a shape.
-        Each image can be represented as a dictionary mapping a GT class to
-          its corresponding contours.
-
-        Example:
-        {
-          "7": [  # Class '7' has 2 contours
-              ((13, 17), (19, 25), (22, 21), (13, 17)),  # contour 1
-              ((0, 3), (2, 5), (4, 6), (2, 2), (0,3)),  # contour 2
-          ],
-          "15": [  # Class '15' has 1 contour
-              ((11, 17), (19, 25), (22, 21), (11, 17)),  # contour 1
-          ],
-        }
-        """
-        contours_map = {}
-        for label in np.unique(pred_mask).astype(int).tolist():
-            if label == 0:
-                continue
-
-            mask = pred_mask == label
-            mask = mask.astype(np.uint8)  # maybe don't need this
-            # contours is a tuple of numpy arrays
-            contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-            contours_map[label] = [self.format_contour(c) for c in contours]
-
-        return contours_map
-
-    def format_contour(self, contour: np.ndarray) -> List[Tuple[int]]:
-        """Converts a contour from a numpy array to a list of pixel coordinates
-
-        Example input:
-        contour = np.array([[[13, 17]], [[19, 25]], [[22, 21]], [[13, 17]]])
-        print(contour.shape)
-          => (4, 1, 2)
-
-        Example output:
-        [
-            (13, 17),
-            (19, 25),
-            (22, 21),
-            (13, 17),
-        ]
-        """
-        return list(map(tuple, contour.squeeze(1).tolist()))
-
-    def _upload_contour(self, image_id: int, contour: Dict[int, List]) -> None:
-        """Uploads a contour to the cloud for a given image"""
-        # assert self.logger_config.image_cloud_path is not None, (
-        #     "Must have image cloud path, set using `dq.set_image_cloud_path`. "
-        #     "Must be set before training model."
-        # )
-        # raise NotImplementedError
-
-    def upload_contours(self, contours: List[Dict[int, List]]) -> None:
-        """Uploads contours to the cloud"""
-        for image_id, contour in zip(self.image_ids, contours):
-            self._upload_contour(image_id, contour)
-
     def _get_data_dict(self) -> Dict:
         """Returns a dictionary of data to be logged as a DataFrame"""
         # assert self.logger_config.image_cloud_path is not None, (
         #     "Must have image cloud path, set using `dq.set_image_cloud_path`. "
         #     "Must be set before training model."
         # )
-        # dep_heatmaps = calculate_dep_heatmap(self.output_probs, self.gt_masks)
-        # image_dep = calculate_image_dep(dep_heatmaps)
 
-        # probs = self._convert_tensor_ndarray(self.output_probs)
-        # pred_masks = probs_to_preds(self.output_probs)
-        # contours = [self.create_contours(pred_mask) for pred_mask in pred_masks]
-        # self.upload_contours(contours)
-
+        dep_heatmaps = calculate_dep_heatmap(self.output_probs, self.gt_masks)
+        image_dep = calculate_image_dep(dep_heatmaps)
+        find_and_upload_contours(self.image_ids, self.pred_mask, "proj/run/split/contours/")
 
         mean_ious = calculate_mean_iou(self.pred_mask, self.gt_masks)
         boundary_ious = calculate_mean_iou(
             self.pred_boundary_masks, self.gold_boundary_masks
         )
+
+        import pdb; pdb.set_trace()
         false_positives = calculate_false_positives(self.pred_mask, self.gt_masks)
         missing_segments = calculate_missing_segments(self.pred_mask, self.gt_masks)
 
@@ -160,12 +102,12 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "image_id": self.image_ids,
             "height": [img.shape[-1] for img in self.gt_masks],
             "width": [img.shape[-2] for img in self.gt_masks],
-            # "data_error_potential": image_dep,
+            "data_error_potential": image_dep,
             "mean_iou": mean_ious,
             "boundary_iou": boundary_ious,
             "error_false_positive": false_positives,
             "error_missing_segment": missing_segments,
             # "split": [self.split] * len(self.image_ids),
         }
-
+        import pdb; pdb.set_trace()
         return obj
