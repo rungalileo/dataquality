@@ -412,7 +412,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             self.meta[str(meta_col)] = df[meta_col].tolist()
         self.log()
 
-    def validate(self) -> None:
+    def validate_and_format(self) -> None:
         """
         Validates that the current config is correct.
         * Text and Labels must both exist (unless split is 'inference' in which case
@@ -420,7 +420,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         * Text and Labels must be the same length
         * If ids exist, it must be the same length as text/labels
         """
-        super().validate()
+        super().validate_and_format()
         assert self.logger_config.labels, (
             "You must set your labels before logging input data. "
             "See dataquality.set_labels_for_run"

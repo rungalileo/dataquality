@@ -192,11 +192,11 @@ def tokenize_and_log_dataset(
         else:
             dq_split = conform_split(ds_key)
 
+        # Filter out rows with no tokens
+        dataset = dataset.filter(lambda row: len(row[HFCol.text_token_indices]) != 0)
         ids = list(range(len(dataset)))
         dataset = dataset.add_column(HFCol.id, ids)
         ds_orig_len = len(dataset)
-        # Filter out rows with no tokens
-        dataset = dataset.filter(lambda row: len(row[HFCol.text_token_indices]) != 0)
         ds_len = len(dataset)
         if ds_orig_len != ds_len:
             warnings.warn(

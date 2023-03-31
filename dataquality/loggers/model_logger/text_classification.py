@@ -1,4 +1,3 @@
-import warnings
 from enum import Enum, unique
 from typing import Any, Dict, List, Optional, Union
 
@@ -115,7 +114,7 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
             has_len = bool(arr.shape[0])
         return has_len
 
-    def validate(self) -> None:
+    def validate_and_format(self) -> None:
         """
         Validates that the current config is correct.
         * embs, probs, and ids must exist and be the same length
@@ -128,7 +127,6 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
             self.probs = self.convert_logits_to_probs(self.logits)
             del self.logits
         elif has_probs:
-            warnings.warn("Usage of probs is deprecated, use logits instead")
             self.probs = self._convert_tensor_ndarray(self.probs, "Prob")
 
         self.embs = self._convert_tensor_ndarray(self.embs, "Embedding")

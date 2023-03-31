@@ -20,6 +20,10 @@ from dataquality.utils.helpers import galileo_disabled
 
 CLOUD_URL = "https://console.cloud.rungalileo.io"
 MINIMUM_API_VERSION = "0.4.0"
+GALILEO_DEFAULT_IMG_BUCKET_NAME = "galileo-images"
+GALILEO_DEFAULT_RUN_BUCKET_NAME = "galileo-projects-runs"
+GALILEO_DEFAULT_RESULT_BUCKET_NAME = "galileo-projects-runs-results"
+EXOSCALE_FQDN_SUFFIX = ".exo.io"
 
 
 class GalileoConfigVars(str, Enum):
@@ -55,6 +59,11 @@ class Config(BaseModel):
     current_project_id: Optional[UUID4] = None
     current_run_id: Optional[UUID4] = None
     task_type: Optional[TaskType] = None
+    root_bucket_name: str = GALILEO_DEFAULT_RUN_BUCKET_NAME
+    results_bucket_name: str = GALILEO_DEFAULT_RESULT_BUCKET_NAME
+    images_bucket_name: str = GALILEO_DEFAULT_IMG_BUCKET_NAME
+    minio_fqdn: Optional[str] = None
+    is_exoscale_cluster: bool = False
 
     class Config:
         validate_assignment = True
@@ -114,7 +123,7 @@ def _check_dq_version() -> None:
     """Check that user is running valid version of DQ client
     Pings backend to check minimum DQ version requirements.
     """
-    r = requests.get(f"{config.api_url}/{Route.healthcheck}/dq")
+    r = requests.get(f"{config.api_url}/{Route.healthcheck_dq}")
     if not r.ok:
         if r.status_code == 404:
             # We don't want to raise error if api doesn't have dq healthcheck yet

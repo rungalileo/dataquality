@@ -75,7 +75,7 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
             - self.feature_names to the column names of X if it is a pandas DataFrame
             - logger_config.feature_names to the column names of X if they aren't set
         """
-        self.validate()
+        self.validate_and_format()
 
         assert self.model is not None, "Model must be included to log data."
 

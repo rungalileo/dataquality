@@ -1,4 +1,3 @@
-import warnings
 from collections import defaultdict
 from enum import Enum, unique
 from typing import Any, DefaultDict, Dict, List, Optional, Tuple, Union
@@ -137,7 +136,7 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         """
         return GalileoModelLoggerAttributes.get_valid()
 
-    def validate(self) -> None:
+    def validate_and_format(self) -> None:
         """
         Validates that the current config is correct.
         * embs, probs, and ids must exist and be the same length
@@ -146,7 +145,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         if len(self.logits):
             self.probs = self.convert_logits_to_probs(self.logits)
         elif len(self.probs):
-            warnings.warn("Usage of probs is deprecated, use logits instead")
             self.probs = self._convert_tensor_ndarray(self.probs)
 
         embs_len = len(self.embs)

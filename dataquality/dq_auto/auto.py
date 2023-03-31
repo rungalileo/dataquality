@@ -197,6 +197,7 @@ def auto(
         from dataquality.dq_auto.text_classification import auto as auto_tc
 
         auto_tc()
+        return
     task_type = get_task_type_from_data(hf_data, train_data)
     # We cannot use a common list of *args or **kwargs here because mypy screams :(
     if task_type == TaskType.text_classification:

@@ -175,7 +175,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         If the dataset is very large this function will be called multiple
         times for a given split.
         """
-        self.validate()
+        self.validate_and_format()
         # E.g. /Users/username/.galileo/logs/proj-id/run-id
         write_input_dir = self.write_output_dir
         os.makedirs(write_input_dir, exist_ok=True)
@@ -228,6 +228,13 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
         if cuml_available():
             apply_umap_to_embs(location, last_epoch)
+        else:
+            print(
+                "CuML libraries not found, running standard process. "
+                "For faster Galileo processing, consider installing\n"
+                "`pip install 'dataquality[cuda]' --extra-index-url="
+                "https://pypi.ngc.nvidia.com/`"
+            )
 
         if cuml_available() and create_data_embs and self.support_data_embs:
             print("Creating and uploading data embeddings")
@@ -483,7 +490,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             max_epoch_for_split = min(max_epoch_for_split, last_epoch)
         return bool(epoch < max_epoch_for_split - 1)
 
-    def validate(self) -> None:
+    def validate_and_format(self) -> None:
         """Validates the logger
 
         Ensures that self.split is set, or sets it to the current split

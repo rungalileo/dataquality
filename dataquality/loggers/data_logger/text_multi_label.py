@@ -223,7 +223,7 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
             clean_task_labels.append(clean_sample_labels)
         self.labels = clean_task_labels
 
-    def validate(self) -> None:
+    def validate_and_format(self) -> None:
         """
         Parent validation (text_classification) with additional validation on labels
 
@@ -232,7 +232,7 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
         if self.logger_config.binary:
             self._process_binary_labels()
         self.logger_config.observed_num_tasks = len(self.labels[0])
-        super().validate()
+        super().validate_and_format()
 
     def validate_logged_labels(self) -> None:
         for ind, input_labels in enumerate(self.labels):
