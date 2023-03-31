@@ -11,10 +11,14 @@ def probs_to_preds(probs: torch.Tensor) -> torch.Tensor:
 
 
 def calculate_dep_heatmap(probs: torch.Tensor, gt_masks: torch.Tensor) -> torch.Tensor:
-    """Calculates the Data Error Potential (DEP) for each image in the batch"""
-    # probs: float, (bs, n_pixels, n_classes) or (bs, n_rows, n_cols, n_classes)
-    # y: int, (bs, n_pixels,) or (bs, n_rows, n_cols)
-    # returns: (bs, n_pixels)
+    """
+    Calculates the Data Error Potential (DEP) for each image in the batch
+    
+    :param probs: float, (bs, n_pixels, n_classes) or (bs, n_rows, n_cols, n_classes)
+    :param gt_masks: int, (bs, n_pixels,) or (bs, n_rows, n_cols)
+    :return: (bs, n_pixels)
+    """
+
     n_classes = probs.shape[-1]
     bs = probs.shape[0]
     # flatten the height and width dimensions
@@ -44,15 +48,24 @@ def calculate_image_dep(dep_heatmap: torch.Tensor) -> List[float]:
 
 
 def calculate_mean_iou(
-    pred_boundary_masks: torch.Tensor, gold_boundary_masks: torch.Tensor, nc: int = 21
+    pred_masks: torch.Tensor, gold_masks: torch.Tensor, nc: int = 21
 ) -> List[float]:
-    """Calculates the Mean Intersection Over Union (mIoU) for each image in the batch"""
+    """Calculates the Mean Intersection Over Union (mIoU) for each image in the batch
+    
+    :param pred_masks: argmax of the prediction probabilities
+    :param gold_masks: ground truth masks
+    :param nc: number of classes
+    returns: list of mIoU values for each image in the batch
+    """
     metric = evaluate.load("mean_iou")
     ious = []
-    for i in range(len(pred_boundary_masks)):
+
+    # for iou need shape (bs, 1, height, width) for some reason - 
+    # unsure if that is actually true but it works
+    for i in range(len(pred_masks)):
         iou = metric._compute(
-            pred_boundary_masks[i : i + 1],  # tensor 1, 64, 21
-            gold_boundary_masks[i : i + 1],  # tensor 1, 64, 64
+            pred_masks[i : i + 1],  # tensor 1, 64, 21
+            gold_masks[i : i + 1],  # tensor 1, 64, 64
             num_labels=nc,
             ignore_index=255,
         )
@@ -67,6 +80,10 @@ def calculate_false_positives(
 
     For each image, returns a set of classes that were predicted but not
         present in the ground truth.
+
+    :param preds: argmax of the prediction probabilities
+    :param gt_masks: ground truth masks
+    returns: list of sets of false positive classes for each image in the batch
     """
     false_positives: List[Set[int]] = []
     for image in range(len(preds)):
@@ -91,6 +108,10 @@ def calculate_missing_segments(
 
     For each image, returns a set of classes that were in the ground truth but not
         present in the predictions.
+
+    :param preds: argmax of the prediction probabilities
+    :param gt_masks: ground truth masks
+    returns: list of sets of missing segment classes for each image in the batch
     """
     missing_segments: List[Set[int]] = []
     for image in range(len(preds)):

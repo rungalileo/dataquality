@@ -88,7 +88,8 @@ class Manager:
             )  # (bs, w, h)
             if logging_data["mask"].shape[1] == 1:
                 logging_data["mask"] = logging_data["mask"].squeeze(1)  # (bs, w, h)
-            gold_mask = logging_data["mask"].cpu()  # (bs, w, h)
+            # gold mask needs to be unsqueezed for the compute_mean_iou function
+            gold_mask = logging_data["mask"].cpu().unsqueeze(1)  # (bs, w, h)
             img_ids = logging_data["idx"].cpu()  # np.ndarray (bs,)
 
             probs = torch.nn.Softmax(dim=1)(logits).cpu()  # (bs, w, h, classes)
@@ -99,6 +100,7 @@ class Manager:
                 gold_boundary_masks=torch.tensor(gold_boundary_masks),  # Torch tensor
                 pred_boundary_masks=torch.tensor(pred_boundary_masks),  # Torch tensor
                 output_probs=probs,  # Torch tensor
+                pred_mask=argmax,  # Torch tensor
             )
             logger._get_data_dict()
             # logger.log()

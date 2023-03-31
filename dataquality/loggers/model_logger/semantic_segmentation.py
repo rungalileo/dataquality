@@ -27,6 +27,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         self,
         image_ids: List[int],
         gt_masks: torch.Tensor,
+        pred_mask: torch.Tensor,
         gold_boundary_masks: torch.Tensor,
         pred_boundary_masks: torch.Tensor,
         output_probs: torch.Tensor,
@@ -61,6 +62,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         # )
         self.image_ids = image_ids
         self.gt_masks = gt_masks
+        self.pred_mask = pred_mask
         self.gold_boundary_masks = gold_boundary_masks
         self.pred_boundary_masks = pred_boundary_masks
         self.output_probs = output_probs
@@ -141,25 +143,23 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         # image_dep = calculate_image_dep(dep_heatmaps)
 
         # probs = self._convert_tensor_ndarray(self.output_probs)
-        pred_masks = probs_to_preds(self.output_probs)
+        # pred_masks = probs_to_preds(self.output_probs)
         # contours = [self.create_contours(pred_mask) for pred_mask in pred_masks]
         # self.upload_contours(contours)
 
-        mean_ious = calculate_mean_iou(pred_masks, self.gt_masks)
+
+        mean_ious = calculate_mean_iou(self.pred_mask, self.gt_masks)
         boundary_ious = calculate_mean_iou(
             self.pred_boundary_masks, self.gold_boundary_masks
         )
-        false_positives = calculate_false_positives(pred_masks, self.gt_masks)
-        missing_segments = calculate_missing_segments(pred_masks, self.gt_masks)
-        import pdb
-
-        pdb.set_trace()
+        false_positives = calculate_false_positives(self.pred_mask, self.gt_masks)
+        missing_segments = calculate_missing_segments(self.pred_mask, self.gt_masks)
 
         obj = {
             # "id": self.ids,
             "image_id": self.image_ids,
-            "height": [img.shape[0] for img in self.probs],
-            "width": [img.shape[1] for img in self.probs],
+            "height": [img.shape[-1] for img in self.gt_masks],
+            "width": [img.shape[-2] for img in self.gt_masks],
             # "data_error_potential": image_dep,
             "mean_iou": mean_ious,
             "boundary_iou": boundary_ious,
