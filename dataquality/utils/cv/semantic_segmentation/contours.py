@@ -126,14 +126,14 @@ def _upload_contour(image_id: int, contour_map: Dict[int, List], obj_prefix: str
         return
 
     obj_name = f"{obj_prefix}/{image_id}.json"
-    with NamedTemporaryFile(mode="w", delete=False) as f:
+    with NamedTemporaryFile(mode="w+", delete=False) as f:
         print("hi")
         import pdb; pdb.set_trace()
         json.dump(contour_map, f)
-        print("hi")
-        # object_store.create_object(
-        #     object_name=obj_name,
-        #     file_path=f,
-        #     content_type="application/json",
-        #     progress=False,
-        # )
+        f.close()
+    object_store.create_object(
+        object_name=obj_name,
+        file_path=f,
+        content_type="application/json",
+        progress=False,
+    )
