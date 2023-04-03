@@ -52,10 +52,14 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             image_ids: List of image ids
             gt_masks: List of ground truth masks
                 np.ndarray of shape (batch_size, height, width)
+            pred_mask: List of prediction masks
+                np.ndarray of shape (batch_size, height, width)
             gold_boundary_masks: List of gold boundary masks
                 np.ndarray of shape (batch_size, height, width)
             pred_boundary_masks: List of predicted boundary masks
                 np.ndarray of shape (batch_size, height, width)
+            output_probs: Model probability predictions
+                np.ndarray of shape (batch_size, height, width, num_classes)
         """
         # super().__init__(
         #     embs=embs,
@@ -86,7 +90,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
 
         dep_heatmaps = calculate_dep_heatmap(self.output_probs, self.gt_masks)
         image_dep = calculate_image_dep(dep_heatmaps)
-        find_and_upload_contours(self.image_ids, self.pred_mask, "proj/run/split/contours/")
+        find_and_upload_contours(self.image_ids, self.pred_mask, "proj/run/split/contours")
 
         mean_ious = calculate_mean_iou(self.pred_mask, self.gt_masks)
         boundary_ious = calculate_mean_iou(
@@ -108,4 +112,5 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "error_missing_segment": missing_segments,
             # "split": [self.split] * len(self.image_ids),
         }
+        import pdb; pdb.set_trace()
         return obj

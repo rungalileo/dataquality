@@ -30,9 +30,9 @@ def find_and_upload_contours(
     for i in range(len(image_ids)):
         image_id = image_ids[i]
         pred_mask = pred_masks_np[i]
-        contours = find_contours(pred_mask)
-        s_contours = serialize_contours(contours)
-        # _upload_contour(image_id, s_contours, obj_prefix)
+        contour_map = find_contours(pred_mask)
+        s_contour_map = serialize_contours(contour_map)
+        _upload_contour(image_id, s_contour_map, obj_prefix)
 
 
 def find_contours(pred_mask: np.ndarray) -> Dict[int, Tuple]:
@@ -41,6 +41,11 @@ def find_contours(pred_mask: np.ndarray) -> Dict[int, Tuple]:
     A contour is a list of points that make up the boundary of a shape.
     Each image can be represented as a dictionary mapping a GT class to
         its corresponding contours.
+    
+        
+    cv2.findContours returns a Tuple of contours, where each contour is a
+        numpy array of shape (num_points, 1, 2)
+
 
     Example:
     {
@@ -61,16 +66,13 @@ def find_contours(pred_mask: np.ndarray) -> Dict[int, Tuple]:
         mask = pred_mask == label
         mask = mask.astype(np.uint8)  # maybe don't need this
         # contours is a tuple of numpy arrays
-        # erroring when shape is (1, H, W)
-        if mask.shape[0] > 1:
-            raise ValueError(f"Mask shape is {mask.shape}, expected (H, W)")
-        contours, _ = cv2.findContours(mask[0], cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         contours_map[label] = contours
 
     return contours_map
 
 
-def serialize_contours(contours: Dict[int, Tuple]) -> List[Tuple[int]]:
+def serialize_contours(contour_map: Dict[int, Tuple]) -> Dict[int, List]:
     """
     Converts a contour from a numpy array to a list of pixel coordinates
 
@@ -84,36 +86,51 @@ def serialize_contours(contours: Dict[int, Tuple]) -> List[Tuple[int]]:
 
     Example input:
     contours = {
-        0: np.array([[[13, 17]], [[19, 25]], [[22, 21]], [[13, 17]]]),
-        1: np.array([[[0, 3]], [[2, 5]], [[4, 6]], [[2, 2]], [[0, 3]]])
+        7: (
+            np.array([[[13, 17]], [[19, 25]], [[22, 21]], [[13, 17]]]),
+            np.array([[[12, 5]], [[11, 7]], [[10, 9]], [[12, 15]]]),
+        ),
+        15: (
+            np.array([[[0, 3]], [[2, 5]], [[4, 6]], [[2, 2]], [[0, 3]]])
+        )
     }
     print(contours[0].shape)  # Output: (4, 1, 2)
 
     Example output:
-    [
-        [(13, 17), (19, 25), (22, 21), (13, 17)],
-        [(0, 3), (2, 5), (4, 6), (2, 2), (0, 3)]
-    ]
+    {
+        7: [  # 2 contours for class 7
+            [[13, 17], [19, 25], [22, 21], [13, 17]],
+            [[12, 5], [11, 7], [10, 9], [12, 15]],
+        ],
+        15: [
+            [[0, 3], [2, 5], [4, 6], [2, 2], [0, 3]]
+        ]
+    }
     """
-    serialized_contours = defaultdict(list)
-    for label, contour in contours.items():
-        for contour_item in contour:
-            # Remove the extra dimension in the numpy array and convert to a list of tuples
-            serialized_contours[label].append(list(map(tuple, contour_item.squeeze(1).tolist())))
+    serialized_contour_map = {}
+    for label, contours in contour_map.items():
+        # Remove the extra dimension in the numpy array and convert to a list of tuples
+        serialized_contour_map[label] = [c.squeeze(1).tolist() for c in contours]
 
-    return list(serialized_contours.values())
+    return serialized_contour_map
 
 
-def _upload_contour(image_id: int, contour: Dict[int, List], obj_prefix: str) -> None:
+def _upload_contour(image_id: int, contour_map: Dict[int, List], obj_prefix: str) -> None:
     """Uploads a contour to the cloud for a given image
     
     obj_prefix is the prefix of the object name. For example,
         - /p
 
     """
+    if not contour_map:
+        return
+
     obj_name = f"{obj_prefix}/{image_id}.json"
-    with NamedTemporaryFile(suffix=".json", mode="w+") as f:
-        json.dump(contour, f)
+    with NamedTemporaryFile(mode="w", delete=False) as f:
+        print("hi")
+        import pdb; pdb.set_trace()
+        json.dump(contour_map, f)
+        print("hi")
         # object_store.create_object(
         #     object_name=obj_name,
         #     file_path=f,

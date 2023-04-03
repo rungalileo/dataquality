@@ -56,9 +56,6 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         try:
             self.validate_and_format()
         except AssertionError as e:
-            import pdb
-
-            pdb.set_trace()
             get_dq_logger().error(
                 "Validation of data failed", split=self.split, epoch=self.epoch
             )
@@ -71,9 +68,6 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
                 GalileoWarning,
             )
             return
-        import pdb
-
-        pdb.set_trace()
         data = self._get_data_dict()
         self.write_model_output(data)
 
