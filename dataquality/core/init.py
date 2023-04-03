@@ -13,7 +13,14 @@ from tenacity import (
 
 import dataquality
 from dataquality.clients.api import ApiClient
-from dataquality.core._config import _check_dq_version, config
+from dataquality.core._config import (
+    EXOSCALE_FQDN_SUFFIX,
+    GALILEO_DEFAULT_IMG_BUCKET_NAME,
+    GALILEO_DEFAULT_RESULT_BUCKET_NAME,
+    GALILEO_DEFAULT_RUN_BUCKET_NAME,
+    _check_dq_version,
+    config,
+)
 from dataquality.core.auth import login
 from dataquality.exceptions import GalileoException, GalileoWarning
 from dataquality.loggers import BaseGalileoLogger
@@ -146,6 +153,27 @@ def init(
 
     config.current_project_id = project["id"]
     config.current_run_id = run["id"]
+    _dq_healthcheck_response = api_client.get_healthcheck_dq()
+    _bucket_names = _dq_healthcheck_response.get("bucket_names", {})
+    config.root_bucket_name = _bucket_names.get(
+        "root",
+        GALILEO_DEFAULT_RUN_BUCKET_NAME,
+    )
+    config.results_bucket_name = _bucket_names.get(
+        "results",
+        GALILEO_DEFAULT_RESULT_BUCKET_NAME,
+    )
+    config.images_bucket_name = _bucket_names.get(
+        "images",
+        GALILEO_DEFAULT_IMG_BUCKET_NAME,
+    )
+    config.minio_fqdn = _dq_healthcheck_response.get(
+        "minio_fqdn", os.getenv("MINIO_FQDN", None)
+    )
+    if config.minio_fqdn is not None and config.minio_fqdn.endswith(
+        EXOSCALE_FQDN_SUFFIX
+    ):
+        config.is_exoscale_cluster = True
 
     proj_created_str = "new" if proj_created else "existing"
     run_created_str = "new" if run_created else "existing"

@@ -438,6 +438,18 @@ class TestStructuredClassificationValidationErrors:
 
 @mock.patch.object(ObjectStore, "create_object")
 @mock.patch("dataquality.core.finish._version_check")
+@mock.patch.object(
+    dq.clients.api.ApiClient,
+    "get_healthcheck_dq",
+    return_value={
+        "bucket_names": {
+            "images": "galileo-images",
+            "results": "galileo-project-runs-results",
+            "root": "galileo-project-runs",
+        },
+        "minio_fqdn": "127.0.0.1:9000",
+    },
+)
 @mock.patch("dataquality.core.finish._reset_run")
 @mock.patch("dataquality.core.finish.upload_dq_log_file")
 @mock.patch.object(
@@ -467,6 +479,7 @@ class TestStructuredClassificationE2E:
         mock_create_job: mock.MagicMock,
         mock_upload_dq_log_file: mock.MagicMock,
         mock_reset_run: mock.MagicMock,
+        mock_bucket_names: mock.MagicMock,
         mock_version_check: mock.MagicMock,
         mock_upload_df_to_minio: mock.MagicMock,
         set_test_config: Callable,
@@ -514,6 +527,7 @@ class TestStructuredClassificationE2E:
         mock_create_job: mock.MagicMock,
         mock_upload_dq_log_file: mock.MagicMock,
         mock_reset_run: mock.MagicMock,
+        mock_bucket_names: mock.MagicMock,
         mock_version_check: mock.MagicMock,
         mock_upload_df_to_minio: mock.MagicMock,
         set_test_config: Callable,
@@ -563,6 +577,7 @@ class TestStructuredClassificationE2E:
         mock_create_job: mock.MagicMock,
         mock_upload_dq_log_file: mock.MagicMock,
         mock_reset_run: mock.MagicMock,
+        mock_bucket_names: mock.MagicMock,
         mock_version_check: mock.MagicMock,
         mock_upload_df_to_minio: mock.MagicMock,
         set_test_config: Callable,
@@ -618,6 +633,7 @@ class TestStructuredClassificationE2E:
         mock_create_job: mock.MagicMock,
         mock_upload_dq_log_file: mock.MagicMock,
         mock_reset_run: mock.MagicMock,
+        mock_bucket_names: mock.MagicMock,
         mock_version_check: mock.MagicMock,
         mock_upload_df_to_minio: mock.MagicMock,
         set_test_config: Callable,
@@ -676,6 +692,7 @@ class TestStructuredClassificationE2E:
         mock_create_job: mock.MagicMock,
         mock_upload_dq_log_file: mock.MagicMock,
         mock_reset_run: mock.MagicMock,
+        mock_bucket_names: mock.MagicMock,
         mock_version_check: mock.MagicMock,
         mock_upload_df_to_minio: mock.MagicMock,
         set_test_config: Callable,
@@ -730,6 +747,7 @@ class TestStructuredClassificationE2E:
         mock_create_job: mock.MagicMock,
         mock_upload_dq_log_file: mock.MagicMock,
         mock_reset_run: mock.MagicMock,
+        mock_bucket_names: mock.MagicMock,
         mock_version_check: mock.MagicMock,
         mock_upload_df_to_minio: mock.MagicMock,
         set_test_config: Callable,
