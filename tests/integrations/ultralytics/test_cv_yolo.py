@@ -73,28 +73,30 @@ def test_end2end_yolov8(
     assert set(box_df["image_id"].unique()).issubset(image_df["id"].tolist())
     dq.get_data_logger().upload()
 
-    vaex.open(f"{TEST_PATH}/validation/0/data/data.hdf5")
-    prob_df = vaex.open(f"{TEST_PATH}/validation/0/prob/prob.hdf5")
-    emb_df = vaex.open(f"{TEST_PATH}/validation/0/emb/emb.hdf5")
-    assert sorted(emb_df.get_column_names()) == ["emb_pca", "id"]
-    prob_cols = [
-        "bbox",
-        "epoch",
-        "gold",
-        "image_id",
-        "is_gold",
-        "is_pred",
-        "prob",
-        "split",
-    ]
-    assert sorted(prob_df.get_column_names()) == sorted(prob_cols)
-    assert prob_df.bbox.shape == (len(prob_df), 4)
-    assert prob_df.bbox.dtype == "float32"
-    # TODO: @franz is 80 classes expected??
-    assert prob_df.prob.shape == (len(prob_df), 80)
-    assert prob_df.bbox.dtype == "float32"
-    # TODO: The input data has column `file_names` but it should be `image`
-    #  fix and then uncomment
-    # data_cols = ['id', 'image', 'split', 'data_schema_version']
-    # assert sorted(data_df.get_column_names()) == sorted(data_cols)
+    # TODO: @franz need to get training data logged
+    for split in ["validation"]:#, "training"]:
+        vaex.open(f"{TEST_PATH}/validation/0/data/data.hdf5")
+        prob_df = vaex.open(f"{TEST_PATH}/validation/0/prob/prob.hdf5")
+        emb_df = vaex.open(f"{TEST_PATH}/validation/0/emb/emb.hdf5")
+        assert sorted(emb_df.get_column_names()) == ["emb_pca", "id"]
+        prob_cols = [
+            "bbox",
+            "epoch",
+            "gold",
+            "image_id",
+            "is_gold",
+            "is_pred",
+            "prob",
+            "split",
+        ]
+        assert sorted(prob_df.get_column_names()) == sorted(prob_cols)
+        assert prob_df.bbox.shape == (len(prob_df), 4)
+        assert prob_df.bbox.dtype == "float32"
+        # TODO: @franz is 80 classes expected??
+        assert prob_df.prob.shape == (len(prob_df), 80)
+        assert prob_df.bbox.dtype == "float32"
+        # TODO: The input data has column `file_names` but it should be `image`
+        #  fix and then uncomment
+        # data_cols = ['id', 'image', 'split', 'data_schema_version']
+        # assert sorted(data_df.get_column_names()) == sorted(data_cols)
     dq.finish()
