@@ -315,15 +315,15 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         last_epoch: Optional[int] = None,
         create_data_embs: bool = False,
     ) -> None:
-        # If set, last_epoch will only let you upload to and including the provided
-        # epoch value, nothing more.
-        # If None, then slicing a list [:None] will include all values
         epochs_or_infs = os.listdir(split_loc)
         epochs_or_infs = sorted(
             epochs_or_infs, key=lambda i: int(i) if split != Split.inference else i
         )
         # last_epoch is inclusive
         last_epoch = last_epoch + 1 if last_epoch else last_epoch
+        # If set, last_epoch will only let you upload to and including the provided
+        # epoch value, nothing more.
+        # If None, then slicing a list [:None] will include all values
         epochs_or_infs = epochs_or_infs[:last_epoch]
 
         largest_epoch = epochs_or_infs[-1]
@@ -462,10 +462,10 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     def _handle_numpy_floats(cls, df: DataFrame) -> None:
         """Validate that the provided embeddings, logits, and probabilities are
         all float32s. This is done because vaex does not support float16."""
-        if "emb" in df.get_column_names() and df.emb.dtype == "float16":
-            df.emb = df.emb.astype("float32")
-        if "prob" in df.get_column_names() and df.prob.dtype == "float16":
-            df.prob = df.prob.astype("float32")
+        if "emb" in df.get_column_names() and df.emb.dtype != "float32":
+            df["emb"] = df.emb.astype("float32")
+        if "prob" in df.get_column_names() and df.prob.dtype != "float32":
+            df["prob"] = df.prob.astype("float32")
 
     @classmethod
     def prob_only(

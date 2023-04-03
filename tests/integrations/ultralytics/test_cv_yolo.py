@@ -1,12 +1,14 @@
 from typing import Callable, Generator
 from unittest.mock import MagicMock, patch
 
+import vaex
+
 import dataquality as dq
 from dataquality.clients.api import ApiClient
 from dataquality.integrations.ultralytics import watch
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
-from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID, LOCATION
+from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID, LOCATION, TEST_PATH
 
 
 @patch.object(ApiClient, "valid_current_user", return_value=True)
@@ -21,7 +23,20 @@ from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID, LOCATION
 @patch.object(ApiClient, "create_run")
 @patch("dataquality.core.init._check_dq_version")
 @patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
+@patch.object(
+    dq.clients.api.ApiClient,
+    "get_healthcheck_dq",
+    return_value={
+        "bucket_names": {
+            "images": "galileo-images",
+            "results": "galileo-project-runs-results",
+            "root": "galileo-project-runs",
+        },
+        "minio_fqdn": "127.0.0.1:9000",
+    },
+)
 def test_end2end_yolov8(
+    mock_dq_healthcheck: MagicMock,
     mock_valid_user: MagicMock,
     mock_check_dq_version: MagicMock,
     mock_create_run: MagicMock,
@@ -50,16 +65,36 @@ def test_end2end_yolov8(
     # df_lookup = df.reset_index().set_index("im_file")["index"].to_dict()
 
     ThreadPoolManager.wait_for_threads()
-
-    # validate_unique_ids(vaex.open(f"{LOCATION}/{split}/0/*.hdf5"), "epoch")
-    # validate_unique_ids(vaex.open(f"{LOCATION}/{split}/1/*.hdf5"), "epoch")
-
-    import vaex
-
     # print(os.popen(f"tree {LOCATION}").read())
     image_df = vaex.open(f"{LOCATION}/input_data/validation/data_0.arrow")
     box_df = vaex.open(f"{LOCATION}/validation/0/*.hdf5")
     # Need to make sure that all image_ids in the box df exist in image df.
     # It's possible image_df has more, when an image has no GT and no pred boxes
     assert set(box_df["image_id"].unique()).issubset(image_df["id"].tolist())
-    # dq.finish()
+    dq.get_data_logger().upload()
+
+    vaex.open(f"{TEST_PATH}/validation/0/data/data.hdf5")
+    prob_df = vaex.open(f"{TEST_PATH}/validation/0/prob/prob.hdf5")
+    emb_df = vaex.open(f"{TEST_PATH}/validation/0/emb/emb.hdf5")
+    assert sorted(emb_df.get_column_names()) == ["emb_pca", "id"]
+    prob_cols = [
+        "bbox",
+        "epoch",
+        "gold",
+        "image_id",
+        "is_gold",
+        "is_pred",
+        "prob",
+        "split",
+    ]
+    assert sorted(prob_df.get_column_names()) == sorted(prob_cols)
+    assert prob_df.bbox.shape == (len(prob_df), 4)
+    assert prob_df.bbox.dtype == "float32"
+    # TODO: @franz is 80 classes expected??
+    assert prob_df.prob.shape == (len(prob_df), 80)
+    assert prob_df.bbox.dtype == "float32"
+    # TODO: The input data has column `file_names` but it should be `image`
+    #  fix and then uncomment
+    # data_cols = ['id', 'image', 'split', 'data_schema_version']
+    # assert sorted(data_df.get_column_names()) == sorted(data_cols)
+    dq.finish()

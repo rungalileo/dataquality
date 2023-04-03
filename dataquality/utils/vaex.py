@@ -4,12 +4,15 @@ from typing import Dict, List, Union
 import numpy as np
 import pyarrow as pa
 import vaex
+from sklearn.decomposition import IncrementalPCA
 from vaex.dataframe import DataFrame
 
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.base_logger import BaseLoggerAttributes
 from dataquality.schemas.split import Split
 from dataquality.utils.cuda import (
+    PCA_CHUNK_SIZE,
+    PCA_N_COMPONENTS,
     cuml_available,
     get_pca_embeddings,
     get_umap_embeddings,
@@ -206,3 +209,21 @@ def get_output_df(
             epoch_or_inf, length=len(out_frame), dtype=dtype
         )
     return out_frame
+
+
+def add_pca_to_df(df: DataFrame, chunk_size: int = PCA_CHUNK_SIZE) -> DataFrame:
+    """Adds the 'emb_pca' to the dataframe"""
+    df_copy = df.copy()
+    pca = IncrementalPCA(n_components=PCA_N_COMPONENTS)
+    for i1, i2, chunk in df_copy.evaluate_iterator("emb", chunk_size=chunk_size):
+        pca.partial_fit(chunk)
+
+    @vaex.register_function()
+    def apply_pca(emb: np.ndarray) -> np.ndarray:
+        return pca.transform(emb)
+
+    df_copy["emb_pca"] = df_copy["emb"].apply_pca()
+    # Fully apply the PCA model now, without ever bringing the full embeddings into
+    # memory, only the PCA embeddings (much smaller)
+    df_copy = df_copy.materialize("emb_pca")
+    return df_copy
