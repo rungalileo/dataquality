@@ -93,7 +93,6 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             self.pred_boundary_masks, self.gold_boundary_masks
         )
 
-        import pdb; pdb.set_trace()
         false_positives = calculate_false_positives(self.pred_mask, self.gt_masks)
         missing_segments = calculate_missing_segments(self.pred_mask, self.gt_masks)
 
@@ -109,5 +108,4 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "error_missing_segment": missing_segments,
             # "split": [self.split] * len(self.image_ids),
         }
-        import pdb; pdb.set_trace()
         return obj

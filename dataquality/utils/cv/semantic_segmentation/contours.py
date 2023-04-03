@@ -2,6 +2,7 @@ import json
 import os
 from tempfile import NamedTemporaryFile
 from typing import Dict, List, Tuple
+from collections import defaultdict
 
 import cv2
 import numpy as np
@@ -60,32 +61,48 @@ def find_contours(pred_mask: np.ndarray) -> Dict[int, Tuple]:
         mask = pred_mask == label
         mask = mask.astype(np.uint8)  # maybe don't need this
         # contours is a tuple of numpy arrays
-        contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        # erroring when shape is (1, H, W)
+        if mask.shape[0] > 1:
+            raise ValueError(f"Mask shape is {mask.shape}, expected (H, W)")
+        contours, _ = cv2.findContours(mask[0], cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         contours_map[label] = contours
 
     return contours_map
 
 
 def serialize_contours(contours: Dict[int, Tuple]) -> List[Tuple[int]]:
-    """Converts a contour from a numpy array to a list of pixel coordinates
+    """
+    Converts a contour from a numpy array to a list of pixel coordinates
+
+    Input:
+    contours - a dictionary where the keys are integers representing object labels and
+               the values are numpy arrays of shape (num_points, 1, 2) representing the
+               contours of the corresponding objects.
+
+    Output:
+    A list of tuples representing the pixel coordinates of each contour.
 
     Example input:
-    contour = np.array([[[13, 17]], [[19, 25]], [[22, 21]], [[13, 17]]])
-    print(contour.shape)
-        => (4, 1, 2)
+    contours = {
+        0: np.array([[[13, 17]], [[19, 25]], [[22, 21]], [[13, 17]]]),
+        1: np.array([[[0, 3]], [[2, 5]], [[4, 6]], [[2, 2]], [[0, 3]]])
+    }
+    print(contours[0].shape)  # Output: (4, 1, 2)
 
     Example output:
     [
-        (13, 17),
-        (19, 25),
-        (22, 21),
-        (13, 17),
+        [(13, 17), (19, 25), (22, 21), (13, 17)],
+        [(0, 3), (2, 5), (4, 6), (2, 2), (0, 3)]
     ]
     """
-    serialized_contours = {}
+    serialized_contours = defaultdict(list)
     for label, contour in contours.items():
-        serialized_contours[label] = list(map(tuple, contour.squeeze(1).tolist()))
-    return serialized_contours
+        for contour_item in contour:
+            # Remove the extra dimension in the numpy array and convert to a list of tuples
+            serialized_contours[label].append(list(map(tuple, contour_item.squeeze(1).tolist())))
+
+    return list(serialized_contours.values())
+
 
 def _upload_contour(image_id: int, contour: Dict[int, List], obj_prefix: str) -> None:
     """Uploads a contour to the cloud for a given image
