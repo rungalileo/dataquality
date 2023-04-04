@@ -24,7 +24,7 @@ class ObjectDetectionDataLogger(BaseGalileoDataLogger):
     __logger_name__ = "object_detection"
     logger_config: ObjectDetectionLoggerConfig = object_detection_logger_config
     ids: List
-    file_names: List
+    image: List
     bbox: List
     cls: List
 
@@ -41,7 +41,7 @@ class ObjectDetectionDataLogger(BaseGalileoDataLogger):
             meta=meta,
         )
         self.ids = []
-        self.file_names = []
+        self.image = []
         self.bbox = []
         self.cls = []
 
@@ -49,7 +49,7 @@ class ObjectDetectionDataLogger(BaseGalileoDataLogger):
         df_len = len(self.ids)
         inp = dict(
             id=self.ids,
-            file_names=self.file_names,
+            image=self.image,
             # bbox=self.bbox,
             # cls=self.cls,
             split=[Split(self.split).value] * df_len,
@@ -74,7 +74,7 @@ class ObjectDetectionDataLogger(BaseGalileoDataLogger):
 
         for img in dataset:
             self.ids.append(img["id"])
-            self.file_names.append(img["file_name"])
+            self.image.append(img["file_name"])
             self.bbox.append(img["bbox"])
             self.cls.append(img["cls"])
         self.log()

@@ -6,6 +6,7 @@ import vaex
 import dataquality as dq
 from dataquality.clients.api import ApiClient
 from dataquality.integrations.ultralytics import watch
+from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID, LOCATION, TEST_PATH
@@ -74,7 +75,8 @@ def test_end2end_yolov8(
     dq.get_data_logger().upload()
 
     # TODO: @franz need to get training data logged
-    for split in ["validation"]:#, "training"]:
+    for split in [Split.validation]:  # , "training"]:
+        dq.set_split(split)
         vaex.open(f"{TEST_PATH}/validation/0/data/data.hdf5")
         prob_df = vaex.open(f"{TEST_PATH}/validation/0/prob/prob.hdf5")
         emb_df = vaex.open(f"{TEST_PATH}/validation/0/emb/emb.hdf5")
@@ -92,11 +94,10 @@ def test_end2end_yolov8(
         assert sorted(prob_df.get_column_names()) == sorted(prob_cols)
         assert prob_df.bbox.shape == (len(prob_df), 4)
         assert prob_df.bbox.dtype == "float32"
-        # TODO: @franz is 80 classes expected??
         assert prob_df.prob.shape == (len(prob_df), 80)
         assert prob_df.bbox.dtype == "float32"
         # TODO: The input data has column `file_names` but it should be `image`
         #  fix and then uncomment
-        # data_cols = ['id', 'image', 'split', 'data_schema_version']
+        # data_cols = ["id", "image", "split", "data_schema_version"]
         # assert sorted(data_df.get_column_names()) == sorted(data_cols)
     dq.finish()

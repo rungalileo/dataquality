@@ -101,6 +101,7 @@ class Callback:
         self.hooked = False
         self.split = None
         self.file_map = {}
+        self.replace = {}  # TODO
 
     def postprocess(self, batch: torch.Tensor) -> Any:
         ref_model = self.step_embs.model
@@ -171,7 +172,7 @@ class Callback:
                 logging_data[i]["pred_embs"] = (
                     embedding_fn(features, pred, batch_img_shape).cpu().numpy()
                 )
-                # TODO @franz should we be scaling bbox_gold the same way?
+                # Scaling taking from ultralytics source code
                 logging_data[i]["bbox_pred_scaled"] = scale_boxes(
                     batch_img_shape,
                     logging_data[i]["bbox_pred"].clone(),
@@ -187,7 +188,8 @@ class Callback:
                     tbox = box_convert(bbox, "cxcywh", "xyxy") * torch.tensor(
                         (width, height, width, height)
                     )
-
+                    # Scaling taking from ultralytics source code
+                    # It differs for gold
                     logging_data[i]["bbox_gold"] = (
                         scale_boxes(batch_img_shape, tbox, shape, ratio_pad=ratio_pad)
                         .cpu()
@@ -237,7 +239,7 @@ class Callback:
             probs=probs,
             logits=probs,
             ids=ids,
-            split=Split.validation,
+            split=get_data_logger().logger_config.cur_split,
             epoch=0,
         )
 
@@ -252,12 +254,13 @@ class Callback:
         dq.set_labels_for_run(list(self.validator.dataloader.dataset.names.values()))
         ds = self.convert_dataset(self.validator.dataloader.dataset)
         # TODO: replace with data logger
+
         data_logger = get_data_logger()
         assert isinstance(data_logger, ObjectDetectionDataLogger), (
             "This method is only supported for image tasks. "
             "Please use dq.log_dataset for text tasks."
         )
-        data_logger.log_dataset(ds, split=Split.validation)
+        data_logger.log_dataset(ds, split=get_data_logger().logger_config.cur_split)
 
     def convert_dataset(self, dataset: Any) -> List:
         assert len(dataset) > 0
@@ -284,7 +287,7 @@ class Callback:
         return processed_dataset
 
     def on_train_start(self, trainer: BaseTrainer) -> None:
-        self.split = Split.training
+        # self.split = Split.training
         self.trainer = trainer
         self.register_hooks(trainer.model)
         self.bl = BatchLogger(trainer.preprocess_batch)
@@ -295,11 +298,10 @@ class Callback:
 
     # -- Validator callbacks --
     def on_val_start(self, validator: BaseValidator) -> None:
-        print("on val start")
+        pass
 
     def on_val_batch_start(self, validator: BaseValidator) -> None:
-        self.split = Split.validation
-        print("val batch start")
+        # self.split = Split.validation
         self.validator = validator
         if not self.hooked:
             self.register_hooks(validator.model.model)
@@ -310,7 +312,7 @@ class Callback:
 
     # -- Predictor callbacks --
     def on_predict_start(self, predictor: BasePredictor) -> None:
-        self.split = Split.inference
+        # self.split = Split.inference
         self.predictor = predictor
         if not self.hooked:
             self.register_hooks(predictor.model.model)
@@ -320,7 +322,6 @@ class Callback:
         pass
 
     def on_predict_batch_end(self, predictor: BasePredictor) -> None:
-        print("on_predict_batch_end")
         # TODO: self.bl.batch = predictor.batch
         self._after_pred_step()
 
@@ -328,7 +329,7 @@ class Callback:
         pass
 
     def on_predict_end(self, predictor: BasePredictor) -> None:
-        print("on_predict_end")
+        pass
 
 
 def add_callback(model: YOLO, cb: Callback) -> None:
