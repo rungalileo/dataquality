@@ -1,6 +1,7 @@
 from typing import Any
 
 import torch
+from torch.utils.data import DataLoader
 
 from dataquality.loggers.logger_config.semantic_segmentation import (
     semantic_segmentation_logger_config,
@@ -87,7 +88,7 @@ class Manager:
         self.step_embs.h = model.register_forward_hook(self.step_embs.hook)
 
 
-def watch(model: Any, n_classes: int) -> None:
+def watch(model: Any, dataloader: DataLoader, n_classes: int) -> None:
     """
     Watches a model and logs the model outputs to the Galileo server
     :param model: Model to watch
