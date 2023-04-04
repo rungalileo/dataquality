@@ -77,7 +77,7 @@ class UploadDfWorker(Thread):
                 )
                 if not res.ok:
                     self.queue.put(content)
-                if self.show_progress:
+                elif self.show_progress:
                     assert self.pbar is not None
                     self.pbar.update(self.step)
 
