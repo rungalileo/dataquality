@@ -7,6 +7,7 @@ import numpy as np
 import torch
 
 from dataquality.clients.objectstore import ObjectStore
+from dataquality.core._config import GALILEO_DEFAULT_RESULT_BUCKET_NAME
 
 object_store = ObjectStore()
 
@@ -130,4 +131,5 @@ def _upload_contour(
         file_path=f.name,
         content_type="application/json",
         progress=False,
+        bucket_name=GALILEO_DEFAULT_RESULT_BUCKET_NAME,
     )
