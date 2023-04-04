@@ -149,10 +149,7 @@ class Callback:
             preds = postprocess(preds)
             nms = self.nms_fn(preds)
             self.nms = nms
-            # these were from franz not sure the point of model input shape
-            # model_input_shape = self.step_pred.model_input[0][0].shape[-2:]
-            # batch_input_shape = self.bl.batch["img"].shape[-2:]
-            # FIX: this need to be some sort of image idx instead of just i
+
             batch = self.bl.batch
 
             for i in range(len(nms)):

@@ -42,23 +42,23 @@ def main() -> None:
     files_end = glob.glob(run_path_glob)
     model_path = find_last_run(files_start, files_end)
     print("Loading trained model:", model_path)
-    model = YOLO(model_path + "/weights/best.pt")
 
     # Init galileo
     project_name = input("Project name: ")
     run_name = input("Run name: ")
     dq.set_console_url("https://console.dev.rungalileo.io")
     dq.init(task_type="object_detection", project_name=project_name, run_name=run_name)
-    watch(model)
+
     # Check each file
     for split in [Split.training, Split.validation, Split.test]:
-        dq.set_epoch(0)
-        dq.set_split(split)
         tmp_cfg_path = temporary_cfg_for_val(dataset_path, split)
         if not tmp_cfg_path:
             continue
+        model = YOLO(model_path + "/weights/best.pt")
+        watch(model)
+        dq.set_epoch(0)
+        dq.set_split(split)
         model.val(data=tmp_cfg_path)
-
         os.remove(tmp_cfg_path)
     dq.finish()
 
