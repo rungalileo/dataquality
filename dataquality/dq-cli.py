@@ -35,7 +35,8 @@ def get_modify_data(data: Dict, in_key: str, out_key: str) -> Dict:
     return data_dict
 
 
-# yolo train data=coco128.yaml model=yolov8n.pt epochs=1 lr0=0.01
+# example yolo train data=coco128.yaml model=yolov8n.pt epochs=1 lr0=0.01
+# python dq-cli.py yolo train data=coco128.yaml model=yolov8n.pt epochs=1 lr0=0.01
 
 
 def main() -> None:
