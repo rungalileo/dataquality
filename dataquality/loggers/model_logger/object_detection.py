@@ -227,6 +227,10 @@ class ObjectDetectionModelLogger(BaseGalileoModelLogger):
         num_pred = pred_emb_arrays.shape[0]
         num_gold = gold_emb_arrays.shape[0]
         gold_prob_shape = (num_gold, len(self.logger_config.labels))
+        # -1 for preds because a pred box won't have a label
+        golds = np.concatenate(
+            [[-1] * num_pred, np.concatenate(self.labels)]
+        ).astype(np.int32)
         obj = {
             "image_id": image_ids,
             "emb": np.concatenate([pred_emb_arrays, gold_emb_arrays]),
@@ -236,7 +240,7 @@ class ObjectDetectionModelLogger(BaseGalileoModelLogger):
             "is_gold": np.array([False] * num_pred + [True] * num_gold),
             "split": [self.split] * len(image_ids),
             "epoch": [0] * len(image_ids),
-            "gold": np.concatenate([[-1] * num_pred, np.concatenate(self.labels)]),
+            "gold": golds,
         }
         import vaex
 

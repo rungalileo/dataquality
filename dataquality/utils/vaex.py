@@ -220,7 +220,7 @@ def add_pca_to_df(df: DataFrame, chunk_size: int = PCA_CHUNK_SIZE) -> DataFrame:
 
     @vaex.register_function()
     def apply_pca(emb: np.ndarray) -> np.ndarray:
-        return pca.transform(emb)
+        return pca.transform(emb).astype(np.float32)
 
     df_copy["emb_pca"] = df_copy["emb"].apply_pca()
     # Fully apply the PCA model now, without ever bringing the full embeddings into

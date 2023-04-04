@@ -92,6 +92,8 @@ def test_end2end_yolov8(
         prob_df = vaex.open(f"{TEST_PATH}/{split}/0/prob/prob.hdf5")
         emb_df = vaex.open(f"{TEST_PATH}/{split}/0/emb/emb.hdf5")
         assert sorted(emb_df.get_column_names()) == ["emb_pca", "id"]
+        assert emb_df.emb_pca.dtype == "float32"
+        assert emb_df.emb_pca.shape == (len(emb_df), 100)
         prob_cols = [
             "bbox",
             "epoch",
@@ -107,6 +109,8 @@ def test_end2end_yolov8(
         assert prob_df.bbox.dtype == "float32"
         assert prob_df.prob.shape == (len(prob_df), 80)
         assert prob_df.bbox.dtype == "float32"
+        assert prob_df.gold.dtype == "int32"
+        assert prob_df.image_id.dtype == "int32"
         # data_cols = ["id", "image", "split", "data_schema_version"]
         # assert sorted(data_df.get_column_names()) == sorted(data_cols)
     dq.finish()
