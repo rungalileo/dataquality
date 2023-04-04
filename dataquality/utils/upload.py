@@ -2,7 +2,6 @@ import multiprocessing
 import os
 import queue
 import tempfile
-from threading import Thread
 from typing import Any, List, Optional
 
 import vaex
@@ -16,7 +15,7 @@ from dataquality.exceptions import GalileoException
 api_client = ApiClient()
 
 
-class UploadDfWorker(Thread):
+class UploadDfWorker:
     def __init__(
         self,
         request_queue: queue.Queue,
@@ -29,7 +28,6 @@ class UploadDfWorker(Thread):
         pbar: Optional[Any] = None,
         step: Optional[int] = None,
     ) -> None:
-        Thread.__init__(self)
         self.queue = request_queue
         self.results: list = []
         self.stop_val = stop_val
@@ -90,7 +88,7 @@ def upload_df(
     stop_val: str = "END",
     export_format: str = "arrow",
     show_progress: bool = True,
-) -> List:
+) -> None:
     if parallel:
         num_workers = multiprocessing.cpu_count()
 
@@ -109,7 +107,7 @@ def upload_df(
     for _ in range(num_workers):
         q.put(stop_val)
 
-    # Create workers and add to the queue
+    # Create workers
     workers = []
     for _ in range(num_workers):
         worker = UploadDfWorker(
@@ -123,16 +121,8 @@ def upload_df(
             pbar=pbar,
             step=step,
         )
-        worker.start()
         workers.append(worker)
 
-    # Join workers to wait till they finished
-    for worker in workers:
-        worker.join()
-
-    # Combine results from all workers
-    r = []
-    for worker in workers:
-        r.extend(worker.results)
-
-    return r
+    # Run workers
+    with multiprocessing.Pool(processes=num_workers) as p:
+        [p.apply_async(worker.run) for worker in workers]
