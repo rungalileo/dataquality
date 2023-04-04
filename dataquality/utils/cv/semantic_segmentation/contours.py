@@ -1,15 +1,12 @@
 import json
-import os
 from tempfile import NamedTemporaryFile
 from typing import Dict, List, Tuple
-from collections import defaultdict
 
 import cv2
 import numpy as np
 import torch
 
 from dataquality.clients.objectstore import ObjectStore
-
 
 object_store = ObjectStore()
 
@@ -18,7 +15,7 @@ def find_and_upload_contours(
     image_ids: List[int], pred_masks: torch.Tensor, obj_prefix: str
 ) -> None:
     """Creates and uploads contours to the cloud for a given batch
-    
+
     Args:
         image_ids: List of image ids
         pred_masks: Tensor of predicted masks
@@ -41,8 +38,8 @@ def find_contours(pred_mask: np.ndarray) -> Dict[int, Tuple]:
     A contour is a list of points that make up the boundary of a shape.
     Each image can be represented as a dictionary mapping a GT class to
         its corresponding contours.
-    
-        
+
+
     cv2.findContours returns a Tuple of contours, where each contour is a
         numpy array of shape (num_points, 1, 2)
 
@@ -115,9 +112,11 @@ def serialize_contours(contour_map: Dict[int, Tuple]) -> Dict[int, List]:
     return serialized_contour_map
 
 
-def _upload_contour(image_id: int, contour_map: Dict[int, List], obj_prefix: str) -> None:
+def _upload_contour(
+    image_id: int, contour_map: Dict[int, List], obj_prefix: str
+) -> None:
     """Uploads a contour to the cloud for a given image
-    
+
     obj_prefix is the prefix of the object name. For example,
         - /p
 
@@ -126,14 +125,11 @@ def _upload_contour(image_id: int, contour_map: Dict[int, List], obj_prefix: str
         return
 
     obj_name = f"{obj_prefix}/{image_id}.json"
-    with NamedTemporaryFile(mode="w+", delete=False) as f:
-        print("hi")
-        import pdb; pdb.set_trace()
+    with NamedTemporaryFile(mode="w") as f:
         json.dump(contour_map, f)
-        f.close()
-    object_store.create_object(
-        object_name=obj_name,
-        file_path=f,
-        content_type="application/json",
-        progress=False,
-    )
+        object_store.create_object(
+            object_name=obj_name,
+            file_path=f.name,
+            content_type="application/json",
+            progress=False,
+        )

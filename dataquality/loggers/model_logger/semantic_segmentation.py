@@ -1,6 +1,5 @@
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Union
 
-import cv2
 import numpy as np
 import torch
 
@@ -9,9 +8,8 @@ from dataquality.loggers.logger_config.semantic_segmentation import (
     semantic_segmentation_logger_config,
 )
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
-from dataquality.utils.cv.semantic_segmentation.contours import (
-    find_and_upload_contours,
-)
+from dataquality.schemas.split import Split
+from dataquality.utils.cv.semantic_segmentation.contours import find_and_upload_contours
 from dataquality.utils.cv.semantic_segmentation.errors import (
     calculate_false_positives,
     calculate_missing_segments,
@@ -79,7 +77,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         # assert ids is not None
 
     def validate_and_format(self) -> None:
-        return
+        pass
 
     def _get_data_dict(self) -> Dict:
         """Returns a dictionary of data to be logged as a DataFrame"""
@@ -87,10 +85,11 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         #     "Must have image cloud path, set using `dq.set_image_cloud_path`. "
         #     "Must be set before training model."
         # )
-
         dep_heatmaps = calculate_dep_heatmap(self.output_probs, self.gt_masks)
         image_dep = calculate_image_dep(dep_heatmaps)
-        find_and_upload_contours(self.image_ids, self.pred_mask, "proj/run/split/contours")
+        find_and_upload_contours(
+            self.image_ids, self.pred_mask, "proj/run/split/contours"
+        )
 
         mean_ious = calculate_mean_iou(self.pred_mask, self.gt_masks)
         boundary_ious = calculate_mean_iou(
@@ -100,7 +99,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         false_positives = calculate_false_positives(self.pred_mask, self.gt_masks)
         missing_segments = calculate_missing_segments(self.pred_mask, self.gt_masks)
 
-        obj = {
+        data = {
             # "id": self.ids,
             "image_id": self.image_ids,
             "height": [img.shape[-1] for img in self.gt_masks],
@@ -110,7 +109,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "boundary_iou": boundary_ious,
             "error_false_positive": false_positives,
             "error_missing_segment": missing_segments,
-            # "split": [self.split] * len(self.image_ids),
+            "split": [self.split] * len(self.image_ids),
         }
-        import pdb; pdb.set_trace()
-        return obj
+        if self.split == Split.inference:
+            data["inference_name"] = [self.inference_name] * len(self.image_ids)
+        return data

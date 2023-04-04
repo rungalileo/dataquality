@@ -1,52 +1,21 @@
 from typing import Any
 
-import cv2
-import numpy as np
 import torch
 
+from dataquality.loggers.logger_config.semantic_segmentation import semantic_segmentation_logger_config
 from dataquality.loggers.model_logger.semantic_segmentation import (
     SemanticSegmentationModelLogger,
 )
-
-
-# edited mask to boundary function with np.where to avoid unexpected behaviour
-def mask_to_boundary(mask: np.ndarray, dilation_ratio: float = 0.02) -> np.ndarray:
-    """
-    Convert binary mask to boundary mask.
-
-    :param mask (numpy array, uint8): binary mask
-    :param dilation_ratio (float): ratio to calculate dilation = dilation_ratio * image_diagonal
-    :return: boundary mask (numpy array)
-    """
-    if mask.shape[1] == 1:
-        mask = mask.squeeze(1)
-    mask = mask.astype(np.uint8)
-    n, h, w = mask.shape
-    for im in range(n):
-        img_diag = np.sqrt(h**2 + w**2)
-        dilation = int(round(dilation_ratio * img_diag))
-        if dilation < 1:
-            dilation = 1
-        # Pad image so mask truncated by the image border is also considered as boundary.
-        new_mask = cv2.copyMakeBorder(
-            mask[im], 1, 1, 1, 1, cv2.BORDER_CONSTANT, value=0
-        )
-        kernel = np.ones((3, 3), dtype=np.uint8)
-        new_mask_erode = cv2.erode(new_mask, kernel, iterations=dilation)
-        mask_erode = new_mask_erode[1 : h + 1, 1 : w + 1]
-        # if the number does not equal either the old mask or 0 then set to 0
-        mask_erode = np.where(mask_erode != mask[im], 0, mask_erode)
-        boundary_mask = mask[im] - mask_erode
-        # G_d intersects G in the paper.
-        mask[im] = boundary_mask
-    return mask
+from dataquality.utils.cv.semantic_segmentation.utils import mask_to_boundary
 
 
 class StoreHook:
-    def on_finish(*args, **kwargs):
+    def on_finish(*args: Any, **kwargs: Any) -> None:
+        import pdb; pdb.set_trace()
         pass
 
-    def hook(self, model, model_input, model_output):
+    def hook(self, model, model_input, model_output) -> None:
+        import pdb; pdb.set_trace()
         self.model = model
         self.model_input = model_input
         self.model_output = model_output["out"]
@@ -54,13 +23,15 @@ class StoreHook:
 
 
 class BatchLogger:
-    def __call__(self, batch):
+    def __call__(self, batch) -> Any:
+        import pdb; pdb.set_trace()
         self.batch = batch
         return self.batch
 
 
 class Manager:
-    def __init__(self, model, num_classes: int = 10):
+    def __init__(self, model, num_classes: int = 10) -> None:
+        import pdb; pdb.set_trace()
         self.step_pred = StoreHook()
         self.step_pred.h = model.register_forward_hook(self.step_pred.hook)
         self.bl = BatchLogger()
@@ -69,7 +40,8 @@ class Manager:
         self.split = "Train"  # hard coded for now
         self.number_classes = num_classes
 
-    def _after_pred_step(self, *args, **kwargs):
+    def _after_pred_step(self, *args: Any, **kwargs: Any) -> None:
+        import pdb; pdb.set_trace()
         with torch.no_grad():
             logging_data = self.bl.batch
             preds = self.step_pred.model_output
@@ -92,25 +64,33 @@ class Manager:
             img_ids = logging_data["idx"].cpu()  # np.ndarray (bs,)
 
             probs = torch.nn.Softmax(dim=1)(logits).cpu()  # (bs, w, h, classes)
+
             # dq log model output
             logger = SemanticSegmentationModelLogger(
                 image_ids=img_ids.tolist(),
                 gt_masks=gold_mask,  # Torch tensor (bs, w, h)
                 pred_mask=argmax,  # Torch tensor (bs, w, h)
-                gold_boundary_masks=torch.tensor(gold_boundary_masks),  # Torch tensor (bs, w, h)
-                pred_boundary_masks=torch.tensor(pred_boundary_masks),  # Torch tensor (bs, w, h)
+                gold_boundary_masks=torch.tensor(
+                    gold_boundary_masks
+                ),  # Torch tensor (bs, w, h)
+                pred_boundary_masks=torch.tensor(
+                    pred_boundary_masks
+                ),  # Torch tensor (bs, w, h)
                 output_probs=probs,  # Torch tensor (bs, w, h, classes)
             )
             logger._get_data_dict()
             # logger.log()
 
-    def register_hooks(self, model):
+    def register_hooks(self, model) -> None:
         self.step_embs.h = model.register_forward_hook(self.step_embs.hook)
 
 
-def watch(model: Any) -> None:
+def watch(model: Any, n_classes: int) -> None:
     """
     Watches a model and logs the model outputs to the Galileo server
     :param model: Model to watch
     :return:
     """
+    m = Manager(model, num_classes=n_classes)
+    semantic_segmentation_logger_config.helper_data["manager"] = m
+    model.

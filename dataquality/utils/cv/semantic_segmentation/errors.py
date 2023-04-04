@@ -1,10 +1,11 @@
 from typing import List, Set
 
 import numpy as np
+import torch
 
 
 def calculate_false_positives(
-    preds: np.ndarray, gt_masks: np.ndarray
+    preds: torch.Tensor, gt_masks: torch.Tensor
 ) -> List[Set[int]]:
     """Calculates a set of False Positive classes for each image in the batch
 
@@ -12,7 +13,9 @@ def calculate_false_positives(
         present in the ground truth.
 
     :param preds: argmax of the prediction probabilities
+        shape = (bs, height, width)
     :param gt_masks: ground truth masks
+        shape = (bs, height, width)
     returns: list of sets of false positive classes for each image in the batch
     """
     false_positives: List[Set[int]] = []
@@ -32,7 +35,7 @@ def calculate_false_positives(
 
 
 def calculate_missing_segments(
-    preds: np.ndarray, gt_masks: np.ndarray
+    preds: torch.Tensor, gt_masks: torch.Tensor
 ) -> List[Set[int]]:
     """Calculates a set of Missing Segment classes for each image in the batch
 
@@ -40,7 +43,9 @@ def calculate_missing_segments(
         present in the predictions.
 
     :param preds: argmax of the prediction probabilities
+        shape = (bs, height, width)
     :param gt_masks: ground truth masks
+
     returns: list of sets of missing segment classes for each image in the batch
     """
     missing_segments: List[Set[int]] = []
