@@ -309,7 +309,6 @@ class BaseGalileoLogger:
     @classmethod
     def get_all_subclasses(cls: Type[T]) -> List[Type[T]]:
         all_subclasses = []
-
         for subclass in cls.__subclasses__():
             all_subclasses.append(subclass)
             all_subclasses.extend(subclass.get_all_subclasses())

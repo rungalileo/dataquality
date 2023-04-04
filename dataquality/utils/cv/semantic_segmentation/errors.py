@@ -6,7 +6,7 @@ import torch
 
 def calculate_false_positives(
     preds: torch.Tensor, gt_masks: torch.Tensor
-) -> List[Set[int]]:
+) -> List[np.ndarray]:
     """Calculates a set of False Positive classes for each image in the batch
 
     For each image, returns a set of classes that were predicted but not
@@ -24,19 +24,19 @@ def calculate_false_positives(
         gt_mask = gt_masks[image]
 
         # Calculate classes present in predictions and ground truth
-        pred_classes = set(np.unique(pred_mask).astype(int))
-        gt_classes = set(np.unique(gt_mask).astype(int))
+        pred_classes = np.unique(pred_mask).astype(int)
+        gt_classes = np.unique(gt_mask).astype(int)
 
         # Calculate classes present in predictions but not ground truth
-        fp_classes = pred_classes.difference(gt_classes)
-        false_positives.append(fp_classes)
+        fp_classes = np.setdiff1d(pred_classes, gt_classes).tolist()
+        false_positives.append(",".join([str(fp) for fp in fp_classes]))
 
     return false_positives
 
 
 def calculate_missing_segments(
     preds: torch.Tensor, gt_masks: torch.Tensor
-) -> List[Set[int]]:
+) -> List[np.ndarray]:
     """Calculates a set of Missing Segment classes for each image in the batch
 
     For each image, returns a set of classes that were in the ground truth but not
@@ -54,11 +54,11 @@ def calculate_missing_segments(
         gt_mask = gt_masks[image]
 
         # Calculate classes present in predictions and ground truth
-        pred_classes = set(np.unique(pred_mask).astype(int))
-        gt_classes = set(np.unique(gt_mask).astype(int))
+        pred_classes = np.unique(pred_mask).astype(int)
+        gt_classes = np.unique(gt_mask).astype(int)
 
         # Calculate classes present in predictions but not ground truth
-        ms_classes = gt_classes.difference(pred_classes)
-        missing_segments.append(ms_classes)
+        ms_classes = np.setdiff1d(gt_classes, pred_classes).tolist()
+        missing_segments.append(",".join([str(ms) for ms in ms_classes]))
 
     return missing_segments

@@ -59,15 +59,15 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             output_probs: Model probability predictions
                 np.ndarray of shape (batch_size, height, width, num_classes)
         """
-        # super().__init__(
-        #     embs=embs,
-        #     probs=probs,
-        #     logits=logits,
-        #     ids=ids,
-        #     split=split,
-        #     epoch=epoch,
-        #     inference_name=inference_name,
-        # )
+        super().__init__(
+            embs=embs,
+            probs=probs,
+            logits=logits,
+            ids=ids,
+            split=split,
+            epoch=epoch,
+            inference_name=inference_name,
+        )
         self.image_ids = image_ids
         self.gt_masks = gt_masks
         self.pred_mask = pred_mask
@@ -88,7 +88,9 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         dep_heatmaps = calculate_dep_heatmap(self.output_probs, self.gt_masks)
         image_dep = calculate_image_dep(dep_heatmaps)
         find_and_upload_contours(
-            self.image_ids, self.pred_mask, "proj/run/split/contours"
+            self.image_ids,
+            self.pred_mask,
+            f"{self.proj_run}/{self.split_name_path}/contours",
         )
 
         mean_ious = calculate_mean_iou(self.pred_mask, self.gt_masks)
@@ -110,6 +112,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "error_false_positive": false_positives,
             "error_missing_segment": missing_segments,
             "split": [self.split] * len(self.image_ids),
+            "epoch": [self.epoch] * len(self.image_ids),
         }
         if self.split == Split.inference:
             data["inference_name"] = [self.inference_name] * len(self.image_ids)

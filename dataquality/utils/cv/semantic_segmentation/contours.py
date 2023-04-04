@@ -121,15 +121,13 @@ def _upload_contour(
         - /p
 
     """
-    if not contour_map:
-        return
-
     obj_name = f"{obj_prefix}/{image_id}.json"
-    with NamedTemporaryFile(mode="w") as f:
+    with NamedTemporaryFile(mode="w+", delete=False) as f:
         json.dump(contour_map, f)
-        object_store.create_object(
-            object_name=obj_name,
-            file_path=f.name,
-            content_type="application/json",
-            progress=False,
-        )
+
+    object_store.create_object(
+        object_name=obj_name,
+        file_path=f.name,
+        content_type="application/json",
+        progress=False,
+    )

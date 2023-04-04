@@ -2,7 +2,9 @@ from typing import Any
 
 import torch
 
-from dataquality.loggers.logger_config.semantic_segmentation import semantic_segmentation_logger_config
+from dataquality.loggers.logger_config.semantic_segmentation import (
+    semantic_segmentation_logger_config,
+)
 from dataquality.loggers.model_logger.semantic_segmentation import (
     SemanticSegmentationModelLogger,
 )
@@ -11,11 +13,11 @@ from dataquality.utils.cv.semantic_segmentation.utils import mask_to_boundary
 
 class StoreHook:
     def on_finish(*args: Any, **kwargs: Any) -> None:
-        import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
         pass
 
     def hook(self, model, model_input, model_output) -> None:
-        import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
         self.model = model
         self.model_input = model_input
         self.model_output = model_output["out"]
@@ -24,14 +26,14 @@ class StoreHook:
 
 class BatchLogger:
     def __call__(self, batch) -> Any:
-        import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
         self.batch = batch
         return self.batch
 
 
 class Manager:
     def __init__(self, model, num_classes: int = 10) -> None:
-        import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
         self.step_pred = StoreHook()
         self.step_pred.h = model.register_forward_hook(self.step_pred.hook)
         self.bl = BatchLogger()
@@ -41,7 +43,7 @@ class Manager:
         self.number_classes = num_classes
 
     def _after_pred_step(self, *args: Any, **kwargs: Any) -> None:
-        import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
         with torch.no_grad():
             logging_data = self.bl.batch
             preds = self.step_pred.model_output
@@ -78,8 +80,8 @@ class Manager:
                 ),  # Torch tensor (bs, w, h)
                 output_probs=probs,  # Torch tensor (bs, w, h, classes)
             )
-            logger._get_data_dict()
-            # logger.log()
+            # logger._get_data_dict()
+            logger.log()
 
     def register_hooks(self, model) -> None:
         self.step_embs.h = model.register_forward_hook(self.step_embs.hook)
@@ -93,4 +95,4 @@ def watch(model: Any, n_classes: int) -> None:
     """
     m = Manager(model, num_classes=n_classes)
     semantic_segmentation_logger_config.helper_data["manager"] = m
-    model.
+    # model.

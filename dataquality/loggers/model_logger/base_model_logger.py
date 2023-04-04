@@ -97,7 +97,7 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         # We validate split and epoch before entering the thread because we reference
         # global variables (cur_split and cur_epoch) that are subject to change
         # between subsequent threads
-        # self.set_split_epoch()
+        self.set_split_epoch()
         # ThreadPoolManager.add_thread(target=self._add_threaded_log)
         self._add_threaded_log()
 
