@@ -2,6 +2,7 @@ import multiprocessing
 import os
 import queue
 import tempfile
+from threading import Thread
 from typing import Any, List, Optional
 
 import vaex
@@ -15,7 +16,7 @@ from dataquality.exceptions import GalileoException
 api_client = ApiClient()
 
 
-class UploadDfWorker:
+class UploadDfWorker(Thread):
     def __init__(
         self,
         request_queue: queue.Queue,
@@ -28,6 +29,7 @@ class UploadDfWorker:
         pbar: Optional[Any] = None,
         step: Optional[int] = None,
     ) -> None:
+        Thread.__init__(self)
         self.queue = request_queue
         self.results: list = []
         self.stop_val = stop_val
@@ -43,7 +45,7 @@ class UploadDfWorker:
         self,
         file_path: str,
         project_id: Optional[UUID4] = None,
-    ) -> None:
+    ) -> Any:
         project_id = project_id or config.current_project_id
         if project_id is None:
             raise GalileoException(
@@ -69,10 +71,12 @@ class UploadDfWorker:
                 ext_split = os.path.splitext(temp_file_name)
                 file_path = f"{ext_split[0]}_{i}_{j}{ext_split[1]}"
                 self.df[self.export_cols][i:j].export(file_path)
-                self._upload_file_for_project(
+                res = self._upload_file_for_project(
                     file_path=file_path,
                     project_id=self.project_id,
                 )
+                if not res.ok:
+                    self.queue.put(content)
                 if self.show_progress:
                     assert self.pbar is not None
                     self.pbar.update(self.step)
@@ -83,7 +87,7 @@ def upload_df(
     export_cols: List[str],
     project_id: Optional[UUID4] = None,
     parallel: bool = False,
-    step: int = 100,
+    step: int = 50,
     num_workers: int = 1,
     stop_val: str = "END",
     export_format: str = "arrow",
@@ -121,8 +125,10 @@ def upload_df(
             pbar=pbar,
             step=step,
         )
+        worker.start()
         workers.append(worker)
 
-    # Run workers
-    with multiprocessing.Pool(processes=num_workers) as p:
-        [p.apply_async(worker.run) for worker in workers]
+    # Join workers to the main thread and
+    # wait until all threads complete
+    for worker in workers:
+        worker.join()

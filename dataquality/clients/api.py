@@ -73,6 +73,7 @@ class ApiClient:
         header: Optional[Dict] = None,
         timeout: Union[int, None] = None,
         files: Optional[Dict] = None,
+        return_response_without_validation: bool = False,
     ) -> Any:
         """Makes an HTTP request.
 
@@ -90,6 +91,8 @@ class ApiClient:
             timeout=timeout,
             files=files,
         )
+        if return_response_without_validation:
+            return res
         self._validate_response(res)
         return res.json()
 
@@ -829,9 +832,10 @@ class ApiClient:
         file_path: str,
         export_format: str,
         export_cols: List[str],
-    ) -> None:
+    ) -> Any:
         url = f"{config.api_url}/{Route.projects}/{project_id}/{Route.upload_file}"
-        self.make_request(
+        res = self.make_request(
+            return_response_without_validation=True,
             request=RequestType.POST,
             url=url,
             files={
@@ -852,3 +856,4 @@ class ApiClient:
                 ),
             },
         )
+        return res
