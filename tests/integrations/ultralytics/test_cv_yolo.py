@@ -1,3 +1,4 @@
+import os
 from typing import Callable, Generator
 from unittest.mock import MagicMock, patch
 
@@ -9,6 +10,7 @@ from dataquality.integrations.ultralytics import watch
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
+from dataquality.utils.ultralytics import temporary_cfg_for_val
 from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID, LOCATION, TEST_PATH
 
 
@@ -59,14 +61,23 @@ def test_end2end_yolov8(
 
     dq.init(TaskType.object_detection)
     # TODO: Make this path better using the current file location
+    ds_path = "tests/integrations/ultralytics/coco.yaml"
     model = YOLO("./tests/integrations/ultralytics/yolov8n.pt")
+    dq.set_split(Split.validation)
     watch(model)
-    preds = model.val(data="tests/integrations/ultralytics/coco.yaml")
-
-    # df_lookup = df.reset_index().set_index("im_file")["index"].to_dict()
+    for split in [Split.training, Split.validation]:
+        dq.set_split(Split.validation)
+        tmp_cfg_path = temporary_cfg_for_val(ds_path, split)
+        if not tmp_cfg_path:
+            continue
+        dq.set_epoch(0)
+        dq.set_split(split)
+        model = YOLO("./tests/integrations/ultralytics/yolov8n.pt")
+        watch(model)
+        model.val(data=tmp_cfg_path)
+        os.remove(tmp_cfg_path)
 
     ThreadPoolManager.wait_for_threads()
-    # print(os.popen(f"tree {LOCATION}").read())
     image_df = vaex.open(f"{LOCATION}/input_data/validation/data_0.arrow")
     box_df = vaex.open(f"{LOCATION}/validation/0/*.hdf5")
     # Need to make sure that all image_ids in the box df exist in image df.
@@ -75,11 +86,11 @@ def test_end2end_yolov8(
     dq.get_data_logger().upload()
 
     # TODO: @franz need to get training data logged
-    for split in [Split.validation]:  # , "training"]:
+    for split in [Split.training, Split.validation]:
         dq.set_split(split)
-        vaex.open(f"{TEST_PATH}/validation/0/data/data.hdf5")
-        prob_df = vaex.open(f"{TEST_PATH}/validation/0/prob/prob.hdf5")
-        emb_df = vaex.open(f"{TEST_PATH}/validation/0/emb/emb.hdf5")
+        vaex.open(f"{TEST_PATH}/{split}/0/data/data.hdf5")
+        prob_df = vaex.open(f"{TEST_PATH}/{split}/0/prob/prob.hdf5")
+        emb_df = vaex.open(f"{TEST_PATH}/{split}/0/emb/emb.hdf5")
         assert sorted(emb_df.get_column_names()) == ["emb_pca", "id"]
         prob_cols = [
             "bbox",
@@ -96,8 +107,6 @@ def test_end2end_yolov8(
         assert prob_df.bbox.dtype == "float32"
         assert prob_df.prob.shape == (len(prob_df), 80)
         assert prob_df.bbox.dtype == "float32"
-        # TODO: The input data has column `file_names` but it should be `image`
-        #  fix and then uncomment
         # data_cols = ["id", "image", "split", "data_schema_version"]
         # assert sorted(data_df.get_column_names()) == sorted(data_cols)
     dq.finish()

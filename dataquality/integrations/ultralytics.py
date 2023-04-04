@@ -101,7 +101,6 @@ class Callback:
         self.hooked = False
         self.split = None
         self.file_map = {}
-        self.replace = {}  # TODO
 
     def postprocess(self, batch: torch.Tensor) -> Any:
         ref_model = self.step_embs.model
@@ -134,7 +133,7 @@ class Callback:
         return y if ref_model.export else (y, batch)
 
     def _after_pred_step(self, *args: Any, **kwargs: Any) -> None:
-        if self.split not in ["training", "validation"]:
+        if self.split not in [Split.validation]:
             return
         with torch.no_grad():
             # Do what do we need to convert here?
@@ -145,7 +144,7 @@ class Callback:
             if not self.nms_fn:
                 raise Exception("NMS function not found")
             postprocess = (
-                lambda x: x if self.split == "validation" else self.postprocess
+                lambda x: x if self.split == Split.validation else self.postprocess
             )
             preds = postprocess(preds)
             nms = self.nms_fn(preds)
@@ -219,7 +218,6 @@ class Callback:
         probs = []
         ids = []
         for i in range(len(self.logging_data)):
-            # TODO @franz should this be "bbox_pred_scaled"?
             pred_boxes.append(self.logging_data[i]["bbox_pred_scaled"].cpu().numpy())
             gold_boxes.append(self.logging_data[i]["bbox_gold"])
             labels.append(self.logging_data[i]["labels"])
@@ -229,6 +227,8 @@ class Callback:
             ids.append(self.logging_data[i]["id"])
 
         # TODO: replace properly
+        split = get_data_logger().logger_config.cur_split
+        assert split
         dq.core.log.log_od_model_outputs(
             pred_boxes=pred_boxes,
             gold_boxes=gold_boxes,
@@ -239,7 +239,7 @@ class Callback:
             probs=probs,
             logits=probs,
             ids=ids,
-            split=get_data_logger().logger_config.cur_split,
+            split=split,
             epoch=0,
         )
 
@@ -260,7 +260,7 @@ class Callback:
             "This method is only supported for image tasks. "
             "Please use dq.log_dataset for text tasks."
         )
-        data_logger.log_dataset(ds, split=get_data_logger().logger_config.cur_split)
+        data_logger.log_dataset(ds, split=data_logger.logger_config.cur_split)
 
     def convert_dataset(self, dataset: Any) -> List:
         assert len(dataset) > 0
@@ -287,7 +287,7 @@ class Callback:
         return processed_dataset
 
     def on_train_start(self, trainer: BaseTrainer) -> None:
-        # self.split = Split.training
+        self.split = Split.training
         self.trainer = trainer
         self.register_hooks(trainer.model)
         self.bl = BatchLogger(trainer.preprocess_batch)
@@ -301,7 +301,7 @@ class Callback:
         pass
 
     def on_val_batch_start(self, validator: BaseValidator) -> None:
-        # self.split = Split.validation
+        self.split = Split.validation
         self.validator = validator
         if not self.hooked:
             self.register_hooks(validator.model.model)
@@ -312,7 +312,7 @@ class Callback:
 
     # -- Predictor callbacks --
     def on_predict_start(self, predictor: BasePredictor) -> None:
-        # self.split = Split.inference
+        self.split = Split.inference
         self.predictor = predictor
         if not self.hooked:
             self.register_hooks(predictor.model.model)

@@ -1,12 +1,15 @@
+from tempfile import NamedTemporaryFile
 import time
 from typing import Any, Dict, List, Optional, Tuple
-
+import yaml
 import cv2
 import numpy as np
 import torch
 import torchvision
 from torchvision.ops.boxes import box_convert, box_iou
 from ultralytics.yolo.utils.plotting import Colors
+
+from dataquality.schemas.split import Split
 
 colors = Colors()
 
@@ -262,3 +265,24 @@ def convert_xywh_to_xyxy(bboxes: Any) -> torch.Tensor:
     if not isinstance(bboxes, torch.Tensor):
         return box_convert(torch.Tensor(bboxes), "cxcywh", "xyxy")
     return box_convert(bboxes, "cxcywh", "xyxy")
+
+
+ultralytics_split_mapping = split_mapping = {
+    Split.test: "test",
+    Split.training: "train",
+    Split.validation: "val",
+}
+
+
+def temporary_cfg_for_val(cfg_path: str, split: Split) -> str:
+    with open(cfg_path, "r") as file:
+        cfg = yaml.safe_load(file)
+    if not cfg.get(ultralytics_split_mapping[split]):
+        return ""
+    new_value = cfg.get(ultralytics_split_mapping[split])
+    for csplit in ["train", "val", "test"]:
+        cfg[csplit] = new_value
+    tmp = NamedTemporaryFile("w", delete=False, suffix=".yaml")
+    yaml.safe_dump(cfg, tmp)
+    tmp.close()
+    return tmp.name

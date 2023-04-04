@@ -394,7 +394,7 @@ def log_od_model_outputs(
     embs: Optional[Union[List, np.ndarray]] = None,
     probs: Optional[Union[List, np.ndarray]] = None,
     logits: Optional[Union[List, np.ndarray]] = None,
-    split: str = "",
+    split: Split,
     epoch: Optional[int] = None,
     inference_name: Optional[str] = None,
 ) -> None:
