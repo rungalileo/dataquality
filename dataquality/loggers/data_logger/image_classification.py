@@ -1,8 +1,12 @@
+import hashlib
+import os
 from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
+import vaex
 from vaex.dataframe import DataFrame
 
+from dataquality import config
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger.base_data_logger import DataSet, MetasType
 from dataquality.loggers.data_logger.text_classification import (
@@ -14,6 +18,7 @@ from dataquality.loggers.logger_config.image_classification import (
 )
 from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.split import Split
+from dataquality.utils.upload import upload_df
 
 # smaller than ITER_CHUNK_SIZE from base_data_logger because very large chunks
 # containing image data often won't fit in memory
@@ -63,6 +68,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         split: Optional[Split] = None,
         meta: Optional[List[Union[str, int]]] = None,
         column_map: Optional[Dict[str, str]] = None,
+        parallel: bool = False,
     ) -> Any:
         if imgs_colname is None and imgs_location_colname is None:
             raise GalileoException(
@@ -71,6 +77,14 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         column_map = column_map or {id: "id"}
         if isinstance(dataset, pd.DataFrame):
             dataset = dataset.rename(columns=column_map)
+            if self._dataset_requires_upload_prep(
+                dataset=dataset, imgs_location_colname=imgs_location_colname
+            ):
+                dataset = self._prepare_content(
+                    dataset=dataset,
+                    imgs_location_colname=imgs_location_colname,
+                    parallel=parallel,
+                )
         elif self.is_hf_dataset(dataset):
             dataset = self._prepare_hf(
                 dataset,
@@ -91,6 +105,52 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             split=split,
             meta=meta,
         )
+
+    def _dataset_requires_upload_prep(
+        self, dataset: pd.DataFrame, imgs_location_colname: Optional[str] = None
+    ) -> bool:
+        if imgs_location_colname is None:
+            raise GalileoException(
+                "Must provide imgs_location_colname in order to upload content."
+            )
+        return os.path.isfile(dataset[imgs_location_colname][0])
+
+    def _prepare_content(
+        self,
+        dataset: pd.DataFrame,
+        imgs_location_colname: Optional[str],
+        parallel: bool = False,
+    ) -> pd.DataFrame:
+        file_list = dataset[imgs_location_colname].tolist()
+        project_id = config.current_project_id
+
+        def load_bytes_from_file(file_path: str) -> Dict[str, Union[str, bytes]]:
+            with open(file_path, "rb") as f:
+                img = f.read()
+                hash = hashlib.md5(img).hexdigest()
+                ext = os.path.splitext(file_path)[1]
+                return {
+                    "data": img,
+                    "object_path": f"{project_id}/{hash}{ext}",
+                }
+
+        df = vaex.from_records(
+            list(
+                map(
+                    load_bytes_from_file,
+                    [f for f in file_list],
+                )
+            )
+        )
+        upload_df(
+            df=df,
+            export_cols=["data", "object_path"],
+            project_id=project_id,
+            parallel=parallel,
+        )
+        dataset["text"] = df["object_path"].to_numpy()
+
+        return dataset
 
     def convert_large_string(self, df: DataFrame) -> DataFrame:
         """We override to avoid doing the computation to check if the text is over 2GB
