@@ -15,8 +15,7 @@ from dataquality.utils.cv.semantic_segmentation.errors import (
     calculate_missing_segments,
 )
 from dataquality.utils.cv.semantic_segmentation.metrics import (
-    calculate_dep_heatmap,
-    calculate_image_dep,
+    calculate_and_upload_dep,
     calculate_mean_iou,
 )
 
@@ -85,8 +84,12 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         #     "Must have image cloud path, set using `dq.set_image_cloud_path`. "
         #     "Must be set before training model."
         # )
-        dep_heatmaps = calculate_dep_heatmap(self.output_probs, self.gt_masks)
-        image_dep = calculate_image_dep(dep_heatmaps)
+        image_dep = calculate_and_upload_dep(
+            self.output_probs,
+            self.gt_masks,
+            self.image_ids,
+            f"{self.proj_run}/{self.split_name_path}/dep",
+        )
         find_and_upload_contours(
             self.image_ids,
             self.pred_mask,

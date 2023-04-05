@@ -1,9 +1,7 @@
-from typing import Any, List, Optional
+from typing import Any, List
 
 import torch
 from torch.utils.data import DataLoader
-from torch.nn import Module
-from dataquality.utils.helpers import map_indices_to_ids, wrap_fn
 
 from dataquality.loggers.logger_config.semantic_segmentation import (
     semantic_segmentation_logger_config,
@@ -12,14 +10,7 @@ from dataquality.loggers.model_logger.semantic_segmentation import (
     SemanticSegmentationModelLogger,
 )
 from dataquality.utils.cv.semantic_segmentation.utils import mask_to_boundary
-from dataquality.utils.torch import (
-    patch_dataloaders,
-    patch_iterator_with_store,
-)
-from dataquality.integrations.torch import (
-    TorchLogger
-)
-from dataquality.schemas.torch import HelperData
+from dataquality.utils.helpers import wrap_fn
 
 
 class StoreHook:
@@ -54,7 +45,7 @@ class Manager:
     def _after_pred_step(self, *args: Any, **kwargs: Any) -> None:
         # import pdb; pdb.set_trace()
         with torch.no_grad():
-            logging_data = self.bl['batch']
+            logging_data = self.bl["batch"]
             preds = self.step_pred.model_output
 
             # checks whether the model is (n, classes, w, h), or (n, w, h, classes)
@@ -95,7 +86,9 @@ class Manager:
     def register_hooks(self, model) -> None:
         self.step_embs.h = model.register_forward_hook(self.step_embs.hook)
 
+
 from typing import Any, Callable, Dict, List, Tuple
+
 
 # store the batch
 def store_batch(store: Dict[str, List[int]]) -> Callable:
@@ -105,7 +98,7 @@ def store_batch(store: Dict[str, List[int]]) -> Callable:
         """Stores the batch"""
         batch = next_batch_func(*args, **kwargs)
         if batch:
-            store['batch'] = batch
+            store["batch"] = batch
         return batch
 
     return process_batch
@@ -124,6 +117,7 @@ def patch_iterator_with_batch_store(store: Dict[str, List[int]]) -> Callable:
 
     return patch_iterator
 
+
 def watch(model: Any, dataloader: DataLoader, n_classes: int) -> None:
     """
     Watches a model and logs the model outputs to the Galileo server
@@ -134,9 +128,6 @@ def watch(model: Any, dataloader: DataLoader, n_classes: int) -> None:
     semantic_segmentation_logger_config.helper_data["manager"] = tl
 
     dataloader._get_iterator = wrap_fn(  # type: ignore
-                dataloader._get_iterator,
-                patch_iterator_with_batch_store(
-                    tl.bl
-                ),
-            )
-    
+        dataloader._get_iterator,
+        patch_iterator_with_batch_store(tl.bl),
+    )
