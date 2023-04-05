@@ -1,8 +1,9 @@
-from typing import Any, Callable, Dict, List, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 
 import torch
 from torch.utils.data import DataLoader
+from torch.utils.hooks import RemovableHandle
 import numpy as np
 from dataquality.utils.helpers import wrap_fn
 from dataquality.utils.torch import store_batch_indices
@@ -17,13 +18,18 @@ from dataquality.utils.helpers import wrap_fn
 
 
 class StoreHook:
-    def on_finish(*args: Any, **kwargs: Any) -> None:
+    def __init__(self) -> None:
+        self.h: Optional[RemovableHandle] = None
+
+    def on_finish(self, *args: Any, **kwargs: Any) -> None:
         pass
 
-    def hook(self, 
-             model: torch.nn.Module, 
-             model_input: torch.Tensor, 
-             model_output: Dict[str, torch.Tensor]) -> None:
+    def hook(
+        self, 
+        model: torch.nn.Module, 
+        model_input: torch.Tensor, 
+        model_output: Dict[str, torch.Tensor]
+    ) -> None:
         """"
         Hook to store the model input (tensor) and extract the output from a dictionary and store
 
@@ -51,13 +57,12 @@ class Manager:
         """
         self.step_pred = StoreHook()
         self.step_pred.h = model.register_forward_hook(self.step_pred.hook)
-        self.bl = {} # So this will now have batch and ids.
-        self.batch_idx = {}
+        self.bl: Dict = {}  # So this will now have batch and ids.
         self.hooked = True
-        self.step_pred.on_finish = self._after_pred_step
+        self.step_pred.on_finish = self._after_pred_step  # type: ignore
         self.split = "Train"  # hard coded for now
         self.number_classes = num_classes
-        self.helper_data = {}
+        self.helper_data: Dict = {}
 
     def _after_pred_step(self, *args: Any, **kwargs: Any) -> None:
         """
