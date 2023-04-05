@@ -316,15 +316,12 @@ class FastAiDQCallback(Callback):
         store[FAIKey.model_input] = model_input
         store[FAIKey.model_output] = model_output
 
-    def load_test_dl(
-        self,
-        dl_test: DataLoader,
-    ) -> None:
+    def load_test_dl(self, dl_test: DataLoader, split: Split = Split.test) -> None:
         """
         Loads the test dataloader. To wrap it and set the split.
         :param dl_test: Test dataloader.
         """
-        dataquality.set_split(Split.test)
+        dataquality.set_split(split)
         self.wrap_indices(
             dl_test,
         )
