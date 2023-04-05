@@ -234,7 +234,8 @@ class FastAiDQCallback(Callback):
         print("after validate")
         if self.disable_dq:
             return
-        dataquality.set_split(dataquality.schemas.split.Split.train)
+        if self.is_train_or_val():
+            dataquality.set_split(dataquality.schemas.split.Split.train)
         print("after validate")
 
     def is_train_or_val(self) -> bool:
