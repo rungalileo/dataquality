@@ -72,6 +72,8 @@ class ApiClient:
         params: Optional[Dict] = None,
         header: Optional[Dict] = None,
         timeout: Union[int, None] = None,
+        files: Optional[Dict] = None,
+        return_response_without_validation: bool = False,
     ) -> Any:
         """Makes an HTTP request.
 
@@ -87,7 +89,10 @@ class ApiClient:
             headers=header,
             data=data,
             timeout=timeout,
+            files=files,
         )
+        if return_response_without_validation:
+            return res
         self._validate_response(res)
         return res.json()
 
@@ -820,3 +825,35 @@ class ApiClient:
         return self.make_request(
             RequestType.GET, url=f"{config.api_url}/{Route.healthcheck_dq}"
         )
+
+    def upload_file_for_project(
+        self,
+        project_id: str,
+        file_path: str,
+        export_format: str,
+        export_cols: List[str],
+    ) -> Any:
+        url = f"{config.api_url}/{Route.projects}/{project_id}/{Route.upload_file}"
+        res = self.make_request(
+            return_response_without_validation=True,
+            request=RequestType.POST,
+            url=url,
+            files={
+                "file": (
+                    os.path.basename(file_path),
+                    open(file_path, "rb"),
+                    "application/octet-stream",
+                ),
+                "upload_metadata": (
+                    None,
+                    json.dumps(
+                        {
+                            "export_format": export_format,
+                            "export_cols": export_cols,
+                        }
+                    ),
+                    "application/json",
+                ),
+            },
+        )
+        return res

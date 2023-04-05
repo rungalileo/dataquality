@@ -1,10 +1,31 @@
+from tempfile import NamedTemporaryFile
 from typing import List
 
 import evaluate
+import numpy as np
 import torch
+from PIL import Image
+
+from dataquality.clients.objectstore import ObjectStore
+from dataquality.core._config import GALILEO_DEFAULT_RESULT_BUCKET_NAME
+
+object_store = ObjectStore()
+
+MAX_DEP_HEATMAP_SIZE = 64
 
 
-def calculate_dep_heatmap(probs: torch.Tensor, gt_masks: torch.Tensor) -> torch.Tensor:
+def calculate_and_upload_dep(
+    probs: torch.Tensor,
+    gt_masks: torch.Tensor,
+    image_ids: List[int],
+    obj_prefix: str,
+) -> List[float]:
+    dep_heatmaps = calculate_dep_heatmaps(probs, gt_masks)
+    upload_dep_heatmaps(dep_heatmaps, image_ids, obj_prefix)
+    return calculate_image_dep(dep_heatmaps)
+
+
+def calculate_dep_heatmaps(probs: torch.Tensor, gt_masks: torch.Tensor) -> torch.Tensor:
     """
     Calculates the Data Error Potential (DEP) for each image in the batch
 
@@ -38,6 +59,55 @@ def calculate_dep_heatmap(probs: torch.Tensor, gt_masks: torch.Tensor) -> torch.
     dep_masks = dep_masks.view(size)
 
     return dep_masks
+
+
+def upload_dep_heatmaps(
+    dep_heatmaps: torch.Tensor,
+    image_ids: List[int],
+    obj_prefix: str,
+) -> None:
+    """Uploads dep heatmap to Minio for each image in the batch
+
+    :param dep_heatmaps: DEP heatmap for each image in the batch
+        shape = (bs, height, width)
+    """
+    for i, image_id in enumerate(image_ids):
+        dep_heatmap = dep_heatmaps[i].numpy()
+        obj_name = f"{obj_prefix}/{image_id}.png"
+        with NamedTemporaryFile(suffix=".png", mode="w+") as f:
+            img = dep_heatmap_to_img(dep_heatmap)
+            img.save(f.name)
+
+            object_store.create_object(
+                object_name=obj_name,
+                file_path=f.name,
+                content_type="image/png",
+                progress=False,
+                bucket_name=GALILEO_DEFAULT_RESULT_BUCKET_NAME,
+            )
+
+
+def dep_heatmap_to_img(dep_heatmap: np.ndarray) -> Image:
+    """Converts DEP heatmap to PIL Image
+
+
+    We cast the heatmap to a 1-channel PIL Image object in grey scale
+    and store it as a PNG file in Minio in order to compress the file size
+    as much as possible.
+
+    To keep DEP heatmaps small, the maximum heatmap size is 64x64 pixels.
+
+    :param dep_heatmap: DEP heatmap for each image in the batch
+        shape = (height, width)
+    :return: PIL Image object
+    """
+    # Scale the array values to the range [0, 255]
+    dep_heatmap = (dep_heatmap * 255).astype(np.uint8)
+    # Create a PIL Image object from the numpy array as grey-scale
+    img = Image.fromarray(dep_heatmap, mode="L")
+    if img.size[0] > MAX_DEP_HEATMAP_SIZE or img.size[1] > MAX_DEP_HEATMAP_SIZE:
+        img.thumbnail((MAX_DEP_HEATMAP_SIZE, MAX_DEP_HEATMAP_SIZE))
+    return img
 
 
 def calculate_image_dep(dep_heatmap: torch.Tensor) -> List[float]:

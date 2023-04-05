@@ -13,6 +13,7 @@ from dataquality.loggers.model_logger.semantic_segmentation import (
     SemanticSegmentationModelLogger,
 )
 from dataquality.utils.cv.semantic_segmentation.utils import mask_to_boundary
+from dataquality.utils.helpers import wrap_fn
 
 
 class StoreHook:
@@ -65,7 +66,7 @@ class Manager:
         predictions and masks that can be used to calculate data quality metrics
         """
         with torch.no_grad():
-            logging_data = self.bl['batch']
+            logging_data = self.bl["batch"]
             preds = self.step_pred.model_output
 
             # checks whether the model is (n, classes, w, h), or (n, w, h, classes)
@@ -119,7 +120,7 @@ def store_batch(store: Dict[str, Dict[str, Union[np.ndarray, torch.Tensor]]]) ->
         """
         batch = next_batch_func(*args, **kwargs)
         if batch:
-            store['batch'] = batch
+            store["batch"] = batch
         return batch
 
     return process_batch
