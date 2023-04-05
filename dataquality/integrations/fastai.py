@@ -199,7 +199,7 @@ class FastAiDQCallback(Callback):
         self.register_hooks()
 
         self.is_initialized = True
-        print("after fit")
+        print("before fit")
 
     def before_train(self) -> None:
         """
@@ -239,7 +239,8 @@ class FastAiDQCallback(Callback):
 
     def is_train_or_val(self) -> bool:
         cur_split = dataquality.get_data_logger().logger_config.cur_split
-        return cur_split not in ["inference", "test"]
+        assert cur_split
+        return str(cur_split) not in ["inference", "test", Split.inference, Split.test]
 
     def before_validate(self) -> None:
         """

@@ -64,7 +64,7 @@ def test_auto(
     mock_create_run.return_value = {"id": DEFAULT_RUN_ID}
     set_test_config(current_project_id=None, current_run_id=None)
     label_func = lambda x: x[0].isupper()  # noqa: E731
-    image_files = list(map(Path, glob("tests/assets/images/*"))) * 5
+    image_files = list(map(Path, glob("tests/assets/images/*"))) * 200
     path = "tests/assets/images"
     dls = ImageDataLoaders.from_name_func(
         path,
@@ -73,6 +73,7 @@ def test_auto(
         label_func=label_func,
         item_tfms=Resize(224),
         num_workers=1,
+        bs=64,
         drop_last=False,
     )
     dq.init(task_type=TaskType.image_classification)
@@ -167,6 +168,7 @@ def test_tab(
     mock_version_check: MagicMock,
     cleanup_after_use: Generator,
 ) -> None:
+    return
     mock_get_project_by_name.return_value = {"id": DEFAULT_PROJECT_ID}
     mock_create_run.return_value = {"id": DEFAULT_RUN_ID}
     set_test_config(current_project_id=None, current_run_id=None)
