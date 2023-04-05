@@ -90,5 +90,9 @@ cuda = [
     "cuml-cu11==22.12"
 ]
 
+minio = [
+    "minio>=7.1.0,<7.2.0"
+]
+
 [tool.isort]
 profile = "black"

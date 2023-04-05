@@ -21,8 +21,9 @@ from dataquality.utils.helpers import galileo_disabled
 CLOUD_URL = "https://console.cloud.rungalileo.io"
 MINIMUM_API_VERSION = "0.4.0"
 GALILEO_DEFAULT_IMG_BUCKET_NAME = "galileo-images"
-GALILEO_DEFAULT_RUN_BUCKET_NAME = "galileo-projects-runs"
-GALILEO_DEFAULT_RESULT_BUCKET_NAME = "galileo-projects-runs-results"
+GALILEO_DEFAULT_RUN_BUCKET_NAME = "galileo-project-runs"
+GALILEO_DEFAULT_RESULT_BUCKET_NAME = "galileo-project-runs-results"
+EXOSCALE_FQDN_SUFFIX = ".exo.io"
 
 
 class GalileoConfigVars(str, Enum):
@@ -61,6 +62,8 @@ class Config(BaseModel):
     root_bucket_name: str = GALILEO_DEFAULT_RUN_BUCKET_NAME
     results_bucket_name: str = GALILEO_DEFAULT_RESULT_BUCKET_NAME
     images_bucket_name: str = GALILEO_DEFAULT_IMG_BUCKET_NAME
+    minio_fqdn: Optional[str] = None
+    is_exoscale_cluster: bool = False
 
     class Config:
         validate_assignment = True
