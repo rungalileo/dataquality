@@ -105,13 +105,8 @@ class FastAiDQCallback(Callback):
     """
 
     hook = None
-    is_initialized = False
-    labels = None
-    model_outputs_log: Dict[FAIKey, Any]
-    current_idx: List[int]
+
     logger_config: BaseLoggerConfig
-    idx_store: Dict[FAIKey, Any]
-    disable_dq: bool = False
 
     def __init__(
         self,
@@ -130,14 +125,11 @@ class FastAiDQCallback(Callback):
         """
         super().__init__(*args, **kwargs)
         a.log_function("fastai/callback")
-        self.disable_dq = galileo_disabled()
+        self.is_initialized = False
+        self.disable_dq: bool = galileo_disabled()
         self.finish = finish
         self.layer = layer
-        self.model_outputs_log = {}
-        self.current_idx = []
-        self.patches: List[_PatchDLGetIdxs] = []
-        self.idx_store = {FAIKey.idx_queue: []}
-        self.counter = 0
+        self.reset_data()
         if config.task_type not in ["text_classification", "image_classification"]:
             raise GalileoException(
                 f"task_type {str(config.task_type)} is not supported yet.\
@@ -147,6 +139,13 @@ class FastAiDQCallback(Callback):
 
         if not self.disable_dq:
             self.logger_config = dataquality.get_model_logger().logger_config
+
+    def reset_config(self) -> None:
+        self.model_outputs_log: Dict[FAIKey, Any] = {}
+        self.current_idx: List[int] = []
+        self.patches: List[_PatchDLGetIdxs] = []
+        self.idx_store: Dict[FAIKey, Any] = {FAIKey.idx_queue: []}
+        self.counter = 0
 
     def get_layer(self) -> Module:
         """
@@ -326,18 +325,29 @@ class FastAiDQCallback(Callback):
             dl_test,
         )
 
-    def unwatch(self) -> None:
+    def unpatch(self) -> None:
         """
         Unpatches the dataloader and removes the hook.
         """
         for patch in self.patches:
-            print("unpatching", patch)
             patch.unpatch()
+
+    def unhook(self) -> None:
+        """
+        Unpatches the dataloader and removes the hook.
+        """
         if self.hook:
             self.hook.remove()
             print("Hook removed")
         else:
             print("No hook found")
+
+    def unwatch(self) -> None:
+        """
+        Unpatches the dataloader and removes the hook.
+        """
+        self.unhook()
+        self.unpatch()
 
 
 def convert_img_dl_to_df(dl: DataLoader, x_col: str = "image") -> pd.DataFrame:
