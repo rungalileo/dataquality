@@ -2,26 +2,62 @@ import os
 import sys
 from functools import partial
 from tempfile import NamedTemporaryFile
-from typing import Optional
+from typing import Any, Optional
 
 import requests
 from tqdm.auto import tqdm
 from tqdm.utils import CallbackIOWrapper
 from vaex.dataframe import DataFrame
 
+from dataquality.core._config import config
 from dataquality.core.auth import api_client
 from dataquality.utils.file import get_file_extension
 
-IMAGES_BUCKET_NAME = "galileo-images"
-ROOT_BUCKET_NAME = "galileo-project-runs"
-RESULTS_BUCKET_NAME = "galileo-project-runs-results"
-
 
 class ObjectStore:
-    IMAGES_BUCKET_NAME = IMAGES_BUCKET_NAME
-    ROOT_BUCKET_NAME = ROOT_BUCKET_NAME
-    RESULTS_BUCKET_NAME = RESULTS_BUCKET_NAME
     DOWNLOAD_CHUNK_SIZE_MB = 256
+
+    def create_minio_client_for_exoscale_cluster(self) -> Any:
+        try:
+            from minio import Minio
+        except ImportError:
+            raise ImportError(
+                "🚨 The minio package is required to use the Exoscale cluster. "
+                "Please run `pip install dataquality[minio]` to install minio "
+                "with dataquality."
+            )
+
+        """Creates a Minio client for the Exoscale cluster.
+
+        Exoscale does not support presigned urls, so we need to
+        use the Minio client to upload files to the object store.
+
+        To instantiate this, the user simply sets the EXOSCALE_API_KEY_ACCESS_KEY
+        and EXOSCALE_API_KEY_ACCESS_SECRET environment variables with the values
+        from their Exoscale API Key.
+
+        Returns:
+            Minio: A Minio client.
+        """
+        access_key = os.environ.get("EXOSCALE_API_KEY_ACCESS_KEY")
+        secret_key = os.environ.get("EXOSCALE_API_KEY_ACCESS_SECRET")
+        assert access_key is not None and secret_key is not None, (
+            "EXOSCALE_API_KEY_ACCESS_KEY and EXOSCALE_API_KEY_ACCESS_SECRET "
+            "environment variables must be set. "
+            "Please set these variables with the values from your Exoscale "
+            "API Key."
+        )
+        return Minio(
+            endpoint=config.minio_fqdn,
+            access_key=access_key,
+            secret_key=secret_key,
+            secure=True,
+        )
+
+    def __init__(self) -> None:
+        self._minio_client = None
+        if config.is_exoscale_cluster:
+            self._minio_client = self.create_minio_client_for_exoscale_cluster()
 
     def create_object(
         self,
@@ -31,14 +67,63 @@ class ObjectStore:
         progress: bool = True,
         bucket_name: Optional[str] = None,
     ) -> None:
-        url = api_client.get_presigned_url(
-            project_id=object_name.split("/")[0],
-            method="put",
-            bucket_name=bucket_name or self.ROOT_BUCKET_NAME,
-            object_name=object_name,
+        _bucket_name = bucket_name or config.root_bucket_name
+        assert _bucket_name is not None, (
+            "No bucket name provided to create_object. Please provide "
+            "a bucket_name by setting the root_bucket_name in your config with "
+            "`dq.config.root_bucket_name = 'my-bucket-name'` or by passing a "
+            "bucket_name to this function."
         )
-        self._upload_file_from_local(
-            url=url, file_path=file_path, content_type=content_type, progress=progress
+        if config.is_exoscale_cluster:
+            self._create_object_exoscale(
+                object_name=object_name,
+                file_path=file_path,
+                content_type=content_type,
+                bucket_name=_bucket_name,
+            )
+        else:
+            url = api_client.get_presigned_url(
+                project_id=object_name.split("/")[0],
+                method="put",
+                bucket_name=_bucket_name,
+                object_name=object_name,
+            )
+            self._upload_file_from_local(
+                url=url,
+                file_path=file_path,
+                content_type=content_type,
+                progress=progress,
+            )
+
+    def _create_object_exoscale(
+        self,
+        object_name: str,
+        file_path: str,
+        content_type: str = "application/octet-stream",
+        bucket_name: Optional[str] = None,
+    ) -> None:
+        """_create_object_exoscale
+
+        This is a helper function for the Exoscale cluster. It uses the Minio
+        client to upload files to the object store.
+
+        This is necessary because Exoscale does not support presigned urls.
+
+        Args:
+            object_name (str): The name of the object to create.
+            file_path (str): The path to the file to upload.
+            content_type (str): The content type of the upload request.
+            bucket_name (str): The name of the bucket to upload to.
+
+        Returns:
+            None
+        """
+        assert self._minio_client is not None
+        self._minio_client.fput_object(
+            bucket_name=bucket_name,
+            object_name=object_name,
+            file_path=file_path,
+            content_type=content_type,
         )
 
     def _upload_file_from_local(
@@ -92,17 +177,27 @@ class ObjectStore:
             )
 
     def download_file(
-        self, object_name: str, file_path: str, bucket: str = ROOT_BUCKET_NAME
+        self, object_name: str, file_path: str, bucket: Optional[str] = None
     ) -> str:
         """download_file
 
         Args:
             object_name (str): The object name.
             file_path (str): Where to write the object data locally.
+            bucket (Optional[str]): The bucket name. If None,
+                the root bucket name is used.
 
         Returns:
             str: The local file where the object name was written.
         """
+        if bucket is None:
+            bucket = config.root_bucket_name
+        assert bucket is not None, (
+            "No bucket name provided to create_object. Please provide "
+            "a bucket_name by setting the root_bucket_name in your config with "
+            "`dq.config.root_bucket_name = 'my-bucket-name'` or by passing a "
+            "bucket_name to this function."
+        )
         url = api_client.get_presigned_url(
             project_id=object_name.split("/")[0],
             method="get",

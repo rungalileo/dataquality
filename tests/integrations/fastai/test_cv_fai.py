@@ -31,9 +31,22 @@ from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID, LOCATION
 @patch.object(ApiClient, "get_project_run_by_name", return_value={})
 @patch.object(ApiClient, "create_run")
 @patch("dataquality.core.init._check_dq_version")
+@patch.object(
+    dq.clients.api.ApiClient,
+    "get_healthcheck_dq",
+    return_value={
+        "bucket_names": {
+            "images": "galileo-images",
+            "results": "galileo-project-runs-results",
+            "root": "galileo-project-runs",
+        },
+        "minio_fqdn": "127.0.0.1:9000",
+    },
+)
 @patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
 def test_auto(
     mock_valid_user: MagicMock,
+    mock_dq_healthcheck: MagicMock,
     mock_check_dq_version: MagicMock,
     mock_create_run: MagicMock,
     mock_get_project_run_by_name: MagicMock,
@@ -125,9 +138,22 @@ class PassThroughModel(nn.Module):
 @patch.object(ApiClient, "get_project_run_by_name", return_value={})
 @patch.object(ApiClient, "create_run")
 @patch("dataquality.core.init._check_dq_version")
+@patch.object(
+    dq.clients.api.ApiClient,
+    "get_healthcheck_dq",
+    return_value={
+        "bucket_names": {
+            "images": "galileo-images",
+            "results": "galileo-project-runs-results",
+            "root": "galileo-project-runs",
+        },
+        "minio_fqdn": "127.0.0.1:9000",
+    },
+)
 @patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
 def test_tab(
     mock_valid_user: MagicMock,
+    mock_dq_healthcheck: MagicMock,
     mock_check_dq_version: MagicMock,
     mock_create_run: MagicMock,
     mock_get_project_run_by_name: MagicMock,

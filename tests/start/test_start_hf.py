@@ -76,9 +76,22 @@ args_default = TrainingArguments(
 @patch.object(ApiClient, "get_project_run_by_name", return_value={})
 @patch.object(ApiClient, "create_run")
 @patch("dataquality.core.init._check_dq_version")
+@patch.object(
+    dataquality.clients.api.ApiClient,
+    "get_healthcheck_dq",
+    return_value={
+        "bucket_names": {
+            "images": "galileo-images",
+            "results": "galileo-project-runs-results",
+            "root": "galileo-project-runs",
+        },
+        "minio_fqdn": "127.0.0.1:9000",
+    },
+)
 @patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=True)
 def test_start_hf_tc(
     mock_valid_user: MagicMock,
+    mock_get_healthcheck_dq: MagicMock,
     mock_check_dq_version: MagicMock,
     mock_create_run: MagicMock,
     mock_get_project_run_by_name: MagicMock,

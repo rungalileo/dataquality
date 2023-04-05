@@ -7,6 +7,7 @@ import pytest
 from tenacity import RetryError
 
 import dataquality
+import dataquality as dq
 from dataquality import config
 from dataquality.clients.api import ApiClient
 from dataquality.core.auth import GALILEO_AUTH_METHOD
@@ -562,6 +563,18 @@ def test_reconfigure_resets_user_token_login_mocked(
 @patch("requests.post", side_effect=mocked_create_project_run)
 @patch("requests.get", side_effect=mocked_get_project_run)
 @patch("dataquality.core.init._check_dq_version")
+@patch.object(
+    dq.clients.api.ApiClient,
+    "get_healthcheck_dq",
+    return_value={
+        "bucket_names": {
+            "images": "galileo-images",
+            "results": "galileo-project-runs-results",
+            "root": "galileo-project-runs",
+        },
+        "minio_fqdn": "127.0.0.1:9000",
+    },
+)
 @patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=True)
 @pytest.mark.parametrize(
     "run_name,exc",
@@ -576,6 +589,7 @@ def test_reconfigure_resets_user_token_login_mocked(
 )
 def test_bad_names(
     mock_valid_user: MagicMock,
+    mock_dq_healthcheck: MagicMock,
     mock_check_dq_version: MagicMock,
     mock_requests_get: MagicMock,
     mock_requests_post: MagicMock,
