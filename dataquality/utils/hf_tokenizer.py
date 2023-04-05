@@ -75,7 +75,11 @@ class LabelTokenizer:
         self.previous_word_id = -1
         self.word_ids = self.tokenized_samples.word_ids(batch_index=k)
         # We check ds and ds.features to accomodate HF and arrow datasets
-        if HFCol.ner_tags in self.ds or HFCol.ner_tags in self.ds.features:
+        # Note we need to make sure that ds has an attr "features" to handle
+        # the weird case when type(ds) = datasets.formatting.formatting.LazyBatch
+        if HFCol.ner_tags in self.ds or (
+            hasattr(self.ds, "features") and HFCol.ner_tags in self.ds.features
+        ):
             existing_labels = [
                 self.idx_2_labels[label] for label in self.ds[HFCol.ner_tags][k]
             ]

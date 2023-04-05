@@ -538,7 +538,7 @@ class ApiClient:
     def wait_for_run(
         self, project_name: Optional[str] = None, run_name: Optional[str] = None
     ) -> None:
-        print("Waiting for job...")
+        print("Waiting for job (you can safely close this window)...")
         last_progress_message = ""
         while True:
             job = self.get_run_status(project_name=project_name, run_name=run_name)

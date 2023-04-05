@@ -13,6 +13,7 @@ from fastai.vision.all import ImageDataLoaders, Resize, error_rate, vision_learn
 import dataquality as dq
 from dataquality.clients.api import ApiClient
 from dataquality.integrations.fastai import FastAiDQCallback, convert_img_dl_to_df
+from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID
 
@@ -59,7 +60,7 @@ def test_auto(
         num_workers=1,
         drop_last=False,
     )
-    dq.init(task_type="image_classification")
+    dq.init(task_type=TaskType.image_classification)
     dq.set_labels_for_run(["nocat", "cat"])
     for data, split in zip(dls, ["training", "validation"]):
         df = convert_img_dl_to_df(data)
@@ -68,10 +69,18 @@ def test_auto(
 
     ThreadPoolManager.wait_for_threads()
     learn = vision_learner(dls, "resnet34", metrics=error_rate)
-    dqc = FastAiDQCallback()
+    dqc = FastAiDQCallback(finish=False)
     learn.add_cb(dqc)
     learn.fine_tune(2)
+    dq.log_image_dataset(df, imgs_location_colname="text", split="test")
+    dl_test = learn.dls.test_dl(pd.Series(image_files))
+    dq.set_split = "test"
+    learn.wrap_indices(
+        dl_test,
+    )
 
+    preds, _ = learn.get_preds(dl=dl_test)
+    dqc.unwatch()
     # validate_unique_ids(vaex.open(f"{LOCATION}/{split}/0/*.hdf5"), "epoch")
     # validate_unique_ids(vaex.open(f"{LOCATION}/{split}/1/*.hdf5"), "epoch")
 

@@ -192,8 +192,19 @@ def tokenize_and_log_dataset(
         else:
             dq_split = conform_split(ds_key)
 
+        # Filter out rows with no tokens
+        dataset = dataset.filter(lambda row: len(row[HFCol.text_token_indices]) != 0)
         ids = list(range(len(dataset)))
         dataset = dataset.add_column(HFCol.id, ids)
+        ds_orig_len = len(dataset)
+        ds_len = len(dataset)
+        if ds_orig_len != ds_len:
+            warnings.warn(
+                f"We found {ds_orig_len-ds_len} empty samples in your dataset for "
+                f"split {ds_key}. These will not be logged to Galileo. If you are not "
+                "expecting these, you should inspect your original data",
+                GalileoWarning,
+            )
         tokenized_datasets[ds_key] = dataset
         split_meta = [c for c in meta if c in dataset.features]
         dq.log_dataset(

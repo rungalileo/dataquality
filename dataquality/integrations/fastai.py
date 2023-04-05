@@ -1,11 +1,11 @@
-import os
 from enum import Enum
 from functools import partial
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
 from fastai.callback.core import Callback
+from fastai.data.core import DataLoaders
 from fastai.data.load import DataLoader
 from torch.nn import Module
 from torch.utils.hooks import RemovableHandle
@@ -38,7 +38,9 @@ class _PatchDLGetIdxs:
     self.dl.get_idxs = _PatchDLGetIdxs(self.dl.get_idxs, self.idx_log)
     """
 
-    def __init__(self, old_func: Callable, store: Dict[FastAiKeys, Any]) -> None:
+    def __init__(
+        self, obj: object, func_name: str, store: Dict[FastAiKeys, Any]
+    ) -> None:
         """
         Patch the DataLoader to store the indices of the batches.
         For example:
@@ -47,13 +49,18 @@ class _PatchDLGetIdxs:
         :param store: The store to store the indices in.
         """
         self.logger_config = dataquality.get_model_logger().logger_config
-        self.old_func = old_func
+        self.obj = obj
+        self.func_name = func_name
+        self.old_func = getattr(obj, func_name)
+        if not self.old_func:
+            raise ValueError(f"Function {func_name} not found on {str(obj)}")
         self.store = store
         self.store[FastAiKeys.dataloader_indices] = {
             Split.training: [],
             Split.validation: [],
             Split.test: [],
         }
+        setattr(obj, self.func_name, self)
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         """
@@ -67,6 +74,9 @@ class _PatchDLGetIdxs:
                 self.logger_config.cur_split
             ].append(res)
         return res
+
+    def unpatch(self) -> None:
+        setattr(self.obj, self.func_name, self.old_func)
 
 
 class FastAiDQCallback(Callback):
@@ -127,6 +137,7 @@ class FastAiDQCallback(Callback):
         self.layer = layer
         self.model_outputs_log = {}
         self.current_idx = []
+        self.patches: List[_PatchDLGetIdxs] = []
         self.idx_store = {FastAiKeys.idx_queue: []}
         self.counter = 0
         if config.task_type not in ["text_classification", "image_classification"]:
@@ -161,7 +172,7 @@ class FastAiDQCallback(Callback):
         ), "DataLoader must be initialized with drop_last=False"
         if self.is_initialized or self.disable_dq:
             return
-        self.wrap_indices()
+        self.wrap_indices(getattr(self, "dl"))
         self.register_hooks()
 
         self.is_initialized = True
@@ -173,23 +184,25 @@ class FastAiDQCallback(Callback):
         if self.disable_dq:
             return
         dataquality.set_split(dataquality.schemas.split.Split.train)
-        self.wrap_indices()
+        self.wrap_indices(getattr(self, "dl"))
         if self.is_initialized:
             return
         self.register_hooks()
 
         self.is_initialized = True
 
-    def wrap_indices(self) -> None:
+    def wrap_indices(self, dl: DataLoader) -> None:
         """
         Wraps the get_idxs function of the dataloader to store the indices.
         """
-        if not hasattr(self, "dl"):
+        if not dl:
             print("Dataloader not found")
             return
-        if not isinstance(self.dl.get_idxs, _PatchDLGetIdxs):
+        if not isinstance(dl.get_idxs, _PatchDLGetIdxs):
             print("Wrapping dataloader")
-            self.dl.get_idxs = _PatchDLGetIdxs(self.dl.get_idxs, self.idx_store)
+            patch = _PatchDLGetIdxs(dl, "get_idxs", self.idx_store)
+            dl.get_idxs = patch
+            self.patches.append(patch)
 
     def after_validate(self) -> None:
         if self.disable_dq:
@@ -200,7 +213,8 @@ class FastAiDQCallback(Callback):
         """
         Sets the split in data quality and registers the classifier layer hook.
         """
-        self.wrap_indices()
+
+        self.wrap_indices(getattr(self, "dl"))
         if self.disable_dq:
             return
         dataquality.set_split(dataquality.schemas.split.Split.validation)
@@ -299,6 +313,16 @@ class FastAiDQCallback(Callback):
         store[FastAiKeys.model_input] = model_input
         store[FastAiKeys.model_output] = model_output
 
+    def unwatch(self) -> None:
+        for patch in self.patch:
+            print("unpatching", patch)
+            patch.unpatch()
+        if self.hook:
+            self.hook.remove()
+            print("Hook removed")
+        else:
+            print("No hook found")
+
 
 def convert_img_dl_to_df(dl: DataLoader, x_col: str = "image") -> pd.DataFrame:
     """
@@ -321,6 +345,14 @@ def convert_img_dl_to_df(dl: DataLoader, x_col: str = "image") -> pd.DataFrame:
     df = pd.DataFrame({"id": ids, x_col: x, "label": y, **additional_data})
     del additional_data, x, y
     return df
+
+
+def extract_split_indices(dls: DataLoaders) -> Any:
+    train_ids, valid_ids = dls.dataset.splits
+    return (
+        train_ids,
+        valid_ids,
+    )
 
 
 def convert_tab_dl_to_df(

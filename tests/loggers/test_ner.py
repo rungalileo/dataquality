@@ -719,7 +719,7 @@ def test_is_valid_span_label(
         TextNERDataLogger._clean_labels()
 
 
-@mock.patch("dataquality.utils.vaex.create_data_embs")
+@mock.patch("dataquality.utils.vaex.create_data_embs_df")
 def test_create_and_upload_data_embs_skipped_ner(
     mock_create_embs: mock.MagicMock,
     cleanup_after_use: Callable,

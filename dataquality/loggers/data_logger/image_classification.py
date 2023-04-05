@@ -46,13 +46,17 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             inference_name=inference_name,
         )
 
+    @property
+    def support_data_embs(self) -> bool:
+        """Coming soon via CLIP"""
+        return False
+
     def log_image_dataset(
         self,
         dataset: DataSet,
         *,
         imgs_colname: Optional[str] = None,
         imgs_location_colname: Optional[str] = None,
-        imgs_dir: Optional[str] = None,
         batch_size: int = ITER_CHUNK_SIZE_IMAGES,
         id: str = "id",
         label: Union[str, int] = "label",

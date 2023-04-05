@@ -77,5 +77,17 @@ dev = [
     "jupyter==1.0.0",
 ]
 
+# Need to be installed with `pip install 'dataquality[cuda]' --extra-index-url=https://pypi.ngc.nvidia.com/ `
+# Need to pin because the new release is broken https://github.com/rapidsai/cudf/issues/12762#issuecomment-1462845289
+cuda = [
+    "ucx-py-cu11<0.30",
+    "rmm-cu11==22.12",
+    "raft-dask-cu11==22.12",
+    "pylibraft-cu11==22.12",
+    "dask-cudf-cu11==22.12",
+    "cudf-cu11==22.12",
+    "cuml-cu11==22.12"
+]
+
 [tool.isort]
 profile = "black"

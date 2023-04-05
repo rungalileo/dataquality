@@ -1,4 +1,3 @@
-import warnings
 from collections import defaultdict
 from enum import Enum, unique
 from typing import Any, DefaultDict, Dict, List, Optional, Tuple, Union
@@ -146,7 +145,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         if len(self.logits):
             self.probs = self.convert_logits_to_probs(self.logits)
         elif len(self.probs):
-            warnings.warn("Usage of probs is deprecated, use logits instead")
             self.probs = self._convert_tensor_ndarray(self.probs)
 
         embs_len = len(self.embs)

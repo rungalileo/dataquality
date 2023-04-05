@@ -477,8 +477,9 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
             emb_cols = ["id"]
             other_cols = ["id"]
         else:
-            emb_cols = ["id", "emb"]
-            ignore_cols = ["emb", "split_id"] + prob_cols
+            emb_cols = ["id", "emb", "x", "y", "emb_pca"]
+            emb_cols = [c for c in emb_cols if c in df_copy.get_column_names()]
+            ignore_cols = ["split_id"] + prob_cols + emb_cols
             other_cols = [i for i in df_copy.get_column_names() if i not in ignore_cols]
             other_cols += ["id"]
 

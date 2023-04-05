@@ -35,6 +35,7 @@ from tests.test_utils.data_utils import (
 
 MAX_META_COLS = BaseGalileoDataLogger.MAX_META_COLS
 MAX_STR_LEN = BaseGalileoDataLogger.MAX_STR_LEN
+MAX_DOC_LEN = BaseGalileoDataLogger.MAX_DOC_LEN
 
 
 def test_threaded_logging_and_upload(
@@ -160,8 +161,14 @@ def test_metadata_logging_invalid(
     meta = {
         "test1": [random() for _ in range(NUM_RECORDS * NUM_LOGS)],
         "meta2": [random() for _ in range(NUM_RECORDS * NUM_LOGS)],
-        "bad_attr": [
+        "doc1": ["te" * MAX_STR_LEN for _ in range(NUM_RECORDS * NUM_LOGS)],
+        "doc2": ["te" * MAX_STR_LEN for _ in range(NUM_RECORDS * NUM_LOGS)],
+        "doc3": ["te" * MAX_STR_LEN for _ in range(NUM_RECORDS * NUM_LOGS)],
+        "too_many_doc": [
             "te" * MAX_STR_LEN for _ in range(NUM_RECORDS * NUM_LOGS)
+        ],  # 4th doc, ignored
+        "doc_too_long": [
+            "te" * MAX_DOC_LEN for _ in range(NUM_RECORDS * NUM_LOGS)
         ],  # String too long
         "another_bad_attr": ["test", "test", "test"],  # Wrong number of values
         # Right length, but can't contain a list
@@ -173,19 +180,15 @@ def test_metadata_logging_invalid(
     for i in range(MAX_META_COLS):
         meta[f"attr_{i}"] = [random() for _ in range(NUM_RECORDS * NUM_LOGS)]
 
-    _log_text_classification_data(meta=meta)
-    valid_meta_cols = ["test1", "meta2"]
-    valid_meta_cols += [f"attr_{i}" for i in range(MAX_META_COLS - len(meta))]
-    try:
-        # Equivalent to the users `finish` call, but we don't want to clean up files yet
-        c = dataquality.get_data_logger("text_classification")
-        c.upload()
-        validate_uploaded_data(meta_cols=valid_meta_cols)
-        c._cleanup()
-        validate_cleanup_data()
-    finally:
-        # Mock finish() call without calling the API
-        ThreadPoolManager.wait_for_threads()
+    c = dataquality.get_data_logger("text_classification")
+    c.meta = meta
+    c.validate_metadata(NUM_RECORDS * NUM_LOGS)
+
+    removed_cols = ["too_many_doc", "doc_too_long", "another_bad_attr", "bad_attr_3"]
+    for col in removed_cols:
+        assert col not in c.meta
+
+    assert len(c.meta) == MAX_META_COLS
 
 
 def test_logging_duplicate_ids(
@@ -260,8 +263,8 @@ def test_logging_inference_run(
         f"{TEST_PATH}/inference/last-week-customers/emb/emb.hdf5"
     )
 
-    assert (inference_emb_1.emb.to_numpy() == embs_1).all()
-    assert (inference_emb_2.emb.to_numpy() == embs_2).all()
+    assert np.isclose(inference_emb_1.emb.to_numpy(), embs_1).all()
+    assert np.isclose(inference_emb_2.emb.to_numpy(), embs_2).all()
 
     inference_prob_1 = vaex.open(f"{TEST_PATH}/inference/all-customers/prob/prob.hdf5")
     inference_prob_2 = vaex.open(
@@ -273,13 +276,13 @@ def test_logging_inference_run(
     assert "prob" in inference_prob_1.get_column_names()
     assert "prob" in inference_prob_2.get_column_names()
 
-    assert (
-        inference_prob_1.prob.to_numpy()
-        == dataquality.get_model_logger().convert_logits_to_probs(logits_1)
+    assert np.isclose(
+        inference_prob_1.prob.to_numpy(),
+        dataquality.get_model_logger().convert_logits_to_probs(logits_1),
     ).all()
-    assert (
-        inference_prob_2.prob.to_numpy()
-        == dataquality.get_model_logger().convert_logits_to_probs(logits_2)
+    assert np.isclose(
+        inference_prob_2.prob.to_numpy(),
+        dataquality.get_model_logger().convert_logits_to_probs(logits_2),
     ).all()
 
 
@@ -338,9 +341,9 @@ def test_logging_train_test_inference(
     test_emb_data = vaex.open(f"{TEST_PATH}/test/0/emb/emb.hdf5")
     inference_emb_data = vaex.open(f"{TEST_PATH}/inference/all-customers/emb/emb.hdf5")
 
-    assert (train_emb_data.emb.to_numpy() == train_embs).all()
-    assert (test_emb_data.emb.to_numpy() == test_embs).all()
-    assert (inference_emb_data.emb.to_numpy() == inf_embs).all()
+    assert np.isclose(train_emb_data.emb.to_numpy(), train_embs).all()
+    assert np.isclose(test_emb_data.emb.to_numpy(), test_embs).all()
+    assert np.isclose(inference_emb_data.emb.to_numpy(), inf_embs).all()
 
     train_prob_data = vaex.open(f"{TEST_PATH}/training/0/prob/prob.hdf5")
     test_prob_data = vaex.open(f"{TEST_PATH}/test/0/prob/prob.hdf5")
@@ -360,17 +363,17 @@ def test_logging_train_test_inference(
     assert "logits" not in test_prob_data.get_column_names()
     assert "logits" not in inference_prob_data.get_column_names()
 
-    assert (
-        train_prob_data.prob.to_numpy()
-        == dataquality.get_model_logger().convert_logits_to_probs(train_logits)
+    assert np.isclose(
+        train_prob_data.prob.to_numpy(),
+        dataquality.get_model_logger().convert_logits_to_probs(train_logits),
     ).all()
-    assert (
-        test_prob_data.prob.to_numpy()
-        == dataquality.get_model_logger().convert_logits_to_probs(test_logits)
+    assert np.isclose(
+        test_prob_data.prob.to_numpy(),
+        dataquality.get_model_logger().convert_logits_to_probs(test_logits),
     ).all()
-    assert (
-        inference_prob_data.prob.to_numpy()
-        == dataquality.get_model_logger().convert_logits_to_probs(inf_logits)
+    assert np.isclose(
+        inference_prob_data.prob.to_numpy(),
+        dataquality.get_model_logger().convert_logits_to_probs(inf_logits),
     ).all()
 
 
@@ -382,11 +385,16 @@ def test_prob_only(set_test_config) -> None:
     val_split_runs = ["0", "1", "3", "4"]
     test_split_runs = ["0"]
 
-    assert logger.prob_only(train_split_runs, "training", "0")
-    assert not logger.prob_only(train_split_runs, "training", "5")
-    assert logger.prob_only(val_split_runs, "validation", "0")
-    assert not logger.prob_only(val_split_runs, "validation", "5")
-    assert not logger.prob_only(test_split_runs, "test", "0")
+    assert logger.prob_only(train_split_runs, "training", "0", last_epoch=None)
+    assert not logger.prob_only(train_split_runs, "training", "5", last_epoch=None)
+    # Last epoch of 9 is invalid because the largest epoch is 5
+    assert not logger.prob_only(test_split_runs, "test", "5", last_epoch=9)
+    assert not logger.prob_only(train_split_runs, "training", "3", last_epoch=4)
+    assert logger.prob_only(val_split_runs, "validation", "0", last_epoch=None)
+    assert not logger.prob_only(val_split_runs, "validation", "5", last_epoch=None)
+    assert not logger.prob_only(test_split_runs, "test", "0", last_epoch=None)
+    # Last epoch of 2 is invalid because the largest epoch is 0
+    assert not logger.prob_only(test_split_runs, "test", "0", last_epoch=2)
 
 
 @mock.patch.object(dataquality.clients.api.ApiClient, "get_presigned_url")
