@@ -1,6 +1,6 @@
 from enum import Enum
 from functools import partial
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd
@@ -8,7 +8,6 @@ from fastai.callback.core import Callback
 from fastai.data.core import DataLoaders
 from fastai.data.load import DataLoader
 from torch.nn import Module
-from torch.utils.hooks import RemovableHandle
 
 import dataquality
 from dataquality import config
@@ -129,7 +128,7 @@ class FastAiDQCallback(Callback):
         self.disable_dq: bool = galileo_disabled()
         self.finish = finish
         self.layer = layer
-        self.reset_data()
+        self.init_config()
         if config.task_type not in ["text_classification", "image_classification"]:
             raise GalileoException(
                 f"task_type {str(config.task_type)} is not supported yet.\
@@ -140,11 +139,34 @@ class FastAiDQCallback(Callback):
         if not self.disable_dq:
             self.logger_config = dataquality.get_model_logger().logger_config
 
-    def reset_config(self) -> None:
+    def init_config(self) -> None:
         self.model_outputs_log: Dict[FAIKey, Any] = {}
         self.current_idx: List[int] = []
         self.patches: List[_PatchDLGetIdxs] = []
-        self.idx_store: Dict[FAIKey, Any] = {FAIKey.idx_queue: []}
+        self.idx_store = self.setup_idx_store()
+        self.counter = 0
+
+    def setup_idx_store(self) -> Dict[FAIKey, Any]:
+        return {
+            FAIKey.idx_queue: [],
+            FAIKey.dataloader_indices: {
+                Split.training: [],
+                Split.validation: [],
+                Split.test: [],
+            },
+        }
+
+    def reset_idx_store(self) -> None:
+        self.idx_store[FAIKey.idx_queue].clear()
+        self.idx_store[FAIKey.dataloader_indices][Split.training].clear()
+        self.idx_store[FAIKey.dataloader_indices][Split.validation].clear()
+        self.idx_store[FAIKey.dataloader_indices][Split.test].clear()
+
+    def reset_config(self) -> None:
+        self.model_outputs_log.clear()
+        self.current_idx.clear()
+        self.patches.clear()
+        self.idx_store[FAIKey.idx_queue].clear()
         self.counter = 0
 
     def get_layer(self) -> Module:
@@ -286,16 +308,14 @@ class FastAiDQCallback(Callback):
 
         dataquality.log_model_outputs(embs=embs, logits=logits, ids=ids)
 
-    def register_hooks(self) -> Optional[RemovableHandle]:
+    def register_hooks(self) -> None:
         """
         Registers the classifier layer hook.
         """
-        h = None
         if not self.hook:
             forward_hook = partial(self.forward_hook_with_store, self.model_outputs_log)
             h = self.get_layer().register_forward_hook(forward_hook)
             self.hook = h
-        return h
 
     def forward_hook_with_store(
         self,
@@ -330,6 +350,7 @@ class FastAiDQCallback(Callback):
         Unpatches the dataloader and removes the hook.
         """
         for patch in self.patches:
+            print("Unpatching", patch)
             patch.unpatch()
 
     def unhook(self) -> None:
