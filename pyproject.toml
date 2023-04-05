@@ -50,6 +50,7 @@ doc = [
     "sphinx-markdown-builder"
 ]
 test = [
+    "pytest-split"
     "pytest>=7.2.1",
     "mypy>=1.0.0",
     "freezegun>=1.2.2",
