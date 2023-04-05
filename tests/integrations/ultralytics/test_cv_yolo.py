@@ -63,10 +63,9 @@ def test_end2end_yolov8(
     # TODO: Make this path better using the current file location
     ds_path = "tests/integrations/ultralytics/coco.yaml"
     model = YOLO("./tests/integrations/ultralytics/yolov8n.pt")
-    dq.set_split(Split.validation)
-    watch(model)
-    for split in [Split.training, Split.validation]:
-        dq.set_split(Split.validation)
+
+    for split in [Split.training, Split.validation]:  # ,
+        dq.set_split(split)
         tmp_cfg_path = temporary_cfg_for_val(ds_path, split)
         if not tmp_cfg_path:
             continue
@@ -83,12 +82,12 @@ def test_end2end_yolov8(
     # Need to make sure that all image_ids in the box df exist in image df.
     # It's possible image_df has more, when an image has no GT and no pred boxes
     assert set(box_df["image_id"].unique()).issubset(image_df["id"].tolist())
+
     dq.get_data_logger().upload()
 
-    # TODO: @franz need to get training data logged
     for split in [Split.training, Split.validation]:
         dq.set_split(split)
-        vaex.open(f"{TEST_PATH}/{split}/0/data/data.hdf5")
+        data_df = vaex.open(f"{TEST_PATH}/{split}/0/data/data.hdf5")
         prob_df = vaex.open(f"{TEST_PATH}/{split}/0/prob/prob.hdf5")
         emb_df = vaex.open(f"{TEST_PATH}/{split}/0/emb/emb.hdf5")
         assert sorted(emb_df.get_column_names()) == ["emb_pca", "id"]
@@ -111,6 +110,5 @@ def test_end2end_yolov8(
         assert prob_df.bbox.dtype == "float32"
         assert prob_df.gold.dtype == "int32"
         assert prob_df.image_id.dtype == "int32"
-        # data_cols = ["id", "image", "split", "data_schema_version"]
-        # assert sorted(data_df.get_column_names()) == sorted(data_cols)
-    dq.finish()
+        data_cols = ["id", "image", "split", "data_schema_version"]
+        assert sorted(data_df.get_column_names()) == sorted(data_cols)

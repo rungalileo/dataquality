@@ -206,7 +206,7 @@ class ObjectDetectionModelLogger(BaseGalileoModelLogger):
         is the shape of an empty numpy array. We similarly construct the image ids
         in `construct_image_ids` to have the same length,
         """
-        image_ids = self.construct_image_ids()
+        image_ids = np.array(self.construct_image_ids(), dtype=np.int32)
         pred_emb_arrays = np.concatenate(
             [arr for arr in self.pred_embs if arr.shape[0] != 0]
         )
@@ -228,9 +228,9 @@ class ObjectDetectionModelLogger(BaseGalileoModelLogger):
         num_gold = gold_emb_arrays.shape[0]
         gold_prob_shape = (num_gold, len(self.logger_config.labels))
         # -1 for preds because a pred box won't have a label
-        golds = np.concatenate(
-            [[-1] * num_pred, np.concatenate(self.labels)]
-        ).astype(np.int32)
+        golds = np.concatenate([[-1] * num_pred, np.concatenate(self.labels)]).astype(
+            np.int32
+        )
         obj = {
             "image_id": image_ids,
             "emb": np.concatenate([pred_emb_arrays, gold_emb_arrays]),
