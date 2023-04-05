@@ -23,7 +23,7 @@ a = Analytics(ApiClient, config)
 a.log_import("fastai")
 
 
-class FastAiKeys(Enum):
+class FAIKey(Enum):
     dataloader_indices = "dataloader_indices"
     idx_queue = "idx_queue"
     model_input = "model_input"
@@ -38,9 +38,7 @@ class _PatchDLGetIdxs:
     self.dl.get_idxs = _PatchDLGetIdxs(self.dl.get_idxs, self.idx_log)
     """
 
-    def __init__(
-        self, obj: object, func_name: str, store: Dict[FastAiKeys, Any]
-    ) -> None:
+    def __init__(self, obj: object, func_name: str, store: Dict[FAIKey, Any]) -> None:
         """
         Patch the DataLoader to store the indices of the batches.
         For example:
@@ -55,7 +53,7 @@ class _PatchDLGetIdxs:
         if not self.old_func:
             raise ValueError(f"Function {func_name} not found on {str(obj)}")
         self.store = store
-        self.store[FastAiKeys.dataloader_indices] = {
+        self.store[FAIKey.dataloader_indices] = {
             Split.training: [],
             Split.validation: [],
             Split.test: [],
@@ -70,9 +68,9 @@ class _PatchDLGetIdxs:
         """
         res = self.old_func(*args, **kwargs)
         if res:
-            self.store[FastAiKeys.dataloader_indices][
-                self.logger_config.cur_split
-            ].append(res)
+            self.store[FAIKey.dataloader_indices][self.logger_config.cur_split].append(
+                res
+            )
         return res
 
     def unpatch(self) -> None:
@@ -109,10 +107,10 @@ class FastAiDQCallback(Callback):
     hook = None
     is_initialized = False
     labels = None
-    model_outputs_log: Dict[FastAiKeys, Any]
+    model_outputs_log: Dict[FAIKey, Any]
     current_idx: List[int]
     logger_config: BaseLoggerConfig
-    idx_store: Dict[FastAiKeys, Any]
+    idx_store: Dict[FAIKey, Any]
     disable_dq: bool = False
 
     def __init__(
@@ -138,7 +136,7 @@ class FastAiDQCallback(Callback):
         self.model_outputs_log = {}
         self.current_idx = []
         self.patches: List[_PatchDLGetIdxs] = []
-        self.idx_store = {FastAiKeys.idx_queue: []}
+        self.idx_store = {FAIKey.idx_queue: []}
         self.counter = 0
         if config.task_type not in ["text_classification", "image_classification"]:
             raise GalileoException(
@@ -163,6 +161,7 @@ class FastAiDQCallback(Callback):
             return self.layer
 
     def before_epoch(self) -> None:
+        # unfrozen = self.opt.frozen_idx == 0
         if not self.disable_dq:
             dataquality.set_epoch(self.epoch)
 
@@ -172,7 +171,7 @@ class FastAiDQCallback(Callback):
         ), "DataLoader must be initialized with drop_last=False"
         if self.is_initialized or self.disable_dq:
             return
-        self.wrap_indices(getattr(self, "dl"))
+        self.wrap_indices(getattr(self, "dl", None))
         self.register_hooks()
 
         self.is_initialized = True
@@ -209,6 +208,10 @@ class FastAiDQCallback(Callback):
             return
         dataquality.set_split(dataquality.schemas.split.Split.train)
 
+    def is_train_or_val(self) -> bool:
+        cur_split = dataquality.get_data_logger().logger_config.cur_split
+        return cur_split not in ["inference", "test"]
+
     def before_validate(self) -> None:
         """
         Sets the split in data quality and registers the classifier layer hook.
@@ -217,8 +220,9 @@ class FastAiDQCallback(Callback):
         self.wrap_indices(getattr(self, "dl"))
         if self.disable_dq:
             return
-        dataquality.set_split(dataquality.schemas.split.Split.validation)
-        self.idx_store[FastAiKeys.idx_queue] = []
+        if self.is_train_or_val():
+            dataquality.set_split(dataquality.schemas.split.Split.validation)
+        self.idx_store[FAIKey.idx_queue] = []
 
     def after_fit(self) -> None:
         """
@@ -230,11 +234,12 @@ class FastAiDQCallback(Callback):
         if self.counter != 2:
             return
         print("Finishing dataquality")
-        try:
-            self.h.remove()
-        except Exception:
-            pass
+
         if self.finish:
+            try:
+                self.unwatch()
+            except Exception:
+                pass
             dataquality.finish()
 
     def before_batch(self) -> None:
@@ -248,17 +253,15 @@ class FastAiDQCallback(Callback):
         Logs the model outputs.
         """
         # Get the current batch size
-        bs_len = len(self.model_outputs_log[FastAiKeys.model_output])
+        bs_len = len(self.model_outputs_log[FAIKey.model_output])
         # Store the current batch ids by trimming the stored ids by
         # the batch size length
         cur_split = self.logger_config.cur_split
-        indices = self.idx_store[FastAiKeys.dataloader_indices][cur_split][-1][
+        indices = self.idx_store[FAIKey.dataloader_indices][cur_split][-1][
             :bs_len
         ].copy()
-        idx_store = self.idx_store[FastAiKeys.dataloader_indices][cur_split][-1][
-            bs_len:
-        ]
-        self.idx_store[FastAiKeys.dataloader_indices][cur_split][-1] = idx_store
+        idx_store = self.idx_store[FAIKey.dataloader_indices][cur_split][-1][bs_len:]
+        self.idx_store[FAIKey.dataloader_indices][cur_split][-1] = idx_store
         try:
             if cur_split is not None:
                 id_map = self.logger_config.idx_to_id_map[cur_split]
@@ -270,8 +273,8 @@ class FastAiDQCallback(Callback):
             print("cur_split error", cur_split, e)
             return
         # Log the model outputs
-        embs = self.model_outputs_log[FastAiKeys.model_input][0].detach().cpu().numpy()
-        logits = self.model_outputs_log[FastAiKeys.model_output].detach().cpu().numpy()
+        embs = self.model_outputs_log[FAIKey.model_input][0].detach().cpu().numpy()
+        logits = self.model_outputs_log[FAIKey.model_output].detach().cpu().numpy()
         equal_len = len(embs) == len(logits) == len(ids) == len(embs)
         if not equal_len:
             raise GalileoException(
@@ -297,7 +300,7 @@ class FastAiDQCallback(Callback):
 
     def forward_hook_with_store(
         self,
-        store: Dict[FastAiKeys, Any],
+        store: Dict[FAIKey, Any],
         layer: Module,
         model_input: Any,
         model_output: Any,
@@ -310,11 +313,27 @@ class FastAiDQCallback(Callback):
         :param model_output: Output of the model.
         :return: None
         """
-        store[FastAiKeys.model_input] = model_input
-        store[FastAiKeys.model_output] = model_output
+        store[FAIKey.model_input] = model_input
+        store[FAIKey.model_output] = model_output
+
+    def load_test_dl(
+        self,
+        dl_test: DataLoader,
+    ) -> None:
+        """
+        Loads the test dataloader. To wrap it and set the split.
+        :param dl_test: Test dataloader.
+        """
+        dataquality.set_split(Split.test)
+        self.wrap_indices(
+            dl_test,
+        )
 
     def unwatch(self) -> None:
-        for patch in self.patch:
+        """
+        Unpatches the dataloader and removes the hook.
+        """
+        for patch in self.patches:
             print("unpatching", patch)
             patch.unpatch()
         if self.hook:
