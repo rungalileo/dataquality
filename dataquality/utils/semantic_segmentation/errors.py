@@ -4,9 +4,7 @@ import numpy as np
 import torch
 
 
-def calculate_false_positives(
-    preds: torch.Tensor, gt_masks: torch.Tensor
-) -> List[str]:
+def calculate_false_positives(preds: torch.Tensor, gt_masks: torch.Tensor) -> List[str]:
     """Calculates a set of False Positive classes for each image in the batch
 
     For each image, returns a set of classes that were predicted but not

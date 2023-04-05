@@ -9,12 +9,12 @@ from dataquality.loggers.logger_config.semantic_segmentation import (
 )
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.schemas.split import Split
-from dataquality.utils.cv.semantic_segmentation.contours import find_and_upload_contours
-from dataquality.utils.cv.semantic_segmentation.errors import (
+from dataquality.utils.semantic_segmentation.contours import find_and_upload_contours
+from dataquality.utils.semantic_segmentation.errors import (
     calculate_false_positives,
     calculate_missing_segments,
 )
-from dataquality.utils.cv.semantic_segmentation.metrics import (
+from dataquality.utils.semantic_segmentation.metrics import (
     calculate_and_upload_dep,
     calculate_mean_iou,
 )

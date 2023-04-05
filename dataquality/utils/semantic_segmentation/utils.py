@@ -8,7 +8,8 @@ def mask_to_boundary(mask: np.ndarray, dilation_ratio: float = 0.02) -> np.ndarr
     Convert binary mask to boundary mask.
 
     :param mask (numpy array, uint8): binary mask
-    :param dilation_ratio (float): ratio to calculate dilation = dilation_ratio * image_diagonal
+    :param dilation_ratio (float): ratio to calculate dilation
+        dilation = dilation_ratio * image_diagonal
     :return: boundary mask (numpy array)
     """
     if mask.shape[1] == 1:
@@ -20,7 +21,7 @@ def mask_to_boundary(mask: np.ndarray, dilation_ratio: float = 0.02) -> np.ndarr
         dilation = int(round(dilation_ratio * img_diag))
         if dilation < 1:
             dilation = 1
-        # Pad image so mask truncated by the image border is also considered as boundary.
+        # Pad image so mask truncated by the image border is also considered as boundary
         new_mask = cv2.copyMakeBorder(
             mask[im], 1, 1, 1, 1, cv2.BORDER_CONSTANT, value=0
         )
