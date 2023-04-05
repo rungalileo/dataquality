@@ -242,10 +242,10 @@ class FastAiDQCallback(Callback):
         Sets the split in data quality and registers the classifier layer hook.
         """
 
+        self.wrap_indices(getattr(self, "dl"))
         if self.disable_dq:
             return
         if self.is_train_or_val():
-            self.wrap_indices(getattr(self, "dl"))
             dataquality.set_split(dataquality.schemas.split.Split.validation)
         self.idx_store[FAIKey.idx_queue] = []
 
@@ -348,10 +348,11 @@ class FastAiDQCallback(Callback):
         self.unhook()
         self.hook = None
         self.is_initialized = False
-        dataquality.set_split(split)
-        self.wrap_indices(
-            dl_test,
-        )
+        self.register_hooks()
+        self.is_initialized = True
+        dataquality.set_epoch(0)
+        self.wrap_indices(dl_test)
+        dataquality.set_split("test")
 
     def unpatch(self) -> None:
         """
