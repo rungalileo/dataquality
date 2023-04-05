@@ -54,7 +54,6 @@ class Manager:
     def _after_pred_step(self, *args: Any, **kwargs: Any) -> None:
         # import pdb; pdb.set_trace()
         with torch.no_grad():
-            import pdb; pdb.set_trace()
             logging_data = self.bl['batch']
             preds = self.step_pred.model_output
 
