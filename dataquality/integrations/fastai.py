@@ -50,7 +50,6 @@ class _PatchDLGetIdxs:
         self.logger_config = dataquality.get_model_logger().logger_config
         self.obj = obj
         self.func_name = func_name
-        self.hook: Optional[RemovableHandle] = None
         self.old_func = getattr(obj, func_name)
         if not self.old_func:
             raise ValueError(f"Function {func_name} not found on {str(obj)}")
@@ -129,6 +128,8 @@ class FastAiDQCallback(Callback):
         self.disable_dq: bool = galileo_disabled()
         self.finish = finish
         self.layer = layer
+        self.hook: Optional[RemovableHandle] = None
+
         self.init_config()
         if config.task_type not in ["text_classification", "image_classification"]:
             raise GalileoException(

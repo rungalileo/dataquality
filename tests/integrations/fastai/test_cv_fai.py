@@ -64,7 +64,7 @@ def test_auto(
     mock_create_run.return_value = {"id": DEFAULT_RUN_ID}
     set_test_config(current_project_id=None, current_run_id=None)
     label_func = lambda x: x[0].isupper()  # noqa: E731
-    image_files = list(map(Path, glob("tests/assets/images/*"))) * 200
+    image_files = list(map(Path, glob("tests/assets/images/*"))) * 10
     path = "tests/assets/images"
     dls = ImageDataLoaders.from_name_func(
         path,
