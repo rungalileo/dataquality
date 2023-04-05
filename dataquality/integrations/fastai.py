@@ -182,11 +182,14 @@ class FastAiDQCallback(Callback):
             return self.layer
 
     def before_epoch(self) -> None:
+        print("before epoch")
         # unfrozen = self.opt.frozen_idx == 0
         if not self.disable_dq:
             dataquality.set_epoch(self.epoch)
+        print("after epoch")
 
     def before_fit(self) -> None:
+        print("before fit")
         assert (
             self.dls.drop_last is not None and not self.dls.drop_last
         ), "DataLoader must be initialized with drop_last=False"
@@ -196,11 +199,13 @@ class FastAiDQCallback(Callback):
         self.register_hooks()
 
         self.is_initialized = True
+        print("after fit")
 
     def before_train(self) -> None:
         """
         Sets the split in data quality and registers the classifier layer hook.
         """
+        print("before train")
         if self.disable_dq:
             return
         dataquality.set_split(dataquality.schemas.split.Split.train)
@@ -210,6 +215,7 @@ class FastAiDQCallback(Callback):
         self.register_hooks()
 
         self.is_initialized = True
+        print("before train")
 
     def wrap_indices(self, dl: DataLoader) -> None:
         """
@@ -225,9 +231,11 @@ class FastAiDQCallback(Callback):
             self.patches.append(patch)
 
     def after_validate(self) -> None:
+        print("after validate")
         if self.disable_dq:
             return
         dataquality.set_split(dataquality.schemas.split.Split.train)
+        print("after validate")
 
     def is_train_or_val(self) -> bool:
         cur_split = dataquality.get_data_logger().logger_config.cur_split
@@ -237,18 +245,20 @@ class FastAiDQCallback(Callback):
         """
         Sets the split in data quality and registers the classifier layer hook.
         """
-
+        print("before validate")
         self.wrap_indices(getattr(self, "dl"))
         if self.disable_dq:
             return
         if self.is_train_or_val():
             dataquality.set_split(dataquality.schemas.split.Split.validation)
         self.idx_store[FAIKey.idx_queue] = []
+        print("after validate")
 
     def after_fit(self) -> None:
         """
         Uploads data to galileo and removes the classifier layer hook.
         """
+        print("after fit")
         if (self.n_epoch - 1) == self.epoch:
             self.counter += 1
 
@@ -262,17 +272,20 @@ class FastAiDQCallback(Callback):
             except Exception:
                 pass
             dataquality.finish()
+        print("after fit")
 
     def before_batch(self) -> None:
         """
         Clears the model outputs log.
         """
+        print("before batch")
         self.model_outputs_log.clear()
 
     def after_pred(self) -> None:
         """
         Logs the model outputs.
         """
+        print("after pred")
         # Get the current batch size
         bs_len = len(self.model_outputs_log[FAIKey.model_output])
         # Store the current batch ids by trimming the stored ids by
@@ -307,6 +320,7 @@ class FastAiDQCallback(Callback):
             return
 
         dataquality.log_model_outputs(embs=embs, logits=logits, ids=ids)
+        print("after pred")
 
     def register_hooks(self) -> None:
         """
