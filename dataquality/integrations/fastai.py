@@ -1,6 +1,8 @@
 from enum import Enum
 from functools import partial
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
+from torch.utils.hooks import RemovableHandle
+
 
 import numpy as np
 import pandas as pd
@@ -48,6 +50,7 @@ class _PatchDLGetIdxs:
         self.logger_config = dataquality.get_model_logger().logger_config
         self.obj = obj
         self.func_name = func_name
+        self.hook: Optional[RemovableHandle] = None
         self.old_func = getattr(obj, func_name)
         if not self.old_func:
             raise ValueError(f"Function {func_name} not found on {str(obj)}")
@@ -102,8 +105,6 @@ class FastAiDQCallback(Callback):
         learn.fine_tune(2)
 
     """
-
-    hook = None
 
     logger_config: BaseLoggerConfig
 
@@ -233,16 +234,17 @@ class FastAiDQCallback(Callback):
     def is_train_or_val(self) -> bool:
         cur_split = dataquality.get_data_logger().logger_config.cur_split
         assert cur_split
-        return str(cur_split) not in ["inference", "test", Split.inference, Split.test]
+        return cur_split not in ["inference", "test", Split.inference, Split.test]
 
     def before_validate(self) -> None:
         """
         Sets the split in data quality and registers the classifier layer hook.
         """
-        self.wrap_indices(getattr(self, "dl"))
+
         if self.disable_dq:
             return
         if self.is_train_or_val():
+            self.wrap_indices(getattr(self, "dl"))
             dataquality.set_split(dataquality.schemas.split.Split.validation)
         self.idx_store[FAIKey.idx_queue] = []
 
@@ -314,8 +316,7 @@ class FastAiDQCallback(Callback):
         """
         if not self.hook:
             forward_hook = partial(self.forward_hook_with_store, self.model_outputs_log)
-            h = self.get_layer().register_forward_hook(forward_hook)
-            self.hook = h
+            self.hook = self.get_layer().register_forward_hook(forward_hook)
 
     def forward_hook_with_store(
         self,
