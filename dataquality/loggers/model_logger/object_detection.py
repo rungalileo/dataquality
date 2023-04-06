@@ -206,7 +206,7 @@ class ObjectDetectionModelLogger(BaseGalileoModelLogger):
         is the shape of an empty numpy array. We similarly construct the image ids
         in `construct_image_ids` to have the same length,
         """
-        image_ids = self.construct_image_ids()
+        image_ids = np.array(self.construct_image_ids(), dtype=np.int32)
         pred_emb_arrays = np.concatenate(
             [arr for arr in self.pred_embs if arr.shape[0] != 0]
         )

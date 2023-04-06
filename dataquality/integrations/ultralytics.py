@@ -1,3 +1,4 @@
+from collections import defaultdict
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -14,7 +15,10 @@ from ultralytics.yolo.utils.tal import dist2bbox, make_anchors
 import dataquality as dq
 from dataquality import get_data_logger
 from dataquality.exceptions import GalileoException
-from dataquality.loggers.data_logger.object_detection import ObjectDetectionDataLogger
+from dataquality.loggers.data_logger.object_detection import (
+    ODCols,
+    ObjectDetectionDataLogger,
+)
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.ultralytics import get_batch_data, non_max_suppression
@@ -250,14 +254,14 @@ class Callback:
     def init_run(self) -> None:
         dq.set_labels_for_run(list(self.validator.dataloader.dataset.names.values()))
         ds = self.convert_dataset(self.validator.dataloader.dataset)
-        # TODO: replace with data logger
-
         data_logger = get_data_logger()
         assert isinstance(data_logger, ObjectDetectionDataLogger), (
             "This method is only supported for image tasks. "
             "Please use dq.log_dataset for text tasks."
         )
-        data_logger.log_dataset(ds, split=data_logger.logger_config.cur_split)
+        split = data_logger.logger_config.cur_split
+        assert split
+        data_logger.log_dataset(ds, split=split)
 
     def convert_dataset(self, dataset: Any) -> List:
         assert len(dataset) > 0
@@ -275,10 +279,10 @@ class Callback:
             bbox_gold = scale_boxes(batch_img_shape, tbox, shape, ratio_pad=ratio_pad)
             processed_dataset.append(
                 {
-                    "id": i,
-                    "file_name": image["im_file"],
-                    "bbox": bbox_gold,
-                    "cls": image["cls"],
+                    ODCols.id: i,
+                    ODCols.image: image["im_file"],
+                    ODCols.bbox: bbox_gold,
+                    ODCols.gold_cls: image["cls"],
                 }
             )
         return processed_dataset

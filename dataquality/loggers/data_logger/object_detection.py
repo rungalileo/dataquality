@@ -1,8 +1,11 @@
-from typing import Any, List, Optional, Union
+from collections import defaultdict
+from enum import Enum, unique
+from typing import Any, Dict, Iterable, List, Optional, Union
 
 import pandas as pd
 import vaex
 from pandas import DataFrame
+from dataquality.exceptions import GalileoException
 
 from dataquality.loggers.data_logger.base_data_logger import (
     ITER_CHUNK_SIZE,
@@ -17,46 +20,82 @@ from dataquality.loggers.logger_config.object_detection import (
 from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.dataframe import BaseLoggerDataFrames, DFVar
 from dataquality.schemas.split import Split
-from dataquality.utils.vaex import add_pca_to_df
+from dataquality.utils.vaex import add_pca_to_df, rename_df
+
+
+@unique
+class GalileoDataLoggerAttributes(str, Enum):
+    image = "image"
+    bbox = "bbox"
+    gold_cls = "gold_cls"
+    ids = "ids"
+    # mixin restriction on str (due to "str".split(...))
+    split = "split"  # type: ignore
+    meta = "meta"  # Metadata columns for logging
+
+    @staticmethod
+    def get_valid() -> List[str]:
+        return list(map(lambda x: x.value, GalileoDataLoggerAttributes))
+
+
+class ODCols(str, Enum):
+    image = "image"
+    bbox = "bbox"
+    gold_cls = "gold_cls"
+    id = "id"
+    # mixin restriction on str (due to "str".split(...))
+    split = "split"  # type: ignore
+    meta = "meta"  # Metadata columns for logging
 
 
 class ObjectDetectionDataLogger(BaseGalileoDataLogger):
+    """
+    Class for logging input data/data of Object Detection models to Galileo.
+    """
+
     __logger_name__ = "object_detection"
     logger_config: ObjectDetectionLoggerConfig = object_detection_logger_config
-    ids: List
-    image: List
-    bbox: List
-    cls: List
 
     def __init__(
         self,
-        texts: Optional[List[str]] = None,
-        labels: Optional[List[str]] = None,
+        images: Optional[List[str]] = None,
+        bboxes: Optional[List] = None,
+        gold_cls: Optional[List[str]] = None,
         ids: Optional[List[int]] = None,
         split: Optional[str] = None,
         meta: Optional[MetasType] = None,
         inference_name: Optional[str] = None,
     ) -> None:
-        super().__init__(
-            meta=meta,
-        )
-        self.ids = []
-        self.image = []
-        self.bbox = []
-        self.cls = []
+        super().__init__(meta)
+        self.gold_cls = gold_cls if gold_cls is not None else []
+        self.bboxes = bboxes if bboxes is not None else []
+        self.images = images if images is not None else []
+        self.ids = ids if ids is not None else []
+        self.split = split
+        self.inference_name = inference_name
+
+    @staticmethod
+    def get_valid_attributes() -> List[str]:
+        """
+        Returns a list of valid attributes that GalileoModelConfig accepts
+        :return: List[str]
+        """
+        return GalileoDataLoggerAttributes.get_valid()
 
     def _get_input_df(self) -> DataFrame:
         df_len = len(self.ids)
         inp = dict(
             id=self.ids,
-            image=self.image,
-            # bbox=self.bbox,
-            # cls=self.cls,
+            image=self.images,
             split=[Split(self.split).value] * df_len,
             data_schema_version=[__data_schema_version__] * df_len,
             **self.meta,
+            # bbox=self.bbox,
+            # cls=self.cls,
         )
-        print(pd.DataFrame(inp))
+        if self.split == Split.inference:
+            inp["inference_name"] = [self.inference_name] * df_len
+
         return vaex.from_pandas(pd.DataFrame(inp))
 
     def log_dataset(
@@ -64,19 +103,136 @@ class ObjectDetectionDataLogger(BaseGalileoDataLogger):
         dataset: DataSet,
         *,
         batch_size: int = ITER_CHUNK_SIZE,
-        text: Union[str, int] = "text",
-        id: Union[str, int] = "id",
+        image: Union[str, int] = ODCols.image,
+        id: Union[str, int] = ODCols.id,
+        bbox: Union[str, int] = ODCols.bbox,
+        gold_cls: Union[str, int] = ODCols.gold_cls,
         split: Optional[Split] = None,
+        inference_name: Optional[str] = None,
         meta: Optional[List[Union[str, int]]] = None,
         **kwargs: Any,
     ) -> None:
+        """Log a dataset of input samples for OD"""
+        self.validate_kwargs(kwargs)
         self.split = split
+        self.inference_name = inference_name
+        meta = meta or []
+        column_map = {
+            image: ODCols.image,
+            id: ODCols.id,
+            gold_cls: ODCols.gold_cls,
+            bbox: ODCols.bbox,
+        }
+        if isinstance(dataset, pd.DataFrame):
+            dataset = dataset.rename(columns=column_map)
+            self._log_df(dataset, meta)
+        elif isinstance(dataset, DataFrame):
+            for chunk in range(0, len(dataset), batch_size):
+                chunk_df = dataset[chunk : chunk + batch_size]
+                chunk_df = rename_df(chunk_df, column_map)
+                self._log_df(chunk_df, meta)
+        elif isinstance(dataset, Iterable):
+            self._log_iterator(
+                dataset,
+                batch_size,
+                image,
+                id,
+                bbox,
+                gold_cls,
+                meta,
+                split,
+                inference_name,
+            )
+        else:
+            raise GalileoException(
+                f"Dataset must be one of pandas, vaex, HF, or Iterable, "
+                f"but got {type(dataset)}"
+            )
 
-        for img in dataset:
-            self.ids.append(img["id"])
-            self.image.append(img["file_name"])
-            self.bbox.append(img["bbox"])
-            self.cls.append(img["cls"])
+    def _log_iterator(
+        self,
+        dataset: Iterable,
+        batch_size: int,
+        image: Union[str, int],
+        id: Union[str, int],
+        bbox: Union[str, int],
+        gold_cls: Union[str, int],
+        meta: List[Union[str, int]],
+        split: Optional[Split] = None,
+        inference_name: Optional[str] = None,
+    ) -> None:
+        batches = defaultdict(list)
+        metas = defaultdict(list)
+        for chunk in dataset:
+            batches[ODCols.image].append(chunk[image])
+            batches[ODCols.id].append(chunk[id])
+
+            if split != Split.inference:
+                batches[ODCols.gold_cls].append(chunk[gold_cls])
+                batches[ODCols.bbox].append(chunk[bbox])
+
+            for meta_col in meta:
+                metas[meta_col].append(self._convert_tensor_to_py(chunk[meta_col]))
+
+            if len(batches[ODCols.image]) >= batch_size:
+                self._log_dict(batches, metas, split)
+                batches.clear()
+                metas.clear()
+
+        # in case there are any left
+        if batches:
+            self._log_dict(batches, metas, split, inference_name)
+
+    def _log_dict(
+        self,
+        d: Dict,
+        meta: Dict,
+        split: Optional[Split] = None,
+        inference_name: Optional[str] = None,
+    ) -> None:
+        self.log_image_samples(
+            images=d[ODCols.image],
+            ids=d[ODCols.id],
+            bboxes=d.get(ODCols.bbox),
+            gold_cls=d.get(ODCols.gold_cls),
+            split=split,
+            meta=meta,
+            inference_name=inference_name,
+        )
+
+    def _log_df(
+        self, df: Union[pd.DataFrame, DataFrame], meta: List[Union[str, int]]
+    ) -> None:
+        """Helper to log a pandas or vaex df"""
+        self.images = df[ODCols.image].tolist()
+        self.ids = df[ODCols.id].tolist()
+        self.bboxes = df[ODCols.bbox].tolist()
+        self.gold_cls = df[ODCols.gold_cls].tolist() if ODCols.gold_cls in df else []
+        for meta_col in meta:
+            self.meta[str(meta_col)] = df[meta_col].tolist()
+        self.log()
+
+    def log_image_samples(
+        self,
+        *,
+        images: List[str],
+        ids: List[int],
+        bboxes: Optional[List] = None,
+        gold_cls: Optional[List] = None,
+        split: Optional[Split] = None,
+        inference_name: Optional[str] = None,
+        meta: Optional[MetasType] = None,
+        **kwargs: Any,  # For typing
+    ) -> None:
+        """Log input samples for OD"""
+        self.validate_kwargs(kwargs)
+        self.images = images
+        self.ids = ids
+        self.split = split
+        self.inference_name = inference_name
+        self.bboxes = bboxes if bboxes is not None else []
+        self.gold_spans = gold_cls if gold_cls is not None else []
+        self.meta = meta or {}
         self.log()
 
     def convert_large_string(self, df: DataFrame) -> DataFrame:

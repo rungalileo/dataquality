@@ -35,6 +35,8 @@ def main() -> None:
     run_path_glob = "runs/detect/train*"
     files_start = glob.glob(run_path_glob)
     bash_run = " ".join(original_cmd)
+    if not bash_run.startswith("yolo"):
+        bash_run = "yolo " + bash_run
     os.system(bash_run)
     # Once training is complete we can init galileo
     print("Run complete")
