@@ -1,5 +1,7 @@
 from typing import Any, Callable, Dict, Optional, Tuple, Union, List
 from queue import Queue
+import warnings
+from warnings import warn
 
 import numpy as np
 import torch
@@ -7,10 +9,9 @@ from torch.nn import functional as F
 from torch.nn import Module
 from torch.utils.data import DataLoader
 from torch.utils.hooks import RemovableHandle
-
-from dataquality.loggers.logger_config.semantic_segmentation import (
-    semantic_segmentation_logger_config,
-)
+from dataquality.analytics import Analytics
+from dataquality.clients.api import ApiClient
+import dataquality as dq
 from dataquality.loggers.model_logger.semantic_segmentation import (
     SemanticSegmentationModelLogger,
 )
@@ -19,11 +20,17 @@ from dataquality.utils.helpers import wrap_fn
 from dataquality.utils.semantic_segmentation.utils import mask_to_boundary
 from dataquality.utils.torch import store_batch_indices
 from dataquality.exceptions import GalileoException
-from dataquality.utils.torch import ModelHookManager
+from dataquality.utils.torch import (
+    ModelHookManager, 
+    unpatch, 
+    remove_all_forward_hooks
+)
 
 from dataquality.integrations.torch import TorchLogger
 from dataquality.schemas.task_type import TaskType
-from dataquality.schemas.torch import Layer
+
+a = Analytics(ApiClient, dq.config)  # type: ignore
+a.log_import("torch")
 
 class StoreHook:
     def __init__(self) -> None:
@@ -326,8 +333,116 @@ def patch_iterator_and_batch(store: Dict[str, Any]) -> Callable:
 
     return patch_iterator
 
+def watch(
+    model: Module,
+    n_classes: int,
+    dataloaders: Optional[List[DataLoader]] = [],
+    classifier_layer: Optional[Union[str, Module]] = None,
+    mask_col_name: Optional[str] = None,
+    unpatch_on_start: bool = False,
+) -> None:
+    """
+    wraps a PyTorch model and optionally dataloaders to log the
+    embeddings and logits to [Galileo](https://www.rungalileo.io/).
 
-def watch(model: Any,
+    .. code-block:: python
+
+        dq.log_dataset(train_dataset, split="train")
+        train_dataloader = torch.utils.data.DataLoader()
+        model = TextClassificationModel(num_labels=len(train_dataset.list_of_labels))
+        watch(model, [train_dataloader, test_dataloader])
+        for epoch in range(NUM_EPOCHS):
+            dq.set_epoch_and_split(epoch,"training")
+            train()
+            dq.set_split("validation")
+            validate()
+        dq.finish()
+
+    :param model: Pytorch Model to be wrapped
+    :param dataloaders: List of dataloaders to be wrapped
+    :param classifier_layer: Layer to hook into (usually 'classifier' or 'fc').
+        Inputs are the embeddings and outputs are the logits.
+    """
+    a.log_function("torch/watch")
+    assert dq.config.task_type, GalileoException(
+        "dq client must be initialized. " "For example: dq.init('text_classification')"
+    )
+    if unpatch_on_start:
+        unwatch(model, force=True)
+    if not getattr(model, "_dq", False):
+        setattr(model, "_dq", True)
+    else:
+        raise GalileoException(
+            "Model is already being watched, run unwatch(model) first"
+        )
+
+    # throwing an error as get_model_logger() needs parameters
+    # but from original code so leaving it in to talk with Franz about
+    # helper_data = dq.get_model_logger().logger_config.helper_data
+    print("Attaching dataquality to model and dataloaders")
+    tl = SemanticTorchLogger(model, 
+                             num_classes=n_classes,
+                             mask_col_name=mask_col_name)
+    # Patch the dataloader class if no dataloaders are passed
+    # or if the dataloaders have num_workers > 0
+    if dataloaders is None:
+        dataloaders = []
+    is_single_process_dataloader = all(
+        [getattr(d, "num_workers", 0) == 0 for d in dataloaders]
+    )
+    if len(dataloaders) > 0 and is_single_process_dataloader:
+        for dataloader in dataloaders:
+            assert isinstance(dataloader, DataLoader), GalileoException(
+                "Invalid dataloader. Must be a pytorch dataloader"
+                "from torch.utils.data import DataLoader..."
+                "train_dataloader = DataLoader(dataset)"
+            )
+            assert (
+                getattr(dataloader, "num_workers", 0) == 0
+            ), "Dataloaders with num_workers > 0 are not supported"
+            dataloader._get_iterator = wrap_fn(  # type: ignore
+                dataloader._get_iterator,
+                patch_iterator_and_batch(tl.helper_data['batch']),
+            )
+    else:
+        # Patch the dataloader class globally
+        # Can be unpatched with unwatch()
+        raise NotImplementedError("Dataloaders with num_workers > 0 are not supported")
+        # patch_dataloaders(tl.helper_data)
+
+
+# UNWATCH ERRORS ON DQ.GET_MODEL_LOGGER() BECAUSE IT NEEDS PARAMETERS
+def unwatch(model: Optional[Module] = None, force: bool = True) -> None:
+    """Unwatches the model. Run after the run is finished.
+    :param force: Force unwatch even if the model is not watched"""
+
+    helper_data = dq.get_model_logger().logger_config.helper_data
+    model = model or helper_data.get(HelperData.model, None)
+    if not getattr(model or {}, "_dq", False):
+        warn("Model is not watched, run watch(model) first")
+        if not force:
+            return
+
+    # Unpatch the dataloaders
+    unpatch(helper_data.get(HelperData.patches, []))
+    # Detach hooks the model. in the future use the model passed
+    # https://discuss.pytorch.org/t/how-to-check-where-the-hooks-are-in-the-model/120120/2
+    hook_manager = helper_data.get(HelperData.hook_manager, None)
+    if hook_manager:
+        hook_manager.detach_hooks()
+    # Remove the model from the helper data
+    if isinstance(model, Module):
+        remove_all_forward_hooks(model)
+    else:
+        warnings.warn("model is not a Module")
+    if "model" in helper_data:
+        del helper_data[HelperData.model]
+    if model and hasattr(model, "_dq"):
+        del model._dq
+
+
+
+'''def watch(model: Any,
           dataloader: DataLoader,
           n_classes: int,
           mask_col_name: Optional[str] = None) -> None:
@@ -344,4 +459,4 @@ def watch(model: Any,
     dataloader._get_iterator = wrap_fn(  # type: ignore
         dataloader._get_iterator,
         patch_iterator_and_batch(tl.helper_data['batch']),
-    )
+    )'''
