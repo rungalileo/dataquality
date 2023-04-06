@@ -15,6 +15,11 @@ from dataquality.utils.ultralytics import temporary_cfg_for_val
 
 
 def get_dataset_path(arguments: list) -> str:
+    """Extract the dataset path from the arguments of yolo.
+
+    :param arguments: The arguments of ultralytics yolo.
+    :return: The path to the dataset.
+    """
     for arg in arguments:
         if arg.startswith("data="):
             return arg[5:]
@@ -22,6 +27,13 @@ def get_dataset_path(arguments: list) -> str:
 
 
 def find_last_run(files_start: List, files_end: List) -> str:
+    """Find the path of the last run. This assumes that the path is the only
+    thing that has changed.
+
+    :param files_start: The list of files before the run.
+    :param files_end: The list of files after the run.
+    :return: The path to the last run.
+    """
     file_diff = set(files_end) - set(files_start)
     if not len(file_diff):
         raise ValueError("Model path could not be found.")
@@ -30,37 +42,43 @@ def find_last_run(files_start: List, files_end: List) -> str:
 
 
 def main() -> None:
-    # Take the original args to extract config and then run the original comand
+    """dq-yolo is a wrapper around ultralytics yolo that will automatically
+    run the model on the validation and test sets and provide data insights.
+    """
+    # 1. Take the original args to extract config path
     original_cmd = sys.argv[1:]
     run_path_glob = "runs/detect/train*"
     files_start = glob.glob(run_path_glob)
     bash_run = " ".join(original_cmd)
     if not bash_run.startswith("yolo"):
         bash_run = "yolo " + bash_run
+    # 2. Run the original command
     os.system(bash_run)
-    # Once training is complete we can init galileo
+    # 3. Once training is complete we can eval the data with galileo logging
     print("Run complete")
+    # 4. Find the model path and load it
     dataset_path = get_dataset_path(original_cmd)
     files_end = glob.glob(run_path_glob)
     model_path = find_last_run(files_start, files_end)
     print("Loading trained model:", model_path)
-
-    # Init galileo
+    # 5. Init galileo and run the model on the validation and test sets
     project_name = input("Project name: ")
     run_name = input("Run name: ")
     dq.set_console_url("https://console.dev.rungalileo.io")
     dq.init(task_type="object_detection", project_name=project_name, run_name=run_name)
-
     # Check each file
     for split in [Split.training, Split.validation, Split.test]:
+        # Create a temporary config file for the training set that changes
+        # the dataset path to the validation set so we can log the results
         tmp_cfg_path = temporary_cfg_for_val(dataset_path, split)
         if not tmp_cfg_path:
             continue
         model = YOLO(model_path + "/weights/best.pt")
-        watch(model)
+        watch(model)  # This will automatically log the results to galileo
         dq.set_epoch(0)
         dq.set_split(split)
         model.val(data=tmp_cfg_path)
+        # Remove the temporary config file after we are done
         os.remove(tmp_cfg_path)
     dq.finish()
 

@@ -100,6 +100,9 @@ def finish(
     # Reset the data logger
     data_logger._cleanup()
 
+    # Reset the model logger
+    dataquality.get_model_logger()._cleanup()
+
     return res.get("link") or ""
 
 

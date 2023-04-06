@@ -21,7 +21,7 @@ from dataquality.loggers.data_logger.object_detection import (
 )
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
-from dataquality.utils.ultralytics import get_batch_data, non_max_suppression
+from dataquality.utils.ultralytics import process_batch_data, non_max_suppression
 
 ultralytics.checks()
 
@@ -31,6 +31,14 @@ Coordinates = Union[Tuple, List]
 def find_midpoint(
     box: Coordinates, shape: Coordinates, resized_shape: Coordinates
 ) -> Tuple[int, int, int, int]:
+    """Finds the midpoint of a box in xyxy format
+
+    :param box: box in xyxy format
+    :param shape: shape of the image
+    :param resized_shape: shape of the resized image
+
+    :return: midpoint of the box
+    """
     # function to find the midpoint
     # based off a box in xyxy format
     x1, y1, x2, y2 = box[:4]
@@ -49,6 +57,14 @@ def find_midpoint(
 def create_embedding(
     features: List, box: List, size: Tuple[int, int] = (640, 640)
 ) -> torch.Tensor:
+    """Creates an embedding from a feature map
+
+    :param features: feature map
+    :param box: box in xyxy format
+    :param size: size of the image
+
+    :return: embedding
+    """
     # creates embeddings, features is a feature dict
     # with feature maps, boxes are xyxy format
     out = []
@@ -61,6 +77,15 @@ def create_embedding(
 
 
 def embedding_fn(features: List, boxes: Any, size: Any) -> torch.Tensor:
+    """Creates embeddings for all boxes
+
+    :param features: feature map
+    :param boxes: boxes in xyxy format
+    :param size: size of the image
+
+    :return: embeddings
+    """
+
     # function to create all the embeddings
     embeddings = []
     for box in boxes:
@@ -69,44 +94,80 @@ def embedding_fn(features: List, boxes: Any, size: Any) -> torch.Tensor:
 
 
 class StoreHook:
+    """Generic Hook class to store model input and output"""
+
     h: Any = None
 
-    def on_finish(*args: Any, **kwargs: Any) -> None:
-        pass
+    def __init__(self, on_finish_func: Optional[Callable] = None) -> None:
+        """Initializes the hook
+
+        :param on_finish_func: function to be called when the hook is finished
+        """
+        if on_finish_func is not None:
+            self.on_finish = on_finish_func
 
     def hook(self, model: Any, model_input: Any, model_output: Any) -> None:
+        """Hook function to store model input and output
+
+        :param model: model
+        :param model_input: model input
+        :param model_output: model output
+        """
+
         self.model = model
         self.model_input = model_input
         self.model_output = model_output
-        self.on_finish(model_input, model_output)
+        if self.on_finish is not None:
+            self.on_finish()
 
-    def store_hook(self, h: Any) -> Any:
+    def store_hook(self, h: Any) -> None:
+        """Stores hook for later removal
+
+        :param h: hook
+        """
+
         self.h = h
 
 
 class BatchLogger:
+    """Batch Logger class to store batches for later logging"""
+
     def __init__(self, old_function: Callable) -> None:
+        """Store the batch by overwriting the given method
+
+        :param old_function: method that is wrapped"""
         self.old_function = old_function
 
-    def __call__(self, *args: Any, **kwargs: Any) -> None:
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        """Stores the batch and returns it"""
         self.batch = self.old_function(*args, **kwargs)
         return self.batch
 
 
 class Callback:
+    """Callback class that is used to log batches, embeddings and predictions"""
+
     split: Optional[Split]
     file_map: Dict
 
     def __init__(self, nms_fn: Optional[Callable] = None) -> None:
-        self.step_embs = StoreHook()
-        self.step_pred = StoreHook()
-        self.step_pred.on_finish = self._after_pred_step  # type: ignore
+        """Initializes the callback
+
+        :param nms_fn: non-maximum suppression function
+        """
+        self.step_embs = StoreHook()  # To log embeddings
+        self.step_pred = StoreHook(self._after_pred_step)  # To log predictions
         self.nms_fn = nms_fn
         self.hooked = False
         self.split = None
-        self.file_map = {}
+        self.file_map = {}  # maps file names to ids
 
     def postprocess(self, batch: torch.Tensor) -> Any:
+        """Postprocesses the batch for a training step. Taken from ultralytics.
+        Might be removed in the future.
+
+        :param batch: batch to be postprocessed
+        """
         ref_model = self.step_embs.model
         shape = batch[0].shape  # height, width
         if ref_model.dynamic or ref_model.shape != shape:
@@ -137,14 +198,12 @@ class Callback:
         return y if ref_model.export else (y, batch)
 
     def _after_pred_step(self, *args: Any, **kwargs: Any) -> None:
+        """Called after a prediction step. Logs the predictions and embeddings"""
         if self.split not in [Split.validation]:
             return
         with torch.no_grad():
-            # Do what do we need to convert here?
-            preds = (
-                self.step_pred.model_output
-            )  # tuple([pred for pred in self.step_pred.model_output])
-            logging_data = get_batch_data(self.bl.batch)
+            preds = self.step_pred.model_output
+            logging_data = process_batch_data(self.bl.batch)
             if not self.nms_fn:
                 raise Exception("NMS function not found")
             postprocess = (
@@ -245,13 +304,18 @@ class Callback:
         )
 
     def register_hooks(self, model: Any) -> None:
+        """Register hooks to the model to log predictions and embeddings
+
+        :param model: the model to hook"""
         h = model.register_forward_hook(self.step_pred.hook)
         self.step_pred.store_hook(h)
+        # Take last layer for the embeddings of model.model
         h = model.model[-1].register_forward_hook(self.step_embs.hook)
         self.step_embs.store_hook(h)
         self.hooked = True
 
     def init_run(self) -> None:
+        """Initialize the run"""
         dq.set_labels_for_run(list(self.validator.dataloader.dataset.names.values()))
         ds = self.convert_dataset(self.validator.dataloader.dataset)
         data_logger = get_data_logger()
@@ -264,6 +328,7 @@ class Callback:
         data_logger.log_dataset(ds, split=split)
 
     def convert_dataset(self, dataset: Any) -> List:
+        """Convert the dataset to the format expected by the dataquality client"""
         assert len(dataset) > 0
         processed_dataset = []
         for i, image in enumerate(dataset):
@@ -288,6 +353,10 @@ class Callback:
         return processed_dataset
 
     def on_train_start(self, trainer: BaseTrainer) -> None:
+        """Register hooks and preprocess batch function on train start
+
+        :param trainer: the trainer
+        """
         self.split = Split.training
         self.trainer = trainer
         self.register_hooks(trainer.model)
@@ -295,13 +364,17 @@ class Callback:
         trainer.preprocess_batch = self.bl
 
     def on_train_end(self, trainer: BaseTrainer) -> None:
+        """Restore preprocess batch function on train end
+
+        :param trainer: the trainer"""
         trainer.preprocess_batch = self.bl.old_function
 
     # -- Validator callbacks --
-    def on_val_start(self, validator: BaseValidator) -> None:
-        pass
 
     def on_val_batch_start(self, validator: BaseValidator) -> None:
+        """Register hooks and preprocess batch function on validation start
+
+        :param validator: the validator"""
         self.split = Split.validation
         self.validator = validator
         if not self.hooked:
@@ -313,27 +386,30 @@ class Callback:
 
     # -- Predictor callbacks --
     def on_predict_start(self, predictor: BasePredictor) -> None:
+        """Register hooks on prediction start
+        Note: prediction is not perfect as the model is not in eval mode.
+        May be removed
+
+        :param predictor: the predictor"""
         self.split = Split.inference
         self.predictor = predictor
         if not self.hooked:
             self.register_hooks(predictor.model.model)
             # Not implemnted self.bl = BatchLogger(lambda x: x)
 
-    def on_predict_batch_start(predictor) -> None:
-        pass
-
     def on_predict_batch_end(self, predictor: BasePredictor) -> None:
+        """Log predictions and embeddings on prediction batch end.
+        Not functional yet
+        """
         # TODO: self.bl.batch = predictor.batch
         self._after_pred_step()
 
-    def on_predict_postprocess_end(self, predictor: BasePredictor) -> None:
-        pass
-
-    def on_predict_end(self, predictor: BasePredictor) -> None:
-        pass
-
 
 def add_callback(model: YOLO, cb: Callback) -> None:
+    """Add the callback to the model
+
+    :param model: the model
+    :param cb: callback cls"""
     model.add_callback("on_train_start", cb.on_train_start)
     model.add_callback("on_train_end", cb.on_train_end)
     model.add_callback("on_predict_start", cb.on_predict_start)
@@ -344,6 +420,9 @@ def add_callback(model: YOLO, cb: Callback) -> None:
 
 
 def watch(model: YOLO) -> None:
+    """Watch the model for predictions and embeddings logging.
+
+    :param model: the model to watch"""
     assert dq.config.task_type == TaskType.object_detection, GalileoException(
         "dq client must be initialized for Object Detection. For example: "
         "dq.init('object_detection')"

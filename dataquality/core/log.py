@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 
-from dataquality.loggers.model_logger.object_detection import ObjectDetectionModelLogger
 
 if TYPE_CHECKING:
     import xgboost as xgb
@@ -25,6 +24,10 @@ from dataquality.loggers.data_logger.structured_classification import (
 from dataquality.loggers.logger_config.text_multi_label import (
     text_multi_label_logger_config,
 )
+
+from dataquality.loggers.model_logger.object_detection import ObjectDetectionModelLogger
+
+
 from dataquality.loggers.model_logger import BaseGalileoModelLogger
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
@@ -402,12 +405,17 @@ def log_od_model_outputs(
 ) -> None:
     """Logs model outputs for model during training/test/validation.
 
-    :param embs: The embeddings per output sample
     :param ids: The ids for each sample. Must match input ids of logged samples
+    :param pred_boxes: The predicted bounding boxes for each sample
+    :param gold_boxes: The ground trugh bounding boxes for each sample
+    :param labels: The labels for each sample (classes for each bounding box)
+    :param pred_embs: The embeddings for each predicted sample
+    :param gold_embs: The embeddings for each ground truth sample
+    :param image_size: The size of the image
+    :param embs: The embeddings per output sample
+    :param logits: The logits for each sample
     :param split: The current split. Must be set either here or via dq.set_split
     :param epoch: The current epoch. Must be set either here or via dq.set_epoch
-    :param logits: The logits for each sample
-    :param probs: Deprecated, use logits. If passed in, a softmax will NOT be applied
     :param inference_name: Inference name indicator for this inference split.
         If logging for an inference split, this is required.
     :param exclude_embs: Optional flag to exclude embeddings from logging. If True and

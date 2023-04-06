@@ -1,3 +1,4 @@
+
 [build-system]
 requires = ["flit_core >=2,<3"]
 build-backend = "flit_core.buildapi"
@@ -35,6 +36,9 @@ requires = [
     "numpy<1.24.0",
     "tenacity>=8.1.0"
 ]
+
+[tool.flit.scripts]
+dq-yolo = "dataquality.dqyolo:main"
 
 [tool.flit.metadata.urls]
 Documentation = "https://rungalileo.gitbook.io/galileo"
@@ -82,13 +86,13 @@ dev = [
 # Need to be installed with `pip install 'dataquality[cuda]' --extra-index-url=https://pypi.ngc.nvidia.com/ `
 # Need to pin because the new release is broken https://github.com/rapidsai/cudf/issues/12762#issuecomment-1462845289
 cuda = [
-    "ucx-py-cu11<0.30",
-    "rmm-cu11==22.12",
-    "raft-dask-cu11==22.12",
-    "pylibraft-cu11==22.12",
-    "dask-cudf-cu11==22.12",
-    "cudf-cu11==22.12",
-    "cuml-cu11==22.12"
+#    "ucx-py-cu11<0.30",
+#    "rmm-cu11==22.12",
+#    "raft-dask-cu11==22.12",
+#    "pylibraft-cu11==22.12",
+#    "dask-cudf-cu11==22.12",
+#    "cudf-cu11==22.12",
+#    "cuml-cu11==22.12"
 ]
 
 minio = [
@@ -97,3 +101,4 @@ minio = [
 
 [tool.isort]
 profile = "black"
+

@@ -24,6 +24,14 @@ def box_label(
     color: Tuple[int, int, int] = (128, 128, 128),
     txt_color: Tuple[int, int, int] = (255, 255, 255),
 ) -> None:
+    """Draw a labeled bounding box on an image.
+
+    :param image: The image to draw on.
+    :param box: The bounding box to draw. The format is (x1, y1, x2, y2).
+    :param label: The label to draw.
+    :param color: The color of the box and label.
+    :param txt_color: The color of the text.
+    """
     lw = max(round(sum(image.shape) / 2 * 0.003), 2)
     p1, p2 = (int(box[0]), int(box[1])), (int(box[2]), int(box[3]))
     cv2.rectangle(image, p1, p2, color, thickness=lw, lineType=cv2.LINE_AA)
@@ -54,6 +62,14 @@ def plot_bboxes(
     score: bool = True,
     conf: Optional[float] = None,
 ) -> None:
+    """Plot bounding boxes on image, with or without confidence score.
+
+    :param image: The image to draw on.
+    :param boxes: The bounding boxes to draw. The format is (x1, y1, x2, y2, class, score).
+    :param labels: The labels to draw.
+    :param score: Whether to draw the score.
+    :param conf: The confidence threshold.
+    """
     # plot each boxes
     for box in boxes:
         # add score in label if score=True
@@ -233,7 +249,10 @@ def non_max_suppression(
     return output
 
 
-def denorm(in_images: Any) -> Any:
+def denorm(in_images: Any) -> np.array:
+    """Denormalize images.
+
+    :param in_images: Input images"""
     if isinstance(in_images, torch.Tensor):
         images = in_images.clone().float()
     else:
@@ -245,7 +264,10 @@ def denorm(in_images: Any) -> Any:
     return images.permute(0, 2, 3, 1).to(torch.int8).cpu().numpy().astype(np.uint8)
 
 
-def get_batch_data(batch: Dict) -> Dict[int, Any]:
+def process_batch_data(batch: Dict) -> Dict[int, Any]:
+    """Convert batch data to a dictionary of image index to image data. Also denormalizes the images.
+
+    :param batch: Batch data"""
     # Get the unique image indices and the count of bounding boxes per image
     unique_indices, counts = torch.unique(batch["batch_idx"], return_counts=True)
     # Split the bboxes tensor based on the counts of bounding boxes per image
@@ -262,12 +284,17 @@ def get_batch_data(batch: Dict) -> Dict[int, Any]:
 
 
 def convert_xywh_to_xyxy(bboxes: Any) -> torch.Tensor:
+    """Converts xywh boxes to xyxy can be in either integer coords or 0-1
+
+    :param bboxes: Bounding boxes in xywh format
+    """
     # converts xywh boxes to xyxy can be in either integer coords or 0-1
     if not isinstance(bboxes, torch.Tensor):
         return box_convert(torch.Tensor(bboxes), "cxcywh", "xyxy")
     return box_convert(bboxes, "cxcywh", "xyxy")
 
 
+# step names from ultralytics and their corresponding split
 ultralytics_split_mapping = split_mapping = {
     Split.test: "test",
     Split.training: "train",
@@ -276,6 +303,10 @@ ultralytics_split_mapping = split_mapping = {
 
 
 def temporary_cfg_for_val(cfg_path: str, split: Split) -> str:
+    """Creates a temporary config file with the split set to the given split.
+
+    :param cfg_path: Path to the config file
+    :param split: Split to set the config to"""
     with open(cfg_path, "r") as file:
         cfg = yaml.safe_load(file)
     if not cfg.get(ultralytics_split_mapping[split]):

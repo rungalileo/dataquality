@@ -5,7 +5,7 @@ from enum import Enum, unique
 from functools import lru_cache
 from glob import glob
 from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar, Union
-
+from dataquality.utils.dq_logger import upload_dq_log_file
 import numpy as np
 
 from dataquality.core._config import ConfigData, config
@@ -348,7 +348,7 @@ class BaseGalileoLogger:
         """
         # If a currently active thread crashed, check and raise a top level exception
         if cls.logger_config.exception:
-            # upload_dq_log_file()
+            upload_dq_log_file()
             raise GalileoException(cls.logger_config.exception)
 
     @classmethod
