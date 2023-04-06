@@ -1,8 +1,6 @@
 from enum import Enum
 from functools import partial
 from typing import Any, Dict, List, Optional
-from torch.utils.hooks import RemovableHandle
-
 
 import numpy as np
 import pandas as pd
@@ -10,6 +8,7 @@ from fastai.callback.core import Callback
 from fastai.data.core import DataLoaders
 from fastai.data.load import DataLoader
 from torch.nn import Module
+from torch.utils.hooks import RemovableHandle
 
 import dataquality
 from dataquality import config
@@ -110,7 +109,7 @@ class FastAiDQCallback(Callback):
     def __init__(
         self,
         layer: Any = None,
-        finish: bool = True,
+        finish: bool = False,
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -337,22 +336,18 @@ class FastAiDQCallback(Callback):
         store[FAIKey.model_input] = model_input
         store[FAIKey.model_output] = model_output
 
-    def load_test_dl(self, dl_test: DataLoader, split: Split = Split.test) -> None:
+    def prepare_split(self, split: Split = Split.test) -> None:
         """
-        Loads the test dataloader. To wrap it and set the split.
-        :param dl_test: Test dataloader.
+        Run before test data. To wrap it and set the split.
         """
         self.unwatch()
         self.reset_idx_store()
         self.reset_config()
-        self.unhook()
-        self.hook = None
         self.is_initialized = False
         self.register_hooks()
         self.is_initialized = True
         dataquality.set_epoch(0)
-        self.wrap_indices(dl_test)
-        dataquality.set_split("test")
+        dataquality.set_split(split)
 
     def unpatch(self) -> None:
         """

@@ -90,7 +90,7 @@ def test_auto(
     learn.fine_tune(2, freeze_epochs=0)
     dq.log_image_dataset(df, imgs_location_colname="text", split="test")
     dl_test = learn.dls.test_dl(pd.Series(image_files[:-3]))
-    dqc.load_test_dl(dl_test)
+    dqc.prepare_split("test")
     preds, _ = learn.get_preds(dl=dl_test)
     for split in ["training", "validation"]:
         validate_unique_ids(vaex.open(f"{LOCATION}/{split}/1/*.hdf5"), "epoch")
