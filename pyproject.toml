@@ -68,7 +68,8 @@ test = [
     "xgboost>=1.6.2",
     "timm>=0.6.12",
     "fastai>=2.7.11",
-    "portalocker==2.7.0"
+    "portalocker==2.7.0",
+    "types-PyYAML==6.0.12.9"
 ]
 dev = [
     "flake8",

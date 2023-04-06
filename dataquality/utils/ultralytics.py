@@ -1,11 +1,12 @@
-from tempfile import NamedTemporaryFile
 import time
+from tempfile import NamedTemporaryFile
 from typing import Any, Dict, List, Optional, Tuple
-import yaml
+
 import cv2
 import numpy as np
 import torch
 import torchvision
+import yaml
 from torchvision.ops.boxes import box_convert, box_iou
 from ultralytics.yolo.utils.plotting import Colors
 

@@ -137,7 +137,7 @@ class ObjectDetectionDataLogger(BaseGalileoDataLogger):
         if "x" in out_cols and "y" in out_cols:
             emb_cols.extend(["x", "y"])
         emb_df = out_frame[emb_cols]
-        prob_cols = [i for i in out_cols if i not in emb_cols and i != "emb"]
+        prob_cols = [i for i in out_cols if i not in emb_cols and i != "emb"] + ["id"]
         prob_df = out_frame[prob_cols]
         # Epoch is always 0 because we only do 1 pass over the data
         # see `dq.loggers.data_logger.base_data_logger.upload_in_out_frames`

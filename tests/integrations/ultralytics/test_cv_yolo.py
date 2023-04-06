@@ -85,7 +85,6 @@ def test_end2end_yolov8(
     assert set(box_df["image_id"].unique()).issubset(image_df["id"].tolist())
     dq.get_data_logger().upload()
 
-    # TODO: @franz need to get training data logged
     for split in [Split.training, Split.validation]:
         dq.set_split(split)
         vaex.open(f"{TEST_PATH}/{split}/0/data/data.hdf5")
@@ -95,6 +94,7 @@ def test_end2end_yolov8(
         assert emb_df.emb_pca.dtype == "float32"
         assert emb_df.emb_pca.shape == (len(emb_df), 100)
         prob_cols = [
+            "id",
             "bbox",
             "epoch",
             "gold",
