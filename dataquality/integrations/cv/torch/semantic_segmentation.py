@@ -1,7 +1,10 @@
-from typing import Any, Callable, Dict, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Optional, Tuple, Union, List
+from queue import Queue
 
 import numpy as np
 import torch
+from torch.nn import functional as F
+from torch.nn import Module
 from torch.utils.data import DataLoader
 from torch.utils.hooks import RemovableHandle
 
@@ -11,10 +14,16 @@ from dataquality.loggers.logger_config.semantic_segmentation import (
 from dataquality.loggers.model_logger.semantic_segmentation import (
     SemanticSegmentationModelLogger,
 )
+from dataquality.schemas.torch import HelperData
 from dataquality.utils.helpers import wrap_fn
 from dataquality.utils.semantic_segmentation.utils import mask_to_boundary
 from dataquality.utils.torch import store_batch_indices
+from dataquality.exceptions import GalileoException
+from dataquality.utils.torch import ModelHookManager
 
+from dataquality.integrations.torch import TorchLogger
+from dataquality.schemas.task_type import TaskType
+from dataquality.schemas.torch import Layer
 
 class StoreHook:
     def __init__(self) -> None:
@@ -46,6 +55,140 @@ class StoreHook:
         self.model_output = model_output["out"]
         self.on_finish(model_input, model_output)
 
+class StoreInputHook:
+    def __init__(self, store: Dict[str, Any]) -> None:
+        self.h: Optional[RemovableHandle] = None
+        self.store = store
+
+    def on_finish(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+    def hook(
+        self,
+        model: torch.nn.Module,
+        model_input: torch.Tensor,
+    ) -> None:
+        """ "
+        Hook to store the model input (tensor) and extract the output
+        from a dictionary and store
+
+        :param model: torch.nn.Module segmentation model
+        :param model_input: torch.Tensor input to the model - an image (bs, 3, h, w)
+        :param model_output: torch.Tensor output of the model
+            shape = (bs, h, w)
+        """
+        self.store["model_input"] = model_input[0]
+
+
+class SemanticTorchLogger(TorchLogger):
+    def __init__(self, 
+                 model: torch.nn.Module, 
+                 num_classes: int = 10,
+                 mask_col_name: Optional[str] = None,
+                helper_data: Dict[str, Any] = {},
+                task: Union[TaskType, None] = TaskType.text_classification,
+                 *args: Any,
+                **kwargs: Any) -> None:
+        
+        super().__init__(model=model, *args, **kwargs)
+        self._init_helper_data(self.hook_manager, model)
+        self.attach_model_input_hook(model)
+        self.number_classes = num_classes
+        self.mask_col_name = mask_col_name
+
+    def find_mask_category(self, batch: Dict[str, Any]) -> None:
+        """
+        Finds the mask category and stores it in the helper data
+        :param batch: Dict[str, Any] batch from the dataloader
+        """
+        if not self.mask_col_name:
+            for key in batch:
+                if "mask" in key or 'label' in key or 'target' in key:
+                    self.mask_col_name = key
+            if not self.mask_col_name:
+                raise ValueError("No mask column found in the batch please specify in watch method")
+        print(f"Mask column name is {self.mask_col_name}")
+        return
+    
+    def attach_model_input_hook(self, model: torch.nn.Module) -> None:
+        """
+        Attaches a hook to the model to store the input so we get the correct shape
+        :param model: torch.nn.Module
+        """
+        store_hook = StoreInputHook(self.helper_data)
+        h = model.register_forward_pre_hook(store_hook.hook)
+        self.helper_data[HelperData.patches].append(h)
+
+    
+    def _init_helper_data(self, hm: ModelHookManager, model: Module) -> None:
+        """
+        Initialize the helper data with ids from the dataloader indices,
+        patches for applied monkey patched functions and the hook manager.
+        :param hm: Hook manager
+        :param model: torch.nn.Module model that we are hooking
+        """
+        self.helper_data.clear()
+        self.helper_data.update(
+            {
+                HelperData.dl_next_idx_ids: [],
+                HelperData.last_action: "init",
+                HelperData.patches: [],
+                HelperData.model_outputs_store: {},
+                HelperData.hook_manager: hm,
+                HelperData.model: model,
+                HelperData.batch: {},
+                HelperData.model_input: {},
+            }
+        )
+
+    def _on_step_end(self) -> None:
+        # find the column corresponding to the mask on the first iteration else throw error in func
+        if not self.mask_col_name:
+            self.find_mask_category(self.helper_data['batch']['data'])
+        with torch.no_grad():
+            logging_data = self.helper_data['batch']['data']
+            img_ids =  self.helper_data['batch']['ids'] # np.ndarray (bs,)
+            
+            # resize the logits to the input size based on hooks
+            preds = self.helper_data['model_outputs_store']['logits']
+            input_shape = self.helper_data['model_input'].shape[-2:]
+            preds = F.interpolate(preds, size=input_shape, mode="bilinear", align_corners=False)
+
+            # checks whether the model is (n, classes, w, h), or (n, w, h, classes)
+            if preds.shape[1] == self.number_classes:
+                preds = preds.permute(0, 2, 3, 1)
+
+            argmax = torch.argmax(preds.clone(), dim=-1)
+            logits = preds.cpu()  # (bs, w, h, classes)
+            gold_boundary_masks = mask_to_boundary(
+                logging_data[self.mask_col_name].clone().cpu().numpy()
+            )  # (bs, w, h)
+            pred_boundary_masks = mask_to_boundary(
+                argmax.clone().cpu().numpy()
+            )  # (bs, w, h)
+            if logging_data[self.mask_col_name].shape[1] == 1:
+                logging_data[self.mask_col_name] = logging_data["mask"].squeeze(1)  # (bs, w, h)
+            gold_mask = logging_data[self.mask_col_name].cpu()  # (bs, w, h)
+
+            probs = torch.nn.Softmax(dim=1)(logits).cpu()  # (bs, w, h, classes)
+
+            # dq log model output
+            logger = SemanticSegmentationModelLogger(
+                image_ids=img_ids,
+                gt_masks=gold_mask,  # Torch tensor (bs, w, h)
+                pred_mask=argmax,  # Torch tensor (bs, w, h)
+                gold_boundary_masks=torch.tensor(
+                    gold_boundary_masks
+                ),  # Torch tensor (bs, w, h)
+                pred_boundary_masks=torch.tensor(
+                    pred_boundary_masks
+                ),  # Torch tensor (bs, w, h)
+                output_probs=probs,  # Torch tensor (bs, w, h, classes)
+            )
+            # logger._get_data_dict()
+            logger.log()
+
+
 
 class Manager:
     """ "
@@ -53,10 +196,14 @@ class Manager:
     Contains preprocessing to convert output to a format that can be logged
     """
 
-    def __init__(self, model: torch.nn.Module, num_classes: int = 10) -> None:
+    def __init__(self, 
+                 model: torch.nn.Module, 
+                 num_classes: int = 10,
+                 mask_col_name: Optional[str] = None) -> None:
         """
         :param model: torch.nn.Module segmentation model
         :param num_classes: int number of classes in the model (possible we can extract)
+
         """
         self.step_pred = StoreHook()
         self.step_pred.h = model.register_forward_hook(self.step_pred.hook)
@@ -66,6 +213,22 @@ class Manager:
         self.split = "Train"  # hard coded for now
         self.number_classes = num_classes
         self.helper_data: Dict = {}
+        self.mask_col_name = mask_col_name
+
+    def find_mask_category(self, batch: Dict[str, Any]) -> None:
+        """
+        Finds the mask category and stores it in the helper data
+        :param batch: Dict[str, Any] batch from the dataloader
+        """
+        if not self.mask_col_name:
+            for key in batch:
+                if "mask" in key or 'label' in key or 'target' in key:
+                    self.helper_data['mask_col'] = key
+            if not self.mask_col:
+                raise ValueError("No mask column found in the batch please specify in watch method")
+        print(f"Mask column name is {self.helper_data['mask_col']}")
+        return
+        
 
     def _after_pred_step(self, *args: Any, **kwargs: Any) -> None:
         """
@@ -73,8 +236,14 @@ class Manager:
         Then processes the output along with the mask to log the appropriate
         predictions and masks that can be used to calculate data quality metrics
         """
+
+        # find the column corresponding to the mask on the first iteration else throw error in func
+        if not self.mask_col_name:
+            self.find_mask_category(self.helper_data['Batch']['batch'])
         with torch.no_grad():
-            logging_data = self.bl["batch"]
+            logging_data = self.helper_data['Batch']['batch']
+            img_ids =  self.helper_data['Batch']['ids'] # np.ndarray (bs,)
+            import pdb; pdb.set_trace()
             preds = self.step_pred.model_output
 
             # checks whether the model is (n, classes, w, h), or (n, w, h, classes)
@@ -84,15 +253,14 @@ class Manager:
             argmax = torch.argmax(preds.clone(), dim=-1)
             logits = preds.cpu()  # (bs, w, h, classes)
             gold_boundary_masks = mask_to_boundary(
-                logging_data["mask"].clone().cpu().numpy()
+                logging_data[self.helper_data['mask_col']].clone().cpu().numpy()
             )  # (bs, w, h)
             pred_boundary_masks = mask_to_boundary(
                 argmax.clone().cpu().numpy()
             )  # (bs, w, h)
-            if logging_data["mask"].shape[1] == 1:
-                logging_data["mask"] = logging_data["mask"].squeeze(1)  # (bs, w, h)
-            gold_mask = logging_data["mask"].cpu()  # (bs, w, h)
-            img_ids = logging_data["idx"].cpu()  # np.ndarray (bs,)
+            if logging_data[self.helper_data['mask_col']].shape[1] == 1:
+                logging_data[self.helper_data['mask_col']] = logging_data["mask"].squeeze(1)  # (bs, w, h)
+            gold_mask = logging_data[self.helper_data['mask_col']].cpu()  # (bs, w, h)
 
             probs = torch.nn.Softmax(dim=1)(logits).cpu()  # (bs, w, h, classes)
 
@@ -131,7 +299,7 @@ def store_batch(
         """
         batch = next_batch_func(*args, **kwargs)
         if batch:
-            store["batch"] = batch
+            store["data"] = batch
         return batch
 
     return process_batch
@@ -159,14 +327,21 @@ def patch_iterator_and_batch(store: Dict[str, Any]) -> Callable:
     return patch_iterator
 
 
-def watch(model: Any, dataloader: DataLoader, n_classes: int) -> None:
+def watch(model: Any,
+          dataloader: DataLoader,
+          n_classes: int,
+          mask_col_name: Optional[str] = None) -> None:
     """
     Watches a model and logs the model outputs to the Galileo server
     :param model: Model to watch
+    :param dataloader: Dataloader to watch
+    :param n_classes: Number of classes in the model
+    :param mask_col_name: Name of the mask column in the batch
     """
-    tl = Manager(model, num_classes=n_classes)
+    tl = SemanticTorchLogger(model, num_classes=n_classes, mask_col_name=mask_col_name)
+
     semantic_segmentation_logger_config.helper_data["manager"] = tl
     dataloader._get_iterator = wrap_fn(  # type: ignore
         dataloader._get_iterator,
-        patch_iterator_and_batch(tl.bl),
+        patch_iterator_and_batch(tl.helper_data['batch']),
     )
