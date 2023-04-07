@@ -5,7 +5,7 @@ from enum import Enum, unique
 from functools import lru_cache
 from glob import glob
 from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar, Union
-from dataquality.utils.dq_logger import upload_dq_log_file
+
 import numpy as np
 
 from dataquality.core._config import ConfigData, config
@@ -17,6 +17,7 @@ from dataquality.loggers.logger_config.base_logger_config import (
 from dataquality.schemas.split import Split, conform_split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.cloud import is_galileo_cloud
+from dataquality.utils.dq_logger import upload_dq_log_file
 from dataquality.utils.file import _shutil_rmtree_retry
 from dataquality.utils.imports import hf_available, tf_available, torch_available
 from dataquality.utils.tf import is_tf_2

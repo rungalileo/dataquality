@@ -61,7 +61,7 @@ def test_end2end_yolov8(
 
     dq.init(TaskType.object_detection)
     # TODO: Make this path better using the current file location
-    ds_path = "tests/integrations/ultralytics/coco.yaml"
+    ds_path = "tests/integrations/ultralytics/coco128.yaml"
     model = YOLO("./tests/integrations/ultralytics/yolov8n.pt")
 
     for split in [Split.training, Split.validation]:  # ,

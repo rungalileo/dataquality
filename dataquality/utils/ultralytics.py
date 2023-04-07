@@ -65,7 +65,8 @@ def plot_bboxes(
     """Plot bounding boxes on image, with or without confidence score.
 
     :param image: The image to draw on.
-    :param boxes: The bounding boxes to draw. The format is (x1, y1, x2, y2, class, score).
+    :param boxes: The bounding boxes to draw.
+    The format is (x1, y1, x2, y2, class, score).
     :param labels: The labels to draw.
     :param score: Whether to draw the score.
     :param conf: The confidence threshold.
@@ -249,7 +250,7 @@ def non_max_suppression(
     return output
 
 
-def denorm(in_images: Any) -> np.array:
+def denorm(in_images: Any) -> np.ndarray:
     """Denormalize images.
 
     :param in_images: Input images"""
@@ -265,7 +266,8 @@ def denorm(in_images: Any) -> np.array:
 
 
 def process_batch_data(batch: Dict) -> Dict[int, Any]:
-    """Convert batch data to a dictionary of image index to image data. Also denormalizes the images.
+    """Convert batch data to a dictionary of image index to image data.
+    Also denormalizes the images.
 
     :param batch: Batch data"""
     # Get the unique image indices and the count of bounding boxes per image
@@ -274,7 +276,9 @@ def process_batch_data(batch: Dict) -> Dict[int, Any]:
     bboxes_split = torch.split(batch["bboxes"], counts.tolist())
     labels_split = torch.split(batch["cls"], counts.tolist())
     denormed_imgs = denorm(batch["img"])
-    label_per_image = {i: {"img": img} for i, img in enumerate(denormed_imgs)}
+    label_per_image: Dict[int, Any] = {
+        i: {"img": img} for i, img in enumerate(denormed_imgs)
+    }
     for idx, bboxes, labels in zip(unique_indices, bboxes_split, labels_split):
         i = int(idx.item())
         label_dict = label_per_image[i]
@@ -302,19 +306,23 @@ ultralytics_split_mapping = split_mapping = {
 }
 
 
-def temporary_cfg_for_val(cfg_path: str, split: Split) -> str:
+def _read_config(path: str) -> Dict:
+    with open(path, "r") as file:
+        return yaml.safe_load(file)
+
+
+def temporary_cfg_for_val(cfg: Dict, split: Split) -> str:
     """Creates a temporary config file with the split set to the given split.
 
     :param cfg_path: Path to the config file
     :param split: Split to set the config to"""
-    with open(cfg_path, "r") as file:
-        cfg = yaml.safe_load(file)
+    cfg_copy = {**cfg}
     if not cfg.get(ultralytics_split_mapping[split]):
         return ""
     new_value = cfg.get(ultralytics_split_mapping[split])
     for csplit in ["train", "val", "test"]:
-        cfg[csplit] = new_value
+        cfg_copy[csplit] = new_value
     tmp = NamedTemporaryFile("w", delete=False, suffix=".yaml")
-    yaml.safe_dump(cfg, tmp)
+    yaml.safe_dump(cfg_copy, tmp)
     tmp.close()
     return tmp.name

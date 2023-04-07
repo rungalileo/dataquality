@@ -1,6 +1,19 @@
 """Utils for Object Detection"""
 
+from typing import Tuple
+
 import numpy as np
+
+
+def scale_boxes(bboxes: np.ndarray, img_size: Tuple[int, int]) -> np.ndarray:
+    """Normalizes boxes to image size"""
+    if bboxes.shape[0] == 0:
+        return bboxes
+    bboxes[:, 0] *= img_size[0]
+    bboxes[:, 1] *= img_size[1]
+    bboxes[:, 2] *= img_size[0]
+    bboxes[:, 3] *= img_size[1]
+    return bboxes
 
 
 def convert_cxywh_xyxy(bboxes: np.ndarray) -> np.ndarray:

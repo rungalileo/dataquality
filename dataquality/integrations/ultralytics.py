@@ -1,4 +1,4 @@
-from collections import defaultdict
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -16,12 +16,12 @@ import dataquality as dq
 from dataquality import get_data_logger
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger.object_detection import (
-    ODCols,
     ObjectDetectionDataLogger,
+    ODCols,
 )
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
-from dataquality.utils.ultralytics import process_batch_data, non_max_suppression
+from dataquality.utils.ultralytics import non_max_suppression, process_batch_data
 
 ultralytics.checks()
 
@@ -150,7 +150,12 @@ class Callback:
     split: Optional[Split]
     file_map: Dict
 
-    def __init__(self, nms_fn: Optional[Callable] = None) -> None:
+    def __init__(
+        self,
+        nms_fn: Optional[Callable] = None,
+        bucket: str = "",
+        relative_img_path: str = "",
+    ) -> None:
         """Initializes the callback
 
         :param nms_fn: non-maximum suppression function
@@ -160,6 +165,8 @@ class Callback:
         self.nms_fn = nms_fn
         self.hooked = False
         self.split = None
+        self.bucket = bucket
+        self.relative_img_path = relative_img_path
         self.file_map = {}  # maps file names to ids
 
     def postprocess(self, batch: torch.Tensor) -> Any:
@@ -316,6 +323,9 @@ class Callback:
 
     def init_run(self) -> None:
         """Initialize the run"""
+        print("dir(self.validator.dataloader.dataset)")
+        print(dir(self.validator.dataloader.dataset.data))
+        print(dir(self.validator.dataloader.dataset))
         dq.set_labels_for_run(list(self.validator.dataloader.dataset.names.values()))
         ds = self.convert_dataset(self.validator.dataloader.dataset)
         data_logger = get_data_logger()
@@ -342,10 +352,12 @@ class Callback:
             )
             ratio_pad = image["ratio_pad"]
             bbox_gold = scale_boxes(batch_img_shape, tbox, shape, ratio_pad=ratio_pad)
+            file_name = Path(image["im_file"]).name
+            file_path = Path(self.bucket) / self.relative_img_path / file_name
             processed_dataset.append(
                 {
                     ODCols.id: i,
-                    ODCols.image: image["im_file"],
+                    ODCols.image: str(file_path),
                     ODCols.bbox: bbox_gold,
                     ODCols.gold_cls: image["cls"],
                 }
@@ -413,13 +425,11 @@ def add_callback(model: YOLO, cb: Callback) -> None:
     model.add_callback("on_train_start", cb.on_train_start)
     model.add_callback("on_train_end", cb.on_train_end)
     model.add_callback("on_predict_start", cb.on_predict_start)
-    model.add_callback("on_predict_end", cb.on_predict_end)
     model.add_callback("on_predict_batch_end", cb.on_predict_batch_end)
-    model.add_callback("on_val_start", cb.on_val_start)
     model.add_callback("on_val_batch_start", cb.on_val_batch_start)
 
 
-def watch(model: YOLO) -> None:
+def watch(model: YOLO, bucket: str, relative_img_path: str) -> None:
     """Watch the model for predictions and embeddings logging.
 
     :param model: the model to watch"""
@@ -427,5 +437,7 @@ def watch(model: YOLO) -> None:
         "dq client must be initialized for Object Detection. For example: "
         "dq.init('object_detection')"
     )
-    cb = Callback(nms_fn=non_max_suppression)
+    cb = Callback(
+        nms_fn=non_max_suppression, bucket=bucket, relative_img_path=relative_img_path
+    )
     add_callback(model, cb)

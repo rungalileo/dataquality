@@ -9,55 +9,6 @@ from dataquality.loggers.logger_config.object_detection import (
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.utils.od import convert_cxywh_xyxy, convert_tlxywh_xyxy, scale_boxes
 
-""" Dereks stuff
-'gold_labels',
-'bbox_pred',
-'prob',
-'bbox_gold',
-'all_bboxes',
-'embeddings',
-'dep',
-'gold_or_pred',
-'image_dep',
-'img_size']
-
-
-
-Derek's dict (key is image id):
-{
-    "1": {
-        "gold_labels": ,
-        "bbox_pred": ,
-        "prob": ,
-        "bbox_gold": ,
-        "all_bboxe": ,
-        "embeddings": ,
-        "dep": ,
-        "gold_or_pred": ,
-        "image_dep": ,
-        "img_size": ,
-    },
-    "2": {
-        "gold_labels",
-        "bbox_pred",
-        "prob",
-        "bbox_gold",
-        "all_bboxe",
-        "embeddings",
-        "dep",
-        "gold_or_pred",
-        "image_dep",
-        "img_size",
-    },
-}
-
-pred_boxes
-pred_logits
-gold_boxes
-gold_labels
-
-"""
-
 
 class ObjectDetectionModelLogger(BaseGalileoModelLogger):
     __logger_name__ = "object_detection"

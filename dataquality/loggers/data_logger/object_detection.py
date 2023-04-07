@@ -5,8 +5,8 @@ from typing import Any, Dict, Iterable, List, Optional, Union
 import pandas as pd
 import vaex
 from pandas import DataFrame
-from dataquality.exceptions import GalileoException
 
+from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger.base_data_logger import (
     ITER_CHUNK_SIZE,
     BaseGalileoDataLogger,

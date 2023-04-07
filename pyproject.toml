@@ -54,6 +54,7 @@ doc = [
     "sphinx-markdown-builder"
 ]
 test = [
+    "ultralytics",
     "pytest>=7.2.1",
     "mypy>=1.0.0",
     "freezegun>=1.2.2",

@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 
-
 if TYPE_CHECKING:
     import xgboost as xgb
 
@@ -24,11 +23,8 @@ from dataquality.loggers.data_logger.structured_classification import (
 from dataquality.loggers.logger_config.text_multi_label import (
     text_multi_label_logger_config,
 )
-
-from dataquality.loggers.model_logger.object_detection import ObjectDetectionModelLogger
-
-
 from dataquality.loggers.model_logger import BaseGalileoModelLogger
+from dataquality.loggers.model_logger.object_detection import ObjectDetectionModelLogger
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
