@@ -2,6 +2,7 @@ from typing import Any, Callable, Dict, Optional, Tuple, Union, List
 from queue import Queue
 import warnings
 from warnings import warn
+import os
 
 import numpy as np
 import torch
@@ -18,6 +19,7 @@ from dataquality.loggers.model_logger.semantic_segmentation import (
 from dataquality.schemas.torch import HelperData
 from dataquality.utils.helpers import wrap_fn
 from dataquality.utils.semantic_segmentation.utils import mask_to_boundary
+from dataquality.loggers.data_logger.semantic_segmentation import SemSegCols
 from dataquality.utils.torch import store_batch_indices
 from dataquality.exceptions import GalileoException
 from dataquality.utils.torch import (
@@ -37,15 +39,37 @@ a.log_import("torch")
 class SemanticTorchLogger(TorchLogger):
     def __init__(self, 
                  model: torch.nn.Module, 
+                 bucket_name: str,
+                 dataset_path: str,
                  mask_col_name: Optional[str] = None,
-                helper_data: Dict[str, Any] = {},
-                task: Union[TaskType, None] = TaskType.text_classification,
+                 helper_data: Dict[str, Any] = {},
+                 dataloaders: List[torch.utils.data.DataLoader] = [],
+                 task: Union[TaskType, None] = TaskType.text_classification,
                  *args: Any,
-                **kwargs: Any) -> None:
+                 **kwargs: Any) -> None:
+        """
+        Class to log semantic segmentation models to Galileo
+
+        :param model: model to log
+        :param bucket_name: name of the bucket that currently stores images in cloud
+        :param dataset_path: path to the parent dataset folder
+        :param mask_col_name: name of the column that contains the mask
+        :param helper_data: helper data to be logged
+        :param dataloaders: dataloaders to be logged
+        :param task: task type
+        """
         super().__init__(model=model, helper_data=helper_data, *args, **kwargs)
         
         self._init_helper_data(self.hook_manager, model)
         self.mask_col_name = mask_col_name
+        self.dataset_path = os.path.abspath(dataset_path)
+
+        # There is a hook on dataloader so must convert before attaching hook
+        self.file_map = {}
+        self.mask_file_map = {}
+        self.bucket_name = bucket_name
+        self.datasets = [self.convert_dataset(dataloader.dataset) for dataloader in dataloaders]
+
         # capture the model input
         self.hook_manager.attach_hook(model, self._dq_input_hook)
 
@@ -54,6 +78,38 @@ class SemanticTorchLogger(TorchLogger):
             self.number_classes = model.classifier[-1].out_channels
         except AttributeError:
             self.number_classes = None
+        
+        
+
+
+    def convert_dataset(self, dataset: Any) -> List:
+        """Convert the dataset to the format expected by the dataquality client"""
+        assert len(dataset) > 0
+        processed_dataset = []
+        for i, data in enumerate(dataset):
+            if 'mask_path' not in data or 'image_path' not in data:
+                raise GalileoException("Missing mask_path or image_path in data .\
+                                    Please have both specified in your dataset.\
+                                    Expected format is bucket_name/relative_path_to_image")
+
+            self.file_map[data['image_path']] = i
+            self.mask_file_map[data['mask_path']] = i
+
+            # cut the dataset path from the image path so we can use relative path
+            # within the bucket to each image
+            image_path = os.path.abspath(data['image_path'])
+            mask_path = os.path.abspath(data['mask_path'])
+            image_path = image_path.replace(self.dataset_path, '')
+            mask_path = mask_path.replace(self.dataset_path, '')
+
+            processed_dataset.append({
+                SemSegCols.image_path: image_path,
+                SemSegCols.mask_path: mask_path,
+                SemSegCols.id: i
+            })
+            if i == 10: break
+        import pdb; pdb.set_trace()
+        return processed_dataset
 
     def find_mask_category(self, batch: Dict[str, Any]) -> None:
         """
@@ -123,7 +179,7 @@ class SemanticTorchLogger(TorchLogger):
         )
 
     def _on_step_end(self) -> None:
-        # find the column corresponding to the mask on the first iteration else throw error in func
+        """Funciton to be called at the end of each step to log the inputs and outputs"""
         if not self.mask_col_name:
             self.find_mask_category(self.helper_data['batch']['data'])
 
@@ -134,6 +190,9 @@ class SemanticTorchLogger(TorchLogger):
         with torch.no_grad():
             logging_data = self.helper_data['batch']['data']
             img_ids =  self.helper_data['batch']['ids'] # np.ndarray (bs,)
+            image_paths = logging_data['image_path']
+            # convert the img_ids to absolute ids from file map
+            img_ids = [self.file_map[path] for path in image_paths]
             
             # resize the logits to the input size based on hooks
             preds = self.helper_data[HelperData.model_outputs_store]['logits']
@@ -222,6 +281,8 @@ def patch_iterator_and_batch(store: Dict[str, Any]) -> Callable:
 
 def watch(
     model: Module,
+    bucket_name: str,
+    dataset_path: str,
     dataloaders: Optional[List[DataLoader]] = [],
     classifier_layer: Optional[Union[str, Module]] = None,
     mask_col_name: Optional[str] = None,
@@ -245,6 +306,8 @@ def watch(
         dq.finish()
 
     :param model: Pytorch Model to be wrapped
+    :param bucket_name: Name of the bucket from which the images come
+    :param dataset_path: Path to the dataset
     :param dataloaders: List of dataloaders to be wrapped
     :param classifier_layer: Layer to hook into (usually 'classifier' or 'fc').
         Inputs are the embeddings and outputs are the logits.
@@ -267,8 +330,11 @@ def watch(
     helper_data = dq.get_model_logger().logger_config.helper_data
     print("Attaching dataquality to model and dataloaders")
     tl = SemanticTorchLogger(model, 
+                             bucket_name=bucket_name,
+                             dataset_path=dataset_path,
                              mask_col_name=mask_col_name,
-                             helper_data=helper_data)
+                             helper_data=helper_data,
+                             dataloaders=dataloaders,)
     # Patch the dataloader class if no dataloaders are passed
     # or if the dataloaders have num_workers > 0
     if dataloaders is None:

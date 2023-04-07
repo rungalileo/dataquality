@@ -74,8 +74,9 @@ class coco_hf_dataset_hf(torch.utils.data.Dataset):
     
 class coco_hf_dataset_disk(torch.utils.data.Dataset):
     def __init__(self, 
-                 img_path: Optional[str], 
-                 mask_path: Optional[str],
+                 dataset_path: str,
+                 relative_img_path: Optional[str], 
+                 relative_mask_path: Optional[str],
                  mask_transform: transforms=None, 
                  img_transform: transforms=None, 
                  size: int=1024,) -> None:
@@ -84,26 +85,31 @@ class coco_hf_dataset_disk(torch.utils.data.Dataset):
         downloaded and located on disk.
         If no paths are provided we download the dataset from GCS and save it to disk.
 
-        :param img_path: path to images
-        :param maks_path: path to masks
+        :param dataset_path: path to dataset
+        :param relative_img_path: path to images relative to the dataset path
+        :param relative_maks_path: path to masks relative to the dataset path
         :param mask_transform: transforms to apply to masks
         :param img_transform: transforms to apply to images
         :param size: size of image and mask
         """
         super(coco_hf_dataset_disk, self).__init__()
 
-        if img_path is None or mask_path is None:
-            img_path, mask_path = download_gcs_data()
-        self.images = sorted(os.listdir(img_path))
-        self.masks = sorted(os.listdir(mask_path))
-        self.images = [os.path.join(img_path, img) for img in self.images]
-        self.masks = [os.path.join(mask_path, mask) for mask in self.masks]
+        if relative_img_path is None or relative_mask_path is None:
+            dataset_path, relative_img_path, relative_mask_path = download_gcs_data()
+        self.dataset_path = dataset_path
+        self.relative_img_path = relative_img_path
+        self.relative_mask_path = relative_mask_path
+        self.images = sorted(os.listdir(os.path.join(dataset_path, relative_img_path)))
+        self.masks = sorted(os.listdir(os.path.join(dataset_path, relative_mask_path)))
+        # remove .DS_Store
+        if self.images[0] == '.DS_Store':
+            self.images = self.images[1:]
+        if self.masks[0] == '.DS_Store':
+            self.masks = self.masks[1:]
 
         num_images = len(self.images)
         num_masks = len(self.masks)
         print(f"Found dataset, there are {num_images} images and {num_masks} masks")
-        
-        
 
         # give default mask and image transforms
         if mask_transform is None:
@@ -139,6 +145,7 @@ class coco_hf_dataset_disk(torch.utils.data.Dataset):
                             'couch': 18,
                             'train': 19,
                             'tv': 20}
+                        
         self.int2str = {v: k for k, v in self.class_dict.items()}
         self.size = size
 
@@ -146,8 +153,10 @@ class coco_hf_dataset_disk(torch.utils.data.Dataset):
         return len(self.images)
 
     def __getitem__(self, idx: int) -> Dict[str, Union[torch.Tensor, int, np.ndarray]]:
-        image = Image.open(self.images[idx])
-        mask = Image.open(self.masks[idx])
+        image_path = os.path.join(self.dataset_path, self.relative_img_path, self.images[idx])
+        mask_path = os.path.join(self.dataset_path, self.relative_mask_path, self.masks[idx])
+        image = Image.open(image_path)
+        mask = Image.open(mask_path)
 
         # resize image and mask to given size
         unnormalized_image = image.copy().resize((self.size, self.size), resample=Image.NEAREST)
@@ -162,6 +171,8 @@ class coco_hf_dataset_disk(torch.utils.data.Dataset):
             mask = self.mask_transform(mask)
         
         return {'image': image,
+                'image_path': image_path,
+                'mask_path': mask_path,
                 'mask': mask,
                 'idx': idx,
                 'unnormalized_image': unnormalized_image}
@@ -182,21 +193,24 @@ def download_gcs_data() -> None:
 
     # Define the source bucket and folder paths
     bucket_name = 'galileo-public-data'
-    folder_paths = ['CV_datasets/COCO_seg_val_5000/all_images', 'CV_datasets/COCO_seg_val_5000/all_masks']
+    dataset_path = '../../../'
+    folder_paths = ['CV_datasets/COCO_seg_val_5000/all_images', 
+                    'CV_datasets/COCO_seg_val_5000/all_masks']
 
     # Define the destination folder paths on disk
-    destination_paths = ['../../../COCO_seg_val_5000_dataset/all_images/', '../../../COCO_seg_val_5000_dataset/all_masks/']
+    destination_paths = [os.path.join(dataset_path, 'all_images'), 
+                         os.path.join(dataset_path, 'all_masks')]
 
-    if os.path.exists('../../../COCO_seg_val_5000_dataset'):
-        print(f'Found dataset in {os.path.abspath("../../../COCO_seg_val_5000_dataset")}')
-        num_images = len(os.listdir("../../../COCO_seg_val_5000_dataset/all_images"))
-        num_masks = len(os.listdir("../../../COCO_seg_val_5000_dataset/all_masks"))
+    if os.path.exists(os.path.join(dataset_path, folder_paths[0])):
+        print(f'Found dataset in {os.path.abspath(dataset_path)}')
+        num_images = len(os.listdir(os.path.join(dataset_path, folder_paths[0])))
+        num_masks = len(os.listdir(os.path.join(dataset_path, folder_paths[1])))
         print(f'There are {num_images} images and {num_masks} masks')
         print('Skipping download...')
-        return destination_paths[0], destination_paths[1]
+        return dataset_path, folder_paths[0], folder_paths[1]
 
-    if not os.path.exists('../../../COCO_seg_val_5000_dataset'):
-        os.makedirs('../../../COCO_seg_val_5000_dataset')
+    if not os.path.exists(dataset_path):
+        os.makedirs(dataset_path)
 
     # Loop over the folder paths and download the files
     for folder_path, destination_path in zip(folder_paths, destination_paths):
@@ -219,4 +233,4 @@ def download_gcs_data() -> None:
 
             # Download the file to the destination path
             blob.download_to_filename(destination_file_path)
-    return destination_paths[0], destination_paths[1]
+    return dataset_path, folder_paths[0], folder_paths[1]
