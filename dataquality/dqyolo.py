@@ -14,6 +14,8 @@ from dataquality.utils.ultralytics import (
     ultralytics_split_mapping,
 )
 
+# http://images.cocodataset.org.s3.amazonaws.com/train2017/000000000009.jpg
+# http://images.cocodataset.org.s3.amazonaws.com/test2017/000000000001.jpg
 # example yolo train data=coco128.yaml model=yolov8n.pt epochs=1 lr0=0.01
 # python dq-cli.py yolo train data=coco128.yaml model=yolov8n.pt epochs=1 lr0=0.01
 
@@ -94,6 +96,16 @@ def main() -> None:
     dq.set_console_url("https://console.dev.rungalileo.io")
     dq.init(task_type="object_detection", project_name=project_name, run_name=run_name)
     cfg = _read_config(dataset_path)
+    try:
+        bucket = cfg["bucket"]
+    except KeyError:
+        bucket = input(
+            'Key "bucket" is missing in yaml, please enter path of files. '
+            "For example s3://coco/coco128.\n"
+            "bucket: "
+        )
+
+    labels = list(cfg.get("names", {}).values())
 
     # Check each file
     for split in [Split.training, Split.validation, Split.test]:
@@ -102,11 +114,10 @@ def main() -> None:
         tmp_cfg_path = temporary_cfg_for_val(cfg, split)
         if not tmp_cfg_path:
             continue
-        bucket = cfg["bucket"]
-        relative_img_path = cfg[ultralytics_split_mapping[split]]
+        relative_img_path = cfg[f"bucket_{ultralytics_split_mapping[split]}"]
         model = YOLO(model_path)
         watch(
-            model, bucket=bucket, relative_img_path=relative_img_path
+            model, bucket=bucket, relative_img_path=relative_img_path, labels=labels
         )  # This will automatically log the results to galileo
         dq.set_epoch(0)
         dq.set_split(split)

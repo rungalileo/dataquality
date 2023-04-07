@@ -1,7 +1,10 @@
 path: ./coco128
-train: images/train2017  # train images (relative to 'path') 128 images
-val: images/train2017  # val images (relative to 'path') 128 images
-test:  # test images (optional)
+train: images/train2017 # train images (relative to 'path') 128 images
+val: images/train2017 # val images (relative to 'path') 128 images
+test: # test images (optional)
+bucket: s3://images.cocodataset.org
+bucket_train: train2017
+bucket_val: train2017
 
 # Classes
 names:
@@ -85,7 +88,6 @@ names:
   77: teddy bear
   78: hair drier
   79: toothbrush
-
 
 # Download script/URL (optional)
 download: https://ultralytics.com/assets/coco128.zip

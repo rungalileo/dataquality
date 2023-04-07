@@ -117,7 +117,7 @@ class StoreHook:
         self.model = model
         self.model_input = model_input
         self.model_output = model_output
-        if self.on_finish is not None:
+        if hasattr(self, "on_finish"):
             self.on_finish()
 
     def store_hook(self, h: Any) -> None:
@@ -155,6 +155,7 @@ class Callback:
         nms_fn: Optional[Callable] = None,
         bucket: str = "",
         relative_img_path: str = "",
+        labels: List = [],
     ) -> None:
         """Initializes the callback
 
@@ -167,6 +168,7 @@ class Callback:
         self.split = None
         self.bucket = bucket
         self.relative_img_path = relative_img_path
+        self.labels = labels
         self.file_map = {}  # maps file names to ids
 
     def postprocess(self, batch: torch.Tensor) -> Any:
@@ -323,10 +325,11 @@ class Callback:
 
     def init_run(self) -> None:
         """Initialize the run"""
-        print("dir(self.validator.dataloader.dataset)")
-        print(dir(self.validator.dataloader.dataset.data))
-        print(dir(self.validator.dataloader.dataset))
-        dq.set_labels_for_run(list(self.validator.dataloader.dataset.names.values()))
+        if not len(self.labels):
+            labels = list(self.validator.data["names"].values())
+        else:
+            labels = self.labels
+        dq.set_labels_for_run(labels)
         ds = self.convert_dataset(self.validator.dataloader.dataset)
         data_logger = get_data_logger()
         assert isinstance(data_logger, ObjectDetectionDataLogger), (
@@ -413,7 +416,7 @@ class Callback:
         """Log predictions and embeddings on prediction batch end.
         Not functional yet
         """
-        # TODO: self.bl.batch = predictor.batch
+        # TODO: make inference work: self.bl.batch = predictor.batch
         self._after_pred_step()
 
 
@@ -429,7 +432,7 @@ def add_callback(model: YOLO, cb: Callback) -> None:
     model.add_callback("on_val_batch_start", cb.on_val_batch_start)
 
 
-def watch(model: YOLO, bucket: str, relative_img_path: str) -> None:
+def watch(model: YOLO, bucket: str, relative_img_path: str, labels: List) -> None:
     """Watch the model for predictions and embeddings logging.
 
     :param model: the model to watch"""
@@ -438,6 +441,9 @@ def watch(model: YOLO, bucket: str, relative_img_path: str) -> None:
         "dq.init('object_detection')"
     )
     cb = Callback(
-        nms_fn=non_max_suppression, bucket=bucket, relative_img_path=relative_img_path
+        nms_fn=non_max_suppression,
+        bucket=bucket,
+        relative_img_path=relative_img_path,
+        labels=labels,
     )
     add_callback(model, cb)
