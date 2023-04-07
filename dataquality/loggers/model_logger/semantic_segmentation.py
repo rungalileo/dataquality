@@ -28,12 +28,12 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
 
     def __init__(
         self,
-        image_ids: List[int],
-        gt_masks: torch.Tensor,
-        pred_mask: torch.Tensor,
-        gold_boundary_masks: torch.Tensor,
-        pred_boundary_masks: torch.Tensor,
-        output_probs: torch.Tensor,
+        image_ids: Optional[List[int]] = None,
+        gt_masks: Optional[torch.Tensor] = None,
+        pred_mask: Optional[torch.Tensor] = None,
+        gold_boundary_masks: Optional[torch.Tensor] = None,
+        pred_boundary_masks: Optional[torch.Tensor] = None,
+        output_probs: Optional[torch.Tensor] = None,
         # Below fields must be present, linting from parent class
         embs: Optional[Union[List, np.ndarray]] = None,
         probs: Optional[Union[List, np.ndarray]] = None,

@@ -28,80 +28,32 @@ from dataquality.utils.torch import (
 
 from dataquality.integrations.torch import TorchLogger
 from dataquality.schemas.task_type import TaskType
+from dataquality.integrations.torch import unwatch
 
 a = Analytics(ApiClient, dq.config)  # type: ignore
 a.log_import("torch")
-
-class StoreHook:
-    def __init__(self) -> None:
-        self.h: Optional[RemovableHandle] = None
-
-    def on_finish(self, *args: Any, **kwargs: Any) -> None:
-        pass
-
-    def hook(
-        self,
-        model: torch.nn.Module,
-        model_input: torch.Tensor,
-        model_output: Dict[str, torch.Tensor],
-    ) -> None:
-        """ "
-        Hook to store the model input (tensor) and extract the output
-        from a dictionary and store
-
-        :param model: torch.nn.Module segmentation model
-        :param model_input: torch.Tensor input to the model - an image (bs, 3, h, w)
-        :param model_output: torch.Tensor output of the model
-            shape = (bs, h, w)
-        """
-        self.model = model
-        self.model_input = model_input
-        # model_output['out'] is common for torch segmentation models as they use
-        # resizing and return a dict will have to adjust for transformer
-        # models / check if output is a dict
-        self.model_output = model_output["out"]
-        self.on_finish(model_input, model_output)
-
-class StoreInputHook:
-    def __init__(self, store: Dict[str, Any]) -> None:
-        self.h: Optional[RemovableHandle] = None
-        self.store = store
-
-    def on_finish(self, *args: Any, **kwargs: Any) -> None:
-        pass
-
-    def hook(
-        self,
-        model: torch.nn.Module,
-        model_input: torch.Tensor,
-    ) -> None:
-        """ "
-        Hook to store the model input (tensor) and extract the output
-        from a dictionary and store
-
-        :param model: torch.nn.Module segmentation model
-        :param model_input: torch.Tensor input to the model - an image (bs, 3, h, w)
-        :param model_output: torch.Tensor output of the model
-            shape = (bs, h, w)
-        """
-        self.store["model_input"] = model_input[0]
 
 
 class SemanticTorchLogger(TorchLogger):
     def __init__(self, 
                  model: torch.nn.Module, 
-                 num_classes: int = 10,
                  mask_col_name: Optional[str] = None,
                 helper_data: Dict[str, Any] = {},
                 task: Union[TaskType, None] = TaskType.text_classification,
                  *args: Any,
                 **kwargs: Any) -> None:
+        super().__init__(model=model, helper_data=helper_data, *args, **kwargs)
         
-        super().__init__(model=model, *args, **kwargs)
         self._init_helper_data(self.hook_manager, model)
-        self.attach_model_input_hook(model)
-        self.number_classes = num_classes
         self.mask_col_name = mask_col_name
+        # capture the model input
+        self.hook_manager.attach_hook(model, self._dq_input_hook)
+
+        # try to infer just from the model architecture if not do it on first step
+        try:
+            self.number_classes = model.classifier[-1].out_channels
+        except AttributeError:
+            self.number_classes = None
 
     def find_mask_category(self, batch: Dict[str, Any]) -> None:
         """
@@ -117,15 +69,37 @@ class SemanticTorchLogger(TorchLogger):
         print(f"Mask column name is {self.mask_col_name}")
         return
     
-    def attach_model_input_hook(self, model: torch.nn.Module) -> None:
+    def _dq_classifier_hook_with_step_end(
+        self,
+        model: Module,
+        model_input: torch.Tensor,
+        model_output: Dict[str, torch.Tensor],
+    ) -> None:
         """
-        Attaches a hook to the model to store the input so we get the correct shape
-        :param model: torch.nn.Module
+        Hook to extract the logits, embeddings from the model.
+            Overrides the superclass method and moves self._on_step_end()
+            to the input hook as that hook is called second.
+        :param model: Model pytorch model
+        :param model_input: Model input
+        :param model_output: Model output
         """
-        store_hook = StoreInputHook(self.helper_data)
-        h = model.register_forward_pre_hook(store_hook.hook)
-        self.helper_data[HelperData.patches].append(h)
+        self._classifier_hook(model, model_input, model_output)
+    
+    def _dq_input_hook(self,
+                       model: torch.nn.Module,
+                       model_input: torch.Tensor,
+                       model_output: Dict[str, torch.Tensor]) -> None:
+        """
+        Hook to store the model input (tensor) and extract the output
+        from a dictionary and store
+        
+        :param model: torch.nn.Module segmentation model
+        :param model_input: torch.Tensor input to the model - an image (bs, 3, h, w)
+        :param model_output: torch.Tensor output of the model
 
+        """
+        self.helper_data[HelperData.model_input] = model_input[0].detach().cpu().numpy()
+        self._on_step_end()
     
     def _init_helper_data(self, hm: ModelHookManager, model: Module) -> None:
         """
@@ -152,13 +126,18 @@ class SemanticTorchLogger(TorchLogger):
         # find the column corresponding to the mask on the first iteration else throw error in func
         if not self.mask_col_name:
             self.find_mask_category(self.helper_data['batch']['data'])
+
+        # if we have not inferred the number of classes from the model architecture
+        if not self.number_classes:
+            self.number_classes = self.helper_data[HelperData.model_outputs_store]['logits'].shape[1]
+
         with torch.no_grad():
             logging_data = self.helper_data['batch']['data']
             img_ids =  self.helper_data['batch']['ids'] # np.ndarray (bs,)
             
             # resize the logits to the input size based on hooks
-            preds = self.helper_data['model_outputs_store']['logits']
-            input_shape = self.helper_data['model_input'].shape[-2:]
+            preds = self.helper_data[HelperData.model_outputs_store]['logits']
+            input_shape = self.helper_data[HelperData.model_input].shape[-2:]
             preds = F.interpolate(preds, size=input_shape, mode="bilinear", align_corners=False)
 
             # checks whether the model is (n, classes, w, h), or (n, w, h, classes)
@@ -243,7 +222,6 @@ def patch_iterator_and_batch(store: Dict[str, Any]) -> Callable:
 
 def watch(
     model: Module,
-    n_classes: int,
     dataloaders: Optional[List[DataLoader]] = [],
     classifier_layer: Optional[Union[str, Module]] = None,
     mask_col_name: Optional[str] = None,
@@ -286,11 +264,11 @@ def watch(
 
     # throwing an error as get_model_logger() needs parameters
     # but from original code so leaving it in to talk with Franz about
-    # helper_data = dq.get_model_logger().logger_config.helper_data
+    helper_data = dq.get_model_logger().logger_config.helper_data
     print("Attaching dataquality to model and dataloaders")
     tl = SemanticTorchLogger(model, 
-                             num_classes=n_classes,
-                             mask_col_name=mask_col_name)
+                             mask_col_name=mask_col_name,
+                             helper_data=helper_data)
     # Patch the dataloader class if no dataloaders are passed
     # or if the dataloaders have num_workers > 0
     if dataloaders is None:
@@ -315,35 +293,7 @@ def watch(
     else:
         # Patch the dataloader class globally
         # Can be unpatched with unwatch()
+        # how can we add our dataloader watch to this portion
         raise NotImplementedError("Dataloaders with num_workers > 0 are not supported")
         # patch_dataloaders(tl.helper_data)
 
-
-# UNWATCH ERRORS ON DQ.GET_MODEL_LOGGER() BECAUSE IT NEEDS PARAMETERS
-def unwatch(model: Optional[Module] = None, force: bool = True) -> None:
-    """Unwatches the model. Run after the run is finished.
-    :param force: Force unwatch even if the model is not watched"""
-
-    helper_data = dq.get_model_logger().logger_config.helper_data
-    model = model or helper_data.get(HelperData.model, None)
-    if not getattr(model or {}, "_dq", False):
-        warn("Model is not watched, run watch(model) first")
-        if not force:
-            return
-
-    # Unpatch the dataloaders
-    unpatch(helper_data.get(HelperData.patches, []))
-    # Detach hooks the model. in the future use the model passed
-    # https://discuss.pytorch.org/t/how-to-check-where-the-hooks-are-in-the-model/120120/2
-    hook_manager = helper_data.get(HelperData.hook_manager, None)
-    if hook_manager:
-        hook_manager.detach_hooks()
-    # Remove the model from the helper data
-    if isinstance(model, Module):
-        remove_all_forward_hooks(model)
-    else:
-        warnings.warn("model is not a Module")
-    if "model" in helper_data:
-        del helper_data[HelperData.model]
-    if model and hasattr(model, "_dq"):
-        del model._dq
