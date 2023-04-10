@@ -7,6 +7,7 @@ import pandas as pd
 import vaex
 from vaex.dataframe import DataFrame
 
+import dataquality
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger.base_data_logger import (
     ITER_CHUNK_SIZE,
@@ -265,14 +266,19 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         HuggingFace datasets can be sliced, returning a dict that is in the correct
         format to log directly.
         """
-
-        parse_label = lambda x: x  # noqa: E731
-        # If label is integer, convert to string #
-
-        if isinstance(dataset[0].get(label), int):
-            try:
-                parse_label = lambda x: dataset.features[label].int2str(x)  # noqa: E731
-            except Exception:
+        def parse_label(labels: List[Union[int, str]]) -> List[str]:
+            if isinstance(labels[0], str):
+                return labels
+            if hasattr(dataset.features[label], "int2str"):
+                return dataset.features[label].int2str(labels)
+            elif self.logger_config.labels:
+                return [self.logger_config.labels[gt] for gt in labels]
+            elif hasattr(dataset.features[label], "names"):
+                classes = dataset.features[label].names
+                if not self.logger_config.labels:
+                    dataquality.set_labels_for_run(classes)
+                return [classes[gt] for gt in labels]
+            else:
                 # TODO: Simplify this logic with mapping the int label to string ticket
                 raise GalileoException(
                     "Your dataset does not have label names. Please include them"
