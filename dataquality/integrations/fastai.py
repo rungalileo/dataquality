@@ -365,7 +365,6 @@ class FastAiDQCallback(Callback):
             self.hook.remove()
             self.hook = None
         else:
-            print("No hook found")
 
     def unwatch(self) -> None:
         """
