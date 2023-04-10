@@ -266,6 +266,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         HuggingFace datasets can be sliced, returning a dict that is in the correct
         format to log directly.
         """
+
         def parse_label(labels: List[Union[int, str]]) -> List[str]:
             if isinstance(labels[0], str):
                 return labels
