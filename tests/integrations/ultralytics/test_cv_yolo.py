@@ -10,7 +10,11 @@ from dataquality.integrations.ultralytics import watch
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
-from dataquality.utils.ultralytics import temporary_cfg_for_val
+from dataquality.utils.ultralytics import (
+    _read_config,
+    temporary_cfg_for_val,
+    ultralytics_split_mapping,
+)
 from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID, LOCATION, TEST_PATH
 
 
@@ -66,13 +70,17 @@ def test_end2end_yolov8(
 
     for split in [Split.training, Split.validation]:  # ,
         dq.set_split(split)
-        tmp_cfg_path = temporary_cfg_for_val(ds_path, split)
+        cfg = _read_config(ds_path)
+        tmp_cfg_path = temporary_cfg_for_val(cfg, split)
         if not tmp_cfg_path:
             continue
         dq.set_epoch(0)
         dq.set_split(split)
         model = YOLO("./tests/integrations/ultralytics/yolov8n.pt")
-        watch(model)
+        bucket = cfg["bucket"]
+        labels = list(cfg.get("names", {}).values())
+        relative_img_path = cfg[f"bucket_{ultralytics_split_mapping[split]}"]
+        watch(model, bucket=bucket, relative_img_path=relative_img_path, labels=labels)
         model.val(data=tmp_cfg_path)
         os.remove(tmp_cfg_path)
 

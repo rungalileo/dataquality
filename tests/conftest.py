@@ -56,9 +56,6 @@ def disable_network_calls(request, monkeypatch):
             "results": "galileo-project-runs-results",
             "root": "galileo-project-runs",
         }
-        print("STUNTING URL", url)
-        if "healthcheck/dq" in url:
-            return {"bucket_names": bucket_names}
         if "healthcheck" in url:
             return MockResponse(
                 json_data={
