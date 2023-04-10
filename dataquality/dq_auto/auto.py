@@ -22,6 +22,7 @@ def auto(
     inference_data: Optional[Dict[str, Union[pd.DataFrame, Dataset, str]]] = None,
     max_padding_length: int = 200,
     hf_model: str = "distilbert-base-uncased",
+    num_train_epochs: int = 15,
     labels: Optional[List[str]] = None,
     project_name: Optional[str] = None,
     run_name: Optional[str] = None,
@@ -196,7 +197,7 @@ def auto(
     if hf_data is None and train_data is None:
         from dataquality.dq_auto.text_classification import auto as auto_tc
 
-        auto_tc()
+        auto_tc(num_train_epochs=num_train_epochs)
         return
     task_type = get_task_type_from_data(hf_data, train_data)
     # We cannot use a common list of *args or **kwargs here because mypy screams :(
@@ -217,6 +218,7 @@ def auto(
             run_name=run_name,
             wait=wait,
             create_data_embs=create_data_embs,
+            num_train_epochs=num_train_epochs,
         )
     elif task_type == TaskType.text_ner:
         from dataquality.dq_auto.ner import auto as auto_ner
@@ -233,6 +235,7 @@ def auto(
             project_name=project_name or AUTO_PROJECT_NAME[task_type],
             run_name=run_name,
             wait=wait,
+            num_train_epochs=num_train_epochs,
         )
     else:
         raise Exception("auto is only supported for text classification and NER!")

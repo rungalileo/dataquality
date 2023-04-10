@@ -47,6 +47,7 @@ def get_trainer(
     labels: List[str],
     model_checkpoint: str,
     max_padding_length: int,
+    num_train_epochs: int,
 ) -> Tuple[Trainer, DatasetDict]:
     tokenizer = AutoTokenizer.from_pretrained(model_checkpoint, use_fast=True)
 
@@ -72,7 +73,7 @@ def get_trainer(
         save_strategy=IntervalStrategy.EPOCH,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
-        num_train_epochs=15,
+        num_train_epochs=num_train_epochs,
         weight_decay=0.01,
         load_best_model_at_end=load_best_model,
         push_to_hub=False,
