@@ -348,7 +348,6 @@ class FastAiDQCallback(Callback):
         self.is_initialized = True
         dataquality.set_epoch(0)
         dataquality.set_split(split)
-        print("Ready for split", split)
 
     def unpatch(self) -> None:
         """
