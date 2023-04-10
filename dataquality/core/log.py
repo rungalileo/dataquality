@@ -126,6 +126,7 @@ def log_image_dataset(
     id: str = "id",
     label: Union[str, int] = "label",
     split: Optional[Split] = None,
+    inference_name: Optional[str] = None,
     meta: Optional[List[Union[str, int]]] = None,
     parallel: bool = False,
     **kwargs: Any,
@@ -147,6 +148,7 @@ def log_image_dataset(
         id=id,
         label=label,
         split=split,
+        inference_name=inference_name,
         meta=meta,
         parallel=parallel,
     )

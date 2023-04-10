@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import torch
 import torch.nn as nn
+import vaex
 from fastai.metrics import accuracy
 from fastai.tabular.all import TabularDataLoaders, tabular_learner
 from fastai.vision.all import ImageDataLoaders, Resize, error_rate, vision_learner
@@ -13,8 +14,10 @@ from fastai.vision.all import ImageDataLoaders, Resize, error_rate, vision_learn
 import dataquality as dq
 from dataquality.clients.api import ApiClient
 from dataquality.integrations.fastai import FastAiDQCallback, convert_img_dl_to_df
+from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
-from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID
+from dataquality.utils.vaex import validate_unique_ids
+from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID, LOCATION
 
 
 @patch.object(ApiClient, "valid_current_user", return_value=True)
@@ -70,9 +73,10 @@ def test_auto(
         label_func=label_func,
         item_tfms=Resize(224),
         num_workers=1,
+        # bs=64,
         drop_last=False,
     )
-    dq.init(task_type="image_classification")
+    dq.init(task_type=TaskType.image_classification)
     dq.set_labels_for_run(["nocat", "cat"])
     for data, split in zip(dls, ["training", "validation"]):
         df = convert_img_dl_to_df(data)
@@ -80,15 +84,19 @@ def test_auto(
         dq.log_image_dataset(df, split=split, imgs_location_colname="text")
 
     ThreadPoolManager.wait_for_threads()
-    learn = vision_learner(dls, "resnet34", metrics=error_rate)
-    dqc = FastAiDQCallback()
+    learn = vision_learner(dls, "resnet10t", metrics=error_rate)
+    dqc = FastAiDQCallback(finish=False)
     learn.add_cb(dqc)
-    learn.fine_tune(2)
-
-    # validate_unique_ids(vaex.open(f"{LOCATION}/{split}/0/*.hdf5"), "epoch")
-    # validate_unique_ids(vaex.open(f"{LOCATION}/{split}/1/*.hdf5"), "epoch")
-
-    # dq.finish()
+    learn.fine_tune(2, freeze_epochs=0)
+    dq.log_image_dataset(df, imgs_location_colname="text", split="test")
+    dl_test = learn.dls.test_dl(pd.Series(image_files[:-3]))
+    dqc.prepare_split("test")
+    preds, _ = learn.get_preds(dl=dl_test)
+    for split in ["training", "validation"]:
+        validate_unique_ids(vaex.open(f"{LOCATION}/{split}/1/*.hdf5"), "epoch")
+    validate_unique_ids(vaex.open(f"{LOCATION}/test/0/*.hdf5"), "epoch")
+    dqc.unwatch()
+    dq.finish()
 
 
 class PassThroughModel(nn.Module):
@@ -164,7 +172,7 @@ def test_tab(
     mock_create_run.return_value = {"id": DEFAULT_RUN_ID}
     set_test_config(current_project_id=None, current_run_id=None)
     dq.init(task_type="image_classification")
-    ds_len = 100
+    ds_len = 13
     df = pd.DataFrame(
         {
             "id": range(0, ds_len),
@@ -175,9 +183,9 @@ def test_tab(
 
     tdl = TabularDataLoaders.from_df(
         df.drop(["id"], axis=1),
-        bs=16,
+        bs=12,
         cont_names=["text"],
-        valid_idx=list(range(len(df) - 35, len(df))),
+        valid_idx=list(range(ds_len - int(ds_len * 0.3), ds_len)),
         y_names="label",
         drop_last=False,
     )
@@ -209,5 +217,4 @@ def test_tab(
     learn._backward = empty_func
     dqc = FastAiDQCallback(layer=model.fc, finish=False)
     learn.add_cb(dqc)
-    learn.fit_one_cycle(2)
-    print("done")
+    learn.fit_one_cycle(1)

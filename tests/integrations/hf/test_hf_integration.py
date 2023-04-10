@@ -136,7 +136,8 @@ def test_tokenize_and_log_dataset(
                 "validation": mock_ds,
             }
         )
-        output = tokenize_and_log_dataset(ds_dict, mock_tokenizer, label_names)
+
+        output = tokenize_and_log_dataset(ds_dict, mock_tokenizer)
 
     for split in ds_dict.keys():
         split_output = output[split]
