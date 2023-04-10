@@ -56,6 +56,7 @@ class _PatchDLGetIdxs:
         self.store[FAIKey.dataloader_indices] = {
             Split.training: [],
             Split.validation: [],
+            Split.inference: [],
             Split.test: [],
         }
         setattr(obj, self.func_name, self)
@@ -153,6 +154,7 @@ class FastAiDQCallback(Callback):
             FAIKey.dataloader_indices: {
                 Split.training: [],
                 Split.validation: [],
+                Split.inference: [],
                 Split.test: [],
             },
         }
@@ -162,6 +164,7 @@ class FastAiDQCallback(Callback):
         self.idx_store[FAIKey.dataloader_indices][Split.training].clear()
         self.idx_store[FAIKey.dataloader_indices][Split.validation].clear()
         self.idx_store[FAIKey.dataloader_indices][Split.test].clear()
+        self.idx_store[FAIKey.dataloader_indices][Split.inference].clear()
 
     def reset_config(self) -> None:
         self.model_outputs_log.clear()
@@ -336,7 +339,9 @@ class FastAiDQCallback(Callback):
         store[FAIKey.model_input] = model_input
         store[FAIKey.model_output] = model_output
 
-    def prepare_split(self, split: Split = Split.test) -> None:
+    def prepare_split(
+        self, split: Split = Split.test, inference_name: Optional[str] = None
+    ) -> None:
         """
         Run before test data. To wrap it and set the split.
         """
@@ -347,14 +352,20 @@ class FastAiDQCallback(Callback):
         self.register_hooks()
         self.is_initialized = True
         dataquality.set_epoch(0)
-        dataquality.set_split(split)
+        if inference_name:
+            raise GalileoException(
+                "Inference not supported yet, use test and provide dummy labels"
+            )
+            dataquality.set_split(split, inference_name=inference_name)
+        else:
+            dataquality.set_split(split)
+
 
     def unpatch(self) -> None:
         """
         Unpatches the dataloader and removes the hook.
         """
         for patch in self.patches:
-            print("Unpatching", patch)
             patch.unpatch()
 
     def unhook(self) -> None:
