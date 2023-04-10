@@ -26,8 +26,6 @@ from dataquality.utils.vaex import add_pca_to_df, rename_df
 @unique
 class GalileoDataLoggerAttributes(str, Enum):
     image = "image"
-    bbox = "bbox"
-    gold_cls = "gold_cls"
     ids = "ids"
     # mixin restriction on str (due to "str".split(...))
     split = "split"  # type: ignore
@@ -59,16 +57,12 @@ class ObjectDetectionDataLogger(BaseGalileoDataLogger):
     def __init__(
         self,
         images: Optional[List[str]] = None,
-        bboxes: Optional[List] = None,
-        gold_cls: Optional[List[str]] = None,
         ids: Optional[List[int]] = None,
         split: Optional[str] = None,
         meta: Optional[MetasType] = None,
         inference_name: Optional[str] = None,
     ) -> None:
         super().__init__(meta)
-        self.gold_cls = gold_cls if gold_cls is not None else []
-        self.bboxes = bboxes if bboxes is not None else []
         self.images = images if images is not None else []
         self.ids = ids if ids is not None else []
         self.split = split
@@ -105,8 +99,6 @@ class ObjectDetectionDataLogger(BaseGalileoDataLogger):
         batch_size: int = ITER_CHUNK_SIZE,
         image: Union[str, int] = ODCols.image,
         id: Union[str, int] = ODCols.id,
-        bbox: Union[str, int] = ODCols.bbox,
-        gold_cls: Union[str, int] = ODCols.gold_cls,
         split: Optional[Split] = None,
         inference_name: Optional[str] = None,
         meta: Optional[List[Union[str, int]]] = None,
@@ -118,10 +110,8 @@ class ObjectDetectionDataLogger(BaseGalileoDataLogger):
         self.inference_name = inference_name
         meta = meta or []
         column_map = {
-            image: ODCols.image,
             id: ODCols.id,
-            gold_cls: ODCols.gold_cls,
-            bbox: ODCols.bbox,
+            image: ODCols.image,
         }
         if isinstance(dataset, pd.DataFrame):
             dataset = dataset.rename(columns=column_map)
@@ -137,8 +127,6 @@ class ObjectDetectionDataLogger(BaseGalileoDataLogger):
                 batch_size,
                 image,
                 id,
-                bbox,
-                gold_cls,
                 meta,
                 split,
                 inference_name,
@@ -155,8 +143,6 @@ class ObjectDetectionDataLogger(BaseGalileoDataLogger):
         batch_size: int,
         image: Union[str, int],
         id: Union[str, int],
-        bbox: Union[str, int],
-        gold_cls: Union[str, int],
         meta: List[Union[str, int]],
         split: Optional[Split] = None,
         inference_name: Optional[str] = None,
@@ -166,10 +152,6 @@ class ObjectDetectionDataLogger(BaseGalileoDataLogger):
         for chunk in dataset:
             batches[ODCols.image].append(chunk[image])
             batches[ODCols.id].append(chunk[id])
-
-            if split != Split.inference:
-                batches[ODCols.gold_cls].append(chunk[gold_cls])
-                batches[ODCols.bbox].append(chunk[bbox])
 
             for meta_col in meta:
                 metas[meta_col].append(self._convert_tensor_to_py(chunk[meta_col]))
@@ -193,8 +175,6 @@ class ObjectDetectionDataLogger(BaseGalileoDataLogger):
         self.log_image_samples(
             images=d[ODCols.image],
             ids=d[ODCols.id],
-            bboxes=d.get(ODCols.bbox),
-            gold_cls=d.get(ODCols.gold_cls),
             split=split,
             meta=meta,
             inference_name=inference_name,
@@ -206,8 +186,6 @@ class ObjectDetectionDataLogger(BaseGalileoDataLogger):
         """Helper to log a pandas or vaex df"""
         self.images = df[ODCols.image].tolist()
         self.ids = df[ODCols.id].tolist()
-        self.bboxes = df[ODCols.bbox].tolist()
-        self.gold_cls = df[ODCols.gold_cls].tolist() if ODCols.gold_cls in df else []
         for meta_col in meta:
             self.meta[str(meta_col)] = df[meta_col].tolist()
         self.log()
@@ -217,8 +195,6 @@ class ObjectDetectionDataLogger(BaseGalileoDataLogger):
         *,
         images: List[str],
         ids: List[int],
-        bboxes: Optional[List] = None,
-        gold_cls: Optional[List] = None,
         split: Optional[Split] = None,
         inference_name: Optional[str] = None,
         meta: Optional[MetasType] = None,
@@ -230,8 +206,6 @@ class ObjectDetectionDataLogger(BaseGalileoDataLogger):
         self.ids = ids
         self.split = split
         self.inference_name = inference_name
-        self.bboxes = bboxes if bboxes is not None else []
-        self.gold_spans = gold_cls if gold_cls is not None else []
         self.meta = meta or {}
         self.log()
 
