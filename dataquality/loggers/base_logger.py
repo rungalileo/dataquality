@@ -57,6 +57,7 @@ class BaseLoggerAttributes(str, Enum):
     text_token_indices_flat = "text_token_indices_flat"
     log_helper_data = "log_helper_data"
     inference_name = "inference_name"
+    image = "image"
 
     @staticmethod
     def get_valid() -> List[str]:
