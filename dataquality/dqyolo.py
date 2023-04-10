@@ -4,7 +4,7 @@ import sys
 from typing import List
 
 from ultralytics import YOLO
-
+from ultralytics.yolo.utils import get_settings
 import dataquality as dq
 from dataquality.integrations.ultralytics import watch
 from dataquality.schemas.split import Split
@@ -71,7 +71,10 @@ def main() -> None:
     """
     # 1. Take the original args to extract config path
     original_cmd = sys.argv[1:]
-    run_path_glob = "runs/detect/train*"
+    runs_dir = get_settings().get("runs_dir") or input(
+        "Enter runs dir default. For example home/runs"
+    )
+    run_path_glob = str(runs_dir) + "/detect/train*"
     files_start = glob.glob(run_path_glob)
     bash_run = " ".join(original_cmd)
     if not bash_run.startswith("yolo"):
