@@ -360,7 +360,6 @@ class FastAiDQCallback(Callback):
         else:
             dataquality.set_split(split)
 
-
     def unpatch(self) -> None:
         """
         Unpatches the dataloader and removes the hook.
@@ -368,14 +367,16 @@ class FastAiDQCallback(Callback):
         for patch in self.patches:
             patch.unpatch()
 
-    def unhook(self) -> None:
+    def unhook(self) -> bool:
         """
         Unpatches the dataloader and removes the hook.
         """
         if self.hook:
             self.hook.remove()
             self.hook = None
+            return True
         else:
+            return False
 
     def unwatch(self) -> None:
         """
