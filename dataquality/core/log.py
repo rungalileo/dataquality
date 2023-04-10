@@ -127,6 +127,7 @@ def log_image_dataset(
     split: Optional[Split] = None,
     inference_name: Optional[str] = None,
     meta: Optional[List[Union[str, int]]] = None,
+    parallel: bool = False,
     **kwargs: Any,
 ) -> None:
     a.log_function("dq/log_image_dataset")
@@ -148,6 +149,7 @@ def log_image_dataset(
         split=split,
         inference_name=inference_name,
         meta=meta,
+        parallel=parallel,
     )
 
 
