@@ -218,4 +218,3 @@ def test_tab(
     dqc = FastAiDQCallback(layer=model.fc, finish=False)
     learn.add_cb(dqc)
     learn.fit_one_cycle(1)
-    print("done")
