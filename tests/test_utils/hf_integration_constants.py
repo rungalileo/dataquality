@@ -459,8 +459,6 @@ mock_batch_encoding._encodings = [BatchTokens(tokens) for tokens in BATCH_TOKENS
 mock_tokenizer = mock.Mock()
 mock_tokenizer.batch_encode_plus.return_value = mock_batch_encoding
 
-# We mock the hf dataset so we don't need to download a dataset from hf
-mock_ds = datasets.Dataset.from_dict(UNADJUSTED_TOKEN_DATA)
 tag_names = [
     "O",
     "B-PER",
@@ -470,4 +468,15 @@ tag_names = [
     "B-LOC",
     "I-LOC",
 ]
-mock_ds.features["ner_tags"].feature.names = tag_names
+# We mock the hf dataset so we don't need to download a dataset from hf
+mock_ds = datasets.Dataset.from_dict(
+    UNADJUSTED_TOKEN_DATA,
+    # features=datasets.Features({"ner_tags": datasets.Features(names=tag_names)}),
+)
+new_features = mock_ds.features.copy()
+new_features["ner_tags"] = datasets.Sequence(
+    feature=datasets.ClassLabel(names=tag_names),
+    length=-1,
+    id=None,
+)
+mock_ds = mock_ds.cast(new_features)

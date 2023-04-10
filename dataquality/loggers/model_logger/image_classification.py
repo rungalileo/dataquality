@@ -54,10 +54,13 @@ class ImageClassificationModelLogger(TextClassificationModelLogger):
 
         # If there are duplicate ids, filter out the duplicates
         if len(self.ids) > len(_unique_ids):
+            # cur_epoch = get_data_logger().logger_config.cur_epoch
+
             get_dq_logger().warning(
-                f"Duplicate ids found in epoch. "
+                f"Duplicate ids found in epoch. {self.epoch}"
                 f"Batch size: {len(self.ids)}, "
                 f"Unique ids: {len(_unique_ids)}"
+                f"Split: {self.split}"
             )
             unique_indices = [id_to_index[id] for id in _unique_ids]
             if len(self.embs) > 0:
