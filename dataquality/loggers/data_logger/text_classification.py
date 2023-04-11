@@ -1,12 +1,13 @@
 from collections import defaultdict
 from enum import Enum, unique
-from typing import Any, DefaultDict, Dict, Iterable, List, Optional, Union
+from typing import Any, DefaultDict, Dict, Iterable, List, Optional, Union, cast
 
 import numpy as np
 import pandas as pd
 import vaex
 from vaex.dataframe import DataFrame
 
+import dataquality
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger.base_data_logger import (
     ITER_CHUNK_SIZE,
@@ -266,16 +267,30 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         format to log directly.
         """
 
-        parse_label = lambda x: x  # noqa: E731
-        # If label is integer, convert to string #
-
-        if isinstance(dataset[0].get(label), int):
-            try:
-                parse_label = lambda x: dataset.features[label].int2str(x)  # noqa: E731
-            except Exception:
+        def parse_label(labels: Union[List[int], List[str]]) -> List[str]:
+            # If we have 1 str, they are all strings
+            if isinstance(labels[0], str):
+                return cast(List[str], labels)
+            # Otherwise they are all ints (typing)
+            else:
+                labels = cast(List[int], labels)
+            if hasattr(dataset.features[label], "int2str"):
+                return dataset.features[label].int2str(labels)
+            elif self.logger_config.labels:
+                return [self.logger_config.labels[gt] for gt in labels]
+            elif (
+                hasattr(dataset.features[label], "names")
+                and dataset.features[label].names
+            ):
+                classes = dataset.features[label].names
+                if not self.logger_config.labels:
+                    dataquality.set_labels_for_run(classes)
+                return [classes[gt] for gt in labels]
+            else:
                 # TODO: Simplify this logic with mapping the int label to string ticket
                 raise GalileoException(
-                    "Your dataset does not have label names. Please include them"
+                    "Your dataset does not have label names. Please include them or "
+                    "call dq.set_labels_for_run"
                 )
 
         assert dataset[0].get(id) is not None, GalileoException(
