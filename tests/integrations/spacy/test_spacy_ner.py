@@ -2,8 +2,9 @@ import pickle
 from typing import Callable, Dict, List, Tuple
 from unittest import mock
 from unittest.mock import MagicMock
-import pandas as pd
+
 import numpy as np
+import pandas as pd
 import pytest
 import spacy
 import vaex

@@ -2,11 +2,11 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
-from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.loggers.logger_config.object_detection import (
     BoxFormat,
     object_detection_logger_config,
 )
+from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.utils.od import convert_cxywh_xyxy, convert_tlxywh_xyxy, scale_boxes
 
 
