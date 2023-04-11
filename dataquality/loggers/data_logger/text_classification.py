@@ -267,7 +267,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         format to log directly.
         """
 
-        def parse_label(labels: List[Union[int, str]]) -> List[str]:
+        def parse_label(labels: Union[List[int], List[str]]) -> List[str]:
             if isinstance(labels[0], str):
                 return labels
             if hasattr(dataset.features[label], "int2str"):
@@ -282,7 +282,8 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
             else:
                 # TODO: Simplify this logic with mapping the int label to string ticket
                 raise GalileoException(
-                    "Your dataset does not have label names. Please include them"
+                    "Your dataset does not have label names. Please include them or "
+                    "call dq.set_labels_for_run"
                 )
 
         assert dataset[0].get(id) is not None, GalileoException(

@@ -20,6 +20,7 @@ from dataquality.loggers.data_logger.text_classification import (
 from dataquality.schemas.split import Split
 from dataquality.utils.vaex import GALILEO_DATA_EMBS_ENCODER
 from tests.conftest import LOCAL_MODEL_PATH, LOCATION, TEST_PATH
+from tests.test_utils.tc_constants import TC_LABELS, TEST_HF_DS, TRAIN_HF_DS
 
 
 def test_duplicate_rows(set_test_config, cleanup_after_use) -> None:
@@ -367,3 +368,22 @@ def test_create_and_upload_data_embs(
     assert data_embs.emb.values.ndim == 2
     # mini BERT model spits out 32 dims
     assert data_embs.emb.values.shape == (10, 32)
+
+
+def test_log_dataset_hf_no_int2str(
+    set_test_config: Callable, cleanup_after_use: Callable
+) -> None:
+    logger = TextClassificationDataLogger()
+    assert logger.logger_config.labels is None
+    with mock.patch("dataquality.core.log.get_data_logger") as mock_method:
+        mock_method.return_value = logger
+        dq.log_dataset(TRAIN_HF_DS, split="train")
+        # We should grab the labels from the dataset and save them
+        assert logger.logger_config.labels == TC_LABELS
+
+    new_logger = TextClassificationDataLogger()
+    with mock.patch("dataquality.core.log.get_data_logger") as mock_method:
+        mock_method.return_value = new_logger
+        # Even thought the test ds doesn't have the label names, we should be able
+        # to grab them from the config.labels because we grabbed them from the train ds
+        dq.log_dataset(TEST_HF_DS, split="test")
