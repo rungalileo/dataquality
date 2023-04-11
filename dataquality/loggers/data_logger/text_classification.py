@@ -1,6 +1,6 @@
 from collections import defaultdict
 from enum import Enum, unique
-from typing import Any, DefaultDict, Dict, Iterable, List, Optional, Union
+from typing import Any, DefaultDict, Dict, Iterable, List, Optional, Union, cast
 
 import numpy as np
 import pandas as pd
@@ -268,8 +268,12 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         """
 
         def parse_label(labels: Union[List[int], List[str]]) -> List[str]:
+            # If we have 1 str, they are all strings
             if isinstance(labels[0], str):
-                return labels
+                return cast(List[str], labels)
+            # Otherwise they are all ints (typing)
+            else:
+                labels = cast(List[int], labels)
             if hasattr(dataset.features[label], "int2str"):
                 return dataset.features[label].int2str(labels)
             elif self.logger_config.labels:
