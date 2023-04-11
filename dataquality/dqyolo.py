@@ -5,6 +5,7 @@ from typing import List
 
 from ultralytics import YOLO
 from ultralytics.yolo.utils import get_settings
+
 import dataquality as dq
 from dataquality.integrations.ultralytics import watch
 from dataquality.schemas.split import Split
