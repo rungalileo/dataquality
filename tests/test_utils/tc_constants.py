@@ -130,7 +130,6 @@ TC_LABELS = [
 TRAIN_HF_DS = Dataset.from_list(TC_JSON_DATA)
 # 🔭🌕 Galileo preprocessing
 TRAIN_HF_DS = TRAIN_HF_DS.map(lambda x, idx: {"id": idx}, with_indices=True)
-TRAIN_HF_DS.features["label"].names = TC_LABELS
 
 # Test dataset (no label names)
 TEST_HF_DS = Dataset.from_list(TC_JSON_DATA)

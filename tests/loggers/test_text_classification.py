@@ -374,8 +374,7 @@ def test_log_dataset_hf_no_int2str(
     set_test_config: Callable, cleanup_after_use: Callable
 ) -> None:
     logger = TextClassificationDataLogger()
-    assert logger.logger_config.labels is None
-    assert hasattr(TRAIN_HF_DS.features["label"], "names")
+    dataquality.set_labels_for_run(TC_LABELS)
     with mock.patch("dataquality.core.log.get_data_logger") as mock_method:
         mock_method.return_value = logger
         dq.log_dataset(TRAIN_HF_DS, split="train")

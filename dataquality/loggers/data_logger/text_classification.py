@@ -278,7 +278,10 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
                 return dataset.features[label].int2str(labels)
             elif self.logger_config.labels:
                 return [self.logger_config.labels[gt] for gt in labels]
-            elif hasattr(dataset.features[label], "names"):
+            elif (
+                hasattr(dataset.features[label], "names")
+                and dataset.features[label].names
+            ):
                 classes = dataset.features[label].names
                 if not self.logger_config.labels:
                     dataquality.set_labels_for_run(classes)
