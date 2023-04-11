@@ -56,6 +56,7 @@ def compute_metrics(eval_pred: EvalPrediction) -> Dict:
 def get_trainer(
     dd: DatasetDict,
     model_checkpoint: str,
+    num_train_epochs: int,
     labels: Optional[List[str]] = None,
 ) -> Tuple[Trainer, DatasetDict]:
     tokenizer = AutoTokenizer.from_pretrained(model_checkpoint, use_fast=True)
@@ -84,7 +85,7 @@ def get_trainer(
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
         load_best_model_at_end=load_best_model,
-        num_train_epochs=15,
+        num_train_epochs=num_train_epochs,
         weight_decay=0.01,
         save_strategy=IntervalStrategy.EPOCH,
         logging_strategy=IntervalStrategy.EPOCH,
