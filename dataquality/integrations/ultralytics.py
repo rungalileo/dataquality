@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from urllib.parse import urljoin
 
 import numpy as np
 import torch
@@ -166,7 +167,10 @@ class Callback:
         self.nms_fn = nms_fn
         self.hooked = False
         self.split = None
+        assert "://" in bucket, "bucket needs to start with s3://"
+        assert bucket.count("/") == 2, "bucket should end with slash"
         self.bucket = bucket
+
         self.relative_img_path = relative_img_path
         self.labels = labels
         self.file_map = {}  # maps file names to ids
@@ -356,7 +360,14 @@ class Callback:
             ratio_pad = image["ratio_pad"]
             bbox_gold = scale_boxes(batch_img_shape, tbox, shape, ratio_pad=ratio_pad)
             file_name = Path(image["im_file"]).name
-            file_path = Path(self.bucket) / self.relative_img_path / file_name
+            if self.relative_img_path[0] == "/":
+                self.relative_img_path = self.relative_img_path[1:]
+            elif self.relative_img_path[-1] == "/":
+                self.relative_img_path = self.relative_img_path[:-1]
+
+            file_path = (
+                self.bucket + "/" + urljoin(self.relative_img_path + "/", file_name)
+            )
             processed_dataset.append(
                 {
                     ODCols.id: i,
