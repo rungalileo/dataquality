@@ -258,7 +258,7 @@ class Callback:
                     bbox = logging_data[i]["bboxes"].clone()
                     height, width = batch_img_shape
                     tbox = box_convert(bbox, "cxcywh", "xyxy") * torch.tensor(
-                        (width, height, width, height)
+                        (width, height, width, height), device=bbox.device
                     )
                     # Scaling taking from ultralytics source code
                     # It differs for gold
@@ -355,7 +355,7 @@ class Callback:
             bbox = image["bboxes"].clone()
             height, width = batch_img_shape
             tbox = box_convert(bbox, "cxcywh", "xyxy") * torch.tensor(
-                (width, height, width, height)
+                (width, height, width, height), device=bbox.device
             )
             ratio_pad = image["ratio_pad"]
             bbox_gold = scale_boxes(batch_img_shape, tbox, shape, ratio_pad=ratio_pad)

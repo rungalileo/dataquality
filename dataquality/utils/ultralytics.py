@@ -287,17 +287,6 @@ def process_batch_data(batch: Dict) -> Dict[int, Any]:
     return label_per_image
 
 
-def convert_xywh_to_xyxy(bboxes: Any) -> torch.Tensor:
-    """Converts xywh boxes to xyxy can be in either integer coords or 0-1
-
-    :param bboxes: Bounding boxes in xywh format
-    """
-    # converts xywh boxes to xyxy can be in either integer coords or 0-1
-    if not isinstance(bboxes, torch.Tensor):
-        return box_convert(torch.Tensor(bboxes), "cxcywh", "xyxy")
-    return box_convert(bboxes, "cxcywh", "xyxy")
-
-
 # step names from ultralytics and their corresponding split
 ultralytics_split_mapping = split_mapping = {
     Split.test: "test",
