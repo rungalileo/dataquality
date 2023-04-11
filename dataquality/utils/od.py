@@ -33,5 +33,5 @@ def convert_tlxywh_xyxy(bboxes: np.ndarray) -> np.ndarray:
         return bboxes
     x, y, w, h = bboxes[:, 0], bboxes[:, 1], bboxes[:, 2], bboxes[:, 3]
     x2, y2 = x + w, y + h
-    bboxes[:, 0], bboxes[:, 1], bboxes[:, 2], bboxes[:, 3] = x, y, x2, y2
+    bboxes[:, 2], bboxes[:, 3] = x2, y2
     return bboxes
