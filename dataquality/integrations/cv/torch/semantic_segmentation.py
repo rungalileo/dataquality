@@ -108,7 +108,6 @@ class SemanticTorchLogger(TorchLogger):
                 SemSegCols.id: i
             })
             if i == 10: break
-        import pdb; pdb.set_trace()
         return processed_dataset
 
     def find_mask_category(self, batch: Dict[str, Any]) -> None:

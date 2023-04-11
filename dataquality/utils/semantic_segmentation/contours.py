@@ -25,12 +25,14 @@ def find_and_upload_contours(
             example: proj-id/run-id/split/contours/
     """
     pred_masks_np = pred_masks.numpy()
+    paths = []
     for i in range(len(image_ids)):
         image_id = image_ids[i]
         pred_mask = pred_masks_np[i]
         contour_map = find_contours(pred_mask)
         s_contour_map = serialize_contours(contour_map)
-        _upload_contour(image_id, s_contour_map, obj_prefix)
+        obj_name = _upload_contour(image_id, s_contour_map, obj_prefix)
+        paths.append(obj_name)
 
 
 def find_contours(pred_mask: np.ndarray) -> Dict[int, Tuple]:

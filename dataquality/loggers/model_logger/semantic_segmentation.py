@@ -84,16 +84,22 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         #     "Must have image cloud path, set using `dq.set_image_cloud_path`. "
         #     "Must be set before training model."
         # )
+        
+        # path to dep map and contours is
+        # {self.proj_run}/{self.split_name_path}/dep/image_id.json
+        dep_prefix = f"{self.proj_run}/{self.split_name_path}/dep"
         image_dep = calculate_and_upload_dep(
             self.output_probs,
             self.gt_masks,
             self.image_ids,
-            f"{self.proj_run}/{self.split_name_path}/dep",
+            dep_prefix,
         )
+        
+        contour_prefix = f"{self.proj_run}/{self.split_name_path}/contours"
         find_and_upload_contours(
             self.image_ids,
             self.pred_mask,
-            f"{self.proj_run}/{self.split_name_path}/contours",
+            contour_prefix,
         )
 
         mean_ious = calculate_mean_iou(self.pred_mask, self.gt_masks)
@@ -103,9 +109,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
 
         false_positives = calculate_false_positives(self.pred_mask, self.gt_masks)
         missing_segments = calculate_missing_segments(self.pred_mask, self.gt_masks)
-
         data = {
-            # "id": self.ids,
             "image_id": self.image_ids,
             "height": [img.shape[-1] for img in self.gt_masks],
             "width": [img.shape[-2] for img in self.gt_masks],
@@ -116,6 +120,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "error_missing_segment": missing_segments,
             "split": [self.split] * len(self.image_ids),
             "epoch": [self.epoch] * len(self.image_ids),
+            "contour_path": [f"{contour_prefix}/{image_id}.json" for image_id in self.image_ids],
+            "dep_path": [f"{dep_prefix}/{image_id}.json" for image_id in self.image_ids]
         }
         if self.split == Split.inference:
             data["inference_name"] = [self.inference_name] * len(self.image_ids)
