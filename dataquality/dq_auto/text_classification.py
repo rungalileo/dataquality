@@ -132,6 +132,7 @@ def auto(
     test_data: Optional[Union[pd.DataFrame, Dataset, str]] = None,
     inference_data: Optional[Dict[str, Union[pd.DataFrame, Dataset, str]]] = None,
     max_padding_length: int = 200,
+    num_train_epochs: int = 15,
     hf_model: str = "distilbert-base-uncased",
     labels: Optional[List[str]] = None,
     project_name: str = "auto_tc",
@@ -268,5 +269,7 @@ def auto(
     dq.init(TaskType.text_classification, project_name=project_name, run_name=run_name)
     dq.set_labels_for_run(labels)
     _log_dataset_dict(dd)
-    trainer, encoded_data = get_trainer(dd, labels, hf_model, max_padding_length)
+    trainer, encoded_data = get_trainer(
+        dd, labels, hf_model, max_padding_length, num_train_epochs
+    )
     do_train(trainer, encoded_data, wait, create_data_embs)
