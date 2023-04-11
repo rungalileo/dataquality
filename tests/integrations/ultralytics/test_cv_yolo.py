@@ -64,7 +64,7 @@ def test_end2end_yolov8(
     from ultralytics import YOLO
 
     dq.init(TaskType.object_detection)
-    # TODO: Make this path better using the current file location
+    # TODO: Move test to dojo
     ds_path = "tests/integrations/ultralytics/coco128.yaml"
     model = YOLO("./tests/integrations/ultralytics/yolov8n.pt")
 

@@ -2,11 +2,11 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
+from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.loggers.logger_config.object_detection import (
     BoxFormat,
     object_detection_logger_config,
 )
-from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.utils.od import convert_cxywh_xyxy, convert_tlxywh_xyxy, scale_boxes
 
 
@@ -16,13 +16,13 @@ class ObjectDetectionModelLogger(BaseGalileoModelLogger):
 
     def __init__(
         self,
-        ids: Union[List, np.ndarray],
-        pred_boxes: List[np.ndarray],
-        gold_boxes: List[np.ndarray],
-        labels: List[np.ndarray],
-        pred_embs: List[np.ndarray],
-        gold_embs: List[np.ndarray],
-        image_size: Optional[Tuple[int, int]],
+        ids: Optional[Union[List, np.ndarray]] = None,
+        pred_boxes: Optional[List[np.ndarray]] = None,
+        gold_boxes: Optional[List[np.ndarray]] = None,
+        labels: Optional[List[np.ndarray]] = None,
+        pred_embs: Optional[List[np.ndarray]] = None,
+        gold_embs: Optional[List[np.ndarray]] = None,
+        image_size: Optional[Tuple[int, int]] = None,
         embs: Optional[Union[List, np.ndarray]] = None,
         probs: Optional[Union[List, np.ndarray]] = None,
         logits: Optional[Union[List, np.ndarray]] = None,
@@ -51,29 +51,29 @@ class ObjectDetectionModelLogger(BaseGalileoModelLogger):
         self.embs: (bs, n, dim) n = boxes embedding for each box
         """
         super().__init__(
-            embs=embs,
-            probs=probs,
-            logits=logits,
-            ids=ids,
             split=split,
             epoch=epoch,
             inference_name=inference_name,
         )
-        assert ids is not None
-        self.image_ids = ids
-        self.pred_boxes = pred_boxes
-        self.gold_boxes = gold_boxes
-        self.labels = labels
-        self.pred_embs = pred_embs
-        self.gold_embs = gold_embs
+
+        self.pred_boxes: List[np.ndarray] = pred_boxes if pred_boxes is not None else []
+        self.gold_boxes: List[np.ndarray] = gold_boxes if gold_boxes is not None else []
+        self.labels: List[np.ndarray] = labels if labels is not None else []
+        self.pred_embs: List[np.ndarray] = pred_embs if pred_embs is not None else []
+        self.gold_embs: List[np.ndarray] = gold_embs if gold_embs is not None else []
+        self.image_size: Optional[Tuple[int, int]] = image_size
+        self.embs: Union[List, np.ndarray] = embs if embs is not None else []
+        self.probs: Union[List, np.ndarray] = probs if probs is not None else []
+        self.logits: Union[List, np.ndarray] = logits if logits is not None else []
+        self.image_ids: Union[List, np.ndarray] = ids if ids is not None else []
         # self.all_boxes = []
         # self.deps = []
         # self.is_gold = []
         # self.is_pred = []
         # self.image_dep = []
-        self.image_size = image_size
 
     def validate_and_format(self) -> None:
+        assert self.image_ids is not None
         assert (
             len(self.pred_embs) == len(self.gold_embs) == len(self.image_ids)
         ), """There must be 1 entry in pred_embs and gold_embs for every image"""

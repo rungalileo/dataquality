@@ -464,7 +464,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         for col, dt in zip(df.get_column_names(), df.dtypes):
             if dt == "float" and dt != "float32":
                 df[col] = df[col].astype("float32")
-            if dt == "int" and dt != "int32":
+            elif dt == "int" and dt != "int32":
                 df[col] = df[col].astype("int32")
 
     @classmethod
