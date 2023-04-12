@@ -115,7 +115,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             raise GalileoException(
                 "Must provide imgs_location_colname in order to upload content."
             )
-        return os.path.isfile(dataset[imgs_location_colname][0])
+        return os.path.isfile(dataset[imgs_location_colname].iloc[0])
 
     def _prepare_content(
         self,
