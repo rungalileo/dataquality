@@ -66,11 +66,6 @@ class ObjectDetectionModelLogger(BaseGalileoModelLogger):
         self.probs: Union[List, np.ndarray] = probs if probs is not None else []
         self.logits: Union[List, np.ndarray] = logits if logits is not None else []
         self.image_ids: Union[List, np.ndarray] = ids if ids is not None else []
-        # self.all_boxes = []
-        # self.deps = []
-        # self.is_gold = []
-        # self.is_pred = []
-        # self.image_dep = []
 
     def validate_and_format(self) -> None:
         assert self.image_ids is not None
