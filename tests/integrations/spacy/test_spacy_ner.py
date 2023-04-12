@@ -44,7 +44,7 @@ from tests.test_utils.spacy_integration_constants_inference import (
 
 
 def test_log_input_examples_without_watch(set_test_config: Callable):
-    set_test_config(task_typspan_embe="text_ner")
+    set_test_config(task_type="text_ner")
     with pytest.raises(GalileoException) as e:
         log_input_examples(NER_TRAINING_DATA, split="training")
     assert (
@@ -436,8 +436,6 @@ def test_spacy_inference_only(
     any_close = np.any(is_close, axis=1)
 
     # Check if all elements in array1 have a close value in array2
-    print("np.sum(any_close)")
-    print(np.mean(any_close))
     assert np.all(any_close)
     # arrange the probs array to account for misordering of logged samples
     assert len(probs) == 7
