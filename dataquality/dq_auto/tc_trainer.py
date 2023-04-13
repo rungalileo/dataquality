@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 import evaluate
 import numpy as np
@@ -56,7 +56,7 @@ def get_trainer(
     )
 
     # Used to properly seed the model
-    def model_init():
+    def model_init() -> Any:
         return AutoModelForSequenceClassification.from_pretrained(
             model_checkpoint, num_labels=len(labels)
         )

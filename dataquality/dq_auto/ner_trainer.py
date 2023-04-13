@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import evaluate
 import numpy as np
@@ -71,7 +71,7 @@ def get_trainer(
     assert isinstance(encoded_datasets, DatasetDict)
 
     # Used to properly seed the model
-    def model_init():
+    def model_init() -> Any:
         return AutoModelForTokenClassification.from_pretrained(
             model_checkpoint, num_labels=len(dq.get_model_logger().logger_config.labels)
         )
