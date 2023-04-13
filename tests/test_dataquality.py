@@ -221,7 +221,8 @@ def test_logging_inference_run(
     Tests that logging metadata columns only attach to the splits we log them for
     """
     inference_data = input_data(
-        split="inference", meta={"inference_meta_1": [3.14, 42]}
+        split="inference",
+        meta={"inference_meta_1": np.array([3.14, 42], dtype=np.float32)},
     )
     dataquality.log_data_samples(**inference_data)
     inference_data = input_data(split="inference", inference_name="last-week-customers")
@@ -256,7 +257,10 @@ def test_logging_inference_run(
 
     assert "inference_meta_1" in inference_data_1.get_column_names()
     assert "inference_meta_1" not in inference_data_2.get_column_names()
-    assert sorted(inference_data_1["inference_meta_1"].tolist()) == [3.14, 42]
+    # Compare each pair of float numbers within the tolerance level (1e-6)
+    actual = sorted(inference_data_1["inference_meta_1"].tolist())
+    expected = [3.14, 42]
+    assert all(a == pytest.approx(e, abs=1e-6) for a, e in zip(actual, expected))
 
     inference_emb_1 = vaex.open(f"{TEST_PATH}/inference/all-customers/emb/emb.hdf5")
     inference_emb_2 = vaex.open(
@@ -333,9 +337,15 @@ def test_logging_train_test_inference(
     inference_data = vaex.open(f"{TEST_PATH}/inference/all-customers/data/data.hdf5")
 
     assert "training_meta" in train_data.get_column_names()
-    assert sorted(train_data["training_meta"].tolist()) == [1.414, 123]
+    # Compare each pair of float numbers within the tolerance level (1e-6)
+    actual = sorted(train_data["training_meta"].tolist())
+    expected = [1.414, 123]
+    assert all(a == pytest.approx(e, abs=1e-6) for a, e in zip(actual, expected))
+
     assert "test_meta" in test_data.get_column_names()
-    assert sorted(test_data["test_meta"].tolist()) == [3.14, 42]
+    actual = sorted(test_data["test_meta"].tolist())
+    expected = [3.14, 42]
+    assert all(a == pytest.approx(e, abs=1e-6) for a, e in zip(actual, expected))
 
     train_emb_data = vaex.open(f"{TEST_PATH}/training/0/emb/emb.hdf5")
     test_emb_data = vaex.open(f"{TEST_PATH}/test/0/emb/emb.hdf5")

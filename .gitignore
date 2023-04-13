@@ -169,5 +169,10 @@ finetuned
 pytorch_sphinx_theme
 launch.json
 data/
+
+# OD
+yolov8n.pt
+runs
+VIA2COCO
 coco_dataset/
 coco.ipynb
