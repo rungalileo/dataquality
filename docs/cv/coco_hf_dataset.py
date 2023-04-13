@@ -21,33 +21,13 @@ class coco_hf_dataset_hf(torch.utils.data.Dataset):
         self.ds = ds
         self.mask_transform = mask_transform
         self.img_transform = img_transform
-
-        self.class_dict = { 'background': 0,
-                            'airplane': 1,
-                            'bicycle': 2,
-                            'bird': 3,
-                            'boat': 4,
-                            'bottle': 5,
-                            'bus': 6,
-                            'car': 7,
-                            'cat': 8,
-                            'chair': 9,
-                            'cow': 10,
-                            'dining table': 11,
-                            'dog': 12,
-                            'horse': 13,
-                            'motorcycle': 14,
-                            'person': 15,
-                            'potted plant': 16,
-                            'sheep': 17,
-                            'couch': 18,
-                            'train': 19,
-                            'tv': 20}
-        self.int2str = {v: k for k, v in self.class_dict.items()}
         self.size = size
 
     def __len__(self) -> int:
         return len(self.ds)
+    
+    def return_tacos(self):
+        print('tacos')
 
     def __getitem__(self, idx: int) -> Dict[str, Union[torch.Tensor, int, np.ndarray]]:
         sample = self.ds[idx]

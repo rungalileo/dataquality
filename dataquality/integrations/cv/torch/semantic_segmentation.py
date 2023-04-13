@@ -24,6 +24,7 @@ from dataquality.utils.torch import store_batch_indices
 from dataquality.exceptions import GalileoException
 from dataquality.utils.torch import (
     ModelHookManager, 
+    patch_dataloaders,
     unpatch, 
     remove_all_forward_hooks
 )
@@ -68,6 +69,7 @@ class SemanticTorchLogger(TorchLogger):
         self.file_map = {}
         self.mask_file_map = {}
         self.bucket_name = bucket_name
+        self.dataloaders = dataloaders
         self.datasets = [self.convert_dataset(dataloader.dataset) for dataloader in dataloaders]
 
         # capture the model input
@@ -78,36 +80,37 @@ class SemanticTorchLogger(TorchLogger):
             self.number_classes = model.classifier[-1].out_channels
         except AttributeError:
             self.number_classes = None
+            
+        self.image_col = 'image'
+        self.label_col = 'label'
         
         
 
 
     def convert_dataset(self, dataset: Any) -> List:
         """Convert the dataset to the format expected by the dataquality client"""
+        
+        # we wouldn't need any of this if we could map ids to the cloud images
         assert len(dataset) > 0
         processed_dataset = []
         for i, data in enumerate(dataset):
-            if 'mask_path' not in data or 'image_path' not in data:
-                raise GalileoException("Missing mask_path or image_path in data .\
-                                    Please have both specified in your dataset.\
-                                    Expected format is bucket_name/relative_path_to_image")
+            if 'image_path' not in data:
+                raise GalileoException("Missing image_path in data .\
+                                        Please have both specified in your dataset.\
+                                        Ie. for batch in dataloader: batch['image_path'] = 'path/to/image'")
 
             self.file_map[data['image_path']] = i
-            self.mask_file_map[data['mask_path']] = i
 
             # cut the dataset path from the image path so we can use relative path
             # within the bucket to each image
             image_path = os.path.abspath(data['image_path'])
-            mask_path = os.path.abspath(data['mask_path'])
             image_path = image_path.replace(self.dataset_path, '')
-            mask_path = mask_path.replace(self.dataset_path, '')
 
             processed_dataset.append({
                 SemSegCols.image_path: image_path,
-                SemSegCols.mask_path: mask_path,
                 SemSegCols.id: i
             })
-            if i == 10: break
+        # I have assumed we can collect the masks from the hooks in the dataloader
         return processed_dataset
 
     def find_mask_category(self, batch: Dict[str, Any]) -> None:
@@ -231,6 +234,32 @@ class SemanticTorchLogger(TorchLogger):
             )
             # logger._get_data_dict()
             logger.log()
+            
+    def finish(self) -> None:
+        # finish function that runs our inference at the end of training
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.splits = ['training', 'validation', 'test']
+        for i, dataloader in enumerate(self.dataloaders):
+            print('Running dataquality on dataloader: ', self.splits[i])
+            dq.set_epoch_and_split(0, self.splits[i])
+            self.run_one_epoch(dataloader, device)
+        return
+                
+    def run_one_epoch(self, dataloader: DataLoader, device: str):
+        
+        if device == "cuda":
+            torch.cuda.empty_cache()
+        print(device)
+        with torch.autocast('cuda'):
+            for i, batch in enumerate(dataloader):
+                img = batch[self.image_col]
+                img  = img.to(device)
+                self.model(img)
+                if i == 10:
+                    break
+        return
+                    
+                    
 
 
 # store the batch
@@ -311,6 +340,11 @@ def watch(
     :param classifier_layer: Layer to hook into (usually 'classifier' or 'fc').
         Inputs are the embeddings and outputs are the logits.
     """
+    print("We assume the dataloaders passed only have transforms that Tensor, Resize, and Normalize the image and mask\n"
+      "‼ Any other transforms passed will lead to unexpected results\n"
+      "See docs at https://dq.readthedocs.io/en/latest/ (placeholder) for more info \n \n")
+
+    
     a.log_function("torch/watch")
     assert dq.config.task_type, GalileoException(
         "dq client must be initialized. " "For example: dq.init('text_classification')"
@@ -334,13 +368,20 @@ def watch(
                              mask_col_name=mask_col_name,
                              helper_data=helper_data,
                              dataloaders=dataloaders,)
-    # Patch the dataloader class if no dataloaders are passed
-    # or if the dataloaders have num_workers > 0
+    
+    # we can override the num workers as we are the ones using the dataloader
+    # would be better to use as many as possible but this is a quick fix
+    # have to check with Franz about this
+    for dataloader in dataloaders:
+        if getattr(dataloader, "num_workers", 0) > 0:
+            dataloader.num_workers = 0
+            
     if dataloaders is None:
         dataloaders = []
     is_single_process_dataloader = all(
         [getattr(d, "num_workers", 0) == 0 for d in dataloaders]
     )
+      
     if len(dataloaders) > 0 and is_single_process_dataloader:
         for dataloader in dataloaders:
             assert isinstance(dataloader, DataLoader), GalileoException(
@@ -359,6 +400,8 @@ def watch(
         # Patch the dataloader class globally
         # Can be unpatched with unwatch()
         # how can we add our dataloader watch to this portion
-        raise NotImplementedError("Dataloaders with num_workers > 0 are not supported")
+        patch_dataloaders(tl.helper_data['batch'])
         # patch_dataloaders(tl.helper_data)
+        
+    return tl
 
