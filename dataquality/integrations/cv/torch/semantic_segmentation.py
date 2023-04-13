@@ -358,10 +358,13 @@ def watch(
             "Model is already being watched, run unwatch(model) first"
         )
 
-    # throwing an error as get_model_logger() needs parameters
-    # but from original code so leaving it in to talk with Franz about
     helper_data = dq.get_model_logger().logger_config.helper_data
     print("Attaching dataquality to model and dataloaders")
+    
+    # we assume that the image_path they pass to us is relative to the bucket / dataset
+    # ie if the path they give to us should be the same path we can use in their bucket 
+    # to find the data (ie bucket_name/image_path == dataset_path/image_path)
+    
     tl = SemanticTorchLogger(model, 
                              bucket_name=bucket_name,
                              dataset_path=dataset_path,
