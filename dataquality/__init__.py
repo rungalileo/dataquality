@@ -30,7 +30,7 @@ If you want to train without a model, you can use the auto framework:
         dataquality.get_insights()
 """
 
-__version__ = "v0.9.1"
+__version__ = "v0.8.28"
 
 import sys
 from typing import Any, List, Optional
