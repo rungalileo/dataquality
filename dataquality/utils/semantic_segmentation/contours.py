@@ -60,6 +60,8 @@ def find_contours(pred_mask: np.ndarray) -> Dict[int, Tuple]:
     """
     contours_map = {}
     for label in np.unique(pred_mask).astype(int).tolist():
+        if label == 0:
+            continue
 
         mask = pred_mask == label
         mask = mask.astype(np.uint8)  # maybe don't need this
