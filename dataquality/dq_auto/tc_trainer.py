@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 import evaluate
 import numpy as np
@@ -55,9 +55,11 @@ def get_trainer(
         lambda x: preprocess_function(x, tokenizer, max_padding_length), batched=True
     )
 
-    model = AutoModelForSequenceClassification.from_pretrained(
-        model_checkpoint, num_labels=len(labels)
-    )
+    # Used to properly seed the model
+    def model_init() -> Any:
+        return AutoModelForSequenceClassification.from_pretrained(
+            model_checkpoint, num_labels=len(labels)
+        )
 
     # Training arguments and training part
     metric = evaluate.load(EVAL_METRIC)
@@ -84,8 +86,8 @@ def get_trainer(
 
     # We pass huggingface datasets here but typing expects torch datasets, so we ignore
     trainer = Trainer(
-        model,
-        args,
+        model_init=model_init,
+        args=args,
         train_dataset=encoded_datasets[Split.train],  # type: ignore
         eval_dataset=encoded_datasets.get(Split.validation),  # type: ignore
         tokenizer=tokenizer,
