@@ -28,7 +28,7 @@ requires = [
     "importlib-metadata<6.0.1",
     "evaluate",
     "datasets>=2.6",
-    "transformers>=4.24.0",
+    "transformers>=4.17.0",
     "seqeval",
     "sentence-transformers>=2.2",
     "Pillow",
