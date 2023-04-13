@@ -25,7 +25,12 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: install dependencies
-        run: scripts/install.sh
+        run: |
+          if [[ ${{ matrix.python-version }} == "3.7" ]]; then
+            scripts/install.sh --extras=py37
+          else
+            scripts/install.sh
+          fi
       - name: test
         run: scripts/test.sh
       - name: upload coverage
