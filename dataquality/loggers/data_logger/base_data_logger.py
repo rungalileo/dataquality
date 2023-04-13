@@ -315,15 +315,15 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         last_epoch: Optional[int] = None,
         create_data_embs: bool = False,
     ) -> None:
-        # If set, last_epoch will only let you upload to and including the provided
-        # epoch value, nothing more.
-        # If None, then slicing a list [:None] will include all values
         epochs_or_infs = os.listdir(split_loc)
         epochs_or_infs = sorted(
             epochs_or_infs, key=lambda i: int(i) if split != Split.inference else i
         )
         # last_epoch is inclusive
         last_epoch = last_epoch + 1 if last_epoch else last_epoch
+        # If set, last_epoch will only let you upload to and including the provided
+        # epoch value, nothing more.
+        # If None, then slicing a list [:None] will include all values
         epochs_or_infs = epochs_or_infs[:last_epoch]
 
         largest_epoch = epochs_or_infs[-1]
@@ -453,19 +453,19 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             minio_file = (
                 f"{proj_run}/{split}/{epoch_or_inf}/{data_folder}/{data_folder}.{ext}"
             )
-            cls._handle_numpy_floats(df=df_obj)
+            cls._handle_numpy_types(df=df_obj)
             object_store.create_project_run_object_from_df(
                 df=df_obj, object_name=minio_file
             )
 
     @classmethod
-    def _handle_numpy_floats(cls, df: DataFrame) -> None:
-        """Validate that the provided embeddings, logits, and probabilities are
-        all float32s. This is done because vaex does not support float16."""
-        if "emb" in df.get_column_names() and df.emb.dtype == "float16":
-            df.emb = df.emb.astype("float32")
-        if "prob" in df.get_column_names() and df.prob.dtype == "float16":
-            df.prob = df.prob.astype("float32")
+    def _handle_numpy_types(cls, df: DataFrame) -> None:
+        """Casts everything to float/int 32"""
+        for col, dt in zip(df.get_column_names(), df.dtypes):
+            if dt == "float" and dt != "float32":
+                df[col] = df[col].astype("float32")
+            elif dt == "int" and dt != "int32":
+                df[col] = df[col].astype("int32")
 
     @classmethod
     def prob_only(

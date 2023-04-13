@@ -11,6 +11,7 @@ class TaskType(str, Enum):
     text_ner = "text_ner"
     image_classification = "image_classification"
     structured_classification = "structured_classification"
+    object_detection = "object_detection"
 
     @staticmethod
     def get_valid_tasks() -> List[str]:
@@ -25,4 +26,5 @@ class TaskType(str, Enum):
             2: TaskType.text_ner,
             3: TaskType.image_classification,
             4: TaskType.structured_classification,
+            5: TaskType.object_detection,
         }[task_int]

@@ -5,8 +5,10 @@ from dataquality.exceptions import GalileoException
 
 
 class Split(str, Enum):
-    training = "training"
     train = "training"
+    training = "training"
+    val = "validation"
+    valid = "validation"
     validation = "validation"
     test = "test"
     testing = "test"
@@ -18,7 +20,7 @@ class Split(str, Enum):
 
     @staticmethod
     def get_valid_keys() -> List[str]:
-        return ["train", "training", "test", "testing", "validation"]
+        return ["train", "training", "val", "valid", "validation", "test", "testing"]
 
 
 def conform_split(split: Union[str, Split]) -> Split:
