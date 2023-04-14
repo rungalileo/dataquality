@@ -1,9 +1,11 @@
+import hashlib
 import multiprocessing
 import os
 import queue
 import tempfile
+from pathlib import Path
 from threading import Thread
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import vaex
 from pydantic import UUID4
@@ -21,10 +23,11 @@ class UploadDfWorker(Thread):
         self,
         request_queue: queue.Queue,
         project_id: UUID4,
-        df: vaex.DataFrame,
+        file_list: List[str],
         stop_val: str,
         export_format: str,
         export_cols: List[str],
+        temp_dir: str,
         show_progress: bool = True,
         pbar: Optional[Any] = None,
         step: Optional[int] = None,
@@ -34,12 +37,13 @@ class UploadDfWorker(Thread):
         self.results: list = []
         self.stop_val = stop_val
         self.project_id = project_id
-        self.df = df
+        self.file_list = file_list
         self.export_format = export_format
         self.export_cols = export_cols
         self.show_progress = show_progress
         self.pbar = pbar
         self.step = step
+        self.temp_dir = temp_dir
 
     def _upload_file_for_project(
         self,
@@ -70,21 +74,49 @@ class UploadDfWorker(Thread):
                 temp_file_name = temp_file.name
                 ext_split = os.path.splitext(temp_file_name)
                 file_path = f"{ext_split[0]}_{i}_{j}{ext_split[1]}"
-                self.df[self.export_cols][i:j].export(file_path)
+
+                def load_bytes_from_file(
+                    file_path: str,
+                ) -> Dict[str, Union[str, bytes]]:
+                    with open(file_path, "rb") as f:
+                        img = f.read()
+                        hash = hashlib.md5(img).hexdigest()
+                        ext = os.path.splitext(file_path)[1]
+                        return {
+                            "file_path": file_path,
+                            "data": img,
+                            "object_path": f"{self.project_id}/{hash}{ext}",
+                        }
+
+                df = vaex.from_records(
+                    list(
+                        map(
+                            load_bytes_from_file,
+                            [f for f in self.file_list][i:j],
+                        )
+                    )
+                )
+
+                df[self.export_cols].export(file_path)
                 res = self._upload_file_for_project(
                     file_path=file_path,
                     project_id=self.project_id,
                 )
+                os.remove(file_path)
                 if not res.ok:
                     self.queue.put(content)
                 elif self.show_progress:
+                    df[["file_path", "object_path"]].export(
+                        Path(self.temp_dir) / f"{i}_{j}.{self.export_format}"
+                    )
                     assert self.pbar is not None
                     self.pbar.update(self.step)
 
 
-def upload_df(
-    df: vaex.DataFrame,
+def chunk_load_then_upload_df(
+    file_list: List[str],
     export_cols: List[str],
+    temp_dir: str,
     project_id: Optional[UUID4] = None,
     parallel: bool = False,
     step: int = 50,
@@ -100,7 +132,7 @@ def upload_df(
         raise ValueError("project_id must be provided")
 
     # Create queue and add the ends of the chunks
-    total = len(df)
+    total = len(file_list)
     pbar = None
     if show_progress:
         pbar = tqdm(total=total, desc="Uploading content...")
@@ -117,13 +149,14 @@ def upload_df(
         worker = UploadDfWorker(
             request_queue=q,
             project_id=project_id,
-            df=df,
+            file_list=file_list,
             stop_val=stop_val,
             export_format=export_format,
             export_cols=export_cols,
             show_progress=show_progress,
             pbar=pbar,
             step=step,
+            temp_dir=temp_dir,
         )
         worker.start()
         workers.append(worker)
