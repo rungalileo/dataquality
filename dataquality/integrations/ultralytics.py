@@ -56,7 +56,7 @@ def find_midpoint(
 
 
 def create_embedding(
-    features: List, box: List, size: Tuple[int, int] = (640, 640)
+    features: Tensor, box: Tensor, size: Tuple[int, int] = (640, 640)
 ) -> torch.Tensor:
     """Creates an embedding from a feature map
 
@@ -167,8 +167,10 @@ class Callback:
         self.nms_fn = nms_fn
         self.hooked = False
         self.split = None
+        # bucket needs to start with // and not end with /
+        bucket = bucket if bucket[-1] != "/" else bucket[:-1]
         assert "://" in bucket, "bucket needs to start with s3://"
-        assert bucket.count("/") == 2, "bucket should end with slash"
+        assert bucket[:-1] != "/", "bucket needs to not end with /"
         self.bucket = bucket
 
         self.relative_img_path = relative_img_path
@@ -235,47 +237,29 @@ class Callback:
                 shape = batch["ori_shape"][i]
                 batch_img_shape = batch["img"][i].shape[1:]
                 pred = nms[i].detach().cpu()
-                logging_data[i]["bbox_pred"] = pred.float()[:, :4]
+                bbox = pred[:, :4].float().clone()
                 features = [
                     self.step_embs.model_input[0][0][i],
                     self.step_embs.model_input[0][1][i],
                     self.step_embs.model_input[0][2][i],
                 ]
                 logging_data[i]["pred_embs"] = (
-                    embedding_fn(features, pred, batch_img_shape).cpu().numpy()
+                    embedding_fn(features, bbox, batch_img_shape).cpu().numpy()
                 )
                 # Scaling taking from ultralytics source code
-                logging_data[i]["bbox_pred_scaled"] = scale_boxes(
-                    batch_img_shape,
-                    logging_data[i]["bbox_pred"].clone(),
-                    shape,
-                    ratio_pad=ratio_pad,
-                )
-                logging_data[i]["probs"] = pred[:, 6:].cpu().numpy()
+                logging_data[i]["bbox_pred"] = scale_boxes(batch_img_shape, bbox, shape, ratio_pad=ratio_pad)
+                logging_data[i]["probs"] = pred[:, 6:].numpy()
                 # if there are no gt boxes then bboxes will not be in the logging data
                 if "bboxes" in logging_data[i].keys():
-                    # iterate on the ground truth boxes
+                    # iterate on the ground truth boxes (given in cxcywh format)
                     bbox = logging_data[i]["bboxes"].clone()
                     height, width = batch_img_shape
                     tbox = box_convert(bbox, "cxcywh", "xyxy") * torch.tensor(
                         (width, height, width, height), device=bbox.device
                     )
                     # Scaling taking from ultralytics source code
-                    # It differs for gold
-                    logging_data[i]["bbox_gold"] = (
-                        scale_boxes(batch_img_shape, tbox, shape, ratio_pad=ratio_pad)
-                        .cpu()
-                        .numpy()
-                    )
-                    logging_data[i]["gt_embs"] = (
-                        embedding_fn(
-                            features, logging_data[i]["bbox_gold"], batch_img_shape
-                        )
-                        .cpu()
-                        .numpy()
-                    )
-                    logging_data[i]["labels"] = logging_data[i]["labels"].cpu().numpy()
-
+                    logging_data[i]["gt_embs"] = embedding_fn(features, tbox, batch_img_shape)
+                    logging_data[i]["bbox_gold"] = scale_boxes(batch_img_shape, tbox, shape, ratio_pad=ratio_pad)
                 else:
                     logging_data[i]["bbox_gold"] = np.array([])
                     logging_data[i]["gt_embs"] = np.array([])
@@ -291,11 +275,11 @@ class Callback:
         probs = []
         ids = []
         for i in range(len(self.logging_data)):
-            pred_boxes.append(self.logging_data[i]["bbox_pred_scaled"].cpu().numpy())
-            gold_boxes.append(self.logging_data[i]["bbox_gold"])
-            labels.append(self.logging_data[i]["labels"])
-            pred_embs.append(self.logging_data[i]["pred_embs"])
-            gold_embs.append(self.logging_data[i]["gt_embs"])
+            pred_boxes.append(self.logging_data[i]["bbox_pred"].cpu().numpy())
+            gold_boxes.append(self.logging_data[i]["bbox_gold"].cpu().numpy())
+            labels.append(self.logging_data[i]["labels"].cpu().numpy())
+            pred_embs.append(self.logging_data[i]["pred_embs"].cpu().numpy())
+            gold_embs.append(self.logging_data[i]["gt_embs"].cpu().numpy())
             probs.append(self.logging_data[i]["probs"])
             ids.append(self.logging_data[i]["id"])
 
@@ -362,7 +346,7 @@ class Callback:
             file_name = Path(image["im_file"]).name
             if self.relative_img_path[0] == "/":
                 self.relative_img_path = self.relative_img_path[1:]
-            elif self.relative_img_path[-1] == "/":
+            if self.relative_img_path[-1] == "/":
                 self.relative_img_path = self.relative_img_path[:-1]
 
             file_path = (

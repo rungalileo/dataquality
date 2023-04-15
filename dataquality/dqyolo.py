@@ -109,7 +109,9 @@ def main() -> None:
             "bucket: "
         )
 
-    labels = list(cfg.get("names", {}).values())
+    # Labels in the YAML files could either be a dict or a list
+    labels = cfg.get("names", {})
+    labels = labels if isinstance(labels, list) else list(labels.values())
 
     # Check each file
     for split in [Split.training, Split.validation, Split.test]:
