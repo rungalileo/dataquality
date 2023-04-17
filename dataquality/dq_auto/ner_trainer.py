@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import evaluate
 import numpy as np
@@ -56,6 +56,7 @@ def compute_metrics(eval_pred: EvalPrediction) -> Dict:
 def get_trainer(
     dd: DatasetDict,
     model_checkpoint: str,
+    num_train_epochs: int,
     labels: Optional[List[str]] = None,
 ) -> Tuple[Trainer, DatasetDict]:
     tokenizer = AutoTokenizer.from_pretrained(model_checkpoint, use_fast=True)
@@ -69,9 +70,11 @@ def get_trainer(
     #  not an Optional[DatasetDict]...?
     assert isinstance(encoded_datasets, DatasetDict)
 
-    model = AutoModelForTokenClassification.from_pretrained(
-        model_checkpoint, num_labels=len(dq.get_model_logger().logger_config.labels)
-    )
+    # Used to properly seed the model
+    def model_init() -> Any:
+        return AutoModelForTokenClassification.from_pretrained(
+            model_checkpoint, num_labels=len(dq.get_model_logger().logger_config.labels)
+        )
 
     batch_size = 64
     has_val = Split.validation in encoded_datasets
@@ -84,7 +87,7 @@ def get_trainer(
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
         load_best_model_at_end=load_best_model,
-        num_train_epochs=15,
+        num_train_epochs=num_train_epochs,
         weight_decay=0.01,
         save_strategy=IntervalStrategy.EPOCH,
         logging_strategy=IntervalStrategy.EPOCH,
@@ -95,8 +98,8 @@ def get_trainer(
 
     # We pass huggingface datasets here but typing expects torch datasets, so we ignore
     trainer = Trainer(
-        model,
-        args,
+        model_init=model_init,
+        args=args,
         train_dataset=encoded_datasets[Split.train],  # type: ignore
         eval_dataset=encoded_datasets.get(Split.validation),  # type: ignore
         tokenizer=tokenizer,

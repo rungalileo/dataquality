@@ -1,5 +1,5 @@
-import hashlib
 import os
+import tempfile
 from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
@@ -18,7 +18,7 @@ from dataquality.loggers.logger_config.image_classification import (
 )
 from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.split import Split
-from dataquality.utils.upload import upload_df
+from dataquality.utils.upload import chunk_load_then_upload_df
 
 # smaller than ITER_CHUNK_SIZE from base_data_logger because very large chunks
 # containing image data often won't fit in memory
@@ -66,6 +66,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         id: str = "id",
         label: Union[str, int] = "label",
         split: Optional[Split] = None,
+        inference_name: Optional[str] = None,
         meta: Optional[List[Union[str, int]]] = None,
         column_map: Optional[Dict[str, str]] = None,
         parallel: bool = False,
@@ -103,6 +104,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             id=id,
             label=label,
             split=split,
+            inference_name=inference_name,
             meta=meta,
         )
 
@@ -113,7 +115,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             raise GalileoException(
                 "Must provide imgs_location_colname in order to upload content."
             )
-        return os.path.isfile(dataset[imgs_location_colname][0])
+        return os.path.isfile(dataset[imgs_location_colname].iloc[0])
 
     def _prepare_content(
         self,
@@ -124,30 +126,17 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         file_list = dataset[imgs_location_colname].tolist()
         project_id = config.current_project_id
 
-        def load_bytes_from_file(file_path: str) -> Dict[str, Union[str, bytes]]:
-            with open(file_path, "rb") as f:
-                img = f.read()
-                hash = hashlib.md5(img).hexdigest()
-                ext = os.path.splitext(file_path)[1]
-                return {
-                    "data": img,
-                    "object_path": f"{project_id}/{hash}{ext}",
-                }
-
-        df = vaex.from_records(
-            list(
-                map(
-                    load_bytes_from_file,
-                    [f for f in file_list],
-                )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            export_format = "arrow"
+            chunk_load_then_upload_df(
+                file_list=file_list,
+                export_cols=["data", "object_path"],
+                project_id=project_id,
+                temp_dir=temp_dir,
+                parallel=parallel,
+                export_format=export_format,
             )
-        )
-        upload_df(
-            df=df,
-            export_cols=["data", "object_path"],
-            project_id=project_id,
-            parallel=parallel,
-        )
+            df = vaex.open(f"{temp_dir}/*.arrow")
         dataset["text"] = df["object_path"].to_numpy()
 
         return dataset

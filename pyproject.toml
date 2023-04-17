@@ -1,3 +1,4 @@
+
 [build-system]
 requires = ["flit_core >=2,<3"]
 build-backend = "flit_core.buildapi"
@@ -23,11 +24,11 @@ requires = [
     "blake3>=0.2.1",
     "wrapt>=1.13.3",
     "scipy>=1.7.0",
-    "cachetools>=5.2.0",
-    "importlib-metadata<5.0.0",
+    "cachetools>=4.2.4",
+    "importlib-metadata<6.0.1",
     "evaluate",
     "datasets>=2.6",
-    "transformers>=4.24.0",
+    "transformers>=4.17.0",
     "seqeval",
     "sentence-transformers>=2.2",
     "Pillow",
@@ -35,6 +36,9 @@ requires = [
     "numpy<1.24.0",
     "tenacity>=8.1.0"
 ]
+
+[tool.flit.scripts]
+dqyolo = "dataquality.dqyolo:main"
 
 [tool.flit.metadata.urls]
 Documentation = "https://rungalileo.gitbook.io/galileo"
@@ -50,6 +54,7 @@ doc = [
     "sphinx-markdown-builder"
 ]
 test = [
+    "ultralytics",
     "pytest>=7.2.1",
     "mypy>=1.0.0",
     "freezegun>=1.2.2",
@@ -60,7 +65,7 @@ test = [
     "pytest-env>=0.8.1",
     "spacy==3.2.1",
     "types-setuptools>=67.3.0.1",
-    "types-cachetools>=5.3.0.0",
+    "types-cachetools>=4.2.4",
     "torchvision>=0.13.1",
     "torch>=1.12.1",
     "torchtext>=0.13.1",
@@ -68,7 +73,8 @@ test = [
     "xgboost>=1.6.2",
     "timm>=0.6.12",
     "fastai>=2.7.11",
-    "portalocker==2.7.0"
+    "portalocker==2.7.0",
+    "types-PyYAML==6.0.12.9"
 ]
 dev = [
     "flake8",
@@ -81,18 +87,25 @@ dev = [
 # Need to be installed with `pip install 'dataquality[cuda]' --extra-index-url=https://pypi.ngc.nvidia.com/ `
 # Need to pin because the new release is broken https://github.com/rapidsai/cudf/issues/12762#issuecomment-1462845289
 cuda = [
-    "ucx-py-cu11<0.30",
-    "rmm-cu11==22.12",
-    "raft-dask-cu11==22.12",
-    "pylibraft-cu11==22.12",
-    "dask-cudf-cu11==22.12",
-    "cudf-cu11==22.12",
-    "cuml-cu11==22.12"
+   "ucx-py-cu11<0.30",
+   "rmm-cu11==22.12",
+   "raft-dask-cu11==22.12",
+   "pylibraft-cu11==22.12",
+   "dask-cudf-cu11==22.12",
+   "cudf-cu11==22.12",
+   "cuml-cu11==22.12"
 ]
 
 minio = [
     "minio>=7.1.0,<7.2.0"
 ]
 
+py37 = [
+    "cachetools>=5.2.0",
+    "types-cachetools>=5.3.0.0",
+    "importlib-metadata<5.0.0",
+]
+
 [tool.isort]
 profile = "black"
+

@@ -110,9 +110,13 @@ class TestSpacyExpectedResults:
                         80,
                         81,
                         82,
-                    ]
+                    ],
+                    dtype=np.int32,
                 ),
-                np.array([0, 5, 6, 9, 10, 13, 14, 18, 19, 31, 32, 39]),
+                np.array(
+                    [0, 5, 6, 9, 10, 13, 14, 18, 19, 31, 32, 39],
+                    dtype=np.int32,
+                ),
                 np.array(
                     [
                         0,
@@ -157,10 +161,17 @@ class TestSpacyExpectedResults:
                         93,
                         93,
                         98,
-                    ]
+                    ],
+                    dtype=np.int32,
                 ),
-                np.array([0, 1, 2, 6, 7, 11, 12, 19, 20, 23, 24, 27, 28, 35]),
-                np.array([0, 4, 5, 8, 9, 11, 11, 12, 13, 17, 18, 25, 26, 28, 29, 36]),
+                np.array(
+                    [0, 1, 2, 6, 7, 11, 12, 19, 20, 23, 24, 27, 28, 35],
+                    dtype=np.int32,
+                ),
+                np.array(
+                    [0, 4, 5, 8, 9, 11, 11, 12, 13, 17, 18, 25, 26, 28, 29, 36],
+                    dtype=np.int32,
+                ),
             ],
             "data_schema_version": [1] * 5,
         }
@@ -696,7 +707,7 @@ class TestSpacyExpectedResults:
                 -4.0625e-01,
             ],
         ],
-        dtype=np.float16,
+        dtype=np.float32,
     )
 
     gt_probs = pd.DataFrame(

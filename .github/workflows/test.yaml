@@ -19,13 +19,18 @@ jobs:
       fail-fast: false
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: set up python
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
       - name: install dependencies
-        run: scripts/install.sh
+        run: |
+          if [[ ${{ matrix.python-version }} == "3.7" ]]; then
+            scripts/install.sh --extras=py37
+          else
+            scripts/install.sh
+          fi
       - name: test
         run: scripts/test.sh
       - name: upload coverage
