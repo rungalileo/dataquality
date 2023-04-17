@@ -95,15 +95,13 @@ def main() -> None:
     dataset_path = get_dataset_path(original_cmd)
     print("Loading trained model:", model_path)
     # 5. Init galileo and run the model on the validation and test sets
-    project_name = input("Project name: ")
-    run_name = input("Run name: ")
+    project_name = os.environ.get("GALILEO_PROJECT_NAME") or input("Project name: ")
+    run_name = os.environ.get("GALILEO_RUN_NAME") or input("Run name: ")
+    # TODO: allow user to choose environment
     dq.set_console_url("https://console.dev.rungalileo.io")
     dq.init(task_type="object_detection", project_name=project_name, run_name=run_name)
     cfg = _read_config(dataset_path)
-    try:
-        bucket = cfg["bucket"]
-    except KeyError:
-        bucket = input(
+    bucket = cfg.get.get("bucket") or input(
             'Key "bucket" is missing in yaml, please enter path of files. '
             "For example s3://coco/coco128.\n"
             "bucket: "

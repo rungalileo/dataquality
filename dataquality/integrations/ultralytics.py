@@ -6,6 +6,7 @@ import numpy as np
 import torch
 import ultralytics
 from torchvision.ops.boxes import box_convert
+from torch import Tensor
 from ultralytics import YOLO
 from ultralytics.yolo.engine.predictor import BasePredictor
 from ultralytics.yolo.engine.trainer import BaseTrainer
@@ -243,10 +244,8 @@ class Callback:
                     self.step_embs.model_input[0][1][i],
                     self.step_embs.model_input[0][2][i],
                 ]
-                logging_data[i]["pred_embs"] = (
-                    embedding_fn(features, bbox, batch_img_shape).cpu().numpy()
-                )
-                # Scaling taking from ultralytics source code
+                logging_data[i]["pred_embs"] = embedding_fn(features, bbox, batch_img_shape)
+                # Box rescaling taken from ultralytics source code
                 logging_data[i]["bbox_pred"] = scale_boxes(batch_img_shape, bbox, shape, ratio_pad=ratio_pad)
                 logging_data[i]["probs"] = pred[:, 6:].numpy()
                 # if there are no gt boxes then bboxes will not be in the logging data
@@ -257,7 +256,7 @@ class Callback:
                     tbox = box_convert(bbox, "cxcywh", "xyxy") * torch.tensor(
                         (width, height, width, height), device=bbox.device
                     )
-                    # Scaling taking from ultralytics source code
+                    # Box rescaling taken from ultralytics source code
                     logging_data[i]["gt_embs"] = embedding_fn(features, tbox, batch_img_shape)
                     logging_data[i]["bbox_gold"] = scale_boxes(batch_img_shape, tbox, shape, ratio_pad=ratio_pad)
                 else:
