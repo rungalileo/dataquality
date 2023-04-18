@@ -65,13 +65,14 @@ def find_contours(mask: np.ndarray) -> Dict[int, List[List[np.ndarray]]]:
         if label == 0:
             continue
 
-        mask = mask == label
-        mask = mask.astype(np.uint8)  # maybe don't need this
+        contour_mask = mask == label
+        contour_mask = contour_mask.astype(np.uint8)  # maybe don't need this
         # contours is a tuple of numpy arrays
-        contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        contours, hierarchy = cv2.findContours(contour_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         contours_map[label] = find_blobs(contours, hierarchy)
 
     return contours_map
+
 
 def find_blobs(contours: Tuple[np.ndarray], hierarchy: np.ndarray) -> List[List[np.ndarray]]:
     """
@@ -83,11 +84,16 @@ def find_blobs(contours: Tuple[np.ndarray], hierarchy: np.ndarray) -> List[List[
     all_blobs = defaultdict(list)
     for i, contour in enumerate(contours):
         parent = hierarchy[0, i, -1]
-        # indicates that it does not have any parent so give it its own entry
+         # indicates that it does not have any parent so give it its own entry
         if parent == -1:
             all_blobs[i].append(contour)
         else:
-            all_blobs[parent].append(contour)
+            current_parent = parent
+            next_parent = parent
+            while next_parent != -1:
+                current_parent = next_parent
+                next_parent = hierarchy[0, next_parent, -1]
+            all_blobs[current_parent].append(contour)
 
     # serialize the blobs for easy storage
     final_blobs = []
@@ -95,7 +101,6 @@ def find_blobs(contours: Tuple[np.ndarray], hierarchy: np.ndarray) -> List[List[
         final_blobs.append(all_blobs[key])
     return final_blobs
     
-
 
 def serialize_contours(contour_map: Dict[int, Tuple]) -> Dict[int, List]:
     """
@@ -164,6 +169,25 @@ def unserialize(serialized_contour_map: Dict[int, List]) -> Dict[int, List[np.nd
         unserialized_contour_map[label] = unserialized_blobs
 
     return unserialized_contour_map
+
+def draw_contours(serialized_contour_map: Dict[int, List], 
+                  img: np.ndarray) -> np.ndarray:
+    """Draws the contours from our serialized contour map
+
+    Args:
+        serialized_contour_map (Dict[int, List]): Map from key
+            to blobs where blobs are a list of contours
+        img (np.ndarray): image to draw contours on
+
+    Returns:
+        np.ndarray: image with contours drawn on it
+    """
+    blank = np.zeros(img.shape[-2:])
+    unserialized_contours = unserialize(serialized_contour_map)  
+    for key in unserialized_contours:
+        for blob in unserialized_contours[key]:
+            cv2.drawContours(blank, blob, -1, key, -1)
+    return blank
 
 
 def _upload_contour(

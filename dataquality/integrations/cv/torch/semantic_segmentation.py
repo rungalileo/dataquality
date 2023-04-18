@@ -110,6 +110,7 @@ class SemanticTorchLogger(TorchLogger):
                 SemSegCols.image_path: image_path,
                 SemSegCols.id: i
             })
+            if i == 100: break
         # I have assumed we can collect the masks from the hooks in the dataloader
         return processed_dataset
 
@@ -249,7 +250,6 @@ class SemanticTorchLogger(TorchLogger):
         
         if device == "cuda":
             torch.cuda.empty_cache()
-        print(device)
         with torch.autocast('cuda'):
             for i, batch in enumerate(dataloader):
                 img = batch[self.image_col]
@@ -371,6 +371,7 @@ def watch(
                              mask_col_name=mask_col_name,
                              helper_data=helper_data,
                              dataloaders=dataloaders,)
+    dq.get_model_logger().logger_config.finish = tl.finish
     
     # we can override the num workers as we are the ones using the dataloader
     # would be better to use as many as possible but this is a quick fix
