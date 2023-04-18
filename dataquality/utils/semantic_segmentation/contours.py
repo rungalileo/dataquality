@@ -1,6 +1,7 @@
 import json
 from tempfile import NamedTemporaryFile
 from typing import Dict, List, Tuple
+from collections import defaultdict
 
 import cv2
 import numpy as np
@@ -35,8 +36,8 @@ def find_and_upload_contours(
         paths.append(obj_name)
 
 
-def find_contours(pred_mask: np.ndarray) -> Dict[int, Tuple]:
-    """Returns a list of GT contours from the pred mask
+def find_contours(mask: np.ndarray) -> Dict[int, List[List[np.ndarray]]]:
+    """Returns a list of blob lists of contours
 
     A contour is a list of points that make up the boundary of a shape.
     Each image can be represented as a dictionary mapping a GT class to
@@ -58,18 +59,42 @@ def find_contours(pred_mask: np.ndarray) -> Dict[int, Tuple]:
         ],
     }
     """
+    
     contours_map = {}
-    for label in np.unique(pred_mask).astype(int).tolist():
+    for label in np.unique(mask).astype(int).tolist():
         if label == 0:
             continue
 
-        mask = pred_mask == label
+        mask = mask == label
         mask = mask.astype(np.uint8)  # maybe don't need this
         # contours is a tuple of numpy arrays
-        contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        contours_map[label] = contours
+        contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        contours_map[label] = find_blobs(contours, hierarchy)
 
     return contours_map
+
+def find_blobs(contours: Tuple[np.ndarray], hierarchy: np.ndarray) -> List[List[np.ndarray]]:
+    """
+    :param contours: a tuple of numpy arrays where each array is a contour
+    :param hierarchy: a numpy array of shape (num_contours, 4) where each row is a contour
+    
+    :return: a list of blobs where each blob is a list of contours
+    """
+    all_blobs = defaultdict(list)
+    for i, contour in enumerate(contours):
+        parent = hierarchy[0, i, -1]
+        # indicates that it does not have any parent so give it its own entry
+        if parent == -1:
+            all_blobs[i].append(contour)
+        else:
+            all_blobs[parent].append(contour)
+
+    # serialize the blobs for easy storage
+    final_blobs = []
+    for key in all_blobs:
+        final_blobs.append(all_blobs[key])
+    return final_blobs
+    
 
 
 def serialize_contours(contour_map: Dict[int, Tuple]) -> Dict[int, List]:
@@ -110,9 +135,35 @@ def serialize_contours(contour_map: Dict[int, Tuple]) -> Dict[int, List]:
     serialized_contour_map = {}
     for label, contours in contour_map.items():
         # Remove the extra dimension in the numpy array and convert to a list of tuples
-        serialized_contour_map[label] = [c.squeeze(1).tolist() for c in contours]
-
+        serialized_blobs = []
+        for blob in contours:
+            blob_squeezed = [contour.tolist() for contour in blob]
+            serialized_blobs.append(blob_squeezed)
+        serialized_contour_map[label] = serialized_blobs
     return serialized_contour_map
+
+
+def unserialize(serialized_contour_map: Dict[int, List]) -> Dict[int, List[np.ndarray]]:
+    """
+    Function to convert a serialized contour map back to a contour map for 
+        plotting and use in error types
+        
+    Args:
+        serialized_contour_map Dict[int, List]: the serialized contour map
+            given by the function above
+
+    Returns:
+        Dict[int, List[np.ndarray]]: the contour map with the contours
+    """
+    unserialized_contour_map = {}
+    for label, contours in serialized_contour_map.items():
+        unserialized_blobs = []
+        for blob in contours:
+            unserialized_blob = [np.array(contour) for contour in blob]
+            unserialized_blobs.append(unserialized_blob)
+        unserialized_contour_map[label] = unserialized_blobs
+
+    return unserialized_contour_map
 
 
 def _upload_contour(

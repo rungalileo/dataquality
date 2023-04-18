@@ -335,13 +335,13 @@ def watch(
 
     :param model: Pytorch Model to be wrapped
     :param bucket_name: Name of the bucket from which the images come
-    :param dataset_path: Path to the dataset
+    :param dataset_path: Path to the dataset which we can remove from the image path
     :param dataloaders: List of dataloaders to be wrapped
     :param classifier_layer: Layer to hook into (usually 'classifier' or 'fc').
         Inputs are the embeddings and outputs are the logits.
     """
     print("We assume the dataloaders passed only have transforms that Tensor, Resize, and Normalize the image and mask\n"
-      "‼ Any other transforms passed will lead to unexpected results\n"
+      "‼ Any cropping or shearing transforms passed will lead to unexpected results\n"
       "See docs at https://dq.readthedocs.io/en/latest/ (placeholder) for more info \n \n")
 
     
