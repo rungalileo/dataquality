@@ -37,7 +37,7 @@ class SemanticSegmentationDataLogger(BaseGalileoDataLogger):
     def __init__(
         self,
         texts: Optional[List[str]] = None,
-        labels: Optional[List[str]] = None,
+        labels: Optional[List[int]] = None,
         ids: Optional[List[int]] = None,
         split: Optional[str] = None,
         meta: Optional[MetasType] = None,
