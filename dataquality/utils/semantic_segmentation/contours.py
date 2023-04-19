@@ -37,7 +37,28 @@ def find_and_upload_contours(
         obj_name = _upload_contour(image_id, s_contour_map, obj_prefix)
         paths.append(obj_name)
     return unserialized_contour_list
+
+def find_and_return_contours(
+    gt_masks: torch.Tensor
+) -> List[Dict[int, List[List[np.ndarray]]]]:
+    """Creates and serialize contours for a given batch
     
+    Args:
+        gt_masks: Tensor of predicted masks
+            torch.Tensor of shape (batch_size, height, width)
+    Returns:
+        List of contour maps
+    """
+    gt_masks_np = gt_masks.numpy()
+    contour_maps = []
+    if gt_masks.shape[1] == 1:
+        gt_masks = gt_masks.squeeze(1)
+    for i in range(gt_masks.shape[0]):
+        gt_mask = gt_masks_np[i]
+        contour_map = find_contours(gt_mask)
+        contour_maps.append(contour_map)
+    return contour_maps
+
 
 
 def find_contours(mask: np.ndarray) -> Dict[int, List[List[np.ndarray]]]:

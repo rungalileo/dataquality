@@ -9,11 +9,15 @@ from dataquality.loggers.logger_config.semantic_segmentation import (
 )
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.schemas.split import Split
-from dataquality.utils.semantic_segmentation.contours import find_and_upload_contours
+from dataquality.utils.semantic_segmentation.contours import (
+    find_and_return_contours,
+    find_and_upload_contours
+    )
 from dataquality.utils.semantic_segmentation.errors import (
     calculate_false_positives,
     calculate_missing_segments,
-    calculate_missing_segments_blob
+    calculate_miscls_segments_blob,
+    calculate_undetected_object
 )
 from dataquality.utils.semantic_segmentation.metrics import (
     calculate_and_upload_dep,
@@ -97,22 +101,24 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         )
         
         contour_prefix = f"{self.proj_run}/{self.split_name_path}/contours"
-        serialized_contour_lists = find_and_upload_contours(
-                                                            self.image_ids,
-                                                            self.pred_masks,
-                                                            contour_prefix,
-                                                        )
+        find_and_upload_contours(
+                                 self.image_ids,
+                                 self.pred_masks,
+                                 contour_prefix,
+                                )
+        unserialized_contour_gt = find_and_return_contours(self.gt_masks)
 
-        mean_ious = calculate_mean_iou(self.pred_massk, self.gt_masks)
+        mean_ious = calculate_mean_iou(self.pred_masks, self.gt_masks)
         boundary_ious = calculate_mean_iou(
             self.pred_boundary_masks, self.gold_boundary_masks
         )
 
-        false_positives = calculate_false_positives(self.pred_massk, self.gt_masks)
+        false_positives = calculate_false_positives(self.pred_masks, self.gt_masks)
         missing_segments = calculate_missing_segments(self.pred_masks, self.gt_masks)
-        contour_missing_segments = calculate_missing_segments_blob(self.pred_masks, 
-                                                                   self.gt_masks, 
-                                                                   serialized_contour_lists)
+        misclassified_segs = calculate_miscls_segments_blob(self.pred_masks, 
+                                                           unserialized_contour_gt)
+        undetected_objects = calculate_undetected_object(self.pred_masks,
+                                                        unserialized_contour_gt)
         
         
         data = {
@@ -124,10 +130,13 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "boundary_iou": boundary_ious,
             "error_false_positive": false_positives,
             "error_missing_segment": missing_segments,
+            "error misclassified_segment": misclassified_segs,
+            "error_undetected_object": undetected_objects,
             "split": [self.split] * len(self.image_ids),
             "epoch": [self.epoch] * len(self.image_ids),
             "contour_path": [f"{contour_prefix}/{image_id}.json" for image_id in self.image_ids],
-            "dep_path": [f"{dep_prefix}/{image_id}.json" for image_id in self.image_ids]
+            "dep_path": [f"{dep_prefix}/{image_id}.json" for image_id in self.image_ids],
+            
         }
         if self.split == Split.inference:
             data["inference_name"] = [self.inference_name] * len(self.image_ids)

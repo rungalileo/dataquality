@@ -62,7 +62,7 @@ def calculate_missing_segments(
     return missing_segments
 
 
-def blob_accuracy(preds: torch.Tensor, gt_mask: torch.Tensor) -> float:
+def blob_accuracy(preds: np.ndarray, gt_mask: np.ndarray) -> float:
     """Calculates the accuracy of one ground truth blob
 
     :param preds: argmax of the prediction probabilities
@@ -75,25 +75,69 @@ def blob_accuracy(preds: torch.Tensor, gt_mask: torch.Tensor) -> float:
     pointwise_accuracy = (preds == gt_mask)[relevant_region]
     return pointwise_accuracy.sum() / relevant_region.sum()
 
-def image_missing_segments(pred_mask: torch.Tensor, 
+def image_miscls_segments(pred_mask: np.ndarray, 
                            unserialized_contours_map: Dict[int, List[List[np.ndarray]]]
-                           ) -> List[str]:
+) -> List[str]:
+    """Calculates a set of Missing Segment classes for one image"""
     all_missing_segments = []
     for key in unserialized_contours_map:
         for blob in unserialized_contours_map[key]:
-            out_blob = draw_one_blob(blob, pred_mask)
+            out_blob = draw_one_blob(blob, pred_mask, key)
             if blob_accuracy(pred_mask, out_blob) < .5:
-                all_missing_segments.append([blob])
+                all_missing_segments.append(blob)
+    return all_missing_segments
 
 
-def calculate_missing_segments_blob(preds: torch.tensor, 
+def calculate_miscls_segments_blob(preds: torch.tensor, 
                               unserialized_contours_maps: List[Dict[int, List[List[np.ndarray]]]]
-                              ) -> List[str]:
+) -> List[str]:
+    """Calculates a set of Misclassified Segment classes for each image in the batch"""
+    segments_per_image = []
     for image in range(len(preds)):
         pred_mask = preds[image]
         unserialized_contours_map = unserialized_contours_maps[image]
         # Calculate classes present in predictions and ground truth
-        missing_segments = image_missing_segments(pred_mask, unserialized_contours_map)
-        import pdb; pdb.set_trace()
-                    
-                
+        missing_segments = image_miscls_segments(pred_mask.numpy(), unserialized_contours_map)
+        segments_per_image.append(missing_segments)
+    return segments_per_image
+
+def undetected_accuracy(preds: np.ndarray, gt_mask: np.ndarray) -> float:
+    """Calculates the amount of background predicted on a blob 
+
+    :param preds: argmax of the prediction probabilities
+        shape = (height, width)
+    :param gt_masks: ground truth masks
+        shape =  height, width)
+    returns: accuracy of the predictions
+    """
+    relevant_region = gt_mask != 0
+    return (preds == 0)[relevant_region].sum() / relevant_region.sum()
+    
+
+
+def image_undetected_object(pred_mask: np.ndarray, 
+                           unserialized_contours_map: Dict[int, List[List[np.ndarray]]]
+) -> List[str]:
+    """Calculates a set of Missing Segment classes for one image"""
+    all_undetected_objects = []
+    for key in unserialized_contours_map:
+        for blob in unserialized_contours_map[key]:
+            out_blob = draw_one_blob(blob, pred_mask, key)
+            if blob_accuracy(pred_mask, out_blob) > .5:
+                all_undetected_objects.append(blob)
+    return all_undetected_objects
+
+
+def calculate_undetected_object(preds: torch.Tensor, 
+                                unserialized_contours_maps: List[Dict[int, List[List[np.ndarray]]]]
+) -> List[str]:
+    """Calculates a set of Undetected Object classes for each image in the batch"""
+    undetected_objects = []
+    for image in range(len(preds)):
+        pred_mask = preds[image]
+        unserialized_contours_map = unserialized_contours_maps[image]
+        # Calculate classes present in predictions and ground truth
+        undetected_segments = image_undetected_object(pred_mask.numpy(), unserialized_contours_map)
+        undetected_objects.append(undetected_segments)
+        
+    return undetected_objects
