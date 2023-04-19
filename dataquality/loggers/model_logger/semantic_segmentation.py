@@ -136,7 +136,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "epoch": [self.epoch] * len(self.image_ids),
             "pred_contour_path": [f"{pred_contour_prefix}/{image_id}.json" for image_id in self.image_ids],
             "gt_contour_path": [f"{gt_contour_prefix}/{image_id}.json" for image_id in self.image_ids],
-            "dep_path": [f"{dep_prefix}/{image_id}.json" for image_id in self.image_ids],
+            "dep_path": [f"{dep_prefix}/{image_id}.png" for image_id in self.image_ids],
             
         }
         if self.split == Split.inference:

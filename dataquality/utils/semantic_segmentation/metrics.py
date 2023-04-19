@@ -57,7 +57,6 @@ def calculate_dep_heatmaps(probs: torch.Tensor, gt_masks: torch.Tensor) -> torch
     normalized_margin = (1 + margin) / 2
     dep_masks = 1 - normalized_margin
     dep_masks = dep_masks.view(size)
-
     return dep_masks
 
 
@@ -106,7 +105,8 @@ def dep_heatmap_to_img(dep_heatmap: np.ndarray) -> Image:
     # Create a PIL Image object from the numpy array as grey-scale
     img = Image.fromarray(dep_heatmap, mode="L")
     if img.size[0] > MAX_DEP_HEATMAP_SIZE or img.size[1] > MAX_DEP_HEATMAP_SIZE:
-        img.thumbnail((MAX_DEP_HEATMAP_SIZE, MAX_DEP_HEATMAP_SIZE))
+        # img.thumbnail((MAX_DEP_HEATMAP_SIZE, MAX_DEP_HEATMAP_SIZE))
+        img.resize((MAX_DEP_HEATMAP_SIZE, MAX_DEP_HEATMAP_SIZE))
     return img
 
 
