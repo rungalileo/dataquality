@@ -94,12 +94,12 @@ def main() -> None:
 
     dataset_path = get_dataset_path(original_cmd)
     print("Loading trained model:", model_path)
-    # 5. Init galileo and run the model on the validation and test sets
+    # 5. Init galileo
     project_name = os.environ.get("GALILEO_PROJECT_NAME") or input("Project name: ")
     run_name = os.environ.get("GALILEO_RUN_NAME") or input("Run name: ")
-    # TODO: allow user to choose environment
-    dq.set_console_url("https://console.dev.rungalileo.io")
+    dq.set_console_url(os.environ.get("GALILEO_CONSOLE_URL"))
     dq.init(task_type="object_detection", project_name=project_name, run_name=run_name)
+    # 6. Run the model on the available splits (train/val/test)
     cfg = _read_config(dataset_path)
     bucket = cfg.get("bucket") or input(
         'Key "bucket" is missing in yaml, please enter path of files. '
