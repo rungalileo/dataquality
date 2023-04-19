@@ -97,7 +97,8 @@ def main() -> None:
     # 5. Init galileo
     project_name = os.environ.get("GALILEO_PROJECT_NAME") or input("Project name: ")
     run_name = os.environ.get("GALILEO_RUN_NAME") or input("Run name: ")
-    dq.set_console_url(os.environ.get("GALILEO_CONSOLE_URL"))
+    console_url = os.environ.get("GALILEO_CONSOLE_URL")
+    dq.set_console_url(console_url)
     dq.init(task_type="object_detection", project_name=project_name, run_name=run_name)
     # 6. Run the model on the available splits (train/val/test)
     cfg = _read_config(dataset_path)

@@ -236,7 +236,7 @@ class Callback:
                 shape = batch["ori_shape"][i]
                 batch_img_shape = batch["img"][i].shape[1:]
                 pred = nms[i].detach().cpu()
-                bbox = pred[:, :4].float().clone()
+                bbox = pred[:, :4].float()
                 features = [
                     self.step_embs.model_input[0][0][i],
                     self.step_embs.model_input[0][1][i],
@@ -253,7 +253,7 @@ class Callback:
                 # if there are no gt boxes then bboxes will not be in the logging data
                 if "bboxes" in logging_data[i].keys():
                     # iterate on the ground truth boxes (given in cxcywh format)
-                    bbox = logging_data[i]["bboxes"].clone()
+                    bbox = logging_data[i]["bboxes"]
                     height, width = batch_img_shape
                     tbox = box_convert(bbox, "cxcywh", "xyxy") * torch.tensor(
                         (width, height, width, height), device=bbox.device
