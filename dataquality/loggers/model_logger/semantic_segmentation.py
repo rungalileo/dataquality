@@ -100,26 +100,28 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             dep_prefix,
         )
         
-        contour_prefix = f"{self.proj_run}/{self.split_name_path}/contours"
-        find_and_upload_contours(
-                                 self.image_ids,
-                                 self.pred_masks,
-                                 contour_prefix,
-                                )
-        unserialized_contour_gt = find_and_return_contours(self.gt_masks)
+        pred_contour_prefix = f"{self.proj_run}/{self.split_name_path}/pred_contours"
+        gt_contour_prefix = f"{self.proj_run}/{self.split_name_path}/gt_contours"
+        unserialized_pred_contours = find_and_upload_contours(
+                                                              self.image_ids,
+                                                              self.pred_masks,
+                                                              pred_contour_prefix,
+                                                             )
+        unserialized_gt_contours = find_and_upload_contours(
+                                                            self.image_ids,
+                                                            self.gt_masks,
+                                                            gt_contour_prefix,
+                                                           )
 
         mean_ious = calculate_mean_iou(self.pred_masks, self.gt_masks)
         boundary_ious = calculate_mean_iou(
             self.pred_boundary_masks, self.gold_boundary_masks
         )
 
-        false_positives = calculate_false_positives(self.pred_masks, self.gt_masks)
-        missing_segments = calculate_missing_segments(self.pred_masks, self.gt_masks)
-        misclassified_segs = calculate_miscls_segments_blob(self.pred_masks, 
-                                                           unserialized_contour_gt)
+        misclassified_segs = calculate_miscls_segments_blob(self.gt_masks, 
+                                                           unserialized_pred_contours)
         undetected_objects = calculate_undetected_object(self.pred_masks,
-                                                        unserialized_contour_gt)
-        
+                                                        unserialized_gt_contours)
         
         data = {
             "image_id": self.image_ids,
@@ -128,13 +130,12 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "data_error_potential": image_dep,
             "mean_iou": mean_ious,
             "boundary_iou": boundary_ious,
-            "error_false_positive": false_positives,
-            "error_missing_segment": missing_segments,
-            "error misclassified_segment": misclassified_segs,
             "error_undetected_object": undetected_objects,
+            "error_misclassified_segment": misclassified_segs,
             "split": [self.split] * len(self.image_ids),
             "epoch": [self.epoch] * len(self.image_ids),
-            "contour_path": [f"{contour_prefix}/{image_id}.json" for image_id in self.image_ids],
+            "pred_contour_path": [f"{pred_contour_prefix}/{image_id}.json" for image_id in self.image_ids],
+            "gt_contour_path": [f"{gt_contour_prefix}/{image_id}.json" for image_id in self.image_ids],
             "dep_path": [f"{dep_prefix}/{image_id}.json" for image_id in self.image_ids],
             
         }

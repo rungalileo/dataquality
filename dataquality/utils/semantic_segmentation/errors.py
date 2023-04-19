@@ -80,12 +80,15 @@ def image_miscls_segments(pred_mask: np.ndarray,
 ) -> List[str]:
     """Calculates a set of Missing Segment classes for one image"""
     all_missing_segments = []
-    for key in unserialized_contours_map:
+    counter = 0
+    for key in sorted(unserialized_contours_map.keys()):
         for blob in unserialized_contours_map[key]:
             out_blob = draw_one_blob(blob, pred_mask, key)
             if blob_accuracy(pred_mask, out_blob) < .5:
-                all_missing_segments.append(blob)
-    return all_missing_segments
+                all_missing_segments.append(str(counter))
+            counter += 1
+    out_string = ",".join(all_missing_segments)
+    return out_string
 
 
 def calculate_miscls_segments_blob(preds: torch.tensor, 
@@ -120,12 +123,15 @@ def image_undetected_object(pred_mask: np.ndarray,
 ) -> List[str]:
     """Calculates a set of Missing Segment classes for one image"""
     all_undetected_objects = []
-    for key in unserialized_contours_map:
+    counter = 0
+    for key in sorted(unserialized_contours_map.keys()):
         for blob in unserialized_contours_map[key]:
             out_blob = draw_one_blob(blob, pred_mask, key)
-            if blob_accuracy(pred_mask, out_blob) > .5:
-                all_undetected_objects.append(blob)
-    return all_undetected_objects
+            if undetected_accuracy(pred_mask, out_blob) > .5:
+                all_undetected_objects.append(str(counter))
+            counter += 1
+    out_string = ",".join(all_undetected_objects)
+    return out_string
 
 
 def calculate_undetected_object(preds: torch.Tensor, 

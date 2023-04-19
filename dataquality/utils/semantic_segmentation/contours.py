@@ -27,16 +27,37 @@ def find_and_upload_contours(
     """
     pred_masks_np = pred_masks.numpy()
     paths = []
-    unserialized_contour_list = []
+    contour_list = []
     for i in range(len(image_ids)):
         image_id = image_ids[i]
         pred_mask = pred_masks_np[i]
         contour_map = find_contours(pred_mask)
         s_contour_map = serialize_contours(contour_map)
-        unserialized_contour_list.append(unserialize(s_contour_map))
+        contour_list.append(contour_map)
         obj_name = _upload_contour(image_id, s_contour_map, obj_prefix)
         paths.append(obj_name)
-    return unserialized_contour_list
+    return contour_list
+
+def _upload_contour(
+    image_id: int, contour_map: Dict[int, List], obj_prefix: str
+) -> None:
+    """Uploads a contour to the cloud for a given image
+
+    obj_prefix is the prefix of the object name. For example,
+        - /p
+
+    """
+    obj_name = f"{obj_prefix}/{image_id}.json"
+    with NamedTemporaryFile(mode="w+", delete=False) as f:
+        json.dump(contour_map, f)
+
+    object_store.create_object(
+        object_name=obj_name,
+        file_path=f.name,
+        content_type="application/json",
+        progress=False,
+        bucket_name=GALILEO_DEFAULT_RESULT_BUCKET_NAME,
+    )
 
 def find_and_return_contours(
     gt_masks: torch.Tensor
@@ -173,8 +194,8 @@ def serialize_contours(contour_map: Dict[int, Tuple]
     return serialized_contour_map
 
 
-def unserialize(serialized_contour_map: Dict[int, List]
-                ) -> Dict[int, List[List[np.ndarray]]]:
+def unserialize_contours(serialized_contour_map: Dict[int, List]
+) -> Dict[int, List[List[np.ndarray]]]:
     """
     Function to convert a serialized contour map back to a contour map for 
         plotting and use in error types
@@ -216,6 +237,7 @@ def draw_contours(serialized_contour_map: Dict[int, List],
             cv2.drawContours(blank, blob, -1, key, -1)
     return blank
 
+
 def draw_one_blob(blob: List[np.ndarray], img: np.ndarray, key: int) -> np.ndarray:
     """Draws one blob on an image
 
@@ -230,25 +252,3 @@ def draw_one_blob(blob: List[np.ndarray], img: np.ndarray, key: int) -> np.ndarr
     blank = np.zeros(img.shape[-2:])
     cv2.drawContours(blank, blob, -1, key, -1)
     return blank
-
-
-def _upload_contour(
-    image_id: int, contour_map: Dict[int, List], obj_prefix: str
-) -> None:
-    """Uploads a contour to the cloud for a given image
-
-    obj_prefix is the prefix of the object name. For example,
-        - /p
-
-    """
-    obj_name = f"{obj_prefix}/{image_id}.json"
-    with NamedTemporaryFile(mode="w+", delete=False) as f:
-        json.dump(contour_map, f)
-
-    object_store.create_object(
-        object_name=obj_name,
-        file_path=f.name,
-        content_type="application/json",
-        progress=False,
-        bucket_name=GALILEO_DEFAULT_RESULT_BUCKET_NAME,
-    )
