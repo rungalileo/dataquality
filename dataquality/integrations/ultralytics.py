@@ -2,7 +2,6 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from urllib.parse import urljoin
 
-import numpy as np
 import torch
 import ultralytics
 from torchvision.ops.boxes import box_convert
@@ -243,9 +242,13 @@ class Callback:
                     self.step_embs.model_input[0][1][i],
                     self.step_embs.model_input[0][2][i],
                 ]
-                logging_data[i]["pred_embs"] = embedding_fn(features, bbox, batch_img_shape)
+                logging_data[i]["pred_embs"] = embedding_fn(
+                    features, bbox, batch_img_shape
+                )
                 # Box rescaling taken from ultralytics source code
-                logging_data[i]["bbox_pred"] = scale_boxes(batch_img_shape, bbox, shape, ratio_pad=ratio_pad)
+                logging_data[i]["bbox_pred"] = scale_boxes(
+                    batch_img_shape, bbox, shape, ratio_pad=ratio_pad
+                )
                 logging_data[i]["probs"] = pred[:, 6:].numpy()
                 # if there are no gt boxes then bboxes will not be in the logging data
                 if "bboxes" in logging_data[i].keys():
@@ -256,12 +259,16 @@ class Callback:
                         (width, height, width, height), device=bbox.device
                     )
                     # Box rescaling taken from ultralytics source code
-                    logging_data[i]["gt_embs"] = embedding_fn(features, tbox, batch_img_shape)
-                    logging_data[i]["bbox_gold"] = scale_boxes(batch_img_shape, tbox, shape, ratio_pad=ratio_pad)
+                    logging_data[i]["gt_embs"] = embedding_fn(
+                        features, tbox, batch_img_shape
+                    )
+                    logging_data[i]["bbox_gold"] = scale_boxes(
+                        batch_img_shape, tbox, shape, ratio_pad=ratio_pad
+                    )
                 else:
-                    logging_data[i]["bbox_gold"] = np.array([])
-                    logging_data[i]["gt_embs"] = np.array([])
-                    logging_data[i]["labels"] = np.array([])
+                    logging_data[i]["bbox_gold"] = torch.Tensor([])
+                    logging_data[i]["gt_embs"] = torch.Tensor([])
+                    logging_data[i]["labels"] = torch.Tensor([])
             self.logging_data = logging_data
 
         # create what I feed to the dataquality client

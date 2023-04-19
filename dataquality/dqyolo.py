@@ -102,10 +102,10 @@ def main() -> None:
     dq.init(task_type="object_detection", project_name=project_name, run_name=run_name)
     cfg = _read_config(dataset_path)
     bucket = cfg.get("bucket") or input(
-            'Key "bucket" is missing in yaml, please enter path of files. '
-            "For example s3://coco/coco128.\n"
-            "bucket: "
-        )
+        'Key "bucket" is missing in yaml, please enter path of files. '
+        "For example s3://coco/coco128.\n"
+        "bucket: "
+    )
 
     # Labels in the YAML files could either be a dict or a list
     labels = cfg.get("names", {})
