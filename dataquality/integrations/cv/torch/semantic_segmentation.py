@@ -224,7 +224,7 @@ class SemanticTorchLogger(TorchLogger):
             logger = SemanticSegmentationModelLogger(
                 image_ids=img_ids,
                 gt_masks=gold_mask,  # Torch tensor (bs, w, h)
-                pred_mask=argmax,  # Torch tensor (bs, w, h)
+                pred_masks=argmax,  # Torch tensor (bs, w, h)
                 gold_boundary_masks=torch.tensor(
                     gold_boundary_masks
                 ),  # Torch tensor (bs, w, h)

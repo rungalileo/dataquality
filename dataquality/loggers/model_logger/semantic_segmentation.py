@@ -13,6 +13,7 @@ from dataquality.utils.semantic_segmentation.contours import find_and_upload_con
 from dataquality.utils.semantic_segmentation.errors import (
     calculate_false_positives,
     calculate_missing_segments,
+    calculate_missing_segments_blob
 )
 from dataquality.utils.semantic_segmentation.metrics import (
     calculate_and_upload_dep,
@@ -30,7 +31,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         self,
         image_ids: Optional[List[int]] = None,
         gt_masks: Optional[torch.Tensor] = None,
-        pred_mask: Optional[torch.Tensor] = None,
+        pred_masks: Optional[torch.Tensor] = None,
         gold_boundary_masks: Optional[torch.Tensor] = None,
         pred_boundary_masks: Optional[torch.Tensor] = None,
         output_probs: Optional[torch.Tensor] = None,
@@ -49,7 +50,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             image_ids: List of image ids
             gt_masks: List of ground truth masks
                 np.ndarray of shape (batch_size, height, width)
-            pred_mask: List of prediction masks
+            pred_masks: List of prediction masks
                 np.ndarray of shape (batch_size, height, width)
             gold_boundary_masks: List of gold boundary masks
                 np.ndarray of shape (batch_size, height, width)
@@ -69,7 +70,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         )
         self.image_ids = image_ids
         self.gt_masks = gt_masks
-        self.pred_mask = pred_mask
+        self.pred_masks = pred_masks
         self.gold_boundary_masks = gold_boundary_masks
         self.pred_boundary_masks = pred_boundary_masks
         self.output_probs = output_probs
@@ -96,19 +97,24 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         )
         
         contour_prefix = f"{self.proj_run}/{self.split_name_path}/contours"
-        find_and_upload_contours(
-            self.image_ids,
-            self.pred_mask,
-            contour_prefix,
-        )
+        serialized_contour_lists = find_and_upload_contours(
+                                                            self.image_ids,
+                                                            self.pred_masks,
+                                                            contour_prefix,
+                                                        )
 
-        mean_ious = calculate_mean_iou(self.pred_mask, self.gt_masks)
+        mean_ious = calculate_mean_iou(self.pred_massk, self.gt_masks)
         boundary_ious = calculate_mean_iou(
             self.pred_boundary_masks, self.gold_boundary_masks
         )
 
-        false_positives = calculate_false_positives(self.pred_mask, self.gt_masks)
-        missing_segments = calculate_missing_segments(self.pred_mask, self.gt_masks)
+        false_positives = calculate_false_positives(self.pred_massk, self.gt_masks)
+        missing_segments = calculate_missing_segments(self.pred_masks, self.gt_masks)
+        contour_missing_segments = calculate_missing_segments_blob(self.pred_masks, 
+                                                                   self.gt_masks, 
+                                                                   serialized_contour_lists)
+        
+        
         data = {
             "image_id": self.image_ids,
             "height": [img.shape[-1] for img in self.gt_masks],
