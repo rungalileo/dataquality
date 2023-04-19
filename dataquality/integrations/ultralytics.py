@@ -6,7 +6,6 @@ import numpy as np
 import torch
 import ultralytics
 from torchvision.ops.boxes import box_convert
-from torch import Tensor
 from ultralytics import YOLO
 from ultralytics.yolo.engine.predictor import BasePredictor
 from ultralytics.yolo.engine.trainer import BaseTrainer
@@ -57,7 +56,7 @@ def find_midpoint(
 
 
 def create_embedding(
-    features: Tensor, box: Tensor, size: Tuple[int, int] = (640, 640)
+    features: List, box: List, size: Tuple[int, int] = (640, 640)
 ) -> torch.Tensor:
     """Creates an embedding from a feature map
 
@@ -170,8 +169,8 @@ class Callback:
         self.split = None
         # bucket needs to start with // and not end with /
         bucket = bucket if bucket[-1] != "/" else bucket[:-1]
-        assert "://" in bucket, "bucket needs to start with s3://"
-        assert bucket[:-1] != "/", "bucket needs to not end with /"
+        assert "://" in bucket, "bucket needs to start with s3:// or gs://"
+        assert bucket.count("/") == 2, "bucket should only contain 2 slashes"
         self.bucket = bucket
 
         self.relative_img_path = relative_img_path

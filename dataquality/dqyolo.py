@@ -101,7 +101,7 @@ def main() -> None:
     dq.set_console_url("https://console.dev.rungalileo.io")
     dq.init(task_type="object_detection", project_name=project_name, run_name=run_name)
     cfg = _read_config(dataset_path)
-    bucket = cfg.get.get("bucket") or input(
+    bucket = cfg.get("bucket") or input(
             'Key "bucket" is missing in yaml, please enter path of files. '
             "For example s3://coco/coco128.\n"
             "bucket: "
