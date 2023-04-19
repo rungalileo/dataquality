@@ -143,8 +143,8 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         # on imgs_location_colname and rename "object_path" to "text"
         dataset = dataset.merge(df, left_on=imgs_location_colname, right_on="file_path")
         dataset["text"] = dataset["object_path"]
-        for f in map(os.remove, glob.glob(f"{temp_dir}/*.arrow")):
-            pass
+        for f in glob.glob(f"{temp_dir}/*.arrow"):
+            os.remove(f)
 
         return dataset
 
