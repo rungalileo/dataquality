@@ -94,22 +94,23 @@ def main() -> None:
 
     dataset_path = get_dataset_path(original_cmd)
     print("Loading trained model:", model_path)
-    # 5. Init galileo and run the model on the validation and test sets
-    project_name = input("Project name: ")
-    run_name = input("Run name: ")
-    dq.set_console_url("https://console.dev.rungalileo.io")
+    # 5. Init galileo
+    project_name = os.environ.get("GALILEO_PROJECT_NAME") or input("Project name: ")
+    run_name = os.environ.get("GALILEO_RUN_NAME") or input("Run name: ")
+    console_url = os.environ.get("GALILEO_CONSOLE_URL")
+    dq.set_console_url(console_url)
     dq.init(task_type="object_detection", project_name=project_name, run_name=run_name)
+    # 6. Run the model on the available splits (train/val/test)
     cfg = _read_config(dataset_path)
-    try:
-        bucket = cfg["bucket"]
-    except KeyError:
-        bucket = input(
-            'Key "bucket" is missing in yaml, please enter path of files. '
-            "For example s3://coco/coco128.\n"
-            "bucket: "
-        )
+    bucket = cfg.get("bucket") or input(
+        'Key "bucket" is missing in yaml, please enter path of files. '
+        "For example s3://coco/coco128.\n"
+        "bucket: "
+    )
 
-    labels = list(cfg.get("names", {}).values())
+    # Labels in the YAML files could either be a dict or a list
+    labels = cfg.get("names", {})
+    labels = labels if isinstance(labels, list) else list(labels.values())
 
     # Check each file
     for split in [Split.training, Split.validation, Split.test]:
