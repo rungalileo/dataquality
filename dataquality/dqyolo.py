@@ -1,7 +1,7 @@
 import glob
 import os
 import sys
-from typing import List
+from typing import Dict, List
 
 from ultralytics import YOLO
 from ultralytics.yolo.utils import get_settings
@@ -66,11 +66,43 @@ def find_last_run(files_start: List, files_end: List) -> str:
     return path
 
 
+def validate(arguments: list) -> None:
+    """Validate the arguments of the command line.
+
+    :param arguments: The arguments of the command line.
+    """
+    data_valid = False
+    model_valid = False
+    for arg in arguments:
+        if arg.startswith("data="):
+            data_valid = True
+        elif arg.startswith("model="):
+            model_valid = True
+
+    if not (data_valid and model_valid):
+        raise ValueError(
+            "You need to pass data and model.\n"
+            "For example dqyolo data=coco128.yaml model=yolov8n.pt\n"
+            "Or for training dqyolo train data=coco128.yaml model=yolov8n.pt "
+            "epochs=1 lr0=0.01"
+        )
+
+    if len(arguments) < 2:
+        raise ValueError(
+            "\nYou need to pass at least two argument to the command line.\n"
+            "For example dqyolo data=coco128.yaml model=yolov8n.pt\n"
+            "Or for training dqyolo train data=coco128.yaml model=yolov8n.pt "
+            "epochs=1 lr0=0.01"
+        )
+
+
 def main() -> None:
-    """dq-yolo is a wrapper around ultralytics yolo that will automatically
+    """dqyolo is a wrapper around ultralytics yolo that will automatically
     run the model on the validation and test sets and provide data insights.
     """
     # 1. Take the original args to extract config path
+    validate(sys.argv)
+
     original_cmd = sys.argv[1:]
     runs_dir = get_settings().get("runs_dir") or input(
         "Enter runs dir default. For example home/runs"
@@ -80,6 +112,45 @@ def main() -> None:
     bash_run = " ".join(original_cmd)
     if not bash_run.startswith("yolo"):
         bash_run = "yolo " + bash_run
+
+    dataset_path = get_dataset_path(original_cmd)
+    cfg = _read_config(dataset_path)
+    try:
+        bucket = cfg["bucket"]
+    except KeyError:
+        bucket = input(
+            'Key "bucket" is missing in yaml, please enter path of files. '
+            "For example s3://coco/coco128.\n"
+            "bucket: "
+        )
+    relative_img_paths: Dict[Split, str] = {}
+    # Check each file
+    for split in [Split.training, Split.validation, Split.test]:
+        # Create a temporary config file for the training set that changes
+        # the dataset path to the validation set so we can log the results
+        tmp_cfg_path = cfg.get(ultralytics_split_mapping[split])
+        if not tmp_cfg_path:
+            continue
+        relative_img_paths[split] = cfg[f"bucket_{ultralytics_split_mapping[split]}"]
+    if not len(relative_img_paths):
+        raise ValueError("No dataset paths found in config file.")
+
+    # 2. Init galileo
+    project_name = cfg.get("project_name", os.environ.get("DQ_PROJECT_NAME"))
+    run_name = cfg.get("run_name", os.environ.get("DQ_RUN_NAME"))
+    if not project_name:
+        project_name = input("Project name: ")
+    if not run_name:
+        run_name = input("Run name: ")
+    console_url = cfg.get("console_url", os.environ.get("GALILEO_CONSOLE_URL"))
+    if console_url:
+        dq.set_console_url("https://console.dev.rungalileo.io")
+    dq.init(task_type="object_detection", project_name=project_name, run_name=run_name)
+
+    labels = list(cfg.get("names", {}).values())
+    if not len(labels):
+        raise ValueError("Labels not found in config file.")
+
     if " train " in bash_run:
         # 2. Run the original command
         os.system(bash_run)
@@ -92,24 +163,7 @@ def main() -> None:
     else:
         model_path = get_model_path(original_cmd)
 
-    dataset_path = get_dataset_path(original_cmd)
     print("Loading trained model:", model_path)
-    # 5. Init galileo and run the model on the validation and test sets
-    project_name = input("Project name: ")
-    run_name = input("Run name: ")
-    dq.set_console_url("https://console.dev.rungalileo.io")
-    dq.init(task_type="object_detection", project_name=project_name, run_name=run_name)
-    cfg = _read_config(dataset_path)
-    try:
-        bucket = cfg["bucket"]
-    except KeyError:
-        bucket = input(
-            'Key "bucket" is missing in yaml, please enter path of files. '
-            "For example s3://coco/coco128.\n"
-            "bucket: "
-        )
-
-    labels = list(cfg.get("names", {}).values())
 
     # Check each file
     for split in [Split.training, Split.validation, Split.test]:
@@ -118,7 +172,7 @@ def main() -> None:
         tmp_cfg_path = temporary_cfg_for_val(cfg, split)
         if not tmp_cfg_path:
             continue
-        relative_img_path = cfg[f"bucket_{ultralytics_split_mapping[split]}"]
+        relative_img_path = relative_img_paths[split]
         model = YOLO(model_path)
         watch(
             model, bucket=bucket, relative_img_path=relative_img_path, labels=labels
