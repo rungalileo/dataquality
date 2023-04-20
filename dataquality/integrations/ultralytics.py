@@ -157,6 +157,8 @@ class Callback:
         bucket: str = "",
         relative_img_path: str = "",
         labels: List = [],
+        iou_thresh: float = 0.7,
+        conf_thresh: float = 0.25,
     ) -> None:
         """Initializes the callback
 
@@ -174,6 +176,8 @@ class Callback:
         self.relative_img_path = relative_img_path
         self.labels = labels
         self.file_map = {}  # maps file names to ids
+        self.iou_thresh = iou
+        self.conf_thresh = conf
 
     def postprocess(self, batch: torch.Tensor) -> Any:
         """Postprocesses the batch for a training step. Taken from ultralytics.
@@ -223,7 +227,9 @@ class Callback:
                 lambda x: x if self.split == Split.validation else self.postprocess
             )
             preds = postprocess(preds)
-            nms = self.nms_fn(preds)
+            nms = self.nms_fn(
+                preds, conf_thres=self.conf_thres, iou_thres=self.iou_thres
+            )
             self.nms = nms
 
             batch = self.bl.batch
@@ -443,7 +449,14 @@ def add_callback(model: YOLO, cb: Callback) -> None:
     model.add_callback("on_val_batch_start", cb.on_val_batch_start)
 
 
-def watch(model: YOLO, bucket: str, relative_img_path: str, labels: List) -> None:
+def watch(
+    model: YOLO,
+    bucket: str,
+    relative_img_path: str,
+    labels: List,
+    iou_thresh: float,
+    conf_thresh: float,
+) -> None:
     """Watch the model for predictions and embeddings logging.
 
     :param model: the model to watch"""
@@ -456,5 +469,7 @@ def watch(model: YOLO, bucket: str, relative_img_path: str, labels: List) -> Non
         bucket=bucket,
         relative_img_path=relative_img_path,
         labels=labels,
+        iou_thresh=iou,
+        conf_tiou_thresh=conf,
     )
     add_callback(model, cb)

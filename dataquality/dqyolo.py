@@ -1,7 +1,7 @@
 import glob
 import os
 import sys
-from typing import Dict, List
+from typing import Dict
 
 from ultralytics import YOLO
 from ultralytics.yolo.utils import get_settings
@@ -9,6 +9,15 @@ from ultralytics.yolo.utils import get_settings
 import dataquality as dq
 from dataquality.integrations.ultralytics import watch
 from dataquality.schemas.split import Split
+from dataquality.utils.dqyolo import (
+    extract_value,
+    find_last_run,
+    get_conf_thres,
+    get_dataset_path,
+    get_iou_thres,
+    get_model_path,
+    validate_args,
+)
 from dataquality.utils.ultralytics import (
     _read_config,
     temporary_cfg_for_val,
@@ -21,88 +30,13 @@ from dataquality.utils.ultralytics import (
 # python dq-cli.py yolo train data=coco128.yaml model=yolov8n.pt epochs=1 lr0=0.01
 
 
-def get_dataset_path(arguments: list) -> str:
-    """Extract the dataset path from the arguments of yolo.
-
-    :param arguments: The arguments of ultralytics yolo.
-    :return: The path to the dataset.
-    """
-    for arg in arguments:
-        if arg.startswith("data="):
-            return arg[5:]
-    raise ValueError(
-        "Dataset path not found in arguments."
-        "Pass it in the following format data=coco.yaml"
-    )
-
-
-def get_model_path(arguments: list) -> str:
-    """Extract the dataset path from the arguments of yolo.
-
-    :param arguments: The arguments of ultralytics yolo.
-    :return: The path to the dataset.
-    """
-    for arg in arguments:
-        if arg.startswith("model="):
-            return arg[6:]
-    raise ValueError(
-        "Model path not found in arguments."
-        "Pass it in the following format model=./yolov8n.pt"
-    )
-
-
-def find_last_run(files_start: List, files_end: List) -> str:
-    """Find the path of the last run. This assumes that the path is the only
-    thing that has changed.
-
-    :param files_start: The list of files before the run.
-    :param files_end: The list of files after the run.
-    :return: The path to the last run.
-    """
-    file_diff = set(files_end) - set(files_start)
-    if not len(file_diff):
-        raise ValueError("Model path could not be found.")
-    path = list(file_diff)[0]
-    return path
-
-
-def validate(arguments: list) -> None:
-    """Validate the arguments of the command line.
-
-    :param arguments: The arguments of the command line.
-    """
-    data_valid = False
-    model_valid = False
-    for arg in arguments:
-        if arg.startswith("data="):
-            data_valid = True
-        elif arg.startswith("model="):
-            model_valid = True
-
-    if not (data_valid and model_valid):
-        raise ValueError(
-            "You need to pass data and model.\n"
-            "For example dqyolo data=coco128.yaml model=yolov8n.pt\n"
-            "Or for training dqyolo train data=coco128.yaml model=yolov8n.pt "
-            "epochs=1 lr0=0.01"
-        )
-
-    if len(arguments) < 2:
-        raise ValueError(
-            "\nYou need to pass at least two argument to the command line.\n"
-            "For example dqyolo data=coco128.yaml model=yolov8n.pt\n"
-            "Or for training dqyolo train data=coco128.yaml model=yolov8n.pt "
-            "epochs=1 lr0=0.01"
-        )
-
-
 def main() -> None:
     """dqyolo is a wrapper around ultralytics yolo that will automatically
     run the model on the validation and test sets and provide data insights.
     """
     # 1. Take the original args to extract config path
-    validate(sys.argv)
 
+    validate_args(sys.argv)
     original_cmd = sys.argv[1:]
     runs_dir = get_settings().get("runs_dir") or input(
         "Enter runs dir default. For example home/runs"
@@ -136,8 +70,14 @@ def main() -> None:
         raise ValueError("No dataset paths found in config file.")
 
     # 2. Init galileo
-    project_name = cfg.get("project_name", os.environ.get("DQ_PROJECT_NAME"))
-    run_name = cfg.get("run_name", os.environ.get("DQ_RUN_NAME"))
+    try:
+        project_name = extract_value(original_cmd, "project")
+    except ValueError:
+        project_name = cfg.get("project", os.environ.get("DQ_PROJECT_NAME"))
+    try:
+        run_name = extract_value(original_cmd, "run")
+    except ValueError:
+        run_name = cfg.get("run_name", os.environ.get("DQ_RUN_NAME"))
     if not project_name:
         project_name = input("Project name: ")
     if not run_name:
@@ -175,7 +115,12 @@ def main() -> None:
         relative_img_path = relative_img_paths[split]
         model = YOLO(model_path)
         watch(
-            model, bucket=bucket, relative_img_path=relative_img_path, labels=labels
+            model,
+            bucket=bucket,
+            relative_img_path=relative_img_path,
+            labels=labels,
+            iou_thresh=get_iou_thres(original_cmd),
+            conf_thresh=get_conf_thres(original_cmd),
         )  # This will automatically log the results to galileo
         dq.set_epoch(0)
         dq.set_split(split)
