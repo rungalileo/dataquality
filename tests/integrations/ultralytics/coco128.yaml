@@ -5,8 +5,8 @@ test: # test images (optional)
 bucket: s3://images.cocodataset.org
 bucket_train: train2017
 bucket_val: train2017
-project_name: coco128
-run_name: yolo
+project: coco128
+run: yolo
 
 # Classes
 names:
