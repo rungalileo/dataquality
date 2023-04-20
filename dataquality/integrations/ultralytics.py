@@ -21,6 +21,7 @@ from dataquality.loggers.data_logger.object_detection import (
 )
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
+from dataquality.utils.dqyolo import CONF_DEFAULT, IOU_DEFAULT
 from dataquality.utils.ultralytics import non_max_suppression, process_batch_data
 
 ultralytics.checks()
@@ -156,6 +157,8 @@ class Callback:
         bucket: str = "",
         relative_img_path: str = "",
         labels: List = [],
+        iou_thresh: float = IOU_DEFAULT,
+        conf_thresh: float = CONF_DEFAULT,
     ) -> None:
         """Initializes the callback
 
@@ -175,6 +178,8 @@ class Callback:
         self.relative_img_path = relative_img_path
         self.labels = labels
         self.file_map = {}  # maps file names to ids
+        self.iou_thresh = iou_thresh
+        self.conf_thresh = conf_thresh
 
     def postprocess(self, batch: torch.Tensor) -> Any:
         """Postprocesses the batch for a training step. Taken from ultralytics.
@@ -224,7 +229,9 @@ class Callback:
                 lambda x: x if self.split == Split.validation else self.postprocess
             )
             preds = postprocess(preds)
-            nms = self.nms_fn(preds)
+            nms = self.nms_fn(
+                preds, conf_thres=self.conf_thresh, iou_thres=self.iou_thresh
+            )
             self.nms = nms
 
             batch = self.bl.batch
@@ -432,7 +439,14 @@ def add_callback(model: YOLO, cb: Callback) -> None:
     model.add_callback("on_val_batch_start", cb.on_val_batch_start)
 
 
-def watch(model: YOLO, bucket: str, relative_img_path: str, labels: List) -> None:
+def watch(
+    model: YOLO,
+    bucket: str,
+    relative_img_path: str,
+    labels: List,
+    iou_thresh: float = IOU_DEFAULT,
+    conf_thresh: float = CONF_DEFAULT,
+) -> None:
     """Watch the model for predictions and embeddings logging.
 
     :param model: the model to watch"""
@@ -445,5 +459,7 @@ def watch(model: YOLO, bucket: str, relative_img_path: str, labels: List) -> Non
         bucket=bucket,
         relative_img_path=relative_img_path,
         labels=labels,
+        iou_thresh=iou_thresh,
+        conf_thresh=conf_thresh,
     )
     add_callback(model, cb)
