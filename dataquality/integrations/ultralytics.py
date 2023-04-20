@@ -21,6 +21,7 @@ from dataquality.loggers.data_logger.object_detection import (
 )
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
+from dataquality.utils.dqyolo import CONF_DEFAULT, IOU_DEFAULT
 from dataquality.utils.ultralytics import non_max_suppression, process_batch_data
 
 ultralytics.checks()
@@ -156,8 +157,8 @@ class Callback:
         bucket: str = "",
         relative_img_path: str = "",
         labels: List = [],
-        iou_thresh: float = 0.7,
-        conf_thresh: float = 0.25,
+        iou_thresh: float = IOU_DEFAULT,
+        conf_thresh: float = CONF_DEFAULT,
     ) -> None:
         """Initializes the callback
 
@@ -443,8 +444,8 @@ def watch(
     bucket: str,
     relative_img_path: str,
     labels: List,
-    iou_thresh: float,
-    conf_thresh: float,
+    iou_thresh: float = IOU_DEFAULT,
+    conf_thresh: float = CONF_DEFAULT,
 ) -> None:
     """Watch the model for predictions and embeddings logging.
 

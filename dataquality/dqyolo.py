@@ -10,7 +10,6 @@ import dataquality as dq
 from dataquality.integrations.ultralytics import watch
 from dataquality.schemas.split import Split
 from dataquality.utils.dqyolo import (
-    extract_value,
     find_last_run,
     get_conf_thres,
     get_dataset_path,
@@ -67,16 +66,8 @@ def main() -> None:
         raise ValueError("No dataset paths found in config file.")
 
     # 2. Init galileo
-    project_name = (
-        extract_value(original_cmd, "project")
-        or cfg.get("project", os.environ.get("GALILEO_PROJECT_NAME"))
-        or input("Project name: ")
-    )
-    run_name = (
-        extract_value(original_cmd, "run")
-        or cfg.get("run", os.environ.get("GALILEO_RUN_NAME"))
-        or input("Run name: ")
-    )
+    project_name = os.environ.get("GALILEO_PROJECT_NAME") or input("Project name: ")
+    run_name = os.environ.get("GALILEO_RUN_NAME") or input("Run name: ")
     console_url = cfg.get("console_url", os.environ.get("GALILEO_CONSOLE_URL"))
     if console_url:
         dq.set_console_url(console_url)

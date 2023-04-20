@@ -1,5 +1,8 @@
 from typing import List, Optional
 
+CONF_DEFAULT = 0.25
+IOU_DEFAULT = 0.7
+
 
 def extract_value(arguments: List[str], key: str) -> Optional[str]:
     """Extract the value of the key from the arguments.
@@ -14,7 +17,7 @@ def extract_value(arguments: List[str], key: str) -> Optional[str]:
     return None
 
 
-def get_dataset_path(arguments: list) -> str:
+def get_dataset_path(arguments: List) -> str:
     """Extract the dataset path from the arguments of yolo.
 
     :param arguments: The arguments of ultralytics yolo.
@@ -29,7 +32,7 @@ def get_dataset_path(arguments: list) -> str:
     return value
 
 
-def get_model_path(arguments: list) -> str:
+def get_model_path(arguments: List) -> str:
     """Extract the dataset path from the arguments of yolo.
 
     :param arguments: The arguments of ultralytics yolo.
@@ -44,27 +47,27 @@ def get_model_path(arguments: list) -> str:
     return value
 
 
-def get_iou_thres(arguments: list) -> float:
+def get_iou_thres(arguments: List) -> float:
     """Extract the iou threshold from the arguments of yolo.
 
     :param arguments: The arguments of ultralytics yolo.
     :return: The iou threshold.
     """
     value = extract_value(arguments, "iou")
-    if not value:
-        return 0.7
+    if value is None:
+        return IOU_DEFAULT
     return float(value)
 
 
-def get_conf_thres(arguments: list) -> float:
+def get_conf_thres(arguments: List) -> float:
     """Extract the confidence threshold from the arguments of yolo.
 
     :param arguments: The arguments of ultralytics yolo.
     :return: The confidence threshold.
     """
     value = extract_value(arguments, "conf")
-    if not value:
-        return 0.25
+    if value is None:
+        return CONF_DEFAULT
     return float(value)
 
 
@@ -83,7 +86,7 @@ def find_last_run(files_start: List, files_end: List) -> str:
     return path
 
 
-def validate_args(arguments: list) -> None:
+def validate_args(arguments: List) -> None:
     """Validate the arguments of the command line.
 
     :param arguments: The arguments of the command line.
