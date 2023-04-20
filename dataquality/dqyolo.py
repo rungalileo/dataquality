@@ -49,14 +49,11 @@ def main() -> None:
 
     dataset_path = get_dataset_path(original_cmd)
     cfg = _read_config(dataset_path)
-    try:
-        bucket = cfg["bucket"]
-    except KeyError:
-        bucket = input(
-            'Key "bucket" is missing in yaml, please enter path of files. '
-            "For example s3://coco/coco128.\n"
-            "bucket: "
-        )
+    bucket = cfg.get("bucket") or input(
+        'Key "bucket" is missing in yaml, please enter path of files. '
+        "For example s3://coco/coco128\n"
+        "bucket: "
+    )
     relative_img_paths: Dict[Split, str] = {}
     # Check each file
     for split in [Split.training, Split.validation, Split.test]:
@@ -70,24 +67,24 @@ def main() -> None:
         raise ValueError("No dataset paths found in config file.")
 
     # 2. Init galileo
-    try:
-        project_name = extract_value(original_cmd, "project")
-    except ValueError:
-        project_name = cfg.get("project", os.environ.get("DQ_PROJECT_NAME"))
-    try:
-        run_name = extract_value(original_cmd, "run")
-    except ValueError:
-        run_name = cfg.get("run_name", os.environ.get("DQ_RUN_NAME"))
-    if not project_name:
-        project_name = input("Project name: ")
-    if not run_name:
-        run_name = input("Run name: ")
+    project_name = (
+        extract_value(original_cmd, "project")
+        or cfg.get("project", os.environ.get("GALILEO_PROJECT_NAME"))
+        or input("Project name: ")
+    )
+    run_name = (
+        extract_value(original_cmd, "run")
+        or cfg.get("run", os.environ.get("GALILEO_RUN_NAME"))
+        or input("Run name: ")
+    )
     console_url = cfg.get("console_url", os.environ.get("GALILEO_CONSOLE_URL"))
     if console_url:
-        dq.set_console_url("https://console.dev.rungalileo.io")
+        dq.set_console_url(console_url)
     dq.init(task_type="object_detection", project_name=project_name, run_name=run_name)
 
-    labels = list(cfg.get("names", {}).values())
+    # Labels in the YAML files could either be a dict or a list
+    labels = cfg.get("names", {})
+    labels = labels if isinstance(labels, list) else list(labels.values())
     if not len(labels):
         raise ValueError("Labels not found in config file.")
 

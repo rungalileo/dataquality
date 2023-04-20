@@ -1,7 +1,7 @@
-from typing import List
+from typing import List, Optional
 
 
-def extract_value(arguments: List[str], key: str) -> str:
+def extract_value(arguments: List[str], key: str) -> Optional[str]:
     """Extract the value of the key from the arguments.
 
     :param arguments: The arguments of the command line.
@@ -11,7 +11,7 @@ def extract_value(arguments: List[str], key: str) -> str:
     for arg in arguments:
         if arg.startswith(f"{key}="):
             return arg[len(key) + 1 :]
-    raise ValueError(f"Could not find {key} in arguments.")
+    return None
 
 
 def get_dataset_path(arguments: list) -> str:
@@ -20,13 +20,13 @@ def get_dataset_path(arguments: list) -> str:
     :param arguments: The arguments of ultralytics yolo.
     :return: The path to the dataset.
     """
-    try:
-        return extract_value(arguments, "data")
-    except ValueError:
+    value = extract_value(arguments, "data")
+    if not value:
         raise ValueError(
             "Dataset path not found in arguments."
             "Pass it in the following format data=coco.yaml"
         )
+    return value
 
 
 def get_model_path(arguments: list) -> str:
@@ -35,13 +35,13 @@ def get_model_path(arguments: list) -> str:
     :param arguments: The arguments of ultralytics yolo.
     :return: The path to the dataset.
     """
-    try:
-        return extract_value(arguments, "model")
-    except ValueError:
+    value = extract_value(arguments, "model")
+    if not value:
         raise ValueError(
             "Model path not found in arguments."
             "Pass it in the following format model=./yolov8n.pt"
         )
+    return value
 
 
 def get_iou_thres(arguments: list) -> float:
@@ -50,10 +50,10 @@ def get_iou_thres(arguments: list) -> float:
     :param arguments: The arguments of ultralytics yolo.
     :return: The iou threshold.
     """
-    try:
-        return float(extract_value(arguments, "iou"))
-    except ValueError:
+    value = extract_value(arguments, "iou")
+    if not value:
         return 0.7
+    return float(value)
 
 
 def get_conf_thres(arguments: list) -> float:
@@ -62,10 +62,10 @@ def get_conf_thres(arguments: list) -> float:
     :param arguments: The arguments of ultralytics yolo.
     :return: The confidence threshold.
     """
-    try:
-        return float(extract_value(arguments, "conf"))
-    except ValueError:
+    value = extract_value(arguments, "conf")
+    if not value:
         return 0.25
+    return float(value)
 
 
 def find_last_run(files_start: List, files_end: List) -> str:

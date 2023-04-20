@@ -73,7 +73,7 @@ class UploadDfWorker(Thread):
             ) as temp_file:
                 temp_file_name = temp_file.name
                 ext_split = os.path.splitext(temp_file_name)
-                file_path = f"{ext_split[0]}_{i}_{j}{ext_split[1]}"
+                chunk_file_path = f"{ext_split[0]}_{i}_{j}{ext_split[1]}"
 
                 def load_bytes_from_file(
                     file_path: str,
@@ -97,20 +97,21 @@ class UploadDfWorker(Thread):
                     )
                 )
 
-                df[self.export_cols].export(file_path)
+                df[self.export_cols].export(chunk_file_path)
                 res = self._upload_file_for_project(
-                    file_path=file_path,
+                    file_path=chunk_file_path,
                     project_id=self.project_id,
                 )
-                os.remove(file_path)
-                if not res.ok:
-                    self.queue.put(content)
-                elif self.show_progress:
+                os.remove(chunk_file_path)
+                if res.ok:
                     df[["file_path", "object_path"]].export(
                         Path(self.temp_dir) / f"{i}_{j}.{self.export_format}"
                     )
-                    assert self.pbar is not None
-                    self.pbar.update(self.step)
+                    if self.show_progress:
+                        assert self.pbar is not None
+                        self.pbar.update(self.step)
+                else:
+                    self.queue.put(content)
 
 
 def chunk_load_then_upload_df(
