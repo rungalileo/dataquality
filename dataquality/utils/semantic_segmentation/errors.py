@@ -98,7 +98,7 @@ def calculate_miscls_segments_blob(preds: torch.tensor,
     segments_per_image = []
     for image in range(len(preds)):
         pred_mask = preds[image]
-        unserialized_contours_map = unserialized_contours_maps[image]
+        unserialized_contours_map = unserialized_contours_maps[image].unserialize()
         # Calculate classes present in predictions and ground truth
         missing_segments = image_miscls_segments(pred_mask.numpy(), unserialized_contours_map)
         segments_per_image.append(missing_segments)
@@ -141,7 +141,7 @@ def calculate_undetected_object(preds: torch.Tensor,
     undetected_objects = []
     for image in range(len(preds)):
         pred_mask = preds[image]
-        unserialized_contours_map = unserialized_contours_maps[image]
+        unserialized_contours_map = unserialized_contours_maps[image].unserialize()
         # Calculate classes present in predictions and ground truth
         undetected_segments = image_undetected_object(pred_mask.numpy(), unserialized_contours_map)
         undetected_objects.append(undetected_segments)

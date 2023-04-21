@@ -219,7 +219,6 @@ class SemanticTorchLogger(TorchLogger):
             gold_mask = logging_data[self.mask_col_name].cpu()  # (bs, w, h)
 
             probs = torch.nn.Softmax(dim=-1)(logits).cpu()  # (bs, classes, w, h)
-            print(probs.shape)
 
             # dq log model output
             logger = SemanticSegmentationModelLogger(
