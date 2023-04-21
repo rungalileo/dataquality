@@ -10,13 +10,35 @@ import torch
 from dataquality.clients.objectstore import ObjectStore
 from dataquality.core._config import GALILEO_DEFAULT_RESULT_BUCKET_NAME
 from dataquality.utils.semantic_segmentation.type import (
-    Blob,
+    Polygon,
     Contour,
-    Contour_Map,
+    Polygon_Map,
     Pixel,
 )
 
 object_store = ObjectStore()
+
+
+def find_polygon_maps(
+    image_ids: List[int], pred_masks: torch.Tensor
+) -> List[Polygon_Map]:
+    """Creates polygon maps for a given batch
+
+    Args:
+        image_ids: List of image ids
+        pred_masks: Tensor of predicted masks
+            torch.Tensor of shape (batch_size, height, width)
+    
+    Returns:
+        List of polygon maps
+    """
+    pred_masks_np = pred_masks.numpy()
+    contour_list = []
+    for i in range(len(image_ids)):
+        pred_mask = pred_masks_np[i]
+        contour_map = find_contours(pred_mask)
+        contour_list.append(contour_map)
+    return contour_list
 
 
 def find_and_upload_contours(
@@ -38,11 +60,41 @@ def find_and_upload_contours(
         image_id = image_ids[i]
         pred_mask = pred_masks_np[i]
         contour_map = find_contours(pred_mask)
-        # s_contour_map = serialize_contours(contour_map)
         contour_list.append(contour_map)
         obj_name = _upload_contour(image_id, contour_map, obj_prefix)
         paths.append(obj_name)
     return contour_list
+
+
+def upload_contours(
+    image_id: int,
+    pred_polygon_map: Polygon_Map,
+    gt_polygon_map: Polygon_Map,
+    pred_obj_prefix: str,
+    gt_obj_prefix: str,
+    misclassified_obj: List[str],
+    undetected_obj: List[str],
+) -> None:
+    pred_polygon_map = pred_polygon_map.unserialize_json()
+    gt_polygon_map = gt_polygon_map.unserialize_json()
+    
+    # add the misclassifed to the pred_polygon_map
+    int_misclassified_obj = []
+    if len(misclassified_obj) >= 0:
+        int_misclassified_obj = [int(obj) for obj in misclassified_obj.split(',')]
+    for obj in int_misclassified_obj:
+        pred_polygon_map[obj]['error_type'] = 'misclassified'
+        
+    # add the undetected to the gt_polygon_map
+    int_undetected_obj = []
+    if len(undetected_obj) >= 0:
+        undetected_obj = [int(obj) for obj in undetected_obj.split(',')]
+    for obj in int_undetected_obj:
+        gt_polygon_map[obj]['error_type'] = 'undetected'
+        
+    _upload_contour(image_id, pred_polygon_map, pred_obj_prefix)
+    _upload_contour(image_id, gt_polygon_map, gt_obj_prefix)
+    
 
 
 def _upload_contour(
@@ -54,7 +106,7 @@ def _upload_contour(
         - /p
 
     """
-    contour_map = contour_map.unserialize_json()
+    # contour_map = contour_map.unserialize_json()
     obj_name = f"{obj_prefix}/{image_id}.json"
     with NamedTemporaryFile(mode="w+", delete=False) as f:
         json.dump(contour_map, f)
@@ -68,27 +120,7 @@ def _upload_contour(
     )
 
 
-def find_and_return_contours(gt_masks: torch.Tensor) -> List[Contour_Map]:
-    """Creates and serialize contours for a given batch
-
-    Args:
-        gt_masks: Tensor of predicted masks
-            torch.Tensor of shape (batch_size, height, width)
-    Returns:
-        List of contour maps
-    """
-    gt_masks_np = gt_masks.numpy()
-    contour_maps = []
-    if gt_masks.shape[1] == 1:
-        gt_masks = gt_masks.squeeze(1)
-    for i in range(gt_masks.shape[0]):
-        gt_mask = gt_masks_np[i]
-        contour_map = find_contours(gt_mask)
-        contour_maps.append(Contour_Map(map=contour_map))
-    return contour_maps
-
-
-def find_contours(mask: np.ndarray) -> Contour_Map:
+def find_contours(mask: np.ndarray) -> Polygon_Map:
     """Returns a list of blob lists of contours
 
     A contour is a list of points that make up the boundary of a shape.
@@ -124,10 +156,10 @@ def find_contours(mask: np.ndarray) -> Contour_Map:
         )
         contours_map[label] = find_blobs(contours, hierarchy)
 
-    return Contour_Map(map=contours_map)
+    return Polygon_Map(map=contours_map)
 
 
-def find_blobs(contours: Tuple[np.ndarray], hierarchy: np.ndarray) -> List[Blob]:
+def find_blobs(contours: Tuple[np.ndarray], hierarchy: np.ndarray) -> List[Polygon]:
     """
     :param contours: a tuple of numpy arrays where each array is a contour
     :param hierarchy: a numpy array of shape (num_contours, 4) where each row is a contour
@@ -155,30 +187,8 @@ def find_blobs(contours: Tuple[np.ndarray], hierarchy: np.ndarray) -> List[Blob]
     # serialize the blobs for easy storage
     final_blobs = []
     for key in all_blobs:
-        final_blobs.append(Blob(contours=all_blobs[key]))
+        final_blobs.append(Polygon(contours=all_blobs[key]))
     return final_blobs
-
-
-def draw_contours(
-    serialized_contour_map: Dict[int, List], img: np.ndarray
-) -> np.ndarray:
-    """Draws the contours from our serialized contour map
-
-    Args:
-        serialized_contour_map (Dict[int, List]): Map from key
-            to blobs where blobs are a list of contours
-        img (np.ndarray): image to draw contours on
-
-    Returns:
-        np.ndarray: image with contours drawn on it
-    """
-    blank = np.zeros(img.shape[-2:])
-    unserialized_contours = unserialize_contours(serialized_contour_map)
-    for key in unserialized_contours:
-        for blob in unserialized_contours[key]:
-            cv2.drawContours(blank, blob, -1, key, -1)
-    return blank
-
 
 def draw_one_blob(blob: List[np.ndarray], img: np.ndarray, key: int) -> np.ndarray:
     """Draws one blob on an image
