@@ -1,7 +1,7 @@
 import json
+from collections import defaultdict
 from tempfile import NamedTemporaryFile
 from typing import Dict, List, Tuple
-from collections import defaultdict
 
 import cv2
 import numpy as np
@@ -9,7 +9,12 @@ import torch
 
 from dataquality.clients.objectstore import ObjectStore
 from dataquality.core._config import GALILEO_DEFAULT_RESULT_BUCKET_NAME
-from dataquality.utils.semantic_segmentation.type import Pixel, Contour, Blob, Contour_Map
+from dataquality.utils.semantic_segmentation.type import (
+    Blob,
+    Contour,
+    Contour_Map,
+    Pixel,
+)
 
 object_store = ObjectStore()
 
@@ -39,6 +44,7 @@ def find_and_upload_contours(
         paths.append(obj_name)
     return contour_list
 
+
 def _upload_contour(
     image_id: int, contour_map: Dict[int, List], obj_prefix: str
 ) -> None:
@@ -60,11 +66,11 @@ def _upload_contour(
         progress=False,
         bucket_name=GALILEO_DEFAULT_RESULT_BUCKET_NAME,
     )
-def find_and_return_contours(
-    gt_masks: torch.Tensor
-) -> List[Contour_Map]:
+
+
+def find_and_return_contours(gt_masks: torch.Tensor) -> List[Contour_Map]:
     """Creates and serialize contours for a given batch
-    
+
     Args:
         gt_masks: Tensor of predicted masks
             torch.Tensor of shape (batch_size, height, width)
@@ -80,7 +86,6 @@ def find_and_return_contours(
         contour_map = find_contours(gt_mask)
         contour_maps.append(Contour_Map(map=contour_map))
     return contour_maps
-
 
 
 def find_contours(mask: np.ndarray) -> Contour_Map:
@@ -106,7 +111,7 @@ def find_contours(mask: np.ndarray) -> Contour_Map:
         ],
     }
     """
-    
+
     contours_map = {}
     for label in np.unique(mask).astype(int).tolist():
         if label == 0:
@@ -114,22 +119,25 @@ def find_contours(mask: np.ndarray) -> Contour_Map:
         contour_mask = mask == label
         contour_mask = contour_mask.astype(np.uint8)  # maybe don't need this
         # contours is a tuple of numpy arrays
-        contours, hierarchy = cv2.findContours(contour_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        contours, hierarchy = cv2.findContours(
+            contour_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
+        )
         contours_map[label] = find_blobs(contours, hierarchy)
 
     return Contour_Map(map=contours_map)
+
 
 def find_blobs(contours: Tuple[np.ndarray], hierarchy: np.ndarray) -> List[Blob]:
     """
     :param contours: a tuple of numpy arrays where each array is a contour
     :param hierarchy: a numpy array of shape (num_contours, 4) where each row is a contour
-    
+
     :return: a list of blobs where each blob is a list of contours
     """
     all_blobs = defaultdict(list)
     for i, contour in enumerate(contours):
         parent = hierarchy[0, i, -1]
-         # indicates that it does not have any parent so give it its own entry
+        # indicates that it does not have any parent so give it its own entry
         if parent != -1:
             current_parent = parent
             next_parent = parent
@@ -151,8 +159,9 @@ def find_blobs(contours: Tuple[np.ndarray], hierarchy: np.ndarray) -> List[Blob]
     return final_blobs
 
 
-def draw_contours(serialized_contour_map: Dict[int, List], 
-                  img: np.ndarray) -> np.ndarray:
+def draw_contours(
+    serialized_contour_map: Dict[int, List], img: np.ndarray
+) -> np.ndarray:
     """Draws the contours from our serialized contour map
 
     Args:
@@ -164,7 +173,7 @@ def draw_contours(serialized_contour_map: Dict[int, List],
         np.ndarray: image with contours drawn on it
     """
     blank = np.zeros(img.shape[-2:])
-    unserialized_contours = unserialize_contours(serialized_contour_map)  
+    unserialized_contours = unserialize_contours(serialized_contour_map)
     for key in unserialized_contours:
         for blob in unserialized_contours[key]:
             cv2.drawContours(blank, blob, -1, key, -1)

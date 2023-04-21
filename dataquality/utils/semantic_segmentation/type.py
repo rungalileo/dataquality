@@ -1,16 +1,20 @@
-from pydantic import BaseModel
-from typing import List, Dict
+from typing import Dict, List
+
 import numpy as np
+from pydantic import BaseModel
+
 
 class Pixel(BaseModel):
     coord: List[List[int]]
 
+
 class Contour(BaseModel):
     pixels: List[Pixel]
 
+
 class Blob(BaseModel):
     contours: List[Contour]
-    
+
     def unserialize(self):
         contours = []
         for contour in self.contours:
@@ -28,10 +32,11 @@ class Blob(BaseModel):
                 pixels.append(pixel.coord)
             contours.append([pixels])
         return contours
-    
+
+
 class Contour_Map(BaseModel):
     map: Dict[int, List[Blob]]
-    
+
     def unserialize(self):
         unserialized_map = {}
         for key, blobs in self.map.items():
@@ -40,7 +45,7 @@ class Contour_Map(BaseModel):
                 unserialized_blobs.append(blob.unserialize())
             unserialized_map[key] = unserialized_blobs
         return unserialized_map
-    
+
     def unserialize_json(self):
         unserialized_map = {}
         for key, blobs in self.map.items():

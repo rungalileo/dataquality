@@ -9,15 +9,10 @@ from dataquality.loggers.logger_config.semantic_segmentation import (
 )
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.schemas.split import Split
-from dataquality.utils.semantic_segmentation.contours import (
-    find_and_return_contours,
-    find_and_upload_contours
-    )
+from dataquality.utils.semantic_segmentation.contours import find_and_upload_contours
 from dataquality.utils.semantic_segmentation.errors import (
-    calculate_false_positives,
-    calculate_missing_segments,
-    calculate_miscls_segments_blob,
-    calculate_undetected_object
+    calculate_misclassified_object,
+    calculate_undetected_object,
 )
 from dataquality.utils.semantic_segmentation.metrics import (
     calculate_and_upload_dep,
@@ -89,7 +84,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         #     "Must have image cloud path, set using `dq.set_image_cloud_path`. "
         #     "Must be set before training model."
         # )
-        
+
         # path to dep map and contours is
         # {self.proj_run}/{self.split_name_path}/dep/image_id.json
         dep_prefix = f"{self.proj_run}/{self.split_name_path}/dep"
@@ -99,30 +94,32 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             self.image_ids,
             dep_prefix,
         )
-        
+
         pred_contour_prefix = f"{self.proj_run}/{self.split_name_path}/pred_contours"
         gt_contour_prefix = f"{self.proj_run}/{self.split_name_path}/gt_contours"
         unserialized_pred_contours = find_and_upload_contours(
-                                                              self.image_ids,
-                                                              self.pred_masks,
-                                                              pred_contour_prefix,
-                                                             )
+            self.image_ids,
+            self.pred_masks,
+            pred_contour_prefix,
+        )
         unserialized_gt_contours = find_and_upload_contours(
-                                                            self.image_ids,
-                                                            self.gt_masks,
-                                                            gt_contour_prefix,
-                                                           )
+            self.image_ids,
+            self.gt_masks,
+            gt_contour_prefix,
+        )
 
         mean_ious = calculate_mean_iou(self.pred_masks, self.gt_masks)
         boundary_ious = calculate_mean_iou(
             self.pred_boundary_masks, self.gold_boundary_masks
         )
 
-        misclassified_segs = calculate_miscls_segments_blob(self.gt_masks, 
-                                                           unserialized_pred_contours)
-        undetected_objects = calculate_undetected_object(self.pred_masks,
-                                                        unserialized_gt_contours)
-        
+        misclassified_objects = calculate_misclassified_object(
+            self.gt_masks, unserialized_pred_contours
+        )
+        undetected_objects = calculate_undetected_object(
+            self.pred_masks, unserialized_gt_contours
+        )
+
         data = {
             "image_id": self.image_ids,
             "height": [img.shape[-1] for img in self.gt_masks],
@@ -130,14 +127,17 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "data_error_potential": image_dep,
             "mean_iou": mean_ious,
             "boundary_iou": boundary_ious,
-            "error_undetected_object": undetected_objects,
-            "error_misclassified_segment": misclassified_segs,
+            "classification_errors": misclassified_objects,  # str of polygon ids
+            "undetected_errors": undetected_objects,  # str of polygon ids
             "split": [self.split] * len(self.image_ids),
             "epoch": [self.epoch] * len(self.image_ids),
-            "pred_contour_path": [f"{pred_contour_prefix}/{image_id}.json" for image_id in self.image_ids],
-            "gt_contour_path": [f"{gt_contour_prefix}/{image_id}.json" for image_id in self.image_ids],
+            "pred_contour_path": [
+                f"{pred_contour_prefix}/{image_id}.json" for image_id in self.image_ids
+            ],
+            "gt_contour_path": [
+                f"{gt_contour_prefix}/{image_id}.json" for image_id in self.image_ids
+            ],
             "dep_path": [f"{dep_prefix}/{image_id}.png" for image_id in self.image_ids],
-            
         }
         if self.split == Split.inference:
             data["inference_name"] = [self.inference_name] * len(self.image_ids)

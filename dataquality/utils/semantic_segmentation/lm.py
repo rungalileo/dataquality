@@ -299,12 +299,14 @@ def get_mislabeled_samples(df: DataFrame) -> DataFrame:
     good_cols = [c for c in df.get_column_names() if c not in tmp_cols]
     return df[good_cols]
 
+
 import torch
 
+
 def _calculate_self_confidence(probs: torch.Tensor, gt: torch.Tensor) -> torch.Tensor:
-    """Gets the self confidence for each sample meaning the 
+    """Gets the self confidence for each sample meaning the
     confidence in a prediction of its given GT label
-    
+
 
     Args:
         probs (torch.Tensor): probability mask for each sample
@@ -315,24 +317,27 @@ def _calculate_self_confidence(probs: torch.Tensor, gt: torch.Tensor) -> torch.T
     """
     print(probs.shape, gt.shape)
     assert probs.shape[:-1] == gt.shape
-    
+
     bs, h, w, c = probs.shape
     probs = probs.view(bs, h * w, c)
     gt_indices = (
-            gt.reshape((bs, -1, 1)).expand(-1, -1, probs.shape[2]).type(torch.int64)
-        )  # (bs, n_pixels, n_classes)
+        gt.reshape((bs, -1, 1)).expand(-1, -1, probs.shape[2]).type(torch.int64)
+    )  # (bs, n_pixels, n_classes)
     value_at_ground_truth = torch.gather(probs, 2, gt_indices)[
         :, :, 0
     ]  # (bs, n_pixels)
     value_at_ground_truth = value_at_ground_truth.reshape(bs, h, w)
-    
-    return value_at_ground_truth.cpu() # bs, h, w
 
-def _calculate_self_confidence_threshold(probs: torch.Tensor, gt: torch.Tensor) -> torch.Tensor:
+    return value_at_ground_truth.cpu()  # bs, h, w
+
+
+def _calculate_self_confidence_threshold(
+    probs: torch.Tensor, gt: torch.Tensor
+) -> torch.Tensor:
     bs, h, w, c = probs.shape
     value_at_ground_truth = _calculate_self_confidence(probs, gt)
     # count = torch.bincount(gt.view(-1), minlength=probs.shape[-1])
-    
+
     # get the mean of the self confidence per class
     mean_self_confidence_per_class = []
     for i in range(c):
@@ -340,12 +345,12 @@ def _calculate_self_confidence_threshold(probs: torch.Tensor, gt: torch.Tensor) 
         mean_self_confidence = torch.mean(value_at_ground_truth[mask])
         mean_self_confidence_per_class.append(mean_self_confidence.item())
     return mean_self_confidence_per_class
-    
-    
+
+
 def new_get_mislabeled_samples(probs: torch.Tensor, gt: torch.Tensor) -> None:
-    self_confidence = _calculate_self_confidence(probs, gt)
+    _calculate_self_confidence(probs, gt)
     count_per_class = torch.bincount(gt.view(-1), minlength=probs.shape[-1])
-    
+
 
 def _get_per_class_threshold(df: DataFrame, num_classes: int) -> np.ndarray:
     """Gets the average self-confidence per class

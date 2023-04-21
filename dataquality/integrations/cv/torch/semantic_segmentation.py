@@ -1,53 +1,48 @@
-from typing import Any, Callable, Dict, Optional, Tuple, Union, List
-from queue import Queue
-import warnings
-from warnings import warn
 import os
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
-from torch.nn import functional as F
 from torch.nn import Module
+from torch.nn import functional as F
 from torch.utils.data import DataLoader
-from torch.utils.hooks import RemovableHandle
+
+import dataquality as dq
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
-import dataquality as dq
+from dataquality.exceptions import GalileoException
+from dataquality.integrations.torch import TorchLogger, unwatch
+from dataquality.loggers.data_logger.semantic_segmentation import SemSegCols
 from dataquality.loggers.model_logger.semantic_segmentation import (
     SemanticSegmentationModelLogger,
 )
+from dataquality.schemas.task_type import TaskType
 from dataquality.schemas.torch import HelperData
 from dataquality.utils.helpers import wrap_fn
 from dataquality.utils.semantic_segmentation.utils import mask_to_boundary
-from dataquality.loggers.data_logger.semantic_segmentation import SemSegCols
-from dataquality.utils.torch import store_batch_indices
-from dataquality.exceptions import GalileoException
 from dataquality.utils.torch import (
-    ModelHookManager, 
+    ModelHookManager,
     patch_dataloaders,
-    unpatch, 
-    remove_all_forward_hooks
+    store_batch_indices,
 )
-
-from dataquality.integrations.torch import TorchLogger
-from dataquality.schemas.task_type import TaskType
-from dataquality.integrations.torch import unwatch
 
 a = Analytics(ApiClient, dq.config)  # type: ignore
 a.log_import("torch")
 
 
 class SemanticTorchLogger(TorchLogger):
-    def __init__(self, 
-                 model: torch.nn.Module, 
-                 bucket_name: str,
-                 dataset_path: str,
-                 mask_col_name: Optional[str] = None,
-                 helper_data: Dict[str, Any] = {},
-                 dataloaders: List[torch.utils.data.DataLoader] = [],
-                 task: Union[TaskType, None] = TaskType.text_classification,
-                 *args: Any,
-                 **kwargs: Any) -> None:
+    def __init__(
+        self,
+        model: torch.nn.Module,
+        bucket_name: str,
+        dataset_path: str,
+        mask_col_name: Optional[str] = None,
+        helper_data: Dict[str, Any] = {},
+        dataloaders: List[torch.utils.data.DataLoader] = [],
+        task: Union[TaskType, None] = TaskType.text_classification,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
         """
         Class to log semantic segmentation models to Galileo
 
@@ -60,7 +55,7 @@ class SemanticTorchLogger(TorchLogger):
         :param task: task type
         """
         super().__init__(model=model, helper_data=helper_data, *args, **kwargs)
-        
+
         self._init_helper_data(self.hook_manager, model)
         self.mask_col_name = mask_col_name
         self.dataset_path = os.path.abspath(dataset_path)
@@ -70,7 +65,9 @@ class SemanticTorchLogger(TorchLogger):
         self.mask_file_map = {}
         self.bucket_name = bucket_name
         self.dataloaders = dataloaders
-        self.datasets = [self.convert_dataset(dataloader.dataset) for dataloader in dataloaders]
+        self.datasets = [
+            self.convert_dataset(dataloader.dataset) for dataloader in dataloaders
+        ]
 
         # capture the model input
         self.hook_manager.attach_hook(model, self._dq_input_hook)
@@ -80,37 +77,36 @@ class SemanticTorchLogger(TorchLogger):
             self.number_classes = model.classifier[-1].out_channels
         except AttributeError:
             self.number_classes = None
-            
-        self.image_col = 'image'
-        self.label_col = 'label'
-        
-        
 
+        self.image_col = "image"
+        self.label_col = "label"
 
     def convert_dataset(self, dataset: Any) -> List:
         """Convert the dataset to the format expected by the dataquality client"""
-        
+
         # we wouldn't need any of this if we could map ids to the cloud images
         assert len(dataset) > 0
         processed_dataset = []
         for i, data in enumerate(dataset):
-            if 'image_path' not in data:
-                raise GalileoException("Missing image_path in data .\
+            if "image_path" not in data:
+                raise GalileoException(
+                    "Missing image_path in data .\
                                         Please have both specified in your dataset.\
-                                        Ie. for batch in dataloader: batch['image_path'] = 'path/to/image'")
+                                        Ie. for batch in dataloader: batch['image_path'] = 'path/to/image'"
+                )
 
-            self.file_map[data['image_path']] = i
+            self.file_map[data["image_path"]] = i
 
             # cut the dataset path from the image path so we can use relative path
             # within the bucket to each image
-            image_path = os.path.abspath(data['image_path'])
-            image_path = image_path.replace(self.dataset_path, '')
+            image_path = os.path.abspath(data["image_path"])
+            image_path = image_path.replace(self.dataset_path, "")
 
-            processed_dataset.append({
-                SemSegCols.image_path: image_path,
-                SemSegCols.id: i
-            })
-            if i == 100: break
+            processed_dataset.append(
+                {SemSegCols.image_path: image_path, SemSegCols.id: i}
+            )
+            if i == 100:
+                break
         # I have assumed we can collect the masks from the hooks in the dataloader
         return processed_dataset
 
@@ -121,13 +117,15 @@ class SemanticTorchLogger(TorchLogger):
         """
         if not self.mask_col_name:
             for key in batch:
-                if "mask" in key or 'label' in key or 'target' in key:
+                if "mask" in key or "label" in key or "target" in key:
                     self.mask_col_name = key
             if not self.mask_col_name:
-                raise ValueError("No mask column found in the batch please specify in watch method")
+                raise ValueError(
+                    "No mask column found in the batch please specify in watch method"
+                )
         print(f"Mask column name is {self.mask_col_name}")
         return
-    
+
     def _dq_classifier_hook_with_step_end(
         self,
         model: Module,
@@ -143,15 +141,17 @@ class SemanticTorchLogger(TorchLogger):
         :param model_output: Model output
         """
         self._classifier_hook(model, model_input, model_output)
-    
-    def _dq_input_hook(self,
-                       model: torch.nn.Module,
-                       model_input: torch.Tensor,
-                       model_output: Dict[str, torch.Tensor]) -> None:
+
+    def _dq_input_hook(
+        self,
+        model: torch.nn.Module,
+        model_input: torch.Tensor,
+        model_output: Dict[str, torch.Tensor],
+    ) -> None:
         """
         Hook to store the model input (tensor) and extract the output
         from a dictionary and store
-        
+
         :param model: torch.nn.Module segmentation model
         :param model_input: torch.Tensor input to the model - an image (bs, 3, h, w)
         :param model_output: torch.Tensor output of the model
@@ -159,7 +159,7 @@ class SemanticTorchLogger(TorchLogger):
         """
         self.helper_data[HelperData.model_input] = model_input[0].detach().cpu().numpy()
         self._on_step_end()
-    
+
     def _init_helper_data(self, hm: ModelHookManager, model: Module) -> None:
         """
         Initialize the helper data with ids from the dataloader indices,
@@ -184,23 +184,27 @@ class SemanticTorchLogger(TorchLogger):
     def _on_step_end(self) -> None:
         """Funciton to be called at the end of each step to log the inputs and outputs"""
         if not self.mask_col_name:
-            self.find_mask_category(self.helper_data['batch']['data'])
+            self.find_mask_category(self.helper_data["batch"]["data"])
 
         # if we have not inferred the number of classes from the model architecture
         if not self.number_classes:
-            self.number_classes = self.helper_data[HelperData.model_outputs_store]['logits'].shape[1]
+            self.number_classes = self.helper_data[HelperData.model_outputs_store][
+                "logits"
+            ].shape[1]
 
         with torch.no_grad():
-            logging_data = self.helper_data['batch']['data']
-            img_ids =  self.helper_data['batch']['ids'] # np.ndarray (bs,)
-            image_paths = logging_data['image_path']
+            logging_data = self.helper_data["batch"]["data"]
+            img_ids = self.helper_data["batch"]["ids"]  # np.ndarray (bs,)
+            image_paths = logging_data["image_path"]
             # convert the img_ids to absolute ids from file map
             img_ids = [self.file_map[path] for path in image_paths]
-            
+
             # resize the logits to the input size based on hooks
-            preds = self.helper_data[HelperData.model_outputs_store]['logits']
+            preds = self.helper_data[HelperData.model_outputs_store]["logits"]
             input_shape = self.helper_data[HelperData.model_input].shape[-2:]
-            preds = F.interpolate(preds, size=input_shape, mode="bilinear", align_corners=False)
+            preds = F.interpolate(
+                preds, size=input_shape, mode="bilinear", align_corners=False
+            )
 
             # checks whether the model is (n, classes, w, h), or (n, w, h, classes)
             if preds.shape[1] == self.number_classes:
@@ -215,7 +219,9 @@ class SemanticTorchLogger(TorchLogger):
                 argmax.clone().cpu().numpy()
             )  # (bs, w, h)
             if logging_data[self.mask_col_name].shape[1] == 1:
-                logging_data[self.mask_col_name] = logging_data["mask"].squeeze(1)  # (bs, w, h)
+                logging_data[self.mask_col_name] = logging_data["mask"].squeeze(
+                    1
+                )  # (bs, w, h)
             gold_mask = logging_data[self.mask_col_name].cpu()  # (bs, w, h)
 
             probs = torch.nn.Softmax(dim=-1)(logits).cpu()  # (bs, classes, w, h)
@@ -235,31 +241,28 @@ class SemanticTorchLogger(TorchLogger):
             )
             # logger._get_data_dict()
             logger.log()
-            
+
     def finish(self) -> None:
         # finish function that runs our inference at the end of training
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.splits = ['training', 'validation', 'test']
+        self.splits = ["training", "validation", "test"]
         for i, dataloader in enumerate(self.dataloaders):
-            print('Running dataquality on dataloader: ', self.splits[i])
+            print("Running dataquality on dataloader: ", self.splits[i])
             dq.set_epoch_and_split(0, self.splits[i])
             self.run_one_epoch(dataloader, device)
         return
-                
+
     def run_one_epoch(self, dataloader: DataLoader, device: str):
-        
         if device == "cuda":
             torch.cuda.empty_cache()
-        with torch.autocast('cuda'):
+        with torch.autocast("cuda"):
             for i, batch in enumerate(dataloader):
                 img = batch[self.image_col]
-                img  = img.to(device)
+                img = img.to(device)
                 self.model(img)
                 if i == 10:
                     break
         return
-                    
-                    
 
 
 # store the batch
@@ -307,6 +310,7 @@ def patch_iterator_and_batch(store: Dict[str, Any]) -> Callable:
 
     return patch_iterator
 
+
 def watch(
     model: Module,
     bucket_name: str,
@@ -340,11 +344,12 @@ def watch(
     :param classifier_layer: Layer to hook into (usually 'classifier' or 'fc').
         Inputs are the embeddings and outputs are the logits.
     """
-    print("We assume the dataloaders passed only have transforms that Tensor, Resize, and Normalize the image and mask\n"
-      "‼ Any cropping or shearing transforms passed will lead to unexpected results\n"
-      "See docs at https://dq.readthedocs.io/en/latest/ (placeholder) for more info \n \n")
+    print(
+        "We assume the dataloaders passed only have transforms that Tensor, Resize, and Normalize the image and mask\n"
+        "‼ Any cropping or shearing transforms passed will lead to unexpected results\n"
+        "See docs at https://dq.readthedocs.io/en/latest/ (placeholder) for more info \n \n"
+    )
 
-    
     a.log_function("torch/watch")
     assert dq.config.task_type, GalileoException(
         "dq client must be initialized. " "For example: dq.init('text_classification')"
@@ -360,32 +365,34 @@ def watch(
 
     helper_data = dq.get_model_logger().logger_config.helper_data
     print("Attaching dataquality to model and dataloaders")
-    
+
     # we assume that the image_path they pass to us is relative to the bucket / dataset
-    # ie if the path they give to us should be the same path we can use in their bucket 
+    # ie if the path they give to us should be the same path we can use in their bucket
     # to find the data (ie bucket_name/image_path == dataset_path/image_path)
-    
-    tl = SemanticTorchLogger(model, 
-                             bucket_name=bucket_name,
-                             dataset_path=dataset_path,
-                             mask_col_name=mask_col_name,
-                             helper_data=helper_data,
-                             dataloaders=dataloaders,)
+
+    tl = SemanticTorchLogger(
+        model,
+        bucket_name=bucket_name,
+        dataset_path=dataset_path,
+        mask_col_name=mask_col_name,
+        helper_data=helper_data,
+        dataloaders=dataloaders,
+    )
     dq.get_model_logger().logger_config.finish = tl.finish
-    
+
     # we can override the num workers as we are the ones using the dataloader
     # would be better to use as many as possible but this is a quick fix
     # have to check with Franz about this
     for dataloader in dataloaders:
         if getattr(dataloader, "num_workers", 0) > 0:
             dataloader.num_workers = 0
-            
+
     if dataloaders is None:
         dataloaders = []
     is_single_process_dataloader = all(
         [getattr(d, "num_workers", 0) == 0 for d in dataloaders]
     )
-      
+
     if len(dataloaders) > 0 and is_single_process_dataloader:
         for dataloader in dataloaders:
             assert isinstance(dataloader, DataLoader), GalileoException(
@@ -398,14 +405,13 @@ def watch(
             ), "Dataloaders with num_workers > 0 are not supported"
             dataloader._get_iterator = wrap_fn(  # type: ignore
                 dataloader._get_iterator,
-                patch_iterator_and_batch(tl.helper_data['batch']),
+                patch_iterator_and_batch(tl.helper_data["batch"]),
             )
     else:
         # Patch the dataloader class globally
         # Can be unpatched with unwatch()
         # how can we add our dataloader watch to this portion
-        patch_dataloaders(tl.helper_data['batch'])
+        patch_dataloaders(tl.helper_data["batch"])
         # patch_dataloaders(tl.helper_data)
-        
-    return tl
 
+    return tl

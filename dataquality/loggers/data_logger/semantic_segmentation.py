@@ -1,5 +1,5 @@
-from typing import Any, List, Optional, Union
 from enum import Enum
+from typing import Any, List, Optional, Union
 
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger.base_data_logger import (
@@ -18,6 +18,7 @@ from dataquality.schemas.split import Split
 # containing image data often won't fit in memory
 
 ITER_CHUNK_SIZE_IMAGES = 10000
+
 
 class SemSegCols(str, Enum):
     image_path = "image_path"
