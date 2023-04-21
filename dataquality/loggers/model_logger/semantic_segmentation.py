@@ -9,7 +9,11 @@ from dataquality.loggers.logger_config.semantic_segmentation import (
 )
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.schemas.split import Split
-from dataquality.utils.semantic_segmentation.contours import find_polygon_maps, upload_contours
+from dataquality.schemas.semantic_segmentation import ErrorType
+from dataquality.utils.semantic_segmentation.contours import (
+    find_polygon_maps,
+    upload_polygon_map,
+)
 from dataquality.utils.semantic_segmentation.errors import (
     calculate_misclassified_object,
     calculate_undetected_object,
@@ -77,7 +81,18 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
 
     def validate_and_format(self) -> None:
         pass
-    
+
+    @property
+    def dep_path(self) -> str:
+        return f"{self.proj_run}/{self.split_name_path}/dep"
+
+    @property
+    def pred_mask_path(self) -> str:
+        return f"{self.proj_run}/{self.split_name_path}/masks/pred"
+
+    @property
+    def gt_mask_path(self) -> str:
+        return f"{self.proj_run}/{self.split_name_path}/masks/ground_truth"
 
     def _get_data_dict(self) -> Dict:
         """Returns a dictionary of data to be logged as a DataFrame"""
@@ -88,53 +103,39 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
 
         # path to dep map and contours is
         # {self.proj_run}/{self.split_name_path}/dep/image_id.json
-        dep_prefix = f"{self.proj_run}/{self.split_name_path}/dep"
         image_dep = calculate_and_upload_dep(
             self.output_probs,
             self.gt_masks,
             self.image_ids,
-            dep_prefix,
+            self.dep_path,
         )
-        
-        pred_polygons = find_polygon_maps(self.image_ids, self.pred_masks)
-        gt_polygons = find_polygon_maps(self.image_ids, self.gt_masks)
-        # in here we have to write the errors
-        
+
         mean_ious = calculate_mean_iou(self.pred_masks, self.gt_masks)
         boundary_ious = calculate_mean_iou(
             self.pred_boundary_masks, self.gold_boundary_masks
         )
 
+        pred_polygons = find_polygon_maps(self.image_ids, self.pred_masks)
+        gt_polygons = find_polygon_maps(self.image_ids, self.gt_masks)
         misclassified_objects = calculate_misclassified_object(
             self.gt_masks, pred_polygons
         )
-        undetected_objects = calculate_undetected_object(
-            self.pred_masks, gt_polygons
-        )
-        
-        pred_contour_prefix = f"{self.proj_run}/{self.split_name_path}/pred_contours"
-        gt_contour_prefix = f"{self.proj_run}/{self.split_name_path}/gt_contours"
-        
+        undetected_objects = calculate_undetected_object(self.pred_masks, gt_polygons)
         for image_id in self.image_ids:
-            upload_contours(image_id, 
-                            pred_polygons[image_id],
-                            gt_polygons[image_id],
-                            pred_contour_prefix,
-                            gt_contour_prefix,
-                            misclassified_objects[image_id],
-                            undetected_objects[image_id])
-        '''unserialized_pred_contours = find_and_upload_contours(
-            self.image_ids,
-            self.pred_masks,
-            pred_contour_prefix,
-        )
-        unserialized_gt_contours = find_and_upload_contours(
-            self.image_ids,
-            self.gt_masks,
-            gt_contour_prefix,
-        )'''
-
-        
+            upload_polygon_map(
+                image_id,
+                pred_polygons[image_id],
+                self.pred_mask_path,
+                misclassified_objects[image_id],
+                ErrorType.classification,
+            )
+            upload_polygon_map(
+                image_id,
+                gt_polygons[image_id],
+                self.gt_mask_path,
+                undetected_objects[image_id],
+                ErrorType.undetected,
+            )
 
         data = {
             "image_id": self.image_ids,
@@ -147,13 +148,13 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "undetected_errors": undetected_objects,  # str of polygon ids
             "split": [self.split] * len(self.image_ids),
             "epoch": [self.epoch] * len(self.image_ids),
-            "pred_contour_path": [
-                f"{pred_contour_prefix}/{image_id}.json" for image_id in self.image_ids
-            ],
-            "gt_contour_path": [
-                f"{gt_contour_prefix}/{image_id}.json" for image_id in self.image_ids
-            ],
-            "dep_path": [f"{dep_prefix}/{image_id}.png" for image_id in self.image_ids],
+            # "pred_contour_path": [
+            #     f"{pred_contour_prefix}/{image_id}.json" for image_id in self.image_ids
+            # ],
+            # "gt_contour_path": [
+            #     f"{gt_contour_prefix}/{image_id}.json" for image_id in self.image_ids
+            # ],
+            # "dep_path": [f"{dep_prefix}/{image_id}.png" for image_id in self.image_ids],
         }
         if self.split == Split.inference:
             data["inference_name"] = [self.inference_name] * len(self.image_ids)

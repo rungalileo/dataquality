@@ -1,11 +1,21 @@
+from enum import Enum
 from typing import Dict, List
 
 import numpy as np
 from pydantic import BaseModel
 
 
+class ErrorType(str, Enum):
+    classification = "classification"
+    undetected = "undetected"
+
+
 class Pixel(BaseModel):
-    coord: List[List[int]]
+    x: int
+    y: int
+
+    def unserialize(self) -> List[List[int]]:
+        return [[self.x, self.y]]
 
 
 class Contour(BaseModel):
@@ -13,7 +23,11 @@ class Contour(BaseModel):
 
 
 class Polygon(BaseModel):
-    contours: List[Contour]
+    id: int
+    # label_int: int
+    # lablel: str
+    # error_type: ErrorTypes
+    # contours: List[Contour]
 
     def unserialize(self):
         contours = []
@@ -34,7 +48,9 @@ class Polygon(BaseModel):
         return contours
 
 
-class Polygon_Map(BaseModel):
+class PolygonMap(BaseModel):
+    """Maps a label to a list of polygons"""
+
     map: Dict[int, List[Polygon]]
 
     def unserialize(self):
@@ -46,16 +62,18 @@ class Polygon_Map(BaseModel):
             unserialized_map[key] = unserialized_blobs
         return unserialized_map
 
-    def unserialize_json(self):
+    def unserialize_json(self) -> List[Dict]:
         unserialized_map = []
         counter = 0
-        for key, polygons in self.map.items():
+        for lbl, polygons in self.map.items():
             for polygon in polygons:
                 polygon = polygon.unserialize_json()
-                polygon_object = {'id': counter, 
-                                  'label_int': key, 
-                                  'error_type': 'none',
-                                  'polygon': polygon}
+                polygon_object = {
+                    "id": counter,
+                    "label_int": lbl,
+                    "error_type": "none",
+                    "polygon": polygon,
+                }
                 counter += 1
                 unserialized_map.append(polygon_object)
         return unserialized_map
