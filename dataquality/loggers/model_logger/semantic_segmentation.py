@@ -123,15 +123,15 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         undetected_objects = calculate_undetected_object(self.pred_masks, gt_polygons)
         for image_id in self.image_ids:
             upload_polygon_map(
-                image_id,
                 pred_polygons[image_id],
+                image_id,
                 self.pred_mask_path,
                 misclassified_objects[image_id],
                 ErrorType.classification,
             )
             upload_polygon_map(
-                image_id,
                 gt_polygons[image_id],
+                image_id,
                 self.gt_mask_path,
                 undetected_objects[image_id],
                 ErrorType.undetected,
