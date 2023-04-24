@@ -3,7 +3,7 @@ from typing import Dict, List
 import numpy as np
 import torch
 
-from dataquality.utils.semantic_segmentation.contours import draw_one_blob
+from dataquality.utils.semantic_segmentation.contours import draw_polygon
 
 
 def calculate_false_positives(preds: torch.Tensor, gt_masks: torch.Tensor) -> List[str]:
@@ -86,7 +86,7 @@ def image_miscls_segments(
     counter = 0
     for key in sorted(unserialized_contours_map.keys()):
         for blob in unserialized_contours_map[key]:
-            out_blob = draw_one_blob(blob, pred_mask, key)
+            out_blob = draw_polygon(blob, pred_mask, key)
             if blob_accuracy(pred_mask, out_blob) < 0.5:
                 all_missing_segments.append(str(counter))
             counter += 1
@@ -132,7 +132,7 @@ def image_undetected_object(
     counter = 0
     for key in sorted(unserialized_contours_map.keys()):
         for blob in unserialized_contours_map[key]:
-            out_blob = draw_one_blob(blob, pred_mask, key)
+            out_blob = draw_polygon(blob, pred_mask, key)
             if undetected_accuracy(pred_mask, out_blob) > 0.5:
                 all_undetected_objects.append(str(counter))
             counter += 1

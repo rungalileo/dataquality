@@ -239,7 +239,6 @@ class SemanticTorchLogger(TorchLogger):
                 ),  # Torch tensor (bs, w, h)
                 output_probs=probs,  # Torch tensor (bs, w, h, classes)
             )
-            # logger._get_data_dict()
             logger.log()
 
     def finish(self) -> None:
