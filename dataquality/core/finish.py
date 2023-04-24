@@ -47,8 +47,6 @@ def finish(
     assert config.current_project_id, "You must have an active project to call finish"
     assert config.current_run_id, "You must have an active run to call finish"
     assert config.task_type, "You must have a task type to call finish"
-    if config.task_type == TaskType.semantic_segmentation:
-        dataquality.get_model_logger().logger_config.finish()
     data_logger = dataquality.get_data_logger()
 
     data_logger.validate_labels()
@@ -57,10 +55,12 @@ def finish(
 
     if data_logger.non_inference_logged():
         _reset_run(config.current_project_id, config.current_run_id, config.task_type)
+    
+    if config.task_type == TaskType.semantic_segmentation:
+        dataquality.get_model_logger().logger_config.finish()
 
     data_logger.upload(last_epoch, create_data_embs=create_data_embs)
     upload_dq_log_file()
-
     body = dict(
         project_id=str(config.current_project_id),
         run_id=str(config.current_run_id),
@@ -105,6 +105,7 @@ def finish(
 
     # Reset the model logger
     dataquality.get_model_logger()._cleanup()
+    
 
     return res.get("link") or ""
 

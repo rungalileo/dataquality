@@ -80,6 +80,8 @@ class SemanticTorchLogger(TorchLogger):
 
         self.image_col = "image"
         self.label_col = "label"
+        
+        self.called_finish = False
 
     def convert_dataset(self, dataset: Any) -> List:
         """Convert the dataset to the format expected by the dataquality client"""
@@ -183,6 +185,8 @@ class SemanticTorchLogger(TorchLogger):
 
     def _on_step_end(self) -> None:
         """Funciton to be called at the end of each step to log the inputs and outputs"""
+        if not self.called_finish:
+            return
         if not self.mask_col_name:
             self.find_mask_category(self.helper_data["batch"]["data"])
 
@@ -242,6 +246,7 @@ class SemanticTorchLogger(TorchLogger):
             logger.log()
 
     def finish(self) -> None:
+        self.called_finish = True
         # finish function that runs our inference at the end of training
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.splits = ["training", "validation", "test"]
@@ -259,7 +264,7 @@ class SemanticTorchLogger(TorchLogger):
                 img = batch[self.image_col]
                 img = img.to(device)
                 self.model(img)
-                if i == 10:
+                if i == 2:
                     break
         return
 

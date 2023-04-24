@@ -248,11 +248,13 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             # We have already created them here, so don't try again later
             create_data_embs = False
 
+        import pdb; pdb.set_trace()
         for split in Split.get_valid_attributes():
             split_loc = f"{location}/{split}"
             in_frame_path = f"{self.input_data_path}/{split}"
             input_logged = os.path.exists(in_frame_path)
             output_logged = os.path.exists(split_loc)
+            import pdb; pdb.set_trace()
             if not output_logged:
                 continue
             if not input_logged:
@@ -265,6 +267,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                 continue
             in_frame_split = vaex.open(f"{in_frame_path}/*.arrow")
             in_frame_split = self.convert_large_string(in_frame_split)
+            import pdb; pdb.set_trace()
             self.upload_split(
                 object_store,
                 in_frame_split,
