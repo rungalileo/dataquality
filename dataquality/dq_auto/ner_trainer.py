@@ -1,6 +1,5 @@
 from typing import Any, Dict, List, Optional, Tuple
 
-import evaluate
 import numpy as np
 from datasets import DatasetDict
 from transformers import (
@@ -20,9 +19,18 @@ from dataquality.schemas.hf import HFCol
 from dataquality.schemas.split import Split
 from dataquality.utils.helpers import mps_available
 
-# For NER training, there is only 1 evaluation tool
-# https://huggingface.co/course/chapter7/2#metrics
-metric = evaluate.load("seqeval")
+try:
+    # For NER training, there is only 1 evaluation tool
+    # https://huggingface.co/course/chapter7/2#metrics
+    import evaluate
+
+    metric = evaluate.load("seqeval")
+except ImportError:
+    print(
+        "⚠️ Huggingface evaluate library not installed "
+        "please run `pip install dataquality[evaluate]` "
+        "to enable metrics computation."
+    )
 
 
 def compute_metrics(eval_pred: EvalPrediction) -> Dict:
