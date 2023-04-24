@@ -23,18 +23,18 @@ class Contour(BaseModel):
 
 
 class Polygon(BaseModel):
-    id: int
+    # id: int
     # label_int: int
     # lablel: str
     # error_type: ErrorTypes
-    # contours: List[Contour]
+    contours: List[Contour]
 
     def unserialize(self):
         contours = []
         for contour in self.contours:
             pixels = []
             for pixel in contour.pixels:
-                pixels.append(pixel.coord)
+                pixels.append(pixel.unserialize())
             contours.append(np.array(pixels))
         return contours
 
@@ -43,7 +43,7 @@ class Polygon(BaseModel):
         for contour in self.contours:
             pixels = []
             for pixel in contour.pixels:
-                pixels.append(pixel.coord)
+                pixels.append(pixel.unserialize())
             contours.append([pixels])
         return contours
 

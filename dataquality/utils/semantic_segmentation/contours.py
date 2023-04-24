@@ -142,7 +142,7 @@ def build_polygon(contours: Tuple[np.ndarray], hierarchy: np.ndarray) -> List[Po
         # process the contour
         new_contours = []
         for j, point in enumerate(contour):
-            new_contours.append(Pixel(coord=[[point[0][0], point[0][1]]]))
+            new_contours.append(Pixel(x=point[0][0], y=point[0][1]))
         all_blobs[current_parent].append(Contour(pixels=new_contours))
 
     # serialize the blobs for easy storage
