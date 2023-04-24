@@ -210,6 +210,7 @@ def get_output_df(
         )
     return out_frame
 
+
 def add_pca_to_df(df: DataFrame, chunk_size: int = PCA_CHUNK_SIZE) -> DataFrame:
     """Adds the 'emb_pca' to the dataframe"""
     df_copy = df.copy()
@@ -228,12 +229,12 @@ def add_pca_to_df(df: DataFrame, chunk_size: int = PCA_CHUNK_SIZE) -> DataFrame:
     if n_components < PCA_N_COMPONENTS:
         pad_num_components = PCA_N_COMPONENTS - n_components
         emb_values = np.pad(
-            array=emb_values.values, 
-            pad_width=[(0,0), (0, pad_num_components)], 
-            mode='constant', 
-            constant_values=0
+            array=emb_values.values,
+            pad_width=[(0, 0), (0, pad_num_components)],
+            mode="constant",
+            constant_values=0,
         )
-        
+
     df_copy["emb_pca"] = emb_values
     # Fully apply the PCA model now, without ever bringing the full embeddings into
     # memory, only the PCA embeddings (much smaller)
