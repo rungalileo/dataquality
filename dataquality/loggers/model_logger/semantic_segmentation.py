@@ -8,8 +8,8 @@ from dataquality.loggers.logger_config.semantic_segmentation import (
     semantic_segmentation_logger_config,
 )
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
-from dataquality.schemas.split import Split
 from dataquality.schemas.semantic_segmentation import ErrorType
+from dataquality.schemas.split import Split
 from dataquality.utils.semantic_segmentation.contours import (
     find_polygon_maps,
     upload_polygon_map,

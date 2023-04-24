@@ -1,6 +1,9 @@
+import os
 from enum import Enum
 from typing import Any, List, Optional, Union
 
+from dataquality.clients.objectstore import ObjectStore
+from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger.base_data_logger import (
     ITER_CHUNK_SIZE,
@@ -13,6 +16,7 @@ from dataquality.loggers.logger_config.semantic_segmentation import (
     semantic_segmentation_logger_config,
 )
 from dataquality.schemas.split import Split
+from dataquality.utils.vaex import get_output_df
 
 # smaller than ITER_CHUNK_SIZE from base_data_logger because very large chunks
 # containing image data often won't fit in memory
@@ -62,4 +66,30 @@ class SemanticSegmentationDataLogger(BaseGalileoDataLogger):
         raise GalileoException(
             "Semantic Segmentation does not support log_dataset. "
             "Use watch(model, [dataloaders])"
+        )
+
+    def _upload_split(
+        self,
+        location: str,
+        split: str,
+        object_store: ObjectStore,
+        last_epoch: Optional[int],
+        create_data_embs: bool,
+    ) -> None:
+        split_loc = f"{location}/{split}"
+        output_logged = os.path.exists(split_loc)
+        if not output_logged:
+            return
+        dir_name = f"{split_loc}/0"
+        out_frame = get_output_df(
+            dir_name,
+            prob_only=False,
+            split=split,
+            epoch_or_inf=0,  # For SemSeg we only have one epoch, the final pass
+        )
+        minio_file = f"{self.proj_run}/{self.split_name_path}/data/data.hdf5"
+        object_store.create_project_run_object_from_df(
+            df=out_frame,
+            object_name=minio_file,
+            bucket_name=config.results_bucket_name,
         )
