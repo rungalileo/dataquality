@@ -14,6 +14,7 @@ from transformers import (
 )
 
 import dataquality as dq
+from dataquality.exceptions import GalileoException
 from dataquality.integrations.hf import tokenize_and_log_dataset
 from dataquality.schemas.hf import HFCol
 from dataquality.schemas.split import Split
@@ -26,7 +27,7 @@ try:
 
     metric = evaluate.load("seqeval")
 except ImportError:
-    print(
+    raise GalileoException(
         "⚠️ Huggingface evaluate library not installed "
         "please run `pip install dataquality[evaluate]` "
         "to enable metrics computation."

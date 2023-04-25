@@ -15,6 +15,7 @@ from transformers import (
     TrainingArguments,
 )
 
+from dataquality.exceptions import GalileoException
 from dataquality.schemas.split import Split
 from dataquality.utils.helpers import mps_available
 
@@ -24,7 +25,7 @@ try:
     import evaluate
     from evaluate import EvaluationModule
 except ImportError:
-    print(
+    raise GalileoException(
         "⚠️ Huggingface evaluate library not installed "
         "please run `pip install dataquality[evaluate]` "
         "to enable metrics computation."
