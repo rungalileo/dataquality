@@ -1,10 +1,8 @@
 from functools import partial
 from typing import Any, Dict, List, Tuple
 
-import evaluate
 import numpy as np
 from datasets import Dataset, DatasetDict
-from evaluate import EvaluationModule
 from transformers import (
     AutoModelForSequenceClassification,
     AutoTokenizer,
@@ -17,10 +15,21 @@ from transformers import (
     TrainingArguments,
 )
 
+from dataquality.exceptions import GalileoException
 from dataquality.schemas.split import Split
 from dataquality.utils.helpers import mps_available
 
 EVAL_METRIC = "f1"
+
+try:
+    import evaluate
+    from evaluate import EvaluationModule
+except ImportError:
+    raise GalileoException(
+        "⚠️ Huggingface evaluate library not installed "
+        "please run `pip install dataquality[evaluate]` "
+        "to enable metrics computation."
+    )
 
 
 # Taken from the docs of the trainer module:
