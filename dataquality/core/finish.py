@@ -55,7 +55,7 @@ def finish(
 
     if data_logger.non_inference_logged():
         _reset_run(config.current_project_id, config.current_run_id, config.task_type)
-    
+
     if config.task_type == TaskType.semantic_segmentation:
         dataquality.get_model_logger().logger_config.finish()
 
@@ -105,7 +105,6 @@ def finish(
 
     # Reset the model logger
     dataquality.get_model_logger()._cleanup()
-    
 
     return res.get("link") or ""
 

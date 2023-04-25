@@ -10,6 +10,8 @@ from torch.utils.data import DataLoader
 import dataquality as dq
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
+from dataquality.clients.objectstore import ObjectStore
+from dataquality.core._config import GALILEO_DEFAULT_RESULT_BUCKET_NAME
 from dataquality.exceptions import GalileoException
 from dataquality.integrations.torch import TorchLogger, unwatch
 from dataquality.loggers.data_logger.semantic_segmentation import SemSegCols
@@ -19,6 +21,12 @@ from dataquality.loggers.model_logger.semantic_segmentation import (
 from dataquality.schemas.task_type import TaskType
 from dataquality.schemas.torch import HelperData
 from dataquality.utils.helpers import wrap_fn
+from dataquality.utils.semantic_segmentation.lm import (
+    calculate_lm_for_batch,
+    calculate_self_confidence_threshold,
+    semseg_calculate_self_confidence,
+    semseg_fill_confident_counts,
+)
 from dataquality.utils.semantic_segmentation.utils import mask_to_boundary
 from dataquality.utils.torch import (
     ModelHookManager,
@@ -28,6 +36,7 @@ from dataquality.utils.torch import (
 
 a = Analytics(ApiClient, dq.config)  # type: ignore
 a.log_import("torch")
+object_store = ObjectStore()
 
 
 class SemanticTorchLogger(TorchLogger):
@@ -80,8 +89,21 @@ class SemanticTorchLogger(TorchLogger):
 
         self.image_col = "image"
         self.label_col = "label"
-        
+
         self.called_finish = False
+
+        # initialize variables for likely mislabelled
+        self.confident_count = torch.zeros(
+            (self.number_classes, self.number_classes), dtype=torch.int64
+        )
+        self.counts_per_class = torch.zeros(self.number_classes, dtype=torch.int64)
+        self.thresholds = torch.zeros(self.number_classes, dtype=torch.float32)
+        self.thresholds += 0.5
+
+        # create a queue to store the last 100 probs and gt for computing LM
+        self.queue_size = 100
+        self.prob_queue = torch.empty((self.queue_size, 64, 64, self.number_classes))
+        self.gt_queue = torch.empty((self.queue_size, 64, 64))
 
     def convert_dataset(self, dataset: Any) -> List:
         """Convert the dataset to the format expected by the dataquality client"""
@@ -183,10 +205,34 @@ class SemanticTorchLogger(TorchLogger):
             }
         )
 
+    def queue_gt_and_pred(self, probs: torch.Tensor, gt: torch.Tensor) -> None:
+        """Enqueue the ground truth and predicted masks for the batch
+
+        Args:
+            probs (torch.Tensor): probability vectors to queue for LM
+            gt (torch.Tensor): gt masks resized to queue for LM
+        """
+        bs = probs.shape[0]
+        # interpolate expects N, C, H, W so have to reshuffle probs
+        probs = probs.permute(0, 3, 1, 2)
+        # resize the tensors to be 64, 64 for compressed storage
+        probs = F.interpolate(probs, size=(64, 64), mode="bicubic")
+        probs = probs.permute(0, 2, 3, 1)
+        gt = gt.unsqueeze(1)
+        gt = F.interpolate(gt, size=(64, 64), mode="nearest").long()
+        gt = gt.squeeze(1)
+
+        # stack on the end of the queue and remove front to keep only most recent
+        self.prob_queue = torch.cat((self.prob_queue, probs), dim=0)
+        self.gt_queue = torch.cat((self.gt_queue, gt), dim=0)
+        if self.prob_queue.shape[0] > self.queue_size:
+            self.prob_queue = self.prob_queue[bs:]
+            self.gt_queue = self.gt_queue[bs:]
+
     def _on_step_end(self) -> None:
-        """Funciton to be called at the end of each step to log the inputs and outputs"""
-        if not self.called_finish:
-            return
+        """Function to be called at the end of each step to log the inputs and outputs"""
+        # TODO: code to calculate the threshold for each class during training loop
+
         if not self.mask_col_name:
             self.find_mask_category(self.helper_data["batch"]["data"])
 
@@ -228,10 +274,49 @@ class SemanticTorchLogger(TorchLogger):
                 )  # (bs, w, h)
             gold_mask = logging_data[self.mask_col_name].cpu()  # (bs, w, h)
 
-            probs = torch.nn.Softmax(dim=-1)(logits).cpu()  # (bs, classes, w, h)
+            probs = torch.nn.Softmax(dim=-1)(logits).cpu()  # (bs, w, h, classes)
 
-            # dq log model output
+            # update the necessary variable in order to caluclate likely mislabled
+            self.queue_gt_and_pred(probs, gold_mask)
+            out_threshold = calculate_self_confidence_threshold(
+                self.prob_queue, self.gt_queue
+            )
+            for cls in torch.unique(gold_mask):
+                self.thresholds[cls] = (
+                    self.thresholds[cls] * 0.999 + out_threshold[cls] * 0.001
+                )
+            for class_idx in range(self.number_classes):
+                self.confident_count = semseg_fill_confident_counts(
+                    probs[..., class_idx],
+                    gold_mask,
+                    class_idx,
+                    per_class_threshold=self.thresholds[class_idx],
+                    confident_counts=self.confident_count,
+                )
+            self.counts_per_class += torch.bincount(
+                gold_mask.view(-1), minlength=probs.shape[-1]
+            )
+            self_confidence = semseg_calculate_self_confidence(
+                self.prob_queue, self.gt_queue
+            )
+            mislabeled_pixels = calculate_lm_for_batch(
+                self_confidence,
+                self.confident_count,
+                self.counts_per_class,
+                self.gt_queue,
+                self.number_classes,
+                self.prob_queue,
+            )
+            # if we have not reached our queue size, we do not report mislabeled
+            if self.prob_queue.shape[0] < self.queue_size:
+                mislabeled_pixels = torch.zeros_like(mislabeled_pixels)
+            bs = probs.shape[0]
+            mislabeled_pixels = mislabeled_pixels[-bs:]
+            # do not log if we are not in the final inference loop
+            if not self.called_finish:
+                return
             logger = SemanticSegmentationModelLogger(
+                image_paths=image_paths,
                 image_ids=img_ids,
                 gt_masks=gold_mask,  # Torch tensor (bs, w, h)
                 pred_masks=argmax,  # Torch tensor (bs, w, h)
@@ -242,6 +327,7 @@ class SemanticTorchLogger(TorchLogger):
                     pred_boundary_masks
                 ),  # Torch tensor (bs, w, h)
                 output_probs=probs,  # Torch tensor (bs, w, h, classes)
+                mislabeled_pixels=mislabeled_pixels,  # torch tensor (bs, w, h)
             )
             logger.log()
 
@@ -253,7 +339,8 @@ class SemanticTorchLogger(TorchLogger):
         for i, dataloader in enumerate(self.dataloaders):
             print("Running dataquality on dataloader: ", self.splits[i])
             dq.set_epoch_and_split(0, self.splits[i])
-            self.run_one_epoch(dataloader, device)
+            with torch.no_grad():
+                self.run_one_epoch(dataloader, device)
         return
 
     def run_one_epoch(self, dataloader: DataLoader, device: str):
