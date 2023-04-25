@@ -1,5 +1,5 @@
 from tempfile import NamedTemporaryFile
-from typing import List
+from typing import List, Tuple
 
 import evaluate
 import numpy as np
@@ -123,7 +123,7 @@ def calculate_image_dep(dep_heatmap: torch.Tensor) -> List[float]:
 
 def calculate_mean_iou(
     pred_masks: torch.Tensor, gold_masks: torch.Tensor, nc: int = 21
-) -> List[float]:
+) -> Tuple[List[float], List[np.array]]:
     """Calculates the Mean Intersection Over Union (mIoU) for each image in the batch
 
     :param pred_masks: argmax of the prediction probabilities
@@ -135,7 +135,8 @@ def calculate_mean_iou(
     returns: list of mIoU values for each image in the batch
     """
     metric = evaluate.load("mean_iou")
-    ious = []
+    mean_ious = []
+    all_ious = []
 
     # for iou need shape (bs, 1, height, width) for some reason -
     # unsure if that is actually true but it works
@@ -146,5 +147,6 @@ def calculate_mean_iou(
             num_labels=nc,
             ignore_index=255,
         )
-        ious.append(iou["mean_iou"].item())
-    return ious
+        mean_ious.append(iou["mean_iou"].item())
+        all_ious.append(iou["per_category_iou"])
+    return mean_ious, all_ious
