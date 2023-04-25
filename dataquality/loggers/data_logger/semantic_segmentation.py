@@ -87,7 +87,7 @@ class SemanticSegmentationDataLogger(BaseGalileoDataLogger):
             split=split,
             epoch_or_inf=0,  # For SemSeg we only have one epoch, the final pass
         )
-        minio_file = f"{self.proj_run}/{self.split_name_path}/data/data.hdf5"
+        minio_file = f"{self.proj_run}/{split}/data/data.hdf5"
         object_store.create_project_run_object_from_df(
             df=out_frame,
             object_name=minio_file,

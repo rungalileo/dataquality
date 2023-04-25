@@ -307,7 +307,6 @@ def _calculate_self_confidence(probs: torch.Tensor, gt: torch.Tensor) -> torch.T
     """Gets the self confidence for each sample meaning the
     confidence in a prediction of its given GT label
 
-
     Args:
         probs (torch.Tensor): probability mask for each sample
         gt (torch.Tensor): ground truth label for each sample
@@ -348,7 +347,7 @@ def _calculate_self_confidence_threshold(
 
 
 def new_get_mislabeled_samples(probs: torch.Tensor, gt: torch.Tensor) -> None:
-    _calculate_self_confidence(probs, gt)
+    self_confidence = _calculate_self_confidence(probs, gt)
     count_per_class = torch.bincount(gt.view(-1), minlength=probs.shape[-1])
 
 

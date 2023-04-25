@@ -110,8 +110,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             self.dep_path,
         )
 
-        mean_ious = calculate_mean_iou(self.pred_masks, self.gt_masks)
-        boundary_ious = calculate_mean_iou(
+        mean_ious, category_iou = calculate_mean_iou(self.pred_masks, self.gt_masks)
+        boundary_mean_ious, boundary_category_iou = calculate_mean_iou(
             self.pred_boundary_masks, self.gold_boundary_masks
         )
 
@@ -121,19 +121,19 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             self.gt_masks, pred_polygons
         )
         undetected_objects = calculate_undetected_object(self.pred_masks, gt_polygons)
-        for image_id in self.image_ids:
+        for i, image_id in enumerate(self.image_ids):
             upload_polygon_map(
-                pred_polygons[image_id],
+                pred_polygons[i],
                 image_id,
                 self.pred_mask_path,
-                misclassified_objects[image_id],
+                misclassified_objects[i],
                 ErrorType.classification,
             )
             upload_polygon_map(
-                gt_polygons[image_id],
+                gt_polygons[i],
                 image_id,
                 self.gt_mask_path,
-                undetected_objects[image_id],
+                undetected_objects[i],
                 ErrorType.undetected,
             )
 
@@ -143,7 +143,9 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "width": [img.shape[-2] for img in self.gt_masks],
             "data_error_potential": image_dep,
             "mean_iou": mean_ious,
-            "boundary_iou": boundary_ious,
+            "category_iou": category_iou,
+            "boundary_iou": boundary_mean_ious,
+            "boundary_category_iou": boundary_category_iou,
             "classification_errors": misclassified_objects,  # str of polygon ids
             "undetected_errors": undetected_objects,  # str of polygon ids
             "split": [self.split] * len(self.image_ids),

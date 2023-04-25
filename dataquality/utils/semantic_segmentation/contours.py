@@ -35,6 +35,7 @@ def find_polygon_maps(
     """
     pred_masks_np = pred_masks.numpy()
     polygon_maps = []
+
     for i in range(len(image_ids)):
         pred_mask = pred_masks_np[i]
         polygon_maps.append(build_polygon_map(pred_mask))
@@ -53,7 +54,8 @@ def upload_polygon_map(
 
     # add the misclassifed to the pred_polygon_map
     error_ids_list = []
-    if len(error_ids) >= 0:
+    
+    if len(error_ids) > 0:
         error_ids_list = [int(error_id) for error_id in error_ids.split(",")]
     for polygon_id in error_ids_list:
         pmap_json[polygon_id]["error_type"] = error_type.value
