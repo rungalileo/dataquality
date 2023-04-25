@@ -3,7 +3,9 @@ import vaex
 
 from dataquality.utils.cuda import PCA_N_COMPONENTS
 from dataquality.utils.vaex import add_pca_to_df, drop_empty_columns
-from tests.assets.constants import TEST_ASSETS_DIR
+from tests.assets.constants import NUMPY_SEED
+
+np.random.seed(NUMPY_SEED)
 
 
 def test_drop_empty_cols() -> None:
@@ -20,11 +22,13 @@ def test_drop_empty_cols() -> None:
 
 
 def test_add_pca_to_df() -> None:
-    embs = np.load(f"{TEST_ASSETS_DIR}/embs.npy")
-    df = vaex.from_arrays(x=[1, 2, 3], y=[4, 5, 6], z=[7, 8, 9], emb=embs)
-    df_copy = add_pca_to_df(df)
+    # DETR returns embeddings of dimension 2048.
+    df = vaex.from_arrays(
+        x=[1, 2, 3], y=[4, 5, 6], z=[7, 8, 9], emb=np.random.rand(3, 2048)
+    )
+    df = add_pca_to_df(df)
 
-    pca_embs = df_copy["emb_pca"].values
+    pca_embs = df["emb_pca"].values
     assert pca_embs.shape == (3, PCA_N_COMPONENTS)
     assert np.any(pca_embs[:, :3])
     assert not np.any(pca_embs[:, 3:])
