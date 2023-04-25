@@ -175,3 +175,4 @@ yolov8n.pt
 runs
 VIA2COCO
 coco_dataset/
+CV_datasets/
