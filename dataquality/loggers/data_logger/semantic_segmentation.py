@@ -2,6 +2,8 @@ import os
 from enum import Enum
 from typing import Any, List, Optional, Union
 
+import vaex
+
 from dataquality.clients.objectstore import ObjectStore
 from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
@@ -87,6 +89,8 @@ class SemanticSegmentationDataLogger(BaseGalileoDataLogger):
             split=split,
             epoch_or_inf=0,  # For SemSeg we only have one epoch, the final pass
         )
+        if "id" not in out_frame.get_column_names():
+            out_frame["id"] = vaex.vrange(0, len(out_frame), dtype="int")
         minio_file = f"{self.proj_run}/{split}/data/data.hdf5"
         object_store.create_project_run_object_from_df(
             df=out_frame,
