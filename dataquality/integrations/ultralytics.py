@@ -2,7 +2,6 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from urllib.parse import urljoin
 
-import numpy as np
 import torch
 import ultralytics
 from torchvision.ops.boxes import box_convert
@@ -22,6 +21,7 @@ from dataquality.loggers.data_logger.object_detection import (
 )
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
+from dataquality.utils.dqyolo import CONF_DEFAULT, IOU_DEFAULT
 from dataquality.utils.ultralytics import non_max_suppression, process_batch_data
 
 ultralytics.checks()
@@ -157,6 +157,8 @@ class Callback:
         bucket: str = "",
         relative_img_path: str = "",
         labels: List = [],
+        iou_thresh: float = IOU_DEFAULT,
+        conf_thresh: float = CONF_DEFAULT,
     ) -> None:
         """Initializes the callback
 
@@ -167,13 +169,17 @@ class Callback:
         self.nms_fn = nms_fn
         self.hooked = False
         self.split = None
-        assert "://" in bucket, "bucket needs to start with s3://"
-        assert bucket.count("/") == 2, "bucket should end with slash"
+        # bucket needs to start with // and not end with /
+        bucket = bucket if bucket[-1] != "/" else bucket[:-1]
+        assert "://" in bucket, "bucket needs to start with s3:// or gs://"
+        assert bucket.count("/") == 2, "bucket should only contain 2 slashes"
         self.bucket = bucket
 
         self.relative_img_path = relative_img_path
         self.labels = labels
         self.file_map = {}  # maps file names to ids
+        self.iou_thresh = iou_thresh
+        self.conf_thresh = conf_thresh
 
     def postprocess(self, batch: torch.Tensor) -> Any:
         """Postprocesses the batch for a training step. Taken from ultralytics.
@@ -223,7 +229,9 @@ class Callback:
                 lambda x: x if self.split == Split.validation else self.postprocess
             )
             preds = postprocess(preds)
-            nms = self.nms_fn(preds)
+            nms = self.nms_fn(
+                preds, conf_thres=self.conf_thresh, iou_thres=self.iou_thresh
+            )
             self.nms = nms
 
             batch = self.bl.batch
@@ -235,51 +243,39 @@ class Callback:
                 shape = batch["ori_shape"][i]
                 batch_img_shape = batch["img"][i].shape[1:]
                 pred = nms[i].detach().cpu()
-                logging_data[i]["bbox_pred"] = pred.float()[:, :4]
+                bbox = pred[:, :4].float()
                 features = [
                     self.step_embs.model_input[0][0][i],
                     self.step_embs.model_input[0][1][i],
                     self.step_embs.model_input[0][2][i],
                 ]
-                logging_data[i]["pred_embs"] = (
-                    embedding_fn(features, pred, batch_img_shape).cpu().numpy()
+                logging_data[i]["pred_embs"] = embedding_fn(
+                    features, bbox, batch_img_shape
                 )
-                # Scaling taking from ultralytics source code
-                logging_data[i]["bbox_pred_scaled"] = scale_boxes(
-                    batch_img_shape,
-                    logging_data[i]["bbox_pred"].clone(),
-                    shape,
-                    ratio_pad=ratio_pad,
+                # Box rescaling taken from ultralytics source code
+                logging_data[i]["bbox_pred"] = scale_boxes(
+                    batch_img_shape, bbox, shape, ratio_pad=ratio_pad
                 )
-                logging_data[i]["probs"] = pred[:, 6:].cpu().numpy()
+                logging_data[i]["probs"] = pred[:, 6:].numpy()
                 # if there are no gt boxes then bboxes will not be in the logging data
                 if "bboxes" in logging_data[i].keys():
-                    # iterate on the ground truth boxes
-                    bbox = logging_data[i]["bboxes"].clone()
+                    # iterate on the ground truth boxes (given in cxcywh format)
+                    bbox = logging_data[i]["bboxes"]
                     height, width = batch_img_shape
                     tbox = box_convert(bbox, "cxcywh", "xyxy") * torch.tensor(
                         (width, height, width, height), device=bbox.device
                     )
-                    # Scaling taking from ultralytics source code
-                    # It differs for gold
-                    logging_data[i]["bbox_gold"] = (
-                        scale_boxes(batch_img_shape, tbox, shape, ratio_pad=ratio_pad)
-                        .cpu()
-                        .numpy()
+                    # Box rescaling taken from ultralytics source code
+                    logging_data[i]["gt_embs"] = embedding_fn(
+                        features, tbox, batch_img_shape
                     )
-                    logging_data[i]["gt_embs"] = (
-                        embedding_fn(
-                            features, logging_data[i]["bbox_gold"], batch_img_shape
-                        )
-                        .cpu()
-                        .numpy()
+                    logging_data[i]["bbox_gold"] = scale_boxes(
+                        batch_img_shape, tbox, shape, ratio_pad=ratio_pad
                     )
-                    logging_data[i]["labels"] = logging_data[i]["labels"].cpu().numpy()
-
                 else:
-                    logging_data[i]["bbox_gold"] = np.array([])
-                    logging_data[i]["gt_embs"] = np.array([])
-                    logging_data[i]["labels"] = np.array([])
+                    logging_data[i]["bbox_gold"] = torch.Tensor([])
+                    logging_data[i]["gt_embs"] = torch.Tensor([])
+                    logging_data[i]["labels"] = torch.Tensor([])
             self.logging_data = logging_data
 
         # create what I feed to the dataquality client
@@ -291,11 +287,11 @@ class Callback:
         probs = []
         ids = []
         for i in range(len(self.logging_data)):
-            pred_boxes.append(self.logging_data[i]["bbox_pred_scaled"].cpu().numpy())
-            gold_boxes.append(self.logging_data[i]["bbox_gold"])
-            labels.append(self.logging_data[i]["labels"])
-            pred_embs.append(self.logging_data[i]["pred_embs"])
-            gold_embs.append(self.logging_data[i]["gt_embs"])
+            pred_boxes.append(self.logging_data[i]["bbox_pred"].cpu().numpy())
+            gold_boxes.append(self.logging_data[i]["bbox_gold"].cpu().numpy())
+            labels.append(self.logging_data[i]["labels"].cpu().numpy())
+            pred_embs.append(self.logging_data[i]["pred_embs"].cpu().numpy())
+            gold_embs.append(self.logging_data[i]["gt_embs"].cpu().numpy())
             probs.append(self.logging_data[i]["probs"])
             ids.append(self.logging_data[i]["id"])
 
@@ -362,7 +358,7 @@ class Callback:
             file_name = Path(image["im_file"]).name
             if self.relative_img_path[0] == "/":
                 self.relative_img_path = self.relative_img_path[1:]
-            elif self.relative_img_path[-1] == "/":
+            if self.relative_img_path[-1] == "/":
                 self.relative_img_path = self.relative_img_path[:-1]
 
             file_path = (
@@ -443,7 +439,14 @@ def add_callback(model: YOLO, cb: Callback) -> None:
     model.add_callback("on_val_batch_start", cb.on_val_batch_start)
 
 
-def watch(model: YOLO, bucket: str, relative_img_path: str, labels: List) -> None:
+def watch(
+    model: YOLO,
+    bucket: str,
+    relative_img_path: str,
+    labels: List,
+    iou_thresh: float = IOU_DEFAULT,
+    conf_thresh: float = CONF_DEFAULT,
+) -> None:
     """Watch the model for predictions and embeddings logging.
 
     :param model: the model to watch"""
@@ -456,5 +459,7 @@ def watch(model: YOLO, bucket: str, relative_img_path: str, labels: List) -> Non
         bucket=bucket,
         relative_img_path=relative_img_path,
         labels=labels,
+        iou_thresh=iou_thresh,
+        conf_thresh=conf_thresh,
     )
     add_callback(model, cb)

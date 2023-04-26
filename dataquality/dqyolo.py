@@ -1,7 +1,7 @@
 import glob
 import os
 import sys
-from typing import List
+from typing import Dict
 
 from ultralytics import YOLO
 from ultralytics.yolo.utils import get_settings
@@ -9,6 +9,14 @@ from ultralytics.yolo.utils import get_settings
 import dataquality as dq
 from dataquality.integrations.ultralytics import watch
 from dataquality.schemas.split import Split
+from dataquality.utils.dqyolo import (
+    find_last_run,
+    get_conf_thres,
+    get_dataset_path,
+    get_iou_thres,
+    get_model_path,
+    validate_args,
+)
 from dataquality.utils.ultralytics import (
     _read_config,
     temporary_cfg_for_val,
@@ -21,56 +29,13 @@ from dataquality.utils.ultralytics import (
 # python dq-cli.py yolo train data=coco128.yaml model=yolov8n.pt epochs=1 lr0=0.01
 
 
-def get_dataset_path(arguments: list) -> str:
-    """Extract the dataset path from the arguments of yolo.
-
-    :param arguments: The arguments of ultralytics yolo.
-    :return: The path to the dataset.
-    """
-    for arg in arguments:
-        if arg.startswith("data="):
-            return arg[5:]
-    raise ValueError(
-        "Dataset path not found in arguments."
-        "Pass it in the following format data=coco.yaml"
-    )
-
-
-def get_model_path(arguments: list) -> str:
-    """Extract the dataset path from the arguments of yolo.
-
-    :param arguments: The arguments of ultralytics yolo.
-    :return: The path to the dataset.
-    """
-    for arg in arguments:
-        if arg.startswith("model="):
-            return arg[6:]
-    raise ValueError(
-        "Model path not found in arguments."
-        "Pass it in the following format model=./yolov8n.pt"
-    )
-
-
-def find_last_run(files_start: List, files_end: List) -> str:
-    """Find the path of the last run. This assumes that the path is the only
-    thing that has changed.
-
-    :param files_start: The list of files before the run.
-    :param files_end: The list of files after the run.
-    :return: The path to the last run.
-    """
-    file_diff = set(files_end) - set(files_start)
-    if not len(file_diff):
-        raise ValueError("Model path could not be found.")
-    path = list(file_diff)[0]
-    return path
-
-
 def main() -> None:
-    """dq-yolo is a wrapper around ultralytics yolo that will automatically
+    """dqyolo is a wrapper around ultralytics yolo that will automatically
     run the model on the validation and test sets and provide data insights.
     """
     # 1. Take the original args to extract config path
+
+    validate_args(sys.argv)
     original_cmd = sys.argv[1:]
     runs_dir = get_settings().get("runs_dir") or input(
         "Enter runs dir default. For example home/runs"
@@ -80,6 +45,40 @@ def main() -> None:
     bash_run = " ".join(original_cmd)
     if not bash_run.startswith("yolo"):
         bash_run = "yolo " + bash_run
+
+    dataset_path = get_dataset_path(original_cmd)
+    cfg = _read_config(dataset_path)
+    bucket = cfg.get("bucket") or input(
+        'Key "bucket" is missing in yaml, please enter path of files. '
+        "For example s3://coco/coco128\n"
+        "bucket: "
+    )
+    relative_img_paths: Dict[Split, str] = {}
+    # Check each file
+    for split in [Split.training, Split.validation, Split.test]:
+        # Create a temporary config file for the training set that changes
+        # the dataset path to the validation set so we can log the results
+        tmp_cfg_path = cfg.get(ultralytics_split_mapping[split])
+        if not tmp_cfg_path:
+            continue
+        relative_img_paths[split] = cfg[f"bucket_{ultralytics_split_mapping[split]}"]
+    if not len(relative_img_paths):
+        raise ValueError("No dataset paths found in config file.")
+
+    # 2. Init galileo
+    project_name = os.environ.get("GALILEO_PROJECT_NAME") or input("Project name: ")
+    run_name = os.environ.get("GALILEO_RUN_NAME") or input("Run name: ")
+    console_url = cfg.get("console_url", os.environ.get("GALILEO_CONSOLE_URL"))
+    if console_url:
+        dq.set_console_url(console_url)
+    dq.init(task_type="object_detection", project_name=project_name, run_name=run_name)
+
+    # Labels in the YAML files could either be a dict or a list
+    labels = cfg.get("names", {})
+    labels = labels if isinstance(labels, list) else list(labels.values())
+    if not len(labels):
+        raise ValueError("Labels not found in config file.")
+
     if " train " in bash_run:
         # 2. Run the original command
         os.system(bash_run)
@@ -92,24 +91,7 @@ def main() -> None:
     else:
         model_path = get_model_path(original_cmd)
 
-    dataset_path = get_dataset_path(original_cmd)
     print("Loading trained model:", model_path)
-    # 5. Init galileo and run the model on the validation and test sets
-    project_name = input("Project name: ")
-    run_name = input("Run name: ")
-    dq.set_console_url("https://console.dev.rungalileo.io")
-    dq.init(task_type="object_detection", project_name=project_name, run_name=run_name)
-    cfg = _read_config(dataset_path)
-    try:
-        bucket = cfg["bucket"]
-    except KeyError:
-        bucket = input(
-            'Key "bucket" is missing in yaml, please enter path of files. '
-            "For example s3://coco/coco128.\n"
-            "bucket: "
-        )
-
-    labels = list(cfg.get("names", {}).values())
 
     # Check each file
     for split in [Split.training, Split.validation, Split.test]:
@@ -118,10 +100,15 @@ def main() -> None:
         tmp_cfg_path = temporary_cfg_for_val(cfg, split)
         if not tmp_cfg_path:
             continue
-        relative_img_path = cfg[f"bucket_{ultralytics_split_mapping[split]}"]
+        relative_img_path = relative_img_paths[split]
         model = YOLO(model_path)
         watch(
-            model, bucket=bucket, relative_img_path=relative_img_path, labels=labels
+            model,
+            bucket=bucket,
+            relative_img_path=relative_img_path,
+            labels=labels,
+            iou_thresh=get_iou_thres(original_cmd),
+            conf_thresh=get_conf_thres(original_cmd),
         )  # This will automatically log the results to galileo
         dq.set_epoch(0)
         dq.set_split(split)
