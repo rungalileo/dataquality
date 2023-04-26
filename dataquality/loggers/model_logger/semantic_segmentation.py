@@ -1,7 +1,9 @@
+import os
 from typing import Dict, List, Optional, Union
 
 import numpy as np
 import torch
+from PIL import Image
 
 from dataquality.loggers.logger_config.semantic_segmentation import (
     SemanticSegmentationLoggerConfig,
@@ -18,6 +20,7 @@ from dataquality.utils.semantic_segmentation.errors import (
     calculate_misclassified_object,
     calculate_undetected_object,
 )
+from dataquality.utils.semantic_segmentation.lm import upload_mislabeled_pixels
 from dataquality.utils.semantic_segmentation.metrics import (
     calculate_and_upload_dep,
     calculate_mean_iou,
@@ -32,12 +35,14 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
 
     def __init__(
         self,
+        image_paths: Optional[List[str]] = None,
         image_ids: Optional[List[int]] = None,
         gt_masks: Optional[torch.Tensor] = None,
         pred_masks: Optional[torch.Tensor] = None,
         gold_boundary_masks: Optional[torch.Tensor] = None,
         pred_boundary_masks: Optional[torch.Tensor] = None,
         output_probs: Optional[torch.Tensor] = None,
+        mislabeled_pixels: Optional[torch.Tensor] = None,
         # Below fields must be present, linting from parent class
         embs: Optional[Union[List, np.ndarray]] = None,
         probs: Optional[Union[List, np.ndarray]] = None,
@@ -61,6 +66,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 np.ndarray of shape (batch_size, height, width)
             output_probs: Model probability predictions
                 np.ndarray of shape (batch_size, height, width, num_classes)
+            mislabeled_pixels: Model confidence predictions in the GT label
+                torch.Tensor of shape (batch_size, height, width)
         """
         super().__init__(
             embs=embs,
@@ -71,16 +78,22 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             epoch=epoch,
             inference_name=inference_name,
         )
+        self.image_paths = image_paths
         self.image_ids = image_ids
         self.gt_masks = gt_masks
         self.pred_masks = pred_masks
         self.gold_boundary_masks = gold_boundary_masks
         self.pred_boundary_masks = pred_boundary_masks
         self.output_probs = output_probs
+        self.mislabled_pixels = mislabeled_pixels
         # assert ids is not None
 
     def validate_and_format(self) -> None:
         pass
+
+    @property
+    def lm_path(self) -> str:
+        return f"{self.proj_run}/{self.split_name_path}/LM"
 
     @property
     def dep_path(self) -> str:
@@ -110,6 +123,12 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             self.dep_path,
         )
 
+        # create self confidence directory if none exists
+        mean_mislabeled = torch.mean(self.mislabled_pixels, dim=(1, 2)).numpy()
+        upload_mislabeled_pixels(
+            self.mislabled_pixels, self.image_ids, prefix=self.lm_path
+        )
+
         mean_ious, category_iou = calculate_mean_iou(self.pred_masks, self.gt_masks)
         boundary_mean_ious, boundary_category_iou = calculate_mean_iou(
             self.pred_boundary_masks, self.gold_boundary_masks
@@ -136,13 +155,14 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 undetected_objects[i],
                 ErrorType.undetected,
             )
-
         data = {
+            "image": self.image_paths,  # "gs://.../image_id.png
             "image_id": self.image_ids,
             "height": [img.shape[-1] for img in self.gt_masks],
             "width": [img.shape[-2] for img in self.gt_masks],
             "data_error_potential": image_dep,
             "mean_iou": mean_ious,
+            "mean_lm_score": [i for i in mean_mislabeled],
             "category_iou": category_iou,
             "boundary_iou": boundary_mean_ious,
             "boundary_category_iou": boundary_category_iou,

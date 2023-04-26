@@ -54,7 +54,7 @@ def upload_polygon_map(
 
     # add the misclassifed to the pred_polygon_map
     error_ids_list = []
-    
+
     if len(error_ids) > 0:
         error_ids_list = [int(error_id) for error_id in error_ids.split(",")]
     for polygon_id in error_ids_list:
