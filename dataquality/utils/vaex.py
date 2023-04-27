@@ -224,18 +224,7 @@ def add_pca_to_df(df: DataFrame, chunk_size: int = PCA_CHUNK_SIZE) -> DataFrame:
     def apply_pca(emb: np.ndarray) -> np.ndarray:
         return pca.transform(emb).astype(np.float32)
 
-    # pad the embeddings with zeros if the dimension is less than PCA_N_COMPONENTS
-    emb_values = df_copy["emb"].apply_pca()
-    if n_components < PCA_N_COMPONENTS:
-        pad_num_components = PCA_N_COMPONENTS - n_components
-        emb_values = np.pad(
-            array=emb_values.values,
-            pad_width=[(0, 0), (0, pad_num_components)],
-            mode="constant",
-            constant_values=0,
-        )
-
-    df_copy["emb_pca"] = emb_values
+    df_copy["emb_pca"] = df_copy["emb"].apply_pca()
     # Fully apply the PCA model now, without ever bringing the full embeddings into
     # memory, only the PCA embeddings (much smaller)
     df_copy = df_copy.materialize("emb_pca")
