@@ -20,6 +20,12 @@ def calculate_and_upload_dep(
     image_ids: List[int],
     obj_prefix: str,
 ) -> List[float]:
+    """Calculates the Data Error Potential (DEP) for each image in the batch
+
+    Uploads the heatmap to Minio as a png.
+    Returns the image DEP for each image in the batch.
+        Image dep is calculated by the average pixel dep.
+    """
     dep_heatmaps = calculate_dep_heatmaps(probs, gt_masks)
     upload_dep_heatmaps(dep_heatmaps, image_ids, obj_prefix)
     return calculate_image_dep(dep_heatmaps)

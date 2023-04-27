@@ -11,7 +11,6 @@ import dataquality as dq
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
 from dataquality.clients.objectstore import ObjectStore
-from dataquality.core._config import GALILEO_DEFAULT_RESULT_BUCKET_NAME
 from dataquality.exceptions import GalileoException
 from dataquality.integrations.torch import TorchLogger, unwatch
 from dataquality.loggers.data_logger.semantic_segmentation import SemSegCols
@@ -316,6 +315,7 @@ class SemanticTorchLogger(TorchLogger):
             if not self.called_finish:
                 return
             logger = SemanticSegmentationModelLogger(
+                bucket_name=self.bucket_name,
                 image_paths=image_paths,
                 image_ids=img_ids,
                 gt_masks=gold_mask,  # Torch tensor (bs, w, h)

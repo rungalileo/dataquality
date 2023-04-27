@@ -3,7 +3,7 @@ from typing import Dict, List
 import numpy as np
 import torch
 
-from dataquality.utils.semantic_segmentation.contours import draw_polygon
+from dataquality.utils.semantic_segmentation.polygons import draw_polygon
 
 
 def calculate_false_positives(preds: torch.Tensor, gt_masks: torch.Tensor) -> List[str]:

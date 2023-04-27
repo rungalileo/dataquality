@@ -1,9 +1,7 @@
-import os
 from typing import Dict, List, Optional, Union
 
 import numpy as np
 import torch
-from PIL import Image
 
 from dataquality.loggers.logger_config.semantic_segmentation import (
     SemanticSegmentationLoggerConfig,
@@ -12,10 +10,6 @@ from dataquality.loggers.logger_config.semantic_segmentation import (
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.schemas.semantic_segmentation import ErrorType
 from dataquality.schemas.split import Split
-from dataquality.utils.semantic_segmentation.contours import (
-    find_polygon_maps,
-    upload_polygon_map,
-)
 from dataquality.utils.semantic_segmentation.errors import (
     calculate_misclassified_object,
     calculate_undetected_object,
@@ -24,6 +18,10 @@ from dataquality.utils.semantic_segmentation.lm import upload_mislabeled_pixels
 from dataquality.utils.semantic_segmentation.metrics import (
     calculate_and_upload_dep,
     calculate_mean_iou,
+)
+from dataquality.utils.semantic_segmentation.polygons import (
+    find_polygon_maps,
+    upload_polygon_map,
 )
 
 
@@ -35,6 +33,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
 
     def __init__(
         self,
+        bucket_name: Optional[str] = None,
         image_paths: Optional[List[str]] = None,
         image_ids: Optional[List[int]] = None,
         gt_masks: Optional[torch.Tensor] = None,
@@ -78,6 +77,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             epoch=epoch,
             inference_name=inference_name,
         )
+        self.bucket_name = bucket_name
         self.image_paths = image_paths
         self.image_ids = image_ids
         self.gt_masks = gt_masks
@@ -86,7 +86,6 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         self.pred_boundary_masks = pred_boundary_masks
         self.output_probs = output_probs
         self.mislabled_pixels = mislabeled_pixels
-        # assert ids is not None
 
     def validate_and_format(self) -> None:
         pass
@@ -114,49 +113,57 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         #     "Must be set before training model."
         # )
 
-        # path to dep map and contours is
-        # {self.proj_run}/{self.split_name_path}/dep/image_id.json
+        # DEP
         image_dep = calculate_and_upload_dep(
             self.output_probs,
             self.gt_masks,
             self.image_ids,
-            self.dep_path,
+            obj_prefix=self.dep_path,
         )
 
-        # create self confidence directory if none exists
+        # Likely Mislabeled
         mean_mislabeled = torch.mean(self.mislabled_pixels, dim=(1, 2)).numpy()
         upload_mislabeled_pixels(
             self.mislabled_pixels, self.image_ids, prefix=self.lm_path
         )
 
+        # Image Metrics (IoU)
         mean_ious, category_iou = calculate_mean_iou(self.pred_masks, self.gt_masks)
         boundary_mean_ious, boundary_category_iou = calculate_mean_iou(
             self.pred_boundary_masks, self.gold_boundary_masks
         )
 
-        pred_polygons = find_polygon_maps(self.image_ids, self.pred_masks)
-        gt_polygons = find_polygon_maps(self.image_ids, self.gt_masks)
+        # Image masks
+        pred_polygon_maps = find_polygon_maps(self.pred_masks)
+        gt_polygon_maps = find_polygon_maps(self.gt_masks)
+        # Errors
         misclassified_objects = calculate_misclassified_object(
-            self.gt_masks, pred_polygons
+            self.gt_masks, pred_polygon_maps
         )
-        undetected_objects = calculate_undetected_object(self.pred_masks, gt_polygons)
+        undetected_objects = calculate_undetected_object(
+            self.pred_masks, gt_polygon_maps
+        )
+        # Add errors to polygons and upload to Minio
         for i, image_id in enumerate(self.image_ids):
             upload_polygon_map(
-                pred_polygons[i],
+                pred_polygon_maps[i],
                 image_id,
                 self.pred_mask_path,
                 misclassified_objects[i],
                 ErrorType.classification,
             )
             upload_polygon_map(
-                gt_polygons[i],
+                gt_polygon_maps[i],
                 image_id,
                 self.gt_mask_path,
                 undetected_objects[i],
                 ErrorType.undetected,
             )
+
         data = {
-            "image": self.image_paths,  # "gs://.../image_id.png
+            "image": [
+                f"{self.bucket_name}/{pth.lstrip('./')}" for pth in self.image_paths
+            ],  # "gs://.../image_id.png
             "image_id": self.image_ids,
             "height": [img.shape[-1] for img in self.gt_masks],
             "width": [img.shape[-2] for img in self.gt_masks],

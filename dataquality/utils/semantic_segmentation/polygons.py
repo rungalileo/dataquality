@@ -20,13 +20,10 @@ from dataquality.schemas.semantic_segmentation import (
 object_store = ObjectStore()
 
 
-def find_polygon_maps(
-    image_ids: List[int], pred_masks: torch.Tensor
-) -> List[PolygonMap]:
+def find_polygon_maps(pred_masks: torch.Tensor) -> List[PolygonMap]:
     """Creates polygon maps for a given batch
 
     Args:
-        image_ids: List of image ids
         pred_masks: Tensor of predicted masks
             torch.Tensor of shape (batch_size, height, width)
 
@@ -34,9 +31,10 @@ def find_polygon_maps(
         List of polygon maps
     """
     pred_masks_np = pred_masks.numpy()
+    bs = pred_masks_np.shape[0]
     polygon_maps = []
 
-    for i in range(len(image_ids)):
+    for i in range(bs):
         pred_mask = pred_masks_np[i]
         polygon_maps.append(build_polygon_map(pred_mask))
 

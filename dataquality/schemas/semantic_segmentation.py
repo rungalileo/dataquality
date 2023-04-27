@@ -24,7 +24,7 @@ class Contour(BaseModel):
 
 class Polygon(BaseModel):
     # id: int
-    # label_int: int
+    # label_idx: int
     # lablel: str
     # error_type: ErrorTypes
     contours: List[Contour]
@@ -70,7 +70,7 @@ class PolygonMap(BaseModel):
                 polygon = polygon.unserialize_json()
                 polygon_object = {
                     "id": counter,
-                    "label_int": lbl,
+                    "label_idx": lbl,
                     "error_type": "none",
                     "polygon": polygon,
                 }

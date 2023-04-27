@@ -1,4 +1,3 @@
-import tempfile
 from tempfile import NamedTemporaryFile
 from typing import List
 
