@@ -312,8 +312,8 @@ class SemanticTorchLogger(TorchLogger):
             bs = probs.shape[0]
             mislabeled_pixels = mislabeled_pixels[-bs:]
             # do not log if we are not in the final inference loop
-            if not self.called_finish:
-                return
+            '''if not self.called_finish:
+                return'''
             logger = SemanticSegmentationModelLogger(
                 bucket_name=self.bucket_name,
                 image_paths=image_paths,

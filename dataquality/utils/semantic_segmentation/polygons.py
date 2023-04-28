@@ -1,7 +1,7 @@
 import json
 from collections import defaultdict
 from tempfile import NamedTemporaryFile
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 
 import cv2
 import numpy as np
@@ -48,7 +48,16 @@ def upload_polygon_map(
     error_ids: str,
     error_type: ErrorType,
 ) -> None:
-    pmap_json = polygon_map.unserialize_json()
+    """Uploads a polygon map to the cloud for a given image
+    
+    Args:
+        polygon_map(PolygonMap): polygon map for one image
+        image_id(int): image id to be used in the object name
+        prefix(str): prefix of the object name in storage
+        error_ids(str): comma separated string of error ids
+        error_type(ErrorType): type of error defined in the schema
+    """
+    pmap_json = deserialize_polygon_map_json(polygon_map)
 
     # add the misclassifed to the pred_polygon_map
     error_ids_list = []
@@ -62,16 +71,21 @@ def upload_polygon_map(
 
 
 def _upload_polygon_map(
-    image_id: int, contour_map: Dict[int, List], obj_prefix: str
+    image_id: int, 
+    polygon_map: Dict[str, Union[int, str, List[List[int]]]], 
+    obj_prefix: str
 ) -> None:
     """Uploads a contour to the cloud for a given image
 
-    obj_prefix is the prefix of the object name. For example,
-        - /proj-id/run-id/training/masks/pred/1.json
+    Args:
+        image_id(int): image id to be used in the object name
+        polygon_map(Dict[int, List]): polygon map for one image
+        obj_prefix(str): the prefix of the object name. For example,
+            - /proj-id/run-id/training/masks/pred/1.json
     """
     obj_name = f"{obj_prefix}/{image_id}.json"
     with NamedTemporaryFile(mode="w+", delete=False) as f:
-        json.dump(contour_map, f)
+        json.dump(polygon_map, f)
 
     object_store.create_object(
         object_name=obj_name,
@@ -84,12 +98,18 @@ def _upload_polygon_map(
 
 def build_polygon_map(mask: np.ndarray) -> PolygonMap:
     """Returns a polygon map for a given mask
+    
+    Args:
+        mask: numpy array of shape (height, width) either gt or pred
+    
+    Returns:
+        PolygonMap: a mapping of labels to polygons
 
     Key is the GT class and value is a list of Polygon objects
 
-    A contour is a list of points that make up the boundary of a shape.
+    A polygon is a list of points that make up the boundary of a shape.
     Each image can be represented as a dictionary mapping a GT class to
-        its corresponding contours.
+        its corresponding polygon.
 
     cv2.findContours returns a Tuple of contours, where each contour is a
         numpy array of shape (num_points, 1, 2)
@@ -120,14 +140,16 @@ def build_polygon_map(mask: np.ndarray) -> PolygonMap:
     return PolygonMap(map=polygon_map)
 
 
-def build_polygon(contours: Tuple[np.ndarray], hierarchy: np.ndarray) -> List[Polygon]:
+def build_polygon(contours: Tuple[np.ndarray], hierarchy: np.ndarray
+) -> List[Polygon]:
     """
     :param contours: a tuple of numpy arrays where each array is a contour
-    :param hierarchy: a numpy array of shape (num_contours, 4) where each row is a contour
+    :param hierarchy: a numpy array of shape (num_contours, 4) 
+        where each row is a contour
 
-    :return: a list of blobs where each blob is a list of contours
+    :return: a list of polyongs where each polygon is a list of contours
     """
-    all_blobs = defaultdict(list)
+    all_polygons = defaultdict(list)
     for i, contour in enumerate(contours):
         parent = hierarchy[0, i, -1]
         # indicates that it does not have any parent so give it its own entry
@@ -139,20 +161,21 @@ def build_polygon(contours: Tuple[np.ndarray], hierarchy: np.ndarray) -> List[Po
                 next_parent = hierarchy[0, next_parent, -1]
         else:
             current_parent = i
-        # process the contour
+        # process the contour by creating a list of Pixel objects
         new_contours = []
         for j, point in enumerate(contour):
             new_contours.append(Pixel(x=point[0][0], y=point[0][1]))
-        all_blobs[current_parent].append(Contour(pixels=new_contours))
+        all_polygons[current_parent].append(Contour(pixels=new_contours))
 
-    # serialize the blobs for easy storage
-    final_blobs = []
-    for key in all_blobs:
-        final_blobs.append(Polygon(contours=all_blobs[key]))
-    return final_blobs
+    # serialize the polygons for easy storage
+    final_polygons = []
+    for key in all_polygons:
+        final_polygons.append(Polygon(contours=all_polygons[key]))
+    return final_polygons
 
 
-def draw_polygon(polygon: List[np.ndarray], img: np.ndarray, key: int) -> np.ndarray:
+def draw_polygon(polygon: List[np.ndarray], img: np.ndarray, key: int
+) -> np.ndarray:
     """Draws one polygon on an image
 
     Args:
@@ -166,3 +189,48 @@ def draw_polygon(polygon: List[np.ndarray], img: np.ndarray, key: int) -> np.nda
     blank = np.zeros(img.shape[-2:])
     cv2.drawContours(blank, polygon, -1, key, -1)
     return blank
+
+def deserialize_polygon_map(map: PolygonMap
+) -> Dict[int, List[List[np.ndarray]]]:
+    """Deserializes a polygon map to be in dictionary form
+    
+    Args:
+        map (PolygonMap): Mapping of indices to polygons
+
+    Returns:
+        Dict[int, List[List[np.ndarray]]]: Mapping of indices to polygons
+            in base np.ndarray form
+    """
+    deserialized_map = {}
+    for key, polygons in map.map.items():
+        deserialized_polygons = []
+        for polygon in polygons:
+            polygon = polygon.deserialize()
+            deserialized_polygons.append(polygon)
+        deserialized_map[key] = deserialized_polygons
+    return deserialized_map
+
+def deserialize_polygon_map_json(map: PolygonMap
+) -> List[Dict[str, Union[int, str, List[List[int]]]]]:
+    """Deserialize the polygon map for json consumptions
+
+    Args:
+        map (PolygonMap): Mapping of indices to polygons
+
+    Returns:
+        List[Dict]: Mapping of indices to polygons in json form
+    """
+    deserialized_map = []
+    counter = 0
+    for lbl, polygons in map.map.items():
+        for polygon in polygons:
+            polygon = polygon.deserialize_json()
+            polygon_object = {
+                "id": counter,
+                "label_idx": lbl,
+                "error_type": "none",
+                "polygon": polygon,
+            }
+            counter += 1
+            deserialized_map.append(polygon_object)
+    return deserialized_map
