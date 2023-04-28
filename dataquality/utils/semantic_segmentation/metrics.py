@@ -129,7 +129,7 @@ def calculate_image_dep(dep_heatmap: torch.Tensor) -> List[float]:
 
 def calculate_mean_iou(
     pred_masks: torch.Tensor, gold_masks: torch.Tensor, nc: int = 21
-) -> Tuple[List[float], List[np.array]]:
+) -> Tuple[List[float], List[np.ndarray]]:
     """Calculates the Mean Intersection Over Union (mIoU) for each image in the batch
 
     :param pred_masks: argmax of the prediction probabilities

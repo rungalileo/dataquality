@@ -71,7 +71,7 @@ def semseg_get_mislabeled_by_noise(
     probs = probs.view(-1, num_classes)
     num_samples = probs.shape[0]
     gt = gt.view(-1)
-    mislabled_ids = []
+    mislabled_ids: List = []
     num_classes = probs.shape[-1]
     ids = torch.arange(probs.shape[0])
     for given_gold_idx in range(num_classes):
@@ -83,9 +83,9 @@ def semseg_get_mislabeled_by_noise(
         )
         mislabled_ids.extend(sample_ids[out])
 
-    mislabled_ids = torch.tensor(mislabled_ids)
+    mislabled_ids_tensor = torch.tensor(mislabled_ids)
     final_mislabelled = torch.zeros(gt.shape).view(-1)
-    final_mislabelled[mislabled_ids.view(-1).long()] = 1
+    final_mislabelled[mislabled_ids_tensor.view(-1).long()] = 1
     final_mislabelled = final_mislabelled.view(original_shape)
     return final_mislabelled
 
@@ -93,7 +93,7 @@ def semseg_get_mislabeled_by_noise(
 def calculate_mislabled_by_noise(
     confident_joint: torch.Tensor,
     probs: torch.Tensor,
-    given_gold_idx: torch.Tensor,
+    given_gold_idx: int,
     num_samples: int,
 ) -> List[int]:
     """Calculated mislabled for a given gold index
@@ -224,7 +224,7 @@ def semseg_fill_confident_counts(
     probs: torch.Tensor,
     gt: torch.Tensor,
     given_class: int,
-    per_class_threshold: float,
+    per_class_threshold: torch.Tensor,
     confident_counts: torch.Tensor,
 ) -> torch.Tensor:
     """Helper function that fills the confident counts
@@ -312,7 +312,7 @@ def semseg_normalize_confident_counts(
 
     # This accounts for the unlikely scenario that class counts is 0.
     if torch.allclose(confidence_joint.sum(), torch.tensor(0.0)):
-        torch.fill_diagonal(confidence_joint, 1.0 / confidence_joint.shape[0])
+        confidence_joint.fill_diagonal_(1.0 / confidence_joint.shape[0])
 
     return confidence_joint
 
@@ -382,7 +382,7 @@ def upload_im(img: Image.Image, prefix: str, id: int) -> None:
 
 def calculate_self_confidence_threshold(
     probs: torch.Tensor, gt: torch.Tensor
-) -> torch.Tensor:
+) -> List[float]:
     """Calculates the self confidence threshold for each class
 
     Args:

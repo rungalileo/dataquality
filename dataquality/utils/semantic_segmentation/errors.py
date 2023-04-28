@@ -2,11 +2,13 @@ from typing import Dict, List
 
 import numpy as np
 import torch
+
 from dataquality.schemas.semantic_segmentation import PolygonMap
 from dataquality.utils.semantic_segmentation.polygons import (
+    deserialize_polygon_map,
     draw_polygon,
-    deserialize_polygon_map
 )
+
 
 def polygon_accuracy(preds: np.ndarray, gt_mask: np.ndarray) -> float:
     """Calculates the accuracy of one ground truth polygon
@@ -23,16 +25,16 @@ def polygon_accuracy(preds: np.ndarray, gt_mask: np.ndarray) -> float:
 
 
 def image_miscls_segments(
-    gt_mask: np.ndarray, 
-    deserialized_pred_polygon_map: Dict[int, List[List[np.ndarray]]]
-) -> List[str]:
+    gt_mask: np.ndarray,
+    deserialized_pred_polygon_map: Dict[int, List[List[np.ndarray]]],
+) -> str:
     """Calculates a set of misclassified polygon ids for one image
-    
+
     Args:
         gt_mask(np.ndarray): ground truth mask
         deserialized_pred_polygon_map(Dict[int, List[List[np.ndarray]]]):
             predicted polygon map for one image
-    
+
     Returns:
         List[str]: list of undetected objects by their polygon id
     """
@@ -49,27 +51,25 @@ def image_miscls_segments(
 
 
 def calculate_misclassified_object(
-    gt_mask: torch.tensor,
+    gt_mask: torch.Tensor,
     pred_polygon_maps: List[PolygonMap],
 ) -> List[str]:
     """Calculates a set of misclassified polygon ids from the
     predicted mask for each image in a batch
-    
+
     Args:
         gt_mask(torch.tensor): ground truth mask
         pred_polygon_maps(List[Dict[int, List[List[np.ndarray]]]]):
             list of predicted polygon maps for each image in a batch
     Returns
-        List[List[str]]: list of lists of undetected objects by their 
+        List[List[str]]: list of lists of undetected objects by their
             polygon id for each image in a batch
-            
+
     """
     segments_per_image = []
     for image in range(len(gt_mask)):
         pred_mask = gt_mask[image]
-        deserialized_polygon_map = deserialize_polygon_map(
-            pred_polygon_maps[image]
-        )
+        deserialized_polygon_map = deserialize_polygon_map(pred_polygon_maps[image])
         # Calculate classes present in predictions and ground truth
         missing_segments = image_miscls_segments(
             pred_mask.numpy(), deserialized_polygon_map
@@ -92,16 +92,15 @@ def undetected_accuracy(preds: np.ndarray, gt_mask: np.ndarray) -> float:
 
 
 def image_undetected_object(
-    pred_mask: np.ndarray, 
-    deserialized_polygon_map: Dict[int, List[List[np.ndarray]]]
-) -> List[str]:
+    pred_mask: np.ndarray, deserialized_polygon_map: Dict[int, List[List[np.ndarray]]]
+) -> str:
     """Calculates a set of undetected object polygon ids for one image
-    
+
     Args:
         pred_mask(np.ndarray): argmax of the prediction probabilities
         deserialized_polygon_map(Dict[int, List[List[np.ndarray]]]):
             ground truth polygons that we examine for undetected objects
-            
+
     Returns:
         List[str]: list of undetected objects by their polygon id for an image
     """
@@ -119,26 +118,24 @@ def image_undetected_object(
 
 def calculate_undetected_object(
     preds: torch.Tensor,
-    gt_polygon_maps: List[Dict[int, List[List[np.ndarray]]]],
-) -> List[List[str]]:
+    gt_polygon_maps: List[PolygonMap],
+) -> List[str]:
     """Calculates a set of undetected polygon ids from the ground truth
     that are not detected by the model for images in a batch
-    
+
     Args:
         preds(torch.tensor): argmax of the prediction probabilities
         deserialize_gt_polygon_maps(List[Dict[int, List[List[np.ndarray]]]]):
             ground truth polygon map that we examine for undetected objects
     Returns
-        List[List[str]]: list of lists of undetected objects by their 
+        List[List[str]]: list of lists of undetected objects by their
             polygon id for each image in a batch
-            
+
     """
     undetected_objects = []
     for image in range(len(preds)):
         pred_mask = preds[image]
-        deserialized_polygon_map = deserialize_polygon_map(
-            gt_polygon_maps[image]
-        )
+        deserialized_polygon_map = deserialize_polygon_map(gt_polygon_maps[image])
         # Calculate classes present in predictions and ground truth
         undetected_segments = image_undetected_object(
             pred_mask.numpy(), deserialized_polygon_map

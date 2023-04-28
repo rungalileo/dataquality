@@ -29,7 +29,7 @@ class Polygon(BaseModel):
     # error_type: ErrorTypes
     contours: List[Contour]
 
-    def deserialize(self):
+    def deserialize(self) -> List[np.ndarray]:
         contours = []
         for contour in self.contours:
             pixels = []
@@ -38,7 +38,7 @@ class Polygon(BaseModel):
             contours.append(np.array(pixels))
         return contours
 
-    def deserialize_json(self):
+    def deserialize_json(self) -> List[List[List[int]]]:
         contours = []
         for contour in self.contours:
             pixels = []
@@ -47,6 +47,6 @@ class Polygon(BaseModel):
             contours.append([pixels])
         return contours
 
+
 class PolygonMap(BaseModel):
     map: Dict[int, List[Polygon]]
-

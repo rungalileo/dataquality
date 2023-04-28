@@ -17,6 +17,7 @@ from dataquality.loggers.data_logger.semantic_segmentation import SemSegCols
 from dataquality.loggers.model_logger.semantic_segmentation import (
     SemanticSegmentationModelLogger,
 )
+from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.schemas.torch import HelperData
 from dataquality.utils.helpers import wrap_fn
@@ -69,8 +70,7 @@ class SemanticTorchLogger(TorchLogger):
         self.dataset_path = os.path.abspath(dataset_path)
 
         # There is a hook on dataloader so must convert before attaching hook
-        self.file_map = {}
-        self.mask_file_map = {}
+        self.file_map: Dict[str, int] = {}
         self.bucket_name = bucket_name
         self.dataloaders = dataloaders
         self.datasets = [
@@ -114,8 +114,8 @@ class SemanticTorchLogger(TorchLogger):
             if "image_path" not in data:
                 raise GalileoException(
                     "Missing image_path in data .\
-                                        Please have both specified in your dataset.\
-                                        Ie. for batch in dataloader: batch['image_path'] = 'path/to/image'"
+                    Please have both specified in your dataset.\
+                    Ie. for batch in dataloader: batch['image_path'] = 'path/to/image'"
                 )
 
             self.file_map[data["image_path"]] = i
@@ -229,7 +229,7 @@ class SemanticTorchLogger(TorchLogger):
             self.gt_queue = self.gt_queue[bs:]
 
     def _on_step_end(self) -> None:
-        """Function to be called at the end of each step to log the inputs and outputs"""
+        """Function to be called at the end of step to log the inputs and outputs"""
         # TODO: code to calculate the threshold for each class during training loop
 
         if not self.mask_col_name:
@@ -312,8 +312,8 @@ class SemanticTorchLogger(TorchLogger):
             bs = probs.shape[0]
             mislabeled_pixels = mislabeled_pixels[-bs:]
             # do not log if we are not in the final inference loop
-            '''if not self.called_finish:
-                return'''
+            """if not self.called_finish:
+                return"""
             logger = SemanticSegmentationModelLogger(
                 bucket_name=self.bucket_name,
                 image_paths=image_paths,
@@ -335,7 +335,7 @@ class SemanticTorchLogger(TorchLogger):
         self.called_finish = True
         # finish function that runs our inference at the end of training
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.splits = ["training", "validation", "test"]
+        self.splits = [Split.training, Split.validation, Split.test]
         for i, dataloader in enumerate(self.dataloaders):
             print("Running dataquality on dataloader: ", self.splits[i])
             dq.set_epoch_and_split(0, self.splits[i])
@@ -343,7 +343,7 @@ class SemanticTorchLogger(TorchLogger):
                 self.run_one_epoch(dataloader, device)
         return
 
-    def run_one_epoch(self, dataloader: DataLoader, device: str):
+    def run_one_epoch(self, dataloader: DataLoader, device: torch.device) -> None:
         if device == "cuda":
             torch.cuda.empty_cache()
         with torch.autocast("cuda"):
@@ -436,9 +436,12 @@ def watch(
         Inputs are the embeddings and outputs are the logits.
     """
     print(
-        "We assume the dataloaders passed only have transforms that Tensor, Resize, and Normalize the image and mask\n"
-        "‼ Any cropping or shearing transforms passed will lead to unexpected results\n"
-        "See docs at https://dq.readthedocs.io/en/latest/ (placeholder) for more info \n \n"
+        "We assume the dataloaders passed only have transforms that Tensor, Resize, \
+        and Normalize the image and mask\n"
+        "‼ Any cropping or shearing transforms passed will lead to unexpected \
+        results\n"
+        "See docs at https://dq.readthedocs.io/en/latest/ (placeholder) for more info \
+        \n \n"
     )
 
     a.log_function("torch/watch")
@@ -469,6 +472,7 @@ def watch(
         helper_data=helper_data,
         dataloaders=dataloaders,
     )
+    import pdb; pdb.set_trace()
     dq.get_model_logger().logger_config.finish = tl.finish
 
     # we can override the num workers as we are the ones using the dataloader
@@ -505,4 +509,4 @@ def watch(
         patch_dataloaders(tl.helper_data["batch"])
         # patch_dataloaders(tl.helper_data)
 
-    return tl
+    return

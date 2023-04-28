@@ -49,7 +49,7 @@ def upload_polygon_map(
     error_type: ErrorType,
 ) -> None:
     """Uploads a polygon map to the cloud for a given image
-    
+
     Args:
         polygon_map(PolygonMap): polygon map for one image
         image_id(int): image id to be used in the object name
@@ -71,9 +71,9 @@ def upload_polygon_map(
 
 
 def _upload_polygon_map(
-    image_id: int, 
-    polygon_map: Dict[str, Union[int, str, List[List[int]]]], 
-    obj_prefix: str
+    image_id: int,
+    polygon_map: List[Dict[str, Union[int, str, List[List[int]]]]],
+    obj_prefix: str,
 ) -> None:
     """Uploads a contour to the cloud for a given image
 
@@ -98,10 +98,10 @@ def _upload_polygon_map(
 
 def build_polygon_map(mask: np.ndarray) -> PolygonMap:
     """Returns a polygon map for a given mask
-    
+
     Args:
         mask: numpy array of shape (height, width) either gt or pred
-    
+
     Returns:
         PolygonMap: a mapping of labels to polygons
 
@@ -140,11 +140,10 @@ def build_polygon_map(mask: np.ndarray) -> PolygonMap:
     return PolygonMap(map=polygon_map)
 
 
-def build_polygon(contours: Tuple[np.ndarray], hierarchy: np.ndarray
-) -> List[Polygon]:
+def build_polygon(contours: Tuple[np.ndarray], hierarchy: np.ndarray) -> List[Polygon]:
     """
     :param contours: a tuple of numpy arrays where each array is a contour
-    :param hierarchy: a numpy array of shape (num_contours, 4) 
+    :param hierarchy: a numpy array of shape (num_contours, 4)
         where each row is a contour
 
     :return: a list of polyongs where each polygon is a list of contours
@@ -174,8 +173,7 @@ def build_polygon(contours: Tuple[np.ndarray], hierarchy: np.ndarray
     return final_polygons
 
 
-def draw_polygon(polygon: List[np.ndarray], img: np.ndarray, key: int
-) -> np.ndarray:
+def draw_polygon(polygon: List[np.ndarray], img: np.ndarray, key: int) -> np.ndarray:
     """Draws one polygon on an image
 
     Args:
@@ -190,10 +188,10 @@ def draw_polygon(polygon: List[np.ndarray], img: np.ndarray, key: int
     cv2.drawContours(blank, polygon, -1, key, -1)
     return blank
 
-def deserialize_polygon_map(map: PolygonMap
-) -> Dict[int, List[List[np.ndarray]]]:
+
+def deserialize_polygon_map(map: PolygonMap) -> Dict[int, List[List[np.ndarray]]]:
     """Deserializes a polygon map to be in dictionary form
-    
+
     Args:
         map (PolygonMap): Mapping of indices to polygons
 
@@ -205,12 +203,14 @@ def deserialize_polygon_map(map: PolygonMap
     for key, polygons in map.map.items():
         deserialized_polygons = []
         for polygon in polygons:
-            polygon = polygon.deserialize()
-            deserialized_polygons.append(polygon)
+            deserialized_polygon = polygon.deserialize()
+            deserialized_polygons.append(deserialized_polygon)
         deserialized_map[key] = deserialized_polygons
     return deserialized_map
 
-def deserialize_polygon_map_json(map: PolygonMap
+
+def deserialize_polygon_map_json(
+    map: PolygonMap,
 ) -> List[Dict[str, Union[int, str, List[List[int]]]]]:
     """Deserialize the polygon map for json consumptions
 
@@ -224,12 +224,12 @@ def deserialize_polygon_map_json(map: PolygonMap
     counter = 0
     for lbl, polygons in map.map.items():
         for polygon in polygons:
-            polygon = polygon.deserialize_json()
+            deserialized_polygon = polygon.deserialize_json()
             polygon_object = {
                 "id": counter,
                 "label_idx": lbl,
                 "error_type": "none",
-                "polygon": polygon,
+                "polygon": deserialized_polygon,
             }
             counter += 1
             deserialized_map.append(polygon_object)
