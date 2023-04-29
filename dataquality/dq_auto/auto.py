@@ -10,6 +10,7 @@ from dataquality.utils.auto import get_task_type_from_data, set_global_logging_l
 AUTO_PROJECT_NAME = {
     TaskType.text_classification: "auto_tc",
     TaskType.text_ner: "auto_ner",
+    TaskType.image_classification: "auto_ic",
 }
 
 
@@ -21,7 +22,7 @@ def auto(
     test_data: Optional[Union[pd.DataFrame, Dataset, str]] = None,
     inference_data: Optional[Dict[str, Union[pd.DataFrame, Dataset, str]]] = None,
     max_padding_length: int = 200,
-    hf_model: str = "distilbert-base-uncased",
+    hf_model: Optional[str] = None, # TODO: find good way to specify defaults
     labels: Optional[List[str]] = None,
     project_name: Optional[str] = None,
     run_name: Optional[str] = None,
@@ -195,8 +196,8 @@ def auto(
     # avoid that is by having the imports only be made selectively when auto is called
     if hf_data is None and train_data is None:
         from dataquality.dq_auto.text_classification import auto as auto_tc
-
         auto_tc()
+
     task_type = get_task_type_from_data(hf_data, train_data)
     # We cannot use a common list of *args or **kwargs here because mypy screams :(
     if task_type == TaskType.text_classification:
@@ -221,6 +222,22 @@ def auto(
         from dataquality.dq_auto.ner import auto as auto_ner
 
         auto_ner(
+            hf_data=hf_data,
+            hf_inference_names=hf_inference_names,
+            train_data=train_data,
+            val_data=val_data,
+            test_data=test_data,
+            inference_data=inference_data,
+            hf_model=hf_model,
+            labels=labels,
+            project_name=project_name or AUTO_PROJECT_NAME[task_type],
+            run_name=run_name,
+            wait=wait,
+        )
+    elif task_type == TaskType.image_classification:
+        from dataquality.dq_auto.image_classification import auto as auto_ic
+        
+        auto_ic(
             hf_data=hf_data,
             hf_inference_names=hf_inference_names,
             train_data=train_data,

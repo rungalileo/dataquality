@@ -107,10 +107,14 @@ def _get_task_type_from_cols(cols: List[str]) -> TaskType:
         return TaskType.text_classification
     elif "tokens" in cols and ("tags" in cols or "ner_tags" in cols):
         return TaskType.text_ner
+    elif {"image", "images", "img"}.intersection(cols):
+        return TaskType.image_classification
     else:
         raise GalileoException(
-            "Data must either have `text` and `label` for text classification or "
-            f"`tokens` and `tags` (or `ner_tags`) for NER. Yours had {cols}"
+            "Data must either have `text` and `label` for text classification, "
+            f"`tokens` and `tags` (or `ner_tags`) for NER or "
+            f"any of `image`, `images` or `img` for image classification. "
+            f"Yours had {cols}."
         )
 
 
@@ -155,6 +159,31 @@ def get_task_type_from_data(
     if hf_data is not None:
         return _get_task_type_from_hf(hf_data)
     return _get_task_type_from_train(train_data)
+
+def _find_col_name(candidates: List[str], col_names: List[str], method: str = "exact") -> Optional[str]:
+    """Get the precise name of a column given some candidates, or None if not found
+
+    Methods: here are the possible values of "method"
+        - "exact" requires one candidate to be found in col_names
+        - "include" requires one candidate to be a substring of a column in col_names
+    
+    Note: in the case of a tie, return the first candidate from the list matching a column
+    """
+    if method == "exact":
+        for candidate in candidates:
+            if candidate in col_names:
+                return candidate
+    elif method == "include":
+        for candidate in candidates:
+            for col_name in col_names:
+                if candidate in col_name:
+                    return col_name
+    else:
+        raise GalileoException(f"Method {method} not supported for finding column names")
+
+    raise GalileoException(
+        f"No column from {col_names} was found matching any of {candidates}"
+    )
 
 
 def set_global_logging_level(

@@ -132,7 +132,7 @@ def auto(
     test_data: Optional[Union[pd.DataFrame, Dataset, str]] = None,
     inference_data: Optional[Dict[str, Union[pd.DataFrame, Dataset, str]]] = None,
     max_padding_length: int = 200,
-    hf_model: str = "distilbert-base-uncased",
+    hf_model: Optional[str] = "distilbert-base-uncased",
     labels: Optional[List[str]] = None,
     project_name: str = "auto_tc",
     run_name: Optional[str] = None,

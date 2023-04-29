@@ -8,6 +8,8 @@ class Split(str, Enum):
     training = "training"
     train = "training"
     validation = "validation"
+    valid = "validation"
+    val = "validation"
     test = "test"
     testing = "test"
     inference = "inference"
