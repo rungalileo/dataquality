@@ -1,5 +1,17 @@
+from abc import ABC, abstractmethod
 from collections import defaultdict
-from typing import Any, Callable, DefaultDict, Dict, Generator, List, Tuple, Union
+from typing import (
+    Any,
+    Callable,
+    DefaultDict,
+    Dict,
+    Generator,
+    List,
+    Optional,
+    Tuple,
+    Union,
+    cast,
+)
 
 import numpy as np
 import thinc
@@ -15,7 +27,7 @@ from thinc.api import set_dropout_rate
 from wrapt import CallableObjectProxy
 
 import dataquality
-from dataquality import check_noop, config
+from dataquality import config
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
 from dataquality.exceptions import GalileoException
@@ -23,6 +35,7 @@ from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split, conform_split
+from dataquality.utils.helpers import check_noop
 from dataquality.utils.spacy_integration import (
     convert_spacy_ents_for_doc_to_predictions,
     convert_spacy_ner_logits_to_valid_logits,
@@ -39,7 +52,7 @@ a.log_import("spacy")
 def log_input_docs(
     docs: List[Doc],
     inference_name: str,
-    meta: Dict[str, List[Union[str, float, int]]] = None,
+    meta: Optional[Dict[str, List[Union[str, float, int]]]] = None,
 ) -> None:
     """Logs the input docs to the data logger.
 
@@ -84,7 +97,7 @@ def log_input_docs(
 def log_input_examples(
     examples: List[Example],
     split: Union[Split, str],
-    meta: Dict[str, List[Union[str, float, int]]] = None,
+    meta: Optional[Dict[str, List[Union[str, float, int]]]] = None,
 ) -> None:
     """Logs a list of Spacy Examples using the dataquality client"""
     split = conform_split(split)
@@ -141,7 +154,6 @@ def watch(nlp: Language) -> None:
     at the results
 
     :param nlp: The spacy nlp Language component.
-    :return: None
     """
     a.log_function("spacy/watch")
     validate_spacy_version()
@@ -325,7 +337,7 @@ def create_galileo_ner(nlp: Language, name: str) -> GalileoEntityRecognizer:
     return GalileoEntityRecognizer(nlp.get_pipe("ner"))
 
 
-class ThincModelWrapper(CallableObjectProxy):
+class ThincModelWrapper(CallableObjectProxy, ABC):
     """A Thinc Model obj wrapper using the wrapt library.
 
     wrapt primer: https://wrapt.readthedocs.io/en/latest/wrappers.html
@@ -355,6 +367,7 @@ class ThincModelWrapper(CallableObjectProxy):
         self.__wrapped__._func = self._self_orig_forward
         return self.__wrapped__
 
+    @abstractmethod
     def _self_forward(
         self, model: thinc.model.Model, X: Any, is_train: bool
     ) -> Tuple[Any, Any]:
@@ -513,11 +526,30 @@ class GalileoParserStepModel(ThincModelWrapper):
     def _self_populate_model_logger(self, docs_valid_logits: DefaultDict) -> None:
         model_logger = self._self_model_logger
         helper_data = model_logger.log_helper_data
+
         model_logger.ids = list(model_logger.ids)  # for mypy's sake
+        # Set up the padded logits. We pad them to predict the O tag always, so
+        # they are never considered when we extract the spans from the tags
+        num_logits = len(next(iter(docs_valid_logits.values()))[0])
+        o_tag_idx = model_logger.logger_config.labels.index("O")
+        o_logits = np.array([1.0 if i == o_tag_idx else 0.0 for i in range(num_logits)])
+        max_doc_len = max(len(logits) for logits in docs_valid_logits.values())
         for doc_id, doc_valid_logits in docs_valid_logits.items():
-            model_logger.logits.append(np.array(doc_valid_logits))
             doc_embs = helper_data["embs"][doc_id]
-            model_logger.embs.append(np.array(doc_embs))
+            # Pad the input to the max logits/embs input
+            pad_size = max_doc_len - len(doc_valid_logits)
+            if pad_size:
+                # Pad just the end of the matrix with pad_size arrays
+                pad_config = ((0, pad_size), (0, 0))
+                doc_embs = np.pad(doc_embs, pad_config, constant_values=0)
+                # For logits, we use our special logits to ensure it's an O prediction
+                doc_valid_logits = np.resize(
+                    doc_valid_logits, (max_doc_len, num_logits)
+                )
+                doc_valid_logits[-pad_size:, :] = o_logits
+
+            cast(List, model_logger.logits).append(np.array(doc_valid_logits))
+            cast(List, model_logger.embs).append(np.array(doc_embs))
             model_logger.ids.append(doc_id)
 
     def _self_get_docs_copy(self) -> Dict[int, Doc]:

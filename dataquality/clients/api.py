@@ -67,11 +67,13 @@ class ApiClient:
         self,
         request: RequestType,
         url: str,
-        body: Dict = None,
-        data: Dict = None,
-        params: Dict = None,
-        header: Dict = None,
+        body: Optional[Dict] = None,
+        data: Optional[Dict] = None,
+        params: Optional[Dict] = None,
+        header: Optional[Dict] = None,
         timeout: Union[int, None] = None,
+        files: Optional[Dict] = None,
+        return_response_without_validation: bool = False,
     ) -> Any:
         """Makes an HTTP request.
 
@@ -81,8 +83,16 @@ class ApiClient:
         self.__check_login()
         header = header or headers(config.token)
         res = RequestType.get_method(request.value)(
-            url, json=body, params=params, headers=header, data=data, timeout=timeout
+            url,
+            json=body,
+            params=params,
+            headers=header,
+            data=data,
+            timeout=timeout,
+            files=files,
         )
+        if return_response_without_validation:
+            return res
         self._validate_response(res)
         return res.json()
 
@@ -259,7 +269,10 @@ class ApiClient:
         return project, run
 
     def get_labels_for_run(
-        self, project_name: str = None, run_name: str = None, task: str = None
+        self,
+        project_name: Optional[str] = None,
+        run_name: Optional[str] = None,
+        task: Optional[str] = None,
     ) -> List[str]:
         """Gets the labels for a given run, else the currently initialized project/run
 
@@ -280,7 +293,7 @@ class ApiClient:
         return res["labels"]
 
     def get_tasks_for_run(
-        self, project_name: str = None, run_name: str = None
+        self, project_name: Optional[str] = None, run_name: Optional[str] = None
     ) -> List[str]:
         """Gets the task names for a given multi-label run,
 
@@ -320,9 +333,9 @@ class ApiClient:
 
     def reprocess_run(
         self,
-        project_name: str = None,
-        run_name: str = None,
-        labels: Union[List, List[List]] = None,
+        project_name: Optional[str] = None,
+        run_name: Optional[str] = None,
+        labels: Optional[Union[List, List[List]]] = None,
     ) -> Dict:
         """Reinitiate a project/run that has already been finished
 
@@ -421,7 +434,7 @@ class ApiClient:
         project, run = self._get_project_run_id(project_name, run_name)
         split = conform_split(split)
         url = f"{config.api_url}/{Route.content_path(project, run, split)}/meta/columns"
-        return self.make_request(RequestType.GET, url)
+        return self.make_request(RequestType.POST, url, body={})
 
     def get_task_type(self, project_id: UUID4, run_id: UUID4) -> TaskType:
         return TaskType.get_mapping(
@@ -440,7 +453,7 @@ class ApiClient:
         col_mapping: Optional[Dict[str, str]] = None,
         hf_format: bool = False,
         tagging_schema: Optional[TaggingSchema] = None,
-        filter_params: Dict = None,
+        filter_params: Optional[Dict] = None,
     ) -> None:
         """Export a project/run to disk as a file
 
@@ -530,7 +543,7 @@ class ApiClient:
     def wait_for_run(
         self, project_name: Optional[str] = None, run_name: Optional[str] = None
     ) -> None:
-        print("Waiting for job...")
+        print("Waiting for job (you can safely close this window)...")
         last_progress_message = ""
         while True:
             job = self.get_run_status(project_name=project_name, run_name=run_name)
@@ -560,7 +573,11 @@ class ApiClient:
                 )
 
     def get_presigned_url(
-        self, project_id: str, method: str, bucket_name: str, object_name: str
+        self,
+        method: str,
+        bucket_name: str,
+        object_name: str,
+        project_id: str,
     ) -> str:
         response = self.make_request(
             request=RequestType.GET,
@@ -580,9 +597,9 @@ class ApiClient:
         project_name: str,
         run_name: str,
         split: str,
-        task: str = None,
-        inference_name: str = None,
-        filter_params: Dict = None,
+        task: Optional[str] = None,
+        inference_name: Optional[str] = None,
+        filter_params: Optional[Dict] = None,
     ) -> Dict:
         """Gets overall run summary, or summary of a filtered subset.
 
@@ -609,10 +626,10 @@ class ApiClient:
         project_name: str,
         run_name: str,
         split: str,
-        task: str = None,
-        inference_name: str = None,
+        task: Optional[str] = None,
+        inference_name: Optional[str] = None,
         category: str = "gold",
-        filter_params: Dict = None,
+        filter_params: Optional[Dict] = None,
     ) -> Dict[str, List]:
         project, run = self._get_project_run_id(project_name, run_name)
         split = conform_split(split)
@@ -638,10 +655,10 @@ class ApiClient:
         project_name: str,
         run_name: str,
         split: str,
-        task: str = None,
-        inference_name: str = None,
+        task: Optional[str] = None,
+        inference_name: Optional[str] = None,
         column: str = "data_error_potential",
-        filter_params: Dict = None,
+        filter_params: Optional[Dict] = None,
     ) -> Dict[str, List]:
         project, run = self._get_project_run_id(project_name, run_name)
         split = conform_split(split)
@@ -664,7 +681,11 @@ class ApiClient:
         return self.make_request(RequestType.POST, url, body=body, params=params)
 
     def get_xray_cards(
-        self, project_name: str, run_name: str, split: str, inference_name: str = None
+        self,
+        project_name: str,
+        run_name: str,
+        split: str,
+        inference_name: Optional[str] = None,
     ) -> List[Dict[str, str]]:
         """Queries API for xray cards for a run/split"""
         project, run = self._get_project_run_id(project_name, run_name)
@@ -674,7 +695,11 @@ class ApiClient:
         return self.make_request(RequestType.GET, url, params=params)
 
     def get_edits(
-        self, project_name: str, run_name: str, split: str, inference_name: str = None
+        self,
+        project_name: str,
+        run_name: str,
+        split: str,
+        inference_name: Optional[str] = None,
     ) -> List:
         """Gets all edits for a run/split"""
         project, run = self._get_project_run_id(project_name, run_name)
@@ -692,7 +717,7 @@ class ApiClient:
         run_name: str,
         split: str,
         file_name: str,
-        inference_name: str = None,
+        inference_name: Optional[str] = None,
         include_cols: Optional[List[str]] = None,
         col_mapping: Optional[Dict[str, str]] = None,
         hf_format: bool = False,
@@ -795,3 +820,40 @@ class ApiClient:
             ),
             body=data,
         )
+
+    def get_healthcheck_dq(self) -> Dict:
+        return self.make_request(
+            RequestType.GET, url=f"{config.api_url}/{Route.healthcheck_dq}"
+        )
+
+    def upload_file_for_project(
+        self,
+        project_id: str,
+        file_path: str,
+        export_format: str,
+        export_cols: List[str],
+    ) -> Any:
+        url = f"{config.api_url}/{Route.projects}/{project_id}/{Route.upload_file}"
+        res = self.make_request(
+            return_response_without_validation=True,
+            request=RequestType.POST,
+            url=url,
+            files={
+                "file": (
+                    os.path.basename(file_path),
+                    open(file_path, "rb"),
+                    "application/octet-stream",
+                ),
+                "upload_metadata": (
+                    None,
+                    json.dumps(
+                        {
+                            "export_format": export_format,
+                            "export_cols": export_cols,
+                        }
+                    ),
+                    "application/json",
+                ),
+            },
+        )
+        return res

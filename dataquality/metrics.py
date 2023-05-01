@@ -96,7 +96,7 @@ def get_run_summary(
     split: Split,
     task: Optional[str] = None,
     inference_name: Optional[str] = None,
-    filter: Union[FilterParams, Dict] = None,
+    filter: Optional[Union[FilterParams, Dict]] = None,
 ) -> Dict:
     """Gets the summary for a run/split
 
@@ -125,7 +125,7 @@ def get_metrics(
     task: Optional[str] = None,
     inference_name: Optional[str] = None,
     category: str = "gold",
-    filter: Union[FilterParams, Dict] = None,
+    filter: Optional[Union[FilterParams, Dict]] = None,
 ) -> Dict[str, List]:
     """Calculates available metrics for a run/split, grouped by a particular category
 
@@ -167,7 +167,7 @@ def display_distribution(
     task: Optional[str] = None,
     inference_name: Optional[str] = None,
     column: str = "data_error_potential",
-    filter: Union[FilterParams, Dict] = None,
+    filter: Optional[Union[FilterParams, Dict]] = None,
 ) -> None:
     """Displays the column distribution for a run. Plotly must be installed
 
@@ -268,7 +268,7 @@ def get_dataframe(
     include_token_indices: bool = False,
     hf_format: bool = False,
     tagging_schema: Optional[TaggingSchema] = None,
-    filter: Union[FilterParams, Dict] = None,
+    filter: Optional[Union[FilterParams, Dict]] = None,
     as_pandas: bool = True,
     include_data_embs: bool = False,
 ) -> Union[pd.DataFrame, DataFrame]:
@@ -536,7 +536,7 @@ def get_embeddings(
     run_name: str,
     split: Split,
     inference_name: str = "",
-    epoch: int = None,
+    epoch: Optional[int] = None,
 ) -> DataFrame:
     """Downloads the embeddings for a run/split at an epoch as a Vaex dataframe.
 
@@ -592,7 +592,7 @@ def get_probabilities(
     run_name: str,
     split: Split,
     inference_name: str = "",
-    epoch: int = None,
+    epoch: Optional[int] = None,
 ) -> DataFrame:
     """Downloads the probabilities for a run/split at an epoch as a Vaex dataframe.
 
@@ -617,7 +617,7 @@ def get_raw_data(
     run_name: str,
     split: Split,
     inference_name: str = "",
-    epoch: int = None,
+    epoch: Optional[int] = None,
 ) -> DataFrame:
     """Downloads the raw logged data for a run/split at an epoch as a Vaex dataframe.
 
@@ -671,7 +671,7 @@ def get_labels_for_run(
         pid, rid = api_client._get_project_run_id(project_name, run_name)
         labels_object = f"{pid}/{rid}/labels/labels.json"
         labels_path = object_store.download_file(
-            labels_object, "/tmp/labels.json", object_store.RESULTS_BUCKET_NAME
+            labels_object, "/tmp/labels.json", config.results_bucket_name
         )
         with open(labels_path) as f:
             return json.loads(f.read())
@@ -689,7 +689,7 @@ def _get_hdf5_file_for_epoch(
     split: Split,
     object_name: str,
     inference_name: str = "",
-    epoch: int = None,
+    epoch: Optional[int] = None,
 ) -> DataFrame:
     split = conform_split(split)
     emb = "emb" in object_name
@@ -705,7 +705,11 @@ def _get_hdf5_file_for_epoch(
 
 
 def _validate_epoch(
-    project_name: str, run_name: str, split: Split, epoch: int = None, emb: bool = False
+    project_name: str,
+    run_name: str,
+    split: Split,
+    epoch: Optional[int] = None,
+    emb: bool = False,
 ) -> int:
     split = conform_split(split)
     epochs = get_epochs(project_name, run_name, split)
@@ -735,7 +739,7 @@ def _index_df(df: DataFrame, labels: List, tasks: Optional[List] = None) -> Data
         # If multi label, must do it per task. If TC, then it's just 1 list of labels
         task_labels = labels[ind] if task else labels
         for col in ["gold", "pred", "label"]:
-            if col not in df.get_column_names() or df[col].dtype != int:
+            if col not in df.get_column_names() or df[col].dtype == int:
                 continue
             df_col = f"{col}_{task}" if task else col
             df[f"{df_col}_idx"] = df[df_col]
@@ -749,7 +753,7 @@ def _rename_prob_cols(df: DataFrame, tasks: List[str]) -> DataFrame:
     return df
 
 
-def _validate_filter(filter: Union[FilterParams, Dict] = None) -> Dict:
+def _validate_filter(filter: Optional[Union[FilterParams, Dict]] = None) -> Dict:
     # Validate the fields provided with pydantic before making request
     return FilterParams(**dict(filter or {})).dict()
 

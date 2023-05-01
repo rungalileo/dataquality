@@ -2,8 +2,9 @@ import os
 import shutil
 from abc import abstractmethod
 from enum import Enum, unique
+from functools import lru_cache
 from glob import glob
-from typing import Any, Dict, List, Optional, Type, TypeVar, Union
+from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar, Union
 
 import numpy as np
 
@@ -16,7 +17,8 @@ from dataquality.loggers.logger_config.base_logger_config import (
 from dataquality.schemas.split import Split, conform_split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.cloud import is_galileo_cloud
-from dataquality.utils.dq_logger import _shutil_rmtree_retry, upload_dq_log_file
+from dataquality.utils.dq_logger import upload_dq_log_file
+from dataquality.utils.file import _shutil_rmtree_retry
 from dataquality.utils.imports import hf_available, tf_available, torch_available
 from dataquality.utils.tf import is_tf_2
 
@@ -55,6 +57,7 @@ class BaseLoggerAttributes(str, Enum):
     text_token_indices_flat = "text_token_indices_flat"
     log_helper_data = "log_helper_data"
     inference_name = "inference_name"
+    image = "image"
 
     @staticmethod
     def get_valid() -> List[str]:
@@ -129,7 +132,7 @@ class BaseGalileoLogger:
         return BaseLoggerAttributes.get_valid()
 
     @abstractmethod
-    def validate(self) -> None:
+    def validate_and_format(self) -> None:
         """Validates params passed in during logging. Implemented by child"""
 
     def set_split_epoch(self) -> None:
@@ -163,7 +166,7 @@ class BaseGalileoLogger:
 
     def is_valid(self) -> bool:
         try:
-            self.validate()
+            self.validate_and_format()
         except AssertionError:
             return False
         return True
@@ -352,11 +355,16 @@ class BaseGalileoLogger:
 
     @classmethod
     def is_hf_dataset(cls, df: Any) -> bool:
-        if hf_available:
+        if hf_available():
             import datasets
 
             return isinstance(df, datasets.Dataset)
         return False
+
+    @staticmethod
+    @lru_cache(1)
+    def _label_idx_map(labels: Tuple[str]) -> Dict[str, int]:
+        return {label: idx for idx, label in enumerate(labels)}
 
     @property
     def label_idx_map(self) -> Dict[str, int]:
@@ -368,7 +376,7 @@ class BaseGalileoLogger:
         >>> label_idx_map(labels)
         {"O": 0, "B-PER": 1, "I-PER": 2, "B-LOC": 3, "I-LOC": 4}
         """
-        return {label: idx for idx, label in enumerate(self.logger_config.labels or [])}
+        return self._label_idx_map(tuple(self.logger_config.labels or []))
 
     def labels_to_idx(self, gold_sequence: List[str]) -> np.ndarray:
         """Convert a list of labels to a np array of indices

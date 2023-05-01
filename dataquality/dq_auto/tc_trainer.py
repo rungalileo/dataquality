@@ -1,10 +1,8 @@
 from functools import partial
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
-import evaluate
 import numpy as np
 from datasets import Dataset, DatasetDict
-from evaluate import EvaluationModule
 from transformers import (
     AutoModelForSequenceClassification,
     AutoTokenizer,
@@ -17,9 +15,21 @@ from transformers import (
     TrainingArguments,
 )
 
+from dataquality.exceptions import GalileoException
 from dataquality.schemas.split import Split
+from dataquality.utils.helpers import mps_available
 
 EVAL_METRIC = "f1"
+
+try:
+    import evaluate
+    from evaluate import EvaluationModule
+except ImportError:
+    raise GalileoException(
+        "⚠️ Huggingface evaluate library not installed "
+        "please run `pip install dataquality[evaluate]` "
+        "to enable metrics computation."
+    )
 
 
 # Taken from the docs of the trainer module:
@@ -46,6 +56,7 @@ def get_trainer(
     labels: List[str],
     model_checkpoint: str,
     max_padding_length: int,
+    num_train_epochs: int,
 ) -> Tuple[Trainer, DatasetDict]:
     tokenizer = AutoTokenizer.from_pretrained(model_checkpoint, use_fast=True)
 
@@ -53,9 +64,11 @@ def get_trainer(
         lambda x: preprocess_function(x, tokenizer, max_padding_length), batched=True
     )
 
-    model = AutoModelForSequenceClassification.from_pretrained(
-        model_checkpoint, num_labels=len(labels)
-    )
+    # Used to properly seed the model
+    def model_init() -> Any:
+        return AutoModelForSequenceClassification.from_pretrained(
+            model_checkpoint, num_labels=len(labels)
+        )
 
     # Training arguments and training part
     metric = evaluate.load(EVAL_METRIC)
@@ -71,18 +84,19 @@ def get_trainer(
         save_strategy=IntervalStrategy.EPOCH,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
-        num_train_epochs=15,
+        num_train_epochs=num_train_epochs,
         weight_decay=0.01,
         load_best_model_at_end=load_best_model,
         push_to_hub=False,
         report_to=["all"],
         seed=42,
+        use_mps_device=mps_available(),
     )
 
     # We pass huggingface datasets here but typing expects torch datasets, so we ignore
     trainer = Trainer(
-        model,
-        args,
+        model_init=model_init,
+        args=args,
         train_dataset=encoded_datasets[Split.train],  # type: ignore
         eval_dataset=encoded_datasets.get(Split.validation),  # type: ignore
         tokenizer=tokenizer,

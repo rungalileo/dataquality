@@ -1,10 +1,11 @@
-from typing import Dict, List, Union
+import logging
+from typing import Dict, List, Optional, Union
 
 import pandas as pd
 from datasets import Dataset, DatasetDict
 
 from dataquality.schemas.task_type import TaskType
-from dataquality.utils.auto import get_task_type_from_data
+from dataquality.utils.auto import get_task_type_from_data, set_global_logging_level
 
 AUTO_PROJECT_NAME = {
     TaskType.text_classification: "auto_tc",
@@ -13,19 +14,20 @@ AUTO_PROJECT_NAME = {
 
 
 def auto(
-    hf_data: Union[DatasetDict, str] = None,
-    hf_inference_names: List[str] = None,
-    train_data: Union[pd.DataFrame, Dataset, str] = None,
-    val_data: Union[pd.DataFrame, Dataset, str] = None,
-    test_data: Union[pd.DataFrame, Dataset, str] = None,
-    inference_data: Dict[str, Union[pd.DataFrame, Dataset, str]] = None,
+    hf_data: Optional[Union[DatasetDict, str]] = None,
+    hf_inference_names: Optional[List[str]] = None,
+    train_data: Optional[Union[pd.DataFrame, Dataset, str]] = None,
+    val_data: Optional[Union[pd.DataFrame, Dataset, str]] = None,
+    test_data: Optional[Union[pd.DataFrame, Dataset, str]] = None,
+    inference_data: Optional[Dict[str, Union[pd.DataFrame, Dataset, str]]] = None,
     max_padding_length: int = 200,
     hf_model: str = "distilbert-base-uncased",
-    labels: List[str] = None,
-    project_name: str = None,
-    run_name: str = None,
+    num_train_epochs: int = 15,
+    labels: Optional[List[str]] = None,
+    project_name: Optional[str] = None,
+    run_name: Optional[str] = None,
     wait: bool = True,
-    create_data_embs: bool = False,
+    create_data_embs: Optional[bool] = None,
 ) -> None:
     """Automatically gets insights on a text classification or NER dataset
 
@@ -91,7 +93,8 @@ def auto(
         and uploaded with this run. You can access these embeddings via
         `dq.metrics.get_data_embeddings` in the `emb` column or
         `dq.metrics.get_dataframe(..., include_data_embs=True)` in the `data_emb` col
-        Only available for TC currently. NER coming soon. Default False.
+        Only available for TC currently. NER coming soon. Default True if a GPU is
+        available, else default False.
 
     For text classification datasets, the only required columns are `text` and `label`
 
@@ -100,6 +103,8 @@ def auto(
     See example: https://huggingface.co/datasets/rungalileo/mit_movies
 
         MIT Movies dataset in huggingface format
+
+    .. code-block:: python
 
         tokens	                                            ner_tags
         [what, is, a, good, action, movie, that, is, r...	[0, 0, 0, 0, 7, 0, ...
@@ -111,28 +116,36 @@ def auto(
 
 
     To see auto insights on a random, pre-selected dataset, simply run
-    ```python
+
+    .. code-block:: python
+
         import dataquality as dq
 
         dq.auto()
-    ```
+
 
     An example using `auto` with a hosted huggingface text classification dataset
-    ```python
+
+    .. code-block:: python
+
         import dataquality as dq
 
         dq.auto(hf_data="rungalileo/trec6")
-    ```
+
 
     Similarly, for NER
-    ```python
+
+    .. code-block:: python
+
         import dataquality as dq
 
         dq.auto(hf_data="conll2003")
-    ```
+
 
     An example using `auto` with sklearn data as pandas dataframes
-    ```python
+
+    .. code-block:: python
+
         import dataquality as dq
         import pandas as pd
         from sklearn.datasets import fetch_20newsgroups
@@ -155,20 +168,25 @@ def auto(
              project_name="newsgroups_work",
              run_name="run_1_raw_data"
         )
-    ```
+
 
     An example of using `auto` with a local CSV file with `text` and `label` columns
-    ```python
-    import dataquality as dq
 
-    dq.auto(
-         train_data="train.csv",
-         test_data="test.csv",
-         project_name="data_from_local",
-         run_name="run_1_raw_data"
-    )
-    ```
+    .. code-block:: python
+
+        import dataquality as dq
+
+        dq.auto(
+            train_data="train.csv",
+            test_data="test.csv",
+            project_name="data_from_local",
+            run_name="run_1_raw_data"
+        )
     """
+    # Remove all output from transformers and torch except the progress bar
+    set_global_logging_level(logging.ERROR, ["torch"])
+    set_global_logging_level(logging.ERROR, ["transformers"])
+
     # We need to import auto down here instead of at the top of the file like normal
     # because we simultaneously want analytic tracking on the files we import while
     # wanting dq.auto as a top level function. If we have these imports at the top,
@@ -179,7 +197,8 @@ def auto(
     if hf_data is None and train_data is None:
         from dataquality.dq_auto.text_classification import auto as auto_tc
 
-        auto_tc()
+        auto_tc(num_train_epochs=num_train_epochs)
+        return
     task_type = get_task_type_from_data(hf_data, train_data)
     # We cannot use a common list of *args or **kwargs here because mypy screams :(
     if task_type == TaskType.text_classification:
@@ -199,6 +218,7 @@ def auto(
             run_name=run_name,
             wait=wait,
             create_data_embs=create_data_embs,
+            num_train_epochs=num_train_epochs,
         )
     elif task_type == TaskType.text_ner:
         from dataquality.dq_auto.ner import auto as auto_ner
@@ -215,6 +235,7 @@ def auto(
             project_name=project_name or AUTO_PROJECT_NAME[task_type],
             run_name=run_name,
             wait=wait,
+            num_train_epochs=num_train_epochs,
         )
     else:
         raise Exception("auto is only supported for text classification and NER!")

@@ -1,4 +1,4 @@
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 from uuid import uuid4
 
 import dataquality
@@ -17,7 +17,7 @@ class MockResponse:
         self,
         json_data: Union[Dict, List],
         status_code: int,
-        headers: Dict = None,
+        headers: Optional[Dict] = None,
     ) -> None:
         self.headers = headers or {}
         self.json_data = json_data
@@ -55,6 +55,7 @@ def mocked_login_requests(
     headers: Dict = {},
     data: Dict = {},
     timeout: Union[int, None] = None,
+    files: Union[Dict, None] = None,
 ) -> MockResponse:
     if request_url.endswith("login"):
         return MockResponse(
@@ -75,6 +76,7 @@ def mocked_failed_login_requests(
     headers: Dict = {},
     data: Dict = {},
     timeout: Union[int, None] = None,
+    files: Union[Dict, None] = None,
 ) -> MockResponse:
     if request_url.endswith("login"):
         return MockResponse({"detail": "Incorrect login credentials."}, 404)
@@ -88,6 +90,7 @@ def mocked_get_project_run(
     headers: Dict,
     data: Dict,
     timeout: Union[int, None] = None,
+    files: Union[Dict, None] = None,
 ) -> MockResponse:
     if request_url.endswith("current_user"):
         return MockResponse({"id": "user"}, 200)
@@ -99,6 +102,20 @@ def mocked_get_project_run(
     return MockResponse(res, 200)
 
 
+def mocked_upload_image_dataset(
+    request_url: str,
+    json: Dict,
+    params: Dict,
+    headers: Dict,
+    data: Dict,
+    timeout: Union[int, None] = None,
+    files: Union[Dict, None] = None,
+) -> MockResponse:
+    if request_url.endswith("task_type=image_classfication"):
+        return MockResponse({"response": "done"}, 200)
+    return MockResponse({}, 400)
+
+
 def mocked_create_project_run(
     request_url: str,
     json: Dict,
@@ -106,6 +123,7 @@ def mocked_create_project_run(
     headers: Dict,
     data: Dict,
     timeout: Union[int, None] = None,
+    files: Union[Dict, None] = None,
 ) -> MockResponse:
     global TMP_CREATE_NEW_PROJ_RUN
     TMP_CREATE_NEW_PROJ_RUN = json["name"]
@@ -120,6 +138,7 @@ def mocked_missing_run(
     headers: Dict,
     data: Dict,
     timeout: Union[int, None] = None,
+    files: Union[Dict, None] = None,
 ) -> MockResponse:
     if request_url.endswith("current_user"):
         return MockResponse({"id": "user"}, 200)
@@ -152,6 +171,7 @@ def mocked_missing_project_name(
     headers: Dict,
     data: Dict,
     timeout: Union[int, None] = None,
+    files: Union[Dict, None] = None,
 ) -> MockResponse:
     if request_url.endswith("current_user"):
         return MockResponse({"id": "user"}, 200)
@@ -165,6 +185,7 @@ def mocked_delete_project_run(
     headers: Dict,
     data: Dict,
     timeout: Union[int, None] = None,
+    files: Union[Dict, None] = None,
 ) -> MockResponse:
     if request_url.endswith("current_user"):
         return MockResponse({"id": "user"}, 200)
@@ -178,6 +199,7 @@ def mocked_delete_project_not_found(
     headers: Dict,
     data: Dict,
     timeout: Union[int, None] = None,
+    files: Union[Dict, None] = None,
 ) -> MockResponse:
     if request_url.endswith("current_user"):
         return MockResponse({"id": "user"}, 200)

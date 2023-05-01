@@ -1,6 +1,5 @@
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-import evaluate
 import numpy as np
 from datasets import DatasetDict
 from transformers import (
@@ -15,13 +14,24 @@ from transformers import (
 )
 
 import dataquality as dq
+from dataquality.exceptions import GalileoException
 from dataquality.integrations.hf import tokenize_and_log_dataset
 from dataquality.schemas.hf import HFCol
 from dataquality.schemas.split import Split
+from dataquality.utils.helpers import mps_available
 
-# For NER training, there is only 1 evaluation tool
-# https://huggingface.co/course/chapter7/2#metrics
-metric = evaluate.load("seqeval")
+try:
+    # For NER training, there is only 1 evaluation tool
+    # https://huggingface.co/course/chapter7/2#metrics
+    import evaluate
+
+    metric = evaluate.load("seqeval")
+except ImportError:
+    raise GalileoException(
+        "⚠️ Huggingface evaluate library not installed "
+        "please run `pip install dataquality[evaluate]` "
+        "to enable metrics computation."
+    )
 
 
 def compute_metrics(eval_pred: EvalPrediction) -> Dict:
@@ -55,6 +65,7 @@ def compute_metrics(eval_pred: EvalPrediction) -> Dict:
 def get_trainer(
     dd: DatasetDict,
     model_checkpoint: str,
+    num_train_epochs: int,
     labels: Optional[List[str]] = None,
 ) -> Tuple[Trainer, DatasetDict]:
     tokenizer = AutoTokenizer.from_pretrained(model_checkpoint, use_fast=True)
@@ -68,9 +79,11 @@ def get_trainer(
     #  not an Optional[DatasetDict]...?
     assert isinstance(encoded_datasets, DatasetDict)
 
-    model = AutoModelForTokenClassification.from_pretrained(
-        model_checkpoint, num_labels=len(dq.get_model_logger().logger_config.labels)
-    )
+    # Used to properly seed the model
+    def model_init() -> Any:
+        return AutoModelForTokenClassification.from_pretrained(
+            model_checkpoint, num_labels=len(dq.get_model_logger().logger_config.labels)
+        )
 
     batch_size = 64
     has_val = Split.validation in encoded_datasets
@@ -83,18 +96,19 @@ def get_trainer(
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
         load_best_model_at_end=load_best_model,
-        num_train_epochs=15,
+        num_train_epochs=num_train_epochs,
         weight_decay=0.01,
         save_strategy=IntervalStrategy.EPOCH,
         logging_strategy=IntervalStrategy.EPOCH,
         logging_dir="./logs",
         seed=42,
+        use_mps_device=mps_available(),
     )
 
     # We pass huggingface datasets here but typing expects torch datasets, so we ignore
     trainer = Trainer(
-        model,
-        args,
+        model_init=model_init,
+        args=args,
         train_dataset=encoded_datasets[Split.train],  # type: ignore
         eval_dataset=encoded_datasets.get(Split.validation),  # type: ignore
         tokenizer=tokenizer,

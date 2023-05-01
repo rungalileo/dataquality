@@ -25,7 +25,7 @@ class TestTextNERDataLoggerInference:
 
     def test_validate_inference(self):
         logger = self._setup(**{"inference_name": "animals"})
-        logger.validate()
+        logger.validate_and_format()
 
     def test_validate_inference_with_labels(self):
         gold_spans = [
@@ -35,14 +35,14 @@ class TestTextNERDataLoggerInference:
         logger = self._setup(**{"gold_spans": gold_spans, "inference_name": "animals"})
 
         with pytest.raises(AssertionError) as e:
-            logger.validate()
+            logger.validate_and_format()
 
         assert e.value.args[0] == "You cannot have gold spans in your inference split!"
 
     def test_validate_inference_missing_inference_name(self):
         logger = self._setup()
         with pytest.raises(GalileoException) as e:
-            logger.validate()
+            logger.validate_and_format()
 
         assert str(e.value) == (
             "For inference split you must either log an inference name "

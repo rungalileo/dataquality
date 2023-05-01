@@ -62,10 +62,10 @@ class TextMultiLabelModelLogger(TextClassificationModelLogger):
 
     def __init__(
         self,
-        embs: Union[List, np.ndarray] = None,
-        probs: Union[List[List[List]], List[np.ndarray]] = None,
-        logits: Union[List[List[List]], List[np.ndarray]] = None,
-        ids: Union[List, np.ndarray] = None,
+        embs: Optional[Union[List, np.ndarray]] = None,
+        probs: Optional[Union[List[List[List]], List[np.ndarray]]] = None,
+        logits: Optional[Union[List[List[List]], List[np.ndarray]]] = None,
+        ids: Optional[Union[List, np.ndarray]] = None,
         split: str = "",
         epoch: Optional[int] = None,
         inference_name: Optional[str] = None,
@@ -80,13 +80,13 @@ class TextMultiLabelModelLogger(TextClassificationModelLogger):
             inference_name=inference_name,
         )
 
-    def validate(self) -> None:
+    def validate_and_format(self) -> None:
         """
         Validates that the current config is correct.
         * embs, probs, and ids must exist and be the same length
         :return:
         """
-        super().validate()
+        super().validate_and_format()
         for ind, probs_per_task in enumerate(self.probs):
             assert len(probs_per_task) == self.logger_config.observed_num_tasks, (
                 f"Expected {self.logger_config.observed_num_tasks} probability vectors "

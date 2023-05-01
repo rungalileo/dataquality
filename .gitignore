@@ -74,7 +74,8 @@ instance/
 .scrapy
 
 # Sphinx documentation
-docs/_build/
+docs/_build/html
+docs/_build/doctrees
 
 # PyBuilder
 .pybuilder/
@@ -164,5 +165,14 @@ tests/notebooks/dev/
 results/
 
 finetuned
+
+pytorch_sphinx_theme
 launch.json
 data/
+
+# OD
+yolov8n.pt
+runs
+VIA2COCO
+coco_dataset/
+coco.ipynb

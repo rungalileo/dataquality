@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -24,6 +24,7 @@ from dataquality.loggers.logger_config.text_multi_label import (
     text_multi_label_logger_config,
 )
 from dataquality.loggers.model_logger import BaseGalileoModelLogger
+from dataquality.loggers.model_logger.object_detection import ObjectDetectionModelLogger
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
@@ -38,7 +39,7 @@ def log_data_samples(
     *,
     texts: List[str],
     ids: List[int],
-    meta: Dict[str, List[Union[str, float, int]]] = None,
+    meta: Optional[Dict[str, List[Union[str, float, int]]]] = None,
     **kwargs: Any,
 ) -> None:
     """Logs a batch of input samples for model training/test/validation/inference.
@@ -121,12 +122,13 @@ def log_image_dataset(
     *,
     imgs_colname: Optional[str] = None,
     imgs_location_colname: Optional[str] = None,
-    imgs_dir: Optional[str] = None,
     batch_size: int = ITER_CHUNK_SIZE,
     id: str = "id",
     label: Union[str, int] = "label",
     split: Optional[Split] = None,
+    inference_name: Optional[str] = None,
     meta: Optional[List[Union[str, int]]] = None,
+    parallel: bool = False,
     **kwargs: Any,
 ) -> None:
     a.log_function("dq/log_image_dataset")
@@ -142,12 +144,13 @@ def log_image_dataset(
         dataset=dataset,
         imgs_colname=imgs_colname,
         imgs_location_colname=imgs_location_colname,
-        imgs_dir=imgs_dir,
         batch_size=batch_size,
         id=id,
         label=label,
         split=split,
+        inference_name=inference_name,
         meta=meta,
+        parallel=parallel,
     )
 
 
@@ -300,8 +303,8 @@ def log_dataset(
 
     :param dataset: The iterable or dataframe to log
     :batch_size: The number of data samples to log at a time. Useful when logging a
-    memory mapped dataset. A larger batch_size will result in faster logging at the
-    expense of more memory usage. Default 100,000
+        memory mapped dataset. A larger batch_size will result in faster logging at the
+        expense of more memory usage. Default 100,000
     :param text: str | int The column, key, or int index for text data. Default "text"
     :param id: str | int The column, key, or int index for id data. Default "id"
     :param split: Optional[str] the split for this data. Can also be set via
@@ -335,9 +338,9 @@ def log_model_outputs(
     ids: Union[List, np.ndarray],
     split: Optional[Split] = None,
     epoch: Optional[int] = None,
-    logits: Union[List, np.ndarray] = None,
-    probs: Union[List, np.ndarray] = None,
-    inference_name: str = None,
+    logits: Optional[Union[List, np.ndarray]] = None,
+    probs: Optional[Union[List, np.ndarray]] = None,
+    inference_name: Optional[str] = None,
     exclude_embs: bool = False,
 ) -> None:
     """Logs model outputs for model during training/test/validation.
@@ -370,12 +373,75 @@ def log_model_outputs(
 
     model_logger = get_model_logger(
         task_type=None,
-        embs=embs,
+        embs=embs.astype(np.float32) if isinstance(embs, np.ndarray) else embs,
         ids=ids,
         split=Split[split].value if split else "",
         epoch=epoch,
-        logits=logits,
+        logits=logits.astype(np.float32) if isinstance(logits, np.ndarray) else logits,
+        probs=probs.astype(np.float32) if isinstance(probs, np.ndarray) else probs,
+        inference_name=inference_name,
+    )
+    model_logger.log()
+
+
+@check_noop
+def log_od_model_outputs(
+    *,
+    ids: Union[List, np.ndarray],
+    pred_boxes: List[np.ndarray],
+    gold_boxes: List[np.ndarray],
+    labels: List[np.ndarray],
+    pred_embs: List[np.ndarray],
+    gold_embs: List[np.ndarray],
+    image_size: Optional[Tuple[int, int]],
+    embs: Optional[Union[List, np.ndarray]] = None,
+    probs: Optional[Union[List, np.ndarray]] = None,
+    logits: Optional[Union[List, np.ndarray]] = None,
+    split: Split,
+    epoch: Optional[int] = None,
+    inference_name: Optional[str] = None,
+) -> None:
+    """Logs model outputs for model during training/test/validation.
+
+    :param ids: The ids for each sample. Must match input ids of logged samples
+    :param pred_boxes: The predicted bounding boxes for each sample
+    :param gold_boxes: The ground trugh bounding boxes for each sample
+    :param labels: The labels for each sample (classes for each bounding box)
+    :param pred_embs: The embeddings for each predicted sample
+    :param gold_embs: The embeddings for each ground truth sample
+    :param image_size: The size of the image
+    :param embs: The embeddings per output sample
+    :param logits: The logits for each sample
+    :param split: The current split. Must be set either here or via dq.set_split
+    :param epoch: The current epoch. Must be set either here or via dq.set_epoch
+    :param inference_name: Inference name indicator for this inference split.
+        If logging for an inference split, this is required.
+    :param exclude_embs: Optional flag to exclude embeddings from logging. If True and
+        embs is set to None, this will generate random embs for each sample.
+
+    The expected argument shapes come from the task_type being used
+    See dq.docs() for more task specific details on parameter shape
+    """
+    assert all(
+        [config.task_type, config.current_project_id, config.current_run_id]
+    ), "You must call dataquality.init before logging data"
+    assert (probs is not None) or (
+        logits is not None
+    ), "You must provide either logits or probs"
+
+    model_logger = ObjectDetectionModelLogger(
+        ids=ids,
+        pred_boxes=pred_boxes,
+        gold_boxes=gold_boxes,
+        labels=labels,
+        pred_embs=pred_embs,
+        gold_embs=gold_embs,
+        image_size=image_size,
+        embs=embs,
         probs=probs,
+        logits=logits,
+        split=split,
+        epoch=epoch,
         inference_name=inference_name,
     )
     model_logger.log()
@@ -436,20 +502,20 @@ def set_tagging_schema(tagging_schema: TaggingSchema) -> None:
 
 
 def get_model_logger(
-    task_type: TaskType = None, *args: Any, **kwargs: Any
+    task_type: Optional[TaskType] = None, *args: Any, **kwargs: Any
 ) -> BaseGalileoModelLogger:
     task_type = _get_task_type(task_type)
     return BaseGalileoModelLogger.get_logger(task_type)(*args, **kwargs)
 
 
 def get_data_logger(
-    task_type: TaskType = None, *args: Any, **kwargs: Any
+    task_type: Optional[TaskType] = None, *args: Any, **kwargs: Any
 ) -> BaseGalileoDataLogger:
     task_type = _get_task_type(task_type)
     return BaseGalileoDataLogger.get_logger(task_type)(*args, **kwargs)
 
 
-def _get_task_type(task_type: TaskType = None) -> TaskType:
+def _get_task_type(task_type: Optional[TaskType] = None) -> TaskType:
     task = task_type or config.task_type
     if not task:
         raise GalileoException(

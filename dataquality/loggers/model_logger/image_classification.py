@@ -17,10 +17,10 @@ class ImageClassificationModelLogger(TextClassificationModelLogger):
 
     def __init__(
         self,
-        embs: Union[List, np.ndarray] = None,
-        probs: Union[List, np.ndarray] = None,
-        logits: Union[List, np.ndarray] = None,
-        ids: Union[List, np.ndarray] = None,
+        embs: Optional[Union[List, np.ndarray]] = None,
+        probs: Optional[Union[List, np.ndarray]] = None,
+        logits: Optional[Union[List, np.ndarray]] = None,
+        ids: Optional[Union[List, np.ndarray]] = None,
         split: str = "",
         epoch: Optional[int] = None,
         inference_name: Optional[str] = None,
@@ -54,10 +54,13 @@ class ImageClassificationModelLogger(TextClassificationModelLogger):
 
         # If there are duplicate ids, filter out the duplicates
         if len(self.ids) > len(_unique_ids):
+            # cur_epoch = get_data_logger().logger_config.cur_epoch
+
             get_dq_logger().warning(
-                f"Duplicate ids found in epoch. "
+                f"Duplicate ids found in epoch. {self.epoch}"
                 f"Batch size: {len(self.ids)}, "
                 f"Unique ids: {len(_unique_ids)}"
+                f"Split: {self.split}"
             )
             unique_indices = [id_to_index[id] for id in _unique_ids]
             if len(self.embs) > 0:

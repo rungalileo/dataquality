@@ -1,6 +1,6 @@
 import os
 import shutil
-from typing import Any, Callable, Dict, Generator, List, Optional
+from typing import Any, Callable, Dict, Generator, List, Optional, Union
 from uuid import UUID
 
 import pytest
@@ -49,11 +49,20 @@ def disable_network_calls(request, monkeypatch):
     if "noautofixt" in request.keywords:
         return
 
-    def stunted_get(url: str) -> MockResponse:
+    def stunted_get(url: str) -> Union[Dict, MockResponse]:
         """Unless it's a mocked call to healthcheck, disable network access"""
+        bucket_names = {
+            "images": "galileo-images",
+            "results": "galileo-project-runs-results",
+            "root": "galileo-project-runs",
+        }
         if "healthcheck" in url:
             return MockResponse(
-                json_data={"minimum_dq_version": "0.0.0", "api_version": "100.0.0"},
+                json_data={
+                    "minimum_dq_version": "0.0.0",
+                    "api_version": "100.0.0",
+                    "bucket_names": bucket_names,
+                },
                 status_code=200,
             )
         raise RuntimeError("Network access not allowed during testing!")
@@ -116,7 +125,7 @@ def input_data() -> Callable:
     def curry(
         split: str = "training",
         inference_name: str = "all-customers",
-        meta: Dict = None,
+        meta: Optional[Dict] = None,
     ) -> Dict:
         data = {
             "texts": ["sentence_1", "sentence_2"],

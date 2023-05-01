@@ -39,8 +39,8 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
 
     def __init__(
         self,
-        model: xgb.XGBClassifier = None,
-        X: Union[pd.DataFrame, np.ndarray] = None,
+        model: Optional[xgb.XGBClassifier] = None,
+        X: Optional[Union[pd.DataFrame, np.ndarray]] = None,
         y: Optional[Union[pd.Series, List, np.ndarray]] = None,
         feature_names: Optional[List[str]] = None,
         split: Optional[Split] = None,
@@ -75,7 +75,7 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
             - self.feature_names to the column names of X if it is a pandas DataFrame
             - logger_config.feature_names to the column names of X if they aren't set
         """
-        self.validate()
+        self.validate_and_format()
 
         assert self.model is not None, "Model must be included to log data."
 
@@ -258,6 +258,4 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
                 object_name = file_path.replace(
                     f"{BaseGalileoLogger.LOG_FILE_DIR}/", ""
                 )
-                objectstore.create_project_run_object(
-                    object_name=object_name, file_path=file_path
-                )
+                objectstore.create_object(object_name=object_name, file_path=file_path)

@@ -40,7 +40,6 @@ class TorchBaseInstance:
         Initialize the dimensions of the embeddings and logits
         :param embedding_dim: Dimension of the embedding
         :param logits_dim: Dimension of the logits
-        :return: None
         """
         # If embedding_dim is a string, convert it to a slice
         # else assume it is a slice or None
@@ -77,7 +76,6 @@ class TorchBaseInstance:
         :param model: Model pytorch model / layer
         :param model_input: Input of the current layer
         :param model_output: Output of the current layer
-        :return: None
         """
         output = None
         if self.embedding_fn is not None:
@@ -131,7 +129,6 @@ class TorchBaseInstance:
         :param model: Model pytorch model
         :param model_input: Model input of the current layer
         :param model_output: Model output of the current layer
-        :return: None
         """
         logits = None
         if self.logits_fn is not None:
@@ -177,7 +174,6 @@ class TorchBaseInstance:
         :param model: Model pytorch model / layer
         :param model_input: Input of the current layer
         :param model_output: Output of the current layer
-        :return: None
         """
 
         self._dq_embedding_hook(model, None, model_input)
@@ -295,7 +291,7 @@ class ModelHookManager:
         self,
         model: Module,
         hook_fn: Callable,
-        model_layer: Layer = None,
+        model_layer: Optional[Layer] = None,
     ) -> RemovableHandle:
         """Attach hook and save it in our hook list"""
         if model_layer is None:
@@ -310,7 +306,7 @@ class ModelHookManager:
         self,
         model: Module,
         classifier_hook: Callable,
-        model_layer: Layer = None,
+        model_layer: Optional[Layer] = None,
     ) -> RemovableHandle:
         """Attach hook and save it in our hook list"""
         if model_layer is None:
@@ -322,6 +318,7 @@ class ModelHookManager:
             selected_layer = self.get_layer_by_name(model, model_layer)
         else:
             selected_layer = model_layer
+
         return self.attach_hook(selected_layer, classifier_hook)
 
     def attach_hook(self, selected_layer: Module, hook: Callable) -> RemovableHandle:

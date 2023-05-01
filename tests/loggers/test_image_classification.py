@@ -1,15 +1,11 @@
-import base64
 import os.path
-from io import BytesIO
 from tempfile import TemporaryDirectory
 from unittest import mock
 from unittest.mock import MagicMock
 
 import numpy as np
-import pandas as pd
 import vaex
 from datasets import load_dataset
-from PIL import Image
 
 import dataquality
 import dataquality as dq
@@ -149,73 +145,6 @@ def test_duplicate_ids_augmented(set_test_config, cleanup_after_use) -> None:
         validate_unique_ids(df, "epoch")
 
 
-def test_base64_image_logging(set_test_config, cleanup_after_use) -> None:
-    """
-    Tests that dq.log_image_dataset logs base64-encoded image data when passed image
-    file paths.
-    """
-    set_test_config(task_type="image_classification")
-
-    # TODO: move synthetic image dataset creation code into a utility in test_utils
-    def make_img(w, h):
-        a = np.random.randint(256, size=(w, h, 3), dtype=np.uint8)
-        return Image.fromarray(a)
-
-    with TemporaryDirectory() as imgs_dir:
-        # construct synthetic image dataset
-        images = []
-        image_paths = []
-        labels = []
-        ids = []
-        for i, xtn in enumerate([".jpg", ".png", ".jpeg", ".gif"]):
-            image_filename = f"{i:03d}.{xtn}"
-            image_path = os.path.join(imgs_dir, image_filename)
-            image = make_img(32, 32)
-            image.save(image_path)
-
-            loaded_image = Image.open(image_path)
-            images.append(loaded_image)
-
-            image_paths.append(image_filename)
-            labels.append("A" if i % 2 == 0 else "B")
-            ids.append(i)
-
-        # log dataset
-        dataset = pd.DataFrame(
-            dict(
-                id=ids,
-                label=labels,
-                path=image_paths,
-            )
-        )
-        dq.set_labels_for_run(["A", "B"])
-        dq.log_image_dataset(
-            dataset=dataset,
-            label="label",
-            imgs_location_colname="path",
-            imgs_dir=imgs_dir,
-            split="training",
-        )
-
-        # read logged data
-        ThreadPoolManager.wait_for_threads()
-        df = vaex.open(f"{LOCATION}/input_data/training/data_0.arrow")
-
-        base64_images = df["text"].tolist()
-        assert len(base64_images) == len(images)
-
-        for image, base64_image in zip(images, base64_images):
-            # strip off MIME type
-            _, _, content = base64_image.partition("base64,")
-
-            assert len(content) > 0
-
-            # load image from base64 and compare to image loaded from disk
-            decoded = Image.open(BytesIO(base64.b64decode(content)))
-            assert decoded.size == image.size
-            assert np.all(np.array(image) == np.array(decoded))
-
-
 @mock.patch.object(
     dataquality.core.finish,
     "_version_check",
@@ -337,22 +266,42 @@ def _test_hf_image_dataset(name) -> None:
     assert len(df) == len(food_dataset)
 
 
-def test_hf_dataset_food(cleanup_after_use, set_test_config) -> None:
+@mock.patch("dataquality.clients.objectstore.ObjectStore.create_object")
+def test_hf_dataset_food(
+    mock_create_object: mock.MagicMock,
+    cleanup_after_use,
+    set_test_config,
+) -> None:
     set_test_config(task_type="image_classification")
     _test_hf_image_dataset("food")
 
 
-def test_hf_dataset_mnist(cleanup_after_use, set_test_config) -> None:
+@mock.patch("dataquality.clients.objectstore.ObjectStore.create_object")
+def test_hf_dataset_mnist(
+    mock_create_object: mock.MagicMock,
+    cleanup_after_use,
+    set_test_config,
+) -> None:
     set_test_config(task_type="image_classification")
     _test_hf_image_dataset("mnist")
 
 
-def test_hf_dataset_cifar10(cleanup_after_use, set_test_config) -> None:
+@mock.patch("dataquality.clients.objectstore.ObjectStore.create_object")
+def test_hf_dataset_cifar10(
+    mock_create_object: mock.MagicMock,
+    cleanup_after_use,
+    set_test_config,
+) -> None:
     set_test_config(task_type="image_classification")
     _test_hf_image_dataset("cifar10")
 
 
-def test_hf_image_dataset_with_paths(set_test_config, cleanup_after_use) -> None:
+@mock.patch("dataquality.clients.objectstore.ObjectStore.create_object")
+def test_hf_image_dataset_with_paths(
+    mock_create_object: mock.MagicMock,
+    set_test_config,
+    cleanup_after_use,
+) -> None:
     """
     Tests that dq.log_image_dataset can handle imgs_location_colname when
     passed an HF dataset.

@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 import warnings
@@ -45,8 +46,8 @@ def load_data_from_str(data: str) -> Union[pd.DataFrame, Dataset]:
 
 def try_load_dataset_dict(
     demo_datasets: List[str],
-    hf_data: Union[DatasetDict, str] = None,
-    train_data: Union[pd.DataFrame, Dataset, str] = None,
+    hf_data: Optional[Union[DatasetDict, str]] = None,
+    train_data: Optional[Union[pd.DataFrame, Dataset, str]] = None,
 ) -> Optional[DatasetDict]:
     """Tries to load the DatasetDict if available
 
@@ -140,8 +141,8 @@ def _get_task_type_from_train(
 
 
 def get_task_type_from_data(
-    hf_data: Union[DatasetDict, str] = None,
-    train_data: Union[pd.DataFrame, Dataset, str] = None,
+    hf_data: Optional[Union[DatasetDict, str]] = None,
+    train_data: Optional[Union[pd.DataFrame, Dataset, str]] = None,
 ) -> TaskType:
     """Determines the task type of the dataset by the dataset contents
 
@@ -154,3 +155,27 @@ def get_task_type_from_data(
     if hf_data is not None:
         return _get_task_type_from_hf(hf_data)
     return _get_task_type_from_train(train_data)
+
+
+def set_global_logging_level(
+    level: int = logging.ERROR, prefices: Optional[List[str]] = None
+) -> None:
+    """
+    Override logging levels of different modules based on their name as a prefix.
+    It needs to be invoked after the modules have been loaded so that their loggers
+    have been initialized.
+
+    Src: https://github.com/huggingface/transformers/issues/3050#issuecomment-682167272
+
+    Args:
+        - level: desired level. e.g. logging.INFO. Optional. Default is logging.ERROR
+        - prefices: list of one or more str prefices to match
+          (e.g. ["transformers", "torch"]). Optional.
+          Default is `[""]` to match all active loggers.
+          The match is a case-sensitive `module_name.startswith(prefix)`
+    """
+    prefices = prefices or [""]
+    prefix_re = re.compile(rf'^(?:{ "|".join(prefices) })')
+    for name in logging.root.manager.loggerDict:
+        if re.match(prefix_re, name):
+            logging.getLogger(name).setLevel(level)

@@ -1,12 +1,13 @@
 from collections import defaultdict
 from enum import Enum, unique
-from typing import Any, DefaultDict, Dict, Iterable, List, Optional, Union
+from typing import Any, DefaultDict, Dict, Iterable, List, Optional, Union, cast
 
 import numpy as np
 import pandas as pd
 import vaex
 from vaex.dataframe import DataFrame
 
+import dataquality
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger.base_data_logger import (
     ITER_CHUNK_SIZE,
@@ -76,12 +77,12 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
 
     def __init__(
         self,
-        texts: List[str] = None,
-        labels: List[str] = None,
-        ids: List[int] = None,
-        split: str = None,
-        meta: MetasType = None,
-        inference_name: str = None,
+        texts: Optional[List[str]] = None,
+        labels: Optional[List[str]] = None,
+        ids: Optional[List[int]] = None,
+        split: Optional[str] = None,
+        meta: Optional[MetasType] = None,
+        inference_name: Optional[str] = None,
     ) -> None:
         """Create data logger.
 
@@ -256,9 +257,9 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         text: Union[str, int],
         id: Union[str, int],
         meta: List[Union[str, int]],
-        label: Union[str, int] = None,
-        split: Split = None,
-        inference_name: str = None,
+        label: Optional[Union[str, int]] = None,
+        split: Optional[Split] = None,
+        inference_name: Optional[str] = None,
     ) -> None:
         """Helper function to log a huggingface dataset
 
@@ -266,16 +267,30 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         format to log directly.
         """
 
-        parse_label = lambda x: x  # noqa: E731
-        # If label is integer, convert to string #
-
-        if isinstance(dataset[0].get(label), int):
-            try:
-                parse_label = lambda x: dataset.features[label].int2str(x)  # noqa: E731
-            except Exception:
+        def parse_label(labels: Union[List[int], List[str]]) -> List[str]:
+            # If we have 1 str, they are all strings
+            if isinstance(labels[0], str):
+                return cast(List[str], labels)
+            # Otherwise they are all ints (typing)
+            else:
+                labels = cast(List[int], labels)
+            if hasattr(dataset.features[label], "int2str"):
+                return dataset.features[label].int2str(labels)
+            elif self.logger_config.labels:
+                return [self.logger_config.labels[gt] for gt in labels]
+            elif (
+                hasattr(dataset.features[label], "names")
+                and dataset.features[label].names
+            ):
+                classes = dataset.features[label].names
+                if not self.logger_config.labels:
+                    dataquality.set_labels_for_run(classes)
+                return [classes[gt] for gt in labels]
+            else:
                 # TODO: Simplify this logic with mapping the int label to string ticket
                 raise GalileoException(
-                    "Your dataset does not have label names. Please include them"
+                    "Your dataset does not have label names. Please include them or "
+                    "call dq.set_labels_for_run"
                 )
 
         assert dataset[0].get(id) is not None, GalileoException(
@@ -299,9 +314,9 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         text: Union[str, int],
         id: Union[str, int],
         meta: List[Union[str, int]],
-        label: Union[str, int] = None,
-        split: Split = None,
-        inference_name: str = None,
+        label: Optional[Union[str, int]] = None,
+        split: Optional[Split] = None,
+        inference_name: Optional[str] = None,
     ) -> None:
         batches = defaultdict(list)
         metas = defaultdict(list)
@@ -329,7 +344,11 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         return batches
 
     def _log_dict(
-        self, d: Dict, meta: Dict, split: Split = None, inference_name: str = None
+        self,
+        d: Dict,
+        meta: Dict,
+        split: Optional[Split] = None,
+        inference_name: Optional[str] = None,
     ) -> None:
         self.log_data_samples(
             texts=d["text"],
@@ -361,21 +380,20 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         """
         return GalileoDataLoggerAttributes.get_valid()
 
-    def validate(self) -> None:
+    def validate_and_format(self) -> None:
         """
         Validates that the current config is correct.
         * Text and Labels must both exist (unless split is 'inference' in which case
         labels must be None)
         * Text and Labels must be the same length
         * If ids exist, it must be the same length as text/labels
-        :return: None
 
         If the user logged labels as ints, convert them to the string labels.
         In the next optimization, we will support the API having int labels, but for
         now it expects string labels. When we make that change, we will do the opposite
         and always convert to the int index of the labels.
         """
-        super().validate()
+        super().validate_and_format()
         label_len = len(self.labels)
         text_len = len(self.texts)
         id_len = len(self.ids)
@@ -458,7 +476,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
 
     @classmethod
     def separate_dataframe(
-        cls, df: DataFrame, prob_only: bool = True, split: str = None
+        cls, df: DataFrame, prob_only: bool = True, split: Optional[str] = None
     ) -> BaseLoggerDataFrames:
         """Separates the singular dataframe into its 3 components
 
@@ -474,8 +492,9 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
             emb_cols = ["id"]
             other_cols = ["id"]
         else:
-            emb_cols = ["id", "emb"]
-            ignore_cols = ["emb", "split_id"] + prob_cols
+            emb_cols = ["id", "emb", "x", "y", "emb_pca"]
+            emb_cols = [c for c in emb_cols if c in df_copy.get_column_names()]
+            ignore_cols = ["split_id"] + prob_cols + emb_cols
             other_cols = [i for i in df_copy.get_column_names() if i not in ignore_cols]
             other_cols += ["id"]
 

@@ -18,6 +18,7 @@ class Route(str, Enum):
     login = "login"
     current_user = "current_user"
     healthcheck = "healthcheck"
+    healthcheck_dq = "healthcheck/dq"
     slices = "slices"
     split_path = "split"
     splits = "splits"
@@ -39,6 +40,7 @@ class Route(str, Enum):
     ampli = "ampli"
     notify = "notify/email"
     token = "get-token"
+    upload_file = "upload_file"
 
     @staticmethod
     def content_path(

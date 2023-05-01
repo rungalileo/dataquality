@@ -41,10 +41,10 @@ class TorchLogger(TorchBaseInstance):
     def __init__(
         self,
         model: Module,
-        last_hidden_state_layer: Layer = None,
+        last_hidden_state_layer: Optional[Layer] = None,
         embedding_dim: Optional[Union[str, DimensionSlice]] = None,
         logits_dim: Optional[Union[str, DimensionSlice]] = None,
-        classifier_layer: Layer = None,
+        classifier_layer: Optional[Layer] = None,
         embedding_fn: Optional[Callable] = None,
         logits_fn: Optional[Callable] = None,
         helper_data: Dict[str, Any] = {},
@@ -74,7 +74,6 @@ class TorchLogger(TorchBaseInstance):
         Initialize the helper data with ids from the dataloader indices,
         patches for applied monkey patched functions and the hook manager.
         :param hm: Hook manager
-        :return: None
         """
         self.helper_data.clear()
         self.helper_data.update(
@@ -95,7 +94,6 @@ class TorchLogger(TorchBaseInstance):
         Method to attach hooks to the model by using the hook manager
         :param model: Model
         :param model: pytorch model layer to attach hooks to
-        :return: None
         """
         try:
             self.hook_manager.attach_classifier_hook(
@@ -129,7 +127,6 @@ class TorchLogger(TorchBaseInstance):
         :param model: Model pytorch model
         :param model_input: Model input
         :param model_output: Model output
-        :return: None
         """
         self._classifier_hook(model, model_input, model_output)
         self._on_step_end()
@@ -145,7 +142,6 @@ class TorchLogger(TorchBaseInstance):
         :param model: Model pytorch model
         :param model_input: Model input
         :param model_output: Model output
-        :return: None
         """
         self._dq_logit_hook(model, model_input, model_output)
         self._on_step_end()
@@ -153,7 +149,6 @@ class TorchLogger(TorchBaseInstance):
     def _on_step_end(self) -> None:
         """
         Log the embeddings, ids and logits.
-        :return: None
         """
         # We save the embeddings and logits in a dict called model_outputs
         # in the helper data. This is because the embeddings and logits are
@@ -190,47 +185,55 @@ class TorchLogger(TorchBaseInstance):
 def watch(
     model: Module,
     dataloaders: Optional[List[DataLoader]] = [],
-    classifier_layer: Union[str, Module] = None,
-    embedding_dim: InputDim = None,
-    logits_dim: InputDim = None,
+    classifier_layer: Optional[Union[str, Module]] = None,
+    embedding_dim: Optional[InputDim] = None,
+    logits_dim: Optional[InputDim] = None,
     embedding_fn: Optional[Callable] = None,
     logits_fn: Optional[Callable] = None,
     last_hidden_state_layer: Union[Module, str, None] = None,
     unpatch_on_start: bool = False,
 ) -> None:
     """
-        [`watch`] is a function that wraps the model and dataloaders to log the
-        embeddings and logits to [Galileo](https://www.rungalileo.io/).
-        :param model: Pytorch Model to be wrapped
-        :param dataloaders: List of dataloaders to be wrapped
-        :param classifier_layer: Layer to hook into (usually 'classifier' or 'fc').
-    Inputs are the embeddings and outputs are the logits.
-        :param embedding_dim: Dimension of the embeddings for example "[:, 0]"
-        to remove the cls token
-        :param logits_dim: Dimension to extract the logits for example in NER
-        "[:,1:,:]"
-        :param logits_dim: Dimension of the logits
-        from layer input and logits from layer output. If the layer is not found,
-        the last_hidden_state_layer will be used
-        :param embedding_fn: Function to process embeddings from the model
-        :param logits_fn: Function to process logits from the model f.e. lambda x[0]
-        :param last_hidden_state_layer: Layer to extract the embeddings from
-        :param unpatch_on_start: Force unpatching of dataloaders
-        instead of global patching
-        :return: None
-        ```
+    wraps a PyTorch model and optionally dataloaders to log the
+    embeddings and logits to [Galileo](https://www.rungalileo.io/).
+
+    .. code-block:: python
+
         dq.log_dataset(train_dataset, split="train")
         train_dataloader = torch.utils.data.DataLoader()
         model = TextClassificationModel(num_labels=len(train_dataset.list_of_labels))
-        watch(model, classifier_layer = "classifier")
+        watch(model, [train_dataloader, test_dataloader])
         for epoch in range(NUM_EPOCHS):
             dq.set_epoch_and_split(epoch,"training")
             train()
-            dq.set_split("validate")
+            dq.set_split("validation")
             validate()
         dq.finish()
 
-        ```
+    :param model: Pytorch Model to be wrapped
+    :param dataloaders: List of dataloaders to be wrapped
+    :param classifier_layer: Layer to hook into (usually 'classifier' or 'fc').
+        Inputs are the embeddings and outputs are the logits.
+    :param embedding_dim: Dimension of the embeddings for example `"[:, 0]"`
+        to remove the cls token
+    :param logits_dim: Dimension to extract the logits for example in NER
+        `"[:,1:,:]"`
+    :param logits_dim: Dimension of the logits
+        from layer input and logits from layer output. If the layer is not found,
+        the last_hidden_state_layer will be used
+    :param embedding_fn: Function to process embeddings from the model
+    :param logits_fn: Function to process logits from the model f.e.
+        `lambda x: x[0]`
+    :param last_hidden_state_layer: Layer to extract the embeddings from
+    :param unpatch_on_start: Force unpatching of dataloaders
+        instead of global patching
+    :param model: Pytorch Model to be wrapped
+    :param dataloaders: List of dataloaders to be wrapped
+    :param last_hidden_state_layer: Layer to extract the embeddings from
+    :param embedding_dim: Dimension of the embeddings for example `"[:, 0]"`
+    to remove the cls token
+    :param logits_dim: Dimension to extract the logits for example in NER
+      `"[:,1:,:]"`
     """
     a.log_function("torch/watch")
     assert dq.config.task_type, GalileoException(

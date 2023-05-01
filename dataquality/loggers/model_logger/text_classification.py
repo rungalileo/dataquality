@@ -1,4 +1,3 @@
-import warnings
 from enum import Enum, unique
 from typing import Any, Dict, List, Optional, Union
 
@@ -75,10 +74,10 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
 
     def __init__(
         self,
-        embs: Union[List, np.ndarray] = None,
-        probs: Union[List, np.ndarray] = None,
-        logits: Union[List, np.ndarray] = None,
-        ids: Union[List, np.ndarray] = None,
+        embs: Optional[Union[List, np.ndarray]] = None,
+        probs: Optional[Union[List, np.ndarray]] = None,
+        logits: Optional[Union[List, np.ndarray]] = None,
+        ids: Optional[Union[List, np.ndarray]] = None,
         split: str = "",
         epoch: Optional[int] = None,
         inference_name: Optional[str] = None,
@@ -115,13 +114,12 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
             has_len = bool(arr.shape[0])
         return has_len
 
-    def validate(self) -> None:
+    def validate_and_format(self) -> None:
         """
         Validates that the current config is correct.
         * embs, probs, and ids must exist and be the same length
         :return:
         """
-        get_dq_logger().debug("Handling logits and probs", split=self.split)
         has_logits = self._has_len(self.logits)
         has_probs = self._has_len(self.probs)
         if has_logits:
@@ -129,10 +127,8 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
             self.probs = self.convert_logits_to_probs(self.logits)
             del self.logits
         elif has_probs:
-            warnings.warn("Usage of probs is deprecated, use logits instead")
             self.probs = self._convert_tensor_ndarray(self.probs, "Prob")
 
-        get_dq_logger().debug("Converting inputs to numpy arrays", split=self.split)
         self.embs = self._convert_tensor_ndarray(self.embs, "Embedding")
         self.ids = self._convert_tensor_ndarray(self.ids)
 
@@ -140,7 +136,6 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         probs_len = len(self.probs)
         ids_len = len(self.ids)
 
-        get_dq_logger().debug("Validating embedding shape", split=self.split)
         assert self.embs.ndim == 2, "Only one embedding vector is allowed per input."
 
         assert embs_len and probs_len and ids_len, (

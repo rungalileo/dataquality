@@ -134,7 +134,7 @@ def _extract_labels_from_ds(dd: DatasetDict) -> List[str]:
     # If there is an "ner_labels" column (like from the Galileo export), we can use that
     if HFCol.ner_labels in ds.features:
         return ds[HFCol.ner_labels][0]
-    # The user must provide them
+    # The user must provide label_names
     raise GalileoException(
         "Could not extract labels from Dataset. Provide `label_names` to the "
         "`tokenize_and_log_dataset` function as a list of strings"
@@ -191,11 +191,20 @@ def tokenize_and_log_dataset(
             dataset = dataset.remove_columns([HFCol.gold_spans])
         else:
             dq_split = conform_split(ds_key)
-            # Filter out rows with no gold spans
-            dataset = dataset.filter(lambda row: len(row[HFCol.gold_spans]) != 0)
 
+        # Filter out rows with no tokens
+        dataset = dataset.filter(lambda row: len(row[HFCol.text_token_indices]) != 0)
         ids = list(range(len(dataset)))
         dataset = dataset.add_column(HFCol.id, ids)
+        ds_orig_len = len(dataset)
+        ds_len = len(dataset)
+        if ds_orig_len != ds_len:
+            warnings.warn(
+                f"We found {ds_orig_len-ds_len} empty samples in your dataset for "
+                f"split {ds_key}. These will not be logged to Galileo. If you are not "
+                "expecting these, you should inspect your original data",
+                GalileoWarning,
+            )
         tokenized_datasets[ds_key] = dataset
         split_meta = [c for c in meta if c in dataset.features]
         dq.log_dataset(

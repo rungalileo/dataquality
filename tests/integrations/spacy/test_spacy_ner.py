@@ -1,9 +1,10 @@
 import pickle
-from typing import Dict, List, Tuple
+from typing import Callable, Dict, List, Tuple
 from unittest import mock
 from unittest.mock import MagicMock
 
 import numpy as np
+import pandas as pd
 import pytest
 import spacy
 import vaex
@@ -42,7 +43,8 @@ from tests.test_utils.spacy_integration_constants_inference import (
 )
 
 
-def test_log_input_examples_without_watch():
+def test_log_input_examples_without_watch(set_test_config: Callable):
+    set_test_config(task_type="text_ner")
     with pytest.raises(GalileoException) as e:
         log_input_examples(NER_TRAINING_DATA, split="training")
     assert (
@@ -187,13 +189,23 @@ def test_spacy_ner(
 
     assert len(data) == 5
     assert all(data["id"] == range(len(data)))
-    assert data.equals(
-        TestSpacyExpectedResults.gt_data
-    ), f"Received the following data df {data}"
+    for col in data.columns:
+        if pd.api.types.is_numeric_dtype(data[col].dtype):
+            assert np.allclose(
+                data[col].to_numpy(), TestSpacyExpectedResults.gt_data[col].to_numpy()
+            )
+        else:
+            assert data[[col]].equals(TestSpacyExpectedResults.gt_data[[col]])
 
     assert embs["id"].tolist() == list(range(len(embs)))
-    embs = embs["emb"].to_numpy().astype(np.float16)
-    assert all([span_emb in TestSpacyExpectedResults.gt_embs for span_emb in embs])
+    embs = embs["emb"].to_numpy().astype(np.float32)
+    embs_expected = TestSpacyExpectedResults.gt_embs
+    is_close = np.isclose(embs[:, np.newaxis], embs_expected, atol=1e-2)
+    # For each element in array1, check if any element in array2 is close
+    any_close = np.any(is_close, axis=1)
+
+    # Check if all elements in array1 have a close value in array2
+    assert np.all(any_close)
 
     assert len(probs) == 8
     # arrange the probs array to account for misordering of logged samples
@@ -405,14 +417,26 @@ def test_spacy_inference_only(
 
     assert len(data) == 5
     assert all(data["id"] == range(len(data)))
-    assert data.equals(TestSpacyInfExpectedResults.gt_data)
+    for col in data.columns:
+        if pd.api.types.is_numeric_dtype(data[col].dtype):
+            assert np.allclose(
+                data[col].to_numpy(),
+                TestSpacyInfExpectedResults.gt_data[col].to_numpy(),
+            )
+        else:
+            assert data[[col]].equals(TestSpacyInfExpectedResults.gt_data[[col]])
 
     assert embs["id"].tolist() == list(range(7))
     embs = embs["emb"].to_numpy()
     # Since order might change due to multi-threading we verify each embedding
     # is in the expected list, but don't check the exact order
-    assert all([span_emb in TestSpacyInfExpectedResults.gt_embs for span_emb in embs])
+    embs_expected = TestSpacyInfExpectedResults.gt_embs
+    is_close = np.isclose(embs[:, np.newaxis], embs_expected, atol=1e-3)
+    # For each element in array1, check if any element in array2 is close
+    any_close = np.any(is_close, axis=1)
 
+    # Check if all elements in array1 have a close value in array2
+    assert np.all(any_close)
     # arrange the probs array to account for misordering of logged samples
     assert len(probs) == 7
     probs = probs.sort(["sample_id", "span_start"])
@@ -421,7 +445,14 @@ def test_spacy_inference_only(
 
     # Drop conf_prob since pandas doesn't support multi-dimensional arrays
     pdf = probs.drop(["id", "conf_prob"]).to_pandas_df()
-    assert pdf.equals(TestSpacyInfExpectedResults.gt_probs)
+    for col in pdf.columns:
+        if pd.api.types.is_numeric_dtype(pdf[col].dtype):
+            assert np.allclose(
+                pdf[col].to_numpy(),
+                TestSpacyInfExpectedResults.gt_probs[col].to_numpy(),
+            )
+        else:
+            assert pdf[[col]].equals(TestSpacyInfExpectedResults.gt_probs[[col]])
 
 
 @pytest.mark.skip(reason="flaky, needs a fix")

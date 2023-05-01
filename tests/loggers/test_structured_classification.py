@@ -63,7 +63,7 @@ class TestStructuredClassificationDataLogger:
         logger: StructuredClassificationDataLogger = create_logger(
             split=split, inference_name=inference_name
         )
-        logger.validate()
+        logger.validate_and_format()
 
     @mock.patch.object(StructuredClassificationDataLogger, "set_probs")
     def test_validate_inputs(
@@ -200,10 +200,10 @@ class TestStructuredClassificationDataLogger:
 
     @mock.patch.object(StructuredClassificationDataLogger, "save_feature_importances")
     @mock.patch("dataquality.loggers.data_logger.structured_classification.os.walk")
-    @mock.patch.object(ObjectStore, "create_project_run_object")
+    @mock.patch.object(ObjectStore, "create_object")
     def test_upload(
         self,
-        mock_create_project_run_object: mock.MagicMock,
+        mock_create_object: mock.MagicMock,
         mock_os_walk: mock.MagicMock,
         mock_save_importances: mock.MagicMock,
         create_logger: Callable,
@@ -227,18 +227,18 @@ class TestStructuredClassificationDataLogger:
         logger: StructuredClassificationDataLogger = create_logger(split="training")
         logger.upload()
 
-        assert mock_create_project_run_object.call_count == 2
+        assert mock_create_object.call_count == 2
         prefix = (
             f"{BaseGalileoLogger.LOG_FILE_DIR}/{DEFAULT_PROJECT_ID}/{DEFAULT_RUN_ID}"
             "/training"
         )
-        mock_create_project_run_object.assert_any_call(
+        mock_create_object.assert_any_call(
             object_name=(
                 f"{DEFAULT_PROJECT_ID}/{DEFAULT_RUN_ID}/training/data/data.hdf5"
             ),
             file_path=f"{prefix}/data/data.hdf5",
         )
-        mock_create_project_run_object.assert_any_call(
+        mock_create_object.assert_any_call(
             object_name=(
                 f"{DEFAULT_PROJECT_ID}/{DEFAULT_RUN_ID}/training/prob/prob.hdf5"
             ),
@@ -258,7 +258,7 @@ class TestStructuredClassificationValidationErrors:
             feature_names=sc_data["feature_names"],
         )
         with pytest.raises(GalileoException) as e:
-            logger.validate()
+            logger.validate_and_format()
 
         assert str(e.value) == (
             "You didn't log a split and did not set a split. Use "
@@ -276,7 +276,7 @@ class TestStructuredClassificationValidationErrors:
             split="inference",
         )
         with pytest.raises(GalileoException) as e:
-            logger.validate()
+            logger.validate_and_format()
 
         assert str(e.value) == (
             "For inference split you must either log an inference name "
@@ -436,8 +436,20 @@ class TestStructuredClassificationValidationErrors:
         )
 
 
-@mock.patch.object(ObjectStore, "create_project_run_object")
+@mock.patch.object(ObjectStore, "create_object")
 @mock.patch("dataquality.core.finish._version_check")
+@mock.patch.object(
+    dq.clients.api.ApiClient,
+    "get_healthcheck_dq",
+    return_value={
+        "bucket_names": {
+            "images": "galileo-images",
+            "results": "galileo-project-runs-results",
+            "root": "galileo-project-runs",
+        },
+        "minio_fqdn": "127.0.0.1:9000",
+    },
+)
 @mock.patch("dataquality.core.finish._reset_run")
 @mock.patch("dataquality.core.finish.upload_dq_log_file")
 @mock.patch.object(
@@ -467,6 +479,7 @@ class TestStructuredClassificationE2E:
         mock_create_job: mock.MagicMock,
         mock_upload_dq_log_file: mock.MagicMock,
         mock_reset_run: mock.MagicMock,
+        mock_bucket_names: mock.MagicMock,
         mock_version_check: mock.MagicMock,
         mock_upload_df_to_minio: mock.MagicMock,
         set_test_config: Callable,
@@ -514,6 +527,7 @@ class TestStructuredClassificationE2E:
         mock_create_job: mock.MagicMock,
         mock_upload_dq_log_file: mock.MagicMock,
         mock_reset_run: mock.MagicMock,
+        mock_bucket_names: mock.MagicMock,
         mock_version_check: mock.MagicMock,
         mock_upload_df_to_minio: mock.MagicMock,
         set_test_config: Callable,
@@ -563,6 +577,7 @@ class TestStructuredClassificationE2E:
         mock_create_job: mock.MagicMock,
         mock_upload_dq_log_file: mock.MagicMock,
         mock_reset_run: mock.MagicMock,
+        mock_bucket_names: mock.MagicMock,
         mock_version_check: mock.MagicMock,
         mock_upload_df_to_minio: mock.MagicMock,
         set_test_config: Callable,
@@ -618,6 +633,7 @@ class TestStructuredClassificationE2E:
         mock_create_job: mock.MagicMock,
         mock_upload_dq_log_file: mock.MagicMock,
         mock_reset_run: mock.MagicMock,
+        mock_bucket_names: mock.MagicMock,
         mock_version_check: mock.MagicMock,
         mock_upload_df_to_minio: mock.MagicMock,
         set_test_config: Callable,
@@ -676,6 +692,7 @@ class TestStructuredClassificationE2E:
         mock_create_job: mock.MagicMock,
         mock_upload_dq_log_file: mock.MagicMock,
         mock_reset_run: mock.MagicMock,
+        mock_bucket_names: mock.MagicMock,
         mock_version_check: mock.MagicMock,
         mock_upload_df_to_minio: mock.MagicMock,
         set_test_config: Callable,
@@ -730,6 +747,7 @@ class TestStructuredClassificationE2E:
         mock_create_job: mock.MagicMock,
         mock_upload_dq_log_file: mock.MagicMock,
         mock_reset_run: mock.MagicMock,
+        mock_bucket_names: mock.MagicMock,
         mock_version_check: mock.MagicMock,
         mock_upload_df_to_minio: mock.MagicMock,
         set_test_config: Callable,

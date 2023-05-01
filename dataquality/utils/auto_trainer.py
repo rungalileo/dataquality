@@ -1,3 +1,5 @@
+from typing import Optional
+
 from datasets import DatasetDict
 from transformers import Trainer
 
@@ -10,7 +12,7 @@ def do_train(
     trainer: Trainer,
     encoded_data: DatasetDict,
     wait: bool,
-    create_data_embs: bool = False,
+    create_data_embs: Optional[bool] = None,
 ) -> None:
     watch(trainer)
     trainer.train()

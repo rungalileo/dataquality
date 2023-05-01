@@ -16,8 +16,8 @@ from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.ampli import AmpliMetric
 from dataquality.utils.dq_logger import get_dq_logger
+from dataquality.utils.hdf5_store import _save_hdf5_file
 from dataquality.utils.thread_pool import ThreadPoolManager
-from dataquality.utils.vaex import _save_hdf5_file
 
 analytics = Analytics(ApiClient, config)  # type: ignore
 
@@ -25,10 +25,10 @@ analytics = Analytics(ApiClient, config)  # type: ignore
 class BaseGalileoModelLogger(BaseGalileoLogger):
     def __init__(
         self,
-        embs: Union[List, np.ndarray] = None,
-        probs: Union[List, np.ndarray] = None,
-        logits: Union[List, np.ndarray] = None,
-        ids: Union[List, np.ndarray] = None,
+        embs: Optional[Union[List, np.ndarray]] = None,
+        probs: Optional[Union[List, np.ndarray]] = None,
+        logits: Optional[Union[List, np.ndarray]] = None,
+        ids: Optional[Union[List, np.ndarray]] = None,
         split: str = "",
         epoch: Optional[int] = None,
         inference_name: Optional[str] = None,
@@ -55,7 +55,7 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         (this batch is bad, but we can continue logging)
         """
         try:
-            self.validate()
+            self.validate_and_format()
         except AssertionError as e:
             get_dq_logger().error(
                 "Validation of data failed", split=self.split, epoch=self.epoch
@@ -99,16 +99,10 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         # global variables (cur_split and cur_epoch) that are subject to change
         # between subsequent threads
         self.set_split_epoch()
-        get_dq_logger().debug(
-            "Starting logging process from thread", split=self.split, epoch=self.epoch
-        )
         ThreadPoolManager.add_thread(target=self._add_threaded_log)
 
     def write_model_output(self, data: Dict) -> None:
         """Creates an hdf5 file from the data dict"""
-        get_dq_logger().debug(
-            "Writing model output", split=self.split, epoch=self.epoch
-        )
         location = (
             f"{self.LOG_FILE_DIR}/{config.current_project_id}"
             f"/{config.current_run_id}"
@@ -123,7 +117,6 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
             path = f"{location}/{split}/{epoch}"
 
         object_name = f"{str(uuid4()).replace('-', '')[:12]}.hdf5"
-        get_dq_logger().debug("Saving hdf5 file", split=self.split)
         _save_hdf5_file(path, object_name, data)
 
     def set_split_epoch(self) -> None:
@@ -182,9 +175,12 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         # we take the softmax for each sample
         if not isinstance(sample_logits, np.ndarray):
             sample_logits = self._convert_tensor_ndarray(sample_logits)
-        if len(sample_logits.shape) == 1 or sample_logits.shape[1] == 1:
+
+        # If shape is (num_samples, 1) or (num_samples,) then we have a binary case
+        if len(sample_logits.shape) == 1 or sample_logits.shape[-1] == 1:
             if len(sample_logits.shape) > 1:
                 # Remove final empty dimension if it's there
                 sample_logits = sample_logits.reshape(-1)
             return self.convert_logits_to_prob_binary(sample_logits)
+
         return softmax(np.array(sample_logits), axis=-1)

@@ -1,4 +1,3 @@
-import warnings
 from collections import defaultdict
 from enum import Enum, unique
 from typing import Any, DefaultDict, Dict, List, Optional, Tuple, Union
@@ -12,7 +11,6 @@ from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelL
 from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.ner import NERErrorType, NERProbMethod, TaggingSchema
 from dataquality.schemas.split import Split
-from dataquality.utils.dq_logger import get_dq_logger
 from dataquality.utils.ml import select_span_token_for_prob
 
 
@@ -97,10 +95,10 @@ class TextNERModelLogger(BaseGalileoModelLogger):
 
     def __init__(
         self,
-        embs: List[np.ndarray] = None,
-        probs: List[np.ndarray] = None,
-        logits: List[np.ndarray] = None,
-        ids: Union[List, np.ndarray] = None,
+        embs: Optional[List[np.ndarray]] = None,
+        probs: Optional[List[np.ndarray]] = None,
+        logits: Optional[List[np.ndarray]] = None,
+        ids: Optional[Union[List, np.ndarray]] = None,
         split: str = "",
         epoch: Optional[int] = None,
         inference_name: Optional[str] = None,
@@ -114,10 +112,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
             epoch=epoch,
             inference_name=inference_name,
         )
-        # Explicit cast to List from parent
-        self.embs: List[np.ndarray] = list(self.embs)
-        self.logits: List[np.ndarray] = list(self.logits)
-        self.probs: List[np.ndarray] = list(self.probs)
 
         # Calculated internally
         self.gold_emb: List[List[np.ndarray]] = []
@@ -142,25 +136,23 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         """
         return GalileoModelLoggerAttributes.get_valid()
 
-    def validate(self) -> None:
+    def validate_and_format(self) -> None:
         """
         Validates that the current config is correct.
         * embs, probs, and ids must exist and be the same length
         :return:
         """
-        get_dq_logger().debug(
-            "Validating the output log.", split=self.split, epoch=self.epoch
-        )
         if len(self.logits):
-            self.probs = self.convert_logits_to_probs(self.logits).tolist()
+            self.probs = self.convert_logits_to_probs(self.logits)
         elif len(self.probs):
-            warnings.warn("Usage of probs is deprecated, use logits instead")
+            self.probs = self._convert_tensor_ndarray(self.probs)
 
         embs_len = len(self.embs)
         probs_len = len(self.probs)
         ids_len = len(self.ids)
 
         self.ids = self._convert_tensor_ndarray(self.ids)
+        self.embs = self._convert_tensor_ndarray(self.embs)
 
         assert all([embs_len, probs_len, ids_len]), (
             f"All of emb, probs, and ids for your logger must be set, but "
@@ -177,8 +169,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         logged_sample_ids = []
         for sample_id, sample_emb, sample_prob in zip(self.ids, self.embs, self.probs):
             # This will return True if there was a prediction or gold span
-            sample_emb = self._convert_tensor_ndarray(sample_emb)
-            sample_prob = self._convert_tensor_ndarray(sample_prob)
             if self._process_sample(sample_id, sample_emb, sample_prob):
                 logged_sample_ids.append(sample_id)
 
@@ -199,9 +189,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
 
         For inference mode, only prediction spans should be logged.
         """
-        get_dq_logger().debug(
-            "Processing a sample.", split=self.split, epoch=self.epoch
-        )
         # To extract metadata about the sample we are looking at
         sample_key = self.logger_config.get_sample_key(Split(self.split), sample_id)
 
@@ -246,14 +233,17 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 sample_gold_spans, sample_prob, NERProbMethod.confidence
             )
             gold_loss_prob, gold_loss_label = self._extract_span_probs(
-                sample_gold_spans, sample_prob, NERProbMethod.loss, gold_sequence
+                sample_gold_spans,
+                sample_prob,
+                NERProbMethod.loss,
+                gold_sequence_str=gold_sequence,
             )
-            argmax_indices: List[int] = sample_prob.argmax(axis=1).tolist()
-            pred_sequence: List[str] = [
-                self.logger_config.labels[x] for x in argmax_indices
-            ]
+            pred_sequence_idx = sample_prob.argmax(axis=1)
             pred_loss_prob, pred_gold_label = self._extract_span_probs(
-                sample_pred_spans, sample_prob, NERProbMethod.loss, pred_sequence
+                sample_pred_spans,
+                sample_prob,
+                NERProbMethod.loss,
+                gold_sequence_idx=pred_sequence_idx,
             )
 
             self.gold_spans.append(sample_gold_spans)
@@ -274,9 +264,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         We take the average of the token embeddings per span and use that as the span
         level embedding
         """
-        get_dq_logger().debug(
-            "Extracting span embeddings.", split=self.split, epoch=self.epoch
-        )
         embeddings = []
         for span in spans:
             start = span["start"]
@@ -291,7 +278,8 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         spans: List[Dict],
         prob: np.ndarray,
         method: NERProbMethod,
-        gold_sequence: Optional[List[str]] = None,
+        gold_sequence_str: Optional[List[str]] = None,
+        gold_sequence_idx: Optional[np.ndarray] = None,
     ) -> Tuple[List[np.ndarray], List[int]]:
         """Get the probs for each span, on a per-sample basis
 
@@ -312,20 +300,25 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         List[int]
             The gold label indices of token chosen for loss (needed for DEP calculation)
         """
-        get_dq_logger().debug(
-            "Extracting span probs.", split=self.split, epoch=self.epoch
-        )
         probs = []
         gold_labels = []
-        gold_sequence_str = gold_sequence or []
-        gold_sequence_idx = self.labels_to_idx(gold_sequence_str)
+        if gold_sequence_idx is None and gold_sequence_str is not None:
+            gold_sequence_idx = self.labels_to_idx(gold_sequence_str)
+
+        has_gold_sequence = (
+            gold_sequence_idx is not None and len(gold_sequence_idx) >= 0
+        )
 
         for span in spans:
             start = span["start"]
             end = span["end"]
             span_probs = prob[start:end, :]
+            # We ignore because if `has_gold_sequence` then has_gold_sequence must exist
+            # (see above), but mypy can't figure that out
             span_gold_seq = (
-                gold_sequence_idx[start:end] if gold_sequence_idx.size > 0 else None
+                gold_sequence_idx[start:end]  # type: ignore
+                if has_gold_sequence
+                else None
             )
             # We select a token prob to represent the span prob
             span_prob, gold_label = select_span_token_for_prob(
@@ -348,9 +341,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         """
         # use length of the tokens stored to strip the pads
         # Drop the spans post first PAD
-        get_dq_logger().debug(
-            "Extracting pred spans.", split=self.split, epoch=self.epoch
-        )
         argmax_indices: List[int] = pred_prob.argmax(axis=1)
         pred_sequence: List[str] = [
             self.logger_config.labels[x] for x in argmax_indices
@@ -514,9 +504,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         gold_sequence = [O, O, O, O, O, B-nothing, I-nothing, I-nothing, O, O] for BIO
         gold_sequence = [O, O, O, O, O, B-nothing, I-nothing, L-nothing, O, O] for BILOU
         """
-        get_dq_logger().debug(
-            "Constructing a gold sequence", split=self.split, epoch=self.epoch
-        )
         gold_sequence = ["O"] * len_sequence
         for span in gold_spans:
             start = span["start"]
@@ -552,8 +539,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
 
         NOTE: All spans are at the token level in this fn
         """
-        get_dq_logger().debug("Getting data dict.", split=self.split, epoch=self.epoch)
-
         if self.split == Split.inference:
             return self._get_data_dict_inference()
 
@@ -809,9 +794,6 @@ class TextNERModelLogger(BaseGalileoModelLogger):
         In this function, we only look at spans that don't have pred/gold alignment,
         so the error can only be span_shift or missed_label.
         """
-        get_dq_logger().debug(
-            "Getting span error type.", split=self.split, epoch=self.epoch
-        )
         gold_start, gold_end = gold_span
         # We start by assuming missed_label (because it's the worst case)
         # and update if we see overlap
@@ -838,18 +820,3 @@ class TextNERModelLogger(BaseGalileoModelLogger):
                 f"Only {self.get_valid_attributes()}"
             )
         super().__setattr__(key, value)
-
-    def convert_logits_to_probs(
-        self, sample_logits: Union[List[np.ndarray], np.ndarray]
-    ) -> np.ndarray:
-        """Converts logits to probs via softmax per sample"""
-        # axis ensures that in a matrix of probs with dims num_samples x num_classes
-        # we take the softmax for each sample
-        get_dq_logger().debug(
-            "Converting logits to probs.", split=self.split, epoch=self.epoch
-        )
-        token_probs = []
-        for token_logits in sample_logits:
-            token_probs.append(super().convert_logits_to_probs(token_logits))
-
-        return np.array(token_probs, dtype=object)

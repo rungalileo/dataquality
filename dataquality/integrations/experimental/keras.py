@@ -56,7 +56,7 @@ class DataQualityCallback(keras.callbacks.Callback):
                 "Set `model.compile(run_eagerly=True)` to fix this"
             )
 
-    def on_train_begin(self, logs: Any = None) -> None:
+    def on_train_begin(self, logs: Optional[Any] = None) -> None:
         """Initialize the training by extracting the model input arguments.
         and from it generate the indices of the batches."""
         assert self.model.run_eagerly, GalileoException(
@@ -102,13 +102,13 @@ class DataQualityCallback(keras.callbacks.Callback):
         self.store.pop("output", None)
         self.store.pop("indices_ids", None)
 
-    def on_train_batch_begin(self, batch: Any, logs: Dict = None) -> None:
+    def on_train_batch_begin(self, batch: Any, logs: Optional[Dict] = None) -> None:
         """At the beginning of the batch we clear the
         helper data from the logger config."""
         self._clear_logger_config_helper_data()
         dq.set_split(Split.train)
 
-    def on_train_batch_end(self, batch: Any, logs: Dict = None) -> None:
+    def on_train_batch_end(self, batch: Any, logs: Optional[Dict] = None) -> None:
         """At the end of the batch we log the input
         of the classifier and the output.
         :param batch: The batch number.
@@ -134,7 +134,7 @@ class DataQualityCallback(keras.callbacks.Callback):
             ids=ids,
         )
 
-    def on_test_begin(self, logs: Any = None) -> None:
+    def on_test_begin(self, logs: Optional[Any] = None) -> None:
         """At the beginning of the test we set the split to test.
         And generate the indices of the batches."""
         dq.set_split(Split.test)
@@ -150,13 +150,13 @@ class DataQualityCallback(keras.callbacks.Callback):
                 sample_weight=self.fit_kwargs.get("val_sample_weight"),
             )
 
-    def on_test_batch_begin(self, batch: Any, logs: Dict = None) -> None:
+    def on_test_batch_begin(self, batch: Any, logs: Optional[Dict] = None) -> None:
         """At the beginning of the batch we clear the helper
         data from the logger config."""
         self._clear_logger_config_helper_data()
         dq.set_split(Split.test)
 
-    def on_test_batch_end(self, batch: Any, logs: Dict = None) -> None:
+    def on_test_batch_end(self, batch: Any, logs: Optional[Dict] = None) -> None:
         """At the end of the test batch we log the input of the classifier
         and the output."""
         dq.set_split(Split.test)
@@ -197,7 +197,7 @@ class DataQualityCallback(keras.callbacks.Callback):
                 steps_per_epoch=predict_kwargs.get("steps"),
             )
 
-    def on_predict_batch_end(self, batch: int, logs: Any = None) -> None:
+    def on_predict_batch_end(self, batch: int, logs: Optional[Any] = None) -> None:
         """Log the validation batch"""
         dq.set_split(Split.validation)
         ids = self.store.get("indices_ids")
@@ -280,26 +280,29 @@ def store_model_ids(store: Dict[str, Any]) -> Callable:
 
 
 def select_model_layer(
-    model: tf.keras.layers.Layer, layer: Optional[Union[tf.keras.layers.Layer, str]]
+    model: tf.keras.layers.Layer, layer: Union[tf.keras.layers.Layer, str, None] = None
 ) -> tf.keras.layers.Layer:
     """Selects the classifier layer from the model.
     :param model: The model.
-    :param layer: The layer to select. If the layer with the name
+    :param layer: The layer to select. If None, the layer with the name
     'classifier' is selected."""
-    chosen_layer = layer
-    if isinstance(chosen_layer, str) is None:
+    chosen_layer = None
+    if isinstance(layer, tf.keras.layers.Layer):
+        chosen_layer = layer
+    elif isinstance(layer, str):
         for model_layer in model.layers:
             if model_layer.name == layer:
                 chosen_layer = model_layer
                 break
     else:
+        layer = "classifier"
         for model_layer in model.layers:
-            if model_layer.name == "classifier":
+            if model_layer.name == layer:
                 chosen_layer = model_layer
                 break
-    assert chosen_layer is not None, GalileoException("Layer could not be found")
-    assert not isinstance(chosen_layer, str), GalileoException(
-        "Layer could not be found"
+
+    assert chosen_layer is not None, GalileoException(
+        f"Layer {layer} cannot be found, check that it exists in the model's summary."
     )
     return chosen_layer
 
@@ -309,7 +312,7 @@ def _watch(
     logger_config: BaseLoggerConfig,
     log_function: Callable,
     model: tf.keras.layers.Layer,
-    layer: Any = None,
+    layer: Optional[Any] = None,
     seed: int = 42,
 ) -> None:
     """Internal watch function that is used to watch the model during training.
@@ -360,7 +363,9 @@ def _watch(
     )
 
 
-def watch(model: tf.keras.layers.Layer, layer: Any = None, seed: int = 42) -> None:
+def watch(
+    model: tf.keras.layers.Layer, layer: Optional[Any] = None, seed: int = 42
+) -> None:
     """Watch a model and log the inputs and outputs of a layer.
     :param model: The model to watch
     :param layer: The layer to watch, if None the classifier layer is used

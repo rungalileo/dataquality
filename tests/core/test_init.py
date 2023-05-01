@@ -7,6 +7,7 @@ import pytest
 from tenacity import RetryError
 
 import dataquality
+import dataquality as dq
 from dataquality import config
 from dataquality.clients.api import ApiClient
 from dataquality.core.auth import GALILEO_AUTH_METHOD
@@ -520,8 +521,9 @@ def test_init_bad_task(
     assert "Task type fake_task_type not valid" in str(e.value)
 
 
-@patch("dataquality.login")
+@patch("dataquality.core.auth.login")
 def test_reconfigure_sets_env_vars(mock_login: MagicMock) -> None:
+    os.environ["DQ_TELEMETRICS"] = "False"
     os.environ["GALILEO_CONSOLE_URL"] = "https://console.fakecompany.io"
     dataquality.configure()
     assert dataquality.config.api_url == config.api_url == "https://api.fakecompany.io"
@@ -548,7 +550,7 @@ def test_reconfigure_resets_user_token(
     assert all([config.token == "mock_token", config.token != "old_token"])
 
 
-@patch("dataquality.login", side_effect=mocked_login)
+@patch("dataquality.core.auth.login", side_effect=mocked_login)
 def test_reconfigure_resets_user_token_login_mocked(
     mock_login: MagicMock, set_test_config: Callable
 ) -> None:
@@ -561,6 +563,18 @@ def test_reconfigure_resets_user_token_login_mocked(
 @patch("requests.post", side_effect=mocked_create_project_run)
 @patch("requests.get", side_effect=mocked_get_project_run)
 @patch("dataquality.core.init._check_dq_version")
+@patch.object(
+    dq.clients.api.ApiClient,
+    "get_healthcheck_dq",
+    return_value={
+        "bucket_names": {
+            "images": "galileo-images",
+            "results": "galileo-project-runs-results",
+            "root": "galileo-project-runs",
+        },
+        "minio_fqdn": "127.0.0.1:9000",
+    },
+)
 @patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=True)
 @pytest.mark.parametrize(
     "run_name,exc",
@@ -575,6 +589,7 @@ def test_reconfigure_resets_user_token_login_mocked(
 )
 def test_bad_names(
     mock_valid_user: MagicMock,
+    mock_dq_healthcheck: MagicMock,
     mock_check_dq_version: MagicMock,
     mock_requests_get: MagicMock,
     mock_requests_post: MagicMock,

@@ -114,13 +114,13 @@ class TextNERDataLogger(BaseGalileoDataLogger):
 
     def __init__(
         self,
-        texts: List[str] = None,
-        text_token_indices: List[List[Tuple[int, int]]] = None,
-        gold_spans: List[List[Dict]] = None,
-        ids: List[int] = None,
-        split: str = None,
-        meta: MetasType = None,
-        inference_name: str = None,
+        texts: Optional[List[str]] = None,
+        text_token_indices: Optional[List[List[Tuple[int, int]]]] = None,
+        gold_spans: Optional[List[List[Dict]]] = None,
+        ids: Optional[List[int]] = None,
+        split: Optional[str] = None,
+        meta: Optional[MetasType] = None,
+        inference_name: Optional[str] = None,
     ) -> None:
         """Create data logger.
 
@@ -159,8 +159,8 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         *,
         texts: List[str],
         ids: List[int],
-        text_token_indices: List[List[Tuple[int, int]]] = None,
-        gold_spans: List[List[Dict]] = None,
+        text_token_indices: Optional[List[List[Tuple[int, int]]]] = None,
+        gold_spans: Optional[List[List[Dict]]] = None,
         split: Optional[Split] = None,
         inference_name: Optional[str] = None,
         meta: Optional[MetasType] = None,
@@ -204,8 +204,8 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         *,
         text: str,
         id: int,
-        text_token_indices: List[Tuple[int, int]] = None,
-        gold_spans: List[Dict] = None,
+        text_token_indices: Optional[List[Tuple[int, int]]] = None,
+        gold_spans: Optional[List[Dict]] = None,
         split: Optional[Split] = None,
         inference_name: Optional[str] = None,
         meta: Optional[MetaType] = None,
@@ -412,16 +412,15 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             self.meta[str(meta_col)] = df[meta_col].tolist()
         self.log()
 
-    def validate(self) -> None:
+    def validate_and_format(self) -> None:
         """
         Validates that the current config is correct.
         * Text and Labels must both exist (unless split is 'inference' in which case
         gold_spans must be None)
         * Text and Labels must be the same length
         * If ids exist, it must be the same length as text/labels
-        :return: None
         """
-        super().validate()
+        super().validate_and_format()
         assert self.logger_config.labels, (
             "You must set your labels before logging input data. "
             "See dataquality.set_labels_for_run"
@@ -662,7 +661,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
 
     @classmethod
     def separate_dataframe(
-        cls, df: DataFrame, prob_only: bool = True, split: str = None
+        cls, df: DataFrame, prob_only: bool = True, split: Optional[str] = None
     ) -> BaseLoggerDataFrames:
         """Splits the dataframe into logical grouping for minio storage
 
@@ -700,6 +699,10 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         emb_cols = (
             [NERCols.id.value] if prob_only else [NERCols.id.value, NERCols.emb.value]
         )
+        # In the event that we did dimensionality reduction locally with nvidia
+        for col in ["x", "y", "emb_pca"]:
+            if col in df_copy.get_column_names():
+                emb_cols.append(col)
         emb = df_copy[emb_cols]
         return BaseLoggerDataFrames(prob=prob, emb=emb, data=df_copy)
 
@@ -782,6 +785,11 @@ class TextNERDataLogger(BaseGalileoDataLogger):
     @classmethod
     def set_tagging_schema(cls, tagging_schema: TaggingSchema) -> None:
         cls.logger_config.tagging_schema = tagging_schema
+
+    @property
+    def support_data_embs(self) -> bool:
+        """Not yet supported for NER. Coming soon!"""
+        return False
 
     @classmethod
     def create_and_upload_data_embs(

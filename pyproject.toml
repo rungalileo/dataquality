@@ -1,3 +1,4 @@
+
 [build-system]
 requires = ["flit_core >=2,<3"]
 build-backend = "flit_core.buildapi"
@@ -10,65 +11,104 @@ home-page = "https://www.github.com/rungalileo/dataquality"
 description-file = "README.md"
 requires-python = ">=3.7"
 requires = [
-    "pydantic==1.8.2",
-    "requests==2.26.0",
-    "types-requests==2.25.2",
+    "pydantic>=1.8.2",
+    "requests>=2.25.1",
+    "types-requests>=2.25.2",
     "pandas>=0.20.0",
     "pyarrow>=5.0.0",
     "vaex-core==4.16.0",
     "vaex-hdf5>=0.12,<0.13",
-    "diskcache==5.2.1",
-    "resource==0.2.1",
-    "tqdm==4.62.3",
-    "blake3==0.2.1",
-    "wrapt==1.13.3",
+    "diskcache>=5.2.1",
+    "resource>=0.2.1",
+    "tqdm>=4.62.3",
+    "blake3>=0.2.1",
+    "wrapt>=1.13.3",
     "scipy>=1.7.0",
-    "cachetools==5.2.0",
-    "importlib-metadata==4.12.0",
-    "evaluate",
+    "cachetools>=4.2.4",
+    "importlib-metadata<6.0.1",
     "datasets>=2.6",
-    "transformers<4.25.0",
+    "transformers>=4.17.0",
     "seqeval",
     "sentence-transformers>=2.2",
     "Pillow",
     "h5py >=3.1.0",
     "numpy<1.24.0",
-    "tenacity==8.1.0"
+    "tenacity>=8.1.0"
 ]
+
+[tool.flit.scripts]
+dqyolo = "dataquality.dqyolo:main"
 
 [tool.flit.metadata.urls]
 Documentation = "https://rungalileo.gitbook.io/galileo"
 
 [tool.flit.metadata.requires-extra]
 doc = [
-    "mkdocs >=1.1.2,<2.0.0",
-    "mkdocs-material >=5.4.0,<6.0.0",
+    "furo",
+    "sphinx",
+    "sphinx-autodoc-typehints",
+    "myst-parser",
+    "sphinx-markdown-builder",
+    "sphinx-autobuild",
+    "sphinx-markdown-builder"
 ]
 test = [
-    "pytest==7.2.1",
-    "mypy==0.971",
-    "freezegun==1.2.2",
-    "coverage==7.0.5",
-    "pytest-cov==3.0.0",
-    "scikit-learn==1.0",
-    "tensorflow==2.9.1",
-    "pytest-env==0.6.2",
+    "ultralytics",
+    "pytest>=7.2.1",
+    "mypy>=1.0.0",
+    "freezegun>=1.2.2",
+    "coverage>=7.0.5",
+    "pytest-cov>=4.0.0",
+    "scikit-learn>=1.0",
+    "tensorflow>=2.9.1",
+    "pytest-env>=0.8.1",
     "spacy==3.2.1",
-    "types-setuptools==65.5.0.2",
-    "types-cachetools==5.2.1",
-    "torchvision==0.13.1",
-    "torch==1.12.1",
-    "torchtext==0.13.1",
-    "torchdata==0.4.1",
+    "types-setuptools>=67.3.0.1",
+    "types-cachetools>=4.2.4",
+    "torchvision>=0.13.1",
+    "torch>=1.12.1",
+    "torchtext>=0.13.1",
+    "torchdata>=0.4.1",
     "xgboost>=1.6.2",
+    "timm>=0.6.12",
+    "fastai>=2.7.11",
+    "portalocker==2.7.0",
+    "types-PyYAML==6.0.12.9"
 ]
 dev = [
-    "flake8==3.9.2",
-    "black==22.3.0",
-    "isort==5.9.3",
-    "autoflake==1.4",
+    "flake8",
+    "black>=23.1.0",
+    "isort>=5.11.5",
+    "autoflake",
     "jupyter==1.0.0",
+    "evaluate",
+]
+
+# Need to be installed with `pip install 'dataquality[cuda]' --extra-index-url=https://pypi.nvidia.com/ `
+cuda = [
+   "ucx-py-cu11<=0.30",
+   "rmm-cu11==23.2.0",
+   "raft-dask-cu11==23.2.0",
+   "pylibraft-cu11==23.2.0",
+   "dask-cudf-cu11==23.2.0",
+   "cudf-cu11==23.2.0",
+   "cuml-cu11==23.2.0"
+]
+
+minio = [
+    "minio>=7.1.0,<7.2.0"
+]
+
+py37 = [
+    "cachetools>=5.2.0",
+    "types-cachetools>=5.3.0.0",
+    "importlib-metadata<5.0.0",
+]
+
+evaluate = [
+    "evaluate"
 ]
 
 [tool.isort]
 profile = "black"
+
