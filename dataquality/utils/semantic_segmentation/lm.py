@@ -48,14 +48,16 @@ def semseg_get_mislabeled_by_noise(
     probs: torch.Tensor,
     gt: torch.Tensor,
 ) -> torch.Tensor:
-    """ "Gets the most likely mislabeled samples per given GT and actual GT pair using the
+    """Gets the most likely mislabeled samples per given GT and actual GT pair using
 
-    confidence_joint. See the CL paper for more information, but using the confidence
-    joint we can get an estimated probability for the percentage of samples given the i
-    GT label but actually belonging to the j GT label. We extrapolate from the
-    probability a number of samples that are most likely to be mislabeled for each cell
-    in the CJ matrix and choose that many of the highest margin samples
-    (highest margin between predicted to be class j but given class i).
+    the confidence_joint. See the CL paper for more information, but using the
+    confidence joint we can get an estimated probability for the percentage of
+    samples given the i GT label but actually belonging to the j GT label.
+
+    We extrapolate from the probability a number of samples that are most likely
+    to be mislabeled for each cell in the CJ matrix and choose that many of the
+    highest margin samples
+      (highest margin between predicted to be class j but given class i).
 
     Args:
         confident_joint (torch.Tensor): confidence joint matrix
