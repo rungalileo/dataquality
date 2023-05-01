@@ -5,7 +5,7 @@ from dataquality.loggers.logger_config.base_logger_config import BaseLoggerConfi
 
 class SemanticSegmentationLoggerConfig(BaseLoggerConfig):
     image_cloud_path: str = ""
-    finish: Callable = None
+    finish: Callable = lambda: None
 
 
 semantic_segmentation_logger_config = SemanticSegmentationLoggerConfig()

@@ -38,7 +38,7 @@ class Polygon(BaseModel):
             contours.append(np.array(pixels))
         return contours
 
-    def deserialize_json(self) -> List[List[List[int]]]:
+    def deserialize_json(self) -> List[List[List[List[List[int]]]]]:
         contours = []
         for contour in self.contours:
             pixels = []

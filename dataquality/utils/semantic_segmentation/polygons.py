@@ -72,7 +72,7 @@ def upload_polygon_map(
 
 def _upload_polygon_map(
     image_id: int,
-    polygon_map: List[Dict[str, Union[int, str, List[List[int]]]]],
+    polygon_map: List[Dict[str, object]],
     obj_prefix: str,
 ) -> None:
     """Uploads a contour to the cloud for a given image
@@ -211,7 +211,7 @@ def deserialize_polygon_map(map: PolygonMap) -> Dict[int, List[List[np.ndarray]]
 
 def deserialize_polygon_map_json(
     map: PolygonMap,
-) -> List[Dict[str, Union[int, str, List[List[int]]]]]:
+) -> List[Dict[str, object]]:
     """Deserialize the polygon map for json consumptions
 
     Args:

@@ -33,15 +33,15 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
 
     def __init__(
         self,
-        bucket_name: str,
-        image_paths: List[str],
-        image_ids: List[int],
-        gt_masks: torch.Tensor,
-        pred_masks: torch.Tensor,
-        gold_boundary_masks: torch.Tensor,
-        pred_boundary_masks: torch.Tensor,
-        output_probs: torch.Tensor,
-        mislabeled_pixels: torch.Tensor,
+        bucket_name: Optional[str] = None,
+        image_paths: Optional[List[str]] = None,
+        image_ids: Optional[List[int]] = None,
+        gt_masks: Optional[torch.Tensor] = None,
+        pred_masks: Optional[torch.Tensor] = None,
+        gold_boundary_masks: Optional[torch.Tensor] = None,
+        pred_boundary_masks: Optional[torch.Tensor] = None,
+        output_probs: Optional[torch.Tensor] = None,
+        mislabeled_pixels: Optional[torch.Tensor] = None,
         # Below fields must be present, linting from parent class
         embs: Optional[Union[List, np.ndarray]] = None,
         probs: Optional[Union[List, np.ndarray]] = None,
@@ -113,18 +113,26 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         #     "Must be set before training model."
         # )
 
-        # DEP
+        if self.image_paths is None or self.image_ids is None:
+            raise ValueError(
+                "Must have image paths and image ids to log semantic segmentation data"
+            )
+        if self.gt_masks is None or self.pred_masks is None:
+            raise ValueError(
+                "Must have ground truth and predicted masks to log semantic segmentation data"
+            )
+
+        # DEP & likely mislabeled
+        mean_mislabeled = torch.mean(self.mislabled_pixels, dim=(1, 2)).numpy()
+        upload_mislabeled_pixels(
+            self.mislabled_pixels, self.image_ids, prefix=self.lm_path
+        )
+
         image_dep = calculate_and_upload_dep(
             self.output_probs,
             self.gt_masks,
             self.image_ids,
             obj_prefix=self.dep_path,
-        )
-
-        # Likely Mislabeled
-        mean_mislabeled = torch.mean(self.mislabled_pixels, dim=(1, 2)).numpy()
-        upload_mislabeled_pixels(
-            self.mislabled_pixels, self.image_ids, prefix=self.lm_path
         )
 
         # Image Metrics (IoU)

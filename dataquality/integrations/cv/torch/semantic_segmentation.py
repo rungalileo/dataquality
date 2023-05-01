@@ -42,11 +42,9 @@ object_store = ObjectStore()
 class SemanticTorchLogger(TorchLogger):
     def __init__(
         self,
-        model: torch.nn.Module,
         bucket_name: str,
         dataset_path: str,
         mask_col_name: Optional[str] = None,
-        helper_data: Dict[str, Any] = {},
         dataloaders: List[torch.utils.data.DataLoader] = [],
         task: Union[TaskType, None] = TaskType.text_classification,
         *args: Any,
@@ -63,9 +61,9 @@ class SemanticTorchLogger(TorchLogger):
         :param dataloaders: dataloaders to be logged
         :param task: task type
         """
-        super().__init__(model=model, helper_data=helper_data, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
-        self._init_helper_data(self.hook_manager, model)
+        self._init_helper_data(self.hook_manager, self.model)
         self.mask_col_name = mask_col_name
         self.dataset_path = os.path.abspath(dataset_path)
 
@@ -78,11 +76,11 @@ class SemanticTorchLogger(TorchLogger):
         ]
 
         # capture the model input
-        self.hook_manager.attach_hook(model, self._dq_input_hook)
+        self.hook_manager.attach_hook(self.model, self._dq_input_hook)
 
         # try to infer just from the model architecture if not do it on first step
         try:
-            self.number_classes = model.classifier[-1].out_channels
+            self.number_classes = self.model.classifier[-1].out_channels
         except AttributeError:
             self.number_classes = None
 
@@ -406,8 +404,7 @@ def watch(
     model: Module,
     bucket_name: str,
     dataset_path: str,
-    dataloaders: Optional[List[DataLoader]] = [],
-    classifier_layer: Optional[Union[str, Module]] = None,
+    dataloaders: List[DataLoader] = [],
     mask_col_name: Optional[str] = None,
     unpatch_on_start: bool = False,
 ) -> None:
@@ -465,14 +462,14 @@ def watch(
     # to find the data (ie bucket_name/image_path == dataset_path/image_path)
 
     tl = SemanticTorchLogger(
-        model,
+        model=model,
         bucket_name=bucket_name,
         dataset_path=dataset_path,
         mask_col_name=mask_col_name,
         helper_data=helper_data,
         dataloaders=dataloaders,
     )
-    import pdb; pdb.set_trace()
+
     dq.get_model_logger().logger_config.finish = tl.finish
 
     # we can override the num workers as we are the ones using the dataloader
