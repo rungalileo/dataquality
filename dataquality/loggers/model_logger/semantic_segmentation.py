@@ -38,7 +38,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         image_ids: Optional[List[int]] = None,
         gt_masks: Optional[torch.Tensor] = None,
         pred_masks: Optional[torch.Tensor] = None,
-        gold_boundary_masks: Optional[torch.Tensor] = None,
+        gt_boundary_masks: Optional[torch.Tensor] = None,
         pred_boundary_masks: Optional[torch.Tensor] = None,
         output_probs: Optional[torch.Tensor] = None,
         mislabeled_pixels: Optional[torch.Tensor] = None,
@@ -82,7 +82,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         self.image_ids = image_ids
         self.gt_masks = gt_masks
         self.pred_masks = pred_masks
-        self.gold_boundary_masks = gold_boundary_masks
+        self.gt_boundary_masks = gt_boundary_masks
         self.pred_boundary_masks = pred_boundary_masks
         self.output_probs = output_probs
         self.mislabled_pixels = mislabeled_pixels
@@ -113,13 +113,34 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         #     "Must be set before training model."
         # )
 
-        if self.image_paths is None or self.image_ids is None:
+        if self.image_paths is None:
+            raise ValueError("Must have image paths to log semantic segmentation data")
+        if self.image_ids is None:
+            raise ValueError("Must have image ids to log semantic segmentation data")
+        if self.gt_masks is None:
             raise ValueError(
-                "Must have image paths and image ids to log semantic segmentation data"
+                "Must have ground truth masks to log semantic segmentation data"
             )
-        if self.gt_masks is None or self.pred_masks is None:
+        if self.pred_masks is None:
             raise ValueError(
-                "Must have ground truth and predicted masks to log semantic segmentation data"
+                "Must have prediction masks to log semantic segmentation data"
+            )
+        if self.output_probs is None:
+            raise ValueError(
+                "Must have output probabilities to log semantic segmentation data"
+            )
+        if self.mislabled_pixels is None:
+            raise ValueError(
+                "Must have mislabeled pixels to log semantic segmentation data"
+            )
+        if self.pred_boundary_masks is None:
+            raise ValueError(
+                "Must have prediction boundary masks to log semantic segmentation data"
+            )
+        if self.gt_boundary_masks is None:
+            raise ValueError(
+                "Must have ground truth boundary masks to log semantic segmentation \
+                    data"
             )
 
         # DEP & likely mislabeled
@@ -138,7 +159,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         # Image Metrics (IoU)
         mean_ious, category_iou = calculate_mean_iou(self.pred_masks, self.gt_masks)
         boundary_mean_ious, boundary_category_iou = calculate_mean_iou(
-            self.pred_boundary_masks, self.gold_boundary_masks
+            self.pred_boundary_masks, self.gt_boundary_masks
         )
 
         # Image masks

@@ -1,7 +1,7 @@
 import json
 from collections import defaultdict
 from tempfile import NamedTemporaryFile
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Tuple
 
 import cv2
 import numpy as np

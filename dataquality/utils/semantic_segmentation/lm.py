@@ -293,7 +293,7 @@ def semseg_normalize_confident_counts(
     class_counts is the count of number of samples per unique class in the data
     """
     # If a row got no samples, add a 1 on their diagonal (pretend there is no noise).
-    labels_with_no_samples = torch.where(confident_counts.sum(axis=1) == 0)[0]
+    labels_with_no_samples = torch.where(confident_counts.sum(dim=1) == 0.0)[0]
     if len(labels_with_no_samples) > 0:
         partial_diag = torch.zeros(
             (len(class_counts), len(class_counts)), dtype=torch.int64

@@ -78,29 +78,10 @@ class SemanticTorchLogger(TorchLogger):
         # capture the model input
         self.hook_manager.attach_hook(self.model, self._dq_input_hook)
 
-        # try to infer just from the model architecture if not do it on first step
-        try:
-            self.number_classes = self.model.classifier[-1].out_channels
-        except AttributeError:
-            self.number_classes = None
-
         self.image_col = "image"
         self.label_col = "label"
 
         self.called_finish = False
-
-        # initialize variables for likely mislabelled
-        self.confident_count = torch.zeros(
-            (self.number_classes, self.number_classes), dtype=torch.int64
-        )
-        self.counts_per_class = torch.zeros(self.number_classes, dtype=torch.int64)
-        self.thresholds = torch.zeros(self.number_classes, dtype=torch.float32)
-        self.thresholds += 0.5
-
-        # create a queue to store the last 100 probs and gt for computing LM
-        self.queue_size = 100
-        self.prob_queue = torch.empty((self.queue_size, 64, 64, self.number_classes))
-        self.gt_queue = torch.empty((self.queue_size, 64, 64))
 
     def convert_dataset(self, dataset: Any) -> List:
         """Convert the dataset to the format expected by the dataquality client"""
@@ -151,7 +132,7 @@ class SemanticTorchLogger(TorchLogger):
         self,
         model: Module,
         model_input: torch.Tensor,
-        model_output: Dict[str, torch.Tensor],
+        model_output: Union[Any, torch.Tensor],
     ) -> None:
         """
         Hook to extract the logits, embeddings from the model.
@@ -220,11 +201,25 @@ class SemanticTorchLogger(TorchLogger):
         gt = gt.squeeze(1)
 
         # stack on the end of the queue and remove front to keep only most recent
-        self.prob_queue = torch.cat((self.prob_queue, probs), dim=0)
-        self.gt_queue = torch.cat((self.gt_queue, gt), dim=0)
+        self.prob_queue: torch.Tensor = torch.cat((self.prob_queue, probs), dim=0)
+        self.gt_queue: torch.Tensor = torch.cat((self.gt_queue, gt), dim=0)
         if self.prob_queue.shape[0] > self.queue_size:
             self.prob_queue = self.prob_queue[bs:]
             self.gt_queue = self.gt_queue[bs:]
+
+    def _init_lm_labels(self) -> None:
+        # initialize variables for likely mislabelled
+        self.confident_count = torch.zeros(
+            (self.number_classes, self.number_classes), dtype=torch.int64
+        )
+        self.counts_per_class = torch.zeros(self.number_classes, dtype=torch.int64)
+        self.thresholds = torch.zeros(self.number_classes, dtype=torch.float32)
+        self.thresholds += 0.5
+
+        # create a queue to store the last 100 probs and gt for computing LM
+        self.queue_size: int = 100
+        self.prob_queue = torch.empty((self.queue_size, 64, 64, self.number_classes))
+        self.gt_queue = torch.empty((self.queue_size, 64, 64))
 
     def _on_step_end(self) -> None:
         """Function to be called at the end of step to log the inputs and outputs"""
@@ -234,10 +229,10 @@ class SemanticTorchLogger(TorchLogger):
             self.find_mask_category(self.helper_data["batch"]["data"])
 
         # if we have not inferred the number of classes from the model architecture
-        if not self.number_classes:
-            self.number_classes = self.helper_data[HelperData.model_outputs_store][
-                "logits"
-            ].shape[1]
+        self.number_classes = self.helper_data[HelperData.model_outputs_store][
+            "logits"
+        ].shape[1]
+        self._init_lm_labels()
 
         with torch.no_grad():
             logging_data = self.helper_data["batch"]["data"]
@@ -318,7 +313,7 @@ class SemanticTorchLogger(TorchLogger):
                 image_ids=img_ids,
                 gt_masks=gold_mask,  # Torch tensor (bs, w, h)
                 pred_masks=argmax,  # Torch tensor (bs, w, h)
-                gold_boundary_masks=torch.tensor(
+                gt_boundary_masks=torch.tensor(
                     gold_boundary_masks
                 ),  # Torch tensor (bs, w, h)
                 pred_boundary_masks=torch.tensor(
