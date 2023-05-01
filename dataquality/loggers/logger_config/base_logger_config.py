@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Any, DefaultDict, Dict, List, Optional, Set
+from typing import Any, Callable, DefaultDict, Dict, List, Optional, Set
 
 from pydantic import BaseModel, validator
 
@@ -33,6 +33,7 @@ class BaseLoggerConfig(BaseModel):
     int_labels: bool = False
     feature_names: List[str] = []
     metadata_documents: Set = set()  # A document is a large str > 1k chars < 10k chars
+    finish: Callable = lambda: None  # For semantic segmentation
 
     class Config:
         validate_assignment = True
