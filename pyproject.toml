@@ -84,16 +84,15 @@ dev = [
     "evaluate",
 ]
 
-# Need to be installed with `pip install 'dataquality[cuda]' --extra-index-url=https://pypi.ngc.nvidia.com/ `
-# Need to pin because the new release is broken https://github.com/rapidsai/cudf/issues/12762#issuecomment-1462845289
+# Need to be installed with `pip install 'dataquality[cuda]' --extra-index-url=https://pypi.nvidia.com/ `
 cuda = [
-   "ucx-py-cu11<0.30",
-   "rmm-cu11==22.12",
-   "raft-dask-cu11==22.12",
-   "pylibraft-cu11==22.12",
-   "dask-cudf-cu11==22.12",
-   "cudf-cu11==22.12",
-   "cuml-cu11==22.12"
+   "ucx-py-cu11<=0.30",
+   "rmm-cu11==23.2.0",
+   "raft-dask-cu11==23.2.0",
+   "pylibraft-cu11==23.2.0",
+   "dask-cudf-cu11==23.2.0",
+   "cudf-cu11==23.2.0",
+   "cuml-cu11==23.2.0"
 ]
 
 minio = [
