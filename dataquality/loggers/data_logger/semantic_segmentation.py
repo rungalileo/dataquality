@@ -1,7 +1,6 @@
 from enum import Enum
 from typing import Any, List, Optional, Union
 
-from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger.base_data_logger import (
     ITER_CHUNK_SIZE,
