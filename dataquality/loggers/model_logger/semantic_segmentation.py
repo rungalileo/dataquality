@@ -108,41 +108,6 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
 
     def _get_data_dict(self) -> Dict:
         """Returns a dictionary of data to be logged as a DataFrame"""
-        # assert self.logger_config.image_cloud_path is not None, (
-        #     "Must have image cloud path, set using `dq.set_image_cloud_path`. "
-        #     "Must be set before training model."
-        # )
-
-        """if self.image_paths is None:
-            raise ValueError("Must have image paths to log semantic segmentation data")
-        if self.image_ids is None:
-            raise ValueError("Must have image ids to log semantic segmentation data")
-        if self.gt_masks is None:
-            raise ValueError(
-                "Must have ground truth masks to log semantic segmentation data"
-            )
-        if self.pred_masks is None:
-            raise ValueError(
-                "Must have prediction masks to log semantic segmentation data"
-            )
-        if self.output_probs is None:
-            raise ValueError(
-                "Must have output probabilities to log semantic segmentation data"
-            )
-        if self.mislabled_pixels is None:
-            raise ValueError(
-                "Must have mislabeled pixels to log semantic segmentation data"
-            )
-        if self.pred_boundary_masks is None:
-            raise ValueError(
-                "Must have prediction boundary masks to log semantic segmentation data"
-            )
-        if self.gt_boundary_masks is None:
-            raise ValueError(
-                "Must have ground truth boundary masks to log semantic segmentation \
-                    data"
-            )"""
-
         assert (
             self.image_paths is not None
         ), "Must have image paths to log semantic segmentation data"
