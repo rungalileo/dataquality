@@ -165,7 +165,7 @@ class ObjectStore:
                 put_req(data=f)
 
     def create_project_run_object_from_df(
-        self, df: DataFrame, object_name: str
+        self, df: DataFrame, object_name: str, bucket_name: Optional[str] = None
     ) -> None:
         """Uploads a Vaex dataframe at the specified object_name location"""
         ext = get_file_extension(object_name)
@@ -174,6 +174,7 @@ class ObjectStore:
             self.create_object(
                 object_name=object_name,
                 file_path=f.name,
+                bucket_name=bucket_name,
             )
 
     def download_file(
