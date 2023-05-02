@@ -84,6 +84,7 @@ class TorchLogger(TorchBaseInstance):
                 HelperData.model_outputs_store: {},
                 HelperData.hook_manager: hm,
                 HelperData.model: model,
+                HelperData.batch: {},
             }
         )
 
