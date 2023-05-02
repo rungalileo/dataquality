@@ -1,9 +1,17 @@
 from enum import Enum
-<<<<<<< HEAD
 from typing import Dict, List
 
 import numpy as np
 from pydantic import BaseModel
+
+
+class SemSegCols(str, Enum):
+    id = "id"
+    image_path = "image_path"
+    mask_path = "mask_path"
+    # mixin restriction on str (due to "str".split(...))
+    split = "split"  # type: ignore
+    meta = "meta"
 
 
 class ErrorType(str, Enum):
@@ -51,12 +59,3 @@ class Polygon(BaseModel):
 
 class PolygonMap(BaseModel):
     map: Dict[int, List[Polygon]]
-
-
-class SemSegCols(str, Enum):
-    id = "id"
-    image_path = "image_path"
-    mask_path = "mask_path"
-    # mixin restriction on str (due to "str".split(...))
-    split = "split"  # type: ignore
-    meta = "meta"
