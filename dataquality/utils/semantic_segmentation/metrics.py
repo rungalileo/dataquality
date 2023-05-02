@@ -144,8 +144,7 @@ def calculate_mean_iou(
     mean_ious = []
     all_ious = []
 
-    # for iou need shape (bs, 1, height, width) for some reason -
-    # unsure if that is actually true but it works
+    # for iou need shape (bs, 1, height, width) to get per mask iou
     for i in range(len(pred_masks)):
         iou = metric._compute(
             pred_masks[i : i + 1],  # tensor (1, height, width)

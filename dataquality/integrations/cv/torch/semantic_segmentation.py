@@ -83,7 +83,7 @@ class SemanticTorchLogger(TorchLogger):
 
         self.called_finish = False
 
-    def convert_dataset(self, dataset: Any) -> List:
+    def convert_dataset(self, dataset: torch.utils.data.Dataset) -> List:
         """Convert the dataset to the format expected by the dataquality client"""
 
         # we wouldn't need any of this if we could map ids to the cloud images
