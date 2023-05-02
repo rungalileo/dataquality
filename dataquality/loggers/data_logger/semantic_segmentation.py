@@ -26,15 +26,6 @@ from dataquality.utils.vaex import get_output_df
 ITER_CHUNK_SIZE_IMAGES = 10000
 
 
-class SemSegCols(str, Enum):
-    image_path = "image_path"
-    mask_path = "mask_path"
-    id = "id"
-    # mixin restriction on str (due to "str".split(...))
-    split = "split"  # type: ignore
-    meta = "meta"  # Metadata columns for logging
-
-
 class SemanticSegmentationDataLogger(BaseGalileoDataLogger):
     __logger_name__ = "semantic_segmentation"
     logger_config: SemanticSegmentationLoggerConfig = (

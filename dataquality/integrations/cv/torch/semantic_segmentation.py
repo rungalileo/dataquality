@@ -13,10 +13,10 @@ from dataquality.clients.api import ApiClient
 from dataquality.clients.objectstore import ObjectStore
 from dataquality.exceptions import GalileoException
 from dataquality.integrations.torch import TorchLogger, unwatch
-from dataquality.loggers.data_logger.semantic_segmentation import SemSegCols
 from dataquality.loggers.model_logger.semantic_segmentation import (
     SemanticSegmentationModelLogger,
 )
+from dataquality.schema.semantic_segmentation import SemSegCols
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.schemas.torch import HelperData

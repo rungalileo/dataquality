@@ -235,3 +235,4 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         if self.split == Split.inference:
             data["inference_name"] = [self.inference_name] * len(self.image_ids)
         return data
+

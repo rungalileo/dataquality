@@ -11,6 +11,7 @@ from dataquality.loggers.data_logger.base_data_logger import BaseGalileoDataLogg
 
 __all__ = [
     "image_classification",
+    "semantic_segmentation",
     "text_classification",
     "semantic_segmentation",
     "tabular_classification",
