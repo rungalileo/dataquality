@@ -11,8 +11,8 @@ from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelL
 from dataquality.schemas.semantic_segmentation import ErrorType
 from dataquality.schemas.split import Split
 from dataquality.utils.semantic_segmentation.errors import (
-    calculate_misclassified_object,
-    calculate_undetected_object,
+    calculate_misclassified_polygons,
+    calculate_undetected_polygons,
 )
 from dataquality.utils.semantic_segmentation.lm import upload_mislabeled_pixels
 from dataquality.utils.semantic_segmentation.metrics import (
@@ -156,10 +156,10 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         pred_polygon_maps = find_polygon_maps(self.pred_masks)
         gt_polygon_maps = find_polygon_maps(self.gt_masks)
         # Errors
-        misclassified_objects = calculate_misclassified_object(
+        misclassified_objects = calculate_misclassified_polygons(
             self.gt_masks, pred_polygon_maps
         )
-        undetected_objects = calculate_undetected_object(
+        undetected_objects = calculate_undetected_polygons(
             self.pred_masks, gt_polygon_maps
         )
         # Add errors to polygons and upload to Minio
@@ -181,7 +181,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
 
         data = {
             "image": [
-                f"{self.bucket_name}/{pth.lstrip('./')}" for pth in self.image_paths
+                f"{self.bucket_name}/{pth}" for pth in self.image_paths
             ],  # "gs://.../image_id.png
             "image_id": self.image_ids,
             "height": [img.shape[-1] for img in self.gt_masks],

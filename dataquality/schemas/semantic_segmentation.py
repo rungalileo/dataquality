@@ -32,13 +32,12 @@ class Contour(BaseModel):
 
 
 class Polygon(BaseModel):
-    # id: int
-    # label_idx: int
-    # lablel: str
-    # error_type: ErrorTypes
     contours: List[Contour]
 
     def deserialize(self) -> List[np.ndarray]:
+        """Takes a polygon object and returns a list of np.ndarrays
+        corresponding to the contours of the polygon
+        """
         contours = []
         for contour in self.contours:
             pixels = []
@@ -48,6 +47,9 @@ class Polygon(BaseModel):
         return contours
 
     def deserialize_json(self) -> List[List[List[List[List[int]]]]]:
+        """Takes a polygon object and returns a list of lists etc
+        of contours of the polygon for json consumption
+        """
         contours = []
         for contour in self.contours:
             pixels = []
