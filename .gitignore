@@ -176,3 +176,6 @@ runs
 VIA2COCO
 coco_dataset/
 coco.ipynb
+
+# SemSeg
+CV_datasets/

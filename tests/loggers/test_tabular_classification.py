@@ -13,8 +13,8 @@ from dataquality.clients.api import ApiClient
 from dataquality.clients.objectstore import ObjectStore
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.base_logger import BaseGalileoLogger
-from dataquality.loggers.data_logger.structured_classification import (
-    StructuredClassificationDataLogger,
+from dataquality.loggers.data_logger.tabular_classification import (
+    TabularClassificationDataLogger,
 )
 from dataquality.schemas.job import JobName
 from dataquality.schemas.request_type import RequestType
@@ -22,18 +22,18 @@ from dataquality.schemas.task_type import TaskType
 from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID
 
 
-class TestStructuredClassificationDataLogger:
+class TestTabularClassificationDataLogger:
     def test_init(
         self,
         fit_xgboost: xgb.XGBClassifier,
-        sc_data: Dict,
+        tab_data: Dict,
     ) -> None:
         """Test that validate_inputs is called on init"""
-        logger = StructuredClassificationDataLogger(
+        logger = TabularClassificationDataLogger(
             model=fit_xgboost,
-            X=sc_data["training"]["X"],
-            y=sc_data["training"]["y"],
-            feature_names=sc_data["feature_names"],
+            X=tab_data["training"]["X"],
+            y=tab_data["training"]["y"],
+            feature_names=tab_data["feature_names"],
             split="training",
         )
         for attr in [
@@ -60,17 +60,17 @@ class TestStructuredClassificationDataLogger:
         self, split: str, inference_name: Optional[str], create_logger: Callable
     ) -> None:
         """Test that validation works for all splits"""
-        logger: StructuredClassificationDataLogger = create_logger(
+        logger: TabularClassificationDataLogger = create_logger(
             split=split, inference_name=inference_name
         )
         logger.validate_and_format()
 
-    @mock.patch.object(StructuredClassificationDataLogger, "set_probs")
+    @mock.patch.object(TabularClassificationDataLogger, "set_probs")
     def test_validate_inputs(
         self,
         mock_set_probs: mock.MagicMock,
         fit_xgboost: xgb.XGBClassifier,
-        sc_data: Dict,
+        tab_data: Dict,
     ) -> None:
         """Test that validate_inputs casts X and y to the correct types
 
@@ -78,11 +78,11 @@ class TestStructuredClassificationDataLogger:
         - set probs
         - save feature importances
         """
-        logger = StructuredClassificationDataLogger(
+        logger = TabularClassificationDataLogger(
             model=fit_xgboost,
-            X=sc_data["training"]["X"],
-            y=list(sc_data["training"]["y"]),
-            feature_names=sc_data["feature_names"],
+            X=tab_data["training"]["X"],
+            y=list(tab_data["training"]["y"]),
+            feature_names=tab_data["feature_names"],
             split="training",
         )
         logger.validate_and_prepare_logger()
@@ -92,12 +92,12 @@ class TestStructuredClassificationDataLogger:
 
         mock_set_probs.assert_called_once_with()
 
-    def test_set_probs(self, fit_xgboost: xgb.XGBClassifier, sc_data: Dict) -> None:
-        logger = StructuredClassificationDataLogger(
+    def test_set_probs(self, fit_xgboost: xgb.XGBClassifier, tab_data: Dict) -> None:
+        logger = TabularClassificationDataLogger(
             model=fit_xgboost,
-            X=sc_data["training"]["X"],
-            y=sc_data["training"]["y"],
-            feature_names=sc_data["feature_names"],
+            X=tab_data["training"]["X"],
+            y=tab_data["training"]["y"],
+            feature_names=tab_data["feature_names"],
             split="training",
         )
         assert logger.probs is None
@@ -110,15 +110,15 @@ class TestStructuredClassificationDataLogger:
         self,
         mock_set_metrics: mock.MagicMock,
         fit_xgboost: xgb.XGBClassifier,
-        sc_data: Dict,
+        tab_data: Dict,
         set_test_config: Callable,
     ) -> None:
-        set_test_config(task_type="structured_classification")
-        logger = StructuredClassificationDataLogger(
+        set_test_config(task_type="tabular_classification")
+        logger = TabularClassificationDataLogger(
             model=fit_xgboost,
-            X=sc_data["training"]["X"],
-            y=sc_data["training"]["y"],
-            feature_names=sc_data["feature_names"],
+            X=tab_data["training"]["X"],
+            y=tab_data["training"]["y"],
+            feature_names=tab_data["feature_names"],
             split="training",
         )
         # We need to call this to set logger config feature importances
@@ -149,7 +149,7 @@ class TestStructuredClassificationDataLogger:
             },
         )
 
-    @mock.patch.object(StructuredClassificationDataLogger, "save_feature_importances")
+    @mock.patch.object(TabularClassificationDataLogger, "save_feature_importances")
     def test_log(
         self,
         mock_save_feature_importances: mock.MagicMock,
@@ -162,7 +162,7 @@ class TestStructuredClassificationDataLogger:
         """
         set_test_config()
 
-        logger: StructuredClassificationDataLogger = create_logger(split="training")
+        logger: TabularClassificationDataLogger = create_logger(split="training")
         logger.validate_and_prepare_logger()
         logger.log()
 
@@ -173,21 +173,21 @@ class TestStructuredClassificationDataLogger:
         assert os.path.exists(f"{df_export_path}/data/data.hdf5")
         assert os.path.exists(f"{df_export_path}/prob/prob.hdf5")
 
-    @mock.patch.object(StructuredClassificationDataLogger, "save_feature_importances")
+    @mock.patch.object(TabularClassificationDataLogger, "save_feature_importances")
     def test_get_dfs(
         self,
         mock_save_feature_importances: mock.MagicMock,
         create_logger: Callable,
-        sc_data: Dict,
+        tab_data: Dict,
     ) -> None:
         # Set up logger with dataset, probs and split
-        logger: StructuredClassificationDataLogger = create_logger(split="training")
+        logger: TabularClassificationDataLogger = create_logger(split="training")
         logger.validate_and_prepare_logger()
 
         df, prob_df = logger._get_dfs()
 
         assert isinstance(df, DataFrame)
-        expected_cols = sc_data["feature_names"].copy()
+        expected_cols = tab_data["feature_names"].copy()
         expected_cols += ["pred", "id", "split", "data_schema_version"]
         assert sorted(df.get_column_names()) == sorted(expected_cols)
 
@@ -198,8 +198,8 @@ class TestStructuredClassificationDataLogger:
         # All dfs should have same number of rows
         assert len(df) == len(prob_df)
 
-    @mock.patch.object(StructuredClassificationDataLogger, "save_feature_importances")
-    @mock.patch("dataquality.loggers.data_logger.structured_classification.os.walk")
+    @mock.patch.object(TabularClassificationDataLogger, "save_feature_importances")
+    @mock.patch("dataquality.loggers.data_logger.tabular_classification.os.walk")
     @mock.patch.object(ObjectStore, "create_object")
     def test_upload(
         self,
@@ -224,7 +224,7 @@ class TestStructuredClassificationDataLogger:
                 ["prob.hdf5"],
             ),
         ]
-        logger: StructuredClassificationDataLogger = create_logger(split="training")
+        logger: TabularClassificationDataLogger = create_logger(split="training")
         logger.upload()
 
         assert mock_create_object.call_count == 2
@@ -247,15 +247,15 @@ class TestStructuredClassificationDataLogger:
         mock_save_importances.assert_called_once_with()
 
 
-class TestStructuredClassificationValidationErrors:
+class TestTabularClassificationValidationErrors:
     def test_validate_missing_split(
-        self, fit_xgboost: xgb.XGBClassifier, sc_data: Dict
+        self, fit_xgboost: xgb.XGBClassifier, tab_data: Dict
     ) -> None:
-        logger = StructuredClassificationDataLogger(
+        logger = TabularClassificationDataLogger(
             model=fit_xgboost,
-            X=sc_data["training"]["X"],
-            y=sc_data["training"]["y"],
-            feature_names=sc_data["feature_names"],
+            X=tab_data["training"]["X"],
+            y=tab_data["training"]["y"],
+            feature_names=tab_data["feature_names"],
         )
         with pytest.raises(GalileoException) as e:
             logger.validate_and_format()
@@ -266,13 +266,13 @@ class TestStructuredClassificationValidationErrors:
         )
 
     def test_validate_missing_inference_name(
-        self, fit_xgboost: xgb.XGBClassifier, sc_data: Dict
+        self, fit_xgboost: xgb.XGBClassifier, tab_data: Dict
     ) -> None:
-        logger = StructuredClassificationDataLogger(
+        logger = TabularClassificationDataLogger(
             model=fit_xgboost,
-            X=sc_data["training"]["X"],
-            y=sc_data["training"]["y"],
-            feature_names=sc_data["feature_names"],
+            X=tab_data["training"]["X"],
+            y=tab_data["training"]["y"],
+            feature_names=tab_data["feature_names"],
             split="inference",
         )
         with pytest.raises(GalileoException) as e:
@@ -286,7 +286,7 @@ class TestStructuredClassificationValidationErrors:
 
     def test_validate_inputs_model_model_missing_predict_proba(self) -> None:
         """Test error is raised if model does not have a preodict_proba method"""
-        logger = StructuredClassificationDataLogger(
+        logger = TabularClassificationDataLogger(
             model=None,
             X=None,
             split="training",
@@ -299,7 +299,7 @@ class TestStructuredClassificationValidationErrors:
     def test_validate_inputs_model_not_fitted(self) -> None:
         """Test error is raised if model is not already fit"""
         model = xgb.XGBClassifier()
-        logger = StructuredClassificationDataLogger(
+        logger = TabularClassificationDataLogger(
             model=model,
             X=None,
             split="training",
@@ -313,7 +313,7 @@ class TestStructuredClassificationValidationErrors:
         self, fit_xgboost: xgb.XGBClassifier
     ) -> None:
         """X is not a DataFrame or numpy array"""
-        logger = StructuredClassificationDataLogger(
+        logger = TabularClassificationDataLogger(
             model=fit_xgboost,
             X=3,
             split="training",
@@ -326,14 +326,14 @@ class TestStructuredClassificationValidationErrors:
         )
 
     def test_validate_inputs_invalid_y_type(
-        self, fit_xgboost: xgb.XGBClassifier, sc_data: Dict
+        self, fit_xgboost: xgb.XGBClassifier, tab_data: Dict
     ) -> None:
         """y is not a list or numpy array"""
-        logger = StructuredClassificationDataLogger(
+        logger = TabularClassificationDataLogger(
             model=fit_xgboost,
-            X=sc_data["training"]["X"],
+            X=tab_data["training"]["X"],
             y=3,
-            feature_names=sc_data["feature_names"],
+            feature_names=tab_data["feature_names"],
             split="training",
         )
         with pytest.raises(AssertionError) as e:
@@ -345,14 +345,14 @@ class TestStructuredClassificationValidationErrors:
         )
 
     def test_validate_inputs_X_and_y_different_lengths(
-        self, fit_xgboost: xgb.XGBClassifier, sc_data: Dict
+        self, fit_xgboost: xgb.XGBClassifier, tab_data: Dict
     ) -> None:
         """X and y have different lengths"""
-        logger = StructuredClassificationDataLogger(
+        logger = TabularClassificationDataLogger(
             model=fit_xgboost,
-            X=sc_data["training"]["X"],
-            y=sc_data["training"]["y"][:2],
-            feature_names=sc_data["feature_names"],
+            X=tab_data["training"]["X"],
+            y=tab_data["training"]["y"][:2],
+            feature_names=tab_data["feature_names"],
             split="training",
         )
         with pytest.raises(AssertionError) as e:
@@ -363,13 +363,13 @@ class TestStructuredClassificationValidationErrors:
         )
 
     def test_validate_inputs_data_feature_names_set(
-        self, fit_xgboost: xgb.XGBClassifier, sc_data: Dict
+        self, fit_xgboost: xgb.XGBClassifier, tab_data: Dict
     ) -> None:
         """Feature names are not set and X is numpy array"""
-        logger = StructuredClassificationDataLogger(
+        logger = TabularClassificationDataLogger(
             model=fit_xgboost,
-            X=sc_data["training"]["X"],
-            y=sc_data["training"]["y"],
+            X=tab_data["training"]["X"],
+            y=tab_data["training"]["y"],
             split="training",
         )
         with pytest.raises(AssertionError) as e:
@@ -382,14 +382,14 @@ class TestStructuredClassificationValidationErrors:
         )
 
     def test_validate_inputs_data_and_features_names_mismatch(
-        self, fit_xgboost: xgb.XGBClassifier, sc_data: Dict
+        self, fit_xgboost: xgb.XGBClassifier, tab_data: Dict
     ) -> None:
         """Test error is raised if X and features_names have different lengths"""
-        logger = StructuredClassificationDataLogger(
+        logger = TabularClassificationDataLogger(
             model=fit_xgboost,
-            X=sc_data["training"]["X"],
-            y=sc_data["training"]["y"],
-            feature_names=sc_data["feature_names"][1:],
+            X=tab_data["training"]["X"],
+            y=tab_data["training"]["y"],
+            feature_names=tab_data["feature_names"][1:],
             split="training",
         )
         with pytest.raises(AssertionError) as e:
@@ -412,18 +412,18 @@ class TestStructuredClassificationValidationErrors:
         name: str,
         badchars: str,
         fit_xgboost: xgb.XGBClassifier,
-        sc_data: Dict,
+        tab_data: Dict,
         set_test_config: Callable,
         cleanup_after_use: Generator,
     ) -> None:
         """Test that validate_inputs casts X and y to the correct types"""
         set_test_config()
-        feature_names = sc_data["feature_names"].copy()
+        feature_names = tab_data["feature_names"].copy()
         feature_names[0] = name
-        logger = StructuredClassificationDataLogger(
+        logger = TabularClassificationDataLogger(
             model=fit_xgboost,
-            X=sc_data["training"]["X"],
-            y=list(sc_data["training"]["y"]),
+            X=tab_data["training"]["X"],
+            y=list(tab_data["training"]["y"]),
             feature_names=feature_names,
             split="training",
         )
@@ -455,8 +455,8 @@ class TestStructuredClassificationValidationErrors:
 @mock.patch.object(
     ApiClient, "make_request", return_value={"link": "link", "job_name": "job_name"}
 )
-@mock.patch.object(StructuredClassificationDataLogger, "save_feature_importances")
-class TestStructuredClassificationE2E:
+@mock.patch.object(TabularClassificationDataLogger, "save_feature_importances")
+class TestTabularClassificationE2E:
     def _assert_mocks(
         self,
         mock_upload_dq_log_file: mock.MagicMock,
@@ -470,7 +470,7 @@ class TestStructuredClassificationE2E:
             mock_reset_run.assert_not_called()
         else:
             mock_reset_run.assert_called_once_with(
-                DEFAULT_PROJECT_ID, DEFAULT_RUN_ID, TaskType.structured_classification
+                DEFAULT_PROJECT_ID, DEFAULT_RUN_ID, TaskType.tabular_classification
             )
 
     def test_log_pandas_e2e(
@@ -484,21 +484,21 @@ class TestStructuredClassificationE2E:
         mock_upload_df_to_minio: mock.MagicMock,
         set_test_config: Callable,
         fit_xgboost: xgb.XGBClassifier,
-        sc_data: Dict,
+        tab_data: Dict,
     ) -> None:
         """Test logging input pandas dfs for training, validation and test splits"""
-        set_test_config(task_type="structured_classification")
-        dq.set_labels_for_run(sc_data["labels"])
+        set_test_config(task_type="tabular_classification")
+        dq.set_labels_for_run(tab_data["labels"])
         dq.log_xgboost(
             model=fit_xgboost,
-            X=sc_data["training"]["df"],
-            y=sc_data["training"]["y"],
+            X=tab_data["training"]["df"],
+            y=tab_data["training"]["y"],
             split="training",
         )
         dq.log_xgboost(
             model=fit_xgboost,
-            X=sc_data["test"]["df"],
-            y=sc_data["test"]["y"],
+            X=tab_data["test"]["df"],
+            y=tab_data["test"]["y"],
             split="test",
         )
         dq.finish(wait=False)
@@ -513,10 +513,10 @@ class TestStructuredClassificationE2E:
                 "project_id": str(DEFAULT_PROJECT_ID),
                 "run_id": str(DEFAULT_RUN_ID),
                 "labels": ["class_0", "class_1", "class_2"],
-                "task_type": "structured_classification",
+                "task_type": "tabular_classification",
                 "tasks": None,
                 "ner_labels": [],
-                "feature_names": sc_data["feature_names"],
+                "feature_names": tab_data["feature_names"],
             },
         )
         self._assert_mocks(mock_upload_dq_log_file, mock_reset_run, mock_version_check)
@@ -532,23 +532,23 @@ class TestStructuredClassificationE2E:
         mock_upload_df_to_minio: mock.MagicMock,
         set_test_config: Callable,
         fit_xgboost: xgb.XGBClassifier,
-        sc_data: Dict,
+        tab_data: Dict,
     ) -> None:
         """Test logging input numpy arrays for training, validation and test splits"""
-        set_test_config(task_type="structured_classification")
-        dq.set_labels_for_run(sc_data["labels"])
+        set_test_config(task_type="tabular_classification")
+        dq.set_labels_for_run(tab_data["labels"])
         dq.log_xgboost(
             model=fit_xgboost,
-            X=sc_data["training"]["X"],
-            feature_names=sc_data["feature_names"],
-            y=sc_data["training"]["y"],
+            X=tab_data["training"]["X"],
+            feature_names=tab_data["feature_names"],
+            y=tab_data["training"]["y"],
             split="training",
         )
         dq.log_xgboost(
             model=fit_xgboost,
-            X=sc_data["test"]["X"],
-            feature_names=sc_data["feature_names"],
-            y=sc_data["test"]["y"],
+            X=tab_data["test"]["X"],
+            feature_names=tab_data["feature_names"],
+            y=tab_data["test"]["y"],
             split="test",
         )
         dq.finish(wait=False)
@@ -563,10 +563,10 @@ class TestStructuredClassificationE2E:
                 "project_id": str(DEFAULT_PROJECT_ID),
                 "run_id": str(DEFAULT_RUN_ID),
                 "labels": ["class_0", "class_1", "class_2"],
-                "task_type": "structured_classification",
+                "task_type": "tabular_classification",
                 "tasks": None,
                 "ner_labels": [],
-                "feature_names": sc_data["feature_names"],
+                "feature_names": tab_data["feature_names"],
             },
         )
         self._assert_mocks(mock_upload_dq_log_file, mock_reset_run, mock_version_check)
@@ -582,26 +582,26 @@ class TestStructuredClassificationE2E:
         mock_upload_df_to_minio: mock.MagicMock,
         set_test_config: Callable,
         fit_xgboost: xgb.XGBClassifier,
-        sc_data: Dict,
+        tab_data: Dict,
     ) -> None:
         """Test logging input pandas dfs for training and inference splits"""
-        set_test_config(task_type="structured_classification")
-        dq.set_labels_for_run(sc_data["labels"])
+        set_test_config(task_type="tabular_classification")
+        dq.set_labels_for_run(tab_data["labels"])
         dq.log_xgboost(
             model=fit_xgboost,
-            X=sc_data["training"]["df"],
-            y=sc_data["training"]["y"],
+            X=tab_data["training"]["df"],
+            y=tab_data["training"]["y"],
             split="training",
         )
         dq.log_xgboost(
             model=fit_xgboost,
-            X=sc_data["inf1"]["df"],
+            X=tab_data["inf1"]["df"],
             split="inference",
             inference_name="inf1",
         )
         dq.log_xgboost(
             model=fit_xgboost,
-            X=sc_data["inf2"]["df"],
+            X=tab_data["inf2"]["df"],
             split="inference",
             inference_name="inf2",
         )
@@ -617,12 +617,12 @@ class TestStructuredClassificationE2E:
                 "project_id": str(DEFAULT_PROJECT_ID),
                 "run_id": str(DEFAULT_RUN_ID),
                 "labels": ["class_0", "class_1", "class_2"],
-                "task_type": "structured_classification",
+                "task_type": "tabular_classification",
                 "tasks": None,
                 "ner_labels": [],
                 "job_name": JobName.inference,
                 "non_inference_logged": True,
-                "feature_names": sc_data["feature_names"],
+                "feature_names": tab_data["feature_names"],
             },
         )
         self._assert_mocks(mock_upload_dq_log_file, mock_reset_run, mock_version_check)
@@ -638,29 +638,29 @@ class TestStructuredClassificationE2E:
         mock_upload_df_to_minio: mock.MagicMock,
         set_test_config: Callable,
         fit_xgboost: xgb.XGBClassifier,
-        sc_data: Dict,
+        tab_data: Dict,
     ) -> None:
         """Test logging input numpy arrays for training and inference splits"""
-        set_test_config(task_type="structured_classification")
-        dq.set_labels_for_run(sc_data["labels"])
+        set_test_config(task_type="tabular_classification")
+        dq.set_labels_for_run(tab_data["labels"])
         dq.log_xgboost(
             model=fit_xgboost,
-            X=sc_data["training"]["X"],
-            y=sc_data["training"]["y"],
-            feature_names=sc_data["feature_names"],
+            X=tab_data["training"]["X"],
+            y=tab_data["training"]["y"],
+            feature_names=tab_data["feature_names"],
             split="training",
         )
         dq.log_xgboost(
             model=fit_xgboost,
-            X=sc_data["inf1"]["X"],
-            feature_names=sc_data["feature_names"],
+            X=tab_data["inf1"]["X"],
+            feature_names=tab_data["feature_names"],
             split="inference",
             inference_name="inf1",
         )
         dq.log_xgboost(
             model=fit_xgboost,
-            X=sc_data["inf2"]["X"],
-            feature_names=sc_data["feature_names"],
+            X=tab_data["inf2"]["X"],
+            feature_names=tab_data["feature_names"],
             split="inference",
             inference_name="inf2",
         )
@@ -676,12 +676,12 @@ class TestStructuredClassificationE2E:
                 "project_id": str(DEFAULT_PROJECT_ID),
                 "run_id": str(DEFAULT_RUN_ID),
                 "labels": ["class_0", "class_1", "class_2"],
-                "task_type": "structured_classification",
+                "task_type": "tabular_classification",
                 "tasks": None,
                 "ner_labels": [],
                 "job_name": JobName.inference,
                 "non_inference_logged": True,
-                "feature_names": sc_data["feature_names"],
+                "feature_names": tab_data["feature_names"],
             },
         )
         self._assert_mocks(mock_upload_dq_log_file, mock_reset_run, mock_version_check)
@@ -697,20 +697,20 @@ class TestStructuredClassificationE2E:
         mock_upload_df_to_minio: mock.MagicMock,
         set_test_config: Callable,
         fit_xgboost: xgb.XGBClassifier,
-        sc_data: Dict,
+        tab_data: Dict,
     ) -> None:
         """Test logging input data as pandas dfs for inference splits"""
-        set_test_config(task_type="structured_classification")
-        dq.set_labels_for_run(sc_data["labels"])
+        set_test_config(task_type="tabular_classification")
+        dq.set_labels_for_run(tab_data["labels"])
         dq.log_xgboost(
             model=fit_xgboost,
-            X=sc_data["inf1"]["df"],
+            X=tab_data["inf1"]["df"],
             split="inference",
             inference_name="inf1",
         )
         dq.log_xgboost(
             model=fit_xgboost,
-            X=sc_data["inf2"]["df"],
+            X=tab_data["inf2"]["df"],
             split="inference",
             inference_name="inf2",
         )
@@ -726,12 +726,12 @@ class TestStructuredClassificationE2E:
                 "project_id": str(DEFAULT_PROJECT_ID),
                 "run_id": str(DEFAULT_RUN_ID),
                 "labels": ["class_0", "class_1", "class_2"],
-                "task_type": "structured_classification",
+                "task_type": "tabular_classification",
                 "tasks": None,
                 "ner_labels": [],
                 "job_name": JobName.inference,
                 "non_inference_logged": False,
-                "feature_names": sc_data["feature_names"],
+                "feature_names": tab_data["feature_names"],
             },
         )
         self._assert_mocks(
@@ -752,22 +752,22 @@ class TestStructuredClassificationE2E:
         mock_upload_df_to_minio: mock.MagicMock,
         set_test_config: Callable,
         fit_xgboost: xgb.XGBClassifier,
-        sc_data: Dict,
+        tab_data: Dict,
     ) -> None:
         """Test logging input data as numpy arrays for inference splits"""
-        set_test_config(task_type="structured_classification")
-        dq.set_labels_for_run(sc_data["labels"])
+        set_test_config(task_type="tabular_classification")
+        dq.set_labels_for_run(tab_data["labels"])
         dq.log_xgboost(
             model=fit_xgboost,
-            X=sc_data["inf1"]["X"],
-            feature_names=sc_data["feature_names"],
+            X=tab_data["inf1"]["X"],
+            feature_names=tab_data["feature_names"],
             split="inference",
             inference_name="inf1",
         )
         dq.log_xgboost(
             model=fit_xgboost,
-            X=sc_data["inf2"]["X"],
-            feature_names=sc_data["feature_names"],
+            X=tab_data["inf2"]["X"],
+            feature_names=tab_data["feature_names"],
             split="inference",
             inference_name="inf2",
         )
@@ -783,12 +783,12 @@ class TestStructuredClassificationE2E:
                 "project_id": str(DEFAULT_PROJECT_ID),
                 "run_id": str(DEFAULT_RUN_ID),
                 "labels": ["class_0", "class_1", "class_2"],
-                "task_type": "structured_classification",
+                "task_type": "tabular_classification",
                 "tasks": None,
                 "ner_labels": [],
                 "job_name": JobName.inference,
                 "non_inference_logged": False,
-                "feature_names": sc_data["feature_names"],
+                "feature_names": tab_data["feature_names"],
             },
         )
         self._assert_mocks(
