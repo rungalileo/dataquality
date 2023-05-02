@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from torch.nn import Module
 from torch.nn import functional as F
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 
 import dataquality as dq
 from dataquality.analytics import Analytics
@@ -46,7 +46,7 @@ class SemanticTorchLogger(TorchLogger):
         dataset_path: str,
         mask_col_name: Optional[str] = None,
         dataloaders: List[torch.utils.data.DataLoader] = [],
-        task: Union[TaskType, None] = TaskType.text_classification,
+        task: Union[TaskType, None] = TaskType.semantic_segmentation,
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -71,8 +71,11 @@ class SemanticTorchLogger(TorchLogger):
         self.file_map: Dict[str, int] = {}
         self.bucket_name = bucket_name
         self.dataloaders = dataloaders
-        self.datasets = [
-            self.convert_dataset(dataloader.dataset) for dataloader in dataloaders
+        self.datasets: List[Dataset] = [
+            dataloader.dataset for dataloader in dataloaders
+        ]
+        self.converted_datasets: List[List] = [
+            self.convert_dataset(dataset) for dataset in self.datasets
         ]
 
         # capture the model input
@@ -83,7 +86,7 @@ class SemanticTorchLogger(TorchLogger):
 
         self.called_finish = False
 
-    def convert_dataset(self, dataset: torch.utils.data.Dataset) -> List:
+    def convert_dataset(self, dataset: Any) -> List:
         """Convert the dataset to the format expected by the dataquality client"""
 
         # we wouldn't need any of this if we could map ids to the cloud images

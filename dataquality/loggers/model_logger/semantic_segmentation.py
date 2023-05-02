@@ -113,7 +113,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         #     "Must be set before training model."
         # )
 
-        if self.image_paths is None:
+        """if self.image_paths is None:
             raise ValueError("Must have image paths to log semantic segmentation data")
         if self.image_ids is None:
             raise ValueError("Must have image ids to log semantic segmentation data")
@@ -141,7 +141,32 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             raise ValueError(
                 "Must have ground truth boundary masks to log semantic segmentation \
                     data"
-            )
+            )"""
+
+        assert (
+            self.image_paths is not None
+        ), "Must have image paths to log semantic segmentation data"
+        assert (
+            self.image_ids is not None
+        ), "Must have image ids to log semantic segmentation data"
+        assert (
+            self.gt_masks is not None
+        ), "Must have ground truth masks to log semantic segmentation data"
+        assert (
+            self.pred_masks is not None
+        ), "Must have prediction masks to log semantic segmentation data"
+        assert (
+            self.output_probs is not None
+        ), "Must have output probabilities to log semantic segmentation data"
+        assert (
+            self.mislabled_pixels is not None
+        ), "Must have mislabeled pixels to log semantic segmentation data"
+        assert (
+            self.pred_boundary_masks is not None
+        ), "Must have prediction boundary masks to log semantic segmentation data"
+        assert (
+            self.gt_boundary_masks is not None
+        ), "Must have ground truth boundary masks to log semantic segmentation data"
 
         # DEP & likely mislabeled
         mean_mislabeled = torch.mean(self.mislabled_pixels, dim=(1, 2)).numpy()
