@@ -2,7 +2,6 @@ import cv2
 import numpy as np
 
 
-# edited mask to boundary function with np.where to avoid unexpected behaviour
 def mask_to_boundary(mask: np.ndarray, dilation_ratio: float = 0.02) -> np.ndarray:
     """
     Convert binary mask to boundary mask.

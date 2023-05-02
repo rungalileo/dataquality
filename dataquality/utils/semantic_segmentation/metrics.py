@@ -43,7 +43,7 @@ def calculate_dep_heatmaps(probs: torch.Tensor, gt_masks: torch.Tensor) -> torch
     bs = probs.shape[0]
     # flatten the height and width dimensions
     probs = probs.view(bs, -1, n_classes)  # (bs, n_pixels, n_classes)
-    size = gt_masks.shape
+    mask_size = gt_masks.shape
     gt_masks = gt_masks.view(bs, -1, 1)  # (bs, n_pixels, 1)
 
     gt_indices = (
@@ -62,7 +62,7 @@ def calculate_dep_heatmaps(probs: torch.Tensor, gt_masks: torch.Tensor) -> torch
     # Since margin is between -1 and 1, we normalize it to be between 0 and 1
     normalized_margin = (1 + margin) / 2
     dep_masks = 1 - normalized_margin
-    dep_masks = dep_masks.view(size)
+    dep_masks = dep_masks.view(mask_size)
     return dep_masks
 
 
@@ -94,8 +94,6 @@ def upload_dep_heatmaps(
 
 def dep_heatmap_to_img(dep_heatmap: np.ndarray) -> Image:
     """Converts DEP heatmap to PIL Image
-
-
     We cast the heatmap to a 1-channel PIL Image object in grey scale
     and store it as a PNG file in Minio in order to compress the file size
     as much as possible.
@@ -111,7 +109,6 @@ def dep_heatmap_to_img(dep_heatmap: np.ndarray) -> Image:
     # Create a PIL Image object from the numpy array as grey-scale
     img = Image.fromarray(dep_heatmap, mode="L")
     if img.size[0] > MAX_DEP_HEATMAP_SIZE or img.size[1] > MAX_DEP_HEATMAP_SIZE:
-        # img.thumbnail((MAX_DEP_HEATMAP_SIZE, MAX_DEP_HEATMAP_SIZE))
         img.resize((MAX_DEP_HEATMAP_SIZE, MAX_DEP_HEATMAP_SIZE))
     return img
 

@@ -113,17 +113,6 @@ def build_polygon_map(mask: np.ndarray) -> PolygonMap:
 
     cv2.findContours returns a Tuple of contours, where each contour is a
         numpy array of shape (num_points, 1, 2)
-
-    Example:
-    {
-        "7": [  # Class '7' has 2 contours
-            ((13, 17), (19, 25), (22, 21), (13, 17)),  # contour 1
-            ((0, 3), (2, 5), (4, 6), (2, 2), (0,3)),  # contour 2
-        ],
-        "15": [  # Class '15' has 1 contour
-            ((11, 17), (19, 25), (22, 21), (11, 17)),  # contour 1
-        ],
-    }
     """
     polygon_map = {}
     for label in np.unique(mask).astype(int).tolist():

@@ -33,12 +33,12 @@ def calculate_lm_for_batch(
         torch.Tensor: bs, h, w matrix of 1s and 0s where 1s are likely mislabeled
     """
     confident_joint = semseg_normalize_confident_counts(confident_count, class_counts)
-    mislabelled_conf = semseg_get_mislabeled_by_class_confidence(
+    mislabelled_by_conf = semseg_get_mislabeled_by_class_confidence(
         self_confidence, confident_joint, gt=gt, num_classes=number_classes
     )
-    mislabelled_noise = semseg_get_mislabeled_by_noise(confident_joint, probs, gt)
+    mislabelled_by_noise = semseg_get_mislabeled_by_noise(confident_joint, probs, gt)
 
-    final_mislabelled = mislabelled_conf * mislabelled_noise
+    final_mislabelled = mislabelled_by_conf * mislabelled_by_noise
 
     return final_mislabelled
 
@@ -74,7 +74,6 @@ def semseg_get_mislabeled_by_noise(
     num_samples = probs.shape[0]
     gt = gt.view(-1)
     mislabled_ids: List = []
-    num_classes = probs.shape[-1]
     ids = torch.arange(probs.shape[0])
     for given_gold_idx in range(num_classes):
         bool_mask = gt == given_gold_idx
@@ -334,7 +333,6 @@ def _semseg_calculate_confidence_joint(
     count_per_class = torch.bincount(gt.view(-1), minlength=probs.shape[-1])
     num_classes = probs.shape[-1]
 
-    # going to have to change this to be per class once I get some aggregate stats
     per_class_threshold = np.array([0.5 for i in range(num_classes)])
     confident_counts = _semseg_get_confident_counts(probs, gt, per_class_threshold)
     confident_joint = semseg_normalize_confident_counts(
@@ -396,7 +394,6 @@ def calculate_self_confidence_threshold(
     """
     bs, h, w, c = probs.shape
     value_at_ground_truth = semseg_calculate_self_confidence(probs, gt)
-    # count = torch.bincount(gt.view(-1), minlength=probs.shape[-1])
 
     # get the mean of the self confidence per class
     mean_self_confidence_per_class = []
