@@ -6,14 +6,14 @@ import xgboost as xgb
 from sklearn.datasets import load_wine
 from sklearn.model_selection import train_test_split
 
-from dataquality.loggers.data_logger.structured_classification import (
-    StructuredClassificationDataLogger,
+from dataquality.loggers.data_logger.tabular_classification import (
+    TabularClassificationDataLogger,
 )
 
 
 @pytest.fixture(scope="module")
-def sc_data() -> Dict:
-    """Structured Classification data for tests"""
+def tab_data() -> Dict:
+    """Tabular Classification data for tests"""
     wine = load_wine()
 
     X = wine.data
@@ -40,23 +40,23 @@ def sc_data() -> Dict:
 
 
 @pytest.fixture(scope="module")
-def fit_xgboost(sc_data: Dict) -> xgb.XGBClassifier:
+def fit_xgboost(tab_data: Dict) -> xgb.XGBClassifier:
     model = xgb.XGBClassifier()
-    model.fit(sc_data["training"]["X"], sc_data["training"]["y"])
+    model.fit(tab_data["training"]["X"], tab_data["training"]["y"])
     return model
 
 
 @pytest.fixture
-def create_logger(sc_data: Dict, fit_xgboost: xgb.XGBClassifier) -> Callable:
+def create_logger(tab_data: Dict, fit_xgboost: xgb.XGBClassifier) -> Callable:
     def curry(
         split: str = "training", inference_name: Optional[str] = None
-    ) -> StructuredClassificationDataLogger:
+    ) -> TabularClassificationDataLogger:
         key = inference_name if split == "inference" else split
-        return StructuredClassificationDataLogger(
+        return TabularClassificationDataLogger(
             model=fit_xgboost,
-            X=sc_data[key]["X"],
-            y=sc_data[key].get("y"),  # We use get since inf data doesn't have y
-            feature_names=sc_data["feature_names"],
+            X=tab_data[key]["X"],
+            y=tab_data[key].get("y"),  # We use get since inf data doesn't have y
+            feature_names=tab_data["feature_names"],
             split=split,
             inference_name=inference_name,
         )
