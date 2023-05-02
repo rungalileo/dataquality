@@ -163,6 +163,7 @@ class TorchLogger(TorchBaseInstance):
             model_outputs_store["ids"] = self.helper_data[
                 HelperData.dl_next_idx_ids
             ].pop(0)
+
         # Log only if embedding exists
         assert model_outputs_store.get("embs") is not None, GalileoException(
             "Embedding passed to the logger can not be logged"

@@ -13,7 +13,6 @@ __all__ = [
     "image_classification",
     "semantic_segmentation",
     "text_classification",
-    "semantic_segmentation",
     "tabular_classification",
     "text_multi_label",
     "text_ner",
