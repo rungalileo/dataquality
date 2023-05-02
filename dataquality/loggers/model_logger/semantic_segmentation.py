@@ -157,8 +157,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         )
 
         # Image Metrics (IoU)
-        mean_ious, category_iou = calculate_mean_iou(self.pred_masks, self.gt_masks)
-        boundary_mean_ious, boundary_category_iou = calculate_mean_iou(
+        iou, iou_per_class = calculate_mean_iou(self.pred_masks, self.gt_masks)
+        boundary_iou, boundary_iou_per_class = calculate_mean_iou(
             self.pred_boundary_masks, self.gt_boundary_masks
         )
 
@@ -197,11 +197,11 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "height": [img.shape[-1] for img in self.gt_masks],
             "width": [img.shape[-2] for img in self.gt_masks],
             "data_error_potential": image_dep,
-            "mean_iou": mean_ious,
             "mean_lm_score": [i for i in mean_mislabeled],
-            "category_iou": category_iou,
-            "boundary_iou": boundary_mean_ious,
-            "boundary_category_iou": boundary_category_iou,
+            "mean_iou": iou,
+            "mean_iou_per_class": iou_per_class,
+            "boundary_iou": boundary_iou,
+            "boundary_iou_per_class": boundary_iou_per_class,
             "classification_errors": misclassified_objects,  # str of polygon ids
             "undetected_errors": undetected_objects,  # str of polygon ids
             "split": [self.split] * len(self.image_ids),

@@ -138,13 +138,15 @@ def calculate_mean_iou(
        shape = (bs, height, width)
     :param nc: number of classes
 
-    returns: list of mIoU values for each image in the batch
+    returns: Tuple:
+      - List of mIoU values for each image in the batch
+      - List of mIoU values for each image per class in the batch
     """
     metric = evaluate.load("mean_iou")
     mean_ious = []
-    all_ious = []
+    per_class_ious = []
 
-    # for iou need shape (bs, 1, height, width) for some reason -
+    # For iou need shape (bs, 1, height, width) for some reason -
     # unsure if that is actually true but it works
     for i in range(len(pred_masks)):
         iou = metric._compute(
@@ -154,5 +156,5 @@ def calculate_mean_iou(
             ignore_index=255,
         )
         mean_ious.append(iou["mean_iou"].item())
-        all_ious.append(iou["per_category_iou"])
-    return mean_ious, all_ious
+        per_class_ious.append(iou["per_category_iou"])
+    return mean_ious, per_class_ious
