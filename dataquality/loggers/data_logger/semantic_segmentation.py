@@ -5,7 +5,6 @@ import vaex
 
 from dataquality.clients.objectstore import ObjectStore
 from dataquality.core._config import config
-
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger.base_data_logger import (
     ITER_CHUNK_SIZE,
