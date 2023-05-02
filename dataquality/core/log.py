@@ -17,8 +17,8 @@ from dataquality.loggers.data_logger.base_data_logger import ITER_CHUNK_SIZE, Da
 from dataquality.loggers.data_logger.image_classification import (
     ImageClassificationDataLogger,
 )
-from dataquality.loggers.data_logger.structured_classification import (
-    StructuredClassificationDataLogger,
+from dataquality.loggers.data_logger.tabular_classification import (
+    TabularClassificationDataLogger,
 )
 from dataquality.loggers.logger_config.text_multi_label import (
     text_multi_label_logger_config,
@@ -164,7 +164,7 @@ def log_xgboost(
     split: Optional[Split] = None,
     inference_name: Optional[str] = None,
 ) -> None:
-    """Log data for structured classification models with XGBoost
+    """Log data for tabular classification models with XGBoost
 
     X can be logged as a numpy array or pandas DataFrame. If a numpy array is
     provided, feature_names must be provided. If a pandas DataFrame is provided,
@@ -234,9 +234,9 @@ def log_xgboost(
         split=split,
         inference_name=inference_name,
     )
-    assert isinstance(data_logger, StructuredClassificationDataLogger), (
-        "This method is only supported for structured data tasks. "
-        "You must call dq.init('structured_classification') to use this method."
+    assert isinstance(data_logger, TabularClassificationDataLogger), (
+        "This method is only supported for tabular data tasks. "
+        "You must call dq.init('tabular_classification') to use this method."
     )
 
     data_logger.log()

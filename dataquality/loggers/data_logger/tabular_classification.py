@@ -21,9 +21,9 @@ from vaex.dataframe import DataFrame
 
 from dataquality.clients.objectstore import ObjectStore
 from dataquality.loggers.data_logger.base_data_logger import BaseGalileoDataLogger
-from dataquality.loggers.logger_config.structured_classification import (
-    StructuredClassificationLoggerConfig,
-    structured_classification_logger_config,
+from dataquality.loggers.logger_config.tabular_classification import (
+    TabularClassificationLoggerConfig,
+    tabular_classification_logger_config,
 )
 from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.split import Split
@@ -31,10 +31,10 @@ from dataquality.schemas.split import Split
 api_client = ApiClient()
 
 
-class StructuredClassificationDataLogger(BaseGalileoDataLogger):
-    __logger_name__ = "structured_classification"
-    logger_config: StructuredClassificationLoggerConfig = (
-        structured_classification_logger_config
+class TabularClassificationDataLogger(BaseGalileoDataLogger):
+    __logger_name__ = "tabular_classification"
+    logger_config: TabularClassificationLoggerConfig = (
+        tabular_classification_logger_config
     )
 
     def __init__(
@@ -173,7 +173,7 @@ class StructuredClassificationDataLogger(BaseGalileoDataLogger):
     def log(self) -> None:
         """Uploads data and probs df to disk in .galileo/logs
 
-        Support for batching to come in V1 of structured data project.
+        Support for batching to come in V1 of tabular data project.
 
         We write the dfs to disk in the following locations:
         /Users/username/.galileo/logs/proj-id/run-id/training/data/data.hdf5

@@ -214,7 +214,9 @@ def get_output_df(
 def add_pca_to_df(df: DataFrame, chunk_size: int = PCA_CHUNK_SIZE) -> DataFrame:
     """Adds the 'emb_pca' to the dataframe"""
     df_copy = df.copy()
-    pca = IncrementalPCA(n_components=PCA_N_COMPONENTS)
+    # sklearn breaks if a the dataset has less samples than PCA_N_COMPONENTS
+    n_components = min(PCA_N_COMPONENTS, len(df_copy))
+    pca = IncrementalPCA(n_components=n_components)
     for i1, i2, chunk in df_copy.evaluate_iterator("emb", chunk_size=chunk_size):
         pca.partial_fit(chunk)
 
