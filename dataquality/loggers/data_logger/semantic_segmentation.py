@@ -1,10 +1,6 @@
-import os
 from enum import Enum
 from typing import Any, List, Optional, Union
 
-import vaex
-
-from dataquality.clients.objectstore import ObjectStore
 from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger.base_data_logger import (
@@ -18,7 +14,6 @@ from dataquality.loggers.logger_config.semantic_segmentation import (
     semantic_segmentation_logger_config,
 )
 from dataquality.schemas.split import Split
-from dataquality.utils.vaex import get_output_df
 
 # smaller than ITER_CHUNK_SIZE from base_data_logger because very large chunks
 # containing image data often won't fit in memory
