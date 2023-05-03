@@ -55,8 +55,8 @@ def finish(
     if data_logger.non_inference_logged():
         _reset_run(config.current_project_id, config.current_run_id, config.task_type)
 
-    if config.task_type == TaskType.semantic_segmentation:
-        data_logger.logger_config.finish()
+    # Certain tasks require extra finish logic
+    data_logger.logger_config.finish()
 
     data_logger.upload(last_epoch, create_data_embs=create_data_embs)
     upload_dq_log_file()

@@ -33,7 +33,7 @@ class BaseLoggerConfig(BaseModel):
     int_labels: bool = False
     feature_names: List[str] = []
     metadata_documents: Set = set()  # A document is a large str > 1k chars < 10k chars
-    finish: Callable = lambda: None  # For semantic segmentation
+    finish: Callable = lambda: None  # Overwritten in Semantic Segmentation
 
     class Config:
         validate_assignment = True

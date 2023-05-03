@@ -18,7 +18,6 @@ from dataquality.loggers.model_logger.semantic_segmentation import (
 )
 from dataquality.schema.semantic_segmentation import SemSegCols
 from dataquality.schemas.split import Split
-from dataquality.schemas.task_type import TaskType
 from dataquality.schemas.torch import HelperData
 from dataquality.utils.helpers import wrap_fn
 from dataquality.utils.semantic_segmentation.lm import (
@@ -35,14 +34,19 @@ a.log_import("torch")
 object_store = ObjectStore()
 
 
+# Heuristic used to calculate Likely Mislabeled for Semantic Segmentation
+# A larger queue size corresponds to a more accurate estimate of LM.
+# We keep a queue size to overcome memory issues with large SemSeg datasets.
+LIKELY_MISLABELED_QUEUE_SIZE = 100
+
+
 class SemanticTorchLogger(TorchLogger):
     def __init__(
         self,
         bucket_name: str,
         dataset_path: str,
+        dataloaders: Dict[str, torch.utils.data.DataLoader],
         mask_col_name: Optional[str] = None,
-        dataloaders: List[torch.utils.data.DataLoader] = [],
-        task: Union[TaskType, None] = TaskType.semantic_segmentation,
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -53,7 +57,6 @@ class SemanticTorchLogger(TorchLogger):
         :param dataset_path: path to the parent dataset folder
         :param mask_col_name: name of the column that contains the mask
         :param dataloaders: dataloaders to be logged
-        :param task: task type
         """
         super().__init__(*args, **kwargs)
 
@@ -66,25 +69,22 @@ class SemanticTorchLogger(TorchLogger):
         self.bucket_name = bucket_name
         self.dataloaders = dataloaders
         self.datasets: List[Dataset] = [
-            dataloader.dataset for dataloader in dataloaders
+            dataloader.dataset for dataloader in dataloaders.values()
         ]
         self.converted_datasets: List[List] = [
             self.convert_dataset(dataset) for dataset in self.datasets
         ]
-
         # capture the model input
         self.hook_manager.attach_hook(self.model, self._dq_input_hook)
-
         self.image_col = "image"
-        self.label_col = "label"
-
         self.called_finish = False
+        self.queue_size = LIKELY_MISLABELED_QUEUE_SIZE
 
     def convert_dataset(self, dataset: Any) -> List:
         """Convert the dataset to the format expected by the dataquality client"""
-
         # we wouldn't need any of this if we could map ids to the cloud images
         assert len(dataset) > 0
+        assert self.image_col in dataset[0].keys()
         processed_dataset = []
         for i, data in enumerate(dataset):
             if "image_path" not in data:
@@ -106,9 +106,6 @@ class SemanticTorchLogger(TorchLogger):
             processed_dataset.append(
                 {SemSegCols.image_path: image_path, SemSegCols.id: i}
             )
-            if i == 100:
-                print("Only logging 100 images for now")
-                break
         # I have assumed we can collect the masks from the hooks in the dataloader
         return processed_dataset
 
@@ -125,8 +122,6 @@ class SemanticTorchLogger(TorchLogger):
                 raise ValueError(
                     "No mask column found in the batch please specify in watch method"
                 )
-        print(f"Mask column name is {self.mask_col_name}")
-        return
 
     def _dq_classifier_hook_with_step_end(
         self,
@@ -218,14 +213,11 @@ class SemanticTorchLogger(TorchLogger):
         self.thresholds += 0.5
 
         # create a queue to store the last 100 probs and gt for computing LM
-        self.queue_size: int = 100
         self.prob_queue = torch.empty((self.queue_size, 64, 64, self.number_classes))
         self.gt_queue = torch.empty((self.queue_size, 64, 64))
 
     def _on_step_end(self) -> None:
         """Function to be called at the end of step to log the inputs and outputs"""
-        # TODO: code to calculate the threshold for each class during training loop
-
         if not self.mask_col_name:
             self.find_mask_category(self.helper_data["batch"]["data"])
 
@@ -238,7 +230,6 @@ class SemanticTorchLogger(TorchLogger):
         with torch.no_grad():
             logging_data = self.helper_data["batch"]["data"]
             img_ids = self.helper_data["batch"]["ids"]  # np.ndarray (bs,)
-            logging_data["image_path"]
             log_image_paths = logging_data["image_path"]
             # convert the img_ids to absolute ids from file map
             img_ids = [self.file_map[path] for path in log_image_paths]
@@ -257,7 +248,7 @@ class SemanticTorchLogger(TorchLogger):
             ), "The model output shape is not as expected. \
                     Expected classes to be in last dimension"
 
-            argmax = torch.argmax(preds.clone(), dim=-1)
+            argmax = preds.clone().argmax(dim=-1)
             logits = preds  # (bs, w, h, classes)
             gold_boundary_masks = mask_to_boundary(
                 logging_data[self.mask_col_name].clone().cpu().numpy()
@@ -333,13 +324,11 @@ class SemanticTorchLogger(TorchLogger):
         self.called_finish = True
         # finish function that runs our inference at the end of training
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.splits = [Split.training, Split.validation, Split.test]
-        for i, dataloader in enumerate(self.dataloaders):
-            print("Running dataquality on dataloader: ", self.splits[i])
-            dq.set_epoch_and_split(0, self.splits[i])
+        for split, dataloader in self.dataloaders.items():
+            # For sem seg the final inference loop is always considered epoch 0
+            dq.set_epoch_and_split(0, Split[split])
             with torch.no_grad():
                 self.run_one_epoch(dataloader, device)
-        return
 
     def run_one_epoch(self, dataloader: DataLoader, device: torch.device) -> None:
         if torch.cuda.is_available():
@@ -349,9 +338,6 @@ class SemanticTorchLogger(TorchLogger):
                 img = batch[self.image_col]
                 img = img.to(device)
                 self.model(img)
-                if i == 2:
-                    print("Cutting off early for testing")
-        return
 
 
 # store the batch
@@ -404,7 +390,7 @@ def watch(
     model: Module,
     bucket_name: str,
     dataset_path: str,
-    dataloaders: List[DataLoader] = [],
+    dataloaders: Dict[str, DataLoader],
     mask_col_name: Optional[str] = None,
     unpatch_on_start: bool = False,
 ) -> None:
@@ -451,49 +437,44 @@ def watch(
             "Model is already being watched, run unwatch(model) first"
         )
 
+    dataloaders = dataloaders or {}
+    if not dataloaders:
+        raise GalileoException(
+            "No dataloaders passed. Please pass a list of dataloaders to watch"
+        )
+    for key, dataloader in dataloaders.items():
+        assert key in Split.__members__, GalileoException(
+            f"Dataloader key {key} is not a valid split"
+        )
+        assert isinstance(dataloader, DataLoader), GalileoException(
+            "Invalid dataloader. Must be a pytorch dataloader"
+            "from torch.utils.data import DataLoader..."
+            "train_dataloader = DataLoader(dataset)"
+        )
+        # We override the dataloader to have 0 workers since multi-processing
+        # is not supported for the way we do the final inference run over
+        # data in the logging step
+        if getattr(dataloader, "num_workers", 0) > 0:
+            dataloader.num_workers = 0
+
     helper_data = dq.get_model_logger().logger_config.helper_data
-    print("Attaching dataquality to model and dataloaders")
 
     # we assume that the image_path they pass to us is relative to the bucket / dataset
     # ie if the path they give to us should be the same path we can use in their bucket
     # to find the data (ie bucket_name/image_path == dataset_path/image_path)
 
     tl = SemanticTorchLogger(
-        model=model,
         bucket_name=bucket_name,
         dataset_path=dataset_path,
+        dataloaders=dataloaders,
         mask_col_name=mask_col_name,
         helper_data=helper_data,
-        dataloaders=dataloaders,
+        model=model,
     )
 
     dq.get_model_logger().logger_config.finish = tl.finish
-
-    # we can override the num workers as we are the ones using the dataloader
-    for dataloader in dataloaders:
-        if getattr(dataloader, "num_workers", 0) > 0:
-            dataloader.num_workers = 0
-
-    if dataloaders is None:
-        dataloaders = []
-
-    if len(dataloaders) > 0:
-        for dataloader in dataloaders:
-            assert isinstance(dataloader, DataLoader), GalileoException(
-                "Invalid dataloader. Must be a pytorch dataloader"
-                "from torch.utils.data import DataLoader..."
-                "train_dataloader = DataLoader(dataset)"
-            )
-            assert (
-                getattr(dataloader, "num_workers", 0) == 0
-            ), "Dataloaders with num_workers > 0 are not supported"
-            dataloader._get_iterator = wrap_fn(  # type: ignore
-                dataloader._get_iterator,
-                patch_iterator_and_batch(tl.helper_data["batch"]),
-            )
-    else:
-        raise GalileoException(
-            "No dataloaders passed. Please pass a list of dataloaders to watch"
+    for key, dataloader in dataloaders.items():
+        dataloader._get_iterator = wrap_fn(  # type: ignore
+            dataloader._get_iterator,
+            patch_iterator_and_batch(tl.helper_data["batch"]),
         )
-
-    return
