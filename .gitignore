@@ -178,5 +178,4 @@ coco_dataset/
 coco.ipynb
 
 # SemSeg
-semantic_segmentation_testing/
 CV_datasets/
