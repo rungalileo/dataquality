@@ -33,15 +33,15 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
 
     def __init__(
         self,
-        bucket_name: Optional[str] = None,
-        image_paths: Optional[List[str]] = None,
-        image_ids: Optional[List[int]] = None,
-        gt_masks: Optional[torch.Tensor] = None,
-        pred_masks: Optional[torch.Tensor] = None,
-        gt_boundary_masks: Optional[torch.Tensor] = None,
-        pred_boundary_masks: Optional[torch.Tensor] = None,
-        output_probs: Optional[torch.Tensor] = None,
-        mislabeled_pixels: Optional[torch.Tensor] = None,
+        bucket_name: str = "",
+        image_paths: List[str] = [],
+        image_ids: List[int] = [],
+        gt_masks: torch.Tensor = torch.empty(0),
+        pred_masks: torch.Tensor = torch.empty(0),
+        gt_boundary_masks: torch.Tensor = torch.empty(0),
+        pred_boundary_masks: torch.Tensor = torch.empty(0),
+        output_probs: torch.Tensor = torch.empty(0),
+        mislabeled_pixels: torch.Tensor = torch.empty(0),
         # Below fields must be present, linting from parent class
         embs: Optional[Union[List, np.ndarray]] = None,
         probs: Optional[Union[List, np.ndarray]] = None,
@@ -108,31 +108,6 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
 
     def _get_data_dict(self) -> Dict:
         """Returns a dictionary of data to be logged as a DataFrame"""
-        assert (
-            self.image_paths is not None
-        ), "Must have image paths to log semantic segmentation data"
-        assert (
-            self.image_ids is not None
-        ), "Must have image ids to log semantic segmentation data"
-        assert (
-            self.gt_masks is not None
-        ), "Must have ground truth masks to log semantic segmentation data"
-        assert (
-            self.pred_masks is not None
-        ), "Must have prediction masks to log semantic segmentation data"
-        assert (
-            self.output_probs is not None
-        ), "Must have output probabilities to log semantic segmentation data"
-        assert (
-            self.mislabled_pixels is not None
-        ), "Must have mislabeled pixels to log semantic segmentation data"
-        assert (
-            self.pred_boundary_masks is not None
-        ), "Must have prediction boundary masks to log semantic segmentation data"
-        assert (
-            self.gt_boundary_masks is not None
-        ), "Must have ground truth boundary masks to log semantic segmentation data"
-
         # DEP & likely mislabeled
         mean_mislabeled = torch.mean(self.mislabled_pixels, dim=(1, 2)).numpy()
         upload_mislabeled_pixels(
