@@ -8,7 +8,6 @@ from dataquality.loggers.logger_config.semantic_segmentation import (
     semantic_segmentation_logger_config,
 )
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
-from dataquality.schemas.semantic_segmentation import ErrorType
 from dataquality.schemas.split import Split
 from dataquality.utils.semantic_segmentation.errors import (
     calculate_misclassified_polygons_batch,
@@ -20,8 +19,8 @@ from dataquality.utils.semantic_segmentation.metrics import (
     calculate_mean_iou,
 )
 from dataquality.utils.semantic_segmentation.polygons import (
-    find_polygon_maps,
-    upload_polygon_map,
+    find_polygons_batch,
+    upload_polygons_image,
 )
 
 
@@ -130,30 +129,26 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         )
 
         # Image masks
-        pred_polygon_maps = find_polygon_maps(self.pred_masks)
-        gt_polygon_maps = find_polygon_maps(self.gt_masks)
+        pred_polygons_batch = find_polygons_batch(self.pred_masks)
+        gt_polygons_batch = find_polygons_batch(self.gt_masks)
         # Errors
-        misclassified_objects = calculate_misclassified_polygons_batch(
-            self.gt_masks, pred_polygon_maps
+        calculate_misclassified_polygons_batch(
+            self.gt_masks, pred_polygons_batch
         )
-        undetected_objects = calculate_undetected_polygons_batch(
-            self.pred_masks, gt_polygon_maps
+        calculate_undetected_polygons_batch(
+            self.pred_masks, gt_polygons_batch
         )
         # Add errors to polygons and upload to Minio
         for i, image_id in enumerate(self.image_ids):
-            upload_polygon_map(
-                pred_polygon_maps[i],
+            upload_polygons_image(
+                pred_polygons_batch[i],
                 image_id,
                 self.pred_mask_path,
-                misclassified_objects[i],
-                ErrorType.classification,
             )
-            upload_polygon_map(
-                gt_polygon_maps[i],
+            upload_polygons_image(
+                gt_polygons_batch[i],
                 image_id,
                 self.gt_mask_path,
-                undetected_objects[i],
-                ErrorType.undetected,
             )
 
         data = {
@@ -169,8 +164,6 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "mean_iou_per_class": iou_per_class,
             "boundary_iou": boundary_iou,
             "boundary_iou_per_class": boundary_iou_per_class,
-            "classification_errors": misclassified_objects,  # str of polygon ids
-            "undetected_errors": undetected_objects,  # str of polygon ids
             "split": [self.split] * len(self.image_ids),
             "epoch": [self.epoch] * len(self.image_ids),
         }

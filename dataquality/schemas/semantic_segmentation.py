@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List
+from typing import Dict, List
 
 import numpy as np
 from pydantic import BaseModel
@@ -17,6 +17,7 @@ class SemSegCols(str, Enum):
 class ErrorType(str, Enum):
     classification = "classification"
     undetected = "undetected"
+    none = None
 
 
 class Pixel(BaseModel):
@@ -39,10 +40,13 @@ class Contour(BaseModel):
 
 
 class Polygon(BaseModel):
+    id: int
+    label_idx: int
+    error_type: ErrorType = ErrorType.none
     contours: List[Contour]
 
     def deserialize_opencv(self) -> List[np.ndarray]:
-        """Deserialize a polygon object to be OpenCV contour compatible
+        """Deserialize the contours in a polygon to be OpenCV contour compatible
 
         OpenCV.drawContours expects a list of np.ndarrays corresponding
         to the contours in the polygon.
@@ -60,8 +64,8 @@ class Polygon(BaseModel):
             contours.append(np.array(pixels))
         return contours
 
-    def deserialize_json(self) -> List[List[List[List[List[int]]]]]:
-        """Deserialize a polygon object to be JSON compatible in OpenCV contour format
+    def deserialize_json(self) -> Dict:
+        """Deserialize a polygon object to be JSON compatible for Minio upload
 
         We export polygons as a nested list of pixels for the Frontend to draw. This
         nested list format is required by the OpenCV library to draw contours.
@@ -77,4 +81,10 @@ class Polygon(BaseModel):
         for contour in self.contours:
             pixels = [pixel.deserialize() for pixel in contour.pixels]
             contours.append([pixels])
-        return contours
+
+        return {
+            "id": self.id,
+            "label_idx": self.label_idx,
+            "error_type": self.error_type.value,
+            "polygon": contours,
+        }
