@@ -364,7 +364,6 @@ def store_batch(
     return process_batch
 
 
-# add patch to the dataloader iterator
 def patch_iterator_and_batch(store: Dict[str, Any]) -> Callable:
     """
     Patches the iterator of the dataloader to return the indices and the batch
