@@ -184,7 +184,7 @@ def deserialize_polygon_map(
     for key, polygons in pmap.items():
         deserialized_polygons = []
         for polygon in polygons:
-            deserialized_polygon = polygon.deserialize()
+            deserialized_polygon = polygon.deserialize_opencv()
             deserialized_polygons.append(deserialized_polygon)
         deserialized_map[key] = deserialized_polygons
     return deserialized_map

@@ -92,10 +92,12 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
 
     @property
     def lm_path(self) -> str:
+        """Minio path for Likely Mislabeled heatmaps"""
         return f"{self.proj_run}/{self.split_name_path}/LM"
 
     @property
     def dep_path(self) -> str:
+        """Minio path for Data Error Potential heatmaps"""
         return f"{self.proj_run}/{self.split_name_path}/dep"
 
     @property
@@ -157,7 +159,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         data = {
             "image": [
                 f"{self.bucket_name}/{pth}" for pth in self.image_paths
-            ],  # "gs://.../image_id.png
+            ],  # E.g. https://storage.googleapis.com/bucket_name/.../image_id.png
             "image_id": self.image_ids,
             "height": [img.shape[-1] for img in self.gt_masks],
             "width": [img.shape[-2] for img in self.gt_masks],
