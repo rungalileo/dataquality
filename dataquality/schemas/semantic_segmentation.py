@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Dict, List
+from typing import List
 
 import numpy as np
 from pydantic import BaseModel
@@ -57,7 +57,3 @@ class Polygon(BaseModel):
                 pixels.append(pixel.deserialize())
             contours.append([pixels])
         return contours
-
-
-class PolygonMap(BaseModel):
-    map: Dict[int, List[Polygon]]
