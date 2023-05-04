@@ -80,6 +80,8 @@ def auto(
         during tokenization. Default 200
     :param hf_model: The pretrained AutoModel from huggingface that will be used to
         tokenize and train on the provided data. Default distilbert-base-uncased
+    :param num_train_epochs: The number of epochs to train for (early stopping will
+        always be active). Default 15
     :param labels: Optional list of labels for this dataset. If not provided, they
         will attempt to be extracted from the data
     :param project_name: Optional project name. If not set, a random name will
