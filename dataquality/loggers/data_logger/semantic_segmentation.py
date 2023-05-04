@@ -60,7 +60,7 @@ class SemanticSegmentationDataLogger(BaseGalileoDataLogger):
             "Use watch(model, [dataloaders])"
         )
 
-    def _upload_split(
+    def upload_split(
         self,
         location: str,
         split: str,

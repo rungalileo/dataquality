@@ -249,11 +249,11 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             create_data_embs = False
 
         for split in Split.get_valid_attributes():
-            self._upload_split(
+            self.upload_split(
                 location, split, object_store, last_epoch, create_data_embs
             )
 
-    def _upload_split(
+    def upload_split(
         self,
         location: str,
         split: str,
@@ -277,7 +277,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             return
         in_frame_split = vaex.open(f"{in_frame_path}/*.arrow")
         in_frame_split = self.convert_large_string(in_frame_split)
-        self.upload_split(
+        self.upload_split_from_in_frame(
             object_store,
             in_frame_split,
             split,
@@ -318,7 +318,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         return df_copy
 
     @classmethod
-    def upload_split(
+    def upload_split_from_in_frame(
         cls,
         object_store: ObjectStore,
         in_frame: DataFrame,
