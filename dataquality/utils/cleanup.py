@@ -1,5 +1,5 @@
-from typing import Any, Callable
 import weakref
+from typing import Any, Callable
 
 
 class RefManager:

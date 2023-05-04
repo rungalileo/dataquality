@@ -1,7 +1,6 @@
 from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
-from torch import Tensor
 
 import dataquality as dq
 from dataquality.schemas.split import Split
@@ -13,7 +12,7 @@ class SetFitModelHook:
         self,
         setfit_model: Any,
         store: Optional[Dict] = None,
-        func_name="predict_proba",
+        func_name: str = "predict_proba",
         n_labels=None,
     ) -> None:
         """
@@ -100,13 +99,14 @@ def watch(model: Any) -> Dict:
         preds = model.predict_proba(batch[text_col])
         # 🔭🌕 Galileo logging
         log_args = dict(texts=batch["text"], ids=batch[id_col], split=split)
+        inference_dict: Dict[str, str] = {}
         if inference_name is not None:
             log_args["inference_name"] = inference_name
-            inference_dict: Dict[str, str] = {"inference_name": inference_name}
+            inference_dict["inference_name"] = inference_name
         else:
             assert label_col in batch, f"column '{label_col}' must be in batch"
             log_args["labels"] = [labels[label] for label in batch[label_col]]
-            inference_dict: Dict[str, str] = {}
+
         helper_data = dq.get_data_logger().logger_config.helper_data
 
         # Unpatch SetFit model after logging (when finished is called)
