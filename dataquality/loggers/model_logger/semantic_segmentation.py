@@ -132,7 +132,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         pred_polygons_batch = find_polygons_batch(self.pred_masks)
         gt_polygons_batch = find_polygons_batch(self.gt_masks)
         # Errors
-        calculate_misclassified_polygons_batch(self.gt_masks, pred_polygons_batch)
+        calculate_misclassified_polygons_batch(self.pred_masks, gt_polygons_batch)
         calculate_undetected_polygons_batch(self.pred_masks, gt_polygons_batch)
         # Add errors to polygons and upload to Minio
         for i, image_id in enumerate(self.image_ids):
