@@ -10,6 +10,7 @@ from dataquality.dq_auto.ner_trainer import get_trainer
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.auto import add_val_data_if_missing, run_name_from_hf_dataset
 from dataquality.utils.auto_trainer import do_train
+from transformers import Trainer
 
 a = Analytics(ApiClient, dq.config)
 a.log_import("auto_ner")
@@ -58,7 +59,8 @@ def auto(
     project_name: str = "auto_ner",
     run_name: Optional[str] = None,
     wait: bool = True,
-) -> None:
+    call_finish: bool = True,
+) -> Trainer:
     """Automatically gets insights on an NER or Token Classification dataset
 
     Given either a pandas dataframe, file_path, or huggingface dataset path, this
@@ -118,6 +120,9 @@ def auto(
         be generated
     :param wait: Whether to wait for Galileo to complete processing your run.
         Default True
+    :param call_finish: Whether to call `finish` on the Galileo client. Default True
+    :return: A Trainer object that can be used to train the model further or
+        to run predictions
 
     To see auto insights on a random, pre-selected dataset, simply run
     ```python
@@ -175,4 +180,5 @@ def auto(
         run_name=run_name,
     )
     trainer, encoded_data = get_trainer(dd, hf_model, num_train_epochs, labels)
-    do_train(trainer, encoded_data, wait)
+    do_train(trainer, encoded_data, wait, call_finish)
+    return trainer

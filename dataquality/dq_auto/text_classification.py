@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Union
 import numpy as np
 import pandas as pd
 from datasets import ClassLabel, Dataset, DatasetDict
-
+from transformers import Trainer
 import dataquality as dq
 from dataquality import Analytics, ApiClient
 from dataquality.dq_auto.base_data_manager import BaseDatasetManager
@@ -139,7 +139,8 @@ def auto(
     run_name: Optional[str] = None,
     wait: bool = True,
     create_data_embs: Optional[bool] = None,
-) -> None:
+    call_finish: bool = True,
+) -> Trainer:
     """Automatically gets insights on a text classification dataset
 
     Given either a pandas dataframe, file_path, or huggingface dataset path, this
@@ -198,6 +199,10 @@ def auto(
         Default True
     :param create_data_embs: Whether to create data embeddings for this run. Default
         False
+    :param call_finish: Whether to call `finish` on the trainer after training
+        completes. Default True
+    :return: A Trainer object that can be used to train the model further or
+        to run predictions
 
     To see auto insights on a random, pre-selected dataset, simply run
     ```python
@@ -272,4 +277,6 @@ def auto(
     trainer, encoded_data = get_trainer(
         dd, labels, hf_model, max_padding_length, num_train_epochs
     )
-    do_train(trainer, encoded_data, wait, create_data_embs)
+    do_train(trainer, encoded_data, wait, create_data_embs, call_finish)
+    trainer.save_model()
+    return trainer

@@ -65,6 +65,7 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
 
     def _do_log(self) -> None:
         # Log only if embedding exists
+
         assert self.model_outputs_store.get("embs") is not None, GalileoException(
             "Embedding passed to the logger can not be logged"
         )
@@ -92,12 +93,15 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
         Event called at the end of the initialization of the [`Trainer`].
         """
         self._clear_logger_config_curr_model_outputs()
+        if not self._initialized:
+            self.setup(args, state, kwargs, step="predict")
 
     def setup(
         self,
         args: TrainingArguments,
         state: TrainerState,
         kwargs: Dict,
+        step: str = "training",
     ) -> None:
         """Setup the callback
         :param args: Training arguments
@@ -116,32 +120,33 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
         self._attach_hooks_to_model(
             model, self.classifier_layer, self.last_hidden_state_layer
         )
-        train_dataloader = kwargs["train_dataloader"]
-        train_dataloader_ds = train_dataloader.dataset
-        if isinstance(train_dataloader_ds, Dataset):
-            assert "id" in train_dataloader_ds.column_names, GalileoException(
-                "Did you map IDs to your dataset before watching the model?\n"
-                "To add the id column with datasets. You can run:\n"
-                """`ds= dataset.map(lambda x, idx: {"id": idx},"""
-                " with_indices=True)`. The id (index) column is needed in "
-                "the dataset for logging"
-            )
-        elif isinstance(train_dataloader_ds, TorchDataset):
-            item = next(iter(train_dataloader_ds))
-            assert hasattr(item, "keys") and "id" in item.keys(), GalileoException(
-                "Dataset __getitem__ needs to return a dictionary"
-                " including the index id. "
-                'For example: return {"input_ids": ..., "attention_mask":'
-                ' ..., "id": ...}'
-            )
-        else:
-            raise GalileoException(
-                f"Unknown dataset type {type(train_dataloader_ds)}. "
-                "Must be a datasets.Dataset or torch.utils.data.Dataset. "
-                "Each row must be dictionary with the id columns. "
-                'For example: return {"input_ids": ..., "attention_mask":'
-                ' ..., "id": ...}'
-            )
+        if step == "training":
+            train_dataloader = kwargs["train_dataloader"]
+            train_dataloader_ds = train_dataloader.dataset
+            if isinstance(train_dataloader_ds, Dataset):
+                assert "id" in train_dataloader_ds.column_names, GalileoException(
+                    "Did you map IDs to your dataset before watching the model?\n"
+                    "To add the id column with datasets. You can run:\n"
+                    """`ds= dataset.map(lambda x, idx: {"id": idx},"""
+                    " with_indices=True)`. The id (index) column is needed in "
+                    "the dataset for logging"
+                )
+            elif isinstance(train_dataloader_ds, TorchDataset):
+                item = next(iter(train_dataloader_ds))
+                assert hasattr(item, "keys") and "id" in item.keys(), GalileoException(
+                    "Dataset __getitem__ needs to return a dictionary"
+                    " including the index id. "
+                    'For example: return {"input_ids": ..., "attention_mask":'
+                    ' ..., "id": ...}'
+                )
+            else:
+                raise GalileoException(
+                    f"Unknown dataset type {type(train_dataloader_ds)}. "
+                    "Must be a datasets.Dataset or torch.utils.data.Dataset. "
+                    "Each row must be dictionary with the id columns. "
+                    'For example: return {"input_ids": ..., "attention_mask":'
+                    ' ..., "id": ...}'
+                )
         self._initialized = True
 
     def on_train_begin(
@@ -209,6 +214,8 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
         control: TrainerControl,
         **kwargs: Dict,
     ) -> None:
+        if not self._initialized:
+            self.setup(args, state, kwargs, "prediction")
         self._do_log()
 
     def on_step_end(
@@ -305,6 +312,7 @@ def watch(
         col for col in signature_cols if col != "id"
     ]
     helper_data[HelperData.orig_collate_fn] = orig_collate_fn
+    dqcallback.setup(None, None, {"model": trainer.model}, "predict")
 
 
 def unwatch(trainer: Trainer) -> None:

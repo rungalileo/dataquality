@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Union
 
 import pandas as pd
 from datasets import Dataset, DatasetDict
-
+from transformers import Trainer
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.auto import get_task_type_from_data, set_global_logging_level
 
@@ -28,7 +28,7 @@ def auto(
     run_name: Optional[str] = None,
     wait: bool = True,
     create_data_embs: Optional[bool] = None,
-) -> None:
+) -> Trainer:
     """Automatically gets insights on a text classification or NER dataset
 
     Given either a pandas dataframe, file_path, or huggingface dataset path, this
@@ -197,14 +197,14 @@ def auto(
     if hf_data is None and train_data is None:
         from dataquality.dq_auto.text_classification import auto as auto_tc
 
-        auto_tc(num_train_epochs=num_train_epochs)
-        return
+        return auto_tc(num_train_epochs=num_train_epochs)
+
     task_type = get_task_type_from_data(hf_data, train_data)
     # We cannot use a common list of *args or **kwargs here because mypy screams :(
     if task_type == TaskType.text_classification:
         from dataquality.dq_auto.text_classification import auto as auto_tc
 
-        auto_tc(
+        return auto_tc(
             hf_data=hf_data,
             hf_inference_names=hf_inference_names,
             train_data=train_data,
@@ -223,7 +223,7 @@ def auto(
     elif task_type == TaskType.text_ner:
         from dataquality.dq_auto.ner import auto as auto_ner
 
-        auto_ner(
+        return auto_ner(
             hf_data=hf_data,
             hf_inference_names=hf_inference_names,
             train_data=train_data,
