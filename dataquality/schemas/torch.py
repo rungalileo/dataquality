@@ -23,3 +23,4 @@ class HelperData(str, Enum):
     patches = "patches"
     dl_next_idx_ids = "dl_next_idx_ids"
     batch = "batch"
+    model_input = "model_input"
