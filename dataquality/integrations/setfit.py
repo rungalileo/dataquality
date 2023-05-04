@@ -12,7 +12,7 @@ class SetFitModelHook:
     def __init__(
         self,
         setfit_model: Any,
-        store: Dict = None,
+        store: Optional[Dict] = None,
         func_name="predict_proba",
         n_labels=None,
     ) -> None:
@@ -51,11 +51,11 @@ class SetFitModelHook:
         self.store["input_kwargs"] = kwargs
         output = self.old_func(*args, **kwargs)
         if self.func_name == "predict":
-            self.store["output"] = np.eye(self.n_values)[output]
+            self.store["output"] = np.eye(self.n_labels)[output]
         self.store["output"] = output
         return output
 
-    def unpatch(self):
+    def unpatch(self) -> None:
         """Unpatch SetFit model by replacing predict_proba
         function with old function."""
         setattr(self.old_model, self.func_name_predict, self.old_func)
@@ -78,7 +78,7 @@ def watch(model: Any) -> Dict:
             "id": "id",
             "label": "label",
         },
-    ) -> Tensor:
+    ) -> Any:
         """Evaluate SetFit model and log input and output to Galileo.
         :param batch: batch of data as a dictionary
         :param split: split of data (training, validation, test, inference)
@@ -102,11 +102,11 @@ def watch(model: Any) -> Dict:
         log_args = dict(texts=batch["text"], ids=batch[id_col], split=split)
         if inference_name is not None:
             log_args["inference_name"] = inference_name
-            inference_dict = {"inference_name": inference_name}
+            inference_dict: Dict[str, str] = {"inference_name": inference_name}
         else:
             assert label_col in batch, f"column '{label_col}' must be in batch"
             log_args["labels"] = [labels[label] for label in batch[label_col]]
-            inference_dict = {}
+            inference_dict: Dict[str, str] = {}
         helper_data = dq.get_data_logger().logger_config.helper_data
 
         # Unpatch SetFit model after logging (when finished is called)
@@ -121,7 +121,7 @@ def watch(model: Any) -> Dict:
             embs=dq_store["input_args"][0],
             split=split,
             epoch=0,
-            **inference_dict,
+            **inference_dict,  # type: ignore
         )
         return preds
 
