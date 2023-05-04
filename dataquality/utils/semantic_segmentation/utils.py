@@ -4,7 +4,15 @@ import numpy as np
 
 def mask_to_boundary(mask: np.ndarray, dilation_ratio: float = 0.02) -> np.ndarray:
     """
-    Convert binary mask to boundary mask.
+    Convert binary mask to boundary mask. The boundary mask is a mask tracing the
+    edges of the object in the mask. Therefore, the inside of the mask is now hollow
+    which means our IoU calculation will only be on the 'boundary' of each polygon.
+    The dilation ratio controls how large the tracing is around the polygon edges.
+    The smaller the dilation ratio the smaller the boundary mask will be and thus
+    likely decrease Boundary IoU.
+
+    This function creates an eroded mask which essentially shrinks all the polygons
+    and then subtracts the eroded mask from the original mask to get the boundary mask.
 
     :param mask (numpy array, uint8): binary mask
     :param dilation_ratio (float): ratio to calculate dilation

@@ -99,9 +99,8 @@ def build_polygons_label(
     for i, contour in enumerate(contours):
         eldest_parent = get_eldest_parent(hierarchy, i)
         # process the contour by creating a list of Pixel objects
-        contour_pixels = [Pixel(x=point[0], y=point[1]) for point in contour[0]]
+        contour_pixels = [Pixel(x=point[0, 0], y=point[0, 1]) for point in contour]
         all_polygons[eldest_parent].append(Contour(pixels=contour_pixels))
-
     # Build the polygons
     final_polygons = []
     for contour_parent_idx in all_polygons.keys():
@@ -147,8 +146,9 @@ def upload_polygons_image(
 def draw_polygon(polygon: Polygon, shape: Tuple[int, ...]) -> np.ndarray:
     """Draws one polygon onto a blank image, assigning the polygon a label
 
-    # TODO: (Derek) explain why we do -1 and -1 in the drawContours call
-     or link docs to OpenCV
+    drawContours takes in order an image, a list of contours, the index of the
+    contour to draw (or -1 if drawing all), the color of the contour, and the
+    thickness of the line to draw or -1 if you want to fill it in
 
     Args:
         polygon (Polygon): Polygon object

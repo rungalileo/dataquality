@@ -16,7 +16,7 @@ from dataquality.integrations.torch import TorchLogger, unwatch
 from dataquality.loggers.model_logger.semantic_segmentation import (
     SemanticSegmentationModelLogger,
 )
-from dataquality.schema.semantic_segmentation import SemSegCols
+from dataquality.schemas.semantic_segmentation import SemSegCols
 from dataquality.schemas.split import Split
 from dataquality.schemas.torch import HelperData
 from dataquality.utils.helpers import wrap_fn
@@ -71,12 +71,13 @@ class SemanticTorchLogger(TorchLogger):
         self.datasets: List[Dataset] = [
             dataloader.dataset for dataloader in dataloaders.values()
         ]
+        self.image_col = "image"
         self.converted_datasets: List[List] = [
             self.convert_dataset(dataset) for dataset in self.datasets
         ]
         # capture the model input
         self.hook_manager.attach_hook(self.model, self._dq_input_hook)
-        self.image_col = "image"
+
         self.called_finish = False
         self.queue_size = LIKELY_MISLABELED_QUEUE_SIZE
 
@@ -84,7 +85,9 @@ class SemanticTorchLogger(TorchLogger):
         """Convert the dataset to the format expected by the dataquality client"""
         # we wouldn't need any of this if we could map ids to the cloud images
         assert len(dataset) > 0
-        assert self.image_col in dataset[0].keys()
+        assert (
+            self.image_col in dataset[0].keys()
+        ), 'The dataset must have a column named "image" that contains the image data'
         processed_dataset = []
         for i, data in enumerate(dataset):
             if "image_path" not in data:
@@ -106,6 +109,9 @@ class SemanticTorchLogger(TorchLogger):
             processed_dataset.append(
                 {SemSegCols.image_path: image_path, SemSegCols.id: i}
             )
+            if i == 100:
+                print("Only logging 100 images for now")
+                break
         # I have assumed we can collect the masks from the hooks in the dataloader
         return processed_dataset
 
@@ -338,6 +344,9 @@ class SemanticTorchLogger(TorchLogger):
                 img = batch[self.image_col]
                 img = img.to(device)
                 self.model(img)
+                if i == 1:
+                    print("Running one epoch for two steps only")
+                    break
 
 
 # store the batch
@@ -364,7 +373,6 @@ def store_batch(
     return process_batch
 
 
-# add patch to the dataloader iterator
 def patch_iterator_and_batch(store: Dict[str, Any]) -> Callable:
     """
     Patches the iterator of the dataloader to return the indices and the batch

@@ -3,7 +3,7 @@ from typing import List
 import numpy as np
 import torch
 
-from dataquality.schema.semantic_segmentation import ErrorType, Polygon
+from dataquality.schemas.semantic_segmentation import ErrorType, Polygon
 from dataquality.utils.semantic_segmentation.polygons import draw_polygon
 
 ERROR_THRES = 0.5
