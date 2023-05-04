@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Callable, Dict, Optional, Tuple
 
 import numpy as np
 
@@ -13,7 +13,7 @@ class SetFitModelHook:
         setfit_model: Any,
         store: Optional[Dict] = None,
         func_name: str = "predict_proba",
-        n_labels=None,
+        n_labels: Optional[int] = None,
     ) -> None:
         """
         Hook to SetFit model to store input and output of predict_proba function.
@@ -50,6 +50,7 @@ class SetFitModelHook:
         self.store["input_kwargs"] = kwargs
         output = self.old_func(*args, **kwargs)
         if self.func_name == "predict":
+            assert self.n_labels is not None, "n_labels must be set"
             self.store["output"] = np.eye(self.n_labels)[output]
         self.store["output"] = output
         return output
@@ -60,7 +61,7 @@ class SetFitModelHook:
         setattr(self.old_model, self.func_name_predict, self.old_func)
 
 
-def watch(model: Any) -> Dict:
+def watch(model: Any) -> Callable:
     """Watch SetFit model by replacing predict_proba function with SetFitModelHook.
     :param model: SetFit model
     :return: SetFitModelHook object"""

@@ -10,8 +10,8 @@ class RefManager:
         """Initialize the cleanup manager.
         :param cleanup_func: The function to call when an object is garbage
         collected."""
-        self.cleanup_func = cleanup_func
-        self._instances = set()
+        self.cleanup_func: Callable = cleanup_func
+        self._instances: set = set()
 
     def register(self, instance: Any) -> None:
         """Register an object with the cleanup manager.
