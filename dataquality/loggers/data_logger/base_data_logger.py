@@ -249,33 +249,45 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             create_data_embs = False
 
         for split in Split.get_valid_attributes():
-            split_loc = f"{location}/{split}"
-            in_frame_path = f"{self.input_data_path}/{split}"
-            input_logged = os.path.exists(in_frame_path)
-            output_logged = os.path.exists(split_loc)
-            if not output_logged:
-                continue
-            if not input_logged:
-                warnings.warn(
-                    f"There was output data logged for split {split} but no input data "
-                    "logged. Skipping upload for this split as there are no samples "
-                    "to join to.",
-                    GalileoWarning,
-                )
-                continue
-            in_frame_split = vaex.open(f"{in_frame_path}/*.arrow")
-            in_frame_split = self.convert_large_string(in_frame_split)
             self.upload_split(
-                object_store,
-                in_frame_split,
-                split,
-                split_loc,
-                last_epoch,
-                create_data_embs,
+                location, split, object_store, last_epoch, create_data_embs
             )
-            in_frame_split.close()
-            _shutil_rmtree_retry(in_frame_path)
-            gc.collect()
+
+    def upload_split(
+        self,
+        location: str,
+        split: str,
+        object_store: ObjectStore,
+        last_epoch: Optional[int],
+        create_data_embs: bool,
+    ) -> None:
+        split_loc = f"{location}/{split}"
+        in_frame_path = f"{self.input_data_path}/{split}"
+        input_logged = os.path.exists(in_frame_path)
+        output_logged = os.path.exists(split_loc)
+        if not output_logged:
+            return
+        if not input_logged:
+            warnings.warn(
+                f"There was output data logged for split {split} but no input data "
+                "logged. Skipping upload for this split as there are no samples "
+                "to join to.",
+                GalileoWarning,
+            )
+            return
+        in_frame_split = vaex.open(f"{in_frame_path}/*.arrow")
+        in_frame_split = self.convert_large_string(in_frame_split)
+        self.upload_split_from_in_frame(
+            object_store,
+            in_frame_split,
+            split,
+            split_loc,
+            last_epoch,
+            create_data_embs,
+        )
+        in_frame_split.close()
+        _shutil_rmtree_retry(in_frame_path)
+        gc.collect()
 
     @classmethod
     def create_and_upload_data_embs(
@@ -306,7 +318,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         return df_copy
 
     @classmethod
-    def upload_split(
+    def upload_split_from_in_frame(
         cls,
         object_store: ObjectStore,
         in_frame: DataFrame,
