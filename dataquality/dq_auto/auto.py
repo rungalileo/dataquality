@@ -28,6 +28,7 @@ def auto(
     run_name: Optional[str] = None,
     wait: bool = True,
     create_data_embs: Optional[bool] = None,
+    call_finish: bool = True,
 ) -> Trainer:
     """Automatically gets insights on a text classification or NER dataset
 
@@ -97,6 +98,9 @@ def auto(
         `dq.metrics.get_dataframe(..., include_data_embs=True)` in the `data_emb` col
         Only available for TC currently. NER coming soon. Default True if a GPU is
         available, else default False.
+    :param call_finish: Whether to call `dq.finish()` after the run is complete.
+        Default True
+    :return: A Trainer object run predictions or continue training
 
     For text classification datasets, the only required columns are `text` and `label`
 
@@ -199,7 +203,7 @@ def auto(
     if hf_data is None and train_data is None:
         from dataquality.dq_auto.text_classification import auto as auto_tc
 
-        return auto_tc(num_train_epochs=num_train_epochs)
+        return auto_tc(num_train_epochs=num_train_epochs, call_finish=call_finish)
 
     task_type = get_task_type_from_data(hf_data, train_data)
     # We cannot use a common list of *args or **kwargs here because mypy screams :(
@@ -221,7 +225,9 @@ def auto(
             wait=wait,
             create_data_embs=create_data_embs,
             num_train_epochs=num_train_epochs,
+            call_finish=call_finish,
         )
+
     elif task_type == TaskType.text_ner:
         from dataquality.dq_auto.ner import auto as auto_ner
 
@@ -238,6 +244,8 @@ def auto(
             run_name=run_name,
             wait=wait,
             num_train_epochs=num_train_epochs,
+            call_finish=call_finish,
         )
+
     else:
         raise Exception("auto is only supported for text classification and NER!")
