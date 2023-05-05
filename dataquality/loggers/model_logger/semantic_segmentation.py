@@ -129,7 +129,9 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         )
 
         # Image masks
-        pred_polygons_batch, gt_polygons_batch = find_polygons_batch(self.pred_masks, self.gt_masks)
+        pred_polygons_batch, gt_polygons_batch = find_polygons_batch(
+            self.pred_masks, self.gt_masks
+        )
         # Errors
         calculate_misclassified_polygons_batch(self.pred_masks, gt_polygons_batch)
         calculate_undetected_polygons_batch(self.pred_masks, gt_polygons_batch)

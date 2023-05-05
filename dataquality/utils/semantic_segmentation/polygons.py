@@ -14,7 +14,9 @@ from dataquality.schemas.semantic_segmentation import Contour, Pixel, Polygon
 object_store = ObjectStore()
 
 
-def find_polygons_batch(pred_masks: torch.Tensor, gt_masks: torch.Tensor) -> List[List[Polygon]]:
+def find_polygons_batch(
+    pred_masks: torch.Tensor, gt_masks: torch.Tensor
+) -> Tuple[List, List]:
     """Creates polygons for a given batch
 
     NOTE: Background pixels do not get polygons
@@ -38,7 +40,7 @@ def find_polygons_batch(pred_masks: torch.Tensor, gt_masks: torch.Tensor) -> Lis
         pred_polygons = build_polygons_image(pred_masks_np[i])
         pred_polygons_batch.append(pred_polygons)
         gt_polygons = build_polygons_image(gt_masks_np[i], len(pred_polygons))
-        polygons_batch.append(gt_polygons)
+        gt_polygons_batch.append(gt_polygons)
 
     return pred_polygons_batch, gt_polygons_batch
 
@@ -66,7 +68,9 @@ def build_polygons_image(mask: np.ndarray, polygon_idx: int = 0) -> List[Polygon
             class_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
         )
 
-        polygons_per_label = build_polygons_label(contours, hierarchy, label_idx, polygon_idx)
+        polygons_per_label = build_polygons_label(
+            contours, hierarchy, label_idx, polygon_idx
+        )
         polygons.extend(polygons_per_label)
 
     return polygons
