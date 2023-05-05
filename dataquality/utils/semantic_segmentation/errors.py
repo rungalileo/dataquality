@@ -25,6 +25,33 @@ def polygon_accuracy(preds: np.ndarray, gt_mask: np.ndarray) -> float:
     return pointwise_accuracy.sum() / relevant_region.sum()
 
 
+def calculate_misclassified_class(
+    pred_mask: np.ndarray,
+    gt_mask: np.ndarray,
+    correct_class: int,
+) -> int:
+    """Checks to see if the polygon is misclassified if over 50% of the pixels
+    are another class and if so sets Polygon.misclassified as to the class
+
+    Args:
+        pred_mask (np.ndarray): predicted mask
+        gt_mask (np.ndarray): ground truth mask
+        correct_class (int): the correct class of the polygon
+    """
+    relevant_region = gt_mask != 0
+    area = relevant_region.sum()
+    region_pixels = pred_mask[relevant_region]
+    region_boolean = region_pixels != correct_class
+    incorrect_pixels = region_pixels[region_boolean]
+    # count the number of pixels in the pred mask relevant region that are
+    # not the correct class
+    areas = np.bincount(incorrect_pixels)
+    for i, incorrect_area in enumerate(areas):
+        if incorrect_area / area > ERROR_THRES:
+            return i
+    return -1
+
+
 def calculate_misclassified_polygons(
     pred_mask: np.ndarray,
     gt_polygons: List[Polygon],
@@ -46,6 +73,11 @@ def calculate_misclassified_polygons(
         out_polygon = draw_polygon(polygon, pred_mask.shape[-2:])
         if polygon_accuracy(pred_mask, out_polygon) < ERROR_THRES:
             polygon.error_type = ErrorType.classification
+            polygon.misclassified_class_label = calculate_misclassified_class(
+                pred_mask,
+                out_polygon,
+                polygon.label_idx,
+            )
 
 
 def calculate_misclassified_polygons_batch(
