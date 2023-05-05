@@ -26,8 +26,8 @@ def polygon_accuracy(preds: np.ndarray, gt_mask: np.ndarray) -> float:
 
 
 def calculate_misclassified_polygons(
-    gt_mask: np.ndarray,
-    pred_polygons: List[Polygon],
+    pred_mask: np.ndarray,
+    gt_polygons: List[Polygon],
 ) -> None:
     """Checks for polygon misclassifications and sets the Polygon error_type field
 
@@ -42,15 +42,15 @@ def calculate_misclassified_polygons(
         pred_polygons (List[Polygon]):
             predicted polygon map for one image
     """
-    for polygon in pred_polygons:
-        out_polygon = draw_polygon(polygon, gt_mask.shape[-2:])
-        if polygon_accuracy(gt_mask, out_polygon) < ERROR_THRES:
+    for polygon in gt_polygons:
+        out_polygon = draw_polygon(polygon, pred_mask.shape[-2:])
+        if polygon_accuracy(pred_mask, out_polygon) < ERROR_THRES:
             polygon.error_type = ErrorType.classification
 
 
 def calculate_misclassified_polygons_batch(
-    gt_masks: torch.Tensor,
-    pred_polygons_batch: List[List[Polygon]],
+    pred_masks: torch.Tensor,
+    gt_polygons_batch: List[List[Polygon]],
 ) -> None:
     """Calculates a set of misclassified polygon ids from the
     predicted mask for each image in a batch
@@ -62,9 +62,9 @@ def calculate_misclassified_polygons_batch(
         pred_polygon_maps(List[List[Polygon]]):
             list of predicted polygons for each image in a batch
     """
-    for idx in range(len(gt_masks)):
-        gt_mask = gt_masks[idx].numpy()
-        pred_polygons = pred_polygons_batch[idx]
+    for idx in range(len(pred_masks)):
+        gt_mask = pred_masks[idx].numpy()
+        pred_polygons = gt_polygons_batch[idx]
         calculate_misclassified_polygons(gt_mask, pred_polygons)
 
 
