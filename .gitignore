@@ -179,3 +179,4 @@ coco.ipynb
 
 # SemSeg
 CV_datasets/
+coco_hf_datasets.py

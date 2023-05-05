@@ -109,9 +109,6 @@ class SemanticTorchLogger(TorchLogger):
             processed_dataset.append(
                 {SemSegCols.image_path: image_path, SemSegCols.id: i}
             )
-            if i == 100:
-                print("Only logging 100 images for now")
-                break
         # I have assumed we can collect the masks from the hooks in the dataloader
         return processed_dataset
 
@@ -344,9 +341,6 @@ class SemanticTorchLogger(TorchLogger):
                 img = batch[self.image_col]
                 img = img.to(device)
                 self.model(img)
-                if i == 1:
-                    print("Running one epoch for two steps only")
-                    break
 
 
 # store the batch
