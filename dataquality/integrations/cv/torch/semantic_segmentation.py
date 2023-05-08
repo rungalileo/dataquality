@@ -1,11 +1,11 @@
 import os
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union, Any
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
 from torch.nn import Module
 from torch.nn import functional as F
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 
 import dataquality as dq
 from dataquality.analytics import Analytics
@@ -65,8 +65,12 @@ class SemanticTorchLogger(TorchLogger):
         self.dataset_path = os.path.abspath(dataset_path)
 
         # There is a hook on dataloader so must convert before attaching hook
-        self.dataloader_path_to_id: Dict[str, Any] = {split: {} for split in dataloaders.keys()}
-        self.id_to_relative_path: Dict[str, Any] = {split: {} for split in dataloaders.keys()}
+        self.dataloader_path_to_id: Dict[str, Any] = {
+            split: {} for split in dataloaders.keys()
+        }
+        self.id_to_relative_path: Dict[str, Any] = {
+            split: {} for split in dataloaders.keys()
+        }
         self.bucket_name = bucket_name
         self.dataloaders = dataloaders
         self.image_col = "image"
@@ -80,9 +84,9 @@ class SemanticTorchLogger(TorchLogger):
         self.called_finish = False
         self.queue_size = LIKELY_MISLABELED_QUEUE_SIZE
 
-    def convert_dataset(self, dataset: Any, split: str) -> Tuple[List, int]:
+    def convert_dataset(self, dataset: Any, split: str) -> List:
         """Convert the dataset to the format expected by the dataquality client
-        
+
         Args:
             dataset (Any): dataset to convert
             start_int (int): starting unique id for each example in the dataset
@@ -238,13 +242,14 @@ class SemanticTorchLogger(TorchLogger):
         ].shape[1]
         self._init_lm_labels()
         split = self.logger_config.cur_split.lower()  # type: ignore
-        
+
         with torch.no_grad():
             logging_data = self.helper_data["batch"]["data"]
             img_ids = self.helper_data["batch"]["ids"]  # np.ndarray (bs,)
             # convert the img_ids to absolute ids from file map
             img_ids = [
-                self.dataloader_path_to_id[split][path] for path in logging_data["image_path"]
+                self.dataloader_path_to_id[split][path]
+                for path in logging_data["image_path"]
             ]
             log_image_paths = [self.id_to_relative_path[split][id] for id in img_ids]
             image_paths = [pth.lstrip("./") for pth in log_image_paths]
