@@ -76,8 +76,8 @@ class SemanticTorchLogger(TorchLogger):
         self.converted_datasets = []
         start_int = 0
         for dataset in self.datasets:
-            dataset, start_int = self.convert_dataset(dataset, start_int)
-            self.converted_datasets.append(dataset)
+            convert_dataset, start_int = self.convert_dataset(dataset, start_int)
+            self.converted_datasets.append(convert_dataset)
         # capture the model input
         self.hook_manager.attach_hook(self.model, self._dq_input_hook)
 
@@ -110,7 +110,6 @@ class SemanticTorchLogger(TorchLogger):
             image_path = os.path.abspath(data["image_path"])
             image_path = image_path.replace(self.dataset_path, "")
             self.id_to_relative_path[i] = image_path
-            
 
             processed_dataset.append(
                 {SemSegCols.image_path: image_path, SemSegCols.id: i}
@@ -243,7 +242,9 @@ class SemanticTorchLogger(TorchLogger):
             logging_data = self.helper_data["batch"]["data"]
             img_ids = self.helper_data["batch"]["ids"]  # np.ndarray (bs,)
             # convert the img_ids to absolute ids from file map
-            img_ids = [self.dataloader_path_to_id[path] for path in logging_data['image_path']]
+            img_ids = [
+                self.dataloader_path_to_id[path] for path in logging_data["image_path"]
+            ]
             log_image_paths = [self.id_to_relative_path[id] for id in img_ids]
             image_paths = [pth.lstrip("./") for pth in log_image_paths]
 
