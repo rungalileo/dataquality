@@ -42,7 +42,7 @@ class Contour(BaseModel):
 class Polygon(BaseModel):
     id: int
     label_idx: int
-    misclassified_class_label: int = -1
+    misclassified_class_label: Optional[int] = None
     error_type: ErrorType = ErrorType.none
     contours: List[Contour]
 
