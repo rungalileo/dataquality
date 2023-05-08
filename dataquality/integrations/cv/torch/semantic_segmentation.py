@@ -1,5 +1,5 @@
 import os
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, Any
 
 import numpy as np
 import torch
@@ -65,18 +65,14 @@ class SemanticTorchLogger(TorchLogger):
         self.dataset_path = os.path.abspath(dataset_path)
 
         # There is a hook on dataloader so must convert before attaching hook
-        self.dataloader_path_to_id: Dict[str, int] = {}
-        self.id_to_relative_path: Dict[int, str] = {}
+        self.dataloader_path_to_id: Dict[str, Any] = {split: {} for split in dataloaders.keys()}
+        self.id_to_relative_path: Dict[str, Any] = {split: {} for split in dataloaders.keys()}
         self.bucket_name = bucket_name
         self.dataloaders = dataloaders
-        self.datasets: List[Dataset] = [
-            dataloader.dataset for dataloader in dataloaders.values()
-        ]
         self.image_col = "image"
         self.converted_datasets = []
-        start_int = 0
-        for dataset in self.datasets:
-            convert_dataset, start_int = self.convert_dataset(dataset, start_int)
+        for split, dataloader in self.dataloaders.items():
+            convert_dataset = self.convert_dataset(dataloader.dataset, split)
             self.converted_datasets.append(convert_dataset)
         # capture the model input
         self.hook_manager.attach_hook(self.model, self._dq_input_hook)
@@ -84,7 +80,7 @@ class SemanticTorchLogger(TorchLogger):
         self.called_finish = False
         self.queue_size = LIKELY_MISLABELED_QUEUE_SIZE
 
-    def convert_dataset(self, dataset: Any, start_int: int = 0) -> Tuple[List, int]:
+    def convert_dataset(self, dataset: Any, split: str) -> Tuple[List, int]:
         """Convert the dataset to the format expected by the dataquality client
         
         Args:
@@ -99,7 +95,6 @@ class SemanticTorchLogger(TorchLogger):
         ), 'The dataset must have a column named "image" that contains the image data'
         processed_dataset = []
         for i, data in enumerate(dataset):
-            i += start_int
             if "image_path" not in data:
                 raise GalileoException(
                     "Missing image_path in data .\
@@ -109,7 +104,7 @@ class SemanticTorchLogger(TorchLogger):
                             bucker_name + image_path"
                 )
 
-            self.dataloader_path_to_id[data["image_path"]] = i
+            self.dataloader_path_to_id[split][data["image_path"]] = i
 
             # cut the dataset path from the image path so we can use relative path
             # within the bucket to each image
@@ -123,7 +118,7 @@ class SemanticTorchLogger(TorchLogger):
         # need to add 1 to the last index to get the next index for the following
         # datasets as i is 0 indexed so 0 + start_int would equal the ending index
         # of the previous dataset
-        return processed_dataset, i + start_int + 1
+        return processed_dataset
 
     def find_mask_category(self, batch: Dict[str, Any]) -> None:
         """
@@ -242,7 +237,8 @@ class SemanticTorchLogger(TorchLogger):
             "logits"
         ].shape[1]
         self._init_lm_labels()
-
+        import pdb; pdb.set_trace()
+        
         with torch.no_grad():
             logging_data = self.helper_data["batch"]["data"]
             img_ids = self.helper_data["batch"]["ids"]  # np.ndarray (bs,)
