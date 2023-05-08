@@ -85,7 +85,13 @@ class SemanticTorchLogger(TorchLogger):
         self.queue_size = LIKELY_MISLABELED_QUEUE_SIZE
 
     def convert_dataset(self, dataset: Any, start_int: int = 0) -> Tuple[List, int]:
-        """Convert the dataset to the format expected by the dataquality client"""
+        """Convert the dataset to the format expected by the dataquality client
+        
+        Args:
+            dataset (Any): dataset to convert
+            start_int (int): starting unique id for each example in the dataset
+                as we need a unique identifier for each example. Defaults to 0.
+        """
         # we wouldn't need any of this if we could map ids to the cloud images
         assert len(dataset) > 0
         assert (
@@ -117,7 +123,9 @@ class SemanticTorchLogger(TorchLogger):
             if i == 100:
                 print("Only logging 100 images for now")
                 break
-        # I have assumed we can collect the masks from the hooks in the dataloader
+        # need to add 1 to the last index to get the next index for the following
+        # datasets as i is 0 indexed so 0 + start_int would equal the ending index
+        # of the previous dataset
         return processed_dataset, i + start_int + 1
 
     def find_mask_category(self, batch: Dict[str, Any]) -> None:
