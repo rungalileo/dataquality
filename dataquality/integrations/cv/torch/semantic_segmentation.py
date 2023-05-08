@@ -110,7 +110,7 @@ class SemanticTorchLogger(TorchLogger):
             # within the bucket to each image
             image_path = os.path.abspath(data["image_path"])
             image_path = image_path.replace(self.dataset_path, "")
-            self.id_to_relative_path[i] = image_path
+            self.id_to_relative_path[split][i] = image_path
 
             processed_dataset.append(
                 {SemSegCols.image_path: image_path, SemSegCols.id: i}
@@ -237,16 +237,16 @@ class SemanticTorchLogger(TorchLogger):
             "logits"
         ].shape[1]
         self._init_lm_labels()
-        import pdb; pdb.set_trace()
+        split = self.logger_config.cur_split.lower()  # type: ignore
         
         with torch.no_grad():
             logging_data = self.helper_data["batch"]["data"]
             img_ids = self.helper_data["batch"]["ids"]  # np.ndarray (bs,)
             # convert the img_ids to absolute ids from file map
             img_ids = [
-                self.dataloader_path_to_id[path] for path in logging_data["image_path"]
+                self.dataloader_path_to_id[split][path] for path in logging_data["image_path"]
             ]
-            log_image_paths = [self.id_to_relative_path[id] for id in img_ids]
+            log_image_paths = [self.id_to_relative_path[split][id] for id in img_ids]
             image_paths = [pth.lstrip("./") for pth in log_image_paths]
 
             # resize the logits to the input size based on hooks
