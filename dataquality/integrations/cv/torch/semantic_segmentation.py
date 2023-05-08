@@ -65,23 +65,26 @@ class SemanticTorchLogger(TorchLogger):
         self.dataset_path = os.path.abspath(dataset_path)
 
         # There is a hook on dataloader so must convert before attaching hook
-        self.file_map: Dict[str, int] = {}
+        self.dataloader_path_to_id: Dict[str, int] = {}
+        self.id_to_relative_path: Dict[int, str] = {}
         self.bucket_name = bucket_name
         self.dataloaders = dataloaders
         self.datasets: List[Dataset] = [
             dataloader.dataset for dataloader in dataloaders.values()
         ]
         self.image_col = "image"
-        self.converted_datasets: List[List] = [
-            self.convert_dataset(dataset) for dataset in self.datasets
-        ]
+        self.converted_datasets = []
+        start_int = 0
+        for dataset in self.datasets:
+            dataset, start_int = self.convert_dataset(dataset, start_int)
+            self.converted_datasets.append(dataset)
         # capture the model input
         self.hook_manager.attach_hook(self.model, self._dq_input_hook)
 
         self.called_finish = False
         self.queue_size = LIKELY_MISLABELED_QUEUE_SIZE
 
-    def convert_dataset(self, dataset: Any) -> List:
+    def convert_dataset(self, dataset: Any, start_int: int = 0) -> Tuple[List, int]:
         """Convert the dataset to the format expected by the dataquality client"""
         # we wouldn't need any of this if we could map ids to the cloud images
         assert len(dataset) > 0
@@ -90,6 +93,7 @@ class SemanticTorchLogger(TorchLogger):
         ), 'The dataset must have a column named "image" that contains the image data'
         processed_dataset = []
         for i, data in enumerate(dataset):
+            i += start_int
             if "image_path" not in data:
                 raise GalileoException(
                     "Missing image_path in data .\
@@ -99,12 +103,14 @@ class SemanticTorchLogger(TorchLogger):
                             bucker_name + image_path"
                 )
 
-            self.file_map[data["image_path"]] = i
+            self.dataloader_path_to_id[data["image_path"]] = i
 
             # cut the dataset path from the image path so we can use relative path
             # within the bucket to each image
             image_path = os.path.abspath(data["image_path"])
             image_path = image_path.replace(self.dataset_path, "")
+            self.id_to_relative_path[i] = image_path
+            
 
             processed_dataset.append(
                 {SemSegCols.image_path: image_path, SemSegCols.id: i}
@@ -113,7 +119,7 @@ class SemanticTorchLogger(TorchLogger):
                 print("Only logging 100 images for now")
                 break
         # I have assumed we can collect the masks from the hooks in the dataloader
-        return processed_dataset
+        return processed_dataset, i + start_int + 1
 
     def find_mask_category(self, batch: Dict[str, Any]) -> None:
         """
@@ -236,9 +242,10 @@ class SemanticTorchLogger(TorchLogger):
         with torch.no_grad():
             logging_data = self.helper_data["batch"]["data"]
             img_ids = self.helper_data["batch"]["ids"]  # np.ndarray (bs,)
-            log_image_paths = logging_data["image_path"]
             # convert the img_ids to absolute ids from file map
-            img_ids = [self.file_map[path] for path in log_image_paths]
+            img_ids = [self.dataloader_path_to_id[path] for path in logging_data['image_path']]
+            log_image_paths = [self.id_to_relative_path[id] for id in img_ids]
+            import pdb; pdb.set_trace()
             image_paths = [pth.lstrip("./") for pth in log_image_paths]
 
             # resize the logits to the input size based on hooks
