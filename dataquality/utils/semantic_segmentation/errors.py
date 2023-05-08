@@ -26,7 +26,9 @@ def polygon_accuracy(
     relevant_region = gt_mask != 0
     pointwise_accuracy = (preds == gt_mask)[relevant_region]
 
-    misclassified_class = calculate_misclassified_class(preds, gt_mask, correct_class)
+    misclassified_class = calculate_misclassified_class(
+        preds, gt_mask, correct_class, relevant_region
+    )
     return pointwise_accuracy.sum() / relevant_region.sum(), misclassified_class
 
 
@@ -34,6 +36,7 @@ def calculate_misclassified_class(
     pred_mask: np.ndarray,
     gt_mask: np.ndarray,
     correct_class: int,
+    relevant_region: np.ndarray,
 ) -> Optional[int]:
     """Checks to see if the polygon is misclassified if over 50% of the pixels
     are another class and if so sets Polygon.misclassified as to the class
@@ -42,8 +45,8 @@ def calculate_misclassified_class(
         pred_mask (np.ndarray): predicted mask
         gt_mask (np.ndarray): ground truth mask
         correct_class (int): the correct class of the polygon
+        relevant_region (np.ndarray): boolean mask of the relevant region of the polygon
     """
-    relevant_region = gt_mask != 0
     area = relevant_region.sum()
     region_pixels = pred_mask[relevant_region]
     region_boolean = region_pixels != correct_class
