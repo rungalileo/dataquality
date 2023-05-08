@@ -120,9 +120,6 @@ class SemanticTorchLogger(TorchLogger):
             processed_dataset.append(
                 {SemSegCols.image_path: image_path, SemSegCols.id: i}
             )
-            if i == 100:
-                print("Only logging 100 images for now")
-                break
         # need to add 1 to the last index to get the next index for the following
         # datasets as i is 0 indexed so 0 + start_int would equal the ending index
         # of the previous dataset
@@ -359,9 +356,6 @@ class SemanticTorchLogger(TorchLogger):
                 img = batch[self.image_col]
                 img = img.to(device)
                 self.model(img)
-                if i == 1:
-                    print("Running one epoch for two steps only")
-                    break
 
 
 # store the batch
