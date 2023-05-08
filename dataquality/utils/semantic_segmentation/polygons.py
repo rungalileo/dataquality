@@ -14,7 +14,9 @@ from dataquality.schemas.semantic_segmentation import Contour, Pixel, Polygon
 object_store = ObjectStore()
 
 
-def find_polygons_batch(masks: torch.Tensor) -> List[List[Polygon]]:
+def find_polygons_batch(
+    pred_masks: torch.Tensor, gt_masks: torch.Tensor
+) -> Tuple[List, List]:
     """Creates polygons for a given batch
 
     NOTE: Background pixels do not get polygons
@@ -23,21 +25,27 @@ def find_polygons_batch(masks: torch.Tensor) -> List[List[Polygon]]:
         masks: Tensor of ground truth or predicted masks
             torch.Tensor of shape (batch_size, height, width)
 
-    Returns:
-        One List of mask polygons for each image in the batch
+    Returns (Tuple):
+        List of pred polygons for each image in the batch
+        List of ground truth polygons for each image in the batch
     """
-    masks_np = masks.numpy()
-    bs = masks_np.shape[0]
-    polygons_batch = []
+    pred_masks_np = pred_masks.numpy()
+    bs = pred_masks_np.shape[0]
+    gt_masks_np = gt_masks.numpy()
+
+    pred_polygons_batch = []
+    gt_polygons_batch = []
 
     for i in range(bs):
-        mask = masks_np[i]
-        polygons_batch.append(build_polygons_image(mask))
+        pred_polygons = build_polygons_image(pred_masks_np[i])
+        pred_polygons_batch.append(pred_polygons)
+        gt_polygons = build_polygons_image(gt_masks_np[i], len(pred_polygons))
+        gt_polygons_batch.append(gt_polygons)
 
-    return polygons_batch
+    return pred_polygons_batch, gt_polygons_batch
 
 
-def build_polygons_image(mask: np.ndarray) -> List[Polygon]:
+def build_polygons_image(mask: np.ndarray, polygon_idx: int = 0) -> List[Polygon]:
     """Returns a list of Polygons for the mask of a single image
 
     Args:
@@ -60,7 +68,9 @@ def build_polygons_image(mask: np.ndarray) -> List[Polygon]:
             class_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
         )
 
-        polygons_per_label = build_polygons_label(contours, hierarchy, label_idx)
+        polygons_per_label = build_polygons_label(
+            contours, hierarchy, label_idx, polygon_idx
+        )
         polygons.extend(polygons_per_label)
 
     return polygons
