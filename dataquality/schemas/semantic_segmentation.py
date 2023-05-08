@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import numpy as np
 from pydantic import BaseModel
@@ -24,7 +24,7 @@ class Pixel(BaseModel):
     x: int
     y: int
 
-    def deserialize(self) -> List[List[int]]:
+    def deserialize_opencv(self) -> List[List[int]]:
         """Takes a pixel object and returns JSON compatible list
 
         We deserialize to a JSON compatible format that matches what OpenCV
@@ -34,6 +34,10 @@ class Pixel(BaseModel):
         """
         return [[self.x, self.y]]
 
+    def deserialize_json(self) -> List[int]:
+        """Takes a pixel object and returns JSON compatible list"""
+        return [self.x, self.y]
+
 
 class Contour(BaseModel):
     pixels: List[Pixel]
@@ -42,6 +46,7 @@ class Contour(BaseModel):
 class Polygon(BaseModel):
     id: int
     label_idx: int
+    misclassified_class_label: Optional[int] = None
     error_type: ErrorType = ErrorType.none
     contours: List[Contour]
 
@@ -60,7 +65,7 @@ class Polygon(BaseModel):
         """
         contours = []
         for contour in self.contours:
-            pixels = [pixel.deserialize() for pixel in contour.pixels]
+            pixels = [pixel.deserialize_opencv() for pixel in contour.pixels]
             contours.append(np.array(pixels))
         return contours
 
@@ -79,8 +84,8 @@ class Polygon(BaseModel):
         """
         contours = []
         for contour in self.contours:
-            pixels = [pixel.deserialize() for pixel in contour.pixels]
-            contours.append([pixels])
+            pixels = [pixel.deserialize_json() for pixel in contour.pixels]
+            contours.append(pixels)
 
         return {
             "id": self.id,

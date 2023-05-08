@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from torch.nn import Module
 from torch.nn import functional as F
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 
 import dataquality as dq
 from dataquality.analytics import Analytics
@@ -65,24 +65,33 @@ class SemanticTorchLogger(TorchLogger):
         self.dataset_path = os.path.abspath(dataset_path)
 
         # There is a hook on dataloader so must convert before attaching hook
-        self.file_map: Dict[str, int] = {}
+        self.dataloader_path_to_id: Dict[str, Any] = {
+            split: {} for split in dataloaders.keys()
+        }
+        self.id_to_relative_path: Dict[str, Any] = {
+            split: {} for split in dataloaders.keys()
+        }
         self.bucket_name = bucket_name
         self.dataloaders = dataloaders
-        self.datasets: List[Dataset] = [
-            dataloader.dataset for dataloader in dataloaders.values()
-        ]
         self.image_col = "image"
-        self.converted_datasets: List[List] = [
-            self.convert_dataset(dataset) for dataset in self.datasets
-        ]
+        self.converted_datasets = []
+        for split, dataloader in self.dataloaders.items():
+            convert_dataset = self.convert_dataset(dataloader.dataset, split)
+            self.converted_datasets.append(convert_dataset)
         # capture the model input
         self.hook_manager.attach_hook(self.model, self._dq_input_hook)
 
         self.called_finish = False
         self.queue_size = LIKELY_MISLABELED_QUEUE_SIZE
 
-    def convert_dataset(self, dataset: Any) -> List:
-        """Convert the dataset to the format expected by the dataquality client"""
+    def convert_dataset(self, dataset: Any, split: str) -> List:
+        """Convert the dataset to the format expected by the dataquality client
+
+        Args:
+            dataset (Any): dataset to convert
+            start_int (int): starting unique id for each example in the dataset
+                as we need a unique identifier for each example. Defaults to 0.
+        """
         # we wouldn't need any of this if we could map ids to the cloud images
         assert len(dataset) > 0
         assert (
@@ -99,20 +108,20 @@ class SemanticTorchLogger(TorchLogger):
                             bucker_name + image_path"
                 )
 
-            self.file_map[data["image_path"]] = i
+            self.dataloader_path_to_id[split][data["image_path"]] = i
 
             # cut the dataset path from the image path so we can use relative path
             # within the bucket to each image
             image_path = os.path.abspath(data["image_path"])
             image_path = image_path.replace(self.dataset_path, "")
+            self.id_to_relative_path[split][i] = image_path
 
             processed_dataset.append(
                 {SemSegCols.image_path: image_path, SemSegCols.id: i}
             )
-            if i == 100:
-                print("Only logging 100 images for now")
-                break
-        # I have assumed we can collect the masks from the hooks in the dataloader
+        # need to add 1 to the last index to get the next index for the following
+        # datasets as i is 0 indexed so 0 + start_int would equal the ending index
+        # of the previous dataset
         return processed_dataset
 
     def find_mask_category(self, batch: Dict[str, Any]) -> None:
@@ -232,13 +241,17 @@ class SemanticTorchLogger(TorchLogger):
             "logits"
         ].shape[1]
         self._init_lm_labels()
+        split = self.logger_config.cur_split.lower()  # type: ignore
 
         with torch.no_grad():
             logging_data = self.helper_data["batch"]["data"]
             img_ids = self.helper_data["batch"]["ids"]  # np.ndarray (bs,)
-            log_image_paths = logging_data["image_path"]
             # convert the img_ids to absolute ids from file map
-            img_ids = [self.file_map[path] for path in log_image_paths]
+            img_ids = [
+                self.dataloader_path_to_id[split][path]
+                for path in logging_data["image_path"]
+            ]
+            log_image_paths = [self.id_to_relative_path[split][id] for id in img_ids]
             image_paths = [pth.lstrip("./") for pth in log_image_paths]
 
             # resize the logits to the input size based on hooks
@@ -344,9 +357,6 @@ class SemanticTorchLogger(TorchLogger):
                 img = batch[self.image_col]
                 img = img.to(device)
                 self.model(img)
-                if i == 1:
-                    print("Running one epoch for two steps only")
-                    break
 
 
 # store the batch
