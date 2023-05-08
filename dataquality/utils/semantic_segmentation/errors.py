@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -9,7 +9,9 @@ from dataquality.utils.semantic_segmentation.polygons import draw_polygon
 ERROR_THRES = 0.5
 
 
-def polygon_accuracy(preds: np.ndarray, gt_mask: np.ndarray) -> float:
+def polygon_accuracy(
+    preds: np.ndarray, gt_mask: np.ndarray, correct_class: int
+) -> Tuple[float, Optional[int]]:
     """Calculates the accuracy of one ground truth polygon
     accuracy = (number of correct pixels) / (number of pixels in polygon)
 
@@ -17,19 +19,22 @@ def polygon_accuracy(preds: np.ndarray, gt_mask: np.ndarray) -> float:
         shape = (height, width)
     :param gt_masks: ground truth masks
         shape =  height, width)
+    :param correct_class: the correct class of the polygon
 
     returns: pixel accuracy of the predictions
     """
     relevant_region = gt_mask != 0
     pointwise_accuracy = (preds == gt_mask)[relevant_region]
-    return pointwise_accuracy.sum() / relevant_region.sum()
+
+    misclassified_class = calculate_misclassified_class(preds, gt_mask, correct_class)
+    return pointwise_accuracy.sum() / relevant_region.sum(), misclassified_class
 
 
 def calculate_misclassified_class(
     pred_mask: np.ndarray,
     gt_mask: np.ndarray,
     correct_class: int,
-) -> int:
+) -> Optional[int]:
     """Checks to see if the polygon is misclassified if over 50% of the pixels
     are another class and if so sets Polygon.misclassified as to the class
 
@@ -49,7 +54,7 @@ def calculate_misclassified_class(
     for i, incorrect_area in enumerate(areas):
         if incorrect_area / area > ERROR_THRES:
             return i
-    return -1
+    return None
 
 
 def calculate_misclassified_polygons(
@@ -71,13 +76,13 @@ def calculate_misclassified_polygons(
     """
     for polygon in gt_polygons:
         out_polygon = draw_polygon(polygon, pred_mask.shape[-2:])
-        if polygon_accuracy(pred_mask, out_polygon) < ERROR_THRES:
+        accuracy, misclassified_label = polygon_accuracy(
+            pred_mask, out_polygon, polygon.label_idx
+        )
+        if accuracy < ERROR_THRES:
             polygon.error_type = ErrorType.classification
-            polygon.misclassified_class_label = calculate_misclassified_class(
-                pred_mask,
-                out_polygon,
-                polygon.label_idx,
-            )
+            if misclassified_label is not None:
+                polygon.misclassified_class_label = misclassified_label
 
 
 def calculate_misclassified_polygons_batch(
