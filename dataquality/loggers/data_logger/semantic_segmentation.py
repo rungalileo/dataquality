@@ -7,7 +7,6 @@ from dataquality.clients.objectstore import ObjectStore
 from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger.base_data_logger import (
-    ITER_CHUNK_SIZE,
     BaseGalileoDataLogger,
     DataSet,
     MetasType,
@@ -16,13 +15,14 @@ from dataquality.loggers.logger_config.semantic_segmentation import (
     SemanticSegmentationLoggerConfig,
     semantic_segmentation_logger_config,
 )
+from dataquality.schemas.semantic_segmentation import SemSegCols
 from dataquality.schemas.split import Split
 from dataquality.utils.vaex import get_output_df
 
 # smaller than ITER_CHUNK_SIZE from base_data_logger because very large chunks
 # containing image data often won't fit in memory
 
-ITER_CHUNK_SIZE_IMAGES = 10000
+ITER_CHUNK_SIZE_IMAGES = 1000
 
 
 class SemanticSegmentationDataLogger(BaseGalileoDataLogger):
@@ -48,17 +48,30 @@ class SemanticSegmentationDataLogger(BaseGalileoDataLogger):
         self,
         dataset: DataSet,
         *,
-        batch_size: int = ITER_CHUNK_SIZE,
-        text: Union[str, int] = "text",
-        id: Union[str, int] = "id",
+        batch_size: int = ITER_CHUNK_SIZE_IMAGES,
+        image: Union[str, int] = SemSegCols.image,
+        id: Union[str, int] = SemSegCols.id,
         split: Optional[Split] = None,
+        inference_name: Optional[str] = None,
         meta: Optional[List[Union[str, int]]] = None,
         **kwargs: Any,
     ) -> None:
-        raise GalileoException(
-            "Semantic Segmentation does not support log_dataset. "
-            "Use watch(model, [dataloaders])"
-        )
+        self.validate_kwargs(kwargs)
+        self.split = split
+        self.inference_name = inference_name
+        meta = meta or []
+        column_map = {
+            id: SemSegCols.id,
+            image: SemSegCols.image,
+        }
+        if not isinstance(dataset, dict):
+            raise GalileoException(
+                f"Dataset must be a dict for Semantic Segmentation, "
+                f"but got type {type(dataset)}"
+            )
+
+        dataset = dataset.rename(columns=column_map)
+        self._log_dict(dataset, split)
 
     def upload_split(
         self,

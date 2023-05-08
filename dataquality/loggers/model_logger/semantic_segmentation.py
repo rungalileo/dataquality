@@ -3,6 +3,10 @@ from typing import Dict, List, Optional, Union
 import numpy as np
 import torch
 
+from dataquality import get_data_logger
+from dataquality.loggers.data_logger.semantic_segmentation import (
+    SemanticSegmentationDataLogger,
+)
 from dataquality.loggers.logger_config.semantic_segmentation import (
     SemanticSegmentationLoggerConfig,
     semantic_segmentation_logger_config,
@@ -147,23 +151,39 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 image_id,
                 self.gt_mask_path,
             )
-
-        data = {
+        
+        image_data = {
             "image": [
                 f"{self.bucket_name}/{pth}" for pth in self.image_paths
             ],  # E.g. https://storage.googleapis.com/bucket_name/.../image_id.png
-            "image_id": self.image_ids,
+            "id": self.image_ids,
             "height": [img.shape[-1] for img in self.gt_masks],
             "width": [img.shape[-2] for img in self.gt_masks],
-            "data_error_potential": image_dep,
+            "image_data_error_potential": image_dep,
             "mean_lm_score": [i for i in mean_mislabeled],
             "mean_iou": iou,
             "mean_iou_per_class": iou_per_class,
             "boundary_iou": boundary_iou,
             "boundary_iou_per_class": boundary_iou_per_class,
-            "split": [self.split] * len(self.image_ids),
             "epoch": [self.epoch] * len(self.image_ids),
         }
-        if self.split == Split.inference:
-            data["inference_name"] = [self.inference_name] * len(self.image_ids)
-        return data
+        data_logger = get_data_logger()
+        assert isinstance(data_logger, SemanticSegmentationDataLogger), (
+            "This method is only supported for Semantic Segmentation."
+        )
+        data_logger.log_dataset(
+            image_data,
+            split=self.split,
+            inference_name=self.inference_name,
+        )
+
+        polygon_data = {
+            "image_id": [],
+            "pred": -1,
+            "gold": -1,
+            "contours": [],
+            "data_error_potential": [],
+            "galileo_error_type": None,
+        }
+
+        return polygon_data
