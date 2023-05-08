@@ -245,7 +245,6 @@ class SemanticTorchLogger(TorchLogger):
             # convert the img_ids to absolute ids from file map
             img_ids = [self.dataloader_path_to_id[path] for path in logging_data['image_path']]
             log_image_paths = [self.id_to_relative_path[id] for id in img_ids]
-            import pdb; pdb.set_trace()
             image_paths = [pth.lstrip("./") for pth in log_image_paths]
 
             # resize the logits to the input size based on hooks
