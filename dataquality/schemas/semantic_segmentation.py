@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import numpy as np
 from pydantic import BaseModel
@@ -46,6 +46,7 @@ class Contour(BaseModel):
 class Polygon(BaseModel):
     id: int
     label_idx: int
+    misclassified_class_label: Optional[int] = None
     error_type: ErrorType = ErrorType.none
     contours: List[Contour]
 
