@@ -1,6 +1,8 @@
 import os
-from typing import Any, List, Optional, Union
+from collections import defaultdict
+from typing import Any, Dict, List, Optional, Union
 
+import pandas as pd
 import vaex
 
 from dataquality.clients.objectstore import ObjectStore
@@ -15,6 +17,7 @@ from dataquality.loggers.logger_config.semantic_segmentation import (
     SemanticSegmentationLoggerConfig,
     semantic_segmentation_logger_config,
 )
+from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.semantic_segmentation import SemSegCols
 from dataquality.schemas.split import Split
 from dataquality.utils.vaex import get_output_df
@@ -60,18 +63,73 @@ class SemanticSegmentationDataLogger(BaseGalileoDataLogger):
         self.split = split
         self.inference_name = inference_name
         meta = meta or []
-        column_map = {
-            id: SemSegCols.id,
-            image: SemSegCols.image,
-        }
+
         if not isinstance(dataset, dict):
             raise GalileoException(
                 f"Dataset must be a dict for Semantic Segmentation, "
                 f"but got type {type(dataset)}"
             )
 
-        dataset = dataset.rename(columns=column_map)
-        self._log_dict(dataset, split)
+        column_map = {
+            id: SemSegCols.id,
+            image: SemSegCols.image,
+        }
+        for old_key, new_key in column_map.items():
+            if old_key in dataset:
+                dataset[new_key] = dataset.pop(old_key)
+
+        metas = defaultdict(list)
+        for meta_col in meta:
+            metas[meta_col].append(self._convert_tensor_to_py(dataset[meta_col]))
+        self._log_dict(dataset, meta=metas, split=split, inference_name=inference_name)
+
+    def _log_dict(
+        self,
+        d: Dict,
+        meta: Dict,
+        split: Optional[Split] = None,
+        inference_name: Optional[str] = None,
+    ) -> None:
+        self.log_image_samples(
+            images=d[SemSegCols.image],
+            ids=d[SemSegCols.id],
+            split=split,
+            meta=meta,
+            inference_name=inference_name,
+        )
+
+    def log_image_samples(
+        self,
+        *,
+        images: List[str],
+        ids: List[int],
+        split: Optional[Split] = None,
+        inference_name: Optional[str] = None,
+        meta: Optional[MetasType] = None,
+        **kwargs: Any,  # For typing
+    ) -> None:
+        """Log input samples for OD"""
+        self.validate_kwargs(kwargs)
+        self.images = images
+        self.ids = ids
+        self.split = split
+        self.inference_name = inference_name
+        self.meta = meta or {}
+        self.log()
+
+    def _get_input_df(self) -> vaex.DataFrame:
+        df_len = len(self.ids)
+        inp = dict(
+            id=self.ids,
+            image=self.images,
+            split=[Split(self.split).value] * df_len,
+            data_schema_version=[__data_schema_version__] * df_len,
+            **self.meta,
+        )
+        if self.split == Split.inference:
+            inp["inference_name"] = [self.inference_name] * df_len
+
+        return vaex.from_pandas(pd.DataFrame(inp))
 
     def upload_split(
         self,

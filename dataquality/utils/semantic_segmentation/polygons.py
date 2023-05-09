@@ -1,6 +1,4 @@
-import json
 from collections import defaultdict
-from tempfile import NamedTemporaryFile
 from typing import List, Tuple
 
 import cv2
@@ -8,7 +6,6 @@ import numpy as np
 import torch
 
 from dataquality.clients.objectstore import ObjectStore
-from dataquality.core._config import GALILEO_DEFAULT_RESULT_BUCKET_NAME
 from dataquality.schemas.semantic_segmentation import Contour, Pixel, Polygon
 
 object_store = ObjectStore()
@@ -125,34 +122,6 @@ def build_polygons_label(
     return final_polygons, polygon_idx
 
 
-def upload_polygons_image(
-    polygons: List[Polygon],
-    image_id: int,
-    prefix: str,
-) -> None:
-    """Uploads a list of Polygons to the cloud for a given image
-
-    Args:
-        polygons(List): List of polygons for one image
-        image_id(int): image id to be used in the object name
-        prefix(str): prefix of the object name in storage
-            - /proj-id/run-id/training/masks/pred/1.json
-    """
-    deserialized_polygons = [polygon.deserialize_json() for polygon in polygons]
-    obj_name = f"{prefix}/{image_id}.json"
-
-    with NamedTemporaryFile(mode="w+", delete=False) as f:
-        json.dump(deserialized_polygons, f)
-
-    object_store.create_object(
-        object_name=obj_name,
-        file_path=f.name,
-        content_type="application/json",
-        progress=False,
-        bucket_name=GALILEO_DEFAULT_RESULT_BUCKET_NAME,
-    )
-
-
 def draw_polygon(polygon: Polygon, shape: Tuple[int, ...]) -> np.ndarray:
     """Draws one polygon onto a blank image, assigning the polygon a label
 
@@ -168,5 +137,5 @@ def draw_polygon(polygon: Polygon, shape: Tuple[int, ...]) -> np.ndarray:
         np.ndarray: image with single polygon drawn on it
     """
     return cv2.drawContours(
-        np.zeros(shape), polygon.deserialize_opencv(), -1, polygon.label_idx, -1
+        np.zeros(shape), polygon.contours_opencv, -1, polygon.label_idx, -1
     )
