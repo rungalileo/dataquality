@@ -55,7 +55,6 @@ doc = [
 test = [
     "ultralytics",
     "pytest>=7.2.1",
-    "mypy>=1.0.0",
     "freezegun>=1.2.2",
     "coverage>=7.0.5",
     "pytest-cov>=4.0.0",
@@ -76,6 +75,7 @@ test = [
     "types-PyYAML==6.0.12.9"
 ]
 dev = [
+    "mypy>=1.0.0",
     "flake8",
     "black>=23.1.0",
     "isort>=5.11.5",
