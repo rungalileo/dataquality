@@ -1,14 +1,53 @@
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple, Union, List
+from abc import ABC, abstractmethod
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
+from setfit import SetFitModel, SetFitTrainer
 
 import dataquality as dq
 from dataquality.schemas.split import Split
 from dataquality.utils.cleanup import Cleanup, RefManager
-from setfit import SetFitModel, SetFitTrainer
 
 
-class SetFitModelHook:
+class Borg:
+    _shared_state = {}
+
+    def __init__(self):
+        self.__dict__ = self._shared_state
+
+
+class PatchManager(Borg):
+    def __init__(self) -> None:
+        super().__init__()
+        if not hasattr(self, "patches"):
+            self.patches = []
+
+    def add_patch(self, patch: "Patch") -> None:
+        self.patches.append(patch)
+
+    def unpatch(self) -> None:
+        for patch in self.patches[:]:
+            patch.unpatch()
+            self.patches.remove(patch)
+
+
+class Patch(ABC):
+    is_patch = True
+    manager = PatchManager()
+
+    def patch(self) -> None:
+        patch = self._patch()
+        self.manager.add_patch(patch)
+
+    @abstractmethod
+    def _patch(self) -> "Patch":
+        pass
+
+    def unpatch(self) -> None:
+        self.manager.unpatch()
+
+
+class SetFitModelHook(Patch):
     def __init__(
         self,
         setfit_model: Any,
@@ -32,18 +71,20 @@ class SetFitModelHook:
         self.cls_name = "model_head"
         self.func_name_predict = func_name
         self.n_labels = n_labels
-        self.setup()
+        self.patch()
 
-    def setup(self) -> None:
+    def _patch(self) -> None:
         """Setup hook to SetFit model by replacing predict_proba function with self."""
-
         self.old_model = getattr(self.in_cls, self.cls_name)
-        self.old_func = getattr(self.old_model, self.func_name_predict)
+        old_fn = getattr(self.old_model, self.func_name_predict)
+        if hasattr(old_fn, "is_patch"):
+            old_fn.unpatch()
+            old_fn = getattr(self.old_model, self.func_name_predict)
+        self.old_fn = old_fn
         setattr(self.old_model, self.func_name_predict, self)
-        unpatch = _PatchSetFitModel(
+        _PatchSetFitModel(
             self.in_cls,
         )
-        unpatch.model_unpatch = self.unpatch
         self.store["hook"] = self
 
     def __call__(self, *args: Tuple, **kwargs: Dict) -> Any:
@@ -60,30 +101,37 @@ class SetFitModelHook:
         self.store["output"] = output
         return output
 
-    def unpatch(self) -> None:
+    def _unpatch(self) -> None:
         """Unpatch SetFit model by replacing predict_proba
         function with old function."""
         setattr(self.old_model, self.func_name_predict, self.old_func)
 
 
-class _PatchSetFitModel:
+class _PatchSetFitModel(Patch):
     def __init__(
         self, setfit_model: SetFitModel, function_name: str = "save_pretrained"
     ) -> None:
         self.model = setfit_model
-        self.old_fn = getattr(self.model, function_name)
-        setattr(self.model, function_name, self)
+        self.function_name = function_name
 
     def __call__(self, *args: Any, **kwds: Any) -> Any:
         self.unpatch()
         self.model_unpatch()
         return self.old_fn(*args, **kwds)
 
-    def unpatch(self) -> None:
+    def _patch(self) -> None:
+        old_fn = getattr(self.model, self.function_name)
+        if hasattr(old_fn, "is_patch"):
+            old_fn.unpatch()
+            old_fn = getattr(self.model, self.function_name)
+        self.old_fn = old_fn
+        setattr(self.model, self.function_name, self)
+
+    def _unpatch(self) -> None:
         setattr(self.model, self.old_fn)
 
 
-class _PatchSetFitTrainer:
+class _PatchSetFitTrainer(Patch):
     def __init__(
         self,
         setfit_trainer: SetFitTrainer,
@@ -93,9 +141,17 @@ class _PatchSetFitTrainer:
         wait: bool = False,
     ) -> None:
         self.trainer = setfit_trainer
-        self.old_fn = getattr(self.trainer, function_name)
-        setattr(self.trainer, function_name, self)
+        self.function_name = function_name
+        self.patch()
         self.labels = labels
+
+    def _patch(self) -> None:
+        old_fn = getattr(self.trainer, self.function_name)
+        if hasattr(old_fn, "is_patch"):
+            old_fn.unpatch()
+            old_fn = getattr(self.trainer, self.function_name)
+        self.old_fn = old_fn
+        setattr(self.trainer, self.function_name, self)
 
     def __call__(self, *args: Any, **kwds: Any) -> Any:
         batch_size = kwds.get("batch_size", self.trainer.batch_size)
@@ -161,7 +217,7 @@ class _PatchSetFitTrainer:
 
         return res
 
-    def unpatch(self) -> None:
+    def _unpatch(self) -> None:
         setattr(self.trainer, self.old_fn)
 
 
@@ -175,9 +231,14 @@ def watch(
     :param model: SetFit model"""
     model = setfit
 
+    setfitmanager = PatchManager()
+
     if isinstance(setfit, SetFitTrainer):
         model = setfit.model
-        _PatchSetFitTrainer(setfit, "train", labels=labels, finish=finish, wait=wait)
+        patched_trainer = _PatchSetFitTrainer(
+            setfit, "train", labels=labels, finish=finish, wait=wait
+        )
+        setfitmanager.add_patch(patched_trainer)
     else:
         return evaluate(model)
 
