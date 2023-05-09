@@ -251,7 +251,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         gold_spans: Union[str, int] = "gold_spans",
         split: Optional[Split] = None,
         inference_name: Optional[str] = None,
-        meta: Optional[List[Union[str, int]]] = None,
+        meta: Union[List[str], List[int], None] = None,
         **kwargs: Any,
     ) -> None:
         """
@@ -274,7 +274,6 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         self.validate_kwargs(kwargs)
         self.split = split
         self.inference_name = inference_name
-        meta = meta or []
         column_map = {
             text: "text",
             id: "id",
@@ -327,7 +326,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         id: Union[str, int],
         text_token_indices: Union[str, int],
         gold_spans: Union[str, int],
-        meta: List[Union[str, int]],
+        meta: Union[List[str], List[int], None] = None,
         split: Optional[Split] = None,
         inference_name: Optional[str] = None,
     ) -> None:
@@ -338,7 +337,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         """
         for i in range(0, len(dataset), batch_size):
             chunk = dataset[i : i + batch_size]
-            chunk_meta: Dict = {col: chunk[col] for col in meta}
+            chunk_meta: Dict = {col: chunk[col] for col in meta or []}
             self.log_data_samples(
                 texts=chunk[text],
                 ids=chunk[id],
@@ -357,7 +356,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         id: Union[str, int],
         text_token_indices: Union[str, int],
         gold_spans: Union[str, int],
-        meta: List[Union[str, int]],
+        meta: Union[List[str], List[int], None] = None,
         split: Optional[Split] = None,
         inference_name: Optional[str] = None,
     ) -> None:
@@ -371,7 +370,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
             if split != Split.inference:
                 batches["gold_spans"].append(chunk[gold_spans])
 
-            for meta_col in meta:
+            for meta_col in meta or []:
                 metas[meta_col].append(self._convert_tensor_to_py(chunk[meta_col]))
 
             if len(batches["text"]) >= batch_size:
@@ -401,14 +400,16 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         )
 
     def _log_df(
-        self, df: Union[pd.DataFrame, DataFrame], meta: List[Union[str, int]]
+        self,
+        df: Union[pd.DataFrame, DataFrame],
+        meta: Union[List[str], List[int], None],
     ) -> None:
         """Helper to log a pandas or vaex df"""
         self.texts = df["text"].tolist()
         self.ids = df["id"].tolist()
         self.text_token_indices = df["text_token_indices"].tolist()
         self.gold_spans = df["gold_spans"].tolist() if "gold_spans" in df else []
-        for meta_col in meta:
+        for meta_col in meta or []:
             self.meta[str(meta_col)] = df[meta_col].tolist()
         self.log()
 

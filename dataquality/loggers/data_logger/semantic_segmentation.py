@@ -52,7 +52,7 @@ class SemanticSegmentationDataLogger(BaseGalileoDataLogger):
         text: Union[str, int] = "text",
         id: Union[str, int] = "id",
         split: Optional[Split] = None,
-        meta: Optional[List[Union[str, int]]] = None,
+        meta: Union[List[str], List[int], None] = None,
         **kwargs: Any,
     ) -> None:
         raise GalileoException(
