@@ -10,6 +10,7 @@ from typing import Any, Dict, Iterable, List, Optional, TypeVar, Union
 import numpy as np
 import pandas as pd
 import vaex
+from huggingface_hub.utils import HfHubHTTPError
 from vaex.dataframe import DataFrame
 
 from dataquality.clients.objectstore import ObjectStore
@@ -296,7 +297,14 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         """Uploads off the shelf data embeddings for a split"""
         object_store = ObjectStore()
         df_copy = df.copy()
-        data_embs = create_data_embs_df(df_copy)
+        try:
+            data_embs = create_data_embs_df(df_copy)
+        except HfHubHTTPError as e:
+            warnings.warn(
+                "Unable to download transformer from huggingface. Data embeddings "
+                f"will be skipped. {str(e)}"
+            )
+            return
         proj_run_split = f"{config.current_project_id}/{config.current_run_id}/{split}"
         minio_file = f"{proj_run_split}/{epoch_or_inf}/{DATA_EMB_PATH}"
         # And upload
