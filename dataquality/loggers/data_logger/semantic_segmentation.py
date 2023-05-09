@@ -56,13 +56,12 @@ class SemanticSegmentationDataLogger(BaseGalileoDataLogger):
         id: Union[str, int] = SemSegCols.id,
         split: Optional[Split] = None,
         inference_name: Optional[str] = None,
-        meta: Optional[List[Union[str, int]]] = None,
+        meta: Union[List[str], List[int], None] = None,
         **kwargs: Any,
     ) -> None:
         self.validate_kwargs(kwargs)
         self.split = split
         self.inference_name = inference_name
-        meta = meta or []
 
         if not isinstance(dataset, dict):
             raise GalileoException(
@@ -79,7 +78,7 @@ class SemanticSegmentationDataLogger(BaseGalileoDataLogger):
                 dataset[new_key] = dataset.pop(old_key)
 
         metas = defaultdict(list)
-        for meta_col in meta:
+        for meta_col in meta or []:
             metas[meta_col].append(self._convert_tensor_to_py(dataset[meta_col]))
         self._log_dict(dataset, meta=metas, split=split, inference_name=inference_name)
 

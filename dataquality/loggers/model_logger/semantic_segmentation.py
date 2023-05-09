@@ -147,7 +147,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             image_data,
             split=Split[self.split],
             inference_name=self.inference_name,
-            meta=meta_keys,  # type: ignore
+            meta=meta_keys,
         )
 
         image_ids = []

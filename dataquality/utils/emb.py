@@ -1,7 +1,9 @@
 import os
+import warnings
 from typing import Dict, Optional
 
 import vaex
+from huggingface_hub.utils import HfHubHTTPError
 from pydantic import UUID4
 from vaex.dataframe import DataFrame
 
@@ -93,7 +95,14 @@ def upload_umap_data_embs(
     """
     object_store = ObjectStore()
     df = vaex.open(f"{input_data_dir}/**/data*.arrow")
-    df_emb = create_data_embs_df(df, lazy=False)
+    try:
+        df_emb = create_data_embs_df(df, lazy=False)
+    except HfHubHTTPError as e:
+        warnings.warn(
+            "Unable to download transformer from huggingface. Data embeddings "
+            f"will be skipped. {str(e)}"
+        )
+        return
     split_epoch = get_last_epoch_for_splits(run_dir, last_epoch)
     df_emb = add_umap_pca_to_df(df_emb, data_embs=True)
     data_emb_cols = ["id", "emb", "emb_pca", "data_x", "data_y"]
