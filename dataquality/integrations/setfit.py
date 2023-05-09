@@ -1,13 +1,11 @@
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple, Union, List
 
 import numpy as np
 
 import dataquality as dq
 from dataquality.schemas.split import Split
 from dataquality.utils.cleanup import Cleanup, RefManager
-
-if TYPE_CHECKING:
-    from setfit import SetFitModel, SetFitTrainer
+from setfit import SetFitModel, SetFitTrainer
 
 
 class SetFitModelHook:
@@ -87,11 +85,17 @@ class _PatchSetFitModel:
 
 class _PatchSetFitTrainer:
     def __init__(
-        self, setfit_trainer: SetFitTrainer, function_name: str = "train"
+        self,
+        setfit_trainer: SetFitTrainer,
+        function_name: str = "train",
+        labels: List[str] = [],
+        finish: bool = True,
+        wait: bool = False,
     ) -> None:
         self.trainer = setfit_trainer
         self.old_fn = getattr(self.trainer, function_name)
         setattr(self.trainer, function_name, self)
+        self.labels = labels
 
     def __call__(self, *args: Any, **kwds: Any) -> Any:
         batch_size = kwds.get("batch_size", self.trainer.batch_size)
@@ -105,19 +109,22 @@ class _PatchSetFitTrainer:
         train_dataset = self.trainer.train_dataset
         eval_dataset = self.trainer.eval_dataset
 
-        if self.column_mapping is not None:
+        if self.trainer.column_mapping is not None:
             train_dataset = self.trainer._apply_column_mapping(
                 train_dataset, self.trainer.column_mapping
             )
-
-        labels = dq.get_data_logger().logger_config.labels
-        dq.init("text_classification", project_name="setfit", run_name="test")
+        if not dq.config.task_type:
+            dq.init("text_classification", project_name="setfit", run_name="test")
+        labels = self.labels
         if not labels:
-            labels = train_dataset.features["label"].names
+            labels = dq.get_data_logger().logger_config.labels
+        if not labels:
+            labels = getattr(train_dataset.features["label"], "names", None)
+        assert labels, "Labels must be set (watch(trainer, labels=[...]))"
         dq.set_labels_for_run(labels)
         datasets = [train_dataset]
         if eval_dataset is not None:
-            if self.column_mapping is not None:
+            if self.trainer.column_mapping is not None:
                 eval_dataset = self.trainer._apply_column_mapping(
                     eval_dataset, self.trainer.column_mapping
                 )
@@ -149,6 +156,8 @@ class _PatchSetFitTrainer:
                     split=split,
                     epoch=0,
                 )
+        if self.finish:
+            dq.finish(wait=self.wait)
 
         return res
 
@@ -156,14 +165,19 @@ class _PatchSetFitTrainer:
         setattr(self.trainer, self.old_fn)
 
 
-def watch(setfit: Union[SetFitModel, SetFitTrainer]) -> Optional[Callable]:
+def watch(
+    setfit: Union[SetFitModel, SetFitTrainer],
+    labels: List[str] = [],
+    finish: bool = True,
+    wait: bool = False,
+) -> Optional[Callable]:
     """Watch SetFit model by replacing predict_proba function with SetFitModelHook.
     :param model: SetFit model"""
     model = setfit
 
     if isinstance(setfit, SetFitTrainer):
         model = setfit.model
-        _PatchSetFitTrainer(setfit, "train")
+        _PatchSetFitTrainer(setfit, "train", labels=labels, finish=finish, wait=wait)
     else:
         return evaluate(model)
 
