@@ -68,7 +68,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         label: Union[str, int] = "label",
         split: Optional[Split] = None,
         inference_name: Optional[str] = None,
-        meta: Optional[List[Union[str, int]]] = None,
+        meta: Union[List[str], List[int], None] = None,
         column_map: Optional[Dict[str, str]] = None,
         parallel: bool = False,
     ) -> Any:

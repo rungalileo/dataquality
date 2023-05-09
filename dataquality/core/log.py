@@ -127,7 +127,7 @@ def log_image_dataset(
     label: Union[str, int] = "label",
     split: Optional[Split] = None,
     inference_name: Optional[str] = None,
-    meta: Optional[List[Union[str, int]]] = None,
+    meta: Union[List[str], List[int], None] = None,
     parallel: bool = False,
     **kwargs: Any,
 ) -> None:
@@ -250,7 +250,7 @@ def log_dataset(
     text: Union[str, int] = "text",
     id: Union[str, int] = "id",
     split: Optional[Split] = None,
-    meta: Optional[List[Union[str, int]]] = None,
+    meta: Union[List[str], List[int], None] = None,
     **kwargs: Any,
 ) -> None:
     """Log an iterable or other dataset to disk. Useful for logging memory mapped files

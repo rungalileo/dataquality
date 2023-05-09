@@ -101,14 +101,13 @@ class ObjectDetectionDataLogger(BaseGalileoDataLogger):
         id: Union[str, int] = ODCols.id,
         split: Optional[Split] = None,
         inference_name: Optional[str] = None,
-        meta: Optional[List[Union[str, int]]] = None,
+        meta: Union[List[str], List[int], None] = None,
         **kwargs: Any,
     ) -> None:
         """Log a dataset of input samples for OD"""
         self.validate_kwargs(kwargs)
         self.split = split
         self.inference_name = inference_name
-        meta = meta or []
         column_map = {
             id: ODCols.id,
             image: ODCols.image,
@@ -143,7 +142,7 @@ class ObjectDetectionDataLogger(BaseGalileoDataLogger):
         batch_size: int,
         image: Union[str, int],
         id: Union[str, int],
-        meta: List[Union[str, int]],
+        meta: Union[List[str], List[int], None] = None,
         split: Optional[Split] = None,
         inference_name: Optional[str] = None,
     ) -> None:
@@ -153,7 +152,7 @@ class ObjectDetectionDataLogger(BaseGalileoDataLogger):
             batches[ODCols.image].append(chunk[image])
             batches[ODCols.id].append(chunk[id])
 
-            for meta_col in meta:
+            for meta_col in meta or []:
                 metas[meta_col].append(self._convert_tensor_to_py(chunk[meta_col]))
 
             if len(batches[ODCols.image]) >= batch_size:
@@ -181,12 +180,14 @@ class ObjectDetectionDataLogger(BaseGalileoDataLogger):
         )
 
     def _log_df(
-        self, df: Union[pd.DataFrame, DataFrame], meta: List[Union[str, int]]
+        self,
+        df: Union[pd.DataFrame, DataFrame],
+        meta: Union[List[str], List[int], None],
     ) -> None:
         """Helper to log a pandas or vaex df"""
         self.images = df[ODCols.image].tolist()
         self.ids = df[ODCols.id].tolist()
-        for meta_col in meta:
+        for meta_col in meta or []:
             self.meta[str(meta_col)] = df[meta_col].tolist()
         self.log()
 
