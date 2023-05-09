@@ -199,7 +199,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         label: Optional[Union[str, int]] = "label",
         split: Optional[Split] = None,
         inference_name: Optional[str] = None,
-        meta: Optional[List[Union[str, int]]] = None,
+        meta: Union[List[str], List[int], None] = None,
         **kwargs: Any,
     ) -> None:
         """
@@ -223,7 +223,6 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         self.validate_kwargs(kwargs)
         self.split = split
         self.inference_name = inference_name
-        meta = meta or []
         column_map = {text: "text", id: "id"}
         label = None if split == Split.inference else label
         if label:
@@ -256,7 +255,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         batch_size: int,
         text: Union[str, int],
         id: Union[str, int],
-        meta: List[Union[str, int]],
+        meta: Union[List[str], List[int], None] = None,
         label: Optional[Union[str, int]] = None,
         split: Optional[Split] = None,
         inference_name: Optional[str] = None,
@@ -304,7 +303,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
                 id=chunk[id],
                 label=parse_label(chunk[label]) if label else None,
             )
-            chunk_meta = {col: chunk[col] for col in meta}
+            chunk_meta = {col: chunk[col] for col in meta or []}
             self._log_dict(data, chunk_meta, split, inference_name)
 
     def _log_iterator(
@@ -313,7 +312,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         batch_size: int,
         text: Union[str, int],
         id: Union[str, int],
-        meta: List[Union[str, int]],
+        meta: Union[List[str], List[int], None] = None,
         label: Optional[Union[str, int]] = None,
         split: Optional[Split] = None,
         inference_name: Optional[str] = None,
@@ -327,7 +326,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
                 # Process separately because multi-label needs to override this
                 # to handle labels as a list of lists
                 batches = self._process_label(batches, chunk[label])
-            for meta_col in meta:
+            for meta_col in meta or []:
                 metas[meta_col].append(self._convert_tensor_to_py(chunk[meta_col]))
 
             if len(batches["text"]) >= batch_size:
@@ -360,7 +359,9 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         )
 
     def _log_df(
-        self, df: Union[pd.DataFrame, DataFrame], meta: List[Union[str, int]]
+        self,
+        df: Union[pd.DataFrame, DataFrame],
+        meta: Union[List[str], List[int], None],
     ) -> None:
         """Helper to log a pandas or vaex df"""
         self.texts = df["text"].tolist()
@@ -368,7 +369,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         # Inference case
         if "label" in df:
             self.labels = df["label"].tolist()
-        for meta_col in meta:
+        for meta_col in meta or []:
             self.meta[str(meta_col)] = df[meta_col].tolist()
         self.log()
 
