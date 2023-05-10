@@ -213,12 +213,10 @@ def semseg_calculate_self_confidence(
     gold_indices = (
         gold.reshape((bs, -1, 1)).expand(-1, -1, probs.shape[2]).type(torch.int64)
     )  # (bs, n_pixels, n_classes)
-    value_at_ground_truth = torch.gather(probs, 2, gold_indices)[
-        :, :, 0
-    ]  # (bs, n_pixels)
-    value_at_ground_truth = value_at_ground_truth.reshape(bs, h, w)
+    value_at_gold = torch.gather(probs, 2, gold_indices)[:, :, 0]  # (bs, n_pixels)
+    value_at_gold = value_at_gold.reshape(bs, h, w)
 
-    return value_at_ground_truth.cpu()  # bs, h, w
+    return value_at_gold.cpu()  # bs, h, w
 
 
 def semseg_fill_confident_counts(
@@ -370,7 +368,6 @@ def upload_im(img: Image.Image, prefix: str, id: int) -> None:
 
     with NamedTemporaryFile(suffix=".png", mode="w+") as f:
         img.save(f.name)
-
         object_store.create_object(
             object_name=f"{prefix}/{id}.png",
             file_path=f.name,
@@ -393,12 +390,12 @@ def calculate_self_confidence_threshold(
         torch.Tensor: (classes, ) self confidence threshold for each class
     """
     bs, h, w, c = probs.shape
-    value_at_ground_truth = semseg_calculate_self_confidence(probs, gold)
+    value_at_gold = semseg_calculate_self_confidence(probs, gold)
 
     # get the mean of the self confidence per class
     mean_self_confidence_per_class = []
     for i in range(c):
         mask = gold == i
-        mean_self_confidence = torch.mean(value_at_ground_truth[mask])
+        mean_self_confidence = torch.mean(value_at_gold[mask])
         mean_self_confidence_per_class.append(mean_self_confidence.item())
     return mean_self_confidence_per_class

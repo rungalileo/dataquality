@@ -120,4 +120,7 @@ def mps_available() -> bool:
     """
     import torch
 
-    return torch.backends.mps.is_available()
+    try:
+        return torch.backends.mps.is_available()
+    except Exception:
+        return False
