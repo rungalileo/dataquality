@@ -67,8 +67,8 @@ class SemanticSegmentationDataLogger(BaseGalileoDataLogger):
             )
 
         column_map = {
-            id: SemSegCols.id,
-            image: SemSegCols.image,
+            id: SemSegCols.id.value,
+            image: SemSegCols.image.value,
         }
         for old_key, new_key in column_map.items():
             if old_key in dataset:
