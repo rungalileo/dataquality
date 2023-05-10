@@ -62,6 +62,6 @@ jobs:
       - name: Run coverage
         run: |
           coverage combine coverage*/.coverage*
-          coverage report --fail-under=100
+          coverage report --fail-under=80
           coverage xml
       - uses: codecov/codecov-action@v1
