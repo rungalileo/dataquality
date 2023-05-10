@@ -68,7 +68,7 @@ def build_polygons_image(mask: np.ndarray, polygon_idx: int = 0) -> List[Polygon
             class_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
         )
 
-        polygons_per_label = build_polygons_label(
+        polygons_per_label, polygon_idx = build_polygons_label(
             contours, hierarchy, label_idx, polygon_idx
         )
         polygons.extend(polygons_per_label)
@@ -81,7 +81,7 @@ def build_polygons_label(
     hierarchy: np.ndarray,
     label_idx: int,
     polygon_idx: int = 0,
-) -> List[Polygon]:
+) -> Tuple[List[Polygon], int]:
     """Builds the polygons given contours of a single label for one image
 
     :param contours: a tuple of numpy arrays where each array is a contour
@@ -122,7 +122,7 @@ def build_polygons_label(
         final_polygons.append(polygon)
         polygon_idx += 1
 
-    return final_polygons
+    return final_polygons, polygon_idx
 
 
 def upload_polygons_image(
