@@ -355,6 +355,12 @@ def evaluate(model: "SetFitModel") -> Callable:
     dq_store = dq_hook.store
     labels = dq.get_data_logger().logger_config.labels
 
+    helper_data = dq.get_data_logger().logger_config.helper_data
+
+    # Unpatch SetFit model after logging (when finished is called)
+    cleanup_manager = RefManager(dq_hook.unpatch)
+    helper_data["cleaner"] = Cleanup(cleanup_manager)
+
     def dq_evaluate(
         dataset: "Dataset",
         split: Split,
@@ -379,6 +385,7 @@ def evaluate(model: "SetFitModel") -> Callable:
         if column_mapping is not None:
             dataset = _apply_column_mapping(dataset, column_mapping)
         preds: List[torch.Tensor] = []
+
         for i in range(0, len(dataset), batch_size):
             batch = dataset[i : i + batch_size]
 
@@ -396,12 +403,6 @@ def evaluate(model: "SetFitModel") -> Callable:
             else:
                 assert label_col in batch, f"column '{label_col}' must be in batch"
                 log_args["labels"] = [labels[label] for label in batch[label_col]]
-
-            helper_data = dq.get_data_logger().logger_config.helper_data
-
-            # Unpatch SetFit model after logging (when finished is called)
-            cleanup_manager = RefManager(dq_hook.unpatch)
-            helper_data["cleaner"] = Cleanup(cleanup_manager)
 
             dq.log_data_samples(**log_args)
             # 🔭🌕 Galileo logging
