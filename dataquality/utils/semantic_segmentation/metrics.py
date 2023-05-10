@@ -31,7 +31,9 @@ def calculate_and_upload_dep(
     return calculate_image_dep(dep_heatmaps)
 
 
-def calculate_dep_heatmaps(probs: torch.Tensor, gold_masks: torch.Tensor) -> torch.Tensor:
+def calculate_dep_heatmaps(
+    probs: torch.Tensor, gold_masks: torch.Tensor
+) -> torch.Tensor:
     """
     Calculates the Data Error Potential (DEP) for each image in the batch
 
@@ -49,7 +51,7 @@ def calculate_dep_heatmaps(probs: torch.Tensor, gold_masks: torch.Tensor) -> tor
     gold_indices = (
         gold_masks.reshape((bs, -1, 1)).expand(-1, -1, probs.shape[2]).type(torch.int64)
     )  # (bs, n_pixels, n_classes)
-    value_at_ground_truth = torch.gather(probs, 2, gold_indices)[
+    value_at_gold = torch.gather(probs, 2, gold_indices)[
         :, :, 0
     ]  # (bs, n_pixels)
 
@@ -58,7 +60,7 @@ def calculate_dep_heatmaps(probs: torch.Tensor, gold_masks: torch.Tensor) -> tor
     next_highest.scatter_(2, gold_indices, 0)
     next_highest = next_highest.max(dim=2).values
 
-    margin = value_at_ground_truth - next_highest
+    margin = value_at_gold - next_highest
     # Since margin is between -1 and 1, we normalize it to be between 0 and 1
     normalized_margin = (1 + margin) / 2
     dep_masks = 1 - normalized_margin

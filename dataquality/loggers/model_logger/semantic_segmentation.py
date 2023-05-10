@@ -105,7 +105,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
 
     @property
     def gold_mask_path(self) -> str:
-        return f"{self.proj_run}/{self.split_name_path}/masks/ground_truth"
+        return f"{self.proj_run}/{self.split_name_path}/masks/gold"
 
     def _get_data_dict(self) -> Dict:
         """Returns a dictionary of data to be logged as a DataFrame"""
