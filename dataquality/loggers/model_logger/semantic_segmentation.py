@@ -101,12 +101,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         return f"{self.proj_run}/{self.split_name_path}/dep"
 
     @property
-    def pred_contours_path(self) -> str:
-        return f"{self.proj_run}/{self.split_name_path}/contours/pred"
-
-    @property
-    def gold_contours_path(self) -> str:
-        return f"{self.proj_run}/{self.split_name_path}/contours/gold"
+    def contours_path(self) -> str:
+        return f"{self.proj_run}/{self.split_name_path}/contours"
 
     def _get_data_dict(self) -> Dict:
         """Returns a dictionary of data to be logged as a DataFrame"""
@@ -176,7 +172,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 data_error_potentials.append(0.0)
                 errors.append(polygon.error_type.value)
                 upload_polygon_contours(
-                    polygon, self.logger_config.polygon_idx, self.pred_contours_path
+                    polygon, self.logger_config.polygon_idx, self.contours_path
                 )
                 polygon_ids.append(self.logger_config.polygon_idx)
                 self.logger_config.polygon_idx += 1
@@ -188,7 +184,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 data_error_potentials.append(0.0)
                 errors.append(polygon.error_type.value)
                 upload_polygon_contours(
-                    polygon, self.logger_config.polygon_idx, self.gold_contours_path
+                    polygon, self.logger_config.polygon_idx, self.contours_path
                 )
                 polygon_ids.append(self.logger_config.polygon_idx)
                 self.logger_config.polygon_idx += 1

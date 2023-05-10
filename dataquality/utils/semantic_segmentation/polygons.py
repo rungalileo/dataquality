@@ -155,12 +155,12 @@ def upload_polygon_contours(
         polygon(Polygon): A Polygon object
         polygon_idx(int): id to be used in the object name
         prefix(str): prefix of the object name in storage
-            - /proj-id/run-id/training/contours/pred/1.json
+            - /proj-id/run-id/training/contours/1.json
     """
     obj_name = f"{prefix}/{polygon_idx}.json"
 
     with NamedTemporaryFile(mode="w+", delete=False) as f:
-        json.dump(polygon.contours_opencv, f)
+        json.dump(polygon.contours_json, f)
 
     object_store.create_object(
         object_name=obj_name,

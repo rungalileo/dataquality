@@ -33,7 +33,7 @@ class SemanticSegmentationDataLogger(BaseGalileoDataLogger):
         semantic_segmentation_logger_config
     )
 
-    INPUT_DATA_FILE_EXT = ".hdf5"
+    INPUT_DATA_FILE_EXT = "hdf5"
 
     def __init__(
         self,
@@ -129,30 +129,40 @@ class SemanticSegmentationDataLogger(BaseGalileoDataLogger):
 
         return vaex.from_dict(inp)
 
-    def upload_split(
-        self,
-        location: str,
-        split: str,
+    @classmethod
+    def upload_split_from_in_frame(
+        cls,
         object_store: ObjectStore,
-        last_epoch: Optional[int],
-        create_data_embs: bool,
+        in_frame: vaex.DataFrame,
+        split: str,
+        split_loc: str,
+        last_epoch: Optional[int] = None,
+        create_data_embs: bool = False,
     ) -> None:
-        split_loc = f"{location}/{split}"
-        output_logged = os.path.exists(split_loc)
-        if not output_logged:
-            return
+        """Upload image df and polygon df to Minio root bucket
+        
+        For SemSeg we only have one epoch, the final pass. So for now
+        we hard code 0 in place of last_epoch.
+        """
+        proj_run = f"{config.current_project_id}/{config.current_run_id}"
+        minio_file = f"{proj_run}/{split}/0/data/data.hdf5"
+        object_store.create_project_run_object_from_df(
+            df=in_frame,
+            object_name=minio_file,
+            bucket_name=config.root_bucket_name,
+        )
+
         dir_name = f"{split_loc}/0"
         out_frame = get_output_df(
             dir_name,
             prob_only=False,
             split=split,
-            epoch_or_inf=0,  # For SemSeg we only have one epoch, the final pass
+            epoch_or_inf=0,
         )
-        if "id" not in out_frame.get_column_names():
-            out_frame["id"] = vaex.vrange(0, len(out_frame), dtype="int")
-        minio_file = f"{self.proj_run}/{split}/data/data.hdf5"
+
+        polygon_minio_file = f"{proj_run}/{split}/0/prob/prob.hdf5"
         object_store.create_project_run_object_from_df(
             df=out_frame,
-            object_name=minio_file,
-            bucket_name=config.results_bucket_name,
+            object_name=polygon_minio_file,
+            bucket_name=config.root_bucket_name,
         )
