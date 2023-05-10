@@ -105,7 +105,7 @@ class SemanticSegmentationDataLogger(BaseGalileoDataLogger):
         meta: Optional[MetasType] = None,
         **kwargs: Any,  # For typing
     ) -> None:
-        """Log input samples for OD"""
+        """Log input samples for semseg"""
         self.validate_kwargs(kwargs)
         self.images = images
         self.ids = ids
