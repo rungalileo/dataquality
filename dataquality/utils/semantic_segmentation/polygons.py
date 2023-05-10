@@ -15,7 +15,7 @@ object_store = ObjectStore()
 
 
 def find_polygons_batch(
-    pred_masks: torch.Tensor, gt_masks: torch.Tensor
+    pred_masks: torch.Tensor, gold_masks: torch.Tensor
 ) -> Tuple[List, List]:
     """Creates polygons for a given batch
 
@@ -31,25 +31,25 @@ def find_polygons_batch(
     """
     pred_masks_np = pred_masks.numpy()
     bs = pred_masks_np.shape[0]
-    gt_masks_np = gt_masks.numpy()
+    gold_masks_np = gold_masks.numpy()
 
     pred_polygons_batch = []
-    gt_polygons_batch = []
+    gold_polygons_batch = []
 
     for i in range(bs):
         pred_polygons = build_polygons_image(pred_masks_np[i])
         pred_polygons_batch.append(pred_polygons)
-        gt_polygons = build_polygons_image(gt_masks_np[i], len(pred_polygons))
-        gt_polygons_batch.append(gt_polygons)
+        gold_polygons = build_polygons_image(gold_masks_np[i], len(pred_polygons))
+        gold_polygons_batch.append(gold_polygons)
 
-    return pred_polygons_batch, gt_polygons_batch
+    return pred_polygons_batch, gold_polygons_batch
 
 
 def build_polygons_image(mask: np.ndarray, polygon_idx: int = 0) -> List[Polygon]:
     """Returns a list of Polygons for the mask of a single image
 
     Args:
-        mask: numpy array of shape (height, width) either gt or pred
+        mask: numpy array of shape (height, width) either gold or pred
 
     Returns:
         List: A list of polygons for the image

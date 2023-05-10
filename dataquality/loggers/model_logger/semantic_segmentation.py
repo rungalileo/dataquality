@@ -35,9 +35,9 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         bucket_name: str = "",
         image_paths: List[str] = [],
         image_ids: List[int] = [],
-        gt_masks: torch.Tensor = torch.empty(0),
+        gold_masks: torch.Tensor = torch.empty(0),
         pred_masks: torch.Tensor = torch.empty(0),
-        gt_boundary_masks: torch.Tensor = torch.empty(0),
+        gold_boundary_masks: torch.Tensor = torch.empty(0),
         pred_boundary_masks: torch.Tensor = torch.empty(0),
         output_probs: torch.Tensor = torch.empty(0),
         mislabeled_pixels: torch.Tensor = torch.empty(0),
@@ -54,7 +54,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
 
         Args:
             image_ids: List of image ids
-            gt_masks: List of ground truth masks
+            gold_masks: List of ground truth masks
                 np.ndarray of shape (batch_size, height, width)
             pred_masks: List of prediction masks
                 np.ndarray of shape (batch_size, height, width)
@@ -79,9 +79,9 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         self.bucket_name = bucket_name
         self.image_paths = image_paths
         self.image_ids = image_ids
-        self.gt_masks = gt_masks
+        self.gold_masks = gold_masks
         self.pred_masks = pred_masks
-        self.gt_boundary_masks = gt_boundary_masks
+        self.gold_boundary_masks = gold_boundary_masks
         self.pred_boundary_masks = pred_boundary_masks
         self.output_probs = output_probs
         self.mislabled_pixels = mislabeled_pixels
@@ -104,8 +104,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         return f"{self.proj_run}/{self.split_name_path}/masks/pred"
 
     @property
-    def gt_mask_path(self) -> str:
-        return f"{self.proj_run}/{self.split_name_path}/masks/ground_truth"
+    def gold_mask_path(self) -> str:
+        return f"{self.proj_run}/{self.split_name_path}/masks/gold"
 
     def _get_data_dict(self) -> Dict:
         """Returns a dictionary of data to be logged as a DataFrame"""
@@ -117,24 +117,24 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
 
         image_dep = calculate_and_upload_dep(
             self.output_probs,
-            self.gt_masks,
+            self.gold_masks,
             self.image_ids,
             obj_prefix=self.dep_path,
         )
 
         # Image Metrics (IoU)
-        iou, iou_per_class = calculate_mean_iou(self.pred_masks, self.gt_masks)
+        iou, iou_per_class = calculate_mean_iou(self.pred_masks, self.gold_masks)
         boundary_iou, boundary_iou_per_class = calculate_mean_iou(
-            self.pred_boundary_masks, self.gt_boundary_masks
+            self.pred_boundary_masks, self.gold_boundary_masks
         )
 
         # Image masks
-        pred_polygons_batch, gt_polygons_batch = find_polygons_batch(
-            self.pred_masks, self.gt_masks
+        pred_polygons_batch, gold_polygons_batch = find_polygons_batch(
+            self.pred_masks, self.gold_masks
         )
         # Errors
-        calculate_misclassified_polygons_batch(self.pred_masks, gt_polygons_batch)
-        calculate_undetected_polygons_batch(self.pred_masks, gt_polygons_batch)
+        calculate_misclassified_polygons_batch(self.pred_masks, gold_polygons_batch)
+        calculate_undetected_polygons_batch(self.pred_masks, gold_polygons_batch)
         # Add errors to polygons and upload to Minio
         for i, image_id in enumerate(self.image_ids):
             upload_polygons_image(
@@ -143,9 +143,9 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 self.pred_mask_path,
             )
             upload_polygons_image(
-                gt_polygons_batch[i],
+                gold_polygons_batch[i],
                 image_id,
-                self.gt_mask_path,
+                self.gold_mask_path,
             )
 
         data = {
@@ -153,8 +153,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 f"{self.bucket_name}/{pth}" for pth in self.image_paths
             ],  # E.g. https://storage.googleapis.com/bucket_name/.../image_id.png
             "image_id": self.image_ids,
-            "height": [img.shape[-1] for img in self.gt_masks],
-            "width": [img.shape[-2] for img in self.gt_masks],
+            "height": [img.shape[-1] for img in self.gold_masks],
+            "width": [img.shape[-2] for img in self.gold_masks],
             "data_error_potential": image_dep,
             "mean_lm_score": [i for i in mean_mislabeled],
             "mean_iou": iou,
