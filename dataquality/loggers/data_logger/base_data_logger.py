@@ -71,6 +71,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     STRING_MAX_SIZE_B = 1.5e9
 
     DATA_FOLDER_EXTENSION = {data_folder: "hdf5" for data_folder in DATA_FOLDERS}
+    INPUT_DATA_FILE_EXT = ".arrow"
 
     def __init__(self, meta: Optional[MetasType] = None) -> None:
         super().__init__()
@@ -101,7 +102,11 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             # input_data_logged is a dict of {split: input_num}
             # where input_num is incremented in log()
             input_num = self.logger_config.input_data_logged[split]
-        return f"{self.input_data_path}/{split}/data_{input_num}.arrow"
+
+        return (
+            f"{self.input_data_path}/{split}/"
+            f"data_{input_num}.{self.INPUT_DATA_FILE_EXT}"
+        )
 
     @abstractmethod
     def log_data_sample(self, *, text: str, id: int, **kwargs: Any) -> None:

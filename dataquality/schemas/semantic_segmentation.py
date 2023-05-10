@@ -25,6 +25,7 @@ class Pixel(BaseModel):
     x: int
     y: int
 
+    @property
     def deserialize_opencv(self) -> List[List[int]]:
         """Takes a pixel object and returns JSON compatible list
 
@@ -34,6 +35,11 @@ class Pixel(BaseModel):
         OpenCV expects a list of list of pixel coordinates.
         """
         return [[self.x, self.y]]
+
+    @property
+    def deserialize_json(self) -> List[int]:
+        """Takes a pixel object and returns it as list of ints"""
+        return [self.x, self.y]
 
 
 class Contour(BaseModel):
@@ -63,6 +69,26 @@ class Polygon(BaseModel):
         """
         contours = []
         for contour in self.contours:
-            pixels = [pixel.deserialize_opencv() for pixel in contour.pixels]
+            pixels = [pixel.deserialize_opencv for pixel in contour.pixels]
             contours.append(np.array(pixels))
+        return contours
+
+    @property
+    def contours_json(self) -> List:
+        """Deserialize the contours as a JSON
+
+        Example:
+            polygon = Polygon(
+                contours=[
+                    Contour(pixels=[Pixel(x=0, y=0), Pixel(x=0, y=1)]),
+                    Contour(pixels=[Pixel(x=12, y=9), Pixel(x=11, y=11)])
+                ]
+            )
+            polygon.contours_opencv
+            >>> [[[0, 0], [0, 1]], [[12, 9], [11, 11]]]
+        """
+        contours = []
+        for contour in self.contours:
+            pixels = [pixel.deserialize_json for pixel in contour.pixels]
+            contours.append(pixels)
         return contours

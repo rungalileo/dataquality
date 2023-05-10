@@ -16,7 +16,7 @@ MAX_DEP_HEATMAP_SIZE = 64
 
 def calculate_and_upload_dep(
     probs: torch.Tensor,
-    gt_masks: torch.Tensor,
+    gold_masks: torch.Tensor,
     image_ids: List[int],
     obj_prefix: str,
 ) -> List[float]:
@@ -26,36 +26,38 @@ def calculate_and_upload_dep(
     Returns the image DEP for each image in the batch.
         Image dep is calculated by the average pixel dep.
     """
-    dep_heatmaps = calculate_dep_heatmaps(probs, gt_masks)
+    dep_heatmaps = calculate_dep_heatmaps(probs, gold_masks)
     upload_dep_heatmaps(dep_heatmaps, image_ids, obj_prefix)
     return calculate_image_dep(dep_heatmaps)
 
 
-def calculate_dep_heatmaps(probs: torch.Tensor, gt_masks: torch.Tensor) -> torch.Tensor:
+def calculate_dep_heatmaps(
+    probs: torch.Tensor, gold_masks: torch.Tensor
+) -> torch.Tensor:
     """
     Calculates the Data Error Potential (DEP) for each image in the batch
 
     :param probs: np array of floats, size = (bs, height, width, n_classes)
-    :param gt_masks: np array of gt masks as ints, size = (bs, height, width)
+    :param gold_masks: np array of gold masks as ints, size = (bs, height, width)
     :return: (bs, height, width)
     """
     n_classes = probs.shape[-1]
     bs = probs.shape[0]
     # flatten the height and width dimensions
     probs = probs.view(bs, -1, n_classes)  # (bs, n_pixels, n_classes)
-    mask_size = gt_masks.shape
-    gt_masks = gt_masks.view(bs, -1, 1)  # (bs, n_pixels, 1)
+    mask_size = gold_masks.shape
+    gold_masks = gold_masks.view(bs, -1, 1)  # (bs, n_pixels, 1)
 
-    gt_indices = (
-        gt_masks.reshape((bs, -1, 1)).expand(-1, -1, probs.shape[2]).type(torch.int64)
+    gold_indices = (
+        gold_masks.reshape((bs, -1, 1)).expand(-1, -1, probs.shape[2]).type(torch.int64)
     )  # (bs, n_pixels, n_classes)
-    value_at_ground_truth = torch.gather(probs, 2, gt_indices)[
+    value_at_ground_truth = torch.gather(probs, 2, gold_indices)[
         :, :, 0
     ]  # (bs, n_pixels)
 
     next_highest = probs.clone()
     # Takes GT indices and puts 0 at that index so we don't use it as next highest value
-    next_highest.scatter_(2, gt_indices, 0)
+    next_highest.scatter_(2, gold_indices, 0)
     next_highest = next_highest.max(dim=2).values
 
     margin = value_at_ground_truth - next_highest

@@ -2,7 +2,6 @@ import os
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Union
 
-import pandas as pd
 import vaex
 
 from dataquality.clients.objectstore import ObjectStore
@@ -34,6 +33,8 @@ class SemanticSegmentationDataLogger(BaseGalileoDataLogger):
         semantic_segmentation_logger_config
     )
 
+    INPUT_DATA_FILE_EXT = ".hdf5"
+
     def __init__(
         self,
         texts: Optional[List[str]] = None,
@@ -52,17 +53,14 @@ class SemanticSegmentationDataLogger(BaseGalileoDataLogger):
         dataset: DataSet,
         *,
         batch_size: int = ITER_CHUNK_SIZE_IMAGES,
-        image: Union[str, int] = SemSegCols.image,
-        id: Union[str, int] = SemSegCols.id,
+        text: Union[str, int] = "text",
+        image: Union[str, int] = SemSegCols.image.value,
+        id: Union[str, int] = SemSegCols.id.value,
         split: Optional[Split] = None,
         inference_name: Optional[str] = None,
         meta: Union[List[str], List[int], None] = None,
         **kwargs: Any,
     ) -> None:
-        self.validate_kwargs(kwargs)
-        self.split = split
-        self.inference_name = inference_name
-
         if not isinstance(dataset, dict):
             raise GalileoException(
                 f"Dataset must be a dict for Semantic Segmentation, "
@@ -79,7 +77,8 @@ class SemanticSegmentationDataLogger(BaseGalileoDataLogger):
 
         metas = defaultdict(list)
         for meta_col in meta or []:
-            metas[meta_col].append(self._convert_tensor_to_py(dataset[meta_col]))
+            metas[meta_col].extend(dataset[meta_col])
+
         self._log_dict(dataset, meta=metas, split=split, inference_name=inference_name)
 
     def _log_dict(
@@ -90,8 +89,8 @@ class SemanticSegmentationDataLogger(BaseGalileoDataLogger):
         inference_name: Optional[str] = None,
     ) -> None:
         self.log_image_samples(
-            images=d[SemSegCols.image],
-            ids=d[SemSegCols.id],
+            images=d[SemSegCols.image.value],
+            ids=d[SemSegCols.id.value],
             split=split,
             meta=meta,
             inference_name=inference_name,
@@ -128,7 +127,7 @@ class SemanticSegmentationDataLogger(BaseGalileoDataLogger):
         if self.split == Split.inference:
             inp["inference_name"] = [self.inference_name] * df_len
 
-        return vaex.from_pandas(pd.DataFrame(inp))
+        return vaex.from_dict(inp)
 
     def upload_split(
         self,

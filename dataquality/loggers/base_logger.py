@@ -350,6 +350,9 @@ class BaseGalileoLogger:
         """
         # If a currently active thread crashed, check and raise a top level exception
         if cls.logger_config.exception:
+            import pdb
+
+            pdb.set_trace()
             upload_dq_log_file()
             raise GalileoException(cls.logger_config.exception)
 
