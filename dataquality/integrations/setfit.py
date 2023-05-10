@@ -1,12 +1,43 @@
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-from setfit import SetFitModel, SetFitTrainer
+import torch
 
 import dataquality as dq
 from dataquality.schemas.split import Split
 from dataquality.utils.cleanup import Cleanup, RefManager
+
+if TYPE_CHECKING:
+    from datasets import Dataset
+    from setfit import SetFitModel, SetFitTrainer
+
+
+def _apply_column_mapping(
+    dataset: "Dataset", column_mapping: Dict[str, str]
+) -> "Dataset":
+    """
+    Applies the provided column mapping to the dataset, renaming columns accordingly.
+    Extra features not in the column mapping are prefixed with `"feat_"`.
+    """
+    dataset = dataset.rename_columns(
+        {
+            **column_mapping,
+            **{
+                col: f"feat_{col}"
+                for col in dataset.column_names
+                if col not in column_mapping
+            },
+        }
+    )
+    dset_format = dataset.format
+    dataset = dataset.with_format(
+        type=dset_format["type"],
+        columns=dataset.column_names,
+        output_all_columns=dset_format["output_all_columns"],
+        **dset_format["format_kwargs"],
+    )
+    return dataset
 
 
 class Borg:
@@ -136,7 +167,7 @@ class _PatchSetFitModel(Patch):
     name = "setfit_save_pretrained"
 
     def __init__(
-        self, setfit_model: SetFitModel, function_name: str = "save_pretrained"
+        self, setfit_model: "SetFitModel", function_name: str = "save_pretrained"
     ) -> None:
         """Patch to SetFit model to unpatch when calling save_pretrained function.
         :param setfit_model: SetFit model
@@ -174,25 +205,29 @@ class _PatchSetFitTrainer(Patch):
 
     def __init__(
         self,
-        setfit_trainer: SetFitTrainer,
-        function_name: str = "train",
+        setfit_trainer: "SetFitTrainer",
+        project_name: str,
+        run_name: str,
         labels: List[str] = [],
         finish: bool = True,
         wait: bool = False,
     ) -> None:
         """Patch to SetFit trainer to run dataquality after training.
         :param setfit_trainer: SetFit trainer
-        :param function_name: name of function to patch ('train')
+        :param project_name: name of project
+        :param run_name: name of run
         :param labels: list of labels
-        :param finish: if True, run dataquality after training
-        :param wait: if True, wait for dataquality to finish
+        :param finish: whether to run dq.finish after evaluation
+        :param wait: whether to wait for dq.finish
         """
         self.trainer = setfit_trainer
-        self.function_name = function_name
+        self.function_name = "train"
         self.patch()
         self.labels = labels
         self.finish = finish
         self.wait = wait
+        self.project_name = project_name
+        self.run_name = run_name
 
     def _patch(self) -> "Patch":
         """Patch SetFit trainer by replacing train function with self."""
@@ -222,7 +257,13 @@ class _PatchSetFitTrainer(Patch):
                 train_dataset, self.trainer.column_mapping
             )
         if not dq.config.task_type:
-            dq.init("text_classification", project_name="setfit", run_name="test")
+            init_kwargs: Dict[str, Any] = {}
+            if self.project_name:
+                init_kwargs["project_name"] = self.project_name
+            if self.run_name:
+                init_kwargs["run_name"] = self.run_name
+
+            dq.init("text_classification", **init_kwargs)
         labels: Any = self.labels
         if not labels:
             labels = dq.get_data_logger().logger_config.labels
@@ -277,8 +318,10 @@ class _PatchSetFitTrainer(Patch):
 
 
 def watch(
-    setfit: Union[SetFitModel, SetFitTrainer],
+    setfit: Union["SetFitModel", "SetFitTrainer"],
     labels: List[str] = [],
+    project_name: str = "",
+    run_name: str = "",
     finish: bool = True,
     wait: bool = False,
 ) -> Optional[Callable]:
@@ -288,10 +331,15 @@ def watch(
 
     setfitmanager = PatchManager()
 
-    if isinstance(setfit, SetFitTrainer):
+    if setfit.__class__.__name__ == "SetFitTrainer":
         model = setfit.model
         patched_trainer = _PatchSetFitTrainer(
-            setfit, "train", labels=labels, finish=finish, wait=wait
+            setfit,
+            labels=labels,
+            finish=finish,
+            wait=wait,
+            run_name=run_name,
+            project_name=project_name,
         )
         setfitmanager.add_patch(patched_trainer)
         return None
@@ -299,7 +347,7 @@ def watch(
         return evaluate(model)
 
 
-def evaluate(model: SetFitModel) -> Callable:
+def evaluate(model: "SetFitModel") -> Callable:
     """Watch SetFit model by replacing predict_proba function with SetFitModelHook.
     :param model: SetFit model
     :return: SetFitModelHook object"""
@@ -308,7 +356,7 @@ def evaluate(model: SetFitModel) -> Callable:
     labels = dq.get_data_logger().logger_config.labels
 
     def dq_evaluate(
-        batch: Dict,
+        dataset: "Dataset",
         split: Split,
         inference_name: Optional[str] = None,
         column_mapping: Optional[Dict] = {
@@ -316,7 +364,8 @@ def evaluate(model: SetFitModel) -> Callable:
             "id": "id",
             "label": "label",
         },
-    ) -> Any:
+        batch_size: int = 64,
+    ) -> torch.Tensor:
         """Evaluate SetFit model and log input and output to Galileo.
         :param batch: batch of data as a dictionary
         :param split: split of data (training, validation, test, inference)
@@ -328,40 +377,43 @@ def evaluate(model: SetFitModel) -> Callable:
         id_col = "id"
         label_col = "label"
         if column_mapping is not None:
-            text_col = column_mapping[text_col]
-            id_col = column_mapping[id_col]
-            label_col = column_mapping[label_col]
+            dataset = _apply_column_mapping(dataset, column_mapping)
+        preds: List[torch.Tensor] = []
+        for i in range(0, len(dataset), batch_size):
+            batch = dataset[i : i + batch_size]
 
-        assert text_col in batch, f"column '{text_col}' must be in batch"
-        assert id_col in batch, f"column '{id_col}' text must be in batch"
+            assert text_col in batch, f"column '{text_col}' must be in batch"
+            assert id_col in batch, f"column '{id_col}' text must be in batch"
 
-        preds = model.predict_proba(batch[text_col])
-        # 🔭🌕 Galileo logging
-        log_args = dict(texts=batch["text"], ids=batch[id_col], split=split)
-        inference_dict: Dict[str, str] = {}
-        if inference_name is not None:
-            log_args["inference_name"] = inference_name
-            inference_dict["inference_name"] = inference_name
-        else:
-            assert label_col in batch, f"column '{label_col}' must be in batch"
-            log_args["labels"] = [labels[label] for label in batch[label_col]]
+            pred = model.predict_proba(batch[text_col])
+            preds.append(pred)
+            # 🔭🌕 Galileo logging
+            log_args = dict(texts=batch["text"], ids=batch[id_col], split=split)
+            inference_dict: Dict[str, str] = {}
+            if inference_name is not None:
+                log_args["inference_name"] = inference_name
+                inference_dict["inference_name"] = inference_name
+            else:
+                assert label_col in batch, f"column '{label_col}' must be in batch"
+                log_args["labels"] = [labels[label] for label in batch[label_col]]
 
-        helper_data = dq.get_data_logger().logger_config.helper_data
+            helper_data = dq.get_data_logger().logger_config.helper_data
 
-        # Unpatch SetFit model after logging (when finished is called)
-        cleanup_manager = RefManager(dq_hook.unpatch)
-        helper_data["cleaner"] = Cleanup(cleanup_manager)
+            # Unpatch SetFit model after logging (when finished is called)
+            cleanup_manager = RefManager(dq_hook.unpatch)
+            helper_data["cleaner"] = Cleanup(cleanup_manager)
 
-        dq.log_data_samples(**log_args)
-        # 🔭🌕 Galileo logging
-        dq.log_model_outputs(
-            ids=batch[id_col],
-            logits=dq_store["output"],
-            embs=dq_store["input_args"][0],
-            split=split,
-            epoch=0,
-            **inference_dict,  # type: ignore
-        )
-        return preds
+            dq.log_data_samples(**log_args)
+            # 🔭🌕 Galileo logging
+            dq.log_model_outputs(
+                ids=batch[id_col],
+                logits=dq_store["output"],
+                embs=dq_store["input_args"][0],
+                split=split,
+                epoch=0,
+                **inference_dict,  # type: ignore
+            )
+
+        return torch.concat(preds)
 
     return dq_evaluate
