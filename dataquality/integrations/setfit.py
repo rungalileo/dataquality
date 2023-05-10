@@ -20,6 +20,10 @@ def _apply_column_mapping(
     Applies the provided column mapping to the dataset, renaming columns accordingly.
     Extra features not in the column mapping are prefixed with `"feat_"`.
     """
+    if type(dataset) == dict:
+        from datasets import Dataset
+
+        dataset = Dataset.from_dict(dataset)
     dataset = dataset.rename_columns(
         {
             **column_mapping,
