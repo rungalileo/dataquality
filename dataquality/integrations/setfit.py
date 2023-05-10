@@ -48,12 +48,12 @@ class Patch(ABC):
     def patch(self) -> None:
         """Patch function. Call _patch function and adds patch to manager."""
         patch = self._patch()
+        print("patching", self.name)
         self.manager.add_patch(patch)
 
     @abstractmethod
     def _patch(self) -> "Patch":
         """Abstract patch function. Returns patch object."""
-        pass
 
     def unpatch(self) -> None:
         """Unpatch function. Call _unpatch function and removes patch from manager."""
@@ -62,6 +62,8 @@ class Patch(ABC):
 
 class SetFitModelHook(Patch):
     """Hook to SetFit model to store input and output of predict_proba function."""
+
+    name = "setfit_predict"
 
     def __init__(
         self,
@@ -126,6 +128,8 @@ class SetFitModelHook(Patch):
 class _PatchSetFitModel(Patch):
     """Patch to SetFit model to unpatch when calling save_pretrained function."""
 
+    name = "setfit_save_pretrained"
+
     def __init__(
         self, setfit_model: SetFitModel, function_name: str = "save_pretrained"
     ) -> None:
@@ -153,11 +157,14 @@ class _PatchSetFitModel(Patch):
 
     def _unpatch(self) -> None:
         """Unpatch SetFit model by replacing save_pretrained"""
+        print("unpatching")
         setattr(self.model, self.function_name, self.old_fn)
 
 
 class _PatchSetFitTrainer(Patch):
     """Patch to SetFit trainer to run dataquality after training."""
+
+    name = "setfit_trainer"
 
     def __init__(
         self,
