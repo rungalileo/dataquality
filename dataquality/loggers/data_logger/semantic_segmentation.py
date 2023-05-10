@@ -1,4 +1,3 @@
-import os
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Union
 
@@ -140,7 +139,7 @@ class SemanticSegmentationDataLogger(BaseGalileoDataLogger):
         create_data_embs: bool = False,
     ) -> None:
         """Upload image df and polygon df to Minio root bucket
-        
+
         For SemSeg we only have one epoch, the final pass. So for now
         we hard code 0 in place of last_epoch.
         """
