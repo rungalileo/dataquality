@@ -119,5 +119,7 @@ def mps_available() -> bool:
     This will enabled Metal acceleration for model training when supported.
     """
     import torch
-
-    return torch.backends.mps.is_available()
+    try:
+        return torch.backends.mps.is_available()
+    except Exception:
+        return False
