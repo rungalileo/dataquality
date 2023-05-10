@@ -213,9 +213,7 @@ def semseg_calculate_self_confidence(
     gold_indices = (
         gold.reshape((bs, -1, 1)).expand(-1, -1, probs.shape[2]).type(torch.int64)
     )  # (bs, n_pixels, n_classes)
-    value_at_gold = torch.gather(probs, 2, gold_indices)[
-        :, :, 0
-    ]  # (bs, n_pixels)
+    value_at_gold = torch.gather(probs, 2, gold_indices)[:, :, 0]  # (bs, n_pixels)
     value_at_gold = value_at_gold.reshape(bs, h, w)
 
     return value_at_gold.cpu()  # bs, h, w

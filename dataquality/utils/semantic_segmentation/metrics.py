@@ -51,9 +51,7 @@ def calculate_dep_heatmaps(
     gold_indices = (
         gold_masks.reshape((bs, -1, 1)).expand(-1, -1, probs.shape[2]).type(torch.int64)
     )  # (bs, n_pixels, n_classes)
-    value_at_gold = torch.gather(probs, 2, gold_indices)[
-        :, :, 0
-    ]  # (bs, n_pixels)
+    value_at_gold = torch.gather(probs, 2, gold_indices)[:, :, 0]  # (bs, n_pixels)
 
     next_highest = probs.clone()
     # Takes GT indices and puts 0 at that index so we don't use it as next highest value
