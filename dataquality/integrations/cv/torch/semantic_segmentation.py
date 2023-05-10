@@ -1,6 +1,8 @@
 import os
+from collections import Counter
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
+import networkx as nx
 import numpy as np
 import torch
 from torch.nn import Module
@@ -26,6 +28,15 @@ from dataquality.utils.semantic_segmentation.lm import (
     semseg_calculate_self_confidence,
     semseg_fill_confident_counts,
 )
+from dataquality.utils.semantic_segmentation.overlapping_classes import (
+    add_batch_to_graph,
+    compute_community_probability_mass,
+    compute_louvain_communities,
+    convert_to_undirected,
+    normalize_graph,
+    save_community_scores,
+    upload_graph_obj,
+)
 from dataquality.utils.semantic_segmentation.utils import mask_to_boundary
 from dataquality.utils.torch import ModelHookManager, store_batch_indices
 
@@ -38,6 +49,10 @@ object_store = ObjectStore()
 # A larger queue size corresponds to a more accurate estimate of LM.
 # We keep a queue size to overcome memory issues with large SemSeg datasets.
 LIKELY_MISLABELED_QUEUE_SIZE = 100
+# Overlapping classes heurisitic values to use
+MIN_K = 4
+RESOLUTION = 1
+OVERLAPPING_RANDOM_STATE = 42
 
 
 class SemanticTorchLogger(TorchLogger):
@@ -83,6 +98,10 @@ class SemanticTorchLogger(TorchLogger):
 
         self.called_finish = False
         self.queue_size = LIKELY_MISLABELED_QUEUE_SIZE
+
+        self.overlapping_classes_graph = nx.DiGraph()
+        self.labels_counter: Counter = Counter()
+        self.overlapping_classes_top_k = None
 
     def convert_dataset(self, dataset: Any, split: str) -> List:
         """Convert the dataset to the format expected by the dataquality client
@@ -322,6 +341,11 @@ class SemanticTorchLogger(TorchLogger):
             # do not log if we are not in the final inference loop
             if not self.called_finish:
                 return
+
+            # compute overlapping classes here as we only want the prob
+            # from the inference loop instead of all iterations as graph
+            # will likely get to big to compute
+
             logger = SemanticSegmentationModelLogger(
                 bucket_name=self.bucket_name,
                 image_paths=image_paths,
@@ -349,7 +373,15 @@ class SemanticTorchLogger(TorchLogger):
             with torch.no_grad():
                 self.run_one_epoch(dataloader, device)
 
+        self.normalize_and_compute_overlapping_classes()
+
     def run_one_epoch(self, dataloader: DataLoader, device: torch.device) -> None:
+        """Runs one epoch for our inference loop to collect the necessary data
+
+        Args:
+            dataloader (DataLoader): dataloader to run inference on
+            device (torch.device): device to run inference on
+        """
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
         with torch.autocast("cuda"):
@@ -357,6 +389,53 @@ class SemanticTorchLogger(TorchLogger):
                 img = batch[self.image_col]
                 img = img.to(device)
                 self.model(img)
+
+    def update_overlapping_classes_graph(
+        self, probs: torch.Tensor, gt_masks: torch.Tensor
+    ) -> None:
+        """Adds the current batch to our overlapping classes graph
+
+        Args:
+            probs (torch.Tensor): (bs, w, h, classes)
+            gt_masks (torch.Tensor): (bs, w, h)
+        """
+        if self.overlapping_classes_top_k is None:
+            self.overlapping_classes_top_k = min(self.number_classes, MIN_K)
+        # compute the overlapping classes
+        # (bs, w, h, classes) -> (bs, w, h, classes, 1)
+        np_probs = probs.view(-1, self.number_classes).numpy()
+        np_masks = gt_masks.view(-1, 1).numpy()
+        self.overlapping_classes_graph = add_batch_to_graph(
+            self.overlapping_classes_graph,
+            np_probs,
+            np_masks,
+            self.overlapping_classes_top_k,
+        )
+        self.labels_counter += torch.bincount(
+            np_masks.view(-1), minlength=self.number_classes
+        )
+
+    def normalize_and_compute_overlapping_classes(self) -> None:
+        split = self.logger_config.cur_split.lower()  # type: ignore
+        project_id = self.logger_config.project_id  # type: ignore
+        run_id = self.logger_config.run_id  # type: ignore
+
+        self.overlapping_classes_graph = normalize_graph(
+            self.overlapping_classes_graph, self.labels_counter
+        )
+
+        undirected_graph = convert_to_undirected(self.overlapping_classes_graph)
+        upload_graph_obj(undirected_graph, project_id, run_id, split)
+
+        communities = compute_louvain_communities(
+            undirected_graph, RESOLUTION, OVERLAPPING_RANDOM_STATE
+        )
+        scores, size = compute_community_probability_mass(
+            communities,
+            self.prob_queue,
+            self.gt_queue,
+        )
+        save_community_scores(communities, scores, size, project_id, run_id, split)
 
 
 # store the batch

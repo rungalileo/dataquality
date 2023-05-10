@@ -2,7 +2,7 @@ from enum import Enum
 from typing import Dict, List, Optional
 
 import numpy as np
-from pydantic import BaseModel
+from pydantic import BaseModel, StrictInt
 
 
 class SemSegCols(str, Enum):
@@ -93,3 +93,41 @@ class Polygon(BaseModel):
             "error_type": self.error_type.value,
             "polygon": contours,
         }
+
+
+class Community(BaseModel):
+    """Information about the classes in a community for class overlap
+
+    Each community comes with a score and a list of relevant classes
+
+    A community represents a group of labels that the model finds to be very similar and
+    is confusing between. A community is at the labels level, not at sample level.
+    Communities might look like this:
+    communities = [
+        {"score": 0.53, "labels": ["a", "c"], "num_samples": 24},
+        {"score": 0.22, "labels": ["b", "e", "f", "g"], "num_samples": 101},
+    ]
+
+    The labels are the labels in this particular community. They do not overlap across
+    communities.
+    `num_samples` is exactly the total number of samples for all of these classes. There
+    is nothing done here at the sample level, so this is just the sum of the counts
+    The score is determined as a probability mass of the non-GT class for that community
+    for each sample, averaged. That is to say, for each sample of a community, you
+    take the sum of the classes that are not the GT, but are in the community. You
+    then average all of those across the samples.
+    Ex:
+        Sample 1, GT = 4, community = [1, 3, 4]
+            prob vector: [0.1, 0.05, 0.05, 0.25, 0.55]
+            Probability mass/sum = 0.05+0.25 = 0.3
+        Sample 2, GT = 1, community = [1, 3, 4]
+            prob vector: [0.1, 0.6, 0.1, 0.1, 0.1]
+            Probability mass/sum = 0.1+0.1 = 0.2
+        Score = (0.3 + 0.2) / 2 = 0.25
+
+        So the score for this community would be 0.25, and the num_samples would be 2
+    """
+
+    score: float
+    labels: List[int]
+    num_samples: StrictInt
