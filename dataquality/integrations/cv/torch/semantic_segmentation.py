@@ -194,12 +194,12 @@ class SemanticTorchLogger(TorchLogger):
             }
         )
 
-    def queue_gt_and_pred(self, probs: torch.Tensor, gt: torch.Tensor) -> None:
+    def queue_gold_and_pred(self, probs: torch.Tensor, gold: torch.Tensor) -> None:
         """Enqueue the ground truth and predicted masks for the batch
 
         Args:
             probs (torch.Tensor): probability vectors to queue for LM
-            gt (torch.Tensor): gt masks resized to queue for LM
+            gold (torch.Tensor): gold masks resized to queue for LM
         """
         bs = probs.shape[0]
         # interpolate expects N, C, H, W so have to reshuffle probs
@@ -207,16 +207,16 @@ class SemanticTorchLogger(TorchLogger):
         # resize the tensors to be 64, 64 for compressed storage
         probs = F.interpolate(probs, size=(64, 64), mode="bicubic")
         probs = probs.permute(0, 2, 3, 1)
-        gt = gt.unsqueeze(1)
-        gt = F.interpolate(gt, size=(64, 64), mode="nearest").long()
-        gt = gt.squeeze(1)
+        gold = gold.unsqueeze(1)
+        gold = F.interpolate(gold, size=(64, 64), mode="nearest").long()
+        gold = gold.squeeze(1)
 
         # stack on the end of the queue and remove front to keep only most recent
         self.prob_queue: torch.Tensor = torch.cat((self.prob_queue, probs), dim=0)
-        self.gt_queue: torch.Tensor = torch.cat((self.gt_queue, gt), dim=0)
+        self.gold_queue: torch.Tensor = torch.cat((self.gold_queue, gold), dim=0)
         if self.prob_queue.shape[0] > self.queue_size:
             self.prob_queue = self.prob_queue[bs:]
-            self.gt_queue = self.gt_queue[bs:]
+            self.gold_queue = self.gold_queue[bs:]
 
     def _init_lm_labels(self) -> None:
         # initialize variables for likely mislabelled
@@ -227,9 +227,9 @@ class SemanticTorchLogger(TorchLogger):
         self.thresholds = torch.zeros(self.number_classes, dtype=torch.float32)
         self.thresholds += 0.5
 
-        # create a queue to store the last 100 probs and gt for computing LM
+        # create a queue to store the last 100 probs and gold for computing LM
         self.prob_queue = torch.empty((self.queue_size, 64, 64, self.number_classes))
-        self.gt_queue = torch.empty((self.queue_size, 64, 64))
+        self.gold_queue = torch.empty((self.queue_size, 64, 64))
 
     def _on_step_end(self) -> None:
         """Function to be called at the end of step to log the inputs and outputs"""
@@ -284,9 +284,9 @@ class SemanticTorchLogger(TorchLogger):
             probs = torch.nn.Softmax(dim=-1)(logits).cpu()  # (bs, w, h, classes)
 
             # update the necessary variable in order to caluclate likely mislabled
-            self.queue_gt_and_pred(probs, gold_mask)
+            self.queue_gold_and_pred(probs, gold_mask)
             out_threshold = calculate_self_confidence_threshold(
-                self.prob_queue, self.gt_queue
+                self.prob_queue, self.gold_queue
             )
             for cls in torch.unique(gold_mask):
                 self.thresholds[cls] = (
@@ -304,13 +304,13 @@ class SemanticTorchLogger(TorchLogger):
                 gold_mask.view(-1), minlength=probs.shape[-1]
             )
             self_confidence = semseg_calculate_self_confidence(
-                self.prob_queue, self.gt_queue
+                self.prob_queue, self.gold_queue
             )
             mislabeled_pixels = calculate_lm_for_batch(
                 self_confidence,
                 self.confident_count,
                 self.counts_per_class,
-                self.gt_queue,
+                self.gold_queue,
                 self.number_classes,
                 self.prob_queue,
             )
@@ -326,9 +326,9 @@ class SemanticTorchLogger(TorchLogger):
                 bucket_name=self.bucket_name,
                 image_paths=image_paths,
                 image_ids=img_ids,
-                gt_masks=gold_mask,  # Torch tensor (bs, w, h)
+                gold_masks=gold_mask,  # Torch tensor (bs, w, h)
                 pred_masks=argmax,  # Torch tensor (bs, w, h)
-                gt_boundary_masks=torch.tensor(
+                gold_boundary_masks=torch.tensor(
                     gold_boundary_masks
                 ),  # Torch tensor (bs, w, h)
                 pred_boundary_masks=torch.tensor(
