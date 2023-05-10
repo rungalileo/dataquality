@@ -82,22 +82,23 @@ def normalize_graph(graph: nx.DiGraph, samples_per_class: Counter) -> nx.DiGraph
     return graph
 
 
-def upload_graph_obj(graph: Graph, project_id: str, run_id: str, split: str) -> None:
+def upload_graph_obj(graph: Graph, project_run: str, split: str) -> None:
     """We save the graph in object store because we may want to provide pruning
 
     and further filtering in the API in the future (a threshold slider).
     """
     object_store = ObjectStore()
-    with NamedTemporaryFile(suffix=".txt") as f:
+    with NamedTemporaryFile(mode="w+", delete=False, suffix=".txt") as f:
         nx.write_edgelist(graph, f.name)
-        graph_object_path = f"{project_id}/{run_id}/{split}/{COMM_GRAPH_NAME}"
-        object_store.create_object(
-            object_name=graph_object_path,
-            file_path=f.name,
-            content_type="text/plain",
-            bucket_name=GALILEO_DEFAULT_RESULT_BUCKET_NAME,
-            progress=False,
-        )
+
+    graph_object_path = f"{project_run}/{split}/{COMM_GRAPH_NAME}"
+    object_store.create_object(
+        object_name=graph_object_path,
+        file_path=f.name,
+        content_type="text/plain",
+        bucket_name=GALILEO_DEFAULT_RESULT_BUCKET_NAME,
+        progress=False,
+    )
 
 
 def compute_louvain_communities(
@@ -146,7 +147,8 @@ def compute_community_probability_mass(
     for comm_labels in communities:
         gt_mask = (np_gt_queue == comm_labels).any(axis=1)
         comm_probs = np_probability_queue[gt_mask]
-        gt_prob = comm_probs[:, np_gt_queue[gt_mask].reshape(-1)]
+
+        gt_prob = np.take(comm_probs, np_gt_queue[gt_mask].reshape(-1).astype(int))
         comm_probs = comm_probs[:, np.array(comm_labels)]
         comm_probs = comm_probs.sum(axis=1) - gt_prob
         avg_prob_mass = comm_probs.mean().round(3)
@@ -161,8 +163,7 @@ def save_community_scores(
     communities: List[List[int]],
     comm_scores: List[float],
     comm_sizes: List[int],
-    project_id: str,
-    run_id: str,
+    project_run: str,
     split: str,
 ) -> None:
     """Stores community scores for run/split in DB
@@ -182,7 +183,7 @@ def save_community_scores(
     with NamedTemporaryFile(mode="w+", delete=False) as f:
         json.dump(comms, f)
 
-    object_name = f"{project_id}/{run_id}/{split}/{COMMUNITY_SCORES_NAME}"
+    object_name = f"{project_run}/{split}/{COMMUNITY_SCORES_NAME}"
     object_store.create_object(
         object_name=object_name,
         file_path=f.name,

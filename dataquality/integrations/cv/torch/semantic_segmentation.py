@@ -101,7 +101,6 @@ class SemanticTorchLogger(TorchLogger):
 
         self.overlapping_classes_graph = nx.DiGraph()
         self.labels_counter: Counter = Counter()
-        self.overlapping_classes_top_k = None
 
     def convert_dataset(self, dataset: Any, split: str) -> List:
         """Convert the dataset to the format expected by the dataquality client
@@ -345,6 +344,7 @@ class SemanticTorchLogger(TorchLogger):
             # compute overlapping classes here as we only want the prob
             # from the inference loop instead of all iterations as graph
             # will likely get to big to compute
+            self.update_overlapping_classes_graph(probs, gold_mask)
 
             logger = SemanticSegmentationModelLogger(
                 bucket_name=self.bucket_name,
@@ -373,7 +373,7 @@ class SemanticTorchLogger(TorchLogger):
             with torch.no_grad():
                 self.run_one_epoch(dataloader, device)
 
-        self.normalize_and_compute_overlapping_classes()
+            self.normalize_and_compute_overlapping_classes()
 
     def run_one_epoch(self, dataloader: DataLoader, device: torch.device) -> None:
         """Runs one epoch for our inference loop to collect the necessary data
@@ -399,33 +399,33 @@ class SemanticTorchLogger(TorchLogger):
             probs (torch.Tensor): (bs, w, h, classes)
             gt_masks (torch.Tensor): (bs, w, h)
         """
-        if self.overlapping_classes_top_k is None:
+        if not hasattr(self, 'overlapping_classes_top_k'):
             self.overlapping_classes_top_k = min(self.number_classes, MIN_K)
         # compute the overlapping classes
         # (bs, w, h, classes) -> (bs, w, h, classes, 1)
         np_probs = probs.view(-1, self.number_classes).numpy()
-        np_masks = gt_masks.view(-1, 1).numpy()
+        np_masks = gt_masks.view(-1).numpy()
         self.overlapping_classes_graph = add_batch_to_graph(
             self.overlapping_classes_graph,
             np_probs,
             np_masks,
             self.overlapping_classes_top_k,
         )
-        self.labels_counter += torch.bincount(
-            np_masks.view(-1), minlength=self.number_classes
-        )
+
+        bincount = np.bincount(np_masks, minlength=self.number_classes)
+        for i, count in enumerate(bincount):
+            self.labels_counter[i] += count
 
     def normalize_and_compute_overlapping_classes(self) -> None:
         split = self.logger_config.cur_split.lower()  # type: ignore
-        project_id = self.logger_config.project_id  # type: ignore
-        run_id = self.logger_config.run_id  # type: ignore
+        project_run = dq.get_model_logger().proj_run  # type: ignore
 
         self.overlapping_classes_graph = normalize_graph(
             self.overlapping_classes_graph, self.labels_counter
         )
 
         undirected_graph = convert_to_undirected(self.overlapping_classes_graph)
-        upload_graph_obj(undirected_graph, project_id, run_id, split)
+        upload_graph_obj(undirected_graph, project_run, split)
 
         communities = compute_louvain_communities(
             undirected_graph, RESOLUTION, OVERLAPPING_RANDOM_STATE
@@ -435,7 +435,7 @@ class SemanticTorchLogger(TorchLogger):
             self.prob_queue,
             self.gt_queue,
         )
-        save_community_scores(communities, scores, size, project_id, run_id, split)
+        save_community_scores(communities, scores, size, project_run, split)
 
 
 # store the batch
