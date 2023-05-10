@@ -36,7 +36,7 @@ class PatchManager(Borg):
     def unpatch(self) -> None:
         """Unpatch all patches"""
         for patch in self.patches[:]:
-            patch.unpatch()
+            patch._unpatch()
             self.patches.remove(patch)
 
 
@@ -55,8 +55,13 @@ class Patch(ABC):
     def _patch(self) -> "Patch":
         """Abstract patch function. Returns patch object."""
 
+    @abstractmethod
+    def _unpatch(self) -> None:
+        """Abstract unpatch function."""
+
     def unpatch(self) -> None:
         """Unpatch function. Call _unpatch function and removes patch from manager."""
+        print("unpatching", self.name)
         self.manager.unpatch()
 
 
@@ -139,6 +144,7 @@ class _PatchSetFitModel(Patch):
         """
         self.model = setfit_model
         self.function_name = function_name
+        self.patch()
 
     def __call__(self, *args: Any, **kwds: Any) -> Any:
         """Call unpatch SetFit model and then the save_pretrained function."""
@@ -157,8 +163,8 @@ class _PatchSetFitModel(Patch):
 
     def _unpatch(self) -> None:
         """Unpatch SetFit model by replacing save_pretrained"""
-        print("unpatching")
         setattr(self.model, self.function_name, self.old_fn)
+        print("unpatched", self.name)
 
 
 class _PatchSetFitTrainer(Patch):
@@ -267,6 +273,7 @@ class _PatchSetFitTrainer(Patch):
         """Unpatch SetFit trainer by replacing the patched train function with
         original function."""
         setattr(self.trainer, self.function_name, self.old_fn)
+        print("unpatched", self.name)
 
 
 def watch(
