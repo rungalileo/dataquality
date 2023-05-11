@@ -3,6 +3,7 @@ from typing import Dict, List, Optional, Union
 import numpy as np
 import torch
 
+import dataquality as dq
 from dataquality.loggers.logger_config.semantic_segmentation import (
     SemanticSegmentationLoggerConfig,
     semantic_segmentation_logger_config,
@@ -20,7 +21,7 @@ from dataquality.utils.semantic_segmentation.metrics import (
 )
 from dataquality.utils.semantic_segmentation.polygons import (
     find_polygons_batch,
-    upload_polygons_image,
+    upload_polygon_contours,
 )
 
 
@@ -100,12 +101,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         return f"{self.proj_run}/{self.split_name_path}/dep"
 
     @property
-    def pred_mask_path(self) -> str:
-        return f"{self.proj_run}/{self.split_name_path}/masks/pred"
-
-    @property
-    def gold_mask_path(self) -> str:
-        return f"{self.proj_run}/{self.split_name_path}/masks/gold"
+    def contours_path(self) -> str:
+        return f"{self.proj_run}/{self.split_name_path}/contours"
 
     def _get_data_dict(self) -> Dict:
         """Returns a dictionary of data to be logged as a DataFrame"""
@@ -135,35 +132,75 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         # Errors
         calculate_misclassified_polygons_batch(self.pred_masks, gold_polygons_batch)
         calculate_undetected_polygons_batch(self.pred_masks, gold_polygons_batch)
-        # Add errors to polygons and upload to Minio
-        for i, image_id in enumerate(self.image_ids):
-            upload_polygons_image(
-                pred_polygons_batch[i],
-                image_id,
-                self.pred_mask_path,
-            )
-            upload_polygons_image(
-                gold_polygons_batch[i],
-                image_id,
-                self.gold_mask_path,
-            )
 
-        data = {
+        image_data = {
             "image": [
                 f"{self.bucket_name}/{pth}" for pth in self.image_paths
             ],  # E.g. https://storage.googleapis.com/bucket_name/.../image_id.png
-            "image_id": self.image_ids,
+            "id": self.image_ids,
             "height": [img.shape[-1] for img in self.gold_masks],
             "width": [img.shape[-2] for img in self.gold_masks],
-            "data_error_potential": image_dep,
+            "image_data_error_potential": image_dep,
             "mean_lm_score": [i for i in mean_mislabeled],
             "mean_iou": iou,
             "mean_iou_per_class": iou_per_class,
             "boundary_iou": boundary_iou,
             "boundary_iou_per_class": boundary_iou_per_class,
-            "split": [self.split] * len(self.image_ids),
-            "epoch": [self.epoch] * len(self.image_ids),
+            # "epoch": [self.epoch] * len(self.image_ids),
+        }
+        not_meta = ["id", "image"]
+        meta_keys = [k for k in image_data.keys() if k not in not_meta]
+        dq.log_dataset(
+            image_data,
+            split=Split[self.split],
+            inference_name=self.inference_name,
+            meta=meta_keys,
+        )
+
+        image_ids = []
+        polygon_ids = []
+        preds = []
+        golds = []
+        data_error_potentials = []
+        errors = []
+        for i, image_id in enumerate(self.image_ids):
+            pred_polygons = pred_polygons_batch[i]
+            for polygon in pred_polygons:
+                image_ids.append(image_id)
+                preds.append(polygon.label_idx)
+                golds.append(-1)
+                data_error_potentials.append(0.0)
+                errors.append(polygon.error_type.value)
+                upload_polygon_contours(
+                    polygon, self.logger_config.polygon_idx, self.contours_path
+                )
+                polygon_ids.append(self.logger_config.polygon_idx)
+                self.logger_config.polygon_idx += 1
+            gold_polygons = gold_polygons_batch[i]
+            for polygon in gold_polygons:
+                image_ids.append(image_id)
+                preds.append(-1)
+                golds.append(polygon.label_idx)
+                data_error_potentials.append(0.0)
+                errors.append(polygon.error_type.value)
+                upload_polygon_contours(
+                    polygon, self.logger_config.polygon_idx, self.contours_path
+                )
+                polygon_ids.append(self.logger_config.polygon_idx)
+                self.logger_config.polygon_idx += 1
+
+        polygon_data = {
+            "id": polygon_ids,
+            "image_id": image_ids,
+            "pred": preds,
+            "gold": golds,
+            "data_error_potential": data_error_potentials,
+            "galileo_error_type": errors,
+            "split": [self.split] * len(image_ids),
         }
         if self.split == Split.inference:
-            data["inference_name"] = [self.inference_name] * len(self.image_ids)
-        return data
+            polygon_data["inference_name"] = [self.inference_name] * len(image_ids)
+        else:
+            polygon_data["epoch"] = [self.epoch] * len(image_ids)
+
+        return polygon_data

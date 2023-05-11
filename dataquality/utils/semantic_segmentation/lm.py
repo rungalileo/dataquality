@@ -368,7 +368,6 @@ def upload_im(img: Image.Image, prefix: str, id: int) -> None:
 
     with NamedTemporaryFile(suffix=".png", mode="w+") as f:
         img.save(f.name)
-
         object_store.create_object(
             object_name=f"{prefix}/{id}.png",
             file_path=f.name,
