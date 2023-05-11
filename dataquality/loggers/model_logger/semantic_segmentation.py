@@ -226,48 +226,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             meta=meta_keys,
         )
 
-        # polygon_data = self.get_polygon_data(pred_polygons_batch, gold_polygons_batch)
-        image_ids = []
-        polygon_ids = []
-        preds = []
-        golds = []
-        data_error_potentials = []
-        errors = []
-        for i, image_id in enumerate(self.image_ids):
-            pred_polygons = pred_polygons_batch[i]
-            for polygon in pred_polygons:
-                image_ids.append(image_id)
-                preds.append(polygon.label_idx)
-                golds.append(-1)
-                data_error_potentials.append(0.0)
-                errors.append(polygon.error_type.value)
-                upload_polygon_contours(
-                    polygon, self.logger_config.polygon_idx, self.contours_path
-                )
-                polygon_ids.append(self.logger_config.polygon_idx)
-                self.logger_config.polygon_idx += 1
-            gold_polygons = gold_polygons_batch[i]
-            for polygon in gold_polygons:
-                image_ids.append(image_id)
-                preds.append(-1)
-                golds.append(polygon.label_idx)
-                data_error_potentials.append(0)
-                errors.append(polygon.error_type.value)
-                upload_polygon_contours(
-                    polygon, self.logger_config.polygon_idx, self.contours_path
-                )
-                polygon_ids.append(self.logger_config.polygon_idx)
-                self.logger_config.polygon_idx += 1
-
-        polygon_data = {
-            "id": polygon_ids,
-            "image_id": image_ids,
-            "pred": preds,
-            "gold": golds,
-            "data_error_potential": data_error_potentials,
-            "galileo_error_type": errors,
-            "split": [self.split] * len(image_ids),
-        }
+        polygon_data = self.get_polygon_data(pred_polygons_batch, gold_polygons_batch)
         
         if self.split == Split.inference:
             polygon_data["inference_name"] = [self.inference_name] * len(self.image_ids)
