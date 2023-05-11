@@ -89,6 +89,30 @@ class InitManager:
                 os.makedirs(out_dir)
 
 
+def _set_labels_for_existing_run(project_name: str, run_name: str) -> None:
+    """When a run already exists, fetch and set the labels automatically
+
+    When users call `dq.init` with a project/run that already exists (for example,
+    to run inference), we want to fetch their labels for them and set them as a
+    convenience.
+
+    We also set the `existing_run` attribute to be True, so they cannot change their
+    labels. Their inference labels must match their train/test/val split labels
+    """
+    try:
+        labels = dataquality.metrics.get_labels_for_run(project_name, run_name)
+        dataquality.set_labels_for_run(labels)
+        dataquality.get_data_logger().logger_config.existing_run = True
+        print(
+            f"🚀 Found existing run labels. Setting labels for run to {labels}. You do "
+            f"not need to set labels for this run."
+        )
+    # We except all Exceptions here because this should _never_ prohibit the user from
+    # creating a new run.
+    except Exception:
+        return
+
+
 @check_noop
 def init(
     task_type: str,
@@ -143,7 +167,6 @@ def init(
 
     project, proj_created = _init.get_or_create_project(project_name, is_public)
     run, run_created = _init.get_or_create_run(project_name, run_name, task_type)
-
     if not run_created:
         warnings.warn(
             f"Run: {project_name}/{run_name} already exists! "
@@ -191,3 +214,12 @@ def init(
         )
     # Reset all config variables
     dataquality.get_data_logger().logger_config.reset(factory=True)
+    if not run_created:
+        _set_labels_for_existing_run(project_name, run_name)
+
+
+def delete_run(project_name: str, run_name: str) -> None:
+    """Deletes a run from Galileo"""
+    pid, rid = api_client._get_project_run_id(project_name, run_name)
+    api_client.delete_run(pid, rid)
+    print(f"🗑 Run {run_name} in project {project_name} deleted.")

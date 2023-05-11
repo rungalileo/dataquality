@@ -92,8 +92,6 @@ class ObjectDetectionDataLogger(BaseGalileoDataLogger):
             width=self.width,
             height=self.height,
             **self.meta,
-            # bbox=self.bbox,
-            # cls=self.cls,
         )
         if self.split == Split.inference:
             inp["inference_name"] = [self.inference_name] * df_len
