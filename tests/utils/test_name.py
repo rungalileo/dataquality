@@ -60,7 +60,7 @@ def test_validate_name_missing_name() -> None:
 
 
 def test_name() -> None:
-    adj, c, anm = random_name().split("_")
+    _, adj, c, anm = random_name().split("_")
     assert adj in ADJECTIVES
     assert c in COLORS
     assert anm in ANIMALS
