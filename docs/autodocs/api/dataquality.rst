@@ -47,6 +47,20 @@ dataquality.integrations.hf
     :show-inheritance:
     :member-order: bysource
 
+dataquality.integrations.fastai
+-----------
+.. automodule:: dataquality.integrations.fastai
+    :members: FastAiDQCallback
+    :show-inheritance:
+    :member-order: bysource
+
+dataquality.integrations.setfit
+-----------
+.. automodule:: dataquality.integrations.fastai
+    :members: watch, unwatch
+    :show-inheritance:
+    :member-order: bysource
+
 dataquality
 -----------
 .. automodule:: dataquality
