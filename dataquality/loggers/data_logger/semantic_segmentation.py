@@ -18,6 +18,7 @@ from dataquality.loggers.logger_config.semantic_segmentation import (
 from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.semantic_segmentation import SemSegCols
 from dataquality.schemas.split import Split
+from dataquality.utils.thread_pool import lock
 from dataquality.utils.vaex import get_output_df
 
 # smaller than ITER_CHUNK_SIZE from base_data_logger because very large chunks
@@ -113,6 +114,16 @@ class SemanticSegmentationDataLogger(BaseGalileoDataLogger):
         self.inference_name = inference_name
         self.meta = meta or {}
         self.log()
+
+    def export_df(self, df: vaex.DataFrame) -> None:
+        """Export the dataframe and increment the input_data_logged
+        in this helper in order to allow for overrides in child classes.
+
+        For instance semseg needs to do this in a multithreaded way and
+        add locks to avoid threading issues
+        """
+        with lock:
+            super().export_df(df)
 
     def _get_input_df(self) -> vaex.DataFrame:
         df_len = len(self.ids)

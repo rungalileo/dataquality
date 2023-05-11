@@ -461,8 +461,15 @@ def set_labels_for_run(labels: Union[List[List[str]], List[str]]) -> None:
     In the multi-label case, the outer order (order of the tasks) must match the
     task-order of the task-probabilities logged as well.
     """
+    if get_data_logger().logger_config.existing_run:
+        if labels != get_data_logger().logger_config.labels:
+            raise GalileoException(
+                "This run already has data logged to Galileo, and labels have been "
+                "set. You cannot change the labels of an existing run. If you need new "
+                "labels, delete this run (dq.delete_run()) or use a new run name. "
+                f"Current labels: {get_data_logger().logger_config.labels}"
+            )
     a.log_function("dq/set_labels_for_run")
-
     if isinstance(labels[0], (int, np.integer)):
         get_data_logger().logger_config.int_labels = True
     get_data_logger().logger_config.labels = labels

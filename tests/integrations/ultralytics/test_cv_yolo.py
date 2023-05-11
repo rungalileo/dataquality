@@ -119,5 +119,5 @@ def test_end2end_yolov8(
         assert prob_df.bbox.dtype == "float32"
         assert prob_df.gold.dtype == "int32"
         assert prob_df.image_id.dtype == "int32"
-        data_cols = ["id", "image", "split", "data_schema_version"]
+        data_cols = ["id", "image", "split", "data_schema_version", "width", "height"]
         assert sorted(data_df.get_column_names()) == sorted(data_cols)
