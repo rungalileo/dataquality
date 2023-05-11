@@ -97,7 +97,6 @@ class ObjectDetectionDataLogger(BaseGalileoDataLogger):
         )
         if self.split == Split.inference:
             inp["inference_name"] = [self.inference_name] * df_len
-        # import pdb; pdb.set_trace()
         return vaex.from_pandas(pd.DataFrame(inp))
 
     def log_dataset(
