@@ -66,10 +66,11 @@ def test_name() -> None:
     assert anm in ANIMALS
 
 
-def test_name_random_seed() -> None:
+@pytest.mark.parametrize("seed", [0, 4, 12, 535, 42])
+def test_name_random_seed(seed: int) -> None:
     """Setting a seed should still let us have random names"""
     names = []
     for _ in range(5):
-        random.seed(0)
+        random.seed(seed)
         names.append(random_name())
     assert len(set(names)) == len(names)
