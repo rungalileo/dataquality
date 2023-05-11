@@ -97,8 +97,8 @@ class ObjectDetectionDataLogger(BaseGalileoDataLogger):
         dataset: DataSet,
         *,
         batch_size: int = ITER_CHUNK_SIZE,
-        image: Union[str, int] = ODCols.image,
-        id: Union[str, int] = ODCols.id,
+        image: Union[str, int] = ODCols.image.value,
+        id: Union[str, int] = ODCols.id.value,
         split: Optional[Split] = None,
         inference_name: Optional[str] = None,
         meta: Union[List[str], List[int], None] = None,
@@ -182,7 +182,7 @@ class ObjectDetectionDataLogger(BaseGalileoDataLogger):
     def _log_df(
         self,
         df: Union[pd.DataFrame, DataFrame],
-        meta: Union[List[str], List[int], None],
+        meta: Union[List[str], List[int], None] = None,
     ) -> None:
         """Helper to log a pandas or vaex df"""
         self.images = df[ODCols.image].tolist()

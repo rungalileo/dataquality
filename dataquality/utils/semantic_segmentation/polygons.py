@@ -15,7 +15,7 @@ object_store = ObjectStore()
 
 
 def find_polygons_batch(
-    pred_masks: torch.Tensor, gt_masks: torch.Tensor
+    pred_masks: torch.Tensor, gold_masks: torch.Tensor
 ) -> Tuple[List, List]:
     """Creates polygons for a given batch
 
@@ -31,25 +31,25 @@ def find_polygons_batch(
     """
     pred_masks_np = pred_masks.numpy()
     bs = pred_masks_np.shape[0]
-    gt_masks_np = gt_masks.numpy()
+    gold_masks_np = gold_masks.numpy()
 
     pred_polygons_batch = []
-    gt_polygons_batch = []
+    gold_polygons_batch = []
 
     for i in range(bs):
         pred_polygons = build_polygons_image(pred_masks_np[i])
         pred_polygons_batch.append(pred_polygons)
-        gt_polygons = build_polygons_image(gt_masks_np[i], len(pred_polygons))
-        gt_polygons_batch.append(gt_polygons)
+        gold_polygons = build_polygons_image(gold_masks_np[i], len(pred_polygons))
+        gold_polygons_batch.append(gold_polygons)
 
-    return pred_polygons_batch, gt_polygons_batch
+    return pred_polygons_batch, gold_polygons_batch
 
 
 def build_polygons_image(mask: np.ndarray, polygon_idx: int = 0) -> List[Polygon]:
     """Returns a list of Polygons for the mask of a single image
 
     Args:
-        mask: numpy array of shape (height, width) either gt or pred
+        mask: numpy array of shape (height, width) either gold or pred
 
     Returns:
         List: A list of polygons for the image
@@ -125,34 +125,6 @@ def build_polygons_label(
     return final_polygons, polygon_idx
 
 
-def upload_polygons_image(
-    polygons: List[Polygon],
-    image_id: int,
-    prefix: str,
-) -> None:
-    """Uploads a list of Polygons to the cloud for a given image
-
-    Args:
-        polygons(List): List of polygons for one image
-        image_id(int): image id to be used in the object name
-        prefix(str): prefix of the object name in storage
-            - /proj-id/run-id/training/masks/pred/1.json
-    """
-    deserialized_polygons = [polygon.deserialize_json() for polygon in polygons]
-    obj_name = f"{prefix}/{image_id}.json"
-
-    with NamedTemporaryFile(mode="w+", delete=False) as f:
-        json.dump(deserialized_polygons, f)
-
-    object_store.create_object(
-        object_name=obj_name,
-        file_path=f.name,
-        content_type="application/json",
-        progress=False,
-        bucket_name=GALILEO_DEFAULT_RESULT_BUCKET_NAME,
-    )
-
-
 def draw_polygon(polygon: Polygon, shape: Tuple[int, ...]) -> np.ndarray:
     """Draws one polygon onto a blank image, assigning the polygon a label
 
@@ -168,5 +140,32 @@ def draw_polygon(polygon: Polygon, shape: Tuple[int, ...]) -> np.ndarray:
         np.ndarray: image with single polygon drawn on it
     """
     return cv2.drawContours(
-        np.zeros(shape), polygon.deserialize_opencv(), -1, polygon.label_idx, -1
+        np.zeros(shape), polygon.contours_opencv, -1, polygon.label_idx, -1
+    )
+
+
+def upload_polygon_contours(
+    polygon: Polygon,
+    polygon_idx: int,
+    prefix: str,
+) -> None:
+    """Uploads a Polygon's contours to the cloud
+
+    Args:
+        polygon(Polygon): A Polygon object
+        polygon_idx(int): id to be used in the object name
+        prefix(str): prefix of the object name in storage
+            - /proj-id/run-id/training/contours/1.json
+    """
+    obj_name = f"{prefix}/{polygon_idx}.json"
+
+    with NamedTemporaryFile(mode="w+", delete=False) as f:
+        json.dump(polygon.contours_json, f)
+
+    object_store.create_object(
+        object_name=obj_name,
+        file_path=f.name,
+        content_type="application/json",
+        progress=False,
+        bucket_name=GALILEO_DEFAULT_RESULT_BUCKET_NAME,
     )

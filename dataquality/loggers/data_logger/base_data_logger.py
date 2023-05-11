@@ -71,6 +71,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     STRING_MAX_SIZE_B = 1.5e9
 
     DATA_FOLDER_EXTENSION = {data_folder: "hdf5" for data_folder in DATA_FOLDERS}
+    INPUT_DATA_FILE_EXT = "arrow"
 
     def __init__(self, meta: Optional[MetasType] = None) -> None:
         super().__init__()
@@ -101,7 +102,11 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             # input_data_logged is a dict of {split: input_num}
             # where input_num is incremented in log()
             input_num = self.logger_config.input_data_logged[split]
-        return f"{self.input_data_path}/{split}/data_{input_num}.arrow"
+
+        return (
+            f"{self.input_data_path}/{split}/"
+            f"data_{input_num}.{self.INPUT_DATA_FILE_EXT}"
+        )
 
     @abstractmethod
     def log_data_sample(self, *, text: str, id: int, **kwargs: Any) -> None:
@@ -276,7 +281,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                 GalileoWarning,
             )
             return
-        in_frame_split = vaex.open(f"{in_frame_path}/*.arrow")
+        in_frame_split = vaex.open(f"{in_frame_path}/*.{self.INPUT_DATA_FILE_EXT}")
         in_frame_split = self.convert_large_string(in_frame_split)
         self.upload_split_from_in_frame(
             object_store,
@@ -319,6 +324,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         We only do this for types that write to HDF5 files
         """
         df_copy = df.copy()
+        if "text" not in df_copy.get_column_names():
+            return df_copy
         # Characters are each 1 byte. If more bytes > max, it needs to be large_string
         text_bytes = df_copy["text"].str.len().sum()
         if text_bytes > self.STRING_MAX_SIZE_B:

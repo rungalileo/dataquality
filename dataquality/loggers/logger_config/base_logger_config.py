@@ -34,6 +34,7 @@ class BaseLoggerConfig(BaseModel):
     feature_names: List[str] = []
     metadata_documents: Set = set()  # A document is a large str > 1k chars < 10k chars
     finish: Callable = lambda: None  # Overwritten in Semantic Segmentation
+    polygon_idx: int = 0
 
     class Config:
         validate_assignment = True

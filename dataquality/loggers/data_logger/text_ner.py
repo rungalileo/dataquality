@@ -402,7 +402,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
     def _log_df(
         self,
         df: Union[pd.DataFrame, DataFrame],
-        meta: Union[List[str], List[int], None],
+        meta: Union[List[str], List[int], None] = None,
     ) -> None:
         """Helper to log a pandas or vaex df"""
         self.texts = df["text"].tolist()

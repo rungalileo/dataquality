@@ -10,31 +10,31 @@ ERROR_THRES = 0.5
 
 
 def polygon_accuracy(
-    preds: np.ndarray, gt_mask: np.ndarray, correct_class: int
+    preds: np.ndarray, gold_mask: np.ndarray, correct_class: int
 ) -> Tuple[float, Optional[int]]:
     """Calculates the accuracy of one ground truth polygon
     accuracy = (number of correct pixels) / (number of pixels in polygon)
 
     :param preds: argmax of the prediction probabilities
         shape = (height, width)
-    :param gt_masks: ground truth masks
+    :param gold_masks: ground truth masks
         shape =  height, width)
     :param correct_class: the correct class of the polygon
 
     returns: pixel accuracy of the predictions
     """
-    relevant_region = gt_mask != 0
-    pointwise_accuracy = (preds == gt_mask)[relevant_region]
+    relevant_region = gold_mask != 0
+    pointwise_accuracy = (preds == gold_mask)[relevant_region]
 
     misclassified_class = calculate_misclassified_class(
-        preds, gt_mask, correct_class, relevant_region
+        preds, gold_mask, correct_class, relevant_region
     )
     return pointwise_accuracy.sum() / relevant_region.sum(), misclassified_class
 
 
 def calculate_misclassified_class(
     pred_mask: np.ndarray,
-    gt_mask: np.ndarray,
+    gold_mask: np.ndarray,
     correct_class: int,
     relevant_region: np.ndarray,
 ) -> Optional[int]:
@@ -43,7 +43,7 @@ def calculate_misclassified_class(
 
     Args:
         pred_mask (np.ndarray): predicted mask
-        gt_mask (np.ndarray): ground truth mask
+        gold_mask (np.ndarray): ground truth mask
         correct_class (int): the correct class of the polygon
         relevant_region (np.ndarray): boolean mask of the relevant region of the polygon
     """
@@ -62,7 +62,7 @@ def calculate_misclassified_class(
 
 def calculate_misclassified_polygons(
     pred_mask: np.ndarray,
-    gt_polygons: List[Polygon],
+    gold_polygons: List[Polygon],
 ) -> None:
     """Checks for polygon misclassifications and sets the Polygon error_type field
 
@@ -73,11 +73,11 @@ def calculate_misclassified_polygons(
     were correct, then the polygon is misclassified.
 
     Args:
-        gt_mask (np.ndarray): ground truth mask
+        gold_mask (np.ndarray): ground truth mask
         pred_polygons (List[Polygon]):
             predicted polygon map for one image
     """
-    for polygon in gt_polygons:
+    for polygon in gold_polygons:
         out_polygon = draw_polygon(polygon, pred_mask.shape[-2:])
         accuracy, misclassified_label = polygon_accuracy(
             pred_mask, out_polygon, polygon.label_idx
@@ -90,7 +90,7 @@ def calculate_misclassified_polygons(
 
 def calculate_misclassified_polygons_batch(
     pred_masks: torch.Tensor,
-    gt_polygons_batch: List[List[Polygon]],
+    gold_polygons_batch: List[List[Polygon]],
 ) -> None:
     """Calculates a set of misclassified polygon ids from the
     predicted mask for each image in a batch
@@ -98,33 +98,33 @@ def calculate_misclassified_polygons_batch(
     Also sets the error type field on the bad polygons to "misclassified"
 
     Args:
-        gt_mask(torch.tensor): ground truth mask
+        gold_mask(torch.tensor): ground truth mask
         pred_polygon_maps(List[List[Polygon]]):
             list of predicted polygons for each image in a batch
     """
     for idx in range(len(pred_masks)):
-        gt_mask = pred_masks[idx].numpy()
-        pred_polygons = gt_polygons_batch[idx]
-        calculate_misclassified_polygons(gt_mask, pred_polygons)
+        gold_mask = pred_masks[idx].numpy()
+        pred_polygons = gold_polygons_batch[idx]
+        calculate_misclassified_polygons(gold_mask, pred_polygons)
 
 
-def undetected_accuracy(preds: np.ndarray, gt_mask: np.ndarray) -> float:
+def undetected_accuracy(preds: np.ndarray, gold_mask: np.ndarray) -> float:
     """Calculates the amount of background predicted on a polygon
     calculated as (number of background pixels) / (number of pixels in polygon)
 
     :param preds: argmax of the prediction probabilities
         shape = (height, width)
-    :param gt_masks: ground truth masks
+    :param gold_masks: ground truth masks
         shape = (height, width)
 
     returns: accuracy of the predictions
     """
-    relevant_region = gt_mask != 0
+    relevant_region = gold_mask != 0
     return (preds == 0)[relevant_region].sum() / relevant_region.sum()
 
 
 def calculate_undetected_polygons(
-    pred_mask: np.ndarray, gt_polygons: List[Polygon]
+    pred_mask: np.ndarray, gold_polygons: List[Polygon]
 ) -> None:
     """Checks for polygon misclassifications and sets the Polygon error_type field
 
@@ -133,7 +133,7 @@ def calculate_undetected_polygons(
         deserialized_polygon_map(Dict[int, List[List[np.ndarray]]]):
             ground truth polygons that we examine for undetected objects
     """
-    for polygon in gt_polygons:
+    for polygon in gold_polygons:
         polygon_img = draw_polygon(polygon, pred_mask.shape[-2:])
         if undetected_accuracy(pred_mask, polygon_img) > ERROR_THRES:
             polygon.error_type = ErrorType.undetected
@@ -141,17 +141,17 @@ def calculate_undetected_polygons(
 
 def calculate_undetected_polygons_batch(
     pred_masks: torch.Tensor,
-    gt_polygons_batch: List[List[Polygon]],
+    gold_polygons_batch: List[List[Polygon]],
 ) -> None:
     """Calculates a set of undetected polygon ids from the ground truth
     that are not detected by the model for images in a batch
 
     Args:
         preds(torch.tensor): argmax of the prediction probabilities
-        gt_polygons_batch(List[List[Polygon]]):
+        gold_polygons_batch(List[List[Polygon]]):
             ground truth polygons that we examine for undetected objects
     """
     for idx in range(len(pred_masks)):
         pred_mask = pred_masks[idx].numpy()
-        gt_polygons = gt_polygons_batch[idx]
-        calculate_undetected_polygons(pred_mask, gt_polygons)
+        gold_polygons = gold_polygons_batch[idx]
+        calculate_undetected_polygons(pred_mask, gold_polygons)
