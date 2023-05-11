@@ -370,6 +370,8 @@ class Callback:
                     ODCols.image: str(file_path),
                     ODCols.bbox: bbox_gold,
                     ODCols.gold_cls: image["cls"],
+                    ODCols.width: width,
+                    ODCols.height: height,
                 }
             )
         return processed_dataset
