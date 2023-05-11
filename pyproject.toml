@@ -111,6 +111,10 @@ evaluate = [
     "evaluate"
 ]
 
+setfit = [
+    "setfit"
+]
+
 [tool.isort]
 profile = "black"
 
