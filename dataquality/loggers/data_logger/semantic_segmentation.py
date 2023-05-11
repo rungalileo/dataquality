@@ -1,5 +1,3 @@
-import os
-import threading
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Union
 
@@ -20,13 +18,13 @@ from dataquality.loggers.logger_config.semantic_segmentation import (
 from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.semantic_segmentation import SemSegCols
 from dataquality.schemas.split import Split
+from dataquality.utils.thread_pool import lock
 from dataquality.utils.vaex import get_output_df
 
 # smaller than ITER_CHUNK_SIZE from base_data_logger because very large chunks
 # containing image data often won't fit in memory
 
 ITER_CHUNK_SIZE_IMAGES = 1000
-lock = threading.Lock()
 
 
 class SemanticSegmentationDataLogger(BaseGalileoDataLogger):
@@ -117,42 +115,23 @@ class SemanticSegmentationDataLogger(BaseGalileoDataLogger):
         self.meta = meta or {}
         self.log()
 
-    def log(self) -> None:
-        """Writes input data to disk in .galileo/logs
+    def export_df(self, df: vaex.DataFrame) -> None:
+        """Export the dataframe and increment the input_data_logged
+        in this helper in order to allow for overrides in child classes.
 
-        If input data already exist, append new data to existing input file.
-        If the dataset is very large this function will be called multiple
-        times for a given split.
-
-        Semseg dataset is logged in a multithreaded manner, so we need to
-        add locks to ensure the same files are not being accessed and written
-        to at the same time.
+        For instance semseg needs to do this in a multithreaded way and
+        add locks to avoid threading issues
         """
-        self.validate_and_format()
-        # E.g. /Users/username/.galileo/logs/proj-id/run-id
-        write_input_dir = self.write_output_dir
-        os.makedirs(write_input_dir, exist_ok=True)
-        # E.g. /Users/username/.galileo/logs/proj-id/run-id/training
-        os.makedirs(f"{self.input_data_path}/{self.split}", exist_ok=True)
-
-        df = self._get_input_df()
-        # Validates cloud size limit
-        self.validate_data_size(df)
-
-        ids = df["id"].tolist()
-        self.validate_ids_for_split(ids)
-        self.add_ids_to_split(ids)
-        lock.acquire()
-        file_path = self.input_data_file()
-        if self.log_export_progress:
-            with vaex.progress.tree("vaex", title=f"Logging {len(df)} samples"):
+        with lock:
+            file_path = self.input_data_file()
+            if self.log_export_progress:
+                with vaex.progress.tree("vaex", title=f"Logging {len(df)} samples"):
+                    df.export(file_path)
+            else:
                 df.export(file_path)
-        else:
-            df.export(file_path)
 
-        df.close()
-        self.logger_config.input_data_logged[str(self.split)] += 1
-        lock.release()
+            df.close()
+            self.logger_config.input_data_logged[str(self.split)] += 1
 
     def _get_input_df(self) -> vaex.DataFrame:
         df_len = len(self.ids)
