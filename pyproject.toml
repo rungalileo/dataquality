@@ -35,6 +35,7 @@ requires = [
     "numpy<1.24.0",
     "tenacity>=8.1.0",
     "evaluate",
+    "accelerate",
 ]
 
 [tool.flit.scripts]
