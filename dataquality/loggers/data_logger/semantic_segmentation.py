@@ -123,15 +123,7 @@ class SemanticSegmentationDataLogger(BaseGalileoDataLogger):
         add locks to avoid threading issues
         """
         with lock:
-            file_path = self.input_data_file()
-            if self.log_export_progress:
-                with vaex.progress.tree("vaex", title=f"Logging {len(df)} samples"):
-                    df.export(file_path)
-            else:
-                df.export(file_path)
-
-            df.close()
-            self.logger_config.input_data_logged[str(self.split)] += 1
+            super().export_df(df)
 
     def _get_input_df(self) -> vaex.DataFrame:
         df_len = len(self.ids)
