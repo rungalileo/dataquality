@@ -72,3 +72,4 @@ def test_name_random_seed() -> None:
     for _ in range(5):
         random.seed(0)
         names.append(random_name())
+    assert len(set(names)) == len(names)
