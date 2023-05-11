@@ -196,6 +196,15 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         self.validate_ids_for_split(ids)
         self.add_ids_to_split(ids)
 
+        self.export_df(df)
+
+    def export_df(self, df: vaex.DataFrame) -> None:
+        """Export the dataframe and increment the input_data_logged
+        in this helper in order to allow for overrides in child classes.
+
+        For instance semseg needs to do this in a multithreaded way and
+        add locks to avoid threading issues
+        """
         file_path = self.input_data_file()
         if self.log_export_progress:
             with vaex.progress.tree("vaex", title=f"Logging {len(df)} samples"):
