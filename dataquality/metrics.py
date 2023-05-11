@@ -661,7 +661,18 @@ def get_labels_for_run(
 
     If multi-label, and a task is provided, this will get the labels for that task.
     Otherwise, it will get all task-labels
+
+    In NER, the full label set with the tags for each label will be returned
     """
+    project_id, run_id = api_client._get_project_run_id(project_name, run_name)
+    task_type = api_client.get_task_type(project_id, run_id)
+    if task_type == TaskType.text_ner:
+        labels_object = f"{project_id}/{run_id}/ner_labels/ner_labels.json"
+        labels_path = object_store.download_file(
+            labels_object, "/tmp/labels.json", config.results_bucket_name
+        )
+        with open(labels_path) as f:
+            return json.loads(f.read())
     return api_client.get_labels_for_run(project_name, run_name, task)
 
 
