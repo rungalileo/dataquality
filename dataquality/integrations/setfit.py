@@ -83,7 +83,6 @@ class Patch(ABC):
     def patch(self) -> None:
         """Patch function. Call _patch function and adds patch to manager."""
         patch = self._patch()
-        print("patching", self.name)
         self.manager.add_patch(patch)
 
     @abstractmethod
@@ -96,7 +95,6 @@ class Patch(ABC):
 
     def unpatch(self) -> None:
         """Unpatch function. Call _unpatch function and removes patch from manager."""
-        print("unpatching", self.name)
         self.manager.unpatch()
 
 
@@ -199,7 +197,6 @@ class _PatchSetFitModel(Patch):
     def _unpatch(self) -> None:
         """Unpatch SetFit model by replacing save_pretrained"""
         setattr(self.model, self.function_name, self.old_fn)
-        print("unpatched", self.name)
 
 
 class _PatchSetFitTrainer(Patch):
@@ -318,7 +315,15 @@ class _PatchSetFitTrainer(Patch):
         """Unpatch SetFit trainer by replacing the patched train function with
         original function."""
         setattr(self.trainer, self.function_name, self.old_fn)
-        print("unpatched", self.name)
+
+
+def unwatch(setfit_obj: Union["SetFitModel", "SetFitTrainer"]) -> None:
+    """Unpatch SetFit model by replacing predict_proba function with original
+    function.
+    :param setfit_obj: SetFitModel or SetFitTrainer
+    """
+    setfitmanager = PatchManager()
+    setfitmanager.unpatch()
 
 
 def watch(
