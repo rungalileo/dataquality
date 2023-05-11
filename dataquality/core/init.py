@@ -88,6 +88,22 @@ class InitManager:
             if not os.path.exists(out_dir):
                 os.makedirs(out_dir)
 
+def _set_labels_for_existing_run(project_name: str, run_name: str) -> None:
+    """When a run already exists, fetch and set the labels automatically
+
+    When users call `dq.init` with a project/run that already exists (for example,
+    to run inference), we want to fetch their labels for them and set them as a
+    convenience.
+
+    We also set the `existing_run` attribute to be True, so they cannot change their
+    labels. Their inference labels must match their train/test/val split labels
+    """
+    pass
+    # try:
+    #     labels = dataquality.metrics.get_labels_for_run(project_name, run_name)
+    #     dataquality.set_labels_for_run(labels)
+    #     dataquality.get_data_logger().logger_config.existing_run = True
+    # except
 
 @check_noop
 def init(
@@ -145,6 +161,7 @@ def init(
     run, run_created = _init.get_or_create_run(project_name, run_name, task_type)
 
     if not run_created:
+        _set_labels_for_existing_run(project_name, run_name, task_type)
         warnings.warn(
             f"Run: {project_name}/{run_name} already exists! "
             "The existing run will get overwritten on call to finish()!",
