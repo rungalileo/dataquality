@@ -104,8 +104,8 @@ def _set_labels_for_existing_run(project_name: str, run_name: str) -> None:
         dataquality.set_labels_for_run(labels)
         dataquality.get_data_logger().logger_config.existing_run = True
         print(
-            f"🚀 Found existing run labels. Setting labels for run to {labels}. Do not "
-            f"set labels for this run."
+            f"🚀 Found existing run labels. Setting labels for run to {labels}. You do "
+            f"not need to set labels for this run."
         )
     # We except all Exceptions here because this should _never_ prohibit the user from
     # creating a new run.
