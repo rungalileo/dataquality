@@ -243,9 +243,11 @@ def test_init_existing_project_existing_run(
     assert config.current_run_id == DEFAULT_RUN_ID
     assert config.current_project_id == DEFAULT_PROJECT_ID
 
-    mock_get_project_by_name.assert_called_once_with(EXISTING_PROJECT)
+    # Called once to see if exists, called again to get the labels for the run
+    assert mock_get_project_run_by_name.call_count == 2
+    mock_get_project_by_name.assert_called_with(EXISTING_PROJECT)
     mock_create_project.assert_not_called()
-    mock_get_project_run_by_name.assert_called_once_with(EXISTING_PROJECT, EXISTING_RUN)
+    mock_get_project_run_by_name.assert_called_with(EXISTING_PROJECT, EXISTING_RUN)
     mock_create_run.assert_not_called()
 
 
@@ -351,7 +353,9 @@ def test_init_project_name_collision(
 
     assert mock_get_project_by_name.call_count == 3
     mock_create_project.assert_not_called()
-    mock_get_project_run_by_name.assert_called_once_with("race-condition-proj", ANY)
+    # Called once to see if exists, called again to get the labels for the run
+    assert mock_get_project_run_by_name.call_count == 2
+    mock_get_project_run_by_name.assert_called_with("race-condition-proj", ANY)
     mock_create_run.assert_not_called()
 
 
