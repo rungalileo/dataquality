@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from torch.nn import Module
 from torch.nn import functional as F
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 
 import dataquality as dq
 from dataquality.analytics import Analytics
@@ -65,24 +65,33 @@ class SemanticTorchLogger(TorchLogger):
         self.dataset_path = os.path.abspath(dataset_path)
 
         # There is a hook on dataloader so must convert before attaching hook
-        self.file_map: Dict[str, int] = {}
+        self.dataloader_path_to_id: Dict[str, Any] = {
+            split: {} for split in dataloaders.keys()
+        }
+        self.id_to_relative_path: Dict[str, Any] = {
+            split: {} for split in dataloaders.keys()
+        }
         self.bucket_name = bucket_name
         self.dataloaders = dataloaders
-        self.datasets: List[Dataset] = [
-            dataloader.dataset for dataloader in dataloaders.values()
-        ]
         self.image_col = "image"
-        self.converted_datasets: List[List] = [
-            self.convert_dataset(dataset) for dataset in self.datasets
-        ]
+        self.converted_datasets = []
+        for split, dataloader in self.dataloaders.items():
+            convert_dataset = self.convert_dataset(dataloader.dataset, split)
+            self.converted_datasets.append(convert_dataset)
         # capture the model input
         self.hook_manager.attach_hook(self.model, self._dq_input_hook)
 
         self.called_finish = False
         self.queue_size = LIKELY_MISLABELED_QUEUE_SIZE
 
-    def convert_dataset(self, dataset: Any) -> List:
-        """Convert the dataset to the format expected by the dataquality client"""
+    def convert_dataset(self, dataset: Any, split: str) -> List:
+        """Convert the dataset to the format expected by the dataquality client
+
+        Args:
+            dataset (Any): dataset to convert
+            start_int (int): starting unique id for each example in the dataset
+                as we need a unique identifier for each example. Defaults to 0.
+        """
         # we wouldn't need any of this if we could map ids to the cloud images
         assert len(dataset) > 0
         assert (
@@ -99,20 +108,20 @@ class SemanticTorchLogger(TorchLogger):
                             bucker_name + image_path"
                 )
 
-            self.file_map[data["image_path"]] = i
+            self.dataloader_path_to_id[split][data["image_path"]] = i
 
             # cut the dataset path from the image path so we can use relative path
             # within the bucket to each image
             image_path = os.path.abspath(data["image_path"])
             image_path = image_path.replace(self.dataset_path, "")
+            self.id_to_relative_path[split][i] = image_path
 
             processed_dataset.append(
                 {SemSegCols.image_path: image_path, SemSegCols.id: i}
             )
-            if i == 100:
-                print("Only logging 100 images for now")
-                break
-        # I have assumed we can collect the masks from the hooks in the dataloader
+        # need to add 1 to the last index to get the next index for the following
+        # datasets as i is 0 indexed so 0 + start_int would equal the ending index
+        # of the previous dataset
         return processed_dataset
 
     def find_mask_category(self, batch: Dict[str, Any]) -> None:
@@ -185,12 +194,12 @@ class SemanticTorchLogger(TorchLogger):
             }
         )
 
-    def queue_gt_and_pred(self, probs: torch.Tensor, gt: torch.Tensor) -> None:
+    def queue_gold_and_pred(self, probs: torch.Tensor, gold: torch.Tensor) -> None:
         """Enqueue the ground truth and predicted masks for the batch
 
         Args:
             probs (torch.Tensor): probability vectors to queue for LM
-            gt (torch.Tensor): gt masks resized to queue for LM
+            gold (torch.Tensor): gold masks resized to queue for LM
         """
         bs = probs.shape[0]
         # interpolate expects N, C, H, W so have to reshuffle probs
@@ -198,16 +207,16 @@ class SemanticTorchLogger(TorchLogger):
         # resize the tensors to be 64, 64 for compressed storage
         probs = F.interpolate(probs, size=(64, 64), mode="bicubic")
         probs = probs.permute(0, 2, 3, 1)
-        gt = gt.unsqueeze(1)
-        gt = F.interpolate(gt, size=(64, 64), mode="nearest").long()
-        gt = gt.squeeze(1)
+        gold = gold.unsqueeze(1)
+        gold = F.interpolate(gold, size=(64, 64), mode="nearest").long()
+        gold = gold.squeeze(1)
 
         # stack on the end of the queue and remove front to keep only most recent
         self.prob_queue: torch.Tensor = torch.cat((self.prob_queue, probs), dim=0)
-        self.gt_queue: torch.Tensor = torch.cat((self.gt_queue, gt), dim=0)
+        self.gold_queue: torch.Tensor = torch.cat((self.gold_queue, gold), dim=0)
         if self.prob_queue.shape[0] > self.queue_size:
             self.prob_queue = self.prob_queue[bs:]
-            self.gt_queue = self.gt_queue[bs:]
+            self.gold_queue = self.gold_queue[bs:]
 
     def _init_lm_labels(self) -> None:
         # initialize variables for likely mislabelled
@@ -218,9 +227,9 @@ class SemanticTorchLogger(TorchLogger):
         self.thresholds = torch.zeros(self.number_classes, dtype=torch.float32)
         self.thresholds += 0.5
 
-        # create a queue to store the last 100 probs and gt for computing LM
+        # create a queue to store the last 100 probs and gold for computing LM
         self.prob_queue = torch.empty((self.queue_size, 64, 64, self.number_classes))
-        self.gt_queue = torch.empty((self.queue_size, 64, 64))
+        self.gold_queue = torch.empty((self.queue_size, 64, 64))
 
     def _on_step_end(self) -> None:
         """Function to be called at the end of step to log the inputs and outputs"""
@@ -232,13 +241,17 @@ class SemanticTorchLogger(TorchLogger):
             "logits"
         ].shape[1]
         self._init_lm_labels()
+        split = self.logger_config.cur_split.lower()  # type: ignore
 
         with torch.no_grad():
             logging_data = self.helper_data["batch"]["data"]
             img_ids = self.helper_data["batch"]["ids"]  # np.ndarray (bs,)
-            log_image_paths = logging_data["image_path"]
             # convert the img_ids to absolute ids from file map
-            img_ids = [self.file_map[path] for path in log_image_paths]
+            img_ids = [
+                self.dataloader_path_to_id[split][path]
+                for path in logging_data["image_path"]
+            ]
+            log_image_paths = [self.id_to_relative_path[split][id] for id in img_ids]
             image_paths = [pth.lstrip("./") for pth in log_image_paths]
 
             # resize the logits to the input size based on hooks
@@ -271,9 +284,9 @@ class SemanticTorchLogger(TorchLogger):
             probs = torch.nn.Softmax(dim=-1)(logits).cpu()  # (bs, w, h, classes)
 
             # update the necessary variable in order to caluclate likely mislabled
-            self.queue_gt_and_pred(probs, gold_mask)
+            self.queue_gold_and_pred(probs, gold_mask)
             out_threshold = calculate_self_confidence_threshold(
-                self.prob_queue, self.gt_queue
+                self.prob_queue, self.gold_queue
             )
             for cls in torch.unique(gold_mask):
                 self.thresholds[cls] = (
@@ -291,13 +304,13 @@ class SemanticTorchLogger(TorchLogger):
                 gold_mask.view(-1), minlength=probs.shape[-1]
             )
             self_confidence = semseg_calculate_self_confidence(
-                self.prob_queue, self.gt_queue
+                self.prob_queue, self.gold_queue
             )
             mislabeled_pixels = calculate_lm_for_batch(
                 self_confidence,
                 self.confident_count,
                 self.counts_per_class,
-                self.gt_queue,
+                self.gold_queue,
                 self.number_classes,
                 self.prob_queue,
             )
@@ -313,9 +326,9 @@ class SemanticTorchLogger(TorchLogger):
                 bucket_name=self.bucket_name,
                 image_paths=image_paths,
                 image_ids=img_ids,
-                gt_masks=gold_mask,  # Torch tensor (bs, w, h)
+                gold_masks=gold_mask,  # Torch tensor (bs, w, h)
                 pred_masks=argmax,  # Torch tensor (bs, w, h)
-                gt_boundary_masks=torch.tensor(
+                gold_boundary_masks=torch.tensor(
                     gold_boundary_masks
                 ),  # Torch tensor (bs, w, h)
                 pred_boundary_masks=torch.tensor(
@@ -344,9 +357,6 @@ class SemanticTorchLogger(TorchLogger):
                 img = batch[self.image_col]
                 img = img.to(device)
                 self.model(img)
-                if i == 1:
-                    print("Running one epoch for two steps only")
-                    break
 
 
 # store the batch

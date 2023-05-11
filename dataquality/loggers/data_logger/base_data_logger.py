@@ -10,6 +10,7 @@ from typing import Any, Dict, Iterable, List, Optional, TypeVar, Union
 import numpy as np
 import pandas as pd
 import vaex
+from huggingface_hub.utils import HfHubHTTPError
 from vaex.dataframe import DataFrame
 
 from dataquality.clients.objectstore import ObjectStore
@@ -70,6 +71,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     STRING_MAX_SIZE_B = 1.5e9
 
     DATA_FOLDER_EXTENSION = {data_folder: "hdf5" for data_folder in DATA_FOLDERS}
+    INPUT_DATA_FILE_EXT = "arrow"
 
     def __init__(self, meta: Optional[MetasType] = None) -> None:
         super().__init__()
@@ -100,7 +102,11 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             # input_data_logged is a dict of {split: input_num}
             # where input_num is incremented in log()
             input_num = self.logger_config.input_data_logged[split]
-        return f"{self.input_data_path}/{split}/data_{input_num}.arrow"
+
+        return (
+            f"{self.input_data_path}/{split}/"
+            f"data_{input_num}.{self.INPUT_DATA_FILE_EXT}"
+        )
 
     @abstractmethod
     def log_data_sample(self, *, text: str, id: int, **kwargs: Any) -> None:
@@ -121,7 +127,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         text: Union[str, int] = "text",
         id: Union[str, int] = "id",
         split: Optional[Split] = None,
-        meta: Optional[List[Union[str, int]]] = None,
+        meta: Union[List[str], List[int], None] = None,
         **kwargs: Any,
     ) -> None:
         """Log a dataset/iterable of input samples.
@@ -190,6 +196,15 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         self.validate_ids_for_split(ids)
         self.add_ids_to_split(ids)
 
+        self.export_df(df)
+
+    def export_df(self, df: vaex.DataFrame) -> None:
+        """Export the dataframe and increment the input_data_logged
+        in this helper in order to allow for overrides in child classes.
+
+        For instance semseg needs to do this in a multithreaded way and
+        add locks to avoid threading issues
+        """
         file_path = self.input_data_file()
         if self.log_export_progress:
             with vaex.progress.tree("vaex", title=f"Logging {len(df)} samples"):
@@ -275,7 +290,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                 GalileoWarning,
             )
             return
-        in_frame_split = vaex.open(f"{in_frame_path}/*.arrow")
+        in_frame_split = vaex.open(f"{in_frame_path}/*.{self.INPUT_DATA_FILE_EXT}")
         in_frame_split = self.convert_large_string(in_frame_split)
         self.upload_split_from_in_frame(
             object_store,
@@ -296,7 +311,14 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         """Uploads off the shelf data embeddings for a split"""
         object_store = ObjectStore()
         df_copy = df.copy()
-        data_embs = create_data_embs_df(df_copy)
+        try:
+            data_embs = create_data_embs_df(df_copy)
+        except HfHubHTTPError as e:
+            warnings.warn(
+                "Unable to download transformer from huggingface. Data embeddings "
+                f"will be skipped. {str(e)}"
+            )
+            return
         proj_run_split = f"{config.current_project_id}/{config.current_run_id}/{split}"
         minio_file = f"{proj_run_split}/{epoch_or_inf}/{DATA_EMB_PATH}"
         # And upload
@@ -311,6 +333,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         We only do this for types that write to HDF5 files
         """
         df_copy = df.copy()
+        if "text" not in df_copy.get_column_names():
+            return df_copy
         # Characters are each 1 byte. If more bytes > max, it needs to be large_string
         text_bytes = df_copy["text"].str.len().sum()
         if text_bytes > self.STRING_MAX_SIZE_B:

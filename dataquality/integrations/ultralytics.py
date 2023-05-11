@@ -348,10 +348,12 @@ class Callback:
             self.file_map[image["im_file"]] = i
             batch_img_shape = image["img"].shape[-2:]
             shape = image["ori_shape"]
+            image_height, image_width = shape
             bbox = image["bboxes"].clone()
-            height, width = batch_img_shape
+            # Batch width and height. The max width/height for this batch
+            bch_height, bch_width = batch_img_shape
             tbox = box_convert(bbox, "cxcywh", "xyxy") * torch.tensor(
-                (width, height, width, height), device=bbox.device
+                (bch_width, bch_height, bch_width, bch_height), device=bbox.device
             )
             ratio_pad = image["ratio_pad"]
             bbox_gold = scale_boxes(batch_img_shape, tbox, shape, ratio_pad=ratio_pad)
@@ -370,6 +372,8 @@ class Callback:
                     ODCols.image: str(file_path),
                     ODCols.bbox: bbox_gold,
                     ODCols.gold_cls: image["cls"],
+                    ODCols.width: image_width,
+                    ODCols.height: image_height,
                 }
             )
         return processed_dataset

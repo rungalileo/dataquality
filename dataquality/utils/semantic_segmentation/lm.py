@@ -15,18 +15,18 @@ def calculate_lm_for_batch(
     self_confidence: torch.Tensor,
     confident_count: torch.Tensor,
     class_counts: torch.Tensor,
-    gt: torch.Tensor,
+    gold: torch.Tensor,
     number_classes: int,
     probs: torch.Tensor,
 ) -> torch.Tensor:
     """Caluclate likely mislabeled for a batch and return in image form
 
     Args:
-        self_confidence (torch.Tensor): confidence of each sample at gt (bs, h, w)
+        self_confidence (torch.Tensor): confidence of each sample at gold (bs, h, w)
         confident_count (torch.Tensor): matrix of (classes, classes) of counts of
             confident predictions for each class
         class_counts (torch.Tensor): number of samples for each class (classes,)
-        gt (torch.Tensor): ground truth labels for each sample (bs, h, w)
+        gold (torch.Tensor): ground truth labels for each sample (bs, h, w)
         number_of_samples (int): number_clases
         probs (torch.Tensor): probabilities for each sample (bs, h, w, classes)
     Returns:
@@ -34,9 +34,9 @@ def calculate_lm_for_batch(
     """
     confident_joint = semseg_normalize_confident_counts(confident_count, class_counts)
     mislabelled_by_conf = semseg_get_mislabeled_by_class_confidence(
-        self_confidence, confident_joint, gt=gt, num_classes=number_classes
+        self_confidence, confident_joint, gold=gold, num_classes=number_classes
     )
-    mislabelled_by_noise = semseg_get_mislabeled_by_noise(confident_joint, probs, gt)
+    mislabelled_by_noise = semseg_get_mislabeled_by_noise(confident_joint, probs, gold)
 
     final_mislabelled = mislabelled_by_conf * mislabelled_by_noise
 
@@ -46,7 +46,7 @@ def calculate_lm_for_batch(
 def semseg_get_mislabeled_by_noise(
     confident_joint: torch.Tensor,
     probs: torch.Tensor,
-    gt: torch.Tensor,
+    gold: torch.Tensor,
 ) -> torch.Tensor:
     """Gets the most likely mislabeled samples per given GT and actual GT pair using
 
@@ -62,21 +62,21 @@ def semseg_get_mislabeled_by_noise(
     Args:
         confident_joint (torch.Tensor): confidence joint matrix
         probs (torch.Tensor): bs, h, w, classes matrix of probabilities
-        gt (torch.Tensor): bs h, w matrix of ground truth labels
+        gold (torch.Tensor): bs h, w matrix of ground truth labels
 
     Returns:
         torch.Tensor: bs, h, w matrix of 1s and 0s where 1s are likely mislabeled
     """
 
-    original_shape = gt.shape
+    original_shape = gold.shape
     num_classes = probs.shape[-1]
     probs = probs.view(-1, num_classes)
     num_samples = probs.shape[0]
-    gt = gt.view(-1)
+    gold = gold.view(-1)
     mislabled_ids: List = []
     ids = torch.arange(probs.shape[0])
     for given_gold_idx in range(num_classes):
-        bool_mask = gt == given_gold_idx
+        bool_mask = gold == given_gold_idx
         class_probs = probs[bool_mask]
         sample_ids = ids[bool_mask]
         out = calculate_mislabled_by_noise(
@@ -85,7 +85,7 @@ def semseg_get_mislabeled_by_noise(
         mislabled_ids.extend(sample_ids[out])
 
     mislabled_ids_tensor = torch.tensor(mislabled_ids)
-    final_mislabelled = torch.zeros(gt.shape).view(-1)
+    final_mislabelled = torch.zeros(gold.shape).view(-1)
     final_mislabelled[mislabled_ids_tensor.view(-1).long()] = 1
     final_mislabelled = final_mislabelled.view(original_shape)
     return final_mislabelled
@@ -140,7 +140,7 @@ def calculate_mislabled_by_noise(
 def semseg_get_mislabeled_by_class_confidence(
     self_confidence: torch.Tensor,
     confidence_joint: torch.Tensor,
-    gt: torch.Tensor,
+    gold: torch.Tensor,
     num_classes: int,
 ) -> torch.Tensor:
     """Gets the most likely mislabeled samples per class using the confidence_joint
@@ -159,34 +159,34 @@ def semseg_get_mislabeled_by_class_confidence(
     Args:
         self_confidence: self confidence for all samples (bs, h, w)
         confidence_joint: confidence joint for all samples (num_classes, num_classes)
-        gt: ground truth labels for all samples (bs, h, w)
+        gold: ground truth labels for all samples (bs, h, w)
 
     Returns:
         torch.Tensor: mislabeled samples (bs, h, w)
 
     """
-    original_shape = gt.shape
+    original_shape = gold.shape
     ids = torch.arange(self_confidence.view(-1).shape[0])
     self_confidence = self_confidence.view(-1)
-    gt = gt.view(-1)
+    gold = gold.view(-1)
     num_samples = self_confidence.shape[0]
 
     # stable sort by self confidence with ids following along
     sorted_confidence, sorted_indices = torch.sort(self_confidence)
     sorted_ids = ids[sorted_indices]
-    sorted_gt = gt[sorted_indices]
+    sorted_gold = gold[sorted_indices]
     num_mislabeled_per_class = torch.round(
         (confidence_joint.sum(dim=1) - torch.diag(confidence_joint)) * num_samples
     ).to(torch.int)
 
     mislabelled_ids = []
     for class_idx, num_mislabelled in zip(range(num_classes), num_mislabeled_per_class):
-        bool_mask = sorted_gt == class_idx
+        bool_mask = sorted_gold == class_idx
         bool_ids = sorted_ids[bool_mask]
         mislabelled_ids += bool_ids[:num_mislabelled].tolist()
 
     mislabeled_ids = torch.tensor(mislabelled_ids).to(torch.int)
-    final_mislabelled = torch.zeros(gt.shape).view(-1)
+    final_mislabelled = torch.zeros(gold.shape).view(-1)
     final_mislabelled[mislabeled_ids.view(-1).long()] = 1
     final_mislabelled = final_mislabelled.view(original_shape)
 
@@ -194,36 +194,34 @@ def semseg_get_mislabeled_by_class_confidence(
 
 
 def semseg_calculate_self_confidence(
-    probs: torch.Tensor, gt: torch.Tensor
+    probs: torch.Tensor, gold: torch.Tensor
 ) -> torch.Tensor:
     """Gets the self confidence for each sample meaning the
     confidence in a prediction of its given GT label
 
     Args:
         probs (torch.Tensor): probability mask for each sample
-        gt (torch.Tensor): ground truth label for each sample
+        gold (torch.Tensor): ground truth label for each sample
 
     Returns:
         torch.Tensor: self confidence for each sample in original dimensions
     """
-    assert probs.shape[:-1] == gt.shape
+    assert probs.shape[:-1] == gold.shape
 
     bs, h, w, c = probs.shape
     probs = probs.view(bs, h * w, c)
-    gt_indices = (
-        gt.reshape((bs, -1, 1)).expand(-1, -1, probs.shape[2]).type(torch.int64)
+    gold_indices = (
+        gold.reshape((bs, -1, 1)).expand(-1, -1, probs.shape[2]).type(torch.int64)
     )  # (bs, n_pixels, n_classes)
-    value_at_ground_truth = torch.gather(probs, 2, gt_indices)[
-        :, :, 0
-    ]  # (bs, n_pixels)
-    value_at_ground_truth = value_at_ground_truth.reshape(bs, h, w)
+    value_at_gold = torch.gather(probs, 2, gold_indices)[:, :, 0]  # (bs, n_pixels)
+    value_at_gold = value_at_gold.reshape(bs, h, w)
 
-    return value_at_ground_truth.cpu()  # bs, h, w
+    return value_at_gold.cpu()  # bs, h, w
 
 
 def semseg_fill_confident_counts(
     probs: torch.Tensor,
-    gt: torch.Tensor,
+    gold: torch.Tensor,
     given_class: int,
     per_class_threshold: torch.Tensor,
     confident_counts: torch.Tensor,
@@ -241,7 +239,7 @@ def semseg_fill_confident_counts(
 
     Args:
         probs (torch.Tensor): probability mask for a give class
-        gt (torch.Tensor): label mask for each sample
+        gold (torch.Tensor): label mask for each sample
         given_class (int): the class we are looking at
         per_class_threshold (np.ndarray): per class threshold
         confident_counts (np.ndarray): matrix of confident counts
@@ -251,7 +249,7 @@ def semseg_fill_confident_counts(
     """
     boolean_mask = probs >= per_class_threshold
     # if it is above the threshold find the label and increment the count
-    labels = gt[boolean_mask]
+    labels = gold[boolean_mask]
     # increment the count for each label
     # get the count of each label
     count_labels = torch.bincount(labels, minlength=confident_counts.shape[1])
@@ -261,13 +259,13 @@ def semseg_fill_confident_counts(
 
 
 def _semseg_get_confident_counts(
-    probs: torch.Tensor, gt: torch.Tensor, per_class_threshold: np.ndarray
+    probs: torch.Tensor, gold: torch.Tensor, per_class_threshold: np.ndarray
 ) -> torch.Tensor:
     """Gets the count of all those above the threshold for each class
 
     Args:
         probs (torch.Tensor): probability mask for each sample
-        gt (torch.Tensor): label mask for each sample
+        gold (torch.Tensor): label mask for each sample
         per_class_threshold (np.ndarray): threshold for each class
 
     Returns:
@@ -277,7 +275,7 @@ def _semseg_get_confident_counts(
     for i in range(probs.shape[-1]):
         current_probs = probs[:, :, :, i].clone()
         confident_counts = semseg_fill_confident_counts(
-            current_probs, gt, i, per_class_threshold[i], confident_counts
+            current_probs, gold, i, per_class_threshold[i], confident_counts
         )
     return confident_counts
 
@@ -319,22 +317,22 @@ def semseg_normalize_confident_counts(
 
 
 def _semseg_calculate_confidence_joint(
-    probs: torch.Tensor, gt: torch.Tensor
+    probs: torch.Tensor, gold: torch.Tensor
 ) -> torch.Tensor:
     """Calculates the confidence joint of our data
 
     Args:
         prob (torch.Tensor): probability mask for each sample
-        gt (torch.Tensor): labels for each sample
+        gold (torch.Tensor): labels for each sample
 
     Returns:
         torch.Tensor: confidence joint of our data
     """
-    count_per_class = torch.bincount(gt.view(-1), minlength=probs.shape[-1])
+    count_per_class = torch.bincount(gold.view(-1), minlength=probs.shape[-1])
     num_classes = probs.shape[-1]
 
     per_class_threshold = np.array([0.5 for i in range(num_classes)])
-    confident_counts = _semseg_get_confident_counts(probs, gt, per_class_threshold)
+    confident_counts = _semseg_get_confident_counts(probs, gold, per_class_threshold)
     confident_joint = semseg_normalize_confident_counts(
         confident_counts, count_per_class
     )
@@ -347,7 +345,7 @@ def upload_mislabeled_pixels(
     """Uploads all self confidence values to minio
 
     Args:
-        self_confidence (torch.Tensor): bs, h, w of value at gt
+        self_confidence (torch.Tensor): bs, h, w of value at gold
         image_ids (List[int]): integer image ids
         prefix (str): prefix to upload to
     """
@@ -370,7 +368,6 @@ def upload_im(img: Image.Image, prefix: str, id: int) -> None:
 
     with NamedTemporaryFile(suffix=".png", mode="w+") as f:
         img.save(f.name)
-
         object_store.create_object(
             object_name=f"{prefix}/{id}.png",
             file_path=f.name,
@@ -381,24 +378,24 @@ def upload_im(img: Image.Image, prefix: str, id: int) -> None:
 
 
 def calculate_self_confidence_threshold(
-    probs: torch.Tensor, gt: torch.Tensor
+    probs: torch.Tensor, gold: torch.Tensor
 ) -> List[float]:
     """Calculates the self confidence threshold for each class
 
     Args:
         probs (torch.Tensor): bs, h, w, c probability mask
-        gt (torch.Tensor): bs, h, w label mask
+        gold (torch.Tensor): bs, h, w label mask
 
     Returns:
         torch.Tensor: (classes, ) self confidence threshold for each class
     """
     bs, h, w, c = probs.shape
-    value_at_ground_truth = semseg_calculate_self_confidence(probs, gt)
+    value_at_gold = semseg_calculate_self_confidence(probs, gold)
 
     # get the mean of the self confidence per class
     mean_self_confidence_per_class = []
     for i in range(c):
-        mask = gt == i
-        mean_self_confidence = torch.mean(value_at_ground_truth[mask])
+        mask = gold == i
+        mean_self_confidence = torch.mean(value_at_gold[mask])
         mean_self_confidence_per_class.append(mean_self_confidence.item())
     return mean_self_confidence_per_class
