@@ -194,21 +194,25 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         # Errors
         calculate_misclassified_polygons_batch(self.pred_masks, gold_polygons_batch)
         calculate_undetected_polygons_batch(self.pred_masks, gold_polygons_batch)
+        heights = [img.shape[-1] for img in self.gold_masks]
+        widths = [img.shape[-2] for img in self.gold_masks]
 
         calculate_dep_polygons_batch(
             gold_polygons_batch,
             dep_heatmaps.numpy(),
-            height=[img.shape[-1] for img in self.gold_masks],
-            width=[img.shape[-2] for img in self.gold_masks],
+            height=heights,
+            width=widths,
         )
+        
+        
 
         image_data = {
             "image": [
                 f"{self.bucket_name}/{pth}" for pth in self.image_paths
             ],  # E.g. https://storage.googleapis.com/bucket_name/.../image_id.png
             "id": self.image_ids,
-            "height": [img.shape[-1] for img in self.gold_masks],
-            "width": [img.shape[-2] for img in self.gold_masks],
+            "height": heights,
+            "width": widths,
             "image_data_error_potential": image_dep,
             "mean_lm_score": [i for i in mean_mislabeled],
             "mean_iou": iou,
@@ -229,10 +233,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         polygon_data = self.get_polygon_data(pred_polygons_batch, gold_polygons_batch)
         n_polygons = polygon_data["image_id"]
         if self.split == Split.inference:
-            polygon_data["inference_name"] = [self.inference_name] * len(
-                polygon_data["image_id"]
-            )
+            polygon_data["inference_name"] = [self.inference_name] * n_polygons
         else:
-            polygon_data["epoch"] = [self.epoch] * len(polygon_data["image_id"])
+            polygon_data["epoch"] = [self.epoch] * n_polygons
 
         return polygon_data
