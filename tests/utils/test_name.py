@@ -1,3 +1,5 @@
+import random
+
 import pytest
 
 from dataquality.exceptions import GalileoException
@@ -62,3 +64,11 @@ def test_name() -> None:
     assert adj in ADJECTIVES
     assert c in COLORS
     assert anm in ANIMALS
+
+
+def test_name_random_seed() -> None:
+    """Setting a seed should still let us have random names"""
+    names = []
+    for _ in range(5):
+        random.seed(0)
+        names.append(random_name())
