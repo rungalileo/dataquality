@@ -19,7 +19,7 @@ def calculate_and_upload_dep(
     gold_masks: torch.Tensor,
     image_ids: List[int],
     obj_prefix: str,
-) -> Tuple[List[float], np.ndarray]:
+) -> Tuple[List[float], torch.Tensor]:
     """Calculates the Data Error Potential (DEP) for each image in the batch
 
     Uploads the heatmap to Minio as a png.

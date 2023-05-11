@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Union, Tuple, Any
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 import torch
@@ -9,11 +9,12 @@ from dataquality.loggers.logger_config.semantic_segmentation import (
     semantic_segmentation_logger_config,
 )
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
+from dataquality.schemas.semantic_segmentation import Polygon
 from dataquality.schemas.split import Split
 from dataquality.utils.semantic_segmentation.errors import (
+    calculate_dep_polygons_batch,
     calculate_misclassified_polygons_batch,
     calculate_undetected_polygons_batch,
-    calculate_dep_polygons_batch
 )
 from dataquality.utils.semantic_segmentation.lm import upload_mislabeled_pixels
 from dataquality.utils.semantic_segmentation.metrics import (
@@ -104,12 +105,11 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
     @property
     def contours_path(self) -> str:
         return f"{self.proj_run}/{self.split_name_path}/contours"
-    
-    
+
     def get_polygon_data(
         self,
-        pred_polygons_batch:  Tuple[List, List],
-        gold_polygons_batch:  Tuple[List, List],
+        pred_polygons_batch: List[List[Polygon]],
+        gold_polygons_batch: List[List[Polygon]],
     ) -> Dict[str, Any]:
         """Returns polygon data for a batch of images in a dictionary
         that can then be used for our polygon df
@@ -147,7 +147,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 image_ids.append(image_id)
                 preds.append(-1)
                 golds.append(polygon.label_idx)
-                data_error_potentials.append(polygon.data_error_potential)
+                data_error_potentials.append(0.0)
                 errors.append(polygon.error_type.value)
                 upload_polygon_contours(
                     polygon, self.logger_config.polygon_idx, self.contours_path
@@ -194,13 +194,13 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         # Errors
         calculate_misclassified_polygons_batch(self.pred_masks, gold_polygons_batch)
         calculate_undetected_polygons_batch(self.pred_masks, gold_polygons_batch)
-        
-        '''gold_polygons_batch = calculate_dep_polygons_batch(
+
+        calculate_dep_polygons_batch(
             gold_polygons_batch,
-            dep_heatmaps,
-            height = [img.shape[-1] for img in self.gold_masks],
-            width = [img.shape[-2] for img in self.gold_masks],
-        )'''
+            dep_heatmaps.numpy(),
+            height=[img.shape[-1] for img in self.gold_masks],
+            width=[img.shape[-2] for img in self.gold_masks],
+        )
 
         image_data = {
             "image": [
@@ -227,10 +227,11 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         )
 
         polygon_data = self.get_polygon_data(pred_polygons_batch, gold_polygons_batch)
-        
         if self.split == Split.inference:
-            polygon_data["inference_name"] = [self.inference_name] * len(self.image_ids)
+            polygon_data["inference_name"] = [self.inference_name] * len(
+                polygon_data["image_id"]
+            )
         else:
-            polygon_data["epoch"] = [self.epoch] * len(self.image_ids)
+            polygon_data["epoch"] = [self.epoch] * len(polygon_data["image_id"])
 
         return polygon_data
