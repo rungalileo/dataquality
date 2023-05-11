@@ -135,7 +135,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 image_ids.append(image_id)
                 preds.append(polygon.label_idx)
                 golds.append(-1)
-                data_error_potentials.append(0.0)
+                data_error_potentials.append(polygon.data_error_potential)
                 errors.append(polygon.error_type.value)
                 upload_polygon_contours(
                     polygon, self.logger_config.polygon_idx, self.contours_path
@@ -147,7 +147,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 image_ids.append(image_id)
                 preds.append(-1)
                 golds.append(polygon.label_idx)
-                data_error_potentials.append(0.0)
+                data_error_potentials.append(polygon.data_error_potential)
                 errors.append(polygon.error_type.value)
                 upload_polygon_contours(
                     polygon, self.logger_config.polygon_idx, self.contours_path
