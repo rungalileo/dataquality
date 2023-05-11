@@ -662,19 +662,7 @@ def get_labels_for_run(
     If multi-label, and a task is provided, this will get the labels for that task.
     Otherwise, it will get all task-labels
     """
-    try:
-        return api_client.get_labels_for_run(project_name, run_name, task)
-    except GalileoException as e:
-        if str(e) != "For multi-label runs, a task name must be provided":
-            raise e
-        # Multi-label case with no task provided. Get all tasks
-        pid, rid = api_client._get_project_run_id(project_name, run_name)
-        labels_object = f"{pid}/{rid}/labels/labels.json"
-        labels_path = object_store.download_file(
-            labels_object, "/tmp/labels.json", config.results_bucket_name
-        )
-        with open(labels_path) as f:
-            return json.loads(f.read())
+    return api_client.get_labels_for_run(project_name, run_name, task)
 
 
 def get_tasks_for_run(project_name: str, run_name: str) -> List[str]:

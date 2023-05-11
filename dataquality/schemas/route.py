@@ -28,6 +28,7 @@ class Route(str, Enum):
     presigned_url = "presigned_url"
     tasks = "tasks"
     labels = "labels"
+    ner_labels = "ner_labels"
     epochs = "epochs"
     summary = "insights/summary"
     groupby = "insights/groupby"

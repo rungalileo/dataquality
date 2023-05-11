@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 import numpy as np
 from pydantic import BaseModel
@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 class SemSegCols(str, Enum):
     id = "id"
+    image = "image"
     image_path = "image_path"
     mask_path = "mask_path"
     # mixin restriction on str (due to "str".split(...))
@@ -24,6 +25,7 @@ class Pixel(BaseModel):
     x: int
     y: int
 
+    @property
     def deserialize_opencv(self) -> List[List[int]]:
         """Takes a pixel object and returns JSON compatible list
 
@@ -34,8 +36,9 @@ class Pixel(BaseModel):
         """
         return [[self.x, self.y]]
 
+    @property
     def deserialize_json(self) -> List[int]:
-        """Takes a pixel object and returns JSON compatible list"""
+        """Takes a pixel object and returns it as list of ints"""
         return [self.x, self.y]
 
 
@@ -50,7 +53,8 @@ class Polygon(BaseModel):
     error_type: ErrorType = ErrorType.none
     contours: List[Contour]
 
-    def deserialize_opencv(self) -> List[np.ndarray]:
+    @property
+    def contours_opencv(self) -> List[np.ndarray]:
         """Deserialize the contours in a polygon to be OpenCV contour compatible
 
         OpenCV.drawContours expects a list of np.ndarrays corresponding
@@ -60,36 +64,31 @@ class Polygon(BaseModel):
             polygon = Polygon(
                 contours=[Contour(pixels=[Pixel(x=0, y=0), Pixel(x=0, y=1)])]
             )
-            polygon.deserialize_opencv()
+            polygon.contours_opencv
             >>> [np.array([[0, 0], [0, 1]])]
         """
         contours = []
         for contour in self.contours:
-            pixels = [pixel.deserialize_opencv() for pixel in contour.pixels]
+            pixels = [pixel.deserialize_opencv for pixel in contour.pixels]
             contours.append(np.array(pixels))
         return contours
 
-    def deserialize_json(self) -> Dict:
-        """Deserialize a polygon object to be JSON compatible for Minio upload
-
-        We export polygons as a nested list of pixels for the Frontend to draw. This
-        nested list format is required by the OpenCV library to draw contours.
+    @property
+    def contours_json(self) -> List:
+        """Deserialize the contours as a JSON
 
         Example:
             polygon = Polygon(
-                contours=[Contour(pixels=[Pixel(x=0, y=0), Pixel(x=0, y=1)])]
+                contours=[
+                    Contour(pixels=[Pixel(x=0, y=0), Pixel(x=0, y=1)]),
+                    Contour(pixels=[Pixel(x=12, y=9), Pixel(x=11, y=11)])
+                ]
             )
-            polygon.deserialize_json()
-            >>> [[[[[0, 0]], [[0, 1]]]]]
+            polygon.contours_opencv
+            >>> [[[0, 0], [0, 1]], [[12, 9], [11, 11]]]
         """
         contours = []
         for contour in self.contours:
-            pixels = [pixel.deserialize_json() for pixel in contour.pixels]
+            pixels = [pixel.deserialize_json for pixel in contour.pixels]
             contours.append(pixels)
-
-        return {
-            "id": self.id,
-            "label_idx": self.label_idx,
-            "error_type": self.error_type.value,
-            "polygon": contours,
-        }
+        return contours

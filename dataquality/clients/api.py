@@ -284,10 +284,8 @@ class ApiClient:
             project_name=project_name, run_name=run_name
         )
         task_type = self.get_task_type(project, run)
-        if not task and task_type == TaskType.text_multi_label:
-            raise GalileoException("For multi-label runs, a task name must be provided")
-
-        url = f"{config.api_url}/{Route.content_path(project, run)}/{Route.labels}"
+        labels = Route.ner_labels if task_type == TaskType.text_ner else Route.labels
+        url = f"{config.api_url}/{Route.content_path(project, run)}/{labels}"
         params = {"task": task} if task else None
         res = self.make_request(RequestType.GET, url=url, params=params)
         return res["labels"]

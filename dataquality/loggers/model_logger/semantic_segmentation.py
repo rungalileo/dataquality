@@ -3,6 +3,7 @@ from typing import Dict, List, Optional, Union
 import numpy as np
 import torch
 
+import dataquality as dq
 from dataquality.loggers.logger_config.semantic_segmentation import (
     SemanticSegmentationLoggerConfig,
     semantic_segmentation_logger_config,
@@ -20,7 +21,7 @@ from dataquality.utils.semantic_segmentation.metrics import (
 )
 from dataquality.utils.semantic_segmentation.polygons import (
     find_polygons_batch,
-    upload_polygons_image,
+    upload_polygon_contours,
 )
 
 
@@ -35,9 +36,9 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         bucket_name: str = "",
         image_paths: List[str] = [],
         image_ids: List[int] = [],
-        gt_masks: torch.Tensor = torch.empty(0),
+        gold_masks: torch.Tensor = torch.empty(0),
         pred_masks: torch.Tensor = torch.empty(0),
-        gt_boundary_masks: torch.Tensor = torch.empty(0),
+        gold_boundary_masks: torch.Tensor = torch.empty(0),
         pred_boundary_masks: torch.Tensor = torch.empty(0),
         output_probs: torch.Tensor = torch.empty(0),
         mislabeled_pixels: torch.Tensor = torch.empty(0),
@@ -54,7 +55,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
 
         Args:
             image_ids: List of image ids
-            gt_masks: List of ground truth masks
+            gold_masks: List of ground truth masks
                 np.ndarray of shape (batch_size, height, width)
             pred_masks: List of prediction masks
                 np.ndarray of shape (batch_size, height, width)
@@ -79,9 +80,9 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         self.bucket_name = bucket_name
         self.image_paths = image_paths
         self.image_ids = image_ids
-        self.gt_masks = gt_masks
+        self.gold_masks = gold_masks
         self.pred_masks = pred_masks
-        self.gt_boundary_masks = gt_boundary_masks
+        self.gold_boundary_masks = gold_boundary_masks
         self.pred_boundary_masks = pred_boundary_masks
         self.output_probs = output_probs
         self.mislabled_pixels = mislabeled_pixels
@@ -100,12 +101,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         return f"{self.proj_run}/{self.split_name_path}/dep"
 
     @property
-    def pred_mask_path(self) -> str:
-        return f"{self.proj_run}/{self.split_name_path}/masks/pred"
-
-    @property
-    def gt_mask_path(self) -> str:
-        return f"{self.proj_run}/{self.split_name_path}/masks/ground_truth"
+    def contours_path(self) -> str:
+        return f"{self.proj_run}/{self.split_name_path}/contours"
 
     def _get_data_dict(self) -> Dict:
         """Returns a dictionary of data to be logged as a DataFrame"""
@@ -117,53 +114,93 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
 
         image_dep = calculate_and_upload_dep(
             self.output_probs,
-            self.gt_masks,
+            self.gold_masks,
             self.image_ids,
             obj_prefix=self.dep_path,
         )
 
         # Image Metrics (IoU)
-        iou, iou_per_class = calculate_mean_iou(self.pred_masks, self.gt_masks)
+        iou, iou_per_class = calculate_mean_iou(self.pred_masks, self.gold_masks)
         boundary_iou, boundary_iou_per_class = calculate_mean_iou(
-            self.pred_boundary_masks, self.gt_boundary_masks
+            self.pred_boundary_masks, self.gold_boundary_masks
         )
 
         # Image masks
-        pred_polygons_batch, gt_polygons_batch = find_polygons_batch(
-            self.pred_masks, self.gt_masks
+        pred_polygons_batch, gold_polygons_batch = find_polygons_batch(
+            self.pred_masks, self.gold_masks
         )
         # Errors
-        calculate_misclassified_polygons_batch(self.pred_masks, gt_polygons_batch)
-        calculate_undetected_polygons_batch(self.pred_masks, gt_polygons_batch)
-        # Add errors to polygons and upload to Minio
-        for i, image_id in enumerate(self.image_ids):
-            upload_polygons_image(
-                pred_polygons_batch[i],
-                image_id,
-                self.pred_mask_path,
-            )
-            upload_polygons_image(
-                gt_polygons_batch[i],
-                image_id,
-                self.gt_mask_path,
-            )
+        calculate_misclassified_polygons_batch(self.pred_masks, gold_polygons_batch)
+        calculate_undetected_polygons_batch(self.pred_masks, gold_polygons_batch)
 
-        data = {
+        image_data = {
             "image": [
                 f"{self.bucket_name}/{pth}" for pth in self.image_paths
             ],  # E.g. https://storage.googleapis.com/bucket_name/.../image_id.png
-            "image_id": self.image_ids,
-            "height": [img.shape[-1] for img in self.gt_masks],
-            "width": [img.shape[-2] for img in self.gt_masks],
-            "data_error_potential": image_dep,
+            "id": self.image_ids,
+            "height": [img.shape[-1] for img in self.gold_masks],
+            "width": [img.shape[-2] for img in self.gold_masks],
+            "image_data_error_potential": image_dep,
             "mean_lm_score": [i for i in mean_mislabeled],
             "mean_iou": iou,
             "mean_iou_per_class": iou_per_class,
             "boundary_iou": boundary_iou,
             "boundary_iou_per_class": boundary_iou_per_class,
-            "split": [self.split] * len(self.image_ids),
-            "epoch": [self.epoch] * len(self.image_ids),
+            # "epoch": [self.epoch] * len(self.image_ids),
+        }
+        not_meta = ["id", "image"]
+        meta_keys = [k for k in image_data.keys() if k not in not_meta]
+        dq.log_dataset(
+            image_data,
+            split=Split[self.split],
+            inference_name=self.inference_name,
+            meta=meta_keys,
+        )
+
+        image_ids = []
+        polygon_ids = []
+        preds = []
+        golds = []
+        data_error_potentials = []
+        errors = []
+        for i, image_id in enumerate(self.image_ids):
+            pred_polygons = pred_polygons_batch[i]
+            for polygon in pred_polygons:
+                image_ids.append(image_id)
+                preds.append(polygon.label_idx)
+                golds.append(-1)
+                data_error_potentials.append(0.0)
+                errors.append(polygon.error_type.value)
+                upload_polygon_contours(
+                    polygon, self.logger_config.polygon_idx, self.contours_path
+                )
+                polygon_ids.append(self.logger_config.polygon_idx)
+                self.logger_config.polygon_idx += 1
+            gold_polygons = gold_polygons_batch[i]
+            for polygon in gold_polygons:
+                image_ids.append(image_id)
+                preds.append(-1)
+                golds.append(polygon.label_idx)
+                data_error_potentials.append(0.0)
+                errors.append(polygon.error_type.value)
+                upload_polygon_contours(
+                    polygon, self.logger_config.polygon_idx, self.contours_path
+                )
+                polygon_ids.append(self.logger_config.polygon_idx)
+                self.logger_config.polygon_idx += 1
+
+        polygon_data = {
+            "id": polygon_ids,
+            "image_id": image_ids,
+            "pred": preds,
+            "gold": golds,
+            "data_error_potential": data_error_potentials,
+            "galileo_error_type": errors,
+            "split": [self.split] * len(image_ids),
         }
         if self.split == Split.inference:
-            data["inference_name"] = [self.inference_name] * len(self.image_ids)
-        return data
+            polygon_data["inference_name"] = [self.inference_name] * len(image_ids)
+        else:
+            polygon_data["epoch"] = [self.epoch] * len(image_ids)
+
+        return polygon_data
