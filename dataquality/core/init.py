@@ -222,4 +222,4 @@ def delete_run(project_name: str, run_name: str) -> None:
     """Deletes a run from Galileo"""
     pid, rid = api_client._get_project_run_id(project_name, run_name)
     api_client.delete_run(pid, rid)
-    print(f"🗑 Run {project_name}/{run_name} deleted")
+    print(f"🗑 Run {run_name} in project {project_name} deleted.")
