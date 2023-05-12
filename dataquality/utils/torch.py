@@ -458,14 +458,33 @@ def unpatch(patches: List[Dict[str, Any]] = []) -> None:
                 pass
 
 
-def remove_all_forward_hooks(model: Module, all: bool = False) -> None:
+def remove_hook(child: Module, all: bool = False) -> None:
+    """Remove all forward hooks from a module.
+    :param child: The module to remove the hooks from.
+    :param all: If true, all hooks will be removed. If false,
+    only the hooks starting with dq_ will be removed.
+    """
+    if hasattr(child, "_forward_hooks"):
+        if all:
+            child._forward_hooks = OrderedDict()
+        else:
+            for k, v in child._forward_hooks.items():
+                if v.__name__.startswith("_dq_"):
+                    del child._forward_hooks[k]
+
+
+def remove_all_forward_hooks(
+    model: Module, all: bool = False, start: bool = True
+) -> None:
+    """Remove all forward hooks from a model.
+    :param model: The model to remove the hooks from.
+    :param all: If true, all hooks will be removed. If false, only the hooks starting
+    with dq_ will be removed.
+    :param start: If true, the function will be called recursively on all submodules.
+    """
+    if start:
+        remove_hook(model, all=all)
     for name, child in model._modules.items():
         if child is not None:
-            if hasattr(child, "_forward_hooks"):
-                if all:
-                    child._forward_hooks = OrderedDict()
-                else:
-                    for k, v in child._forward_hooks.items():
-                        if v.__name__.startswith("dq_"):
-                            del child._forward_hooks[k]
-            remove_all_forward_hooks(child)
+            remove_hook(child, all=all)
+            remove_all_forward_hooks(child, all=all, start=False)
