@@ -18,7 +18,11 @@ from dataquality.schemas.split import Split
 from dataquality.schemas.torch import DimensionSlice, HelperData, InputDim, Layer
 from dataquality.utils.helpers import check_noop
 from dataquality.utils.patcher import Cleanup, Patch, PatchManager, RefManager
-from dataquality.utils.torch import ModelHookManager, remove_all_forward_hooks
+from dataquality.utils.torch import (
+    ModelHookManager,
+    find_dq_hook_by_name,
+    remove_all_forward_hooks,
+)
 from dataquality.utils.transformers import RemoveIdCollatePatch, SignatureColumnsPatch
 
 a = Analytics(ApiClient, dq.config)  # type: ignore
@@ -47,10 +51,10 @@ class DQCallback(TrainerCallback, TorchBaseInstance, Patch):
         helper_data: Dict[str, Any] = {},
     ) -> None:
         # Access the dq logger helper data
+        helper_data[HelperData.model_outputs_store] = {}
         self.helper_data = helper_data
-        self.helper_data[HelperData.model_outputs_store] = {}
         self.model_outputs_store = self.helper_data[HelperData.model_outputs_store]
-        self._initialized = False
+        self._training_validated = False
         self._model_setup = False
         # Hook manager for attaching hooks to the model
         self.hook_manager = ModelHookManager()
@@ -80,18 +84,6 @@ class DQCallback(TrainerCallback, TorchBaseInstance, Patch):
 
         # 🔭🌕 Galileo logging
         dq.log_model_outputs(**self.model_outputs_store)
-        self._clear_logger_config_curr_model_outputs()
-
-    def on_init_end(
-        self,
-        args: TrainingArguments,
-        state: TrainerState,
-        control: TrainerControl,
-        **kwargs: Dict,
-    ) -> None:
-        """
-        Event called at the end of the initialization of the [`Trainer`].
-        """
         self._clear_logger_config_curr_model_outputs()
 
     def validate(
@@ -128,7 +120,7 @@ class DQCallback(TrainerCallback, TorchBaseInstance, Patch):
                 'For example: return {"input_ids": ..., "attention_mask":'
                 ' ..., "id": ...}'
             )
-        self._initialized = True
+        self._training_validated = True
 
     def setup_model(self, model: Module) -> None:
         """Setup the callback
@@ -155,7 +147,7 @@ class DQCallback(TrainerCallback, TorchBaseInstance, Patch):
         args: TrainingArguments,
         state: TrainerState,
         control: TrainerControl,
-        **kwargs: Dict,
+        **kwargs: Any,
     ) -> None:
         """
         Event called at the beginning of training. Attaches hooks to model.
@@ -164,9 +156,11 @@ class DQCallback(TrainerCallback, TorchBaseInstance, Patch):
         :param control: Trainer control
         :param kwargs: Keyword arguments (model, eval_dataloader, tokenizer...)
         """
-        if not self._initialized:
+        if not self._training_validated:
             self.validate(args, state, control, **kwargs)
-            self._initialized = True
+            model = kwargs["model"]
+            self._model_setup = find_dq_hook_by_name(model)
+            self.setup_model(model)
         dq.set_split(Split.training)  # 🔭🌕 Galileo logging
 
     def on_evaluate(
@@ -292,6 +286,12 @@ def watch(
     a.log_function("transformers_trainer/watch")
     helper_data = dq.get_model_logger().logger_config.helper_data
     # Callback which we add to the trainer
+    # The columns needed for the forward process
+    signature_patch = SignatureColumnsPatch(trainer)
+    signature_cols = signature_patch.new_signature_columns
+    assert trainer.args.n_gpu <= 1, GalileoException(
+        "Parallel GPUs are not supported. TrainingArguments.n_gpu should be set to 1"
+    )
     dqcallback = DQCallback(
         trainer=trainer,
         last_hidden_state_layer=last_hidden_state_layer,
@@ -302,19 +302,13 @@ def watch(
         logits_fn=logits_fn,
         helper_data=helper_data,
     )
-    # The columns needed for the forward process
-    signature_patch = SignatureColumnsPatch(trainer)
-    signature_cols = signature_patch.new_signature_columns
-    dqcallback.patch()
-    assert trainer.args.n_gpu <= 1, GalileoException(
-        "Parallel GPUs are not supported. TrainingArguments.n_gpu should be set to 1"
-    )
     # We wrap the data collator to remove the id column
     RemoveIdCollatePatch(
         trainer,
         signature_cols,
         dqcallback.helper_data[HelperData.model_outputs_store],
     )
+    dqcallback.patch()
     # Save the original signature columns and the callback for unwatch
     dqcallback.setup_model(trainer.model)
     # Unpatch Trainer after logging (when finished is called)
