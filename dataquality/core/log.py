@@ -469,10 +469,11 @@ def set_labels_for_run(labels: Union[List[List[str]], List[str]]) -> None:
                 "labels, delete this run (dq.delete_run()) or use a new run name. "
                 f"Current labels: {get_data_logger().logger_config.labels}"
             )
-    a.log_function("dq/set_labels_for_run")
-    if isinstance(labels[0], (int, np.integer)):
-        get_data_logger().logger_config.int_labels = True
-    get_data_logger().logger_config.labels = labels
+    else:
+        a.log_function("dq/set_labels_for_run")
+        if isinstance(labels[0], (int, np.integer)):
+            get_data_logger().logger_config.int_labels = True
+        get_data_logger().logger_config.labels = labels
 
 
 @check_noop
