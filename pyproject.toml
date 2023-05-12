@@ -106,6 +106,7 @@ py37 = [
     "cachetools>=5.2.0",
     "types-cachetools>=5.3.0.0",
     "importlib-metadata<5.0.0",
+    "timm<=0.6.13",
 ]
 
 setfit = [
