@@ -1,3 +1,5 @@
+import random
+
 import pytest
 
 from dataquality.exceptions import GalileoException
@@ -58,7 +60,17 @@ def test_validate_name_missing_name() -> None:
 
 
 def test_name() -> None:
-    adj, c, anm = random_name().split("_")
+    _, adj, c, anm = random_name().split("_")
     assert adj in ADJECTIVES
     assert c in COLORS
     assert anm in ANIMALS
+
+
+@pytest.mark.parametrize("seed", [0, 4, 12, 535, 42])
+def test_name_random_seed(seed: int) -> None:
+    """Setting a seed should still let us have random names"""
+    names = []
+    for _ in range(5):
+        random.seed(seed)
+        names.append(random_name())
+    assert len(set(names)) == len(names)

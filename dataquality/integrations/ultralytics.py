@@ -348,7 +348,7 @@ class Callback:
             self.file_map[image["im_file"]] = i
             batch_img_shape = image["img"].shape[-2:]
             shape = image["ori_shape"]
-            image_width, image_height = shape
+            image_height, image_width = shape
             bbox = image["bboxes"].clone()
             # Batch width and height. The max width/height for this batch
             bch_height, bch_width = batch_img_shape

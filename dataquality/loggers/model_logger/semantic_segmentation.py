@@ -90,7 +90,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         self.mislabled_pixels = mislabeled_pixels
 
     def validate_and_format(self) -> None:
-        pass
+        super().validate_and_format()
 
     @property
     def lm_path(self) -> str:

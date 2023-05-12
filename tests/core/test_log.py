@@ -22,3 +22,10 @@ def test_set_labels_existing_run_same_labels(set_test_config: Callable):
     logger_config.labels = ["A", "B", "C"]
     dq.set_labels_for_run(["A", "B", "C"])
     assert logger_config.labels == ["A", "B", "C"]
+
+
+def test_set_labels_existing_run_same_labels_unsorted(set_test_config: Callable):
+    logger_config.existing_run = True
+    logger_config.labels = ["A", "B", "C"]
+    dq.set_labels_for_run(["B", "C", "A"])
+    assert logger_config.labels == ["A", "B", "C"]

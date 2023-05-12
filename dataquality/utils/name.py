@@ -1,6 +1,7 @@
 import random
 import re
 from typing import Optional
+from uuid import uuid4
 
 from dataquality.exceptions import GalileoException
 
@@ -1610,8 +1611,10 @@ COLORS = [
 
 
 def random_name() -> str:
-    result = []
-    result.append(random.choice(ADJECTIVES))
-    result.append(random.choice(COLORS))
-    result.append(random.choice(ANIMALS))
+    result = [
+        str(uuid4())[:5],
+        random.choice(ADJECTIVES),
+        random.choice(COLORS),
+        random.choice(ANIMALS),
+    ]
     return "_".join(result).lower()
