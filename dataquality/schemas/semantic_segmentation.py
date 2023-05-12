@@ -52,6 +52,7 @@ class Polygon(BaseModel):
     misclassified_class_label: Optional[int] = None
     error_type: ErrorType = ErrorType.none
     contours: List[Contour]
+    data_error_potential: Optional[float] = None
 
     @property
     def contours_opencv(self) -> List[np.ndarray]:

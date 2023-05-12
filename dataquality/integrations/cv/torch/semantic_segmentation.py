@@ -322,6 +322,7 @@ class SemanticTorchLogger(TorchLogger):
             # do not log if we are not in the final inference loop
             if not self.called_finish:
                 return
+            print("logging")
             logger = SemanticSegmentationModelLogger(
                 bucket_name=self.bucket_name,
                 image_paths=image_paths,
