@@ -71,7 +71,7 @@ test = [
     "torchtext>=0.13.1",
     "torchdata>=0.4.1",
     "xgboost>=1.6.2",
-    "timm>=0.6.12",
+    "timm==0.6.13",
     "fastai>=2.7.11",
     "portalocker==2.7.0",
     "types-PyYAML==6.0.12.9",
