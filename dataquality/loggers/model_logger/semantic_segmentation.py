@@ -203,8 +203,6 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             height=heights,
             width=widths,
         )
-        
-        
 
         image_data = {
             "image": [
