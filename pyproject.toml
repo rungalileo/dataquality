@@ -71,7 +71,7 @@ test = [
     "torchtext>=0.13.1",
     "torchdata>=0.4.1",
     "xgboost>=1.6.2",
-    "timm==0.6.13",
+    "timm>=0.6.12",
     "fastai>=2.7.11",
     "portalocker==2.7.0",
     "types-PyYAML==6.0.12.9",
@@ -106,6 +106,7 @@ py37 = [
     "cachetools>=5.2.0",
     "types-cachetools>=5.3.0.0",
     "importlib-metadata<5.0.0",
+    "timm<=0.6.13",
 ]
 
 setfit = [
