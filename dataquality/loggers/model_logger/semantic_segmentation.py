@@ -231,8 +231,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         polygon_data = self.get_polygon_data(pred_polygons_batch, gold_polygons_batch)
         n_polygons = polygon_data["image_id"]
         if self.split == Split.inference:
-            polygon_data["inference_name"] = [self.inference_name] * n_polygons
+            polygon_data["inference_name"] = [self.inference_name] * len(n_polygons)
         else:
-            polygon_data["epoch"] = [self.epoch] * n_polygons
+            polygon_data["epoch"] = [self.epoch] * len(n_polygons)
 
         return polygon_data
