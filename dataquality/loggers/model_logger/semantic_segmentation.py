@@ -87,9 +87,6 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         self.output_probs = output_probs
         self.mislabled_pixels = mislabeled_pixels
 
-    def validate_and_format(self) -> None:
-        pass
-
     @property
     def lm_path(self) -> str:
         """Minio path for Likely Mislabeled heatmaps"""
