@@ -65,7 +65,10 @@ def test_end2end_yolov8(
 
     dq.init(TaskType.object_detection)
     # TODO: Move test to dojo
-    ds_path = "tests/integrations/ultralytics/coco128.yaml"
+    # train: /content/yolo-demo/data/images/train
+    #!yolo detect train model=/content/models/yolov8n.pt
+    # data=/content/yolo-demo/test.yaml epochs=5
+    ds_path = "tests/assets/yolo-demo/test.yaml"
     model = YOLO("./tests/integrations/ultralytics/yolov8n.pt")
 
     for split in [Split.training, Split.validation]:  # ,
