@@ -4,7 +4,9 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import torch
 import vaex
+from fastai.data.external import URLs, untar_data
 from fastai.metrics import accuracy
+from fastai.text.all import TextDataLoaders
 from fastai.text.learner import text_classifier_learner
 from fastai.text.models.awdlstm import AWD_LSTM
 
@@ -16,8 +18,6 @@ from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import validate_unique_ids
 from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID, LOCATION
-from fastai.data.external import URLs, untar_data
-from fastai.text.all import TextDataLoaders
 
 path = untar_data(URLs.IMDB_SAMPLE)
 df = pd.read_csv(path / "texts.csv")
