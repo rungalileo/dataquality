@@ -683,9 +683,9 @@ def test_create_run_name(mock_get_runs: MagicMock, mock_get_p_name: MagicMock) -
     dataquality.core.init.ApiClient,
     "get_project_runs",
     return_value=[
-        {"name": f"asdfas"},
-        {"name": f"foo2"},
-        {"name": f"mew_new_run_6"},
+        {"name": "asdfas"},
+        {"name": "foo2"},
+        {"name": "mew_new_run_6"},
     ],
 )
 def test_create_run_name_no_defaults(
