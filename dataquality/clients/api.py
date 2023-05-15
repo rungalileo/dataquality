@@ -332,6 +332,7 @@ class ApiClient:
         project_name: Optional[str] = None,
         run_name: Optional[str] = None,
         labels: Optional[Union[List, List[List]]] = None,
+        xray: bool = False,
     ) -> Dict:
         """Reinitiate a project/run that has already been finished
 
@@ -387,7 +388,7 @@ class ApiClient:
             labels=labels,
             tasks=tasks or None,
             task_type=task_type,
-            xray=False,  # Don't recalculate XRay in process
+            xray=xray,
         )
         res = self.make_request(
             RequestType.POST, url=f"{config.api_url}/{Route.jobs}", body=body

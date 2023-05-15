@@ -1612,9 +1612,9 @@ COLORS = [
 
 def random_name() -> str:
     result = [
-        str(uuid4())[:5],
         random.choice(ADJECTIVES),
         random.choice(COLORS),
         random.choice(ANIMALS),
+        str(uuid4())[:5],
     ]
     return "_".join(result).lower()

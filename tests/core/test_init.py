@@ -1,7 +1,9 @@
 import os
+from datetime import datetime
 from functools import partial
 from typing import Callable
 from unittest.mock import ANY, MagicMock, patch
+from uuid import uuid4
 
 import pytest
 from tenacity import RetryError
@@ -11,6 +13,7 @@ import dataquality as dq
 from dataquality import config
 from dataquality.clients.api import ApiClient
 from dataquality.core.auth import GALILEO_AUTH_METHOD
+from dataquality.core.init import create_run_name
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.task_type import TaskType
 from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID
@@ -36,7 +39,9 @@ from tests.test_utils.mock_request import (
 @patch.object(ApiClient, "create_run")
 @patch("dataquality.core.init._check_dq_version")
 @patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=True)
+@patch("dataquality.core.init.create_run_name", return_value="foo")
 def test_init(
+    mock_create_run_name: MagicMock,
     mock_valid_user: MagicMock,
     mock_check_dq_version: MagicMock,
     mock_create_run: MagicMock,
@@ -65,7 +70,9 @@ def test_init(
 @patch.object(ApiClient, "get_project_run_by_name")
 @patch("dataquality.core.init._check_dq_version")
 @patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=True)
+@patch("dataquality.core.init.create_run_name", return_value="foo")
 def test_init_reset_logger_config(
+    mock_create_run_name: MagicMock,
     mock_valid_user: MagicMock,
     mock_check_dq_version: MagicMock,
     mock_get_project_run_by_name: MagicMock,
@@ -89,7 +96,9 @@ def test_init_reset_logger_config(
 @patch.object(ApiClient, "create_run")
 @patch("dataquality.core.init._check_dq_version")
 @patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=True)
+@patch("dataquality.core.init.create_run_name", return_value="foo")
 def test_init_new_private_project(
+    mock_create_run_name: MagicMock,
     mock_valid_user: MagicMock,
     mock_check_dq_version: MagicMock,
     mock_create_run: MagicMock,
@@ -120,7 +129,9 @@ def test_init_new_private_project(
 @patch.object(ApiClient, "create_run")
 @patch("dataquality.core.init._check_dq_version")
 @patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=True)
+@patch("dataquality.core.init.create_run_name", return_value="foo")
 def test_init_existing_project(
+    mock_create_run_name: MagicMock,
     mock_valid_user: MagicMock,
     mock_check_dq_version: MagicMock,
     mock_create_run: MagicMock,
@@ -152,7 +163,9 @@ def test_init_existing_project(
 @patch.object(ApiClient, "create_run")
 @patch("dataquality.core.init._check_dq_version")
 @patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=True)
+@patch("dataquality.core.init.create_run_name", return_value="foo")
 def test_init_new_project(
+    mock_create_run_name: MagicMock,
     mock_valid_user: MagicMock,
     mock_check_dq_version: MagicMock,
     mock_create_run: MagicMock,
@@ -318,7 +331,9 @@ def test_init_only_run(
 @patch.object(ApiClient, "create_run")
 @patch("dataquality.core.init._check_dq_version")
 @patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=True)
+@patch("dataquality.core.init.create_run_name", return_value="foo")
 def test_init_project_name_collision(
+    mock_create_run_name: MagicMock,
     mock_valid_user: MagicMock,
     mock_check_dq_version: MagicMock,
     mock_create_run: MagicMock,
@@ -365,7 +380,9 @@ def test_init_project_name_collision(
 @patch.object(ApiClient, "create_run")
 @patch("dataquality.core.init._check_dq_version")
 @patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=True)
+@patch("dataquality.core.init.create_run_name", return_value="foo")
 def test_init_project_name_collision_fails(
+    mock_create_run_name: MagicMock,
     mock_valid_user: MagicMock,
     mock_check_dq_version: MagicMock,
     mock_create_run: MagicMock,
@@ -406,7 +423,9 @@ def test_init_failed_login(mock_login: MagicMock, set_test_config: Callable) -> 
 @patch.object(ApiClient, "create_run")
 @patch("dataquality.core.init._check_dq_version")
 @patch("dataquality.core.init.login", side_effect=mocked_login)
+@patch("dataquality.core.init.create_run_name", return_value="foo")
 def test_init_successful_login(
+    mock_create_run_name: MagicMock,
     mock_login: MagicMock,
     mock_check_dq_version: MagicMock,
     mock_create_run: MagicMock,
@@ -450,7 +469,9 @@ def test_init_expired_token_login(
     dataquality.core.init.ApiClient, "get_current_user", side_effect=GalileoException
 )
 @patch("dataquality.core.init.login", side_effect=mocked_login)
+@patch("dataquality.core.init.create_run_name", return_value="foo")
 def test_init_expired_token_login_full(
+    mock_create_run_name: MagicMock,
     mock_login: MagicMock,
     mock_current_user: MagicMock,
     mock_check_dq_version: MagicMock,
@@ -491,7 +512,9 @@ def test_init_invalid_user_login(
 @patch("dataquality.core.init._check_dq_version")
 @patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=False)
 @patch("dataquality.core.init.login", side_effect=mocked_login)
+@patch("dataquality.core.init.create_run_name", return_value="foo")
 def test_init_invalid_user_login_full(
+    mock_create_run_name: MagicMock,
     mock_login: MagicMock,
     mock_valid_user: MagicMock,
     mock_check_dq_version: MagicMock,
@@ -634,3 +657,48 @@ def test_set_console_url_overwrites_with_param(mock_login: MagicMock) -> None:
     dataquality.set_console_url(console_url="https://console.newfake2.com")
     assert dataquality.config.api_url == config.api_url == "https://api.newfake2.com"
     mock_login.assert_not_called()
+
+
+@patch.object(
+    dataquality.core.init.ApiClient, "get_project_by_name", return_value={"id": uuid4()}
+)
+@patch.object(
+    dataquality.core.init.ApiClient,
+    "get_project_runs",
+    return_value=[
+        {"name": f"{datetime.today().strftime('%Y-%m-%d')}-1"},
+        {"name": f"{datetime.today().strftime('%Y-%m-%d')}-2"},
+        {"name": f"{datetime.today().strftime('%Y-%m-%d')}-4"},
+        {"name": f"{datetime.today().strftime('%Y-%m-%d')}-6"},
+    ],
+)
+def test_create_run_name(mock_get_runs: MagicMock, mock_get_p_name: MagicMock) -> None:
+    assert create_run_name("foo") == f"{datetime.today().strftime('%Y-%m-%d')}-7"
+
+
+@patch.object(
+    dataquality.core.init.ApiClient, "get_project_by_name", return_value={"id": uuid4()}
+)
+@patch.object(
+    dataquality.core.init.ApiClient,
+    "get_project_runs",
+    return_value=[
+        {"name": f"asdfas"},
+        {"name": f"foo2"},
+        {"name": f"mew_new_run-6"},
+    ],
+)
+def test_create_run_name_no_defaults(
+    mock_get_runs: MagicMock, mock_get_p_name: MagicMock
+) -> None:
+    assert create_run_name("foo") == f"{datetime.today().strftime('%Y-%m-%d')}-1"
+
+
+@patch.object(
+    dataquality.core.init.ApiClient, "get_project_by_name", return_value={"id": uuid4()}
+)
+@patch.object(dataquality.core.init.ApiClient, "get_project_runs", return_value=[])
+def test_create_run_name_no_runs(
+    mock_get_runs: MagicMock, mock_get_p_name: MagicMock
+) -> None:
+    assert create_run_name("foo") == f"{datetime.today().strftime('%Y-%m-%d')}-1"
