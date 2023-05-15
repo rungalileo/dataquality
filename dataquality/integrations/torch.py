@@ -217,8 +217,8 @@ def watch(
         Inputs are the embeddings and outputs are the logits.
     :param embedding_dim: Dimension of the embeddings for example `"[:, 0]"`
         to remove the cls token
-    :param logits_dim: Dimension of the logits from layer input and 
-        logits from layer output. For example in NER `"[:,1:,:]"`. 
+    :param logits_dim: Dimension of the logits from layer input and
+        logits from layer output. For example in NER `"[:,1:,:]"`.
         If the layer is not found, the last_hidden_state_layer will be used
     :param embedding_fn: Function to process embeddings from the model
     :param logits_fn: Function to process logits from the model f.e.
