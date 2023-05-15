@@ -136,12 +136,12 @@ def create_run_name(project_name: str) -> str:
         # If it's not an auto-created run name, skip
         if today not in run["name"]:
             continue
-        splitter = f"{today}-"
+        splitter = f"{today}_"
         run_num = run["name"].split(splitter)[-1]
         if run_num.isdigit() and int(run_num) > max_run_today:
             max_run_today = int(run_num)
     run_num = max_run_today + 1
-    return f"{today}-{run_num}"
+    return f"{today}_{run_num}"
 
 
 @check_noop
@@ -194,11 +194,11 @@ def init(
         return
 
     project_name = validate_name(project_name, assign_random=True)
+    project, proj_created = _init.get_or_create_project(project_name, is_public)
+
     if not run_name:
         run_name = create_run_name(project_name)
     run_name = validate_name(run_name, assign_random=False)
-
-    project, proj_created = _init.get_or_create_project(project_name, is_public)
     run, run_created = _init.get_or_create_run(project_name, run_name, task_type)
     if not run_created:
         warnings.warn(

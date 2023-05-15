@@ -666,14 +666,14 @@ def test_set_console_url_overwrites_with_param(mock_login: MagicMock) -> None:
     dataquality.core.init.ApiClient,
     "get_project_runs",
     return_value=[
-        {"name": f"{datetime.today().strftime('%Y-%m-%d')}-1"},
-        {"name": f"{datetime.today().strftime('%Y-%m-%d')}-2"},
-        {"name": f"{datetime.today().strftime('%Y-%m-%d')}-4"},
-        {"name": f"{datetime.today().strftime('%Y-%m-%d')}-6"},
+        {"name": f"{datetime.today().strftime('%Y-%m-%d')}_1"},
+        {"name": f"{datetime.today().strftime('%Y-%m-%d')}_2"},
+        {"name": f"{datetime.today().strftime('%Y-%m-%d')}_4"},
+        {"name": f"{datetime.today().strftime('%Y-%m-%d')}_6"},
     ],
 )
 def test_create_run_name(mock_get_runs: MagicMock, mock_get_p_name: MagicMock) -> None:
-    assert create_run_name("foo") == f"{datetime.today().strftime('%Y-%m-%d')}-7"
+    assert create_run_name("foo") == f"{datetime.today().strftime('%Y-%m-%d')}_7"
 
 
 @patch.object(
@@ -685,13 +685,13 @@ def test_create_run_name(mock_get_runs: MagicMock, mock_get_p_name: MagicMock) -
     return_value=[
         {"name": f"asdfas"},
         {"name": f"foo2"},
-        {"name": f"mew_new_run-6"},
+        {"name": f"mew_new_run_6"},
     ],
 )
 def test_create_run_name_no_defaults(
     mock_get_runs: MagicMock, mock_get_p_name: MagicMock
 ) -> None:
-    assert create_run_name("foo") == f"{datetime.today().strftime('%Y-%m-%d')}-1"
+    assert create_run_name("foo") == f"{datetime.today().strftime('%Y-%m-%d')}_1"
 
 
 @patch.object(
@@ -701,4 +701,4 @@ def test_create_run_name_no_defaults(
 def test_create_run_name_no_runs(
     mock_get_runs: MagicMock, mock_get_p_name: MagicMock
 ) -> None:
-    assert create_run_name("foo") == f"{datetime.today().strftime('%Y-%m-%d')}-1"
+    assert create_run_name("foo") == f"{datetime.today().strftime('%Y-%m-%d')}_1"
