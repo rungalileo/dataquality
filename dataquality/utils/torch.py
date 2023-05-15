@@ -256,7 +256,7 @@ class ModelHookManager:
         given a model. The higher the score the more likely it is the embedding layer.
         """
         name, layer = next(model.named_children())
-        print(f"Selected layer for the last hidden state embedding {name}")
+        print(f'Selected layer for the last hidden state embedding "{name}"')
         return layer
 
     def get_layer_by_name(self, model: Module, name: str) -> Module:
@@ -277,7 +277,8 @@ class ModelHookManager:
                 layer_names_str = ", ".join(layer_names)
                 if layer_name == name:
                     print(
-                        f"Found layer {layer_name} in model layers: {layer_names_str}"
+                        f'Found layer "{layer_name}" in '
+                        f'model layers: "{layer_names_str}"'
                     )
                     return layer_model
                 layer_model._get_name()
@@ -458,14 +459,56 @@ def unpatch(patches: List[Dict[str, Any]] = []) -> None:
                 pass
 
 
-def remove_all_forward_hooks(model: Module, all: bool = False) -> None:
+def remove_hook(child: Module, all: bool = False) -> None:
+    """Remove all forward hooks from a module.
+    :param child: The module to remove the hooks from.
+    :param all: If true, all hooks will be removed. If false,
+    only the hooks starting with dq_ will be removed.
+    """
+    if hasattr(child, "_forward_hooks"):
+        if all:
+            child._forward_hooks = OrderedDict()
+        else:
+            for k, v in child._forward_hooks.items():
+                if v.__name__.startswith("_dq_"):
+                    del child._forward_hooks[k]
+
+
+def remove_all_forward_hooks(
+    model: Module, all: bool = False, start: bool = True
+) -> None:
+    """Remove all forward hooks from a model.
+    :param model: The model to remove the hooks from.
+    :param all: If true, all hooks will be removed. If false, only the hooks starting
+    with dq_ will be removed.
+    :param start: If true, the function will be called recursively on all submodules.
+    """
+    if start:
+        remove_hook(model, all=all)
+    for name, child in model._modules.items():
+        if child is not None:
+            remove_hook(child, all=all)
+            remove_all_forward_hooks(child, all=all, start=False)
+
+
+def find_dq_hook_by_name(model: Module, name: str = "_dq_", start: bool = True) -> bool:
+    """Find a hook by name in a model.
+    :param model: The model to search the hook in.
+    :param name: The name of the hook.
+    :return: True if the hook was found, False otherwise.
+    """
+    if start:
+        if hasattr(model, "_forward_hooks"):
+            for k, v in model._forward_hooks.items():
+                if v.__name__.startswith(name):
+                    return True
     for name, child in model._modules.items():
         if child is not None:
             if hasattr(child, "_forward_hooks"):
-                if all:
-                    child._forward_hooks = OrderedDict()
-                else:
-                    for k, v in child._forward_hooks.items():
-                        if v.__name__.startswith("dq_"):
-                            del child._forward_hooks[k]
-            remove_all_forward_hooks(child)
+                for k, v in child._forward_hooks.items():
+                    if v.__name__.startswith(name):
+                        return True
+            found = find_dq_hook_by_name(child, name=name, start=False)
+            if found:
+                return True
+    return False
