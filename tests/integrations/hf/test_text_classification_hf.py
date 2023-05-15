@@ -1,10 +1,10 @@
 from typing import Any, Callable, Generator
 from unittest.mock import MagicMock, patch
 
+import evaluate
 import numpy as np
 import torch
 import vaex
-from datasets import load_metric
 from torch.nn import Module
 from torch.utils.data import DataLoader
 from transformers import (
@@ -17,6 +17,7 @@ from transformers import (
 import dataquality as dq
 from dataquality import config
 from dataquality.integrations.transformers_trainer import watch
+from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.conftest import HF_TEST_BERT_PATH, LOCATION, model, tokenizer
@@ -27,7 +28,7 @@ from tests.test_utils.mock_request import (
 )
 from tests.test_utils.pt_datasets_mock import CustomDatasetWithTokenizer
 
-metric = load_metric("accuracy")
+metric = evaluate.load("accuracy")
 
 
 def preprocess_function(examples, tokenizer):
@@ -342,5 +343,48 @@ def test_hf_watch_with_pt_dataset_e2e(
     assert len(vaex.open(f"{LOCATION}/validation/0/*.hdf5")) == len(val_dataset)
     assert len(vaex.open(f"{LOCATION}/test/0/*.hdf5")) == len(test_dataset)
 
+    # Should upload without failing on data validation or otherwise
+    dq.finish()
+
+
+@patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
+@patch.object(dq.core.finish, "_version_check")
+@patch.object(dq.core.finish, "_reset_run")
+@patch.object(dq.core.finish, "upload_dq_log_file")
+@patch.object(dq.clients.api.ApiClient, "make_request")
+@patch.object(dq.core.finish, "wait_for_run")
+def test_hf_watch_no_train(
+    mock_wait_for_run: MagicMock,
+    mock_make_request: MagicMock,
+    mock_upload_log_file: MagicMock,
+    mock_reset_run: MagicMock,
+    mock_version_check: MagicMock,
+    mock_valid_user: MagicMock,
+    set_test_config: Callable,
+    cleanup_after_use: Generator,
+) -> None:
+    """Base case: Tests creating a new project and run"""
+    set_test_config(task_type=TaskType.text_classification)
+    # 🔭🌕 Galileo logging
+    dq.set_labels_for_run(mock_hf_dataset.features["label"].names)
+    test_dataset = mock_dataset_with_ids
+
+    dq.log_dataset(test_dataset, split="test")
+
+    trainer = Trainer(
+        model,
+        args_default,
+        train_dataset=encoded_train_dataset,
+        eval_dataset=encoded_test_dataset,
+        tokenizer=tokenizer,
+        compute_metrics=compute_metrics,
+    )
+    # 🔭🌕 Galileo logging
+    watch(trainer)
+    dq.set_epoch_and_split(0, Split.test)
+    trainer.predict(encoded_test_dataset)
+    ThreadPoolManager.wait_for_threads()
+    # All data for splits should be logged
+    assert len(vaex.open(f"{LOCATION}/test/0/*.hdf5")) == len(test_dataset)
     # Should upload without failing on data validation or otherwise
     dq.finish()

@@ -7,7 +7,7 @@ from sklearn.datasets import fetch_20newsgroups
 import dataquality
 import dataquality as dq
 from dataquality.clients.api import ApiClient
-from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID
+from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID, LOCAL_MODEL_PATH
 
 
 @patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
@@ -75,5 +75,8 @@ def test_auto(
     ).head(4)
 
     dataquality(
-        train_data=df_train, test_data=df_test, labels=newsgroups_train.target_names
+        hf_model=LOCAL_MODEL_PATH,
+        train_data=df_train,
+        test_data=df_test,
+        labels=newsgroups_train.target_names,
     )

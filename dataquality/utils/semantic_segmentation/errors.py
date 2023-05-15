@@ -2,6 +2,7 @@ from typing import List, Optional, Tuple
 
 import numpy as np
 import torch
+from PIL import Image
 
 from dataquality.schemas.semantic_segmentation import ErrorType, Polygon
 from dataquality.utils.semantic_segmentation.polygons import draw_polygon
@@ -155,3 +156,54 @@ def calculate_undetected_polygons_batch(
         pred_mask = pred_masks[idx].numpy()
         gold_polygons = gold_polygons_batch[idx]
         calculate_undetected_polygons(pred_mask, gold_polygons)
+
+
+def calculate_dep_polygon(
+    dep_map: np.ndarray,
+    polygon_img: np.ndarray,
+) -> float:
+    """Calculate the mean dep score for one polygon drawn onto an image of all
+    zero's. We can then take the polygon's dep score by only selecting those pixels
+    with a value greater than 0 and averageing them.
+
+    Args:
+        dep_map (np.ndarray): heatmap of dep scores for an image
+        polygon_img (np.ndarray): image of all zeros with a polygon drawn on it
+
+    Returns:
+        dep_score (float): mean dep score for the polygon
+    """
+    relevant_region = polygon_img != 0
+    dep_score = dep_map[relevant_region].mean()
+    return dep_score
+
+
+def calculate_dep_polygons_batch(
+    gold_polygons_batch: List[List[Polygon]],
+    dep_heatmaps: np.ndarray,
+    height: List[int],
+    width: List[int],
+) -> None:
+    """Takes the mean dep score within a polygon and sets the polygon's
+    dep score to the mean dep score
+
+    Args:
+        gold_polygons_batch (List[List[[Polygon]]): list of the gold polygons
+            for an image
+        dep_heatmaps (np.ndarray): heatmaps of DEP scores for an image
+        height (int): height of original image to resize the dep map to the correct
+            dims
+        width (int): width of original image to resize the dep map to the correct
+            dims
+    """
+    resized_dep_maps = []
+    for i, dep_map in enumerate(dep_heatmaps):
+        resized_image = Image.fromarray(dep_map).resize((width[i], height[i]))
+        resized_dep_maps.append(np.array(resized_image))
+
+    for idx in range(len(resized_dep_maps)):
+        dep_map = resized_dep_maps[idx]
+        gold_polygons = gold_polygons_batch[idx]
+        for polygon in gold_polygons:
+            polygon_img = draw_polygon(polygon, dep_map.shape)
+            polygon.data_error_potential = calculate_dep_polygon(dep_map, polygon_img)

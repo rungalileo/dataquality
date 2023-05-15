@@ -17,20 +17,22 @@ from dataquality.integrations.torch import TorchBaseInstance
 from dataquality.schemas.split import Split
 from dataquality.schemas.torch import DimensionSlice, HelperData, InputDim, Layer
 from dataquality.utils.helpers import check_noop
-from dataquality.utils.torch import ModelHookManager, remove_all_forward_hooks
-from dataquality.utils.transformers import (
-    add_id_to_signature_columns,
-    remove_id_collate_fn_wrapper,
+from dataquality.utils.patcher import Cleanup, Patch, PatchManager, RefManager
+from dataquality.utils.torch import (
+    ModelHookManager,
+    find_dq_hook_by_name,
+    remove_all_forward_hooks,
 )
+from dataquality.utils.transformers import RemoveIdCollatePatch, SignatureColumnsPatch
 
 a = Analytics(ApiClient, dq.config)  # type: ignore
 a.log_import("transformers_trainer")
 
 
-class DQCallback(TrainerCallback, TorchBaseInstance):
+class DQTrainerCallback(TrainerCallback, TorchBaseInstance, Patch):
     """
-    [`TrainerCallback`] that provides data quality insights
-    with [Galileo](https://www.rungalileo.io/). This callback
+    DQTrainerCallback that provides data quality insights
+    with Galileo. This callback
     is logs during each training training step and is using the Huggingface
     transformers Trainer library.
     """
@@ -39,6 +41,7 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
 
     def __init__(
         self,
+        trainer: Trainer,
         last_hidden_state_layer: Optional[Layer] = None,
         embedding_dim: Optional[InputDim] = None,
         logits_dim: Optional[InputDim] = None,
@@ -47,11 +50,23 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
         logits_fn: Optional[Callable] = None,
         helper_data: Dict[str, Any] = {},
     ) -> None:
+        """Callback for logging model outputs during training
+        :param trainer: Trainer object from Huggingface transformers
+        :param last_hidden_state_layer: Name of the last hidden state layer
+        :param embedding_dim: Dimension of the embedding
+        :param logits_dim: Dimension of the logits
+        :param classifier_layer: Name of the classifier layer
+        :param embedding_fn: Function to extract the embedding from the last
+            hidden state
+        :param logits_fn: Function to extract the logits
+        :param helper_data: Store for the callback
+        """
         # Access the dq logger helper data
+        helper_data[HelperData.model_outputs_store] = {}
         self.helper_data = helper_data
-        self.helper_data[HelperData.model_outputs_store] = {}
         self.model_outputs_store = self.helper_data[HelperData.model_outputs_store]
-        self._initialized = False
+        self._training_validated = False
+        self._model_setup = False
         # Hook manager for attaching hooks to the model
         self.hook_manager = ModelHookManager()
         self.last_hidden_state_layer = last_hidden_state_layer
@@ -59,11 +74,10 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
         self.embedding_fn = embedding_fn
         self.logits_fn = logits_fn
         self._init_dimension(embedding_dim, logits_dim)
-
-    def _clear_logger_config_curr_model_outputs(self) -> None:
-        self.model_outputs_store.clear()
+        self.trainer = trainer
 
     def _do_log(self) -> None:
+        """Log the model outputs (called by the hook)"""
         # Log only if embedding exists
         assert self.model_outputs_store.get("embs") is not None, GalileoException(
             "Embedding passed to the logger can not be logged"
@@ -79,43 +93,20 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
 
         # 🔭🌕 Galileo logging
         dq.log_model_outputs(**self.model_outputs_store)
-        self._clear_logger_config_curr_model_outputs()
+        self.model_outputs_store.clear()
 
-    def on_init_end(
+    def validate(
         self,
         args: TrainingArguments,
         state: TrainerState,
         control: TrainerControl,
-        **kwargs: Dict,
+        **kwargs: Any,
     ) -> None:
-        """
-        Event called at the end of the initialization of the [`Trainer`].
-        """
-        self._clear_logger_config_curr_model_outputs()
-
-    def setup(
-        self,
-        args: TrainingArguments,
-        state: TrainerState,
-        kwargs: Dict,
-    ) -> None:
-        """Setup the callback
+        """Validate the model and dataset
         :param args: Training arguments
         :param state: Trainer state
-        :param model: Model
-        :param kwargs: Keyword arguments
-            (eval_dataloader, train_dataloader, tokenizer)"""
-
-        assert dq.config.task_type, GalileoException(
-            "dq client must be initialized. "
-            "For example: dq.init('text_classification')"
-        )
-        self.task = dq.config.task_type
-        model: Module = kwargs["model"]
-        # Attach hooks to the model
-        self._attach_hooks_to_model(
-            model, self.classifier_layer, self.last_hidden_state_layer
-        )
+        :param control: Trainer control
+        :param kwargs: Keyword arguments (train_dataloader, eval_dataloader)"""
         train_dataloader = kwargs["train_dataloader"]
         train_dataloader_ds = train_dataloader.dataset
         if isinstance(train_dataloader_ds, Dataset):
@@ -142,14 +133,31 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
                 'For example: return {"input_ids": ..., "attention_mask":'
                 ' ..., "id": ...}'
             )
-        self._initialized = True
+        self._training_validated = True
+
+    def setup_model(self, model: Module) -> None:
+        """Setup the model for logging (attach hooks)
+        :param model: Model"""
+        # Setup the model only once
+        if self._model_setup:
+            return
+        assert dq.config.task_type, GalileoException(
+            "dq client must be initialized. "
+            "For example: dq.init('text_classification')"
+        )
+        self.task = dq.config.task_type
+        # Attach hooks to the model
+        self._attach_hooks_to_model(
+            model, self.classifier_layer, self.last_hidden_state_layer
+        )
+        self._model_setup = True
 
     def on_train_begin(
         self,
         args: TrainingArguments,
         state: TrainerState,
         control: TrainerControl,
-        **kwargs: Dict,
+        **kwargs: Any,
     ) -> None:
         """
         Event called at the beginning of training. Attaches hooks to model.
@@ -158,8 +166,12 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
         :param control: Trainer control
         :param kwargs: Keyword arguments (model, eval_dataloader, tokenizer...)
         """
-        if not self._initialized:
-            self.setup(args, state, kwargs)
+        # Setup the model for logging (validate, attach hooks)
+        if not self._training_validated:
+            self.validate(args, state, control, **kwargs)
+            model = kwargs["model"]
+            self._model_setup = find_dq_hook_by_name(model)
+            self.setup_model(model)
         dq.set_split(Split.training)  # 🔭🌕 Galileo logging
 
     def on_evaluate(
@@ -257,26 +269,48 @@ class DQCallback(TrainerCallback, TorchBaseInstance):
             )
             self.hook_manager.attach_hook(model, self._dq_logit_hook)
 
+    def _patch(self) -> "Patch":
+        """Patch the trainer to add the callback"""
+        self.trainer.add_callback(self)
+        return self
+
+    def _unpatch(self) -> None:
+        """Unpatch the trainer to remove the callback"""
+        self.trainer.remove_callback(self)
+
 
 @check_noop
 def watch(
     trainer: Trainer,
-    last_hidden_state_layer: Optional[Layer] = None,
+    classifier_layer: Optional[Layer] = None,
     embedding_dim: Optional[DimensionSlice] = None,
     logits_dim: Optional[DimensionSlice] = None,
-    classifier_layer: Optional[Layer] = None,
     embedding_fn: Optional[Callable] = None,
     logits_fn: Optional[Callable] = None,
+    last_hidden_state_layer: Optional[Layer] = None,
 ) -> None:
-    """used to *hook* into to the **trainer**
-    to log to [Galileo](https://www.rungalileo.io/)
-
-    :param trainer: Trainer object
+    """*Hook* into to the **trainer** to log to Galileo.
+    :param trainer: Trainer object from the transformers library
+    :param classifier_layer: Name or Layer of the classifier layer to extract the
+        logits and the embeddings from
+    :param embedding_dim: Dimension slice for the embedding
+    :param logits_dim: Dimension slice for the logits
+    :param logits_fn: Function to extract the logits
+    :param embedding_fn: Function to extract the embedding
+    :param last_hidden_state_layer: Name of the last hidden state layer if
+        classifier_layer is not provided
     """
     a.log_function("transformers_trainer/watch")
     helper_data = dq.get_model_logger().logger_config.helper_data
     # Callback which we add to the trainer
-    dqcallback = DQCallback(
+    # The columns needed for the forward process
+    signature_patch = SignatureColumnsPatch(trainer)
+    signature_cols = signature_patch.new_signature_columns
+    assert trainer.args.n_gpu <= 1, GalileoException(
+        "Parallel GPUs are not supported. TrainingArguments.n_gpu should be set to 1"
+    )
+    dqcallback = DQTrainerCallback(
+        trainer=trainer,
         last_hidden_state_layer=last_hidden_state_layer,
         embedding_dim=embedding_dim,
         logits_dim=logits_dim,
@@ -285,26 +319,18 @@ def watch(
         logits_fn=logits_fn,
         helper_data=helper_data,
     )
-    # The columns needed for the forward process
-    signature_cols = add_id_to_signature_columns(trainer)
-
-    assert trainer.args.n_gpu <= 1, GalileoException(
-        "Parallel GPUs are not supported. TrainingArguments.n_gpu should be set to 1"
-    )
-    orig_collate_fn = trainer.data_collator
     # We wrap the data collator to remove the id column
-    trainer.data_collator = remove_id_collate_fn_wrapper(
-        orig_collate_fn,
+    RemoveIdCollatePatch(
+        trainer,
         signature_cols,
         dqcallback.helper_data[HelperData.model_outputs_store],
     )
-    trainer.add_callback(dqcallback)
+    dqcallback.patch()
     # Save the original signature columns and the callback for unwatch
-    helper_data[HelperData.dqcallback] = dqcallback
-    helper_data[HelperData.signature_cols] = [
-        col for col in signature_cols if col != "id"
-    ]
-    helper_data[HelperData.orig_collate_fn] = orig_collate_fn
+    dqcallback.setup_model(trainer.model)
+    # Unpatch Trainer after logging (when finished is called)
+    cleanup_manager = RefManager(lambda: unwatch(trainer))
+    helper_data["cleaner"] = Cleanup(cleanup_manager)
 
 
 def unwatch(trainer: Trainer) -> None:
@@ -313,8 +339,7 @@ def unwatch(trainer: Trainer) -> None:
     :param trainer: Trainer object
     """
     a.log_function("transformers_trainer/unwatch")
-    helper_data = dq.get_model_logger().logger_config.helper_data
-    trainer.remove_callback(helper_data[HelperData.dqcallback])
-    trainer._signature_columns = helper_data[HelperData.signature_cols]
-    trainer.data_collator = helper_data[HelperData.orig_collate_fn]
+    # helper_data = dq.get_model_logger().logger_config.helper_data
+    manager = PatchManager()
+    manager.unpatch()
     remove_all_forward_hooks(trainer.model)
