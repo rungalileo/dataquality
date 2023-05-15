@@ -281,7 +281,7 @@ class FastAiDQCallback(Callback):
         indices = self.idx_store[FAIKey.dataloader_indices][cur_split][-1]
         # check if list or iterator and convert to list
         if not isinstance(indices, list):
-            self.idx_store[FAIKey.dataloader_indices][cur_split][-1] = indices
+            self.idx_store[FAIKey.dataloader_indices][cur_split][-1] = list(indices)
 
         indices = self.idx_store[FAIKey.dataloader_indices][cur_split][-1][
             :bs_len
