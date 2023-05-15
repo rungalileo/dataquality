@@ -1,7 +1,5 @@
-from typing import Callable
-from typing import Generator
-from unittest.mock import MagicMock
-from unittest.mock import patch
+from typing import Callable, Generator
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import torch
@@ -13,16 +11,12 @@ from fastai.text.models.awdlstm import AWD_LSTM
 
 import dataquality as dq
 from dataquality.clients.api import ApiClient
-from dataquality.integrations.fastai import FastAiDQCallback
-from dataquality.integrations.fastai import extract_split_indices
+from dataquality.integrations.fastai import FastAiDQCallback, extract_split_indices
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import validate_unique_ids
-from tests.conftest import DEFAULT_PROJECT_ID
-from tests.conftest import DEFAULT_RUN_ID
-from tests.conftest import LOCATION
-
+from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID, LOCATION
 from tests.test_utils.mock_data import mock_dict
 
 df = pd.DataFrame(mock_dict)
