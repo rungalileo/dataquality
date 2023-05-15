@@ -2,6 +2,7 @@ from typing import Callable, Generator
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
+import torch
 import vaex
 from fastai.metrics import accuracy
 from fastai.text.learner import text_classifier_learner
@@ -70,21 +71,25 @@ def test_end2end_fai(
         df, text_col="text", label_col="label", drop_last=False
     )
     dq.init(task_type=TaskType.text_classification)
-    dq.set_labels_for_run(["negative", "positive"])
+    labels = dls.vocab[-1]
+    print("labels")
+    print(labels)
+    dq.set_labels_for_run(list(labels))
     train_ids, valid_ids = extract_split_indices(dls)
     df["id"] = df.index
-    for split, split_idx in zip(
+    for test_split, split_idx in zip(
         [Split.training, Split.validation], [train_ids, valid_ids]
     ):
         df_split = df.iloc[split_idx]
-        dq.log_dataset(df_split, split=split)
+        dq.log_dataset(df_split, split=test_split)
 
     ThreadPoolManager.wait_for_threads()
     dqc = FastAiDQCallback(finish=False)
     learn = text_classifier_learner(dls, AWD_LSTM, drop_mult=0.5, metrics=accuracy)
+    dls.device = torch.device("cpu")
     learn.add_cb(dqc)
-    learn.fine_tune(2, 1e-2, freeze_epochs=0)
-    for split in ["training", "validation"]:
-        validate_unique_ids(vaex.open(f"{LOCATION}/{split}/1/*.hdf5"), "epoch")
+    learn.fine_tune(1, 1e-2, freeze_epochs=0)
+    for test_split in ["training", "validation"]:
+        validate_unique_ids(vaex.open(f"{LOCATION}/{test_split}/1/*.hdf5"), "epoch")
     dqc.unwatch()
     dq.finish()

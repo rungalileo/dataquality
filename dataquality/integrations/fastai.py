@@ -278,6 +278,11 @@ class FastAiDQCallback(Callback):
         # Store the current batch ids by trimming the stored ids by
         # the batch size length
         cur_split = self.logger_config.cur_split
+        indices = self.idx_store[FAIKey.dataloader_indices][cur_split][-1]
+        # check if list or iterator and convert to list
+        if not isinstance(indices, list):
+            self.idx_store[FAIKey.dataloader_indices][cur_split][-1] = indices
+
         indices = self.idx_store[FAIKey.dataloader_indices][cur_split][-1][
             :bs_len
         ].copy()
