@@ -6,8 +6,6 @@ from unittest.mock import patch
 import pandas as pd
 import torch
 import vaex
-from fastai.data.external import URLs
-from fastai.data.external import untar_data
 from fastai.metrics import accuracy
 from fastai.text.all import TextDataLoaders
 from fastai.text.learner import text_classifier_learner
