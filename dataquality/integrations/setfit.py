@@ -1,4 +1,3 @@
-from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -6,7 +5,7 @@ import torch
 
 import dataquality as dq
 from dataquality.schemas.split import Split
-from dataquality.utils.cleanup import Cleanup, RefManager
+from dataquality.utils.patcher import Cleanup, Patch, PatchManager, RefManager
 
 if TYPE_CHECKING:
     from datasets import Dataset
@@ -42,60 +41,6 @@ def _apply_column_mapping(
         **dset_format["format_kwargs"],
     )
     return dataset
-
-
-class Borg:
-    """Borg class making class attributes global"""
-
-    _shared_state: Dict = {}
-
-    def __init__(self) -> None:
-        self.__dict__ = self._shared_state
-
-
-class PatchManager(Borg):
-    """Class to manage patches"""
-
-    def __init__(self) -> None:
-        """Class to manage patches"""
-        super().__init__()
-        if not hasattr(self, "patches"):
-            self.patches: List[Patch] = []
-
-    def add_patch(self, patch: "Patch") -> None:
-        """Add patch to list of patches
-        :param patch: patch to add
-        """
-        self.patches.append(patch)
-
-    def unpatch(self) -> None:
-        """Unpatch all patches"""
-        for patch in self.patches[:]:
-            patch._unpatch()
-            self.patches.remove(patch)
-
-
-class Patch(ABC):
-    is_patch = True
-    manager = PatchManager()
-    name = "patch"
-
-    def patch(self) -> None:
-        """Patch function. Call _patch function and adds patch to manager."""
-        patch = self._patch()
-        self.manager.add_patch(patch)
-
-    @abstractmethod
-    def _patch(self) -> "Patch":
-        """Abstract patch function. Returns patch object."""
-
-    @abstractmethod
-    def _unpatch(self) -> None:
-        """Abstract unpatch function."""
-
-    def unpatch(self) -> None:
-        """Unpatch function. Call _unpatch function and removes patch from manager."""
-        self.manager.unpatch()
 
 
 class SetFitModelHook(Patch):
