@@ -262,7 +262,7 @@ class _PatchSetFitTrainer(Patch):
         setattr(self.trainer, self.function_name, self.old_fn)
 
 
-def unwatch(setfit_obj: Union["SetFitModel", "SetFitTrainer"]) -> None:
+def unwatch(setfit_obj: Optional[Union["SetFitModel", "SetFitTrainer"]]) -> None:
     """Unpatch SetFit model by replacing predict_proba function with original
     function.
     :param setfit_obj: SetFitModel or SetFitTrainer
