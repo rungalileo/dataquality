@@ -67,11 +67,18 @@ class SignatureColumnsPatch(Patch):
     name = "signature_columns_patch"
 
     def __init__(self, trainer: Trainer):
+        """Patches the trainer to add the id column to the signature columns.
+        And adds a collate function to remove the id column. During training.
+        If the id is already in the signature column, it will not be removed
+            on unpatching.
+        :param trainer: The trainer to patch"""
         self.id_in_signature = False
         self.trainer = trainer
         self.patch()
 
     def _patch(self) -> "Patch":
+        """Patches the trainer to add the id column to the signature columns.
+        And stores them in self.new_signature_columns."""
         self.new_signature_columns = self._add_id_to_signature_columns(self.trainer)
         return self
 
@@ -107,6 +114,7 @@ class SignatureColumnsPatch(Patch):
         return []
 
     def _unpatch(self) -> None:
+        """Restores the original collate function"""
         if (
             isinstance(self.trainer._signature_columns, list)
             and not self.id_in_signature

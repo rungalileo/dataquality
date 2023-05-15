@@ -29,10 +29,10 @@ a = Analytics(ApiClient, dq.config)  # type: ignore
 a.log_import("transformers_trainer")
 
 
-class DQCallback(TrainerCallback, TorchBaseInstance, Patch):
+class DQTrainerCallback(TrainerCallback, TorchBaseInstance, Patch):
     """
-    [`TrainerCallback`] that provides data quality insights
-    with [Galileo](https://www.rungalileo.io/). This callback
+    DQTrainerCallback that provides data quality insights
+    with Galileo. This callback
     is logs during each training training step and is using the Huggingface
     transformers Trainer library.
     """
@@ -50,6 +50,17 @@ class DQCallback(TrainerCallback, TorchBaseInstance, Patch):
         logits_fn: Optional[Callable] = None,
         helper_data: Dict[str, Any] = {},
     ) -> None:
+        """Callback for logging model outputs during training
+        :param trainer: Trainer object from Huggingface transformers
+        :param last_hidden_state_layer: Name of the last hidden state layer
+        :param embedding_dim: Dimension of the embedding
+        :param logits_dim: Dimension of the logits
+        :param classifier_layer: Name of the classifier layer
+        :param embedding_fn: Function to extract the embedding from the last
+            hidden state
+        :param logits_fn: Function to extract the logits
+        :param helper_data: Store for the callback
+        """
         # Access the dq logger helper data
         helper_data[HelperData.model_outputs_store] = {}
         self.helper_data = helper_data
@@ -65,10 +76,8 @@ class DQCallback(TrainerCallback, TorchBaseInstance, Patch):
         self._init_dimension(embedding_dim, logits_dim)
         self.trainer = trainer
 
-    def _clear_logger_config_curr_model_outputs(self) -> None:
-        self.model_outputs_store.clear()
-
     def _do_log(self) -> None:
+        """Log the model outputs (called by the hook)"""
         # Log only if embedding exists
         assert self.model_outputs_store.get("embs") is not None, GalileoException(
             "Embedding passed to the logger can not be logged"
@@ -84,7 +93,7 @@ class DQCallback(TrainerCallback, TorchBaseInstance, Patch):
 
         # 🔭🌕 Galileo logging
         dq.log_model_outputs(**self.model_outputs_store)
-        self._clear_logger_config_curr_model_outputs()
+        self.model_outputs_store.clear()
 
     def validate(
         self,
@@ -93,7 +102,11 @@ class DQCallback(TrainerCallback, TorchBaseInstance, Patch):
         control: TrainerControl,
         **kwargs: Any,
     ) -> None:
-        """Validate the model and dataset"""
+        """Validate the model and dataset
+        :param args: Training arguments
+        :param state: Trainer state
+        :param control: Trainer control
+        :param kwargs: Keyword arguments (train_dataloader, eval_dataloader)"""
         train_dataloader = kwargs["train_dataloader"]
         train_dataloader_ds = train_dataloader.dataset
         if isinstance(train_dataloader_ds, Dataset):
@@ -123,12 +136,9 @@ class DQCallback(TrainerCallback, TorchBaseInstance, Patch):
         self._training_validated = True
 
     def setup_model(self, model: Module) -> None:
-        """Setup the callback
-        :param args: Training arguments
-        :param state: Trainer state
-        :param model: Model
-        :param kwargs: Keyword arguments
-            (eval_dataloader, train_dataloader, tokenizer)"""
+        """Setup the model for logging (attach hooks)
+        :param model: Model"""
+        # Setup the model only once
         if self._model_setup:
             return
         assert dq.config.task_type, GalileoException(
@@ -156,6 +166,7 @@ class DQCallback(TrainerCallback, TorchBaseInstance, Patch):
         :param control: Trainer control
         :param kwargs: Keyword arguments (model, eval_dataloader, tokenizer...)
         """
+        # Setup the model for logging (validate, attach hooks)
         if not self._training_validated:
             self.validate(args, state, control, **kwargs)
             model = kwargs["model"]
@@ -271,17 +282,23 @@ class DQCallback(TrainerCallback, TorchBaseInstance, Patch):
 @check_noop
 def watch(
     trainer: Trainer,
-    last_hidden_state_layer: Optional[Layer] = None,
+    classifier_layer: Optional[Layer] = None,
     embedding_dim: Optional[DimensionSlice] = None,
     logits_dim: Optional[DimensionSlice] = None,
-    classifier_layer: Optional[Layer] = None,
     embedding_fn: Optional[Callable] = None,
     logits_fn: Optional[Callable] = None,
+    last_hidden_state_layer: Optional[Layer] = None,
 ) -> None:
-    """used to *hook* into to the **trainer**
-    to log to [Galileo](https://www.rungalileo.io/)
-
-    :param trainer: Trainer object
+    """*Hook* into to the **trainer** to log to Galileo.
+    :param trainer: Trainer object from the transformers library
+    :param classifier_layer: Name or Layer of the classifier layer to extract the
+        logits and the embeddings from
+    :param embedding_dim: Dimension slice for the embedding
+    :param logits_dim: Dimension slice for the logits
+    :param logits_fn: Function to extract the logits
+    :param embedding_fn: Function to extract the embedding
+    :param last_hidden_state_layer: Name of the last hidden state layer if
+        classifier_layer is not provided
     """
     a.log_function("transformers_trainer/watch")
     helper_data = dq.get_model_logger().logger_config.helper_data
@@ -292,7 +309,7 @@ def watch(
     assert trainer.args.n_gpu <= 1, GalileoException(
         "Parallel GPUs are not supported. TrainingArguments.n_gpu should be set to 1"
     )
-    dqcallback = DQCallback(
+    dqcallback = DQTrainerCallback(
         trainer=trainer,
         last_hidden_state_layer=last_hidden_state_layer,
         embedding_dim=embedding_dim,
