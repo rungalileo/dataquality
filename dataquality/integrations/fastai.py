@@ -25,7 +25,6 @@ a.log_import("fastai")
 
 class FAIKey(Enum):
     dataloader_indices = "dataloader_indices"
-    idx_queue = "idx_queue"
     model_input = "model_input"
     model_output = "model_output"
     ids = "ids"
@@ -150,7 +149,6 @@ class FastAiDQCallback(Callback):
 
     def setup_idx_store(self) -> Dict[FAIKey, Any]:
         return {
-            FAIKey.idx_queue: [],
             FAIKey.dataloader_indices: {
                 Split.training: [],
                 Split.validation: [],
@@ -160,7 +158,6 @@ class FastAiDQCallback(Callback):
         }
 
     def reset_idx_store(self) -> None:
-        self.idx_store[FAIKey.idx_queue].clear()
         self.idx_store[FAIKey.dataloader_indices][Split.training].clear()
         self.idx_store[FAIKey.dataloader_indices][Split.validation].clear()
         self.idx_store[FAIKey.dataloader_indices][Split.test].clear()
@@ -170,7 +167,6 @@ class FastAiDQCallback(Callback):
         self.model_outputs_log.clear()
         self.current_idx.clear()
         self.patches.clear()
-        self.idx_store[FAIKey.idx_queue].clear()
         self.counter = 0
 
     def get_layer(self) -> Module:
@@ -249,7 +245,6 @@ class FastAiDQCallback(Callback):
             return
         if self.is_train_or_val():
             dataquality.set_split(dataquality.schemas.split.Split.validation)
-        self.idx_store[FAIKey.idx_queue] = []
 
     def after_fit(self) -> None:
         """
