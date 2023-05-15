@@ -1,10 +1,13 @@
-from typing import Callable, Generator
-from unittest.mock import MagicMock, patch
+from typing import Callable
+from typing import Generator
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import pandas as pd
 import torch
 import vaex
-from fastai.data.external import URLs, untar_data
+from fastai.data.external import URLs
+from fastai.data.external import untar_data
 from fastai.metrics import accuracy
 from fastai.text.all import TextDataLoaders
 from fastai.text.learner import text_classifier_learner
@@ -12,15 +15,20 @@ from fastai.text.models.awdlstm import AWD_LSTM
 
 import dataquality as dq
 from dataquality.clients.api import ApiClient
-from dataquality.integrations.fastai import FastAiDQCallback, extract_split_indices
+from dataquality.integrations.fastai import FastAiDQCallback
+from dataquality.integrations.fastai import extract_split_indices
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import validate_unique_ids
-from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID, LOCATION
+from tests.conftest import DEFAULT_PROJECT_ID
+from tests.conftest import DEFAULT_RUN_ID
+from tests.conftest import LOCATION
 
-path = untar_data(URLs.IMDB_SAMPLE)
-df = pd.read_csv(path / "texts.csv")
+from tests.test_utils.mock_data import mock_dict
+
+df = pd.DataFrame(mock_dict)
+df["is_valid"] = False * (len(df) / 2) + True * (len(df) / 2)
 
 
 @patch.object(ApiClient, "valid_current_user", return_value=True)
@@ -68,7 +76,7 @@ def test_end2end_fai(
     mock_create_run.return_value = {"id": DEFAULT_RUN_ID}
     set_test_config(current_project_id=None, current_run_id=None)
     dls = TextDataLoaders.from_df(
-        df, text_col="text", label_col="label", drop_last=False
+        df, text_col="text", label_col="label", drop_last=False, bs=2
     )
     dq.init(task_type=TaskType.text_classification)
     labels = dls.vocab[-1]
@@ -90,6 +98,6 @@ def test_end2end_fai(
     learn.add_cb(dqc)
     learn.fine_tune(1, 1e-2, freeze_epochs=0)
     for test_split in ["training", "validation"]:
-        validate_unique_ids(vaex.open(f"{LOCATION}/{test_split}/1/*.hdf5"), "epoch")
+        validate_unique_ids(vaex.open(f"{LOCATION}/{test_split}/0/*.hdf5"), "epoch")
     dqc.unwatch()
     dq.finish()
