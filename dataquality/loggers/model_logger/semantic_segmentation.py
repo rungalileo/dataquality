@@ -205,9 +205,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         )
 
         image_data = {
-            "image": [
-                f"{self.bucket_url}/{pth}" for pth in self.image_paths
-            ], 
+            "image": [f"{self.bucket_url}/{pth}" for pth in self.image_paths],
             "id": self.image_ids,
             "height": heights,
             "width": widths,
