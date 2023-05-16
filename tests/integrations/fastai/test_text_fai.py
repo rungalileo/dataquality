@@ -72,8 +72,6 @@ def test_end2end_fai(
     )
     dq.init(task_type=TaskType.text_classification)
     labels = dls.vocab[-1]
-    print("labels")
-    print(labels)
     dq.set_labels_for_run(list(labels))
     train_ids, valid_ids = extract_split_indices(dls)
     df["id"] = df.index
