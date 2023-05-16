@@ -35,7 +35,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
 
     def __init__(
         self,
-        bucket_name: str = "",
+        bucket_url: str = "",
         image_paths: List[str] = [],
         image_ids: List[int] = [],
         gold_masks: torch.Tensor = torch.empty(0),
@@ -79,7 +79,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             epoch=epoch,
             inference_name=inference_name,
         )
-        self.bucket_name = bucket_name
+        self.bucket_url = bucket_url
         self.image_paths = image_paths
         self.image_ids = image_ids
         self.gold_masks = gold_masks
@@ -205,9 +205,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         )
 
         image_data = {
-            "image": [
-                f"{self.bucket_name}/{pth}" for pth in self.image_paths
-            ],  # E.g. https://storage.googleapis.com/bucket_name/.../image_id.png
+            "image": [f"{self.bucket_url}/{pth}" for pth in self.image_paths],
             "id": self.image_ids,
             "height": heights,
             "width": widths,

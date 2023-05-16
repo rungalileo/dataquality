@@ -43,7 +43,7 @@ LIKELY_MISLABELED_QUEUE_SIZE = 100
 class SemanticTorchLogger(TorchLogger):
     def __init__(
         self,
-        bucket_name: str,
+        bucket_url: str,
         dataset_path: str,
         dataloaders: Dict[str, torch.utils.data.DataLoader],
         mask_col_name: Optional[str] = None,
@@ -53,7 +53,7 @@ class SemanticTorchLogger(TorchLogger):
         """
         Class to log semantic segmentation models to Galileo
 
-        :param bucket_name: name of the bucket that currently stores images in cloud
+        :param bucket_url: name of the bucket that currently stores images in cloud
         :param dataset_path: path to the parent dataset folder
         :param mask_col_name: name of the column that contains the mask
         :param dataloaders: dataloaders to be logged
@@ -71,7 +71,7 @@ class SemanticTorchLogger(TorchLogger):
         self.id_to_relative_path: Dict[str, Any] = {
             split: {} for split in dataloaders.keys()
         }
-        self.bucket_name = bucket_name
+        self.bucket_url = bucket_url
         self.dataloaders = dataloaders
         self.image_col = "image"
         self.converted_datasets = []
@@ -92,7 +92,6 @@ class SemanticTorchLogger(TorchLogger):
             start_int (int): starting unique id for each example in the dataset
                 as we need a unique identifier for each example. Defaults to 0.
         """
-        # we wouldn't need any of this if we could map ids to the cloud images
         assert len(dataset) > 0
         assert (
             self.image_col in dataset[0].keys()
@@ -119,9 +118,7 @@ class SemanticTorchLogger(TorchLogger):
             processed_dataset.append(
                 {SemSegCols.image_path: image_path, SemSegCols.id: i}
             )
-        # need to add 1 to the last index to get the next index for the following
-        # datasets as i is 0 indexed so 0 + start_int would equal the ending index
-        # of the previous dataset
+
         return processed_dataset
 
     def find_mask_category(self, batch: Dict[str, Any]) -> None:
@@ -323,7 +320,7 @@ class SemanticTorchLogger(TorchLogger):
             if not self.called_finish:
                 return
             logger = SemanticSegmentationModelLogger(
-                bucket_name=self.bucket_name,
+                bucket_url=self.bucket_url,
                 image_paths=image_paths,
                 image_ids=img_ids,
                 gold_masks=gold_mask,  # Torch tensor (bs, w, h)
@@ -406,7 +403,7 @@ def patch_iterator_and_batch(store: Dict[str, Any]) -> Callable:
 
 def watch(
     model: Module,
-    bucket_name: str,
+    bucket_url: str,
     dataset_path: str,
     dataloaders: Dict[str, DataLoader],
     mask_col_name: Optional[str] = None,
@@ -418,7 +415,7 @@ def watch(
 
         train_dataloader = torch.utils.data.DataLoader()
         model = SemSegModel()
-        watch(model, bucket_name, dataset_path, [train_dataloader, test_dataloader])
+        watch(model, bucket_url, dataset_path, [train_dataloader, test_dataloader])
         for epoch in range(NUM_EPOCHS):
             dq.set_epoch_and_split(epoch,"training")
             train()
@@ -427,7 +424,7 @@ def watch(
         dq.finish()
 
     :param model: Pytorch Model to be wrapped
-    :param bucket_name: Name of the bucket from which the images come
+    :param bucket_url: Name of the bucket from which the images come
     :param dataset_path: Path to the dataset which we can remove from the image path
     :param dataloaders: List of dataloaders to be wrapped
     :param mask_col_name: Name of the column in the dataloader that contains the mask
@@ -479,10 +476,10 @@ def watch(
 
     # we assume that the image_path they pass to us is relative to the bucket / dataset
     # ie if the path they give to us should be the same path we can use in their bucket
-    # to find the data (ie bucket_name/image_path == dataset_path/image_path)
+    # to find the data (ie bucket_url/image_path == dataset_path/image_path)
 
     tl = SemanticTorchLogger(
-        bucket_name=bucket_name,
+        bucket_url=bucket_url,
         dataset_path=dataset_path,
         dataloaders=dataloaders,
         mask_col_name=mask_col_name,
