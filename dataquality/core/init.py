@@ -122,11 +122,11 @@ def create_run_name(project_name: str) -> str:
     this project with this scheme.
 
     ie:
-        2023-05-15-1
-        2023-05-15-2
-        2023-05-15-3
+        2023-05-15_1
+        2023-05-15_2
+        2023-05-15_3
         ...
-        2023-05-15-n
+        2023-05-15_n
     """
     pid = api_client.get_project_by_name(project_name)["id"]
     runs = api_client.get_project_runs(pid)
