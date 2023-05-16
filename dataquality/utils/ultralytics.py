@@ -1,3 +1,4 @@
+from pathlib import Path
 import time
 from tempfile import NamedTemporaryFile
 from typing import Any, Dict, List, Optional, Tuple
@@ -300,7 +301,7 @@ def _read_config(path: str) -> Dict:
         return yaml.safe_load(file)
 
 
-def temporary_cfg_for_val(cfg: Dict, split: Split) -> str:
+def temporary_cfg_for_val(cfg: Dict, split: Split, ds_path: str = "") -> str:
     """Creates a temporary config file with the split set to the given split.
 
     :param cfg_path: Path to the config file
@@ -311,6 +312,22 @@ def temporary_cfg_for_val(cfg: Dict, split: Split) -> str:
     new_value = cfg.get(ultralytics_split_mapping[split])
     for csplit in ["train", "val", "test"]:
         cfg_copy[csplit] = new_value
+    if "path" in cfg_copy:
+        cfg_path = cfg_copy["path"]
+        # check if cfg path is relative or absolute with pathlib
+        # if relative then make it absolute
+        # if absolute then leave it as it is
+        # if cfg_path is relative then it is relative to ds_path
+        # which can be relative to pwd
+        if not Path(cfg_path).is_absolute():
+            pre_path = Path(ds_path).resolve()
+            # if pre_path is a file then get its parent
+            if pre_path.is_file():
+                pre_path = pre_path.parent
+            cfg_path = pre_path / cfg_path
+            # Check if the path exists
+            if cfg_path.exists():
+                cfg_copy["path"] = str(cfg_path)
     tmp = NamedTemporaryFile("w", delete=False, suffix=".yaml")
     yaml.safe_dump(cfg_copy, tmp)
     tmp.close()

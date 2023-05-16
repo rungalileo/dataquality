@@ -68,13 +68,14 @@ def test_end2end_yolov8(
     # train: /content/yolo-demo/data/images/train
     #!yolo detect train model=/content/models/yolov8n.pt
     # data=/content/yolo-demo/test.yaml epochs=5
+    ds_path = "tests/integrations/ultralytics/coco128.yaml"
     ds_path = "tests/assets/yolo-demo/test.yaml"
     model = YOLO("./tests/integrations/ultralytics/yolov8n.pt")
 
     for split in [Split.training, Split.validation]:  # ,
         dq.set_split(split)
         cfg = _read_config(ds_path)
-        tmp_cfg_path = temporary_cfg_for_val(cfg, split)
+        tmp_cfg_path = temporary_cfg_for_val(cfg, split, ds_path)
         if not tmp_cfg_path:
             continue
         dq.set_epoch(0)
@@ -84,6 +85,7 @@ def test_end2end_yolov8(
         labels = list(cfg.get("names", {}).values())
         relative_img_path = cfg[f"bucket_{ultralytics_split_mapping[split]}"]
         watch(model, bucket=bucket, relative_img_path=relative_img_path, labels=labels)
+        print(tmp_cfg_path)
         model.val(data=tmp_cfg_path)
         os.remove(tmp_cfg_path)
 

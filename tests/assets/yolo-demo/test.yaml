@@ -1,6 +1,7 @@
 path: ./data
 train: images/train # train images (relative to 'path') 128 images
 val: images/test # val images (relative to 'path') 128 images
+test:
 bucket: s3://images.cocodataset.org
 bucket_train: train2017
 bucket_val: train2017
