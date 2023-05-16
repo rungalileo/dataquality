@@ -3,7 +3,7 @@ from __future__ import annotations
 import glob
 import os
 import tempfile
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 import vaex
@@ -78,26 +78,28 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         """
         Log an image dataset of input samples for image classification
 
-        # TODOOOOOOO
-
         :param dataset: The dataset to log. This can be a Pandas/Vaex dataframe or an
             ImageFolder (from Torchvision).
-        :param batch_size: Number of samples to log in a batch. Default 100,000
-        :param text: The key/index of the text fields
-        :param id: The key/index of the id fields
-        :param label: The key/index of the label fields
+        :param imgs_colname: If the images are passed as bytes in the dataframe, this
+            indicates the name of the column containing the images
+        :param imgs_location_colname: If the images are passed via their path in the
+            dataframe, this indicates the name of the column containing the paths.
+            These paths could be remote (skip upload) or local (upload)
+        :param imgs_remote_location: If the dataset is of type ImageFolder and the
+            images are stored remotely, pass the folder name here to avoid upload
+        :param batch_size: Number of samples to log in a batch. Default 10,000
+        :param id: The name of the column containing the ids (in the dataframe)
+        :param label: The name of the column containing the labels (in the dataframe)
         :param split: train/test/validation/inference. Can be set here or via
             dq.set_split
         :param inference_name: If logging inference data, a name for this inference
             data is required. Can be set here or via dq.set_split
-        :param meta: List[str, int]: The keys/indexes of each metadata field.
-            Consider a pandas dataframe, this would be the list of columns corresponding
-            to each metadata field to log
+        :param column_map: Dictionary to remap column names in the dataframe
+        :param parallel: upload in parallel if set to True
         """
         if type(dataset).__name__ == "ImageFolder":
-            dataset, imgs_location_colname = self._prepare_df_from_ImageFolder(
-                dataset, imgs_remote_location
-            )
+            dataset = self._prepare_df_from_ImageFolder(dataset, imgs_remote_location)
+            imgs_location_colname = "text"
 
         if imgs_colname is None and imgs_location_colname is None:
             raise GalileoException(
@@ -225,24 +227,23 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         self,
         dataset: "ImageFolder",  # type: ignore # noqa: F821
         imgs_remote_location: Optional[str] = None,
-    ) -> Tuple[pd.DataFrame, str]:
+    ) -> pd.DataFrame:
         """
-        TODO ADD
+        Create a dataframe containing the ids, labels and paths of the images
+        coming from an ImageFolder dataset.
         """
         df = pd.DataFrame(columns=["text", "label"], data=dataset.imgs)
         label_idx_to_label = {
             label_idx: label for label, label_idx in dataset.class_to_idx.items()
         }
         df["label"] = df.label.map(label_idx_to_label)
+        df = df.reset_index().rename(columns={"index": "id"})
 
-        imgs_location_colname = "text"
+        # Replace the paths with the remote one, if a remote location is specified
         if imgs_remote_location is not None:
-            imgs_location_colname = "remote_path"
-            df[imgs_location_colname] = df["text"].str.replace(
-                dataset.root, imgs_remote_location
-            )
+            df["text"] = df["text"].str.replace(dataset.root, imgs_remote_location)
 
-        return df, imgs_location_colname
+        return df
 
     @classmethod
     def process_in_out_frames(
