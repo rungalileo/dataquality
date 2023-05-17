@@ -2,7 +2,7 @@ from enum import Enum
 from typing import List, Optional
 
 import numpy as np
-from pydantic import UUID4, BaseModel
+from pydantic import BaseModel
 
 
 class SemSegCols(str, Enum):
