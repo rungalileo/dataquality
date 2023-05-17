@@ -47,7 +47,7 @@ class Contour(BaseModel):
 
 
 class Polygon(BaseModel):
-    uuid: UUID4
+    uuid: str  # UUID4
     label_idx: int
     misclassified_class_label: Optional[int] = None
     error_type: ErrorType = ErrorType.none
