@@ -141,9 +141,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 with lock:
                     polygon_idx = self.logger_config.polygon_idx
                     self.logger_config.polygon_idx = polygon_idx + 1
-                upload_polygon_contours(
-                    polygon, polygon_idx, self.contours_path
-                )
+                upload_polygon_contours(polygon, polygon_idx, self.contours_path)
                 polygon_ids.append(polygon_idx)
             gold_polygons = gold_polygons_batch[i]
             for polygon in gold_polygons:
@@ -155,9 +153,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 with lock:
                     polygon_idx = self.logger_config.polygon_idx
                     self.logger_config.polygon_idx = polygon_idx + 1
-                upload_polygon_contours(
-                    polygon, polygon_idx, self.contours_path
-                )
+                upload_polygon_contours(polygon, polygon_idx, self.contours_path)
                 polygon_ids.append(polygon_idx)
 
         polygon_data = {
