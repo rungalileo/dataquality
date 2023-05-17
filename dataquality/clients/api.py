@@ -334,70 +334,12 @@ class ApiClient:
         labels: Optional[Union[List, List[List]]] = None,
         xray: bool = False,
     ) -> Dict:
-        """Reinitiate a project/run that has already been finished
-
-        If a project and run name have been provided, that project/run will be
-        reinitiated, otherwise we trigger the currently initialized project/run.
-
-        This will clear out the current state in the server, and will recalculate
-        * DEP score
-        * UMAP Embeddings for visualization
-        * Smart features
-
-        :param project_name: If not set, will use the currently active project
-        :param run_name: If not set, will use the currently active run
-        :param labels: If set, will reprocess the run with these labels. If not set,
-        labels will be used from the previously processed run. These must match the
-        labels that were originally logged
-        """
-        project, run = self._get_project_run_id(project_name, run_name)
-        project_name = project_name or self.get_project(project)["name"]
-        run_name = run_name or self.get_project_run(project, run)["name"]
-        task_type = self.get_task_type(project, run)
-
-        # Multi-label has tasks and List[List] for labels
-        if task_type == TaskType.text_multi_label:
-            tasks = self.get_tasks_for_run(project_name, run_name)
-            if not labels:
-                labels = [
-                    self.get_labels_for_run(project_name, run_name, t) for t in tasks
-                ]
-        else:
-            tasks = []
-            if not labels:
-                try:
-                    labels = self.get_labels_for_run(project_name, run_name)
-                except GalileoException as e:
-                    if "No data found" in str(e):
-                        e = GalileoException(
-                            f"It seems no data is available for run "
-                            f"{project_name}/{run_name}"
-                        )
-                    raise e from None
-                # There were no labels available for this run
-                except KeyError:
-                    raise GalileoException(
-                        "It seems we cannot find the labels for this run. Please call "
-                        "api_client.reprocess_run again, passing in your labels to the "
-                        "'labels' keyword"
-                    ) from None
-
-        body = dict(
-            project_id=str(project),
-            run_id=str(run),
-            labels=labels,
-            tasks=tasks or None,
-            task_type=task_type,
-            xray=xray,
+        """Removed. Please see dq.internal.reprocess_run"""
+        raise GalileoException(
+            "It seems you are trying to reprocess a run. Please call the following:\n\n"
+            "from dataquality.internal import reprocess_run\n\n"
+            f"reprocess_run('{project_name}', '{run_name}')"
         )
-        res = self.make_request(
-            RequestType.POST, url=f"{config.api_url}/{Route.jobs}", body=body
-        )
-        print(
-            f"Job {res['job_name']} successfully resubmitted. New results will be "
-            f"available soon at {res['link']}"
-        )
-        return res
 
     def get_slice_by_name(self, project_name: str, slice_name: str) -> Dict:
         """Get a slice by name"""
