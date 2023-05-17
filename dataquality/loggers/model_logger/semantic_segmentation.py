@@ -25,7 +25,6 @@ from dataquality.utils.semantic_segmentation.polygons import (
     find_polygons_batch,
     upload_polygon_contours,
 )
-from dataquality.utils.thread_pool import lock
 
 
 class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
@@ -138,11 +137,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 golds.append(-1)
                 data_error_potentials.append(polygon.data_error_potential)
                 errors.append(polygon.error_type.value)
-                with lock:
-                    polygon_idx = self.logger_config.polygon_idx
-                    self.logger_config.polygon_idx = polygon_idx + 1
-                upload_polygon_contours(polygon, polygon_idx, self.contours_path)
-                polygon_ids.append(polygon_idx)
+                upload_polygon_contours(polygon, self.contours_path)
+                polygon_ids.append(polygon.uuid)
             gold_polygons = gold_polygons_batch[i]
             for polygon in gold_polygons:
                 image_ids.append(image_id)
@@ -150,11 +146,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 golds.append(polygon.label_idx)
                 data_error_potentials.append(polygon.data_error_potential)
                 errors.append(polygon.error_type.value)
-                with lock:
-                    polygon_idx = self.logger_config.polygon_idx
-                    self.logger_config.polygon_idx = polygon_idx + 1
-                upload_polygon_contours(polygon, polygon_idx, self.contours_path)
-                polygon_ids.append(polygon_idx)
+                upload_polygon_contours(polygon, self.contours_path)
+                polygon_ids.append(polygon.uuid)
 
         polygon_data = {
             "id": polygon_ids,
