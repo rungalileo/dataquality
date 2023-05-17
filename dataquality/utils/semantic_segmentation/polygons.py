@@ -2,6 +2,7 @@ import json
 from collections import defaultdict
 from tempfile import NamedTemporaryFile
 from typing import List, Tuple
+from uuid import uuid4
 
 import cv2
 import numpy as np
@@ -112,6 +113,7 @@ def build_polygons_label(
     final_polygons = []
     for contour_parent_idx in all_polygons.keys():
         polygon = Polygon(
+            uuid=uuid4(),
             label_idx=label_idx,
             contours=all_polygons[contour_parent_idx],
         )

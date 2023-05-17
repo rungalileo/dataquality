@@ -150,7 +150,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 polygon_ids.append(polygon.uuid)
 
         polygon_data = {
-            "id": polygon_ids,
+            "polygon_uuid": polygon_ids,
             "image_id": image_ids,
             "pred": preds,
             "gold": golds,
