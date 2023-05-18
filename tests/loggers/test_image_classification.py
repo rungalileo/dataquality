@@ -6,11 +6,16 @@ from unittest.mock import MagicMock
 import numpy as np
 import vaex
 from datasets import load_dataset
+from torchvision.datasets import ImageFolder
 
 import dataquality
 import dataquality as dq
+from dataquality.loggers.data_logger.image_classification import (
+    ImageClassificationDataLogger,
+)
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import validate_unique_ids
+from tests.assets.constants import TEST_IMAGES_FOLDER_ROOT
 from tests.conftest import LOCATION
 
 food_dataset = load_dataset("sasha/dog-food", split="train")
@@ -334,3 +339,49 @@ def test_hf_image_dataset_with_paths(
         df = vaex.open(f"{LOCATION}/input_data/training/*.arrow")
 
         assert len(df) == len(food_dataset)
+
+
+def test_prepare_df_from_ImageFolder() -> None:
+    """
+    Check the format of the dataframe returned by
+    ImageClassificationDataLogger._prepare_df_from_ImageFolder, called in
+    dq.log_image_dataset
+    """
+
+    image_logger = ImageClassificationDataLogger()
+
+    train_dataset = ImageFolder(root=TEST_IMAGES_FOLDER_ROOT)
+
+    df = image_logger._prepare_df_from_ImageFolder(dataset=train_dataset)
+
+    # Assert that the dataframe is how we'd expect it to be by looking at the folder
+    assert set(df.columns) == {"id", "text", "label"}
+    assert len(df) == 4
+    assert set(df.label.unique()) == {"labelA", "labelB"}
+    assert set(df.id.unique()) == set(range(4))
+    assert df.loc[0, "text"].endswith(".png")
+
+
+def test_prepare_df_from_ImageFolder_with_remote_imgs() -> None:
+    """
+    Check the format of the dataframe returned by
+    ImageClassificationDataLogger._prepare_df_from_ImageFolder, called in
+    dq.log_image_dataset, when using remote images
+    """
+
+    image_logger = ImageClassificationDataLogger()
+
+    train_dataset = ImageFolder(root=TEST_IMAGES_FOLDER_ROOT)
+    imgs_remote_location = "gs://some_biiiig_bucket"
+
+    df = image_logger._prepare_df_from_ImageFolder(
+        dataset=train_dataset, imgs_remote_location=imgs_remote_location
+    )
+
+    # Assert that the dataframe is how we'd expect it to be by looking at the folder
+    assert set(df.columns) == {"id", "text", "label"}
+    assert len(df) == 4
+    assert set(df.label.unique()) == {"labelA", "labelB"}
+    assert set(df.id.unique()) == set(range(4))
+    assert df.loc[0, "text"].startswith(imgs_remote_location)
+    assert df.loc[0, "text"].endswith(".png")

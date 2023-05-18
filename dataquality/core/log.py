@@ -132,6 +132,27 @@ def log_image_dataset(
     parallel: bool = False,
     **kwargs: Any,
 ) -> None:
+    """
+    Log an image dataset of input samples for image classification
+
+    :param dataset: The dataset to log. This can be a Pandas/Vaex dataframe or an
+        ImageFolder (from Torchvision).
+    :param imgs_colname: If the images are passed as bytes in the dataframe, this
+        indicates the name of the column containing the images
+    :param imgs_location_colname: If the images are passed via their path in the
+        dataframe, this indicates the name of the column containing the paths.
+        These paths could be remote (skip upload) or local (upload)
+    :param imgs_remote_location: If the dataset is of type ImageFolder and the
+        images are stored remotely, pass the folder name here to avoid upload
+    :param batch_size: Number of samples to log in a batch. Default 10,000
+    :param id: The name of the column containing the ids (in the dataframe)
+    :param label: The name of the column containing the labels (in the dataframe)
+    :param split: train/test/validation/inference. Can be set here or via
+        dq.set_split
+    :param inference_name: If logging inference data, a name for this inference
+        data is required. Can be set here or via dq.set_split
+    :param parallel: upload in parallel if set to True
+    """
     a.log_function("dq/log_image_dataset")
     assert all(
         [config.task_type, config.current_project_id, config.current_run_id]

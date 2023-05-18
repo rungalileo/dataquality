@@ -76,26 +76,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         parallel: bool = False,
     ) -> Any:
         """
-        Log an image dataset of input samples for image classification
-
-        :param dataset: The dataset to log. This can be a Pandas/Vaex dataframe or an
-            ImageFolder (from Torchvision).
-        :param imgs_colname: If the images are passed as bytes in the dataframe, this
-            indicates the name of the column containing the images
-        :param imgs_location_colname: If the images are passed via their path in the
-            dataframe, this indicates the name of the column containing the paths.
-            These paths could be remote (skip upload) or local (upload)
-        :param imgs_remote_location: If the dataset is of type ImageFolder and the
-            images are stored remotely, pass the folder name here to avoid upload
-        :param batch_size: Number of samples to log in a batch. Default 10,000
-        :param id: The name of the column containing the ids (in the dataframe)
-        :param label: The name of the column containing the labels (in the dataframe)
-        :param split: train/test/validation/inference. Can be set here or via
-            dq.set_split
-        :param inference_name: If logging inference data, a name for this inference
-            data is required. Can be set here or via dq.set_split
-        :param column_map: Dictionary to remap column names in the dataframe
-        :param parallel: upload in parallel if set to True
+        For docstring see top level method located in core/log.py
         """
         if type(dataset).__name__ == "ImageFolder":
             dataset = self._prepare_df_from_ImageFolder(dataset, imgs_remote_location)
