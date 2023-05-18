@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import glob
 import os
 import tempfile
@@ -59,10 +61,11 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
 
     def log_image_dataset(
         self,
-        dataset: DataSet,
+        dataset: Union[DataSet, "ImageFolder"],  # type: ignore # noqa: F821
         *,
         imgs_colname: Optional[str] = None,
         imgs_location_colname: Optional[str] = None,
+        imgs_remote_location: Optional[str] = None,
         batch_size: int = ITER_CHUNK_SIZE_IMAGES,
         id: str = "id",
         label: Union[str, int] = "label",
@@ -72,6 +75,13 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         column_map: Optional[Dict[str, str]] = None,
         parallel: bool = False,
     ) -> Any:
+        """
+        For docstring see top level method located in core/log.py
+        """
+        if type(dataset).__name__ == "ImageFolder":
+            dataset = self._prepare_df_from_ImageFolder(dataset, imgs_remote_location)
+            imgs_location_colname = "text"
+
         if imgs_colname is None and imgs_location_colname is None:
             raise GalileoException(
                 "Must provide one of imgs_colname or imgs_location_colname."
@@ -193,6 +203,28 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             )
 
         return prepared
+
+    def _prepare_df_from_ImageFolder(
+        self,
+        dataset: "ImageFolder",  # type: ignore # noqa: F821
+        imgs_remote_location: Optional[str] = None,
+    ) -> pd.DataFrame:
+        """
+        Create a dataframe containing the ids, labels and paths of the images
+        coming from an ImageFolder dataset.
+        """
+        df = pd.DataFrame(columns=["text", "label"], data=dataset.imgs)
+        label_idx_to_label = {
+            label_idx: label for label, label_idx in dataset.class_to_idx.items()
+        }
+        df["label"] = df.label.map(label_idx_to_label)
+        df = df.reset_index().rename(columns={"index": "id"})
+
+        # Replace the paths with the remote one, if a remote location is specified
+        if imgs_remote_location is not None:
+            df["text"] = df["text"].str.replace(dataset.root, imgs_remote_location)
+
+        return df
 
     @classmethod
     def process_in_out_frames(
