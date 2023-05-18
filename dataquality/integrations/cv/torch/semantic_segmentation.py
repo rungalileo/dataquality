@@ -83,6 +83,7 @@ class SemanticTorchLogger(TorchLogger):
 
         self.called_finish = False
         self.queue_size = LIKELY_MISLABELED_QUEUE_SIZE
+        self.init_lm_labels_flag = False
 
     def convert_dataset(self, dataset: Any, split: str) -> List:
         """Convert the dataset to the format expected by the dataquality client
@@ -237,7 +238,9 @@ class SemanticTorchLogger(TorchLogger):
         self.number_classes = self.helper_data[HelperData.model_outputs_store][
             "logits"
         ].shape[1]
-        self._init_lm_labels()
+        if not self.init_lm_labels_flag:
+            self._init_lm_labels()
+            self.init_lm_labels_flag = True
         split = self.logger_config.cur_split.lower()  # type: ignore
 
         with torch.no_grad():
@@ -253,6 +256,8 @@ class SemanticTorchLogger(TorchLogger):
 
             # resize the logits to the input size based on hooks
             preds = self.helper_data[HelperData.model_outputs_store]["logits"].cpu()
+            if preds.dtype == torch.float16:
+                preds = preds.to(torch.float32)
             input_shape = self.helper_data[HelperData.model_input].shape[-2:]
             preds = F.interpolate(preds, size=input_shape, mode="bilinear")
 
@@ -277,6 +282,8 @@ class SemanticTorchLogger(TorchLogger):
                     1
                 )  # (bs, w, h)
             gold_mask = logging_data[self.mask_col_name].cpu()  # (bs, w, h)
+            if gold_mask.dtype == torch.float16:
+                gold_mask = gold_mask.to(torch.float32)
 
             probs = torch.nn.Softmax(dim=-1)(logits).cpu()  # (bs, w, h, classes)
 
