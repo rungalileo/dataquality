@@ -113,7 +113,7 @@ def build_polygons_label(
     final_polygons = []
     for contour_parent_idx in all_polygons.keys():
         polygon = Polygon(
-            uuid=uuid4(),
+            uuid=str(uuid4()),
             label_idx=label_idx,
             contours=all_polygons[contour_parent_idx],
         )
