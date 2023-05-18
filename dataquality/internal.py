@@ -10,7 +10,7 @@ api_client = ApiClient()
 
 
 def reprocess_run(
-    project_name: str, run_name: str, alerts: bool = False, wait: bool = True
+    project_name: str, run_name: str, alerts: bool = True, wait: bool = True
 ) -> None:
     """Reprocesses a run that has already been processed by Galileo
 
@@ -19,9 +19,8 @@ def reprocess_run(
 
     :param project_name: The name of the project
     :param run_name: The name of the run
-    :param alerts: Whether to create the alerts. Currently, this will not delete the
-        existing alerts, so they will be duplicated if they already exist. This
-        feature will come soon
+    :param alerts: Whether to create the alerts. If True, all alerts for the run will
+        be removed, and recreated during processing. Default True
     :param wait: Whether to wait for the run to complete processing on the server. If
         True, this will block execution, printing out the status updates of the run.
         Useful if you want to know exactly when your run completes. Otherwise, this will
@@ -52,8 +51,10 @@ def reprocess_run(
         tasks = api_client.get_tasks_for_run(project_name, run_name)
     if task_type == TaskType.text_ner:
         # In NER, dq.metrics.get_labels_for_run will return the _full_ label set in NER
-        # form (ie B-PER, I-PER, O-PER, B-LOC, etc) which is needed for processeing
+        # form (ie B-PER, I-PER, O-PER, B-LOC, etc) which is needed for processing
         ner_labels = dataquality.metrics.get_labels_for_run(project_name, run_name)
+    if alerts:
+        api_client.delete_alerts(project_name, run_name)
     body = dict(
         project_id=str(project),
         run_id=str(run),
@@ -62,6 +63,13 @@ def reprocess_run(
         task_type=task_type,
         ner_labels=ner_labels,
         xray=alerts,
+        # We set the job name to inference and non_inference_logged to True because
+        # This will force the server to first reprocess the non-inference splits,
+        # and then reprocess all of the inference splits. If there are no inference
+        # splits, this will still work as expected, inference will just be skipped
+        job_name="inference",
+        process_existing_inference_runs=True,
+        non_inference_logged=True,
     )
     res = api_client.make_request(
         RequestType.POST, url=f"{config.api_url}/{Route.jobs}", body=body

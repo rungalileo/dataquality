@@ -619,19 +619,50 @@ class ApiClient:
         body = {"task": task, "filter_params": filter_params or {}}
         return self.make_request(RequestType.POST, url, body=body, params=params)
 
-    def get_xray_cards(
+    def get_alerts(
         self,
         project_name: str,
         run_name: str,
         split: str,
         inference_name: Optional[str] = None,
     ) -> List[Dict[str, str]]:
-        """Queries API for xray cards for a run/split"""
+        """Queries API for alerts for a run/split"""
         project, run = self._get_project_run_id(project_name, run_name)
         path = Route.content_path(project, run, split)
-        url = f"{config.api_url}/{path}/{Route.xray}"
+        url = f"{config.api_url}/{path}/{Route.alerts}"
         params = {"inference_name": inference_name} if inference_name else None
         return self.make_request(RequestType.GET, url, params=params)
+
+    def delete_alerts_for_split(
+        self, project_id: UUID4, run_id: UUID4, split: str
+    ) -> None:
+        path = Route.content_path(project_id, run_id, split)
+        url = f"{config.api_url}/{path}/{Route.alerts}"
+        alerts = []
+        if split == "inference":
+            inference_names = self.get_inference_names(project_id, run_id)
+            for inf_name in inference_names["inference_names"]:
+                params = {"inference_name": inf_name}
+                res = self.make_request(RequestType.GET, url, params=params)
+                alerts.extend([alert["id"] for alert in res])
+        else:
+            res = self.make_request(RequestType.GET, url)
+            alerts.extend([alert["id"] for alert in res])
+        path = Route.content_path(project_id, run_id, split)
+        for alert_id in alerts:
+            url = f"{config.api_url}/{path}/{Route.alerts}/{alert_id}"
+            self.make_request(RequestType.DELETE, url)
+
+    def delete_alerts(
+        self,
+        project_name: str,
+        run_name: str,
+    ) -> None:
+        """Delete all alerts for a run"""
+        project_id, run_id = self._get_project_run_id(project_name, run_name)
+        for split in self.get_splits(project_id, run_id)["splits"]:
+            self.delete_alerts_for_split(project_id, run_id, split)
+        print(f"All alerts removed for run {project_name}/{run_name}")
 
     def get_edits(
         self,
