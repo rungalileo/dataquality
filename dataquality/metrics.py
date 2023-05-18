@@ -643,15 +643,15 @@ def get_raw_data(
     )
 
 
-def get_xray_cards(
+def get_alerts(
     project_name: str, run_name: str, split: Split, inference_name: Optional[str] = None
 ) -> List[Dict[str, str]]:
-    """Get xray cards for a project/run/split
+    """Get alerts for a project/run/split
 
-    Xray cards are automatic insights calculated and provided by Galileo on your data
+    Alerts are automatic insights calculated and provided by Galileo on your data
     """
     split = conform_split(split)
-    return api_client.get_xray_cards(project_name, run_name, split, inference_name)
+    return api_client.get_alerts(project_name, run_name, split, inference_name)
 
 
 def get_labels_for_run(
