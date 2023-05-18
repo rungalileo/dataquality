@@ -246,7 +246,7 @@ class _PatchSetFitTrainer(Patch):
                 # 🔭🌕 Galileo logging
                 dq.log_model_outputs(
                     ids=batch["id"],
-                    logits=dq_store["output"],
+                    probs=dq_store["output"],
                     embs=dq_store["input_args"][0],
                     split=split,
                     epoch=0,
@@ -362,7 +362,7 @@ def evaluate(model: "SetFitModel") -> Callable:
             # 🔭🌕 Galileo logging
             dq.log_model_outputs(
                 ids=batch[id_col],
-                logits=dq_store["output"],
+                probs=dq_store["output"],
                 embs=dq_store["input_args"][0],
                 split=split,
                 epoch=0,
