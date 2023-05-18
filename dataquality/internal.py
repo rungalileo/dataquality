@@ -9,7 +9,9 @@ from dataquality.schemas.task_type import TaskType
 api_client = ApiClient()
 
 
-def reprocess_run(project_name: str, run_name: str, alerts: bool = False) -> None:
+def reprocess_run(
+    project_name: str, run_name: str, alerts: bool = False, wait: bool = True
+) -> None:
     """Reprocesses a run that has already been processed by Galileo
 
     Useful if a new feature has been added to the system that is desired to be added
@@ -20,6 +22,10 @@ def reprocess_run(project_name: str, run_name: str, alerts: bool = False) -> Non
     :param alerts: Whether to create the alerts. Currently, this will not delete the
         existing alerts, so they will be duplicated if they already exist. This
         feature will come soon
+    :param wait: Whether to wait for the run to complete processing on the server. If
+        True, this will block execution, printing out the status updates of the run.
+        Useful if you want to know exactly when your run completes. Otherwise, this will
+        fire and forget your process. Default True
     """
     project, run = api_client._get_project_run_id(project_name, run_name)
     task_type = api_client.get_task_type(project, run)
@@ -64,4 +70,6 @@ def reprocess_run(project_name: str, run_name: str, alerts: bool = False) -> Non
         f"Job {res['job_name']} successfully resubmitted. New results will be "
         f"available soon at {res['link']}"
     )
+    if wait:
+        api_client.wait_for_run(project_name, run_name)
     return res
