@@ -64,7 +64,7 @@ def reprocess_run(
         ner_labels=ner_labels,
         xray=alerts,
         # We set the job name to inference and non_inference_logged to True because
-        # This will force the server to first reprocessed the non-inference splits,
+        # This will force the server to first reprocess the non-inference splits,
         # and then reprocess all of the inference splits. If there are no inference
         # splits, this will still work as expected, inference will just be skipped
         job_name="inference",
