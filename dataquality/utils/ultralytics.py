@@ -315,7 +315,7 @@ def temporary_cfg_for_val(cfg: Dict, split: Split, dataset_path: str) -> str:
         return ""
     new_value = cfg.get(ultralytics_split_mapping[split])
     for csplit in ["train", "val", "test"]:
-        cfg_copy[csplit] = str((Path(dataset_path) / Path(new_value)).resolve())
+        cfg_copy[csplit] = str((Path(dataset_path) / Path(str(new_value))).resolve())
     tmp = NamedTemporaryFile("w", delete=False, suffix=".yaml")
     yaml.safe_dump(cfg_copy, tmp)
     tmp.close()
