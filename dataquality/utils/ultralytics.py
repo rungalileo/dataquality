@@ -1,6 +1,7 @@
 import time
 from tempfile import NamedTemporaryFile
 from typing import Any, Dict, List, Optional, Tuple
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -300,17 +301,21 @@ def _read_config(path: str) -> Dict:
         return yaml.safe_load(file)
 
 
-def temporary_cfg_for_val(cfg: Dict, split: Split) -> str:
+def temporary_cfg_for_val(cfg: Dict, split: Split, dataset_path: str) -> str:
     """Creates a temporary config file with the split set to the given split.
+    We have to convert the paths to relative paths since the resulting yaml file
+    will be saved in a different location (and so relative paths stop making sense).
 
-    :param cfg_path: Path to the config file
-    :param split: Split to set the config to"""
+    :param cfg: config file
+    :param split: Split to set the config to
+    :param dataset_path: path to the config file
+    """
     cfg_copy = {**cfg}
     if not cfg.get(ultralytics_split_mapping[split]):
         return ""
     new_value = cfg.get(ultralytics_split_mapping[split])
     for csplit in ["train", "val", "test"]:
-        cfg_copy[csplit] = new_value
+        cfg_copy[csplit] = str((Path(dataset_path) / Path(new_value)).resolve())
     tmp = NamedTemporaryFile("w", delete=False, suffix=".yaml")
     yaml.safe_dump(cfg_copy, tmp)
     tmp.close()

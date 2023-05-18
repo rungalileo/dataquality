@@ -71,7 +71,7 @@ def test_end2end_yolov8(
     for split in [Split.training, Split.validation]:  # ,
         dq.set_split(split)
         cfg = _read_config(ds_path)
-        tmp_cfg_path = temporary_cfg_for_val(cfg, split)
+        tmp_cfg_path = temporary_cfg_for_val(cfg, split, ds_path)
         if not tmp_cfg_path:
             continue
         dq.set_epoch(0)

@@ -97,7 +97,7 @@ def main() -> None:
     for split in [Split.training, Split.validation, Split.test]:
         # Create a temporary config file for the training set that changes
         # the dataset path to the validation set so we can log the results
-        tmp_cfg_path = temporary_cfg_for_val(cfg, split)
+        tmp_cfg_path = temporary_cfg_for_val(cfg, split, dataset_path)
         if not tmp_cfg_path:
             continue
         relative_img_path = relative_img_paths[split]
