@@ -157,6 +157,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "data_error_potential": data_error_potentials,
             "galileo_error_type": errors,
             "split": [self.split] * len(image_ids),
+            "is_pred": [False if i == -1 else True for i in preds],
+            "is_gold": [False if i == -1 else True for i in golds],
         }
         return polygon_data
 
