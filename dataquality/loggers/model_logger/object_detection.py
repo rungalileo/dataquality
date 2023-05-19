@@ -158,46 +158,37 @@ class ObjectDetectionModelLogger(BaseGalileoModelLogger):
         in `construct_image_ids` to have the same length,
         """
         image_ids = np.array(self.construct_image_ids(), dtype=np.int32)
-        print("image_ids.shape")
-        print(image_ids.shape)
 
         pred_emb_arrays = filter_arrays_and_concatenate(self.pred_embs)
-
-        print("self.pred_embs, len", "pred_emb_arrays.shape")
-        print(type(self.pred_embs), len(self.pred_embs), pred_emb_arrays.shape)
         gold_emb_arrays = np.concatenate(
             [arr for arr in self.gold_embs if arr.shape[0] != 0]
         )
-        print("self.gold_embs, len", "gold_emb_arrays.shape")
-        print(type(self.gold_embs), len(self.gold_embs), gold_emb_arrays.shape)
         pred_prob_arrays = filter_arrays_and_concatenate(self.probs)
-        print("self.probs, len", "pred_prob_arrays.shape")
-        print(type(self.probs), len(self.probs), pred_prob_arrays.shape)
         gold_box_arrays = np.concatenate(
             [arr for arr in self.gold_boxes if arr.shape[0] != 0]
         )
-        print("self.gold_boxes, len", "gold_box_arrays.shape")
-        print(type(self.gold_boxes), len(self.gold_boxes), gold_box_arrays.shape)
         pred_box_arrays = filter_arrays_and_concatenate(self.pred_boxes)
-        print("self.pred_boxes, len", "pred_box_arrays.shape")
-        print(type(self.pred_boxes), len(self.pred_boxes), pred_box_arrays.shape)
         # We pad gold probabilities with 0s to be able to fit it into a numpy matrix
         # Shape is (len(gold_embs), num_classes)
         num_pred = pred_emb_arrays.shape[0]
         num_gold = gold_emb_arrays.shape[0]
         gold_prob_shape = (num_gold, len(self.logger_config.labels))
-        print("gold_prob_shape, num_gold, num_pred, num_labels")
-        print(gold_prob_shape, num_gold, num_pred, len(self.logger_config.labels))
         # -1 for preds because a pred box won't have a label
         golds = np.concatenate([[-1] * num_pred, np.concatenate(self.labels)]).astype(
             np.int32
         )
+        # embs = np.concatenate([pred_emb_arrays, gold_emb_arrays])
+        # but if there are no preds, we don't want to concat because that would fail
         embs = gold_emb_arrays
         if len(pred_emb_arrays) > 0:
             embs = np.concatenate([pred_emb_arrays, gold_emb_arrays])
+        # prob = np.concatenate([pred_prob_arrays, np.zeros(gold_prob_shape)])
+        # but if there are no preds, we don't want to concat because that would fail
         prob = np.zeros(gold_prob_shape)
         if len(pred_prob_arrays) > 0:
             prob = np.concatenate([pred_prob_arrays, np.zeros(gold_prob_shape)])
+        # prob = np.concatenate([pred_prob_arrays, np.zeros(gold_prob_shape)])
+        # but if there are no preds, we don't want to concat because that would fail
         bbox = gold_box_arrays
         if len(pred_box_arrays) > 0:
             bbox = np.concatenate([pred_box_arrays, gold_box_arrays])
