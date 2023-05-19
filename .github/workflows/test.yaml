@@ -34,6 +34,7 @@ jobs:
             ${{ runner.os }}-pip-
             ${{ runner.os }}-
       - name: install dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
         run: |
           if [[ ${{ matrix.python-version }} == "3.7.16" ]]; then
             scripts/install.sh --extras=py37
