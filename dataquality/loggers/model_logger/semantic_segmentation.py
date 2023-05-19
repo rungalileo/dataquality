@@ -21,6 +21,7 @@ from dataquality.utils.semantic_segmentation.errors import (
 from dataquality.utils.semantic_segmentation.lm import upload_mislabeled_pixels
 from dataquality.utils.semantic_segmentation.metrics import (
     calculate_and_upload_dep,
+    calculate_area_per_polygon_batch,
     calculate_mean_iou,
 )
 from dataquality.utils.semantic_segmentation.polygons import (
@@ -139,6 +140,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         misclassified_class = []
         misclassified_class_percent = []
         ghost_polygons = []
+        polygon_areas = []
         for i, image_id in enumerate(self.image_ids):
             pred_polygons = pred_polygons_batch[i]
             for polygon in pred_polygons:
@@ -152,6 +154,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 misclassified_class.append(polygon.misclassified_class.label)
                 misclassified_class_percent.append(polygon.misclassified_class.percent)
                 accuracys.append(polygon.accuracy)
+                polygon_areas.append(polygon.area)
                 ghost_polygons.append(polygon.ghost_percentage)
                 upload_polygon_contours(polygon, self.contours_path)
                 polygon_ids.append(polygon.uuid)
@@ -168,6 +171,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 misclassified_class.append(polygon.misclassified_class.label)
                 misclassified_class_percent.append(polygon.misclassified_class.percent)
                 accuracys.append(polygon.accuracy)
+                polygon_areas.append(polygon.area)
                 ghost_polygons.append(polygon.ghost_percentage)
                 upload_polygon_contours(polygon, self.contours_path)
                 polygon_ids.append(polygon.uuid)
@@ -184,6 +188,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "misclassified_class": misclassified_class,
             "misclassified_class_percent": misclassified_class_percent,
             "accuracy": accuracys,
+            "area": polygon_areas,
             "ghost": ghost_polygons,
             "split": [self.split] * len(image_ids),
             "is_pred": [False if i == -1 else True for i in preds],
@@ -245,6 +250,9 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             height=heights,
             width=widths,
         )
+        calculate_area_per_polygon_batch(pred_polygons_batch, (heights[0], widths[0]))
+        calculate_area_per_polygon_batch(gold_polygons_batch, (heights[0], widths[0]))
+
         image_data = {
             "image": [f"{self.bucket_url}/{pth}" for pth in self.image_paths],
             "id": self.image_ids,

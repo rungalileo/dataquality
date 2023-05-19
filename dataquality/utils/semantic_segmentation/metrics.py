@@ -8,6 +8,8 @@ from PIL import Image
 
 from dataquality.clients.objectstore import ObjectStore
 from dataquality.core._config import GALILEO_DEFAULT_RESULT_BUCKET_NAME
+from dataquality.schemas.semantic_segmentation import Polygon
+from dataquality.utils.semantic_segmentation.polygons import draw_polygon
 
 object_store = ObjectStore()
 
@@ -179,3 +181,48 @@ def calculate_mean_iou(
             calculate_area_per_class(pred_masks[i], gold_masks[i], nc)
         )
     return mean_ious, per_class_ious, per_class_area
+
+
+def calculate_area_per_polygon_batch(
+    polygon_batch: List[List[Polygon]],
+    size: Tuple[int, int],
+) -> None:
+    """Calculates the area for every polygon in a btach
+
+    Args:
+        polygon_batch (List[List[Polygon]]): list of each images polygons
+        size (Tuple[int, int]): shape to draw the polygons onto
+    """
+    for idx in range(len(polygon_batch)):
+        calculate_area_per_polygon(polygon_batch[idx], size)
+
+
+def calculate_area_per_polygon(
+    polygons: List[Polygon],
+    size: Tuple[int, int],
+) -> None:
+    """Calculates the area for every polygon in an image
+
+    Args:
+        polygons (List[Polygon]): list of each images polygons
+        size (Tuple[int, int]): shape to draw the polygons onto
+    """
+    for polygon in polygons:
+        polygon.area = calculate_area(polygon, size)
+
+
+def calculate_area(
+    polygon: Polygon,
+    size: Tuple[int, int],
+) -> int:
+    """Calculates the area for a polygon
+
+    Args:
+        polygon (Polygon): polygon to calculate area for
+        size (Tuple[int, int]): shape to draw the polygons onto
+
+    Returns:
+        float: area of the polygon
+    """
+    polygon_img = draw_polygon(polygon, size)
+    return polygon_img.sum()

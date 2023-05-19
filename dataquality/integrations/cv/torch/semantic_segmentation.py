@@ -376,6 +376,9 @@ class SemanticTorchLogger(TorchLogger):
             logger.log()
 
     def finish(self) -> None:
+        # call to eval to make sure we are not in train mode for batch norm
+        # in batch norm with 1 example can get an error if we are in train mode
+        self.model.eval()
         self.called_finish = True
         # finish function that runs our inference at the end of training
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -393,6 +396,7 @@ class SemanticTorchLogger(TorchLogger):
                 img = batch[self.image_col]
                 img = img.to(device)
                 self.model(img)
+        self.model.train()
 
 
 # store the batch
