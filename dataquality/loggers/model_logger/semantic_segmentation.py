@@ -219,7 +219,9 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             self.pred_masks, self.gold_masks
         )
         # Errors
-        calculate_misclassified_polygons_batch(self.pred_masks, gold_polygons_batch)
+        calculate_misclassified_polygons_batch(
+            self.pred_masks, self.gold_masks, pred_polygons_batch, gold_polygons_batch
+        )
         calculate_missed_polygons_batch(self.pred_masks, gold_polygons_batch)
         calculate_ghost_polygons_batch(self.gold_masks, pred_polygons_batch)
         heights = [img.shape[-1] for img in self.gold_masks]

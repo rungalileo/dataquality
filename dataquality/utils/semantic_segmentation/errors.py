@@ -103,7 +103,8 @@ def calculate_misclassified_polygons(
         )
         if accuracy < MISCLASSIFIED_THRESHOLD:
             polygon.error_type = ErrorType.classification
-            
+
+
 def calculate_pred_polygon_accuracy(
     gold_mask: torch.Tensor,
     pred_polygons: List[Polygon],
@@ -125,8 +126,8 @@ def calculate_pred_polygon_accuracy(
 def calculate_misclassified_polygons_batch(
     pred_masks: torch.Tensor,
     gold_masks: torch.Tensor,
-    gold_polygons_batch: List[List[Polygon]],
     pred_polygons_batch: List[List[Polygon]],
+    gold_polygons_batch: List[List[Polygon]],
 ) -> None:
     """Calculates a set of misclassified polygon ids from the
     predicted mask for each image in a batch
@@ -145,10 +146,9 @@ def calculate_misclassified_polygons_batch(
         pred_mask = pred_masks[idx].numpy()
         gold_mask = gold_masks[idx].numpy()
         pred_polygons = pred_polygons_batch[idx]
-        gold_polygons = gold_polygons_batch[idx]
+        gold_polygons_batch[idx]
         calculate_misclassified_polygons(pred_mask, pred_polygons)
         calculate_pred_polygon_accuracy(gold_mask, pred_polygons)
-
 
 
 def calculate_missed_percentage(preds: np.ndarray, gold_mask: np.ndarray) -> float:
