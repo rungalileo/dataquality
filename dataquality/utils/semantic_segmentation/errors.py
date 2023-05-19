@@ -281,7 +281,8 @@ def calculate_amount_ghosted(polygon_im: np.ndarray, gold_mask: np.ndarray) -> f
 
 def calculate_lm_polygons_batch(
     mislabeled_pixels: torch.Tensor,
-    polygons_batch: List[List[Polygon]],
+    gold_polygons_batch: List[List[Polygon]],
+    pred_polygons_batch: List[List[Polygon]],
     shape: Tuple[int, int],
 ) -> None:
     """Calculate and attach the LM percentage per polygon in a batch
@@ -295,8 +296,10 @@ def calculate_lm_polygons_batch(
     for idx in range(len(mislabeled_pixels)):
         mislabeled_pixel_map = mislabeled_pixels[idx].numpy()
 
-        polygons = polygons_batch[idx]
-        calculate_lm_polygons(mislabeled_pixel_map, polygons)
+        gold_polygons = gold_polygons_batch[idx]
+        pred_polygons = pred_polygons_batch[idx]
+        calculate_lm_polygons(mislabeled_pixel_map, gold_polygons)
+        calculate_lm_polygons(mislabeled_pixel_map, pred_polygons)
 
 
 def calculate_lm_polygons(

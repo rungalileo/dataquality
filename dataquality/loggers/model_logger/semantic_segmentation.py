@@ -226,7 +226,10 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         widths = [img.shape[-2] for img in self.gold_masks]
 
         calculate_lm_polygons_batch(
-            self.mislabled_pixels, gold_polygons_batch, (heights[0], widths[0])
+            self.mislabled_pixels,
+            gold_polygons_batch,
+            pred_polygons_batch,
+            (heights[0], widths[0]),
         )
         calculate_dep_polygons_batch(
             gold_polygons_batch,
