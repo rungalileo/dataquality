@@ -28,7 +28,7 @@ jobs:
         name: "cache pip packages"
         id: cache
         with:
-          path: ${{ env.pythonLocation }}/lib/python${{ matrix.python-version }}/site-packages/*
+          path: ${{ env.pythonLocation }}
           key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml') }}
           restore-keys: |
             ${{ runner.os }}-pip-
