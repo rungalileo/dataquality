@@ -192,6 +192,19 @@ class SemanticTorchLogger(TorchLogger):
             }
         )
 
+    def get_image_ids_and_image_paths(
+        self, split: str, logging_data: Dict[str, Any]
+    ) -> Tuple[List[int], List[str]]:
+        img_ids = self.helper_data["batch"]["ids"]  # np.ndarray (bs,)
+        # convert the img_ids to absolute ids from file map
+        img_ids = [
+            self.dataloader_path_to_id[split][path]
+            for path in logging_data["image_path"]
+        ]
+        log_image_paths = [self.id_to_relative_path[split][id] for id in img_ids]
+        image_paths = [pth.lstrip("./") for pth in log_image_paths]
+        return img_ids, image_paths
+
     def queue_gold_and_pred(self, probs: torch.Tensor, gold: torch.Tensor) -> None:
         """Enqueue the ground truth and predicted masks for the batch
 
@@ -225,9 +238,84 @@ class SemanticTorchLogger(TorchLogger):
         self.thresholds = torch.zeros(self.number_classes, dtype=torch.float32)
         self.thresholds += 0.5
 
-        # create a queue to store the last 100 probs and gold for computing LM
-        self.prob_queue = torch.empty((self.queue_size, 64, 64, self.number_classes))
-        self.gold_queue = torch.empty((self.queue_size, 64, 64))
+        # create a queue to store the last X probs and gold queue but start with empty
+        # so as to not report mislabeled pixels until we have enough data
+        self.prob_queue = torch.empty((0, 64, 64, self.number_classes))
+        self.gold_queue = torch.empty((0, 64, 64))
+
+    def calculate_mislabeled_pixels(
+        self, probs: torch.Tensor, gold_mask: torch.Tensor
+    ) -> torch.Tensor:
+        """Helper function to calculate the mislabeled pixels in the batch
+
+        Args:
+            probs (torch.Tensor): probability tensor of shape (bs, h, w, num_classes)
+            gold_mask (torch.Tensor): gold truth mask of shape (bs, h, w)
+
+        Returns:
+            Mislabeled pixels tensor of shape (batch_size, height, width)
+        """
+        self.queue_gold_and_pred(probs, gold_mask)
+        out_threshold = calculate_self_confidence_threshold(
+            self.prob_queue, self.gold_queue
+        )
+        for cls in torch.unique(gold_mask):
+            self.thresholds[cls] = (
+                self.thresholds[cls] * 0.999 + out_threshold[cls] * 0.001
+            )
+        for class_idx in range(self.number_classes):
+            self.confident_count = semseg_fill_confident_counts(
+                probs[..., class_idx],
+                gold_mask,
+                class_idx,
+                per_class_threshold=self.thresholds[class_idx],
+                confident_counts=self.confident_count,
+            )
+        self.counts_per_class += torch.bincount(
+            gold_mask.view(-1), minlength=probs.shape[-1]
+        )
+        self_confidence = semseg_calculate_self_confidence(
+            self.prob_queue, self.gold_queue
+        )
+        mislabeled_pixels = calculate_lm_for_batch(
+            self_confidence,
+            self.confident_count,
+            self.counts_per_class,
+            self.gold_queue,
+            self.number_classes,
+            self.prob_queue,
+        )
+        # if we have not reached our queue size, we do not report mislabeled
+        if self.prob_queue.shape[0] < self.queue_size:
+            mislabeled_pixels = torch.zeros_like(mislabeled_pixels)
+        bs = probs.shape[0]
+        mislabeled_pixels = mislabeled_pixels[-bs:]
+        return mislabeled_pixels
+
+    def get_argmax_and_logits(self) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Helper function to get the argmax and logits from the model outputs
+
+        Returns:
+            Tuple[torch.Tensor, torch.Tensor]: argmax and logits tensors
+        """
+        # resize the logits to the input size based on hooks
+        preds = self.helper_data[HelperData.model_outputs_store]["logits"].cpu()
+        if preds.dtype == torch.float16:
+            preds = preds.to(torch.float32)
+        input_shape = self.helper_data[HelperData.model_input].shape[-2:]
+        preds = F.interpolate(preds, size=input_shape, mode="bilinear")
+
+        # checks whether the model is (n, classes, w, h), or (n, w, h, classes)
+        if preds.shape[1] == self.number_classes:
+            preds = preds.permute(0, 2, 3, 1)
+        assert (
+            preds.shape[-1] == self.number_classes
+        ), "The model output shape is not as expected. \
+                Expected classes to be in last dimension"
+
+        argmax = preds.clone().argmax(dim=-1)
+        logits = preds  # (bs, w, h, classes)
+        return argmax, logits
 
     def _on_step_end(self) -> None:
         """Function to be called at the end of step to log the inputs and outputs"""
@@ -245,84 +333,27 @@ class SemanticTorchLogger(TorchLogger):
 
         with torch.no_grad():
             logging_data = self.helper_data["batch"]["data"]
-            img_ids = self.helper_data["batch"]["ids"]  # np.ndarray (bs,)
-            # convert the img_ids to absolute ids from file map
-            img_ids = [
-                self.dataloader_path_to_id[split][path]
-                for path in logging_data["image_path"]
-            ]
-            log_image_paths = [self.id_to_relative_path[split][id] for id in img_ids]
-            image_paths = [pth.lstrip("./") for pth in log_image_paths]
+            img_ids, image_paths = self.get_image_ids_and_image_paths(
+                split, logging_data
+            )
 
-            # resize the logits to the input size based on hooks
-            preds = self.helper_data[HelperData.model_outputs_store]["logits"].cpu()
-            if preds.dtype == torch.float16:
-                preds = preds.to(torch.float32)
-            input_shape = self.helper_data[HelperData.model_input].shape[-2:]
-            preds = F.interpolate(preds, size=input_shape, mode="bilinear")
+            argmax, logits = self.get_argmax_and_logits()
 
-            # checks whether the model is (n, classes, w, h), or (n, w, h, classes)
-            if preds.shape[1] == self.number_classes:
-                preds = preds.permute(0, 2, 3, 1)
-            assert (
-                preds.shape[-1] == self.number_classes
-            ), "The model output shape is not as expected. \
-                    Expected classes to be in last dimension"
-
-            argmax = preds.clone().argmax(dim=-1)
-            logits = preds  # (bs, w, h, classes)
             gold_boundary_masks = mask_to_boundary(
                 logging_data[self.mask_col_name].clone().cpu().numpy()
             )  # (bs, w, h)
             pred_boundary_masks = mask_to_boundary(
                 argmax.clone().cpu().numpy()
             )  # (bs, w, h)
-            if logging_data[self.mask_col_name].shape[1] == 1:
-                logging_data[self.mask_col_name] = logging_data["mask"].squeeze(
-                    1
-                )  # (bs, w, h)
             gold_mask = logging_data[self.mask_col_name].cpu()  # (bs, w, h)
+            if gold_mask.shape[1] == 1:
+                gold_mask = gold_mask.squeeze(1)  # (bs, w, h)
             if gold_mask.dtype == torch.float16:
                 gold_mask = gold_mask.to(torch.float32)
 
             probs = torch.nn.Softmax(dim=-1)(logits).cpu()  # (bs, w, h, classes)
+            mislabeled_pixels = self.calculate_mislabeled_pixels(probs, gold_mask)
 
-            # update the necessary variable in order to caluclate likely mislabled
-            self.queue_gold_and_pred(probs, gold_mask)
-            out_threshold = calculate_self_confidence_threshold(
-                self.prob_queue, self.gold_queue
-            )
-            for cls in torch.unique(gold_mask):
-                self.thresholds[cls] = (
-                    self.thresholds[cls] * 0.999 + out_threshold[cls] * 0.001
-                )
-            for class_idx in range(self.number_classes):
-                self.confident_count = semseg_fill_confident_counts(
-                    probs[..., class_idx],
-                    gold_mask,
-                    class_idx,
-                    per_class_threshold=self.thresholds[class_idx],
-                    confident_counts=self.confident_count,
-                )
-            self.counts_per_class += torch.bincount(
-                gold_mask.view(-1), minlength=probs.shape[-1]
-            )
-            self_confidence = semseg_calculate_self_confidence(
-                self.prob_queue, self.gold_queue
-            )
-            mislabeled_pixels = calculate_lm_for_batch(
-                self_confidence,
-                self.confident_count,
-                self.counts_per_class,
-                self.gold_queue,
-                self.number_classes,
-                self.prob_queue,
-            )
-            # if we have not reached our queue size, we do not report mislabeled
-            if self.prob_queue.shape[0] < self.queue_size:
-                mislabeled_pixels = torch.zeros_like(mislabeled_pixels)
-            bs = probs.shape[0]
-            mislabeled_pixels = mislabeled_pixels[-bs:]
             # do not log if we are not in the final inference loop
             if not self.called_finish:
                 return
