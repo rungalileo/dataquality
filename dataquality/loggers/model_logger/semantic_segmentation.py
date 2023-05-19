@@ -13,6 +13,7 @@ from dataquality.schemas.semantic_segmentation import Polygon
 from dataquality.schemas.split import Split
 from dataquality.utils.semantic_segmentation.errors import (
     calculate_dep_polygons_batch,
+    calculate_ghost_polygons_batch,
     calculate_misclassified_polygons_batch,
     calculate_undetected_polygons_batch,
 )
@@ -44,6 +45,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         pred_boundary_masks: torch.Tensor = torch.empty(0),
         output_probs: torch.Tensor = torch.empty(0),
         mislabeled_pixels: torch.Tensor = torch.empty(0),
+        number_classes: int = 0,
         # Below fields must be present, linting from parent class
         embs: Optional[Union[List, np.ndarray]] = None,
         probs: Optional[Union[List, np.ndarray]] = None,
@@ -88,6 +90,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         self.pred_boundary_masks = pred_boundary_masks
         self.output_probs = output_probs
         self.mislabled_pixels = mislabeled_pixels
+        self.number_classes = number_classes
 
     def validate_and_format(self) -> None:
         super().validate_and_format()
@@ -176,9 +179,11 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         )
 
         # Image Metrics (IoU)
-        iou, iou_per_class = calculate_mean_iou(self.pred_masks, self.gold_masks)
-        boundary_iou, boundary_iou_per_class = calculate_mean_iou(
-            self.pred_boundary_masks, self.gold_boundary_masks
+        iou, iou_per_class, miou_per_class_area = calculate_mean_iou(
+            self.pred_masks, self.gold_masks, self.number_classes
+        )
+        boundary_iou, boundary_iou_per_class, biou_per_class_area = calculate_mean_iou(
+            self.pred_boundary_masks, self.gold_boundary_masks, self.number_classes
         )
 
         # Image masks
@@ -188,11 +193,18 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         # Errors
         calculate_misclassified_polygons_batch(self.pred_masks, gold_polygons_batch)
         calculate_undetected_polygons_batch(self.pred_masks, gold_polygons_batch)
+        calculate_ghost_polygons_batch(self.gold_masks, pred_polygons_batch)
         heights = [img.shape[-1] for img in self.gold_masks]
         widths = [img.shape[-2] for img in self.gold_masks]
 
         calculate_dep_polygons_batch(
             gold_polygons_batch,
+            dep_heatmaps.numpy(),
+            height=heights,
+            width=widths,
+        )
+        calculate_dep_polygons_batch(
+            pred_polygons_batch,
             dep_heatmaps.numpy(),
             height=heights,
             width=widths,
@@ -208,6 +220,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "mean_iou_per_class": iou_per_class,
             "boundary_iou": boundary_iou,
             "boundary_iou_per_class": boundary_iou_per_class,
+            "miou_per_class_area": miou_per_class_area,
+            "biou_per_class_area": biou_per_class_area,
             # "epoch": [self.epoch] * len(self.image_ids),
         }
         not_meta = ["id", "image"]

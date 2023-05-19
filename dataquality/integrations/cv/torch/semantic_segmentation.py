@@ -371,6 +371,7 @@ class SemanticTorchLogger(TorchLogger):
                 ),  # Torch tensor (bs, w, h)
                 output_probs=probs,  # Torch tensor (bs, w, h, classes)
                 mislabeled_pixels=mislabeled_pixels,  # torch tensor (bs, w, h)
+                number_classes=self.number_classes,
             )
             logger.log()
 

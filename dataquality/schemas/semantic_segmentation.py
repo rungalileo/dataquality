@@ -18,6 +18,7 @@ class SemSegCols(str, Enum):
 class ErrorType(str, Enum):
     classification = "classification"
     undetected = "undetected"
+    ghost = "ghost"
     none = None
 
 
