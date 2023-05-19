@@ -194,7 +194,7 @@ class SemanticTorchLogger(TorchLogger):
 
     def get_image_ids_and_image_paths(
         self, split: str, logging_data: Dict[str, Any]
-    ) -> Tuple[np.ndarray, List[str]]:
+    ) -> Tuple[List[int], List[str]]:
         img_ids = self.helper_data["batch"]["ids"]  # np.ndarray (bs,)
         # convert the img_ids to absolute ids from file map
         img_ids = [
