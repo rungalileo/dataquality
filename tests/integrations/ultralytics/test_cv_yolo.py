@@ -69,7 +69,7 @@ def test_end2end_yolov8(
     # ds_path = "tests/integrations/ultralytics/coco128.yaml"
     # For empty dataset:
     ds_path = "tests/assets/yolo-demo/test.yaml"
-    model_path = "./tests/integrations/ultralytics/yolov8n.pt"
+    model_path = "./tests/integrations/ultralytics/yolov8n_test.pt"
     model = YOLO(model_path)
 
     for split in [Split.training, Split.validation]:  # ,
