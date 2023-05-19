@@ -2,6 +2,7 @@ from typing import List, Tuple
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 from PIL import Image
 
 from dataquality.schemas.semantic_segmentation import (
@@ -258,7 +259,9 @@ def calculate_ghost_polygons(
     """
     for polygon in pred_polygons:
         polygon_img = draw_polygon(polygon, gold_mask.shape[-2:])
-        if calculate_amount_ghosted(polygon_img, gold_mask) > GHOST_THRESHOLD:
+        ghost_percentage = calculate_amount_ghosted(polygon_img, gold_mask)
+        polygon.ghost_percentage = ghost_percentage
+        if ghost_percentage > GHOST_THRESHOLD:
             polygon.error_type = ErrorType.ghost
 
 
@@ -277,16 +280,21 @@ def calculate_amount_ghosted(polygon_im: np.ndarray, gold_mask: torch.Tensor) ->
 
 
 def calculate_lm_polygons_batch(
-    mislabeled_pixels: torch.Tensor, gold_polygons_batch: List[List[Polygon]]
+    mislabeled_pixels: torch.Tensor,
+    gold_polygons_batch: List[List[Polygon]],
+    shape: Tuple[int, int],
 ) -> None:
     """Calculate and attach the LM percentage per polygon in a batch
 
     Args:
         mislabeled_pixels (torch.Tensor): map of bs, h, w of mislabled pixels
         gold_polygons_batch (List[List[Polygon]]): gold polygons for each image
+        shape (Tuple[int, int]): shape of the image to be resized to
     """
+    mislabeled_pixels = interpolate_lm_maps(mislabeled_pixels, shape)
     for idx in range(len(mislabeled_pixels)):
         mislabeled_pixel_map = mislabeled_pixels[idx].numpy()
+
         gold_polygons = gold_polygons_batch[idx]
         calculate_lm_polygons(mislabeled_pixel_map, gold_polygons)
 
@@ -321,3 +329,23 @@ def calculate_lm_polygon(
     if relevant_region.sum() == 0:
         return 0
     return (mislabelled_pixel_map != 0)[relevant_region].sum() / relevant_region.sum()
+
+
+def interpolate_lm_maps(
+    mislabelled_pixel_maps: torch.Tensor, shape: Tuple[int, int]
+) -> torch.Tensor:
+    """Interpolates the mislabelled pixel map to the same size as the gold mask
+
+    Args:
+        mislabelled_pixel_maps (torch.Tensor): map of bs, h, w of mislabled pixels
+
+    Returns:
+        np.ndarray: interpolated map of bs, h, w of mislabled pixels
+    """
+    # for interpolate need to be in format bs, c, h, w
+    mislabelled_pixel_maps = mislabelled_pixel_maps.unsqueeze(1)
+    mislabelled_pixel_maps = F.interpolate(
+        mislabelled_pixel_maps, size=shape, mode="nearest"
+    )
+
+    return mislabelled_pixel_maps.squeeze(1)

@@ -138,6 +138,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         accuracys = []
         misclassified_class = []
         misclassified_class_percent = []
+        ghost_polygons = []
         for i, image_id in enumerate(self.image_ids):
             pred_polygons = pred_polygons_batch[i]
             for polygon in pred_polygons:
@@ -151,6 +152,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 misclassified_class.append(polygon.misclassified_class.label)
                 misclassified_class_percent.append(polygon.misclassified_class.percent)
                 accuracys.append(polygon.accuracy)
+                ghost_polygons.append(polygon.ghost_percentage)
                 upload_polygon_contours(polygon, self.contours_path)
                 polygon_ids.append(polygon.uuid)
 
@@ -166,6 +168,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 misclassified_class.append(polygon.misclassified_class.label)
                 misclassified_class_percent.append(polygon.misclassified_class.percent)
                 accuracys.append(polygon.accuracy)
+                ghost_polygons.append(polygon.ghost_percentage)
                 upload_polygon_contours(polygon, self.contours_path)
                 polygon_ids.append(polygon.uuid)
 
@@ -180,6 +183,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "lm_percentage": lm_percentages,
             "misclassified_class": misclassified_class,
             "misclassified_class_percent": misclassified_class_percent,
+            "accuracy": accuracys,
+            "ghost": ghost_polygons,
             "split": [self.split] * len(image_ids),
             "is_pred": [False if i == -1 else True for i in preds],
             "is_gold": [False if i == -1 else True for i in golds],
@@ -221,7 +226,9 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         heights = [img.shape[-1] for img in self.gold_masks]
         widths = [img.shape[-2] for img in self.gold_masks]
 
-        calculate_lm_polygons_batch(self.mislabled_pixels, gold_polygons_batch)
+        calculate_lm_polygons_batch(
+            self.mislabled_pixels, gold_polygons_batch, (heights[0], widths[0])
+        )
         calculate_dep_polygons_batch(
             gold_polygons_batch,
             dep_heatmaps.numpy(),

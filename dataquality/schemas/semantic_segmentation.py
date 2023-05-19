@@ -57,12 +57,13 @@ class Polygon(BaseModel):
     label_idx: int
     lm_percentage: Optional[float] = 0.0
     accuracy: Optional[float] = 0.0
-    misclassified_class: Optional[
-        MisclassifiedClassLabel
-    ] = MisclassifiedClassLabel(label=-1, percent=0.0)
+    misclassified_class: MisclassifiedClassLabel = MisclassifiedClassLabel(
+        label=-1, percent=0.0
+    )
     missed_percentage: Optional[float] = 0.0
     error_type: ErrorType = ErrorType.none
     contours: List[Contour]
+    ghost_percentage: float = 0
     data_error_potential: Optional[float] = None
 
     @property
