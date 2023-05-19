@@ -96,9 +96,9 @@ def calculate_misclassified_polygons(
             pred_mask, out_polygon, polygon.label_idx
         )
         polygon.accuracy = accuracy
-        polygon.misclassified_class_label = MisclassifiedClassLabel(
+        polygon.misclassified_class = MisclassifiedClassLabel(
             label=misclassified_label[0],
-            pct=misclassified_label[1],
+            percent=misclassified_label[1],
         )
         if accuracy < MISCLASSIFIED_THRESHOLD:
             polygon.error_type = ErrorType.classification
@@ -318,4 +318,6 @@ def calculate_lm_polygon(
         float: percentage of mislabelled pixels in a polygon
     """
     relevant_region = polygon_img != 0
+    if relevant_region.sum() == 0:
+        return 0
     return (mislabelled_pixel_map != 0)[relevant_region].sum() / relevant_region.sum()
