@@ -91,7 +91,13 @@ def add_val_data_if_missing(dd: DatasetDict) -> DatasetDict:
         GalileoWarning,
     )
     ds_train = dd[Split.train]
-    ds_train_test = ds_train.train_test_split(train_size=0.8, seed=42)
+    for label_col in ["tags", "ner_tags", "label"]:
+        if label_col in ds[Split.train].features:
+            break
+    assert label_col in ds[Split.train].features, "Must have label, ner_tags, or tags"
+    ds_train_test = ds_train.train_test_split(
+        train_size=0.8, seed=42, stratify_by_column=label_col
+    )
     dd[Split.train] = ds_train_test["train"]
     dd[Split.validation] = ds_train_test["test"]
     return dd
