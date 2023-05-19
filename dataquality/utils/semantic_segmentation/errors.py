@@ -265,7 +265,7 @@ def calculate_ghost_polygons(
             polygon.error_type = ErrorType.ghost
 
 
-def calculate_amount_ghosted(polygon_im: np.ndarray, gold_mask: torch.Tensor) -> float:
+def calculate_amount_ghosted(polygon_im: np.ndarray, gold_mask: np.ndarray) -> float:
     """Calculates the amount of background in the gt of a polygon
 
     Args:
@@ -281,26 +281,26 @@ def calculate_amount_ghosted(polygon_im: np.ndarray, gold_mask: torch.Tensor) ->
 
 def calculate_lm_polygons_batch(
     mislabeled_pixels: torch.Tensor,
-    gold_polygons_batch: List[List[Polygon]],
+    polygons_batch: List[List[Polygon]],
     shape: Tuple[int, int],
 ) -> None:
     """Calculate and attach the LM percentage per polygon in a batch
 
     Args:
         mislabeled_pixels (torch.Tensor): map of bs, h, w of mislabled pixels
-        gold_polygons_batch (List[List[Polygon]]): gold polygons for each image
+        polygons_batch (List[List[Polygon]]): polygons for each image
         shape (Tuple[int, int]): shape of the image to be resized to
     """
     mislabeled_pixels = interpolate_lm_maps(mislabeled_pixels, shape)
     for idx in range(len(mislabeled_pixels)):
         mislabeled_pixel_map = mislabeled_pixels[idx].numpy()
 
-        gold_polygons = gold_polygons_batch[idx]
-        calculate_lm_polygons(mislabeled_pixel_map, gold_polygons)
+        polygons = polygons_batch[idx]
+        calculate_lm_polygons(mislabeled_pixel_map, polygons)
 
 
 def calculate_lm_polygons(
-    mislabelled_pixel_map: torch.Tensor, gold_polygons: List[Polygon]
+    mislabelled_pixel_map: torch.Tensor, polygons: List[Polygon]
 ) -> None:
     """Calculates and attaches the LM percentage to each polygon
 
@@ -308,7 +308,7 @@ def calculate_lm_polygons(
         mislabelled_pixel_map (torch.Tensor): map of bs, h, w of mislabled pixels
         gold_polygons (List[Polygon]): list of all gold polygons for an image
     """
-    for polygon in gold_polygons:
+    for polygon in polygons:
         polygon_img = draw_polygon(polygon, mislabelled_pixel_map.shape[-2:])
         polygon.lm_percentage = calculate_lm_polygon(mislabelled_pixel_map, polygon_img)
 

@@ -55,8 +55,8 @@ class MisclassifiedClassLabel(BaseModel):
 class Polygon(BaseModel):
     uuid: str  # UUID4
     label_idx: int
-    lm_percentage: Optional[float] = 0.0
-    accuracy: Optional[float] = 0.0
+    lm_percentage: float = 0.0
+    accuracy: float = 0.0
     misclassified_class: MisclassifiedClassLabel = MisclassifiedClassLabel(
         label=-1, percent=0.0
     )

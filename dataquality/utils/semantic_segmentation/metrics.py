@@ -126,7 +126,7 @@ def calculate_image_dep(dep_heatmap: torch.Tensor) -> List[float]:
 
 def calculate_area_per_class(
     pred_masks: torch.Tensor, gold_masks: torch.Tensor, nc: int
-) -> List[np.ndarray]:
+) -> np.ndarray:
     """Calculates the union of the area per class for gold and predicted mask
 
     Args:
