@@ -103,11 +103,30 @@ def calculate_misclassified_polygons(
         )
         if accuracy < MISCLASSIFIED_THRESHOLD:
             polygon.error_type = ErrorType.classification
+            
+def calculate_pred_polygon_accuracy(
+    gold_mask: torch.Tensor,
+    pred_polygons: List[Polygon],
+) -> None:
+    """calculate the pred polygon accuracy without the error type flag
+
+    Args:
+        gold_mask (torch.Tensor): gold mask to compare to
+        pred_polygons (List[Polygon]): list of all pred polygons
+    """
+    for polygon in pred_polygons:
+        out_polygon = draw_polygon(polygon, gold_mask.shape[-2:])
+        accuracy, misclassified_label = polygon_accuracy(
+            gold_mask, out_polygon, polygon.label_idx
+        )
+        polygon.accuracy = accuracy
 
 
 def calculate_misclassified_polygons_batch(
     pred_masks: torch.Tensor,
+    gold_masks: torch.Tensor,
     gold_polygons_batch: List[List[Polygon]],
+    pred_polygons_batch: List[List[Polygon]],
 ) -> None:
     """Calculates a set of misclassified polygon ids from the
     predicted mask for each image in a batch
@@ -115,14 +134,21 @@ def calculate_misclassified_polygons_batch(
     Also sets the error type field on the bad polygons to "misclassified"
 
     Args:
+        pred_masks(torch.tensor): predicted mask
         gold_mask(torch.tensor): ground truth mask
+        gold_polygons_batch(List[List[Polygon]]):
+            list of gold polygons for each image in a batch
         pred_polygon_maps(List[List[Polygon]]):
             list of predicted polygons for each image in a batch
     """
     for idx in range(len(pred_masks)):
-        gold_mask = pred_masks[idx].numpy()
-        pred_polygons = gold_polygons_batch[idx]
-        calculate_misclassified_polygons(gold_mask, pred_polygons)
+        pred_mask = pred_masks[idx].numpy()
+        gold_mask = gold_masks[idx].numpy()
+        pred_polygons = pred_polygons_batch[idx]
+        gold_polygons = gold_polygons_batch[idx]
+        calculate_misclassified_polygons(pred_mask, pred_polygons)
+        calculate_pred_polygon_accuracy(gold_mask, pred_polygons)
+
 
 
 def calculate_missed_percentage(preds: np.ndarray, gold_mask: np.ndarray) -> float:
