@@ -35,7 +35,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
 
     def __init__(
         self,
-        bucket_name: str = "",
+        bucket_url: str = "",
         image_paths: List[str] = [],
         image_ids: List[int] = [],
         gold_masks: torch.Tensor = torch.empty(0),
@@ -79,7 +79,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             epoch=epoch,
             inference_name=inference_name,
         )
-        self.bucket_name = bucket_name
+        self.bucket_url = bucket_url
         self.image_paths = image_paths
         self.image_ids = image_ids
         self.gold_masks = gold_masks
@@ -137,11 +137,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 golds.append(-1)
                 data_error_potentials.append(polygon.data_error_potential)
                 errors.append(polygon.error_type.value)
-                upload_polygon_contours(
-                    polygon, self.logger_config.polygon_idx, self.contours_path
-                )
-                polygon_ids.append(self.logger_config.polygon_idx)
-                self.logger_config.polygon_idx += 1
+                upload_polygon_contours(polygon, self.contours_path)
+                polygon_ids.append(polygon.uuid)
             gold_polygons = gold_polygons_batch[i]
             for polygon in gold_polygons:
                 image_ids.append(image_id)
@@ -149,14 +146,11 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 golds.append(polygon.label_idx)
                 data_error_potentials.append(polygon.data_error_potential)
                 errors.append(polygon.error_type.value)
-                upload_polygon_contours(
-                    polygon, self.logger_config.polygon_idx, self.contours_path
-                )
-                polygon_ids.append(self.logger_config.polygon_idx)
-                self.logger_config.polygon_idx += 1
+                upload_polygon_contours(polygon, self.contours_path)
+                polygon_ids.append(polygon.uuid)
 
         polygon_data = {
-            "id": polygon_ids,
+            "polygon_uuid": polygon_ids,
             "image_id": image_ids,
             "pred": preds,
             "gold": golds,
@@ -203,11 +197,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             height=heights,
             width=widths,
         )
-
         image_data = {
-            "image": [
-                f"{self.bucket_name}/{pth}" for pth in self.image_paths
-            ],  # E.g. https://storage.googleapis.com/bucket_name/.../image_id.png
+            "image": [f"{self.bucket_url}/{pth}" for pth in self.image_paths],
             "id": self.image_ids,
             "height": heights,
             "width": widths,

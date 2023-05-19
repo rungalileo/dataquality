@@ -2,6 +2,7 @@ import json
 from collections import defaultdict
 from tempfile import NamedTemporaryFile
 from typing import List, Tuple
+from uuid import uuid4
 
 import cv2
 import numpy as np
@@ -39,13 +40,13 @@ def find_polygons_batch(
     for i in range(bs):
         pred_polygons = build_polygons_image(pred_masks_np[i])
         pred_polygons_batch.append(pred_polygons)
-        gold_polygons = build_polygons_image(gold_masks_np[i], len(pred_polygons))
+        gold_polygons = build_polygons_image(gold_masks_np[i])
         gold_polygons_batch.append(gold_polygons)
 
     return pred_polygons_batch, gold_polygons_batch
 
 
-def build_polygons_image(mask: np.ndarray, polygon_idx: int = 0) -> List[Polygon]:
+def build_polygons_image(mask: np.ndarray) -> List[Polygon]:
     """Returns a list of Polygons for the mask of a single image
 
     Args:
@@ -68,9 +69,7 @@ def build_polygons_image(mask: np.ndarray, polygon_idx: int = 0) -> List[Polygon
             class_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
         )
 
-        polygons_per_label, polygon_idx = build_polygons_label(
-            contours, hierarchy, label_idx, polygon_idx
-        )
+        polygons_per_label = build_polygons_label(contours, hierarchy, label_idx)
         polygons.extend(polygons_per_label)
 
     return polygons
@@ -80,8 +79,7 @@ def build_polygons_label(
     contours: Tuple[np.ndarray],
     hierarchy: np.ndarray,
     label_idx: int,
-    polygon_idx: int = 0,
-) -> Tuple[List[Polygon], int]:
+) -> List[Polygon]:
     """Builds the polygons given contours of a single label for one image
 
     :param contours: a tuple of numpy arrays where each array is a contour
@@ -115,14 +113,13 @@ def build_polygons_label(
     final_polygons = []
     for contour_parent_idx in all_polygons.keys():
         polygon = Polygon(
-            id=polygon_idx,
+            uuid=str(uuid4()),
             label_idx=label_idx,
             contours=all_polygons[contour_parent_idx],
         )
         final_polygons.append(polygon)
-        polygon_idx += 1
 
-    return final_polygons, polygon_idx
+    return final_polygons
 
 
 def draw_polygon(polygon: Polygon, shape: Tuple[int, ...]) -> np.ndarray:
@@ -146,18 +143,16 @@ def draw_polygon(polygon: Polygon, shape: Tuple[int, ...]) -> np.ndarray:
 
 def upload_polygon_contours(
     polygon: Polygon,
-    polygon_idx: int,
     prefix: str,
 ) -> None:
     """Uploads a Polygon's contours to the cloud
 
     Args:
         polygon(Polygon): A Polygon object
-        polygon_idx(int): id to be used in the object name
         prefix(str): prefix of the object name in storage
             - /proj-id/run-id/training/contours/1.json
     """
-    obj_name = f"{prefix}/{polygon_idx}.json"
+    obj_name = f"{prefix}/{polygon.uuid}.json"
 
     with NamedTemporaryFile(mode="w+", delete=False) as f:
         json.dump(polygon.contours_json, f)

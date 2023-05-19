@@ -25,7 +25,12 @@ def polygon_accuracy(
     returns: pixel accuracy of the predictions
     """
     relevant_region = gold_mask != 0
-    pointwise_accuracy = (preds == gold_mask)[relevant_region]
+    relevant_pred_region = preds != 0
+    # use the relevant region to only select the pixels in the polygon
+    # use the relevant_pred_region to only select the pixels in the pred polygon
+    # that are not background pixels as classification errors are only
+    # counted for non-background pixels
+    pointwise_accuracy = (preds == gold_mask)[relevant_region & relevant_pred_region]
 
     misclassified_class = calculate_misclassified_class(
         preds, gold_mask, correct_class, relevant_region

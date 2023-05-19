@@ -43,7 +43,7 @@ LIKELY_MISLABELED_QUEUE_SIZE = 100
 class SemanticTorchLogger(TorchLogger):
     def __init__(
         self,
-        bucket_name: str,
+        bucket_url: str,
         dataset_path: str,
         dataloaders: Dict[str, torch.utils.data.DataLoader],
         mask_col_name: Optional[str] = None,
@@ -53,7 +53,7 @@ class SemanticTorchLogger(TorchLogger):
         """
         Class to log semantic segmentation models to Galileo
 
-        :param bucket_name: name of the bucket that currently stores images in cloud
+        :param bucket_url: name of the bucket that currently stores images in cloud
         :param dataset_path: path to the parent dataset folder
         :param mask_col_name: name of the column that contains the mask
         :param dataloaders: dataloaders to be logged
@@ -71,7 +71,7 @@ class SemanticTorchLogger(TorchLogger):
         self.id_to_relative_path: Dict[str, Any] = {
             split: {} for split in dataloaders.keys()
         }
-        self.bucket_name = bucket_name
+        self.bucket_url = bucket_url
         self.dataloaders = dataloaders
         self.image_col = "image"
         self.converted_datasets = []
@@ -83,6 +83,7 @@ class SemanticTorchLogger(TorchLogger):
 
         self.called_finish = False
         self.queue_size = LIKELY_MISLABELED_QUEUE_SIZE
+        self.init_lm_labels_flag = False
 
     def convert_dataset(self, dataset: Any, split: str) -> List:
         """Convert the dataset to the format expected by the dataquality client
@@ -92,7 +93,6 @@ class SemanticTorchLogger(TorchLogger):
             start_int (int): starting unique id for each example in the dataset
                 as we need a unique identifier for each example. Defaults to 0.
         """
-        # we wouldn't need any of this if we could map ids to the cloud images
         assert len(dataset) > 0
         assert (
             self.image_col in dataset[0].keys()
@@ -119,9 +119,7 @@ class SemanticTorchLogger(TorchLogger):
             processed_dataset.append(
                 {SemSegCols.image_path: image_path, SemSegCols.id: i}
             )
-        # need to add 1 to the last index to get the next index for the following
-        # datasets as i is 0 indexed so 0 + start_int would equal the ending index
-        # of the previous dataset
+
         return processed_dataset
 
     def find_mask_category(self, batch: Dict[str, Any]) -> None:
@@ -194,6 +192,19 @@ class SemanticTorchLogger(TorchLogger):
             }
         )
 
+    def get_image_ids_and_image_paths(
+        self, split: str, logging_data: Dict[str, Any]
+    ) -> Tuple[List[int], List[str]]:
+        img_ids = self.helper_data["batch"]["ids"]  # np.ndarray (bs,)
+        # convert the img_ids to absolute ids from file map
+        img_ids = [
+            self.dataloader_path_to_id[split][path]
+            for path in logging_data["image_path"]
+        ]
+        log_image_paths = [self.id_to_relative_path[split][id] for id in img_ids]
+        image_paths = [pth.lstrip("./") for pth in log_image_paths]
+        return img_ids, image_paths
+
     def queue_gold_and_pred(self, probs: torch.Tensor, gold: torch.Tensor) -> None:
         """Enqueue the ground truth and predicted masks for the batch
 
@@ -227,9 +238,84 @@ class SemanticTorchLogger(TorchLogger):
         self.thresholds = torch.zeros(self.number_classes, dtype=torch.float32)
         self.thresholds += 0.5
 
-        # create a queue to store the last 100 probs and gold for computing LM
-        self.prob_queue = torch.empty((self.queue_size, 64, 64, self.number_classes))
-        self.gold_queue = torch.empty((self.queue_size, 64, 64))
+        # create a queue to store the last X probs and gold queue but start with empty
+        # so as to not report mislabeled pixels until we have enough data
+        self.prob_queue = torch.empty((0, 64, 64, self.number_classes))
+        self.gold_queue = torch.empty((0, 64, 64))
+
+    def calculate_mislabeled_pixels(
+        self, probs: torch.Tensor, gold_mask: torch.Tensor
+    ) -> torch.Tensor:
+        """Helper function to calculate the mislabeled pixels in the batch
+
+        Args:
+            probs (torch.Tensor): probability tensor of shape (bs, h, w, num_classes)
+            gold_mask (torch.Tensor): gold truth mask of shape (bs, h, w)
+
+        Returns:
+            Mislabeled pixels tensor of shape (batch_size, height, width)
+        """
+        self.queue_gold_and_pred(probs, gold_mask)
+        out_threshold = calculate_self_confidence_threshold(
+            self.prob_queue, self.gold_queue
+        )
+        for cls in torch.unique(gold_mask):
+            self.thresholds[cls] = (
+                self.thresholds[cls] * 0.999 + out_threshold[cls] * 0.001
+            )
+        for class_idx in range(self.number_classes):
+            self.confident_count = semseg_fill_confident_counts(
+                probs[..., class_idx],
+                gold_mask,
+                class_idx,
+                per_class_threshold=self.thresholds[class_idx],
+                confident_counts=self.confident_count,
+            )
+        self.counts_per_class += torch.bincount(
+            gold_mask.view(-1), minlength=probs.shape[-1]
+        )
+        self_confidence = semseg_calculate_self_confidence(
+            self.prob_queue, self.gold_queue
+        )
+        mislabeled_pixels = calculate_lm_for_batch(
+            self_confidence,
+            self.confident_count,
+            self.counts_per_class,
+            self.gold_queue,
+            self.number_classes,
+            self.prob_queue,
+        )
+        # if we have not reached our queue size, we do not report mislabeled
+        if self.prob_queue.shape[0] < self.queue_size:
+            mislabeled_pixels = torch.zeros_like(mislabeled_pixels)
+        bs = probs.shape[0]
+        mislabeled_pixels = mislabeled_pixels[-bs:]
+        return mislabeled_pixels
+
+    def get_argmax_and_logits(self) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Helper function to get the argmax and logits from the model outputs
+
+        Returns:
+            Tuple[torch.Tensor, torch.Tensor]: argmax and logits tensors
+        """
+        # resize the logits to the input size based on hooks
+        preds = self.helper_data[HelperData.model_outputs_store]["logits"].cpu()
+        if preds.dtype == torch.float16:
+            preds = preds.to(torch.float32)
+        input_shape = self.helper_data[HelperData.model_input].shape[-2:]
+        preds = F.interpolate(preds, size=input_shape, mode="bilinear")
+
+        # checks whether the model is (n, classes, w, h), or (n, w, h, classes)
+        if preds.shape[1] == self.number_classes:
+            preds = preds.permute(0, 2, 3, 1)
+        assert (
+            preds.shape[-1] == self.number_classes
+        ), "The model output shape is not as expected. \
+                Expected classes to be in last dimension"
+
+        argmax = preds.clone().argmax(dim=-1)
+        logits = preds  # (bs, w, h, classes)
+        return argmax, logits
 
     def _on_step_end(self) -> None:
         """Function to be called at the end of step to log the inputs and outputs"""
@@ -240,90 +326,39 @@ class SemanticTorchLogger(TorchLogger):
         self.number_classes = self.helper_data[HelperData.model_outputs_store][
             "logits"
         ].shape[1]
-        self._init_lm_labels()
+        if not self.init_lm_labels_flag:
+            self._init_lm_labels()
+            self.init_lm_labels_flag = True
         split = self.logger_config.cur_split.lower()  # type: ignore
 
         with torch.no_grad():
             logging_data = self.helper_data["batch"]["data"]
-            img_ids = self.helper_data["batch"]["ids"]  # np.ndarray (bs,)
-            # convert the img_ids to absolute ids from file map
-            img_ids = [
-                self.dataloader_path_to_id[split][path]
-                for path in logging_data["image_path"]
-            ]
-            log_image_paths = [self.id_to_relative_path[split][id] for id in img_ids]
-            image_paths = [pth.lstrip("./") for pth in log_image_paths]
+            img_ids, image_paths = self.get_image_ids_and_image_paths(
+                split, logging_data
+            )
 
-            # resize the logits to the input size based on hooks
-            preds = self.helper_data[HelperData.model_outputs_store]["logits"].cpu()
-            input_shape = self.helper_data[HelperData.model_input].shape[-2:]
-            preds = F.interpolate(preds, size=input_shape, mode="bilinear")
+            argmax, logits = self.get_argmax_and_logits()
 
-            # checks whether the model is (n, classes, w, h), or (n, w, h, classes)
-            if preds.shape[1] == self.number_classes:
-                preds = preds.permute(0, 2, 3, 1)
-            assert (
-                preds.shape[-1] == self.number_classes
-            ), "The model output shape is not as expected. \
-                    Expected classes to be in last dimension"
-
-            argmax = preds.clone().argmax(dim=-1)
-            logits = preds  # (bs, w, h, classes)
             gold_boundary_masks = mask_to_boundary(
                 logging_data[self.mask_col_name].clone().cpu().numpy()
             )  # (bs, w, h)
             pred_boundary_masks = mask_to_boundary(
                 argmax.clone().cpu().numpy()
             )  # (bs, w, h)
-            if logging_data[self.mask_col_name].shape[1] == 1:
-                logging_data[self.mask_col_name] = logging_data["mask"].squeeze(
-                    1
-                )  # (bs, w, h)
             gold_mask = logging_data[self.mask_col_name].cpu()  # (bs, w, h)
+            if gold_mask.shape[1] == 1:
+                gold_mask = gold_mask.squeeze(1)  # (bs, w, h)
+            if gold_mask.dtype == torch.float16:
+                gold_mask = gold_mask.to(torch.float32)
 
             probs = torch.nn.Softmax(dim=-1)(logits).cpu()  # (bs, w, h, classes)
+            mislabeled_pixels = self.calculate_mislabeled_pixels(probs, gold_mask)
 
-            # update the necessary variable in order to caluclate likely mislabled
-            self.queue_gold_and_pred(probs, gold_mask)
-            out_threshold = calculate_self_confidence_threshold(
-                self.prob_queue, self.gold_queue
-            )
-            for cls in torch.unique(gold_mask):
-                self.thresholds[cls] = (
-                    self.thresholds[cls] * 0.999 + out_threshold[cls] * 0.001
-                )
-            for class_idx in range(self.number_classes):
-                self.confident_count = semseg_fill_confident_counts(
-                    probs[..., class_idx],
-                    gold_mask,
-                    class_idx,
-                    per_class_threshold=self.thresholds[class_idx],
-                    confident_counts=self.confident_count,
-                )
-            self.counts_per_class += torch.bincount(
-                gold_mask.view(-1), minlength=probs.shape[-1]
-            )
-            self_confidence = semseg_calculate_self_confidence(
-                self.prob_queue, self.gold_queue
-            )
-            mislabeled_pixels = calculate_lm_for_batch(
-                self_confidence,
-                self.confident_count,
-                self.counts_per_class,
-                self.gold_queue,
-                self.number_classes,
-                self.prob_queue,
-            )
-            # if we have not reached our queue size, we do not report mislabeled
-            if self.prob_queue.shape[0] < self.queue_size:
-                mislabeled_pixels = torch.zeros_like(mislabeled_pixels)
-            bs = probs.shape[0]
-            mislabeled_pixels = mislabeled_pixels[-bs:]
             # do not log if we are not in the final inference loop
             if not self.called_finish:
                 return
             logger = SemanticSegmentationModelLogger(
-                bucket_name=self.bucket_name,
+                bucket_url=self.bucket_url,
                 image_paths=image_paths,
                 image_ids=img_ids,
                 gold_masks=gold_mask,  # Torch tensor (bs, w, h)
@@ -406,7 +441,7 @@ def patch_iterator_and_batch(store: Dict[str, Any]) -> Callable:
 
 def watch(
     model: Module,
-    bucket_name: str,
+    bucket_url: str,
     dataset_path: str,
     dataloaders: Dict[str, DataLoader],
     mask_col_name: Optional[str] = None,
@@ -418,7 +453,7 @@ def watch(
 
         train_dataloader = torch.utils.data.DataLoader()
         model = SemSegModel()
-        watch(model, bucket_name, dataset_path, [train_dataloader, test_dataloader])
+        watch(model, bucket_url, dataset_path, [train_dataloader, test_dataloader])
         for epoch in range(NUM_EPOCHS):
             dq.set_epoch_and_split(epoch,"training")
             train()
@@ -427,7 +462,7 @@ def watch(
         dq.finish()
 
     :param model: Pytorch Model to be wrapped
-    :param bucket_name: Name of the bucket from which the images come
+    :param bucket_url: Name of the bucket from which the images come
     :param dataset_path: Path to the dataset which we can remove from the image path
     :param dataloaders: List of dataloaders to be wrapped
     :param mask_col_name: Name of the column in the dataloader that contains the mask
@@ -479,10 +514,10 @@ def watch(
 
     # we assume that the image_path they pass to us is relative to the bucket / dataset
     # ie if the path they give to us should be the same path we can use in their bucket
-    # to find the data (ie bucket_name/image_path == dataset_path/image_path)
+    # to find the data (ie bucket_url/image_path == dataset_path/image_path)
 
     tl = SemanticTorchLogger(
-        bucket_name=bucket_name,
+        bucket_url=bucket_url,
         dataset_path=dataset_path,
         dataloaders=dataloaders,
         mask_col_name=mask_col_name,
