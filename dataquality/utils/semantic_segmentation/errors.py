@@ -106,7 +106,7 @@ def calculate_misclassified_polygons(
 
 
 def calculate_pred_polygon_accuracy(
-    gold_mask: torch.Tensor,
+    gold_mask: np.ndarray,
     pred_polygons: List[Polygon],
 ) -> None:
     """calculate the pred polygon accuracy without the error type flag
@@ -146,8 +146,8 @@ def calculate_misclassified_polygons_batch(
         pred_mask = pred_masks[idx].numpy()
         gold_mask = gold_masks[idx].numpy()
         pred_polygons = pred_polygons_batch[idx]
-        gold_polygons_batch[idx]
-        calculate_misclassified_polygons(pred_mask, pred_polygons)
+        gold_polygons = gold_polygons_batch[idx]
+        calculate_misclassified_polygons(pred_mask, gold_polygons)
         calculate_pred_polygon_accuracy(gold_mask, pred_polygons)
 
 
