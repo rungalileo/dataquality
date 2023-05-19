@@ -339,10 +339,15 @@ def temporary_cfg_for_val(cfg: Dict, split: Split, ds_path: str = "") -> str:
             print("cfg_path 2")
             print(str(cfg_path))
             # ls /home/runner/work/dataquality/dataquality
-            print(os.listdir("/home/runner/work/dataquality/dataquality"))
+            print(
+                os.listdir(
+                    "/home/runner/work/dataquality/dataquality/tests/assets/yolo-demo/data"
+                )
+            )
             print(cfg_path.exists())
             print(os.path.isdir(str(cfg_path)))
-            if cfg_path.exists():
+            print(cfg_path.is_dir())
+            if not cfg_path.exists():
                 cfg_copy["path"] = str(cfg_path)
             else:
                 print("cfg_path does not exist")
