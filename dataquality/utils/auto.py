@@ -92,9 +92,9 @@ def add_val_data_if_missing(dd: DatasetDict) -> DatasetDict:
     )
     ds_train = dd[Split.train]
     for label_col in ["tags", "ner_tags", "label"]:
-        if label_col in ds[Split.train].features:
+        if label_col in ds_train.features:
             break
-    assert label_col in ds[Split.train].features, "Must have label, ner_tags, or tags"
+    assert label_col in ds_train.features, "Must have label, ner_tags, or tags"
     ds_train_test = ds_train.train_test_split(
         train_size=0.8, seed=42, stratify_by_column=label_col
     )
