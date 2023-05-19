@@ -338,6 +338,8 @@ def temporary_cfg_for_val(cfg: Dict, split: Split, ds_path: str = "") -> str:
             # Check if the path exists
             print("cfg_path 2")
             print(str(cfg_path))
+            # ls /home/runner/work/dataquality/dataquality
+            print(os.listdir("/home/runner/work/dataquality/dataquality"))
             if cfg_path.exists():
                 cfg_copy["path"] = str(cfg_path)
             else:
