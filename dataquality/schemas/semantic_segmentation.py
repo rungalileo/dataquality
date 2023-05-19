@@ -47,10 +47,18 @@ class Contour(BaseModel):
     pixels: List[Pixel]
 
 
+class MisclassifiedClassLabel(BaseModel):
+    label: int
+    pct: float
+
+
 class Polygon(BaseModel):
     uuid: str  # UUID4
     label_idx: int
+    lm_percentage: Optional[float]
+    accuracy: Optional[float]
     misclassified_class_label: Optional[int] = None
+    missed_percentage: Optional[float]
     error_type: ErrorType = ErrorType.none
     contours: List[Contour]
     data_error_potential: Optional[float] = None

@@ -1,10 +1,14 @@
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 import numpy as np
 import torch
 from PIL import Image
 
-from dataquality.schemas.semantic_segmentation import ErrorType, Polygon
+from dataquality.schemas.semantic_segmentation import (
+    ErrorType,
+    MisclassifiedClassLabel,
+    Polygon,
+)
 from dataquality.utils.semantic_segmentation.polygons import draw_polygon
 
 MISCLASSIFIED_THRESHOLD = 0.5
@@ -14,7 +18,7 @@ GHOST_THRESHOLD = 0.5
 
 def polygon_accuracy(
     preds: np.ndarray, gold_mask: np.ndarray, correct_class: int
-) -> Tuple[float, Optional[int]]:
+) -> Tuple[float, Tuple[int, float]]:
     """Calculates the accuracy of one ground truth polygon
     accuracy = (number of correct pixels) / (number of pixels in polygon)
 
@@ -35,17 +39,16 @@ def polygon_accuracy(
     pointwise_accuracy = (preds == gold_mask)[relevant_region & relevant_pred_region]
 
     misclassified_class = calculate_misclassified_class(
-        preds, gold_mask, correct_class, relevant_region
+        preds, correct_class, relevant_region
     )
     return pointwise_accuracy.sum() / relevant_region.sum(), misclassified_class
 
 
 def calculate_misclassified_class(
     pred_mask: np.ndarray,
-    gold_mask: np.ndarray,
     correct_class: int,
     relevant_region: np.ndarray,
-) -> Optional[int]:
+) -> Tuple[int, float]:
     """Checks to see if the polygon is misclassified if over 50% of the pixels
     are another class and if so sets Polygon.misclassified as to the class
 
@@ -62,10 +65,12 @@ def calculate_misclassified_class(
     # count the number of pixels in the pred mask relevant region that are
     # not the correct class
     areas = np.bincount(incorrect_pixels)
+    top_candidate = (-1, 0)
     for i, incorrect_area in enumerate(areas):
-        if incorrect_area / area > MISCLASSIFIED_THRESHOLD:
-            return i
-    return None
+        if incorrect_area > top_candidate[1]:
+            top_candidate = (i, incorrect_area)
+    top_candidate = (top_candidate[0], top_candidate[1] / area)
+    return top_candidate if top_candidate[0] >= 0 else (-1, -1)
 
 
 def calculate_misclassified_polygons(
@@ -90,10 +95,13 @@ def calculate_misclassified_polygons(
         accuracy, misclassified_label = polygon_accuracy(
             pred_mask, out_polygon, polygon.label_idx
         )
+        polygon.accuracy = accuracy
+        polygon.misclassified_class_label = MisclassifiedClassLabel(
+            label=misclassified_label[0],
+            pct=misclassified_label[1],
+        )
         if accuracy < MISCLASSIFIED_THRESHOLD:
             polygon.error_type = ErrorType.classification
-            if misclassified_label is not None:
-                polygon.misclassified_class_label = misclassified_label
 
 
 def calculate_misclassified_polygons_batch(
@@ -116,7 +124,7 @@ def calculate_misclassified_polygons_batch(
         calculate_misclassified_polygons(gold_mask, pred_polygons)
 
 
-def undetected_accuracy(preds: np.ndarray, gold_mask: np.ndarray) -> float:
+def calculate_missed_percentage(preds: np.ndarray, gold_mask: np.ndarray) -> float:
     """Calculates the amount of background predicted on a polygon
     calculated as (number of background pixels) / (number of pixels in polygon)
 
@@ -131,7 +139,7 @@ def undetected_accuracy(preds: np.ndarray, gold_mask: np.ndarray) -> float:
     return (preds == 0)[relevant_region].sum() / relevant_region.sum()
 
 
-def calculate_undetected_polygons(
+def calculate_missed_polygons(
     pred_mask: np.ndarray, gold_polygons: List[Polygon]
 ) -> None:
     """Checks for polygon misclassifications and sets the Polygon error_type field
@@ -143,11 +151,13 @@ def calculate_undetected_polygons(
     """
     for polygon in gold_polygons:
         polygon_img = draw_polygon(polygon, pred_mask.shape[-2:])
-        if undetected_accuracy(pred_mask, polygon_img) > UNDETECTED_THRESHOLD:
+        missed_percentage = calculate_missed_percentage(pred_mask, polygon_img)
+        polygon.missed_percentage = missed_percentage
+        if missed_percentage > UNDETECTED_THRESHOLD:
             polygon.error_type = ErrorType.undetected
 
 
-def calculate_undetected_polygons_batch(
+def calculate_missed_polygons_batch(
     pred_masks: torch.Tensor,
     gold_polygons_batch: List[List[Polygon]],
 ) -> None:
@@ -162,7 +172,7 @@ def calculate_undetected_polygons_batch(
     for idx in range(len(pred_masks)):
         pred_mask = pred_masks[idx].numpy()
         gold_polygons = gold_polygons_batch[idx]
-        calculate_undetected_polygons(pred_mask, gold_polygons)
+        calculate_missed_polygons(pred_mask, gold_polygons)
 
 
 def calculate_dep_polygon(
@@ -264,3 +274,48 @@ def calculate_amount_ghosted(polygon_im: np.ndarray, gold_mask: torch.Tensor) ->
     """
     relevant_region = polygon_im != 0
     return (gold_mask == 0)[relevant_region].sum() / relevant_region.sum()
+
+
+def calculate_lm_polygons_batch(
+    mislabeled_pixels: torch.Tensor, gold_polygons_batch: List[List[Polygon]]
+) -> None:
+    """Calculate and attach the LM percentage per polygon in a batch
+
+    Args:
+        mislabeled_pixels (torch.Tensor): map of bs, h, w of mislabled pixels
+        gold_polygons_batch (List[List[Polygon]]): gold polygons for each image
+    """
+    for idx in range(len(mislabeled_pixels)):
+        mislabeled_pixel_map = mislabeled_pixels[idx].numpy()
+        gold_polygons = gold_polygons_batch[idx]
+        calculate_lm_polygons(mislabeled_pixel_map, gold_polygons)
+
+
+def calculate_lm_polygons(
+    mislabelled_pixel_map: torch.Tensor, gold_polygons: List[Polygon]
+) -> None:
+    """Calculates and attaches the LM percentage to each polygon
+
+    Args:
+        mislabelled_pixel_map (torch.Tensor): map of bs, h, w of mislabled pixels
+        gold_polygons (List[Polygon]): list of all gold polygons for an image
+    """
+    for polygon in gold_polygons:
+        polygon_img = draw_polygon(polygon, mislabelled_pixel_map.shape[-2:])
+        polygon.lm_percentage = calculate_lm_polygon(mislabelled_pixel_map, polygon_img)
+
+
+def calculate_lm_polygon(
+    mislabelled_pixel_map: torch.Tensor, polygon_img: np.ndarray
+) -> float:
+    """Calculates the percentage of mislabelled pixels in a polygon
+
+    Args:
+        mislabelled_pixel_map (torch.Tensor): map of bs, h, w of mislabled pixels
+        polygon_img (np.ndarray): np array of the polygon drawn onto an image
+
+    Returns:
+        float: percentage of mislabelled pixels in a polygon
+    """
+    relevant_region = polygon_img != 0
+    return (mislabelled_pixel_map != 0)[relevant_region].sum() / relevant_region.sum()

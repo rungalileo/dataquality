@@ -14,8 +14,9 @@ from dataquality.schemas.split import Split
 from dataquality.utils.semantic_segmentation.errors import (
     calculate_dep_polygons_batch,
     calculate_ghost_polygons_batch,
+    calculate_lm_polygons_batch,
     calculate_misclassified_polygons_batch,
-    calculate_undetected_polygons_batch,
+    calculate_missed_polygons_batch,
 )
 from dataquality.utils.semantic_segmentation.lm import upload_mislabeled_pixels
 from dataquality.utils.semantic_segmentation.metrics import (
@@ -191,12 +192,14 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             self.pred_masks, self.gold_masks
         )
         # Errors
+
         calculate_misclassified_polygons_batch(self.pred_masks, gold_polygons_batch)
-        calculate_undetected_polygons_batch(self.pred_masks, gold_polygons_batch)
+        calculate_missed_polygons_batch(self.pred_masks, gold_polygons_batch)
         calculate_ghost_polygons_batch(self.gold_masks, pred_polygons_batch)
         heights = [img.shape[-1] for img in self.gold_masks]
         widths = [img.shape[-2] for img in self.gold_masks]
 
+        calculate_lm_polygons_batch(self.mislabled_pixels, gold_polygons_batch)
         calculate_dep_polygons_batch(
             gold_polygons_batch,
             dep_heatmaps.numpy(),
