@@ -336,8 +336,13 @@ def temporary_cfg_for_val(cfg: Dict, split: Split, ds_path: str = "") -> str:
 
             cfg_path = pre_path / cfg_path
             # Check if the path exists
+            print("cfg_path 2")
+            print(str(cfg_path))
             if cfg_path.exists():
                 cfg_copy["path"] = str(cfg_path)
+            else:
+                print("cfg_path does not exist")
+
     tmp = NamedTemporaryFile("w", delete=False, suffix=".yaml")
     yaml.safe_dump(cfg_copy, tmp)
     tmp.close()
