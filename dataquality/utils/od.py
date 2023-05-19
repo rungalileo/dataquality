@@ -1,6 +1,6 @@
 """Utils for Object Detection"""
 
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 
@@ -37,9 +37,14 @@ def convert_tlxywh_xyxy(bboxes: np.ndarray) -> np.ndarray:
     return bboxes
 
 
-def filter_arrays_and_concatenate(arrays: List[np.ndarray], empty_dim=0) -> np.ndarray:
+def filter_arrays_and_concatenate(
+    arrays: List[np.ndarray], empty_dim: Optional[int] = None
+) -> np.ndarray:
     """Filters out empty arrays and concatenates them"""
     filtered_arrays = [arr for arr in arrays if arr.shape[0] != 0]
     if len(filtered_arrays) == 0:
-        return np.empty((0, empty_dim))
+        dims = [0]
+        if empty_dim is not None:
+            dims.append(empty_dim)
+        return np.empty(dims)
     return np.concatenate(filtered_arrays)

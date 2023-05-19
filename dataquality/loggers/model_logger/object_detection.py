@@ -7,7 +7,12 @@ from dataquality.loggers.logger_config.object_detection import (
     object_detection_logger_config,
 )
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
-from dataquality.utils.od import convert_cxywh_xyxy, convert_tlxywh_xyxy, scale_boxes
+from dataquality.utils.od import (
+    convert_cxywh_xyxy,
+    convert_tlxywh_xyxy,
+    filter_arrays_and_concatenate,
+    scale_boxes,
+)
 
 
 class ObjectDetectionModelLogger(BaseGalileoModelLogger):
@@ -153,35 +158,54 @@ class ObjectDetectionModelLogger(BaseGalileoModelLogger):
         in `construct_image_ids` to have the same length,
         """
         image_ids = np.array(self.construct_image_ids(), dtype=np.int32)
-        pred_emb_arrays = np.concatenate(
-            [arr for arr in self.pred_embs if arr.shape[0] != 0]
-        )
+        print("image_ids.shape")
+        print(image_ids.shape)
+
+        pred_emb_arrays = filter_arrays_and_concatenate(self.pred_embs)
+
+        print("self.pred_embs, len", "pred_emb_arrays.shape")
+        print(type(self.pred_embs), len(self.pred_embs), pred_emb_arrays.shape)
         gold_emb_arrays = np.concatenate(
             [arr for arr in self.gold_embs if arr.shape[0] != 0]
         )
-        pred_prob_arrays = np.concatenate(
-            [arr for arr in self.probs if arr.shape[0] != 0]
-        )
+        print("self.gold_embs, len", "gold_emb_arrays.shape")
+        print(type(self.gold_embs), len(self.gold_embs), gold_emb_arrays.shape)
+        pred_prob_arrays = filter_arrays_and_concatenate(self.probs)
+        print("self.probs, len", "pred_prob_arrays.shape")
+        print(type(self.probs), len(self.probs), pred_prob_arrays.shape)
         gold_box_arrays = np.concatenate(
             [arr for arr in self.gold_boxes if arr.shape[0] != 0]
         )
-        pred_box_arrays = np.concatenate(
-            [arr for arr in self.pred_boxes if arr.shape[0] != 0]
-        )
+        print("self.gold_boxes, len", "gold_box_arrays.shape")
+        print(type(self.gold_boxes), len(self.gold_boxes), gold_box_arrays.shape)
+        pred_box_arrays = filter_arrays_and_concatenate(self.pred_boxes)
+        print("self.pred_boxes, len", "pred_box_arrays.shape")
+        print(type(self.pred_boxes), len(self.pred_boxes), pred_box_arrays.shape)
         # We pad gold probabilities with 0s to be able to fit it into a numpy matrix
         # Shape is (len(gold_embs), num_classes)
         num_pred = pred_emb_arrays.shape[0]
         num_gold = gold_emb_arrays.shape[0]
         gold_prob_shape = (num_gold, len(self.logger_config.labels))
+        print("gold_prob_shape, num_gold, num_pred, num_labels")
+        print(gold_prob_shape, num_gold, num_pred, len(self.logger_config.labels))
         # -1 for preds because a pred box won't have a label
         golds = np.concatenate([[-1] * num_pred, np.concatenate(self.labels)]).astype(
             np.int32
         )
+        embs = gold_emb_arrays
+        if len(pred_emb_arrays) > 0:
+            embs = np.concatenate([pred_emb_arrays, gold_emb_arrays])
+        prob = np.zeros(gold_prob_shape)
+        if len(pred_prob_arrays) > 0:
+            prob = np.concatenate([pred_prob_arrays, np.zeros(gold_prob_shape)])
+        bbox = gold_box_arrays
+        if len(pred_box_arrays) > 0:
+            bbox = np.concatenate([pred_box_arrays, gold_box_arrays])
         obj = {
             "image_id": image_ids,
-            "emb": np.concatenate([pred_emb_arrays, gold_emb_arrays]),
-            "prob": np.concatenate([pred_prob_arrays, np.zeros(gold_prob_shape)]),
-            "bbox": np.concatenate([pred_box_arrays, gold_box_arrays]),
+            "emb": embs,
+            "prob": prob,
+            "bbox": bbox,
             "is_pred": np.array([True] * num_pred + [False] * num_gold),
             "is_gold": np.array([False] * num_pred + [True] * num_gold),
             "split": [self.split] * len(image_ids),
