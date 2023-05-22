@@ -199,6 +199,12 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             height=heights,
             width=widths,
         )
+        calculate_dep_polygons_batch(
+            pred_polygons_batch,
+            dep_heatmaps.numpy(),
+            height=heights,
+            width=widths,
+        )
         image_data = {
             "image": [f"{self.bucket_url}/{pth}" for pth in self.image_paths],
             "id": self.image_ids,

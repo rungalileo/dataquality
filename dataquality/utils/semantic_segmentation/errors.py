@@ -184,7 +184,7 @@ def calculate_dep_polygon(
 
 
 def calculate_dep_polygons_batch(
-    gold_polygons_batch: List[List[Polygon]],
+    polygons_batch: List[List[Polygon]],
     dep_heatmaps: np.ndarray,
     height: List[int],
     width: List[int],
@@ -193,7 +193,7 @@ def calculate_dep_polygons_batch(
     dep score to the mean dep score
 
     Args:
-        gold_polygons_batch (List[List[[Polygon]]): list of the gold polygons
+        polygons_batch (List[List[[Polygon]]): list of the gold polygons
             for an image
         dep_heatmaps (np.ndarray): heatmaps of DEP scores for an image
         height (int): height of original image to resize the dep map to the correct
@@ -208,7 +208,7 @@ def calculate_dep_polygons_batch(
 
     for idx in range(len(resized_dep_maps)):
         dep_map = resized_dep_maps[idx]
-        gold_polygons = gold_polygons_batch[idx]
+        gold_polygons = polygons_batch[idx]
         for polygon in gold_polygons:
             polygon_img = draw_polygon(polygon, dep_map.shape)
             polygon.data_error_potential = calculate_dep_polygon(dep_map, polygon_img)
