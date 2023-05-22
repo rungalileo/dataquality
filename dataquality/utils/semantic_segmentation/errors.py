@@ -208,7 +208,7 @@ def calculate_dep_polygons_batch(
 
     for idx in range(len(resized_dep_maps)):
         dep_map = resized_dep_maps[idx]
-        gold_polygons = polygons_batch[idx]
-        for polygon in gold_polygons:
+        polygons = polygons_batch[idx]
+        for polygon in polygons:
             polygon_img = draw_polygon(polygon, dep_map.shape)
             polygon.data_error_potential = calculate_dep_polygon(dep_map, polygon_img)
