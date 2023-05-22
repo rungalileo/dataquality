@@ -146,7 +146,10 @@ class Analytics(Borg):
             # TODO: create internal logging endpoint
             pass
         # We need to call the default ipython exception handler to raise the error
-        shell.showtraceback((etype, evalue, tb), tb_offset=tb_offset)
+        if tb_offset is None:
+            shell.showtraceback((etype, evalue, tb))
+        else:
+            shell.showtraceback((etype, evalue, tb), tb_offset=tb_offset)
 
     def track_exception_ipython(
         self,
