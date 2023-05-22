@@ -54,6 +54,7 @@ class Polygon(BaseModel):
     contours: List[Contour]
     data_error_potential: Optional[float] = None
     ghost_percentage: Optional[float] = None
+    area: Optional[int]
 
     @property
     def contours_opencv(self) -> List[np.ndarray]:

@@ -51,6 +51,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         probs: Optional[Union[List, np.ndarray]] = None,
         logits: Optional[Union[List, np.ndarray]] = None,
         ids: Optional[Union[List, np.ndarray]] = None,
+        number_classes: int = 0,
         split: str = "",
         epoch: Optional[int] = None,
         inference_name: Optional[str] = None,
@@ -90,6 +91,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         self.pred_boundary_masks = pred_boundary_masks
         self.output_probs = output_probs
         self.mislabled_pixels = mislabeled_pixels
+        self.number_classes = number_classes
 
     def validate_and_format(self) -> None:
         super().validate_and_format()

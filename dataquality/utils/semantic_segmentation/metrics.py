@@ -8,6 +8,8 @@ from PIL import Image
 
 from dataquality.clients.objectstore import ObjectStore
 from dataquality.core._config import GALILEO_DEFAULT_RESULT_BUCKET_NAME
+from dataquality.schemas.semantic_segmentation import Polygon
+from dataquality.utils.semantic_segmentation.polygons import draw_polygon
 
 object_store = ObjectStore()
 
@@ -123,10 +125,27 @@ def calculate_image_dep(dep_heatmap: torch.Tensor) -> List[float]:
     """
     return dep_heatmap.mean(dim=(1, 2)).tolist()
 
+def calculate_area_per_class(
+    pred_masks: torch.Tensor, gold_masks: torch.Tensor, nc: int
+) -> np.ndarray:
+    """Calculates the union of the area per class for gold and predicted mask
+    Args:
+        pred_mask: argmax of the prediction probabilities
+        gold_masks: ground truth mask
+    Returns:
+        List of area per class for each image in the batch
+    """
+    pred_per_class_area = (
+        torch.bincount(pred_masks.reshape(-1), minlength=nc).float().numpy()
+    )
+    gold_per_class_area = (
+        torch.bincount(gold_masks.reshape(-1), minlength=nc).float().numpy()
+    )
+    return pred_per_class_area + gold_per_class_area
 
 def calculate_mean_iou(
-    pred_masks: torch.Tensor, gold_masks: torch.Tensor, nc: int = 21
-) -> Tuple[List[float], List[np.ndarray]]:
+    pred_masks: torch.Tensor, gold_masks: torch.Tensor, nc: int
+) -> Tuple[List[float], List[np.ndarray], List[np.ndarray]]:
     """Calculates the Mean Intersection Over Union (mIoU) for each image in the batch
 
     :param pred_masks: argmax of the prediction probabilities
@@ -142,6 +161,7 @@ def calculate_mean_iou(
     metric = evaluate.load("mean_iou")
     mean_ious = []
     per_class_ious = []
+    per_class_area = []
 
     # for iou need shape (bs, 1, height, width) to get per mask iou
     for i in range(len(pred_masks)):
@@ -153,4 +173,47 @@ def calculate_mean_iou(
         )
         mean_ious.append(iou["mean_iou"].item())
         per_class_ious.append(iou["per_category_iou"])
-    return mean_ious, per_class_ious
+        per_class_area.append(
+            calculate_area_per_class(pred_masks[i], gold_masks[i], nc)
+        )
+    return mean_ious, per_class_ious, per_class_area
+
+def calculate_area_per_polygon_batch(
+    polygon_batch: List[List[Polygon]],
+    size: Tuple[int, int],
+) -> None:
+    """Calculates the area for every polygon in a btach
+    Args:
+        polygon_batch (List[List[Polygon]]): list of each images polygons
+        size (Tuple[int, int]): shape to draw the polygons onto
+    """
+    for idx in range(len(polygon_batch)):
+        calculate_area_per_polygon(polygon_batch[idx], size)
+
+
+def calculate_area_per_polygon(
+    polygons: List[Polygon],
+    size: Tuple[int, int],
+) -> None:
+    """Calculates the area for every polygon in an image
+    Args:
+        polygons (List[Polygon]): list of each images polygons
+        size (Tuple[int, int]): shape to draw the polygons onto
+    """
+    for polygon in polygons:
+        polygon.area = calculate_area(polygon, size)
+
+
+def calculate_area(
+    polygon: Polygon,
+    size: Tuple[int, int],
+) -> int:
+    """Calculates the area for a polygon
+    Args:
+        polygon (Polygon): polygon to calculate area for
+        size (Tuple[int, int]): shape to draw the polygons onto
+    Returns:
+        float: area of the polygon
+    """
+    polygon_img = draw_polygon(polygon, size)
+    return polygon_img.sum()
