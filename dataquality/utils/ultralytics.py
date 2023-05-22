@@ -312,6 +312,11 @@ def temporary_cfg_for_val(cfg: Dict, split: Split, ds_path: str = "") -> str:
     new_value = cfg.get(ultralytics_split_mapping[split])
     for csplit in ["train", "val", "test"]:
         cfg_copy[csplit] = new_value
+    pre_path = Path(ds_path).resolve()
+    # if pre_path is a file then get its parent
+    if pre_path.is_file():
+        pre_path = pre_path.parent
+
     if "path" in cfg_copy:
         cfg_path = Path(cfg_copy["path"])
         # check if cfg path is relative or absolute with pathlib
@@ -320,17 +325,15 @@ def temporary_cfg_for_val(cfg: Dict, split: Split, ds_path: str = "") -> str:
         # if cfg_path is relative then it is relative to ds_path
         # which can be relative to pwd
         if not cfg_path.is_absolute():
-            pre_path = Path(ds_path).resolve()
-            # if pre_path is a file then get its parent
-            if pre_path.is_file():
-                pre_path = pre_path.parent
-
             cfg_path = pre_path / cfg_path
             # Check if the folder cfg_path exists
             if cfg_path.is_dir():
                 cfg_copy["path"] = str(cfg_path)
             else:
                 print("cfg_path does not exist")
+    else:
+        print("cfg_path not found in config")
+        cfg_copy["path"] = str(pre_path)
 
     tmp = NamedTemporaryFile("w", delete=False, suffix=".yaml")
     yaml.safe_dump(cfg_copy, tmp)
