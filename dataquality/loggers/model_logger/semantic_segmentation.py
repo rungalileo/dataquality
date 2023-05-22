@@ -129,7 +129,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         golds = []
         data_error_potentials = []
         errors = []
-        error_pcts = []
+        background_error_pcts = []
         for i, image_id in enumerate(self.image_ids):
             pred_polygons = pred_polygons_batch[i]
             for polygon in pred_polygons:
@@ -138,7 +138,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 golds.append(-1)
                 data_error_potentials.append(polygon.data_error_potential)
                 errors.append(polygon.error_type.value)
-                error_pcts.append(polygon.error_pct)
+                background_error_pcts.append(polygon.background_error_pct)
                 upload_polygon_contours(polygon, self.contours_path)
                 polygon_ids.append(polygon.uuid)
             gold_polygons = gold_polygons_batch[i]
@@ -148,7 +148,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 golds.append(polygon.label_idx)
                 data_error_potentials.append(polygon.data_error_potential)
                 errors.append(polygon.error_type.value)
-                error_pcts.append(polygon.error_pct)
+                background_error_pcts.append(polygon.background_error_pct)
                 upload_polygon_contours(polygon, self.contours_path)
                 polygon_ids.append(polygon.uuid)
 
@@ -159,7 +159,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "gold": golds,
             "data_error_potential": data_error_potentials,
             "galileo_error_type": errors,
-            "error_pct": error_pcts,
+            "background_error_pct": background_error_pcts,
             "split": [self.split] * len(image_ids),
             "is_pred": [False if i == -1 else True for i in preds],
             "is_gold": [False if i == -1 else True for i in golds],
