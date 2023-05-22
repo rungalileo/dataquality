@@ -5,10 +5,11 @@ import torch
 from PIL import Image
 
 from dataquality.schemas.semantic_segmentation import ErrorType, Polygon
+from dataquality.utils.semantic_segmentation.constants import (
+    BACKGROUND_CLASS,
+    ERROR_THRESHOLD,
+)
 from dataquality.utils.semantic_segmentation.polygons import draw_polygon
-
-ERROR_THRES = 0.5
-GHOST_THRESHOLD = .5
 
 
 def polygon_accuracy(
@@ -25,8 +26,8 @@ def polygon_accuracy(
 
     returns: pixel accuracy of the predictions
     """
-    relevant_region = gold_mask != 0
-    relevant_pred_region = preds != 0
+    relevant_region = gold_mask != BACKGROUND_CLASS
+    relevant_pred_region = preds != BACKGROUND_CLASS
     # use the relevant region to only select the pixels in the polygon
     # use the relevant_pred_region to only select the pixels in the pred polygon
     # that are not background pixels as classification errors are only
@@ -62,7 +63,7 @@ def calculate_misclassified_class(
     # not the correct class
     areas = np.bincount(incorrect_pixels)
     for i, incorrect_area in enumerate(areas):
-        if incorrect_area / area > ERROR_THRES:
+        if incorrect_area / area > ERROR_THRESHOLD:
             return i
     return None
 
@@ -89,7 +90,7 @@ def calculate_misclassified_polygons(
         accuracy, misclassified_label = polygon_accuracy(
             pred_mask, out_polygon, polygon.label_idx
         )
-        if accuracy < ERROR_THRES:
+        if accuracy < ERROR_THRESHOLD:
             polygon.error_type = ErrorType.classification
             if misclassified_label is not None:
                 polygon.misclassified_class_label = misclassified_label
@@ -142,7 +143,7 @@ def calculate_undetected_polygons(
     """
     for polygon in gold_polygons:
         polygon_img = draw_polygon(polygon, pred_mask.shape[-2:])
-        if undetected_accuracy(pred_mask, polygon_img) > ERROR_THRES:
+        if undetected_accuracy(pred_mask, polygon_img) > ERROR_THRESHOLD:
             polygon.error_type = ErrorType.undetected
 
 
@@ -179,7 +180,7 @@ def calculate_dep_polygon(
     Returns:
         dep_score (float): mean dep score for the polygon
     """
-    relevant_region = polygon_img != 0
+    relevant_region = polygon_img != BACKGROUND_CLASS
     dep_score = dep_map[relevant_region].mean()
     return dep_score
 
@@ -214,21 +215,18 @@ def calculate_dep_polygons_batch(
             polygon.data_error_potential = calculate_dep_polygon(dep_map, polygon_img)
 
 
-def calculate_ghost_polygons_batch(
-    gold_masks: torch.Tensor,
-    pred_polygons_batch: List[List[Polygon]],
-) -> None:
-    """Finds pred polygons predicted on background space that
-    should be flagged as ghost objects. Algorithm is if 50 of the predicted
-    pixels are background in the gold mask then it is a ghost object.
+def calculate_amount_ghosted(polygon_img: np.ndarray, gold_mask: np.ndarray) -> float:
+    """Calculates the amount of background in the gt of a polygon
     Args:
-        gold_masks (torch.Tensor): gold masks for an image
-        pred_polygons_batch (List[List[Polygon]]): pred_polgons to be examined
+        polygon_im (np.ndarray): np array of the polygon drawn onto an image
+        gold_mask (torch.Tensor): gold mask to compare to
+    Returns:
+        float: percentage of pixels in pred polygon that have background in gt
     """
-    for idx in range(len(gold_masks)):
-        gold_mask = gold_masks[idx].numpy()
-        pred_polygons = pred_polygons_batch[idx]
-        calculate_ghost_polygons(gold_mask, pred_polygons)
+    relevant_region = polygon_img != BACKGROUND_CLASS
+    return (gold_mask == BACKGROUND_CLASS)[
+        relevant_region
+    ].sum() / relevant_region.sum()
 
 
 def calculate_ghost_polygons(
@@ -246,17 +244,22 @@ def calculate_ghost_polygons(
         polygon_img = draw_polygon(polygon, gold_mask.shape[-2:])
         ghost_percentage = calculate_amount_ghosted(polygon_img, gold_mask)
         polygon.ghost_percentage = ghost_percentage
-        if ghost_percentage > GHOST_THRESHOLD:
+        if ghost_percentage > ERROR_THRESHOLD:
             polygon.error_type = ErrorType.ghost
 
 
-def calculate_amount_ghosted(polygon_im: np.ndarray, gold_mask: np.ndarray) -> float:
-    """Calculates the amount of background in the gt of a polygon
+def calculate_ghost_polygons_batch(
+    gold_masks: torch.Tensor,
+    pred_polygons_batch: List[List[Polygon]],
+) -> None:
+    """Finds pred polygons predicted on background space that
+    should be flagged as ghost objects. Algorithm is if 50 of the predicted
+    pixels are background in the gold mask then it is a ghost object.
     Args:
-        polygon_im (np.ndarray): np array of the polygon drawn onto an image
-        gold_mask (torch.Tensor): gold mask to compare to
-    Returns:
-        float: percentage of pixels in pred polygon that have background in gt
+        gold_masks (torch.Tensor): gold masks for an image
+        pred_polygons_batch (List[List[Polygon]]): pred_polgons to be examined
     """
-    relevant_region = polygon_im != 0
-    return (gold_mask == 0)[relevant_region].sum() / relevant_region.sum()
+    for idx in range(len(gold_masks)):
+        gold_mask = gold_masks[idx].numpy()
+        pred_polygons = pred_polygons_batch[idx]
+        calculate_ghost_polygons(gold_mask, pred_polygons)

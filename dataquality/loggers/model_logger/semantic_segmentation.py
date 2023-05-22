@@ -12,8 +12,8 @@ from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelL
 from dataquality.schemas.semantic_segmentation import Polygon
 from dataquality.schemas.split import Split
 from dataquality.utils.semantic_segmentation.errors import (
-    calculate_ghost_polygons_batch,
     calculate_dep_polygons_batch,
+    calculate_ghost_polygons_batch,
     calculate_misclassified_polygons_batch,
     calculate_undetected_polygons_batch,
 )
