@@ -234,12 +234,13 @@ def add_dep_to_polygons_batch(
             polygon_img = draw_polygon(polygon, dep_map.shape)
             polygon.data_error_potential = calculate_dep_polygon(dep_map, polygon_img)
 
+
 def add_lm_polygons_batch(
     mislabeled_pixels: torch.Tensor,
     gold_polygons_batch: List[List[Polygon]],
     pred_polygons_batch: List[List[Polygon]],
     heights: List[int],
-    widths: List[int]
+    widths: List[int],
 ) -> None:
     """Calculate and attach the LM percentage per polygon in a batch
     Args:
@@ -247,9 +248,11 @@ def add_lm_polygons_batch(
         polygons_batch (List[List[Polygon]]): polygons for each image
         shape (Tuple[int, int]): shape of the image to be resized to
     """
-    
+
     for idx in range(len(mislabeled_pixels)):
-        mislabeled_pixels = interpolate_lm_map(mislabeled_pixels[idx], heights[idx], widths[idx])
+        mislabeled_pixels = interpolate_lm_map(
+            mislabeled_pixels[idx], heights[idx], widths[idx]
+        )
         mislabeled_pixel_map = mislabeled_pixels[idx].numpy()
 
         gold_polygons = gold_polygons_batch[idx]
@@ -296,10 +299,10 @@ def interpolate_lm_map(
     Returns:
         np.ndarray: interpolated map of bs, h, w of mislabled pixels
     """
-    # for interpolate need to be in format bs, c, h, w
-    mislabelled_pixel_maps = mislabelled_pixel_maps.unsqueeze(0).unsqueeze(0)
-    mislabelled_pixel_maps = F.interpolate(
-        mislabelled_pixel_maps, size=(height, width), mode="nearest"
+    # for interpolate need to be in format bs, c, h, w and right now we only have h, w
+    mislabelled_pixel_map = mislabelled_pixel_map.unsqueeze(0).unsqueeze(0)
+    mislabelled_pixel_map = F.interpolate(
+        mislabelled_pixel_map, size=(height, width), mode="nearest"
     )
 
-    return mislabelled_pixel_maps.squeeze(1)
+    return mislabelled_pixel_map.squeeze(0).squeeze(0)

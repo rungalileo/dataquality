@@ -14,7 +14,6 @@ from dataquality.schemas.split import Split
 from dataquality.utils.semantic_segmentation.errors import (
     add_background_errors_to_polygons_batch,
     add_classification_error_to_polygons_batch,
-    add_lm_polygons_batch,
     add_dep_to_polygons_batch,
 )
 from dataquality.utils.semantic_segmentation.lm import upload_mislabeled_pixels
