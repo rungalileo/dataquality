@@ -193,7 +193,7 @@ def calculate_dep_polygons_batch(
     dep score to the mean dep score
 
     Args:
-        polygons_batch (List[List[[Polygon]]): list of the gold polygons
+        polygons_batch (List[List[[Polygon]]): list of the polygons (gold or pred)
             for an image
         dep_heatmaps (np.ndarray): heatmaps of DEP scores for an image
         height (int): height of original image to resize the dep map to the correct
