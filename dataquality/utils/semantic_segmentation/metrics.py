@@ -181,9 +181,44 @@ def calculate_mean_iou(
     return mean_ious, per_class_ious, per_class_area
 
 
-def calculate_area_per_polygon_batch(
+def calculate_polygon_area(
+    polygon: Polygon,
+    height: int,
+    width: int,
+) -> int:
+    """Calculates the area for a polygon
+    Args:
+        polygon (Polygon): polygon to calculate area for
+        height (int)
+        width (int)
+
+    Returns:
+        int: area of the polygon
+    """
+    polygon_img = draw_polygon(polygon, (height, width))
+    return polygon_img.sum()
+
+
+def add_area_to_polygons(
+    polygons: List[Polygon],
+    height: int,
+    width: int,
+) -> None:
+    """Adds the area of each polygon in an image to the obj
+
+    Args:
+        polygons (List[Polygon]): list of each images polygons
+        height (int)
+        width (int)
+    """
+    for polygon in polygons:
+        polygon.area = calculate_polygon_area(polygon, height, width)
+
+
+def add_area_to_polygons_batch(
     polygon_batch: List[List[Polygon]],
-    size: Tuple[int, int],
+    heights: List[int],
+    widths: List[int],
 ) -> None:
     """Calculates the area for every polygon in a btach
     Args:
@@ -191,32 +226,4 @@ def calculate_area_per_polygon_batch(
         size (Tuple[int, int]): shape to draw the polygons onto
     """
     for idx in range(len(polygon_batch)):
-        calculate_area_per_polygon(polygon_batch[idx], size)
-
-
-def calculate_area_per_polygon(
-    polygons: List[Polygon],
-    size: Tuple[int, int],
-) -> None:
-    """Calculates the area for every polygon in an image
-    Args:
-        polygons (List[Polygon]): list of each images polygons
-        size (Tuple[int, int]): shape to draw the polygons onto
-    """
-    for polygon in polygons:
-        polygon.area = calculate_area(polygon, size)
-
-
-def calculate_area(
-    polygon: Polygon,
-    size: Tuple[int, int],
-) -> int:
-    """Calculates the area for a polygon
-    Args:
-        polygon (Polygon): polygon to calculate area for
-        size (Tuple[int, int]): shape to draw the polygons onto
-    Returns:
-        float: area of the polygon
-    """
-    polygon_img = draw_polygon(polygon, size)
-    return polygon_img.sum()
+        add_area_to_polygons(polygon_batch[idx], heights[idx], widths[idx])

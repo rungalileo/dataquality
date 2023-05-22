@@ -223,8 +223,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             width=widths,
         )
 
-        calculate_area_per_polygon_batch(pred_polygons_batch, (heights[0], widths[0]))
-        calculate_area_per_polygon_batch(gold_polygons_batch, (heights[0], widths[0]))
+        add_area_to_polygons_batch(pred_polygons_batch, heights, widths)
+        add_area_to_polygons_batch(gold_polygons_batch, heights, widths)
 
         image_data = {
             "image": [f"{self.bucket_url}/{pth}" for pth in self.image_paths],
