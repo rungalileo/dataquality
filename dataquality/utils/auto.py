@@ -7,7 +7,7 @@ from random import choice
 from typing import List, Optional, Union
 
 import pandas as pd
-from datasets import Dataset, DatasetDict, load_dataset
+from datasets import ClassLabel, Dataset, DatasetDict, load_dataset
 
 from dataquality.exceptions import GalileoException, GalileoWarning
 from dataquality.schemas.split import Split
@@ -91,7 +91,16 @@ def add_val_data_if_missing(dd: DatasetDict) -> DatasetDict:
         GalileoWarning,
     )
     ds_train = dd[Split.train]
-    ds_train_test = ds_train.train_test_split(train_size=0.8, seed=42)
+    label_col: Optional[str]
+    for label_col in ["tags", "ner_tags", "label"]:
+        if label_col in ds_train.features:
+            break
+    assert label_col in ds_train.features, "Must have label, ner_tags, or tags"
+    # Can only stratify by a ClassLabel
+    is_classlabel = isinstance(ds_train.features[label_col], ClassLabel)
+    ds_train_test = ds_train.train_test_split(
+        train_size=0.8, seed=42, stratify_by_column=label_col if is_classlabel else None
+    )
     dd[Split.train] = ds_train_test["train"]
     dd[Split.validation] = ds_train_test["test"]
     return dd
