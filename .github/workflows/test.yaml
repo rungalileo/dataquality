@@ -11,10 +11,9 @@ env:
   GALILEO_API_URL: "http://localhost:8000"
 
 jobs:
-  ci:
-    runs-on: self-hosted
   test:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
+    # runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: [3.7, 3.8, 3.9]
