@@ -338,11 +338,19 @@ def temporary_cfg_for_val(cfg: Dict, split: Split, ds_path: str = "") -> str:
             # Check if the path exists
             print("cfg_path 2")
             print(str(cfg_path))
+            start_path = "/home/runner/work/dataquality/dataquality/"
+            print(os.listdir(start_path))
+            start_path += "tests"
+            print(os.listdir(start_path))
+            start_path += "/assets"
+            print(os.listdir(start_path))
+            start_path += "/yolo-demo"
+            print(os.listdir(start_path))
+            start_path += "/data"
+            print(os.listdir(start_path))
+
             # ls /home/runner/work/dataquality/dataquality
-            bla = os.listdir(
-                "/home/runner/work/dataquality/dataquality/tests/assets/yolo-demo/data"
-            )
-            print(bla)
+
             print(cfg_path.exists())
             print(os.path.isdir(str(cfg_path)))
             print(cfg_path.is_dir())
