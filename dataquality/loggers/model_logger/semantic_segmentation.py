@@ -12,10 +12,9 @@ from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelL
 from dataquality.schemas.semantic_segmentation import Polygon
 from dataquality.schemas.split import Split
 from dataquality.utils.semantic_segmentation.errors import (
-    calculate_dep_polygons_batch,
-    calculate_ghost_polygons_batch,
+    add_dep_to_polygons_batch,
+    add_undetected_or_ghost_to_polygons_batch,
     calculate_misclassified_polygons_batch,
-    calculate_undetected_polygons_batch,
 )
 from dataquality.utils.semantic_segmentation.lm import upload_mislabeled_pixels
 from dataquality.utils.semantic_segmentation.metrics import (
@@ -130,7 +129,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         golds = []
         data_error_potentials = []
         errors = []
-        ghost_percentages = []
+        error_pcts = []
         for i, image_id in enumerate(self.image_ids):
             pred_polygons = pred_polygons_batch[i]
             for polygon in pred_polygons:
@@ -139,7 +138,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 golds.append(-1)
                 data_error_potentials.append(polygon.data_error_potential)
                 errors.append(polygon.error_type.value)
-                ghost_percentages.append(polygon.ghost_percentage)
+                error_pcts.append(polygon.error_pct)
                 upload_polygon_contours(polygon, self.contours_path)
                 polygon_ids.append(polygon.uuid)
             gold_polygons = gold_polygons_batch[i]
@@ -149,7 +148,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 golds.append(polygon.label_idx)
                 data_error_potentials.append(polygon.data_error_potential)
                 errors.append(polygon.error_type.value)
-                ghost_percentages.append(polygon.ghost_percentage)
+                error_pcts.append(polygon.error_pct)
                 upload_polygon_contours(polygon, self.contours_path)
                 polygon_ids.append(polygon.uuid)
 
@@ -160,7 +159,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "gold": golds,
             "data_error_potential": data_error_potentials,
             "galileo_error_type": errors,
-            "ghost_percentage": ghost_percentages,
+            "error_pct": error_pcts,
             "split": [self.split] * len(image_ids),
             "is_pred": [False if i == -1 else True for i in preds],
             "is_gold": [False if i == -1 else True for i in golds],
@@ -194,18 +193,22 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         )
         # Errors
         calculate_misclassified_polygons_batch(self.pred_masks, gold_polygons_batch)
-        calculate_undetected_polygons_batch(self.pred_masks, gold_polygons_batch)
-        calculate_ghost_polygons_batch(self.gold_masks, pred_polygons_batch)
+        add_undetected_or_ghost_to_polygons_batch(
+            self.pred_masks, gold_polygons_batch, "gold"
+        )
+        add_undetected_or_ghost_to_polygons_batch(
+            self.gold_masks, pred_polygons_batch, "pred"
+        )
         heights = [img.shape[-1] for img in self.gold_masks]
         widths = [img.shape[-2] for img in self.gold_masks]
 
-        calculate_dep_polygons_batch(
+        add_dep_to_polygons_batch(
             gold_polygons_batch,
             dep_heatmaps.numpy(),
             height=heights,
             width=widths,
         )
-        calculate_dep_polygons_batch(
+        add_dep_to_polygons_batch(
             pred_polygons_batch,
             dep_heatmaps.numpy(),
             height=heights,
