@@ -1,4 +1,3 @@
-import os
 import time
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -315,10 +314,6 @@ def temporary_cfg_for_val(cfg: Dict, split: Split, ds_path: str = "") -> str:
         cfg_copy[csplit] = new_value
     if "path" in cfg_copy:
         cfg_path = cfg_copy["path"]
-        print("cfg_path")
-        print(cfg_path)
-        print("ds_path")
-        print(ds_path)
         # check if cfg path is relative or absolute with pathlib
         # if relative then make it absolute
         # if absolute then leave it as it is
