@@ -314,13 +314,13 @@ def temporary_cfg_for_val(cfg: Dict, split: Split, ds_path: str = "") -> str:
     for csplit in ["train", "val", "test"]:
         cfg_copy[csplit] = new_value
     if "path" in cfg_copy:
-        cfg_path = cfg_copy["path"]
+        cfg_path = Path(cfg_copy["path"])
         # check if cfg path is relative or absolute with pathlib
         # if relative then make it absolute
         # if absolute then leave it as it is
         # if cfg_path is relative then it is relative to ds_path
         # which can be relative to pwd
-        if not Path(cfg_path).is_absolute():
+        if not cfg_path.is_absolute():
             pre_path = Path(ds_path).resolve()
             # if pre_path is a file then get its parent
             if pre_path.is_file():
@@ -332,8 +332,11 @@ def temporary_cfg_for_val(cfg: Dict, split: Split, ds_path: str = "") -> str:
             start_path = "/home/runner/work/dataquality/dataquality/"
             print(os.listdir(start_path))
             print(os.listdir(start_path + "tests/assets/yolo-demo"))
-            # Check if the path exists
-            if not cfg_path.exists():
+            # Check if the folder cfg_path exists
+            if os.path.isdir(cfg_path):
+                print("cfg_path exists")
+                print(cfg_path.exists())
+                print(cfg_path.is_dir())
                 cfg_copy["path"] = str(cfg_path)
             else:
                 print("cfg_path does not exist")
