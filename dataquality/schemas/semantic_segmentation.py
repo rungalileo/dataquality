@@ -22,6 +22,18 @@ class ErrorType(str, Enum):
     none = None
 
 
+class IoUType(str, Enum):
+    mean = "mean"
+    boundary = "boundary"
+
+
+class IouData(BaseModel):
+    iou: float
+    iou_per_class: List[float]
+    area_per_class: List[int]
+    iou_type: IoUType
+
+
 class Pixel(BaseModel):
     x: int
     y: int
@@ -55,6 +67,8 @@ class Polygon(BaseModel):
     background_error_pct: Optional[float] = None
     contours: List[Contour]
     data_error_potential: Optional[float] = None
+    ghost_percentage: Optional[float] = None
+    area: Optional[int] = None
 
     @property
     def contours_opencv(self) -> List[np.ndarray]:
