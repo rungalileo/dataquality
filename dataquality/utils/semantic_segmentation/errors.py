@@ -8,6 +8,7 @@ from dataquality.schemas.semantic_segmentation import ErrorType, Polygon
 from dataquality.utils.semantic_segmentation.polygons import draw_polygon
 
 ERROR_THRES = 0.5
+GHOST_THRESHOLD = .5
 
 
 def polygon_accuracy(
@@ -212,3 +213,51 @@ def calculate_dep_polygons_batch(
         for polygon in gold_polygons:
             polygon_img = draw_polygon(polygon, dep_map.shape)
             polygon.data_error_potential = calculate_dep_polygon(dep_map, polygon_img)
+
+
+def calculate_ghost_polygons_batch(
+    gold_masks: torch.Tensor,
+    pred_polygons_batch: List[List[Polygon]],
+) -> None:
+    """Finds pred polygons predicted on background space that
+    should be flagged as ghost objects. Algorithm is if 50 of the predicted
+    pixels are background in the gold mask then it is a ghost object.
+    Args:
+        gold_masks (torch.Tensor): gold masks for an image
+        pred_polygons_batch (List[List[Polygon]]): pred_polgons to be examined
+    """
+    for idx in range(len(gold_masks)):
+        gold_mask = gold_masks[idx].numpy()
+        pred_polygons = pred_polygons_batch[idx]
+        calculate_ghost_polygons(gold_mask, pred_polygons)
+
+
+def calculate_ghost_polygons(
+    gold_mask: np.ndarray,
+    pred_polygons: List[Polygon],
+) -> None:
+    """Finds pred polygons predicted on background space that
+    should be flagged as ghost objects. Algorithm is if 50 of the predicted
+    pixels are background in the gold mask then it is a ghost object.
+    Args:
+        gold_mask (np.ndarray): gold masks for an image
+        pred_polygons (List[Polygon]): pred_polgons to be examined
+    """
+    for polygon in pred_polygons:
+        polygon_img = draw_polygon(polygon, gold_mask.shape[-2:])
+        ghost_percentage = calculate_amount_ghosted(polygon_img, gold_mask)
+        polygon.ghost_percentage = ghost_percentage
+        if ghost_percentage > GHOST_THRESHOLD:
+            polygon.error_type = ErrorType.ghost
+
+
+def calculate_amount_ghosted(polygon_im: np.ndarray, gold_mask: np.ndarray) -> float:
+    """Calculates the amount of background in the gt of a polygon
+    Args:
+        polygon_im (np.ndarray): np array of the polygon drawn onto an image
+        gold_mask (torch.Tensor): gold mask to compare to
+    Returns:
+        float: percentage of pixels in pred polygon that have background in gt
+    """
+    relevant_region = polygon_im != 0
+    return (gold_mask == 0)[relevant_region].sum() / relevant_region.sum()
