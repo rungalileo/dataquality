@@ -485,7 +485,7 @@ def set_labels_for_run(labels: Union[List[List[str]], List[str]]) -> None:
     task-order of the task-probabilities logged as well.
     """
     if get_data_logger().logger_config.existing_run:
-        if sorted(labels) != sorted(get_data_logger().logger_config.labels):
+        if sorted(list(labels)) != sorted(get_data_logger().logger_config.labels):
             raise GalileoException(
                 "This run already has data logged to Galileo, and labels have been "
                 "set. You cannot change the labels of an existing run. If you need new "
