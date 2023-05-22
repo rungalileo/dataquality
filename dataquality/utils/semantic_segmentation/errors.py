@@ -235,7 +235,36 @@ def add_dep_to_polygons_batch(
             polygon.data_error_potential = calculate_dep_polygon(dep_map, polygon_img)
 
 
-def add_lm_polygons_batch(
+def add_lm_to_polygon(
+    mislabelled_pixel_map: torch.Tensor, polygon_img: np.ndarray
+) -> float:
+    """Calculates the percentage of mislabelled pixels in a polygon
+    Args:
+        mislabelled_pixel_map (torch.Tensor): map of bs, h, w of mislabled pixels
+        polygon_img (np.ndarray): np array of the polygon drawn onto an image
+    Returns:
+        float: percentage of mislabelled pixels in a polygon
+    """
+    relevant_region = polygon_img != 0
+    if relevant_region.sum() == 0:
+        return 0
+    return (mislabelled_pixel_map != 0)[relevant_region].sum() / relevant_region.sum()
+
+
+def add_lm_to_polygons(
+    mislabelled_pixel_map: torch.Tensor, polygons: List[Polygon]
+) -> None:
+    """Calculates and attaches the LM percentage to each polygon
+    Args:
+        mislabelled_pixel_map (torch.Tensor): map of bs, h, w of mislabled pixels
+        gold_polygons (List[Polygon]): list of all gold polygons for an image
+    """
+    for polygon in polygons:
+        polygon_img = draw_polygon(polygon, mislabelled_pixel_map.shape[-2:])
+        polygon.likely_mislabelled_pct = add_lm_to_polygon(mislabelled_pixel_map, polygon_img)
+
+
+def add_lm_to_polygons_batch(
     mislabeled_pixels: torch.Tensor,
     gold_polygons_batch: List[List[Polygon]],
     pred_polygons_batch: List[List[Polygon]],
@@ -257,37 +286,8 @@ def add_lm_polygons_batch(
 
         gold_polygons = gold_polygons_batch[idx]
         pred_polygons = pred_polygons_batch[idx]
-        add_lm_polygons(mislabeled_pixel_map, gold_polygons)
-        add_lm_polygons(mislabeled_pixel_map, pred_polygons)
-
-
-def add_lm_polygons(
-    mislabelled_pixel_map: torch.Tensor, polygons: List[Polygon]
-) -> None:
-    """Calculates and attaches the LM percentage to each polygon
-    Args:
-        mislabelled_pixel_map (torch.Tensor): map of bs, h, w of mislabled pixels
-        gold_polygons (List[Polygon]): list of all gold polygons for an image
-    """
-    for polygon in polygons:
-        polygon_img = draw_polygon(polygon, mislabelled_pixel_map.shape[-2:])
-        polygon.lm_percentage = add_lm_polygon(mislabelled_pixel_map, polygon_img)
-
-
-def add_lm_polygon(
-    mislabelled_pixel_map: torch.Tensor, polygon_img: np.ndarray
-) -> float:
-    """Calculates the percentage of mislabelled pixels in a polygon
-    Args:
-        mislabelled_pixel_map (torch.Tensor): map of bs, h, w of mislabled pixels
-        polygon_img (np.ndarray): np array of the polygon drawn onto an image
-    Returns:
-        float: percentage of mislabelled pixels in a polygon
-    """
-    relevant_region = polygon_img != 0
-    if relevant_region.sum() == 0:
-        return 0
-    return (mislabelled_pixel_map != 0)[relevant_region].sum() / relevant_region.sum()
+        add_lm_to_polygons(mislabeled_pixel_map, gold_polygons)
+        add_lm_to_polygons(mislabeled_pixel_map, pred_polygons)
 
 
 def interpolate_lm_map(
@@ -300,9 +300,11 @@ def interpolate_lm_map(
         np.ndarray: interpolated map of bs, h, w of mislabled pixels
     """
     # for interpolate need to be in format bs, c, h, w and right now we only have h, w
+    # this results in mislabelled_pixel_map.shape = (1, 1, h, w)
     mislabelled_pixel_map = mislabelled_pixel_map.unsqueeze(0).unsqueeze(0)
     mislabelled_pixel_map = F.interpolate(
         mislabelled_pixel_map, size=(height, width), mode="nearest"
     )
 
+    # squeeze the extra dimensions back to (h, w)
     return mislabelled_pixel_map.squeeze(0).squeeze(0)

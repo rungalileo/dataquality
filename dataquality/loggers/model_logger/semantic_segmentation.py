@@ -15,7 +15,7 @@ from dataquality.utils.semantic_segmentation.errors import (
     add_background_errors_to_polygons_batch,
     add_classification_error_to_polygons_batch,
     add_dep_to_polygons_batch,
-    add_lm_polygons_batch,
+    add_lm_to_polygons_batch,
 )
 from dataquality.utils.semantic_segmentation.lm import upload_mislabeled_pixels
 from dataquality.utils.semantic_segmentation.metrics import (
@@ -133,7 +133,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         errors = []
         background_error_pcts = []
         polygon_areas = []
-        lm_percentages = []
+        lm_pcts = []
         for i, image_id in enumerate(self.image_ids):
             pred_polygons = pred_polygons_batch[i]
             for polygon in pred_polygons:
@@ -144,7 +144,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 errors.append(polygon.error_type.value)
                 background_error_pcts.append(polygon.background_error_pct)
                 polygon_areas.append(polygon.area)
-                lm_percentages.append(polygon.lm_percentage)
+                lm_pcts.append(polygon.likely_mislabelled_pct)
                 upload_polygon_contours(polygon, self.contours_path)
                 polygon_ids.append(polygon.uuid)
             gold_polygons = gold_polygons_batch[i]
@@ -156,7 +156,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 errors.append(polygon.error_type.value)
                 background_error_pcts.append(polygon.background_error_pct)
                 polygon_areas.append(polygon.area)
-                lm_percentages.append(polygon.lm_percentage)
+                lm_pcts.append(polygon.likely_mislabelled_pct)
                 upload_polygon_contours(polygon, self.contours_path)
                 polygon_ids.append(polygon.uuid)
 
@@ -169,7 +169,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "galileo_error_type": errors,
             "background_error_pct": background_error_pcts,
             "area": polygon_areas,
-            "likely_mislabeled_percentage": lm_percentages,
+            "likely_mislabeled_pct": lm_pcts,
             "split": [self.split] * len(image_ids),
             "is_pred": [False if i == -1 else True for i in preds],
             "is_gold": [False if i == -1 else True for i in golds],
@@ -234,7 +234,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         add_area_to_polygons_batch(pred_polygons_batch, heights, widths)
         add_area_to_polygons_batch(gold_polygons_batch, heights, widths)
 
-        add_lm_polygons_batch(
+        add_lm_to_polygons_batch(
             self.mislabled_pixels,
             gold_polygons_batch,
             pred_polygons_batch,

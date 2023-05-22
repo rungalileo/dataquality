@@ -69,7 +69,7 @@ class Polygon(BaseModel):
     data_error_potential: Optional[float] = None
     ghost_percentage: Optional[float] = None
     area: Optional[int] = None
-    lm_percentage: Optional[float] = None
+    likely_mislabelled_pct: Optional[float] = None
 
     @property
     def contours_opencv(self) -> List[np.ndarray]:
