@@ -235,19 +235,22 @@ def add_dep_to_polygons_batch(
             polygon.data_error_potential = calculate_dep_polygon(dep_map, polygon_img)
 
 
-def add_lm_to_polygon(
+def calculate_lm_pct(
     mislabeled_pixel_map: torch.Tensor, polygon_img: np.ndarray
 ) -> float:
     """Calculates the percentage of mislabeled pixels in a polygon
+
     Args:
         mislabeled_pixel_map (torch.Tensor): map of bs, h, w of mislabled pixels
+            with value 1 if LM, 0 otherwise
         polygon_img (np.ndarray): np array of the polygon drawn onto an image
     Returns:
         float: percentage of mislabeled pixels in a polygon
     """
-    relevant_region = polygon_img != 0
+    relevant_region = polygon_img != BACKGROUND_CLASS
     if relevant_region.sum() == 0:
         return 0
+
     return (mislabeled_pixel_map != 0)[relevant_region].sum() / relevant_region.sum()
 
 
@@ -261,7 +264,7 @@ def add_lm_to_polygons(
     """
     for polygon in polygons:
         polygon_img = draw_polygon(polygon, mislabeled_pixel_map.shape[-2:])
-        polygon.likely_mislabeled_pct = add_lm_to_polygon(
+        polygon.likely_mislabeled_pct = calculate_lm_pct(
             mislabeled_pixel_map, polygon_img
         )
 
