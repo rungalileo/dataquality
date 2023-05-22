@@ -188,7 +188,7 @@ def calculate_mean_iou(
         iou_data.append(
             IouData(
                 iou=iou["mean_iou"].item(),
-                iou_per_class=iou["per_category_iou"],
+                iou_per_class=iou["per_category_iou"].tolist(),
                 area_per_class=calculate_union_area(pred_masks[i], gold_masks[i], nc),
                 iou_type=iou_type,
             )

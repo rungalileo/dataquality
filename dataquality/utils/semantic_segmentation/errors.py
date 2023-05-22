@@ -280,10 +280,9 @@ def add_lm_to_polygons_batch(
     """
 
     for idx in range(len(mislabeled_pixels)):
-        mislabeled_pixels = interpolate_lm_map(
+        mislabeled_pixel_map = interpolate_lm_map(
             mislabeled_pixels[idx], heights[idx], widths[idx]
-        )
-        mislabeled_pixel_map = mislabeled_pixels[idx].numpy()
+        ).numpy()
 
         gold_polygons = gold_polygons_batch[idx]
         pred_polygons = pred_polygons_batch[idx]
@@ -302,10 +301,9 @@ def interpolate_lm_map(
     """
     # for interpolate need to be in format bs, c, h, w and right now we only have h, w
     # this results in mislabeled_pixel_map.shape = (1, 1, h, w)
-    mislabeled_pixel_map = mislabeled_pixel_map.unsqueeze(0).unsqueeze(0)
-    mislabeled_pixel_map = F.interpolate(
-        mislabeled_pixel_map, size=(height, width), mode="nearest"
+    mislabeled_pixel_map_unsqueezed = mislabeled_pixel_map.unsqueeze(0).unsqueeze(0)
+    mislabeled_pixel_map_interpolated = F.interpolate(
+        mislabeled_pixel_map_unsqueezed, size=(height, width), mode="nearest"
     )
-
     # squeeze the extra dimensions back to (h, w)
-    return mislabeled_pixel_map.squeeze(0).squeeze(0)
+    return mislabeled_pixel_map_interpolated.squeeze(0).squeeze(0)
