@@ -327,33 +327,11 @@ def temporary_cfg_for_val(cfg: Dict, split: Split, ds_path: str = "") -> str:
         if not Path(cfg_path).is_absolute():
             pre_path = Path(ds_path).resolve()
             # if pre_path is a file then get its parent
-            print("pre_path")
-            print(pre_path)
-            print("cwd")
-            print(os.getcwd())
             if pre_path.is_file():
                 pre_path = pre_path.parent
 
             cfg_path = pre_path / cfg_path
             # Check if the path exists
-            print("cfg_path 2")
-            print(str(cfg_path))
-            start_path = "/home/runner/work/dataquality/dataquality/"
-            print(os.listdir(start_path))
-            start_path += "tests"
-            print(os.listdir(start_path))
-            start_path += "/assets"
-            print(os.listdir(start_path))
-            start_path += "/yolo-demo"
-            print(os.listdir(start_path))
-            start_path += "/data"
-            print(os.listdir(start_path))
-
-            # ls /home/runner/work/dataquality/dataquality
-
-            print(cfg_path.exists())
-            print(os.path.isdir(str(cfg_path)))
-            print(cfg_path.is_dir())
             if not cfg_path.exists():
                 cfg_copy["path"] = str(cfg_path)
             else:

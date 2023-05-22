@@ -4,4 +4,4 @@
 
 ./scripts/lint.sh
 
-pytest -s tests/integrations/ultralytics
+pytest --cov=dataquality --cov=tests --cov-report=term-missing --cov-report=xml --durations=10 -o console_output_style=progress --disable-warnings ${@}
