@@ -134,6 +134,9 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         background_error_pcts = []
         polygon_areas = []
         lm_pcts = []
+        polygon_accuracy = []
+        mislabled_class = []
+        mislabled_class_pct = []
         for i, image_id in enumerate(self.image_ids):
             pred_polygons = pred_polygons_batch[i]
             for polygon in pred_polygons:
@@ -145,6 +148,13 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 background_error_pcts.append(polygon.background_error_pct)
                 polygon_areas.append(polygon.area)
                 lm_pcts.append(polygon.likely_mislabeled_pct)
+                polygon_accuracy.append(polygon.classification_data.accuracy)
+                mislabled_class.append(
+                    polygon.classification_data.dominant_mislabel_class
+                )
+                mislabled_class_pct.append(
+                    polygon.classification_data.dominant_mislabel_class_percent
+                )
                 upload_polygon_contours(polygon, self.contours_path)
                 polygon_ids.append(polygon.uuid)
             gold_polygons = gold_polygons_batch[i]
@@ -157,6 +167,13 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 background_error_pcts.append(polygon.background_error_pct)
                 polygon_areas.append(polygon.area)
                 lm_pcts.append(polygon.likely_mislabeled_pct)
+                polygon_accuracy.append(polygon.classification_data.accuracy)
+                mislabled_class.append(
+                    polygon.classification_data.dominant_mislabel_class
+                )
+                mislabled_class_pct.append(
+                    polygon.classification_data.dominant_mislabel_class_percent
+                )
                 upload_polygon_contours(polygon, self.contours_path)
                 polygon_ids.append(polygon.uuid)
 
@@ -170,6 +187,9 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "background_error_pct": background_error_pcts,
             "area": polygon_areas,
             "likely_mislabeled_pct": lm_pcts,
+            "polygon_accuracy": polygon_accuracy,
+            "mislabeled_class": mislabled_class,
+            "mislabeled_class_pct": mislabled_class_pct,
             "split": [self.split] * len(image_ids),
             "is_pred": [False if i == -1 else True for i in preds],
             "is_gold": [False if i == -1 else True for i in golds],

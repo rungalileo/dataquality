@@ -373,6 +373,9 @@ class SemanticTorchLogger(TorchLogger):
             logger.log()
 
     def finish(self) -> None:
+        # call to eval to make sure we are not in train mode for batch norm
+        # in batch norm with 1 example can get an error if we are in train mode
+        self.model.eval()
         self.called_finish = True
         # finish function that runs our inference at the end of training
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -381,6 +384,7 @@ class SemanticTorchLogger(TorchLogger):
             dq.set_epoch_and_split(0, Split[split])
             with torch.no_grad():
                 self.run_one_epoch(dataloader, device)
+        self.model.train()
 
     def run_one_epoch(self, dataloader: DataLoader, device: torch.device) -> None:
         if torch.cuda.is_available():

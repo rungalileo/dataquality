@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple
+from typing import List
 
 import numpy as np
 import torch
@@ -6,9 +6,9 @@ from PIL import Image
 from torch.nn import functional as F
 
 from dataquality.schemas.semantic_segmentation import (
+    ClassificationData,
     ErrorType,
     Polygon,
-    ClassificationData
 )
 from dataquality.utils.semantic_segmentation.constants import (
     BACKGROUND_CLASS,
@@ -17,13 +17,12 @@ from dataquality.utils.semantic_segmentation.constants import (
 from dataquality.utils.semantic_segmentation.polygons import draw_polygon
 
 
-
 def calcualte_classification_data(
     candidate_mask: np.ndarray,
     comparison_mask: np.ndarray,
     correct_class: int,
-    number_classes: int
-) -> Tuple[float, ClassificationData]:
+    number_classes: int,
+) -> ClassificationData:
     """Calculates the accuracy of one ground truth polygon
     accuracy = (number of correct pixels) / (number of pixels in polygon)
     as well as the class with the most incorrect pixels in that respective polyon
@@ -46,7 +45,9 @@ def calcualte_classification_data(
     # use the relevant_pred_region to only select the pixels in the pred polygon
     # that are not background pixels as classification errors are only
     # counted for non-background pixels
-    pointwise_accuracy = (candidate_mask == comparison_mask)[relevant_region & relevant_pred_region]
+    pointwise_accuracy = (candidate_mask == comparison_mask)[
+        relevant_region & relevant_pred_region
+    ]
     float_accuracy = pointwise_accuracy.sum() / relevant_region.sum()
 
     area = relevant_region.sum()
@@ -58,7 +59,9 @@ def calcualte_classification_data(
     areas = np.bincount(incorrect_pixels, minlength=number_classes)
     argmax = np.argmax(areas)
     return ClassificationData(
-        float_accuracy, argmax, areas[argmax] / area
+        accuracy=float_accuracy,
+        dominant_mislabel_class=argmax,
+        dominant_mislabel_class_percent=areas[argmax] / area,
     )
 
 
@@ -76,7 +79,7 @@ def add_classification_error_to_polygons(
     were correct, then the polygon is misclassified.
 
     Args:
-        mask (np.ndarray): mask of the image either gold or pred 
+        mask (np.ndarray): mask of the image either gold or pred
             depending on which polygons are being checked
         polygons (List[Polygon]): list of polygons to check
         number_classes (int): number of classes
@@ -99,7 +102,7 @@ def add_classification_error_to_polygons_batch(
     Also sets the error type field on the bad polygons to "misclassified"
 
     Args:
-        masks(torch.tensor): mask of the image either gold or pred 
+        masks(torch.tensor): mask of the image either gold or pred
             depending on which polygons are being checked
         polygons_batch(List[List[Polygon]]):
             list of polygons for each image in a batch
@@ -108,9 +111,7 @@ def add_classification_error_to_polygons_batch(
     for idx in range(len(masks)):
         gold_mask = masks[idx].numpy()
         pred_polygons = polygons_batch[idx]
-        add_classification_error_to_polygons(
-            gold_mask, pred_polygons, number_classes
-        )
+        add_classification_error_to_polygons(gold_mask, pred_polygons, number_classes)
 
 
 def background_accuracy(img_mask: np.ndarray, polygon_mask: np.ndarray) -> float:
