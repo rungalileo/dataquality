@@ -188,15 +188,15 @@ def test_get_dataset_from_huggingface_not_dataset(
 def test_validate_dataset_dict() -> None:
     """Tests that the validate function splits the train data into train/val"""
     ds = Dataset.from_dict(
-        {"text": ["sample1", "sample2", "sample3"], "label": [1, 0, 1]}
+        {"text": ["s1", "s2", "s3", "s4", "s5", "s6"], "label": [1, 0, 1, 0, 1, 0]}
     )
     dd = DatasetDict({"train": ds})
     new_dd = manager._validate_dataset_dict(dd, inference_names=[])
     assert Split.validation in new_dd
-    assert len(new_dd[Split.train]["id"]) == 2
-    assert len(new_dd[Split.validation]["id"]) == 1
+    assert len(new_dd[Split.train]["id"]) in (4, 5)
+    assert len(new_dd[Split.validation]["id"]) in (2, 3)
     all_ids = new_dd[Split.validation]["id"] + new_dd[Split.train]["id"]
-    assert sorted(all_ids) == [0, 1, 2]
+    assert sorted(all_ids) == [0, 1, 2, 3, 4, 5]
 
 
 def test_validate_dataset_dict_no_labels() -> None:
@@ -224,7 +224,10 @@ def test_get_dataset_dict_no_dataset(mock_load_dataset: mock.MagicMock) -> None:
     dd = DatasetDict(
         {
             "train": Dataset.from_dict(
-                {"text": ["sample1", "sample2", "sample3"], "label": [1, 0, 1]}
+                {
+                    "text": ["s1", "s2", "s3", "s4", "s5", "s6"],
+                    "label": [1, 0, 1, 0, 1, 0],
+                }
             )
         }
     )
@@ -251,7 +254,10 @@ def test_get_dataset_dict() -> None:
     dd = DatasetDict(
         {
             "train": Dataset.from_dict(
-                {"text": ["sample1", "sample2", "sample3"], "label": [1, 0, 1]}
+                {
+                    "text": ["s1", "s2", "s3", "s4", "s5", "s6"],
+                    "label": [1, 0, 1, 0, 1, 0],
+                }
             )
         }
     )
@@ -374,11 +380,13 @@ def test_call_auto_pandas_train_df_mixed_meta(
     mock_finish: mock.MagicMock,
     use_ids: bool,
 ) -> None:
+    labels = ["red", "green", "blue"]
+    metas = [0, "apple", 5.42]
     df_train = pd.DataFrame(
         {
-            "text": ["sample4", "sample5", "sample6"],
-            "label": ["red", "green", "blue"],
-            "meta_1": [0, "apple", 5.42],
+            "text": [f"sample{i+4}" for i in range(20)],
+            "label": [labels[i % 3] for i in range(20)],
+            "meta_1": [metas[i % 3] for i in range(20)],
         }
     )
     if use_ids:
@@ -393,16 +401,16 @@ def test_call_auto_pandas_train_df_mixed_meta(
     assert train_kwargs["meta"] == ["meta_1"]
     # Whether or not we provided the index IDs, they should be added and logged
     ds_logged_arg = train_args[0]
-    assert len(ds_logged_arg["id"]) == 2
+    assert len(ds_logged_arg["id"]) == 16
 
     val_args, val_kwargs = mock_log_dataset.call_args_list[1]
     assert val_kwargs["meta"] == ["meta_1"]
     # Whether or not we provided the index IDs, they should be added and logged
     val_ds_logged_arg = val_args[0]
-    assert len(val_ds_logged_arg["id"]) == 1
+    assert len(val_ds_logged_arg["id"]) == 4
 
     all_ids_logged = ds_logged_arg["id"] + val_ds_logged_arg["id"]
-    assert sorted(all_ids_logged) == [0, 1, 2]
+    assert sorted(all_ids_logged) == list(range(20))
 
 
 @mock.patch("dataquality.finish")
@@ -422,11 +430,13 @@ def test_call_auto_pandas_with_inference(
     mock_finish: mock.MagicMock,
     set_test_config: Callable,
 ) -> None:
+    labels = ["red", "green", "blue"]
+    metas = [0, "apple", 5.42]
     df_train = pd.DataFrame(
         {
-            "text": ["sample4", "sample5", "sample6"],
-            "label": ["red", "green", "blue"],
-            "meta_1": [0, "apple", 5.42],
+            "text": [f"sample{i + 4}" for i in range(20)],
+            "label": [labels[i % 3] for i in range(20)],
+            "meta_1": [metas[i % 3] for i in range(20)],
         }
     )
     df_inf = pd.DataFrame(
@@ -451,16 +461,16 @@ def test_call_auto_pandas_with_inference(
     assert train_kwargs["meta"] == ["meta_1"]
     # Whether or not we provided the index IDs, they should be added and logged
     ds_logged_arg = train_args[0]
-    assert len(ds_logged_arg["id"]) == 2
+    assert len(ds_logged_arg["id"]) == 16
 
     val_args, val_kwargs = mock_log_dataset.call_args_list[2]
     assert val_kwargs["meta"] == ["meta_1"]
     # Whether or not we provided the index IDs, they should be added and logged
     val_ds_logged_arg = val_args[0]
-    assert len(val_ds_logged_arg["id"]) == 1
+    assert len(val_ds_logged_arg["id"]) == 4
 
     all_ids_logged = ds_logged_arg["id"] + val_ds_logged_arg["id"]
-    assert sorted(all_ids_logged) == [0, 1, 2]
+    assert sorted(all_ids_logged) == list(range(20))
 
     # Inference split
     inf_args, inf_kwargs = mock_log_dataset.call_args_list[1]
