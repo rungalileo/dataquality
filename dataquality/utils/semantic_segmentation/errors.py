@@ -261,7 +261,9 @@ def add_lm_to_polygons(
     """
     for polygon in polygons:
         polygon_img = draw_polygon(polygon, mislabelled_pixel_map.shape[-2:])
-        polygon.likely_mislabelled_pct = add_lm_to_polygon(mislabelled_pixel_map, polygon_img)
+        polygon.likely_mislabelled_pct = add_lm_to_polygon(
+            mislabelled_pixel_map, polygon_img
+        )
 
 
 def add_lm_to_polygons_batch(
