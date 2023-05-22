@@ -1,4 +1,4 @@
-path: ./data
+path: ./demo_data
 train: images/train # train images (relative to 'path') 128 images
 val: images/test # val images (relative to 'path') 128 images
 bucket: s3://images.cocodataset.org
