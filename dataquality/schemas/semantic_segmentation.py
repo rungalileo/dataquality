@@ -13,6 +13,18 @@ class SemSegCols(str, Enum):
     # mixin restriction on str (due to "str".split(...))
     split = "split"  # type: ignore
     meta = "meta"
+    
+class ClassificationData(BaseModel):
+    """
+    accuracy: float the mean accuracy per pixel
+    mislabel_class: int the non ground truth class that had the most pixels
+       in the polygon
+    mislabel_class_percent: float the percentage of pixels in the polygon that were
+        classified as mislabel_class
+    """
+    accuracy: float
+    mislabel_class: int
+    mislabel_class_percent: float
 
 
 class ErrorType(str, Enum):
@@ -62,7 +74,7 @@ class Contour(BaseModel):
 class Polygon(BaseModel):
     uuid: str  # UUID4
     label_idx: int
-    misclassified_class_label: Optional[int] = None
+    classification_data: Optional[ClassificationData]
     error_type: ErrorType = ErrorType.none
     background_error_pct: Optional[float] = None
     contours: List[Contour]
