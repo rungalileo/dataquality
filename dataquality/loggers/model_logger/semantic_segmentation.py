@@ -18,8 +18,8 @@ from dataquality.utils.semantic_segmentation.errors import (
 )
 from dataquality.utils.semantic_segmentation.lm import upload_mislabeled_pixels
 from dataquality.utils.semantic_segmentation.metrics import (
-    calculate_area_per_polygon_batch,
     calculate_and_upload_dep,
+    calculate_area_per_polygon_batch,
     calculate_mean_iou,
 )
 from dataquality.utils.semantic_segmentation.polygons import (
@@ -223,10 +223,10 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             height=heights,
             width=widths,
         )
-        
+
         calculate_area_per_polygon_batch(pred_polygons_batch, (heights[0], widths[0]))
         calculate_area_per_polygon_batch(gold_polygons_batch, (heights[0], widths[0]))
-        
+
         image_data = {
             "image": [f"{self.bucket_url}/{pth}" for pth in self.image_paths],
             "id": self.image_ids,

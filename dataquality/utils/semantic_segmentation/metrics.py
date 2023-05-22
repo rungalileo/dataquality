@@ -125,6 +125,7 @@ def calculate_image_dep(dep_heatmap: torch.Tensor) -> List[float]:
     """
     return dep_heatmap.mean(dim=(1, 2)).tolist()
 
+
 def calculate_area_per_class(
     pred_masks: torch.Tensor, gold_masks: torch.Tensor, nc: int
 ) -> np.ndarray:
@@ -142,6 +143,7 @@ def calculate_area_per_class(
         torch.bincount(gold_masks.reshape(-1), minlength=nc).float().numpy()
     )
     return pred_per_class_area + gold_per_class_area
+
 
 def calculate_mean_iou(
     pred_masks: torch.Tensor, gold_masks: torch.Tensor, nc: int
@@ -177,6 +179,7 @@ def calculate_mean_iou(
             calculate_area_per_class(pred_masks[i], gold_masks[i], nc)
         )
     return mean_ious, per_class_ious, per_class_area
+
 
 def calculate_area_per_polygon_batch(
     polygon_batch: List[List[Polygon]],
