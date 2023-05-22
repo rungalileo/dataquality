@@ -18,6 +18,7 @@ class SemSegCols(str, Enum):
 class ErrorType(str, Enum):
     classification = "classification"
     undetected = "undetected"
+    ghost = "ghost"
     none = None
 
 
@@ -51,6 +52,7 @@ class Polygon(BaseModel):
     label_idx: int
     misclassified_class_label: Optional[int] = None
     error_type: ErrorType = ErrorType.none
+    error_pct: Optional[float] = None
     contours: List[Contour]
     data_error_potential: Optional[float] = None
 
