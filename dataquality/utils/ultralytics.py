@@ -1,3 +1,4 @@
+import os
 import time
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -326,6 +327,11 @@ def temporary_cfg_for_val(cfg: Dict, split: Split, ds_path: str = "") -> str:
                 pre_path = pre_path.parent
 
             cfg_path = pre_path / cfg_path
+            print("cfg_path is relative")
+            print(str(cfg_path))
+            start_path = "/home/runner/work/dataquality/dataquality/"
+            print(os.listdir(start_path))
+            print(os.listdir(start_path + "tests/assets/yolo-demo"))
             # Check if the path exists
             if not cfg_path.exists():
                 cfg_copy["path"] = str(cfg_path)
