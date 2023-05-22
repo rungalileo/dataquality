@@ -340,17 +340,17 @@ def _semseg_calculate_confidence_joint(
 
 
 def upload_mislabeled_pixels(
-    self_confidence: torch.Tensor, image_ids: List[int], prefix: str
+    mislabelled_pixels: torch.Tensor, image_ids: List[int], prefix: str
 ) -> None:
     """Uploads all self confidence values to minio
 
     Args:
-        self_confidence (torch.Tensor): bs, h, w of value at gold
+        mislabelled_pixels (torch.Tensor): bs, h, w of value at gold
         image_ids (List[int]): integer image ids
         prefix (str): prefix to upload to
     """
     for i, image_id in enumerate(image_ids):
-        img = (self_confidence[i].numpy() * 255).astype(np.uint8)
+        img = (mislabelled_pixels[i].numpy() * 255).astype(np.uint8)
         img = Image.fromarray(img, mode="L")
         img = img.resize((64, 64))
         upload_im(img, prefix, image_id)

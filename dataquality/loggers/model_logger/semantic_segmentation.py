@@ -14,6 +14,7 @@ from dataquality.schemas.split import Split
 from dataquality.utils.semantic_segmentation.errors import (
     add_background_errors_to_polygons_batch,
     add_classification_error_to_polygons_batch,
+    add_lm_polygons_batch,
     add_dep_to_polygons_batch,
 )
 from dataquality.utils.semantic_segmentation.lm import upload_mislabeled_pixels
@@ -132,6 +133,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         errors = []
         error_pcts = []
         polygon_areas = []
+        lm_percentages = []
         for i, image_id in enumerate(self.image_ids):
             pred_polygons = pred_polygons_batch[i]
             for polygon in pred_polygons:
@@ -142,6 +144,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 errors.append(polygon.error_type.value)
                 error_pcts.append(polygon.error_pct)
                 polygon_areas.append(polygon.area)
+                lm_percentages.append(polygon.lm_percentage)
                 upload_polygon_contours(polygon, self.contours_path)
                 polygon_ids.append(polygon.uuid)
             gold_polygons = gold_polygons_batch[i]
@@ -153,6 +156,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 errors.append(polygon.error_type.value)
                 error_pcts.append(polygon.error_pct)
                 polygon_areas.append(polygon.area)
+                lm_percentages.append(polygon.lm_percentage)
                 upload_polygon_contours(polygon, self.contours_path)
                 polygon_ids.append(polygon.uuid)
 
