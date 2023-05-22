@@ -185,9 +185,9 @@ def get_mislabeled_by_class_confidence(
         bool_ids = sorted_ids[bool_mask]
         mislabeled_ids += bool_ids[:num_mislabeled].tolist()
 
-    mislabeled_ids = torch.tensor(mislabeled_ids).to(torch.int)
+    mislabeled_ids_tensor = torch.tensor(mislabeled_ids).to(torch.int)
     final_mislabeled = torch.zeros(gold.shape).view(-1)
-    final_mislabeled[mislabeled_ids.view(-1).long()] = 1
+    final_mislabeled[mislabeled_ids_tensor.view(-1).long()] = 1
     final_mislabeled = final_mislabeled.view(original_shape)
 
     return final_mislabeled
