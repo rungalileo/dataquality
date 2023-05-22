@@ -137,10 +137,10 @@ def add_background_errors_to_polygons(
     img_polygons: List[Polygon],
     polygon_type: str,
 ) -> None:
-    """Sets error type and pct for undetected or ghost polygons
+    """Sets error type and pct for missed or background polygons
 
-    For pred polygons we have 'ghost' errors
-    For gold polygons we have 'undetected' errors
+    For pred polygons we have 'background' errors
+    For gold polygons we have 'missed' errors
 
     Otherwise, the logic is the exact same
 
@@ -153,11 +153,11 @@ def add_background_errors_to_polygons(
     for polygon in img_polygons:
         polygon_mask = draw_polygon(polygon, img_mask.shape[-2:])
         acc = background_accuracy(img_mask, polygon_mask)
-        polygon.error_pct = acc
+        polygon.background_error_pct = acc
         if polygon_type == "pred" and acc > ERROR_THRESHOLD:
-            polygon.error_type = ErrorType.ghost
+            polygon.error_type = ErrorType.background
         elif polygon_type == "gold" and acc > ERROR_THRESHOLD:
-            polygon.error_type = ErrorType.undetected
+            polygon.error_type = ErrorType.missed
 
 
 def add_background_errors_to_polygons_batch(
@@ -167,10 +167,10 @@ def add_background_errors_to_polygons_batch(
 ) -> None:
     """Add error type and error pct to polygons
 
-    For undetected errors:
+    For missed errors:
       - The pred masks and gold polygons will be passed in
 
-    For ghost errors:
+    For background errors:
       - The gold masks and pred polygons will be passed in
 
     Args:

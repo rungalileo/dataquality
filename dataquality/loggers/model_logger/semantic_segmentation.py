@@ -9,7 +9,7 @@ from dataquality.loggers.logger_config.semantic_segmentation import (
     semantic_segmentation_logger_config,
 )
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
-from dataquality.schemas.semantic_segmentation import Polygon
+from dataquality.schemas.semantic_segmentation import IoUType, Polygon
 from dataquality.schemas.split import Split
 from dataquality.utils.semantic_segmentation.errors import (
     add_background_errors_to_polygons_batch,
@@ -19,8 +19,8 @@ from dataquality.utils.semantic_segmentation.errors import (
 )
 from dataquality.utils.semantic_segmentation.lm import upload_mislabeled_pixels
 from dataquality.utils.semantic_segmentation.metrics import (
+    add_area_to_polygons_batch,
     calculate_and_upload_dep,
-    calculate_area_per_polygon_batch,
     calculate_mean_iou,
 )
 from dataquality.utils.semantic_segmentation.polygons import (
@@ -131,7 +131,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         golds = []
         data_error_potentials = []
         errors = []
-        error_pcts = []
+        background_error_pcts = []
         polygon_areas = []
         lm_percentages = []
         for i, image_id in enumerate(self.image_ids):
@@ -142,7 +142,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 golds.append(-1)
                 data_error_potentials.append(polygon.data_error_potential)
                 errors.append(polygon.error_type.value)
-                error_pcts.append(polygon.error_pct)
+                background_error_pcts.append(polygon.background_error_pct)
                 polygon_areas.append(polygon.area)
                 lm_percentages.append(polygon.lm_percentage)
                 upload_polygon_contours(polygon, self.contours_path)
@@ -154,7 +154,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 golds.append(polygon.label_idx)
                 data_error_potentials.append(polygon.data_error_potential)
                 errors.append(polygon.error_type.value)
-                error_pcts.append(polygon.error_pct)
+                background_error_pcts.append(polygon.background_error_pct)
                 polygon_areas.append(polygon.area)
                 lm_percentages.append(polygon.lm_percentage)
                 upload_polygon_contours(polygon, self.contours_path)
@@ -167,7 +167,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "gold": golds,
             "data_error_potential": data_error_potentials,
             "galileo_error_type": errors,
-            "error_pct": error_pcts,
+            "background_error_pct": background_error_pcts,
             "area": polygon_areas,
             "split": [self.split] * len(image_ids),
             "is_pred": [False if i == -1 else True for i in preds],
@@ -192,11 +192,14 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
 
         # Calculate metrics - mean IoU and boundary IoU
         n_classes = len(self.logger_config.labels)
-        miou, miou_per_class, miou_per_class_area = calculate_mean_iou(
-            self.pred_masks, self.gold_masks, n_classes
+        mean_iou_data = calculate_mean_iou(
+            self.pred_masks, self.gold_masks, IoUType.mean, n_classes
         )
-        biou, biou_per_class, biou_per_class_area = calculate_mean_iou(
-            self.pred_boundary_masks, self.gold_boundary_masks, n_classes
+        boundary_iou_data = calculate_mean_iou(
+            self.pred_boundary_masks,
+            self.gold_boundary_masks,
+            IoUType.boundary,
+            n_classes,
         )
 
         # Image masks
@@ -237,12 +240,14 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "width": widths,
             "image_data_error_potential": image_dep,
             "mean_lm_score": [i for i in mean_mislabeled],
-            "mean_iou": miou,
-            "mean_iou_per_class": miou_per_class,
-            "boundary_iou": biou,
-            "boundary_iou_per_class": biou_per_class,
-            "miou_per_class_area": miou_per_class_area,
-            "biou_per_class_area": biou_per_class_area,
+            "mean_iou": [iou.iou for iou in mean_iou_data],
+            "mean_iou_per_class": [iou.iou_per_class for iou in mean_iou_data],
+            "mean_area_per_class": [iou.area_per_class for iou in mean_iou_data],
+            "boundary_iou": [iou.iou for iou in boundary_iou_data],
+            "boundary_iou_per_class": [iou.iou_per_class for iou in boundary_iou_data],
+            "boundary_area_per_class": [
+                iou.area_per_class for iou in boundary_iou_data
+            ],
             # "epoch": [self.epoch] * len(self.image_ids),
         }
         not_meta = ["id", "image"]
