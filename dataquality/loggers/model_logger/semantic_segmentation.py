@@ -144,7 +144,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 errors.append(polygon.error_type.value)
                 background_error_pcts.append(polygon.background_error_pct)
                 polygon_areas.append(polygon.area)
-                lm_pcts.append(polygon.likely_mislabelled_pct)
+                lm_pcts.append(polygon.likely_mislabeled_pct)
                 upload_polygon_contours(polygon, self.contours_path)
                 polygon_ids.append(polygon.uuid)
             gold_polygons = gold_polygons_batch[i]
@@ -156,7 +156,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 errors.append(polygon.error_type.value)
                 background_error_pcts.append(polygon.background_error_pct)
                 polygon_areas.append(polygon.area)
-                lm_pcts.append(polygon.likely_mislabelled_pct)
+                lm_pcts.append(polygon.likely_mislabeled_pct)
                 upload_polygon_contours(polygon, self.contours_path)
                 polygon_ids.append(polygon.uuid)
 

@@ -115,7 +115,7 @@ class FastAiDQCallback(Callback):
     ) -> None:
         """
         Dataquality logs the model embeddings and logits to measure the quality
-        of the dataset. This helps to find mislabelled samples in a
+        of the dataset. This helps to find mislabeled samples in a
         data centric approach.
         :param layer: Classifier layer with embeddings as input and logits as output.
         :param finish: Upload after training is complete

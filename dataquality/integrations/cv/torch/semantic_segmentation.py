@@ -22,9 +22,9 @@ from dataquality.schemas.torch import HelperData
 from dataquality.utils.helpers import wrap_fn
 from dataquality.utils.semantic_segmentation.lm import (
     calculate_lm_for_batch,
+    calculate_self_confidence,
     calculate_self_confidence_threshold,
-    semseg_calculate_self_confidence,
-    semseg_fill_confident_counts,
+    fill_confident_counts,
 )
 from dataquality.utils.semantic_segmentation.utils import mask_to_boundary
 from dataquality.utils.torch import ModelHookManager, store_batch_indices
@@ -230,7 +230,7 @@ class SemanticTorchLogger(TorchLogger):
             self.gold_queue = self.gold_queue[bs:]
 
     def _init_lm_labels(self) -> None:
-        # initialize variables for likely mislabelled
+        # initialize variables for likely mislabeled
         self.confident_count = torch.zeros(
             (self.number_classes, self.number_classes), dtype=torch.int64
         )
@@ -264,7 +264,7 @@ class SemanticTorchLogger(TorchLogger):
                 self.thresholds[cls] * 0.999 + out_threshold[cls] * 0.001
             )
         for class_idx in range(self.number_classes):
-            self.confident_count = semseg_fill_confident_counts(
+            self.confident_count = fill_confident_counts(
                 probs[..., class_idx],
                 gold_mask,
                 class_idx,
@@ -274,9 +274,7 @@ class SemanticTorchLogger(TorchLogger):
         self.counts_per_class += torch.bincount(
             gold_mask.view(-1), minlength=probs.shape[-1]
         )
-        self_confidence = semseg_calculate_self_confidence(
-            self.prob_queue, self.gold_queue
-        )
+        self_confidence = calculate_self_confidence(self.prob_queue, self.gold_queue)
         mislabeled_pixels = calculate_lm_for_batch(
             self_confidence,
             self.confident_count,
