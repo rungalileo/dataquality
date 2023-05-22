@@ -85,7 +85,6 @@ def test_end2end_yolov8(
         labels = list(cfg.get("names", {}).values())
         relative_img_path = cfg[f"bucket_{ultralytics_split_mapping[split]}"]
         watch(model, bucket=bucket, relative_img_path=relative_img_path, labels=labels)
-        print(tmp_cfg_path)
         model.val(data=tmp_cfg_path)
         os.remove(tmp_cfg_path)
 
