@@ -19,6 +19,7 @@ from dataquality.utils.semantic_segmentation.errors import (
 )
 from dataquality.utils.semantic_segmentation.lm import upload_mislabeled_pixels
 from dataquality.utils.semantic_segmentation.metrics import (
+    calculate_area_per_polygon_batch,
     calculate_and_upload_dep,
     calculate_mean_iou,
 )
@@ -131,6 +132,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         data_error_potentials = []
         errors = []
         ghost_percentages = []
+        polygon_areas = []
         for i, image_id in enumerate(self.image_ids):
             pred_polygons = pred_polygons_batch[i]
             for polygon in pred_polygons:
@@ -140,6 +142,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 data_error_potentials.append(polygon.data_error_potential)
                 errors.append(polygon.error_type.value)
                 ghost_percentages.append(polygon.ghost_percentage)
+                polygon_areas.append(polygon.area)
                 upload_polygon_contours(polygon, self.contours_path)
                 polygon_ids.append(polygon.uuid)
             gold_polygons = gold_polygons_batch[i]
@@ -150,6 +153,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 data_error_potentials.append(polygon.data_error_potential)
                 errors.append(polygon.error_type.value)
                 ghost_percentages.append(polygon.ghost_percentage)
+                polygon_areas.append(polygon.area)
                 upload_polygon_contours(polygon, self.contours_path)
                 polygon_ids.append(polygon.uuid)
 
@@ -161,6 +165,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "data_error_potential": data_error_potentials,
             "galileo_error_type": errors,
             "ghost_percentage": ghost_percentages,
+            "area": polygon_areas,
             "split": [self.split] * len(image_ids),
             "is_pred": [False if i == -1 else True for i in preds],
             "is_gold": [False if i == -1 else True for i in golds],
@@ -183,9 +188,11 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         )
 
         # Image Metrics (IoU)
-        iou, iou_per_class = calculate_mean_iou(self.pred_masks, self.gold_masks)
-        boundary_iou, boundary_iou_per_class = calculate_mean_iou(
-            self.pred_boundary_masks, self.gold_boundary_masks
+        iou, iou_per_class, miou_per_class_area = calculate_mean_iou(
+            self.pred_masks, self.gold_masks, self.number_classes
+        )
+        boundary_iou, boundary_iou_per_class, biou_per_class_area = calculate_mean_iou(
+            self.pred_boundary_masks, self.gold_boundary_masks, self.number_classes
         )
 
         # Image masks
@@ -211,6 +218,10 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             height=heights,
             width=widths,
         )
+        
+        calculate_area_per_polygon_batch(pred_polygons_batch, (heights[0], widths[0]))
+        calculate_area_per_polygon_batch(gold_polygons_batch, (heights[0], widths[0]))
+        
         image_data = {
             "image": [f"{self.bucket_url}/{pth}" for pth in self.image_paths],
             "id": self.image_ids,
@@ -222,6 +233,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "mean_iou_per_class": iou_per_class,
             "boundary_iou": boundary_iou,
             "boundary_iou_per_class": boundary_iou_per_class,
+            "miou_per_class_area": miou_per_class_area,
+            "biou_per_class_area": biou_per_class_area,
             # "epoch": [self.epoch] * len(self.image_ids),
         }
         not_meta = ["id", "image"]
