@@ -112,8 +112,7 @@ def dep_heatmap_to_img(dep_heatmap: np.ndarray) -> Image:
     img = Image.fromarray(dep_heatmap, mode="L")
     if img.size[0] > MAX_DEP_HEATMAP_SIZE or img.size[1] > MAX_DEP_HEATMAP_SIZE:
         img.resize((MAX_DEP_HEATMAP_SIZE, MAX_DEP_HEATMAP_SIZE))
-    colored_image = colorize_image(img, 127)
-    return colored_image
+    return img
 
 
 def calculate_image_dep(dep_heatmap: torch.Tensor) -> List[float]:
