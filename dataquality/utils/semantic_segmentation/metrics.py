@@ -211,7 +211,7 @@ def calculate_polygon_area(
         int: area of the polygon
     """
     polygon_img = draw_polygon(polygon, (height, width))
-    return polygon_img.sum()
+    return (polygon_img != 0).sum()
 
 
 def add_area_to_polygons(

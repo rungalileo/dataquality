@@ -16,7 +16,6 @@ class SemSegCols(str, Enum):
     split = "split"  # type: ignore
     meta = "meta"
 
-
 class ErrorType(str, Enum):
     classification = "classification"
     missed = "missed"
@@ -31,7 +30,7 @@ class IoUType(str, Enum):
 
 class ClassificationErrorData(BaseModel):
     """
-    accuracy: float the mean accuracy per pixel
+    accuracy: float the average accuracy within a polygon
     dominant_mislabel_class: int the non ground truth class that had the most pixels
        in the polygon
     dominant_mislabel_class_percent: float the percentage of pixels in the polygon
@@ -46,7 +45,7 @@ class ClassificationErrorData(BaseModel):
 class IouData(BaseModel):
     iou: float
     iou_per_class: List[float]
-    area_per_class: List[float]
+    area_per_class: List[int]
     iou_type: IoUType
 
 
