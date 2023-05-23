@@ -4,6 +4,8 @@ from typing import List, Optional
 import numpy as np
 from pydantic import BaseModel
 
+from dataquality.schemas.ml import ClassType
+
 
 class SemSegCols(str, Enum):
     id = "id"
@@ -13,20 +15,6 @@ class SemSegCols(str, Enum):
     # mixin restriction on str (due to "str".split(...))
     split = "split"  # type: ignore
     meta = "meta"
-
-
-class ClassificationData(BaseModel):
-    """
-    accuracy: float the mean accuracy per pixel
-    dominant_mislabel_class: int the non ground truth class that had the most pixels
-       in the polygon
-    dominant_mislabel_class_percent: float the percentage of pixels in the polygon
-        that were classified as mislabel_class
-    """
-
-    accuracy: Optional[float] = None
-    dominant_mislabel_class: Optional[int] = None
-    dominant_mislabel_class_percent: Optional[float] = None
 
 
 class ErrorType(str, Enum):
@@ -39,6 +27,20 @@ class ErrorType(str, Enum):
 class IoUType(str, Enum):
     mean = "mean"
     boundary = "boundary"
+
+
+class ClassificationErrorData(BaseModel):
+    """
+    accuracy: float the mean accuracy per pixel
+    dominant_mislabel_class: int the non ground truth class that had the most pixels
+       in the polygon
+    dominant_mislabel_class_percent: float the percentage of pixels in the polygon
+        that were classified as mislabel_class
+    """
+
+    accuracy: float
+    dominant_mislabel_class: int
+    dominant_mislabel_class_percent: float
 
 
 class IouData(BaseModel):
@@ -76,7 +78,7 @@ class Contour(BaseModel):
 class Polygon(BaseModel):
     uuid: str  # UUID4
     label_idx: int
-    classification_data: ClassificationData = ClassificationData()
+    cls_error_data: Optional[ClassificationErrorData] = None
     error_type: ErrorType = ErrorType.none
     background_error_pct: Optional[float] = None
     contours: List[Contour]
@@ -84,6 +86,7 @@ class Polygon(BaseModel):
     ghost_percentage: Optional[float] = None
     area: Optional[int] = None
     likely_mislabeled_pct: Optional[float] = None
+    class_type: ClassType
 
     @property
     def contours_opencv(self) -> List[np.ndarray]:

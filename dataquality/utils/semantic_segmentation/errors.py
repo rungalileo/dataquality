@@ -6,7 +6,7 @@ from PIL import Image
 from torch.nn import functional as F
 
 from dataquality.schemas.semantic_segmentation import (
-    ClassificationData,
+    ClassificationErrorData,
     ErrorType,
     Polygon,
 )
@@ -17,12 +17,12 @@ from dataquality.utils.semantic_segmentation.constants import (
 from dataquality.utils.semantic_segmentation.polygons import draw_polygon
 
 
-def calcualte_classification_data(
+def calculate_classification_error(
     candidate_mask: np.ndarray,
     comparison_mask: np.ndarray,
     correct_class: int,
     number_classes: int,
-) -> ClassificationData:
+) -> ClassificationErrorData:
     """Calculates the accuracy of one ground truth polygon
     accuracy = (number of correct pixels) / (number of pixels in polygon)
     as well as the class with the most incorrect pixels in that respective polyon
@@ -58,7 +58,7 @@ def calcualte_classification_data(
     # not the correct class
     areas = np.bincount(incorrect_pixels, minlength=number_classes)
     argmax = np.argmax(areas)
-    return ClassificationData(
+    return ClassificationErrorData(
         accuracy=float_accuracy,
         dominant_mislabel_class=argmax,
         dominant_mislabel_class_percent=areas[argmax] / area,
@@ -86,7 +86,7 @@ def add_classification_error_to_polygons(
     """
     for polygon in polygons:
         out_polygon_im = draw_polygon(polygon, mask.shape[-2:])
-        polygon.classification_data = calcualte_classification_data(
+        polygon.cls_error_data = calculate_classification_error(
             mask, out_polygon_im, polygon.label_idx, number_classes
         )
 

@@ -9,6 +9,7 @@ from dataquality.loggers.logger_config.semantic_segmentation import (
     semantic_segmentation_logger_config,
 )
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
+from dataquality.schemas.ml import ClassType
 from dataquality.schemas.semantic_segmentation import IoUType, Polygon
 from dataquality.schemas.split import Split
 from dataquality.utils.semantic_segmentation.errors import (
@@ -138,41 +139,28 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         dominant_mislabel_classes = []
         dominant_mislabel_class_pct = []
         for i, image_id in enumerate(self.image_ids):
-            pred_polygons = pred_polygons_batch[i]
-            for polygon in pred_polygons:
+            # We add pred polygons and then gold polygons
+            all_polygons = pred_polygons_batch[i] + gold_polygons_batch[i]
+            for polygon in all_polygons:
+                assert polygon.cls_error_data is not None  # for linting
+                if polygon.class_type == ClassType.gold:
+                    golds.append(polygon.label_idx)
+                    preds.append(-1)
+                else:
+                    preds.append(polygon.label_idx)
+                    golds.append(-1)
                 image_ids.append(image_id)
-                preds.append(polygon.label_idx)
-                golds.append(-1)
                 data_error_potentials.append(polygon.data_error_potential)
                 errors.append(polygon.error_type.value)
                 background_error_pcts.append(polygon.background_error_pct)
                 polygon_areas.append(polygon.area)
                 lm_pcts.append(polygon.likely_mislabeled_pct)
-                polygon_accuracy.append(polygon.classification_data.accuracy)
+                polygon_accuracy.append(polygon.cls_error_data.accuracy)
                 dominant_mislabel_classes.append(
-                    polygon.classification_data.dominant_mislabel_class
+                    polygon.cls_error_data.dominant_mislabel_class
                 )
                 dominant_mislabel_class_pct.append(
-                    polygon.classification_data.dominant_mislabel_class_percent
-                )
-                upload_polygon_contours(polygon, self.contours_path)
-                polygon_ids.append(polygon.uuid)
-            gold_polygons = gold_polygons_batch[i]
-            for polygon in gold_polygons:
-                image_ids.append(image_id)
-                preds.append(-1)
-                golds.append(polygon.label_idx)
-                data_error_potentials.append(polygon.data_error_potential)
-                errors.append(polygon.error_type.value)
-                background_error_pcts.append(polygon.background_error_pct)
-                polygon_areas.append(polygon.area)
-                lm_pcts.append(polygon.likely_mislabeled_pct)
-                polygon_accuracy.append(polygon.classification_data.accuracy)
-                dominant_mislabel_classes.append(
-                    polygon.classification_data.dominant_mislabel_class
-                )
-                dominant_mislabel_class_pct.append(
-                    polygon.classification_data.dominant_mislabel_class_percent
+                    polygon.cls_error_data.dominant_mislabel_class_percent
                 )
                 upload_polygon_contours(polygon, self.contours_path)
                 polygon_ids.append(polygon.uuid)
