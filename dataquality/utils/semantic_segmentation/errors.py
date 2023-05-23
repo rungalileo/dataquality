@@ -89,6 +89,8 @@ def add_classification_error_to_polygons(
         polygon.cls_error_data = calculate_classification_error(
             mask, out_polygon_im, polygon.label_idx, number_classes
         )
+        if polygon.cls_error_data.accuracy < ERROR_THRESHOLD:
+            polygon.error_type = ErrorType.classification
 
 
 def add_classification_error_to_polygons_batch(
