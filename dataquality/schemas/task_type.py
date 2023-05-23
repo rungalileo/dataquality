@@ -16,9 +16,13 @@ class TaskType(str, Enum):
     prompt_evaluation = "prompt_evaluation"
 
     @staticmethod
-    def get_valid_tasks() -> List[str]:
-        """Tasks that have an associated Vaex service."""
-        return [i for i in TaskType if i not in [TaskType.prompt_evaluation]]
+    def get_valid_tasks() -> List["TaskType"]:
+        """Tasks that are valid for dataquality."""
+        return [
+            task_type
+            for task_type in TaskType
+            if task_type not in [TaskType.prompt_evaluation]
+        ]
 
     @staticmethod
     def get_mapping(task_int: int) -> "TaskType":
