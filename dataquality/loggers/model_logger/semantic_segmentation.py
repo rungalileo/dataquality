@@ -9,15 +9,17 @@ from dataquality.loggers.logger_config.semantic_segmentation import (
     semantic_segmentation_logger_config,
 )
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
-from dataquality.schemas.semantic_segmentation import Polygon
+from dataquality.schemas.semantic_segmentation import IoUType, Polygon
 from dataquality.schemas.split import Split
 from dataquality.utils.semantic_segmentation.errors import (
     add_background_errors_to_polygons_batch,
     add_classification_error_to_polygons_batch,
     add_dep_to_polygons_batch,
+    add_lm_to_polygons_batch,
 )
 from dataquality.utils.semantic_segmentation.lm import upload_mislabeled_pixels
 from dataquality.utils.semantic_segmentation.metrics import (
+    add_area_to_polygons_batch,
     calculate_and_upload_dep,
     calculate_mean_iou,
 )
@@ -130,6 +132,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         data_error_potentials = []
         errors = []
         background_error_pcts = []
+        polygon_areas = []
+        lm_pcts = []
         for i, image_id in enumerate(self.image_ids):
             pred_polygons = pred_polygons_batch[i]
             for polygon in pred_polygons:
@@ -139,6 +143,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 data_error_potentials.append(polygon.data_error_potential)
                 errors.append(polygon.error_type.value)
                 background_error_pcts.append(polygon.background_error_pct)
+                polygon_areas.append(polygon.area)
+                lm_pcts.append(polygon.likely_mislabeled_pct)
                 upload_polygon_contours(polygon, self.contours_path)
                 polygon_ids.append(polygon.uuid)
             gold_polygons = gold_polygons_batch[i]
@@ -149,6 +155,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 data_error_potentials.append(polygon.data_error_potential)
                 errors.append(polygon.error_type.value)
                 background_error_pcts.append(polygon.background_error_pct)
+                polygon_areas.append(polygon.area)
+                lm_pcts.append(polygon.likely_mislabeled_pct)
                 upload_polygon_contours(polygon, self.contours_path)
                 polygon_ids.append(polygon.uuid)
 
@@ -160,6 +168,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "data_error_potential": data_error_potentials,
             "galileo_error_type": errors,
             "background_error_pct": background_error_pcts,
+            "area": polygon_areas,
+            "likely_mislabeled_pct": lm_pcts,
             "split": [self.split] * len(image_ids),
             "is_pred": [False if i == -1 else True for i in preds],
             "is_gold": [False if i == -1 else True for i in golds],
@@ -181,10 +191,16 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             obj_prefix=self.dep_path,
         )
 
-        # Image Metrics (IoU)
-        iou, iou_per_class = calculate_mean_iou(self.pred_masks, self.gold_masks)
-        boundary_iou, boundary_iou_per_class = calculate_mean_iou(
-            self.pred_boundary_masks, self.gold_boundary_masks
+        # Calculate metrics - mean IoU and boundary IoU
+        n_classes = len(self.logger_config.labels)
+        mean_iou_data = calculate_mean_iou(
+            self.pred_masks, self.gold_masks, IoUType.mean, n_classes
+        )
+        boundary_iou_data = calculate_mean_iou(
+            self.pred_boundary_masks,
+            self.gold_boundary_masks,
+            IoUType.boundary,
+            n_classes,
         )
 
         # Image masks
@@ -214,6 +230,18 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             height=heights,
             width=widths,
         )
+
+        add_area_to_polygons_batch(pred_polygons_batch, heights, widths)
+        add_area_to_polygons_batch(gold_polygons_batch, heights, widths)
+
+        add_lm_to_polygons_batch(
+            self.mislabled_pixels,
+            gold_polygons_batch,
+            pred_polygons_batch,
+            heights,
+            widths,
+        )
+
         image_data = {
             "image": [f"{self.bucket_url}/{pth}" for pth in self.image_paths],
             "id": self.image_ids,
@@ -221,10 +249,14 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "width": widths,
             "image_data_error_potential": image_dep,
             "mean_lm_score": [i for i in mean_mislabeled],
-            "mean_iou": iou,
-            "mean_iou_per_class": iou_per_class,
-            "boundary_iou": boundary_iou,
-            "boundary_iou_per_class": boundary_iou_per_class,
+            "mean_iou": [iou.iou for iou in mean_iou_data],
+            "mean_iou_per_class": [iou.iou_per_class for iou in mean_iou_data],
+            "mean_area_per_class": [iou.area_per_class for iou in mean_iou_data],
+            "boundary_iou": [iou.iou for iou in boundary_iou_data],
+            "boundary_iou_per_class": [iou.iou_per_class for iou in boundary_iou_data],
+            "boundary_area_per_class": [
+                iou.area_per_class for iou in boundary_iou_data
+            ],
             # "epoch": [self.epoch] * len(self.image_ids),
         }
         not_meta = ["id", "image"]
