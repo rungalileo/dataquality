@@ -150,7 +150,8 @@ def calculate_union_area(
         union_mask = np.logical_and(current_pred_mask, current_gold_mask)
         # calculate the area
         union_area = np.sum(union_mask)
-        per_class_union_area.append(union_area)
+        all_area = np.sum(current_pred_mask) + np.sum(current_gold_mask)
+        per_class_union_area.append(all_area - union_area)
     return per_class_union_area
 
 
