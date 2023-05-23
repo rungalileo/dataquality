@@ -13,6 +13,7 @@ class TaskType(str, Enum):
     tabular_classification = "tabular_classification"
     object_detection = "object_detection"
     semantic_segmentation = "semantic_segmentation"
+    prompt_evaluation = "prompt_evaluation"
 
     @staticmethod
     def get_valid_tasks() -> List[str]:
@@ -29,4 +30,5 @@ class TaskType(str, Enum):
             4: TaskType.tabular_classification,
             5: TaskType.object_detection,
             6: TaskType.semantic_segmentation,
+            7: TaskType.prompt_evaluation,
         }[task_int]
