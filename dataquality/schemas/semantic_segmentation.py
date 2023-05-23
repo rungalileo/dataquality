@@ -16,6 +16,7 @@ class SemSegCols(str, Enum):
     split = "split"  # type: ignore
     meta = "meta"
 
+
 class ErrorType(str, Enum):
     classification = "classification"
     missed = "missed"
