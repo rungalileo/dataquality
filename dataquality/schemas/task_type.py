@@ -17,7 +17,8 @@ class TaskType(str, Enum):
 
     @staticmethod
     def get_valid_tasks() -> List[str]:
-        return list(map(lambda x: x.value, TaskType))
+        """Tasks that have an associated Vaex service."""
+        return [i for i in TaskType if i not in [TaskType.prompt_evaluation]]
 
     @staticmethod
     def get_mapping(task_int: int) -> "TaskType":
