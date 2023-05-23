@@ -30,17 +30,17 @@ class IoUType(str, Enum):
 
 
 class ClassificationErrorData(BaseModel):
-    """
-    accuracy: float the average accuracy within a polygon
-    dominant_mislabel_class: int the non ground truth class that had the most pixels
-       in the polygon
-    dominant_mislabel_class_percent: float the percentage of pixels in the polygon
-        that were classified as mislabel_class
+    """Data needed for determining classification errors on backend
+
+    accuracy: no pixels correctly classified / area of polygon
+    mislabeled_class: label idx of the class that was most frequently mislabeled
+    mislabeled_class_pct: the pct of pixels in the polygon
+        that were classified as mislabeled_class
     """
 
     accuracy: float
-    dominant_mislabel_class: int
-    dominant_mislabel_class_percent: float
+    mislabeled_class: int
+    mislabeled_class_pct: float
 
 
 class IouData(BaseModel):

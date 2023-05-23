@@ -60,8 +60,8 @@ def calculate_classification_error(
     argmax = np.argmax(areas)
     return ClassificationErrorData(
         accuracy=float_accuracy,
-        dominant_mislabel_class=argmax,
-        dominant_mislabel_class_percent=areas[argmax] / area,
+        mislabeled_class=argmax,
+        mislabeled_pct=areas[argmax] / area,
     )
 
 

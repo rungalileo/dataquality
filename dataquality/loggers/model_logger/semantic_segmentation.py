@@ -135,9 +135,9 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         background_error_pcts = []
         polygon_areas = []
         lm_pcts = []
-        polygon_accuracy = []
-        dominant_mislabel_classes = []
-        dominant_mislabel_class_pct = []
+        accuracies = []
+        mislabeled_classes = []
+        mislabeled_class_pcts = []
         for i, image_id in enumerate(self.image_ids):
             # We add pred polygons and then gold polygons
             all_polygons = pred_polygons_batch[i] + gold_polygons_batch[i]
@@ -155,12 +155,10 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 background_error_pcts.append(polygon.background_error_pct)
                 polygon_areas.append(polygon.area)
                 lm_pcts.append(polygon.likely_mislabeled_pct)
-                polygon_accuracy.append(polygon.cls_error_data.accuracy)
-                dominant_mislabel_classes.append(
-                    polygon.cls_error_data.dominant_mislabel_class
-                )
-                dominant_mislabel_class_pct.append(
-                    polygon.cls_error_data.dominant_mislabel_class_percent
+                accuracies.append(polygon.cls_error_data.accuracy)
+                mislabeled_classes.append(polygon.cls_error_data.mislabeled_class)
+                mislabeled_class_pcts.append(
+                    polygon.cls_error_data.mislabeled_class_pct
                 )
                 upload_polygon_contours(polygon, self.contours_path)
                 polygon_ids.append(polygon.uuid)
@@ -175,9 +173,9 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "background_error_pct": background_error_pcts,
             "area": polygon_areas,
             "likely_mislabeled_pct": lm_pcts,
-            "polygon_accuracy": polygon_accuracy,
-            "mislabeled_class": dominant_mislabel_classes,
-            "mislabeled_class_pct": dominant_mislabel_class_pct,
+            "accuracy": accuracies,
+            "mislabeled_class": mislabeled_classes,
+            "mislabeled_class_pct": mislabeled_class_pcts,
             "split": [self.split] * len(image_ids),
             "is_pred": [False if i == -1 else True for i in preds],
             "is_gold": [False if i == -1 else True for i in golds],
