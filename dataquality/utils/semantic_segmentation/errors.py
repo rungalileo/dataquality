@@ -61,7 +61,7 @@ def calculate_classification_error(
     return ClassificationErrorData(
         accuracy=float_accuracy,
         mislabeled_class=argmax,
-        mislabeled_pct=areas[argmax] / area,
+        mislabeled_class_pct=areas[argmax] / area,
     )
 
 
