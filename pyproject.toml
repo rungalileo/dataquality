@@ -77,6 +77,7 @@ test = [
     "types-PyYAML==6.0.12.9",
     "setfit",
     "accelerate>=0.19.0",
+    "typing-extensions==4.5.0",
 ]
 dev = [
     "mypy>=1.0.0",
@@ -108,7 +109,7 @@ py37 = [
     "types-cachetools>=5.3.0.0",
     "importlib-metadata<5.0.0",
     "timm<=0.6.13",
-    "typing-extensions<4.0.0",
+    "typing-extensions<=4.0.0",
 ]
 
 setfit = [
