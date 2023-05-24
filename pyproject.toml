@@ -11,7 +11,7 @@ home-page = "https://www.github.com/rungalileo/dataquality"
 description-file = "README.md"
 requires-python = ">=3.7"
 requires = [
-    "pydantic>=1.8.2",
+    "pydantic<1.10.8",
     "requests>=2.25.1",
     "types-requests>=2.25.2",
     "pandas>=0.20.0",
