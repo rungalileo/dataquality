@@ -5,6 +5,8 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar
 
 from typing_extensions import ParamSpec
 
+from dataquality.exceptions import GalileoException
+
 T = TypeVar("T")
 P = ParamSpec("P")
 GALILEO_DISABLED = "GALILEO_DISABLED"
@@ -85,7 +87,17 @@ def map_indices_to_ids(id_map: List, indices: List) -> List:
     :param indices: The indices to map
     :return: The ids
     """
-    return [id_map[i] for i in indices]
+    try:
+        return [id_map[i] for i in indices]
+    except IndexError:
+        raise GalileoException(
+            "The indicies of the model output are not"
+            " matching the logged data samples. "
+            "Please make sure the model output and "
+            "the logged data samples have the same ids. "
+            "Avoid using RandomSampler/WeightedSampler "
+            "in the dataloader."
+        )
 
 
 def open_console_url(link: Optional[str] = "") -> None:
