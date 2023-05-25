@@ -385,6 +385,8 @@ class SemanticTorchLogger(TorchLogger):
             with torch.no_grad():
                 self.run_one_epoch(dataloader, device)
         self.model.train()
+        dq.get_model_logger().upload_all_contours()
+        
 
     def run_one_epoch(self, dataloader: DataLoader, device: torch.device) -> None:
         if torch.cuda.is_available():

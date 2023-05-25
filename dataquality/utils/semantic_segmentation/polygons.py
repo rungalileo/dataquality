@@ -1,4 +1,5 @@
 import json
+import os
 from collections import defaultdict
 from tempfile import NamedTemporaryFile
 from typing import List, Tuple
@@ -12,6 +13,7 @@ from dataquality.clients.objectstore import ObjectStore
 from dataquality.core._config import GALILEO_DEFAULT_RESULT_BUCKET_NAME
 from dataquality.schemas.ml import ClassType
 from dataquality.schemas.semantic_segmentation import Contour, Pixel, Polygon
+from dataquality.utils.thread_pool import lock
 
 object_store = ObjectStore()
 
@@ -157,15 +159,19 @@ def upload_polygon_contours(
         prefix(str): prefix of the object name in storage
             - /proj-id/run-id/training/contours/1.json
     """
+    if not os.path.isdir(prefix):
+        with lock:
+            os.makedirs(prefix, exist_ok=True)
     obj_name = f"{prefix}/{polygon.uuid}.json"
 
-    with NamedTemporaryFile(mode="w+", delete=False) as f:
+    with open(obj_name, "w") as f:
         json.dump(polygon.contours_json, f)
+    f.close()
 
-    object_store.create_object(
+    '''object_store.create_object(
         object_name=obj_name,
         file_path=f.name,
         content_type="application/json",
         progress=False,
         bucket_name=GALILEO_DEFAULT_RESULT_BUCKET_NAME,
-    )
+    )'''
