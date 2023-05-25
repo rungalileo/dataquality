@@ -64,6 +64,7 @@ class Config(BaseModel):
     images_bucket_name: str = GALILEO_DEFAULT_IMG_BUCKET_NAME
     minio_fqdn: Optional[str] = None
     is_exoscale_cluster: bool = False
+    allow_missing_in_df_ids: bool = False
 
     class Config:
         validate_assignment = True
