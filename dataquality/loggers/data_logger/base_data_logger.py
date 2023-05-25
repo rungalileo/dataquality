@@ -446,9 +446,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         :param epoch_or_inf_name: The epoch or inference name we are uploading for
         """
         validate_unique_ids(out_frame, epoch_or_inf_name)
-        allow_missing_in_df_ids = bool(
-            getattr(config, "allow_missing_in_df_ids", False)
-        )
+        allow_missing_in_df_ids = config.allow_missing_in_df_ids
+
         in_out = _join_in_out_frames(
             in_frame, out_frame, allow_missing_in_df_ids=allow_missing_in_df_ids
         )
