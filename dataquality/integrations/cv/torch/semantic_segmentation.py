@@ -540,6 +540,9 @@ def watch(
         assert key in Split.__members__, GalileoException(
             f"Dataloader key {key} is not a valid split"
         )
+        current_split = Split[key].value
+        logger_config = dq.get_model_logger().logger_config
+        setattr(logger_config, f"{current_split}_logged", True)
         assert isinstance(dataloader, DataLoader), GalileoException(
             "Invalid dataloader. Must be a pytorch dataloader"
             "from torch.utils.data import DataLoader..."
