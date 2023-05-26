@@ -157,9 +157,8 @@ def write_polygon_contours_to_disk(
         prefix(str): prefix of the object name in storage
             \"{proj_run_path}/{split_name_path}/contours"
     """
-    if not os.path.isdir(prefix):
-        with lock:
-            os.makedirs(prefix, exist_ok=True)
+    with lock:
+        os.makedirs(prefix, exist_ok=True)
     local_path = f"{prefix}/{polygon.uuid}.json"
 
     with open(local_path, "w") as f:
