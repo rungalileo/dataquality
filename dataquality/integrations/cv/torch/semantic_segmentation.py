@@ -419,7 +419,7 @@ class SemanticTorchLogger(TorchLogger):
             with torch.no_grad():
                 self.run_one_epoch(dataloader, device)
             split = self.logger_config.cur_split.lower()  # type: ignore
-            # Ensure all contours are written to disk before uploading
+            # Ensure all contours are written to disk before starting upload
             ThreadPoolManager.wait_for_threads()
             with lock:
                 self.upload_contours_split(split)
