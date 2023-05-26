@@ -1,18 +1,15 @@
 from typing import Any, Dict, List, Optional, Union
-import os
 
 import numpy as np
 import torch
-import json
 
 import dataquality as dq
+from dataquality import config
+from dataquality.clients.objectstore import ObjectStore
 from dataquality.loggers.logger_config.semantic_segmentation import (
     SemanticSegmentationLoggerConfig,
     semantic_segmentation_logger_config,
 )
-from dataquality.clients.objectstore import ObjectStore
-from dataquality.core._config import GALILEO_DEFAULT_RESULT_BUCKET_NAME
-from dataquality import config
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.schemas.ml import ClassType
 from dataquality.schemas.semantic_segmentation import IoUType, Polygon
@@ -31,10 +28,11 @@ from dataquality.utils.semantic_segmentation.metrics import (
 )
 from dataquality.utils.semantic_segmentation.polygons import (
     find_polygons_batch,
-    upload_polygon_contours,
+    write_polygon_contours_to_disk,
 )
 
 object_store = ObjectStore()
+
 
 class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
     __logger_name__ = "semantic_segmentation"
@@ -112,12 +110,14 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         return f"{self.proj_run}/{self.split_name_path}/dep"
 
     @property
-    def local_contours_path(self) -> str:
-        return f"{self.LOG_FILE_DIR}/{config.current_project_id}/{config.current_run_id}/contours"
-    
+    def local_proj_run_path(self) -> str:
+        return (
+            f"{self.LOG_FILE_DIR}/{config.current_project_id}/{config.current_run_id}"
+        )
+
     @property
-    def cloud_contours_path(self) -> str:
-        return f"{self.proj_run}/{self.split_name_path}/contours"
+    def local_contours_path(self) -> str:
+        return f"{self.local_proj_run_path}/{self.split_name_path}/contours"
 
     def get_polygon_data(
         self,
@@ -170,9 +170,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 mislabeled_class_pcts.append(
                     polygon.cls_error_data.mislabeled_class_pct
                 )
-                # upload_polygon_contours(polygon, self.local_contours_path)
+                write_polygon_contours_to_disk(polygon, self.local_contours_path)
                 polygon_ids.append(polygon.uuid)
-
         polygon_data = {
             "polygon_uuid": polygon_ids,
             "image_id": image_ids,
@@ -191,31 +190,6 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "is_gold": [False if i == -1 else True for i in golds],
         }
         return polygon_data
-    
-    def upload_all_contours(self) -> None:
-        """Brings all json from self.contours path to one json
-        file and then uploads to minio in one file
-        """
-        # test for now
-        if not os.path.exists(self.local_contours_path):
-            return
-        files = os.listdir(self.local_contours_path)
-        all_contours = []
-        for file in files:
-            with open(f"{self.local_contours_path}/{file}") as f:
-                contours = json.load(f)
-                all_contours.extend(contours)
-        with open(f"{self.local_contours_path}/all_contours.json", "w") as f:
-            json.dump(all_contours, f)
-            
-        obj_name = f'{self.cloud_contours_path}/all_contours.json'   
-        object_store.create_object(
-            object_name=obj_name,
-            file_path=f"{self.local_contours_path}/all_contours.json",
-            content_type="application/json", 
-            progress=False,
-            bucket_name=GALILEO_DEFAULT_RESULT_BUCKET_NAME,
-        )
 
     def _get_data_dict(self) -> Dict:
         """Returns a dictionary of data to be logged as a DataFrame"""
