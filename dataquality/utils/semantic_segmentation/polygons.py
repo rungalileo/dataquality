@@ -155,7 +155,7 @@ def write_polygon_contours_to_disk(
     Args:
         polygon(Polygon): A Polygon object
         prefix(str): prefix of the object name in storage
-            \"{self.local_proj_run_path}/{self.split_name_path}/contours"
+            \"{proj_run_path}/{split_name_path}/contours"
     """
     if not os.path.isdir(prefix):
         with lock:
