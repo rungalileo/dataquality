@@ -337,7 +337,7 @@ def _calculate_confidence_joint(
 
 def upload_mislabeled_pixels(
     mislabeled_pixels: torch.Tensor, image_ids: List[int], prefix: str
-) -> None:
+) -> List[Image.Image]:
     """Uploads all self confidence values to minio
 
     Args:
@@ -345,11 +345,14 @@ def upload_mislabeled_pixels(
         image_ids (List[int]): integer image ids
         prefix (str): prefix to upload to
     """
+    imgs = []
     for i, image_id in enumerate(image_ids):
         img = (mislabeled_pixels[i].numpy() * 255).astype(np.uint8)
         img = Image.fromarray(img, mode="L")
         img = img.resize((64, 64))
-        upload_im(img, prefix, image_id)
+        # upload_im(img, prefix, image_id)
+        imgs.append(img)
+    return imgs
 
 
 def upload_im(img: Image.Image, prefix: str, id: int) -> None:

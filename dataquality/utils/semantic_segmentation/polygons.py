@@ -11,6 +11,7 @@ import torch
 from dataquality.clients.objectstore import ObjectStore
 from dataquality.schemas.ml import ClassType
 from dataquality.schemas.semantic_segmentation import Contour, Pixel, Polygon
+from dataquality.utils.thread_pool import lock
 
 object_store = ObjectStore()
 
@@ -156,7 +157,6 @@ def write_polygon_contours_to_disk(
         prefix(str): prefix of the object name in storage
             \"{proj_run_path}/{split_name_path}/contours"
     """
-
     os.makedirs(prefix, exist_ok=True)
     local_path = f"{prefix}/{polygon.uuid}.json"
 

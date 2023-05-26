@@ -1,7 +1,10 @@
 from typing import Any, Dict, List, Optional, Union
+from io import BytesIO
 
 import numpy as np
 import torch
+import base64
+from PIL import Image
 
 import dataquality as dq
 from dataquality import config
@@ -32,6 +35,7 @@ from dataquality.utils.semantic_segmentation.polygons import (
 )
 
 object_store = ObjectStore()
+
 
 
 class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
@@ -190,22 +194,34 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "is_gold": [False if i == -1 else True for i in golds],
         }
         return polygon_data
+    
+    def encode_pil_image_to_base64(self, image: Image.Image) -> str:
+        buffered = BytesIO()
+        image.save(buffered, format="PNG") 
+        encoded_string = base64.b64encode(buffered.getvalue())
+        base64_string = encoded_string.decode("utf-8")
+        return base64_string
 
     def _get_data_dict(self) -> Dict:
         """Returns a dictionary of data to be logged as a DataFrame"""
         # DEP & likely mislabeled
         mean_mislabeled = torch.mean(self.mislabled_pixels, dim=(1, 2)).numpy()
-        upload_mislabeled_pixels(
+        lm_imgs = upload_mislabeled_pixels(
             self.mislabled_pixels, self.image_ids, prefix=self.lm_path
         )
+        lm_b64_encoding = [
+            self.encode_pil_image_to_base64(img) for img in lm_imgs
+        ]
 
-        image_dep, dep_heatmaps = calculate_and_upload_dep(
+        image_dep, dep_heatmaps, dep_imgs = calculate_and_upload_dep(
             self.output_probs,
             self.gold_masks,
             self.image_ids,
             obj_prefix=self.dep_path,
         )
-
+        dep_b64_encoding = [
+            self.encode_pil_image_to_base64(img) for img in dep_imgs
+        ]
         # Calculate metrics - mean IoU and boundary IoU
         n_classes = len(self.logger_config.labels)
         mean_iou_data = calculate_mean_iou(
@@ -277,6 +293,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "boundary_area_per_class": [
                 iou.area_per_class for iou in boundary_iou_data
             ],
+            "dep_heatmap": dep_b64_encoding,
+            "lm_heatmap": lm_b64_encoding,
             # "epoch": [self.epoch] * len(self.image_ids),
         }
         not_meta = ["id", "image"]

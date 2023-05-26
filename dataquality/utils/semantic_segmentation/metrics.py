@@ -21,7 +21,7 @@ def calculate_and_upload_dep(
     gold_masks: torch.Tensor,
     image_ids: List[int],
     obj_prefix: str,
-) -> Tuple[List[float], torch.Tensor]:
+) -> Tuple[List[float], torch.Tensor, List[Image.Image]]:
     """Calculates the Data Error Potential (DEP) for each image in the batch
 
     Uploads the heatmap to Minio as a png.
@@ -29,8 +29,9 @@ def calculate_and_upload_dep(
         Image dep is calculated by the average pixel dep.
     """
     dep_heatmaps = calculate_dep_heatmaps(probs, gold_masks)
-    upload_dep_heatmaps(dep_heatmaps, image_ids, obj_prefix)
-    return calculate_image_dep(dep_heatmaps), dep_heatmaps
+    # upload_dep_heatmaps(dep_heatmaps, image_ids, obj_prefix)
+    dep_heatmap_img = convert_all_dep_heatmaps_to_imgs(dep_heatmaps)
+    return calculate_image_dep(dep_heatmaps), dep_heatmaps, dep_heatmap_img
 
 
 def calculate_dep_heatmaps(
@@ -93,6 +94,18 @@ def upload_dep_heatmaps(
                 bucket_name=GALILEO_DEFAULT_RESULT_BUCKET_NAME,
             )
 
+def convert_all_dep_heatmaps_to_imgs(dep_heatmap: torch.Tensor) -> List[Image.Image]:
+    """Converts all torch tensors to PIL Images and returns as a list
+
+    Args:
+        dep_heatmap (torch.Tensor): dep heatmap for each image in the batch
+            shape = (bs, height, width)
+
+    Returns:
+        List[Image]: list of images of the dep heatmaps
+    """
+    return [dep_heatmap_to_img(dep_heatmap[i].numpy()) for i in range(len(dep_heatmap))]
+    
 
 def dep_heatmap_to_img(dep_heatmap: np.ndarray) -> Image:
     """Converts DEP heatmap to PIL Image
