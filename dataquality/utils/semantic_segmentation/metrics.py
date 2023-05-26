@@ -94,6 +94,7 @@ def upload_dep_heatmaps(
                 bucket_name=GALILEO_DEFAULT_RESULT_BUCKET_NAME,
             )
 
+
 def convert_all_dep_heatmaps_to_imgs(dep_heatmap: torch.Tensor) -> List[Image.Image]:
     """Converts all torch tensors to PIL Images and returns as a list
 
@@ -105,7 +106,7 @@ def convert_all_dep_heatmaps_to_imgs(dep_heatmap: torch.Tensor) -> List[Image.Im
         List[Image]: list of images of the dep heatmaps
     """
     return [dep_heatmap_to_img(dep_heatmap[i].numpy()) for i in range(len(dep_heatmap))]
-    
+
 
 def dep_heatmap_to_img(dep_heatmap: np.ndarray) -> Image:
     """Converts DEP heatmap to PIL Image

@@ -1,9 +1,9 @@
-from typing import Any, Dict, List, Optional, Union
+import base64
 from io import BytesIO
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 import torch
-import base64
 from PIL import Image
 
 import dataquality as dq
@@ -35,7 +35,6 @@ from dataquality.utils.semantic_segmentation.polygons import (
 )
 
 object_store = ObjectStore()
-
 
 
 class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
@@ -194,10 +193,10 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "is_gold": [False if i == -1 else True for i in golds],
         }
         return polygon_data
-    
+
     def encode_pil_image_to_base64(self, image: Image.Image) -> str:
         buffered = BytesIO()
-        image.save(buffered, format="PNG") 
+        image.save(buffered, format="PNG")
         encoded_string = base64.b64encode(buffered.getvalue())
         base64_string = encoded_string.decode("utf-8")
         return base64_string
@@ -209,9 +208,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         lm_imgs = upload_mislabeled_pixels(
             self.mislabled_pixels, self.image_ids, prefix=self.lm_path
         )
-        lm_b64_encoding = [
-            self.encode_pil_image_to_base64(img) for img in lm_imgs
-        ]
+        lm_b64_encoding = [self.encode_pil_image_to_base64(img) for img in lm_imgs]
 
         image_dep, dep_heatmaps, dep_imgs = calculate_and_upload_dep(
             self.output_probs,
@@ -219,9 +216,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             self.image_ids,
             obj_prefix=self.dep_path,
         )
-        dep_b64_encoding = [
-            self.encode_pil_image_to_base64(img) for img in dep_imgs
-        ]
+        dep_b64_encoding = [self.encode_pil_image_to_base64(img) for img in dep_imgs]
         # Calculate metrics - mean IoU and boundary IoU
         n_classes = len(self.logger_config.labels)
         mean_iou_data = calculate_mean_iou(
