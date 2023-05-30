@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from datasets import Dataset
     from setfit import SetFitModel, SetFitTrainer
 
+BATCH_LOG_SIZE = 10_000
 
 def _apply_column_mapping(
     dataset: "Dataset", column_mapping: Dict[str, str]
@@ -185,13 +186,13 @@ class _PatchSetFitTrainer(Patch):
         setattr(self.trainer, self.function_name, self)
         return self
 
-    def __call__(self, *args: Any, **kwds: Any) -> Any:
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
         """Call train function and run dataquality after training."""
-        batch_size = kwds.get("batch_size", self.trainer.batch_size)
+        batch_size = kwargs.get("batch_size", self.trainer.batch_size)
         if batch_size is not None and len(args) > 0:
             batch_size = args[1]
 
-        res = self.old_fn(*args, **kwds)
+        res = self.old_fn(*args, **kwargs)
         model = self.trainer.model
         dq_hook = SetFitModelHook(model)
         dq_store = dq_hook.store
@@ -210,7 +211,7 @@ class _PatchSetFitTrainer(Patch):
                 init_kwargs["run_name"] = self.run_name
 
             dq.init("text_classification", **init_kwargs)
-        labels: Any = self.labels
+        labels: List = self.labels
         if not labels:
             labels = dq.get_data_logger().logger_config.labels
         if not labels:
@@ -273,7 +274,7 @@ def unwatch(setfit_obj: Optional[Union["SetFitModel", "SetFitTrainer"]]) -> None
 
 def watch(
     setfit: Union["SetFitModel", "SetFitTrainer"],
-    labels: List[str] = [],
+    labels: List[str] = None,
     project_name: str = "",
     run_name: str = "",
     finish: bool = True,
@@ -281,12 +282,14 @@ def watch(
 ) -> Optional[Callable]:
     """Watch SetFit model by replacing predict_proba function with SetFitModelHook.
     :param model: SetFit model"""
+    from setfit import SetFitTrainer
+
+    labels = labels or []
     model = setfit
 
     setfitmanager = PatchManager()
 
-    if setfit.__class__.__name__ == "SetFitTrainer":
-        model = setfit.model
+    if isinstance(setfit, SetFitTrainer):
         patched_trainer = _PatchSetFitTrainer(
             setfit,
             labels=labels,
@@ -319,11 +322,7 @@ def evaluate(model: "SetFitModel") -> Callable:
         dataset: "Dataset",
         split: Split,
         inference_name: Optional[str] = None,
-        column_mapping: Optional[Dict] = {
-            "text": "text",
-            "id": "id",
-            "label": "label",
-        },
+        column_mapping: Optional[Dict] = None,
         batch_size: int = 64,
     ) -> torch.Tensor:
         """Evaluate SetFit model and log input and output to Galileo.
@@ -333,12 +332,22 @@ def evaluate(model: "SetFitModel") -> Callable:
         :param column_mapping: mapping of column names (if different from default)
         :return: output of SetFitModel.predict_proba function"""
 
+        column_mapping = column_mapping or dict(
+            text="text",
+            id="id",
+            label="label",
+        )
+
         text_col = "text"
         id_col = "id"
         label_col = "label"
         if column_mapping is not None:
             dataset = _apply_column_mapping(dataset, column_mapping)
         preds: List[torch.Tensor] = []
+
+        log_args = dict(
+            texts=[], ids=[], split=split
+        )
 
         for i in range(0, len(dataset), batch_size):
             batch = dataset[i : i + batch_size]
@@ -349,16 +358,19 @@ def evaluate(model: "SetFitModel") -> Callable:
             pred = model.predict_proba(batch[text_col])
             preds.append(pred)
             # 🔭🌕 Galileo logging
-            log_args = dict(texts=batch["text"], ids=batch[id_col], split=split)
+            log_args["texts"].extend(batch[text_col])
+            log_args["ids"].extend(batch[id_col])
             inference_dict: Dict[str, str] = {}
             if inference_name is not None:
                 log_args["inference_name"] = inference_name
                 inference_dict["inference_name"] = inference_name
             else:
                 assert label_col in batch, f"column '{label_col}' must be in batch"
-                log_args["labels"] = [labels[label] for label in batch[label_col]]
+                log_args["labels"].extend([labels[label] for label in batch[label_col]])
 
-            dq.log_data_samples(**log_args)
+            if len(log_args["texts"]) >= BATCH_LOG_SIZE:
+                dq.log_data_samples(**log_args)
+                log_args.clear()
             # 🔭🌕 Galileo logging
             dq.log_model_outputs(
                 ids=batch[id_col],
@@ -368,6 +380,9 @@ def evaluate(model: "SetFitModel") -> Callable:
                 epoch=0,
                 **inference_dict,  # type: ignore
             )
+        # Any leftovers
+        if log_args:
+            dq.log_data_samples(**log_args)
 
         return torch.concat(preds)
 
