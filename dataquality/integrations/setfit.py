@@ -6,12 +6,12 @@ import torch
 import dataquality as dq
 from dataquality.schemas.split import Split
 from dataquality.utils.patcher import Cleanup, Patch, PatchManager, RefManager
+from dataquality.utils.setfit import run_model_predictions
 
 if TYPE_CHECKING:
     from datasets import Dataset
     from setfit import SetFitModel, SetFitTrainer
 
-BATCH_LOG_SIZE = 10_000
 
 def _apply_column_mapping(
     dataset: "Dataset", column_mapping: Dict[str, str]
@@ -158,6 +158,7 @@ class _PatchSetFitTrainer(Patch):
         labels: List[str] = [],
         finish: bool = True,
         wait: bool = False,
+        batch_size: Optional[int] = None,
     ) -> None:
         """Patch to SetFit trainer to run dataquality after training.
         :param setfit_trainer: SetFit trainer
@@ -175,6 +176,7 @@ class _PatchSetFitTrainer(Patch):
         self.wait = wait
         self.project_name = project_name
         self.run_name = run_name
+        self.batch_size = batch_size
 
     def _patch(self) -> "Patch":
         """Patch SetFit trainer by replacing train function with self."""
@@ -191,6 +193,9 @@ class _PatchSetFitTrainer(Patch):
         batch_size = kwargs.get("batch_size", self.trainer.batch_size)
         if batch_size is not None and len(args) > 0:
             batch_size = args[1]
+        # If batch_size is set in watch function, override the batch_size
+        if self.batch_size is not None:
+            batch_size = self.batch_size
 
         res = self.old_fn(*args, **kwargs)
         model = self.trainer.model
@@ -215,8 +220,8 @@ class _PatchSetFitTrainer(Patch):
         if not labels:
             labels = dq.get_data_logger().logger_config.labels
         if not labels:
-            labels = getattr(train_dataset.features.get("label", {}), "names", None)
-        assert labels, "Labels must be set (watch(trainer, labels=[...]))"
+            labels = getattr(train_dataset.features.get("label", {}), "names", [])
+        assert len(labels), "Labels must be set (watch(trainer, labels=[...]))"
         dq.set_labels_for_run(labels)
         datasets = [train_dataset]
         if eval_dataset is not None:
@@ -225,6 +230,7 @@ class _PatchSetFitTrainer(Patch):
                     eval_dataset, self.trainer.column_mapping
                 )
             datasets.append(eval_dataset)
+
         for split in [Split.training, Split.validation]:
             if split == Split.training:
                 dataset = train_dataset
@@ -234,24 +240,15 @@ class _PatchSetFitTrainer(Patch):
                 continue
             if "id" not in dataset.features:
                 dataset = dataset.map(lambda x, idx: {"id": idx}, with_indices=True)
-            for i in range(0, len(dataset), batch_size):
-                batch = dataset[i : i + batch_size]
-                model.predict_proba(batch["text"])
-                # 🔭🌕 Galileo logging
-                dq.log_data_samples(
-                    texts=batch["text"],
-                    ids=batch["id"],
-                    labels=[labels[label_id] for label_id in batch["label"]],
-                    split=split,
-                )
-                # 🔭🌕 Galileo logging
-                dq.log_model_outputs(
-                    ids=batch["id"],
-                    probs=dq_store["output"],
-                    embs=dq_store["input_args"][0],
-                    split=split,
-                    epoch=0,
-                )
+
+            run_model_predictions(
+                model=model,
+                dataset=dataset,
+                dq_store=dq_store,
+                batch_size=batch_size,
+                split=split,
+            )
+
         if self.finish:
             dq.finish(wait=self.wait)
 
@@ -274,11 +271,12 @@ def unwatch(setfit_obj: Optional[Union["SetFitModel", "SetFitTrainer"]]) -> None
 
 def watch(
     setfit: Union["SetFitModel", "SetFitTrainer"],
-    labels: List[str] = None,
+    labels: Optional[List[str]] = None,
     project_name: str = "",
     run_name: str = "",
     finish: bool = True,
     wait: bool = False,
+    batch_size: Optional[int] = None,
 ) -> Optional[Callable]:
     """Watch SetFit model by replacing predict_proba function with SetFitModelHook.
     :param model: SetFit model"""
@@ -297,6 +295,7 @@ def watch(
             wait=wait,
             run_name=run_name,
             project_name=project_name,
+            batch_size=batch_size,
         )
         setfitmanager.add_patch(patched_trainer)
         return None
@@ -310,7 +309,6 @@ def evaluate(model: "SetFitModel") -> Callable:
     :return: SetFitModelHook object"""
     dq_hook = SetFitModelHook(model)
     dq_store = dq_hook.store
-    labels = dq.get_data_logger().logger_config.labels
 
     helper_data = dq.get_data_logger().logger_config.helper_data
 
@@ -338,52 +336,16 @@ def evaluate(model: "SetFitModel") -> Callable:
             label="label",
         )
 
-        text_col = "text"
-        id_col = "id"
-        label_col = "label"
         if column_mapping is not None:
             dataset = _apply_column_mapping(dataset, column_mapping)
-        preds: List[torch.Tensor] = []
 
-        log_args = dict(
-            texts=[], ids=[], split=split
+        return run_model_predictions(
+            model=model,
+            dataset=dataset,
+            dq_store=dq_store,
+            batch_size=batch_size,
+            split=split,
+            inference_name=inference_name,
         )
-
-        for i in range(0, len(dataset), batch_size):
-            batch = dataset[i : i + batch_size]
-
-            assert text_col in batch, f"column '{text_col}' must be in batch"
-            assert id_col in batch, f"column '{id_col}' text must be in batch"
-
-            pred = model.predict_proba(batch[text_col])
-            preds.append(pred)
-            # 🔭🌕 Galileo logging
-            log_args["texts"].extend(batch[text_col])
-            log_args["ids"].extend(batch[id_col])
-            inference_dict: Dict[str, str] = {}
-            if inference_name is not None:
-                log_args["inference_name"] = inference_name
-                inference_dict["inference_name"] = inference_name
-            else:
-                assert label_col in batch, f"column '{label_col}' must be in batch"
-                log_args["labels"].extend([labels[label] for label in batch[label_col]])
-
-            if len(log_args["texts"]) >= BATCH_LOG_SIZE:
-                dq.log_data_samples(**log_args)
-                log_args.clear()
-            # 🔭🌕 Galileo logging
-            dq.log_model_outputs(
-                ids=batch[id_col],
-                probs=dq_store["output"],
-                embs=dq_store["input_args"][0],
-                split=split,
-                epoch=0,
-                **inference_dict,  # type: ignore
-            )
-        # Any leftovers
-        if log_args:
-            dq.log_data_samples(**log_args)
-
-        return torch.concat(preds)
 
     return dq_evaluate
