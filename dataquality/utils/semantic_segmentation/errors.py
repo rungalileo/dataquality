@@ -1,11 +1,15 @@
-from typing import List, Optional, Tuple
+from typing import List
 
 import numpy as np
 import torch
 from PIL import Image
 from torch.nn import functional as F
 
-from dataquality.schemas.semantic_segmentation import ErrorType, Polygon
+from dataquality.schemas.semantic_segmentation import (
+    ClassificationErrorData,
+    ErrorType,
+    Polygon,
+)
 from dataquality.utils.semantic_segmentation.constants import (
     BACKGROUND_CLASS,
     ERROR_THRESHOLD,
@@ -13,65 +17,58 @@ from dataquality.utils.semantic_segmentation.constants import (
 from dataquality.utils.semantic_segmentation.polygons import draw_polygon
 
 
-def calculate_misclassified_class(
-    pred_mask: np.ndarray,
-    gold_mask: np.ndarray,
+def calculate_classification_error(
+    candidate_mask: np.ndarray,
+    comparison_mask: np.ndarray,
     correct_class: int,
-    relevant_region: np.ndarray,
-) -> Optional[int]:
-    """Checks to see if the polygon is misclassified if over 50% of the pixels
-    are another class and if so sets Polygon.misclassified as to the class
-
-    Args:
-        pred_mask (np.ndarray): predicted mask
-        gold_mask (np.ndarray): ground truth mask
-        correct_class (int): the correct class of the polygon
-        relevant_region (np.ndarray): boolean mask of the relevant region of the polygon
-    """
-    area = relevant_region.sum()
-    region_pixels = pred_mask[relevant_region]
-    region_boolean = region_pixels != correct_class
-    incorrect_pixels = region_pixels[region_boolean]
-    # count the number of pixels in the pred mask relevant region that are
-    # not the correct class
-    areas = np.bincount(incorrect_pixels)
-    for i, incorrect_area in enumerate(areas):
-        if incorrect_area / area > ERROR_THRESHOLD:
-            return i
-    return None
-
-
-def polygon_accuracy(
-    preds: np.ndarray, gold_mask: np.ndarray, correct_class: int
-) -> Tuple[float, Optional[int]]:
+    number_classes: int,
+) -> ClassificationErrorData:
     """Calculates the accuracy of one ground truth polygon
     accuracy = (number of correct pixels) / (number of pixels in polygon)
+    as well as the class with the most incorrect pixels in that respective polyon
+    and the proportion of pixels in the polygon that are that class
 
-    :param preds: argmax of the prediction probabilities
-        shape = (height, width)
-    :param gold_masks: ground truth masks
-        shape =  height, width)
+    :param candidate_mask: mask we are using to calulcate the accuracy
+        ie. if we are computing accuracy for gold polygons this is the pred
+        mask and vice versa
+    :param comparison_mask: mask we are using to compare the candidate mask to
+        ie. if we are computing accuracy for gold polygons this is the gold
+        mask and vice versa
     :param correct_class: the correct class of the polygon
+    :param number_classes: number of classes
 
     returns: pixel accuracy of the predictions
     """
-    relevant_region = gold_mask != BACKGROUND_CLASS
-    relevant_pred_region = preds != BACKGROUND_CLASS
+    relevant_region = comparison_mask != BACKGROUND_CLASS
+    relevant_pred_region = candidate_mask != BACKGROUND_CLASS
     # use the relevant region to only select the pixels in the polygon
     # use the relevant_pred_region to only select the pixels in the pred polygon
     # that are not background pixels as classification errors are only
     # counted for non-background pixels
-    pointwise_accuracy = (preds == gold_mask)[relevant_region & relevant_pred_region]
+    pointwise_accuracy = (candidate_mask == comparison_mask)[
+        relevant_region & relevant_pred_region
+    ]
+    float_accuracy = pointwise_accuracy.sum() / relevant_region.sum()
 
-    misclassified_class = calculate_misclassified_class(
-        preds, gold_mask, correct_class, relevant_region
+    area = relevant_region.sum()
+    region_pixels = candidate_mask[relevant_region]
+    region_boolean = region_pixels != correct_class
+    incorrect_pixels = region_pixels[region_boolean]
+    # count the number of pixels in the pred mask relevant region that are
+    # not the correct class
+    areas = np.bincount(incorrect_pixels, minlength=number_classes)
+    argmax = np.argmax(areas)
+    return ClassificationErrorData(
+        accuracy=float_accuracy,
+        mislabeled_class=argmax,
+        mislabeled_class_pct=areas[argmax] / area,
     )
-    return pointwise_accuracy.sum() / relevant_region.sum(), misclassified_class
 
 
 def add_classification_error_to_polygons(
-    pred_mask: np.ndarray,
-    gold_polygons: List[Polygon],
+    mask: np.ndarray,
+    polygons: List[Polygon],
+    number_classes: int,
 ) -> None:
     """Checks for polygon misclassifications and sets the Polygon error_type field
 
@@ -82,24 +79,24 @@ def add_classification_error_to_polygons(
     were correct, then the polygon is misclassified.
 
     Args:
-        gold_mask (np.ndarray): ground truth mask
-        pred_polygons (List[Polygon]):
-            predicted polygon map for one image
+        mask (np.ndarray): mask of the image either gold or pred
+            depending on which polygons are being checked
+        polygons (List[Polygon]): list of polygons to check
+        number_classes (int): number of classes
     """
-    for polygon in gold_polygons:
-        out_polygon = draw_polygon(polygon, pred_mask.shape[-2:])
-        accuracy, misclassified_label = polygon_accuracy(
-            pred_mask, out_polygon, polygon.label_idx
+    for polygon in polygons:
+        out_polygon_im = draw_polygon(polygon, mask.shape[-2:])
+        polygon.cls_error_data = calculate_classification_error(
+            mask, out_polygon_im, polygon.label_idx, number_classes
         )
-        if accuracy < ERROR_THRESHOLD:
+        if polygon.cls_error_data.accuracy < ERROR_THRESHOLD:
             polygon.error_type = ErrorType.classification
-            if misclassified_label is not None:
-                polygon.misclassified_class_label = misclassified_label
 
 
 def add_classification_error_to_polygons_batch(
-    pred_masks: torch.Tensor,
-    gold_polygons_batch: List[List[Polygon]],
+    masks: torch.Tensor,
+    polygons_batch: List[List[Polygon]],
+    number_classes: int,
 ) -> None:
     """Calculates a set of misclassified polygon ids from the
     predicted mask for each image in a batch
@@ -107,14 +104,16 @@ def add_classification_error_to_polygons_batch(
     Also sets the error type field on the bad polygons to "misclassified"
 
     Args:
-        gold_mask(torch.tensor): ground truth mask
-        pred_polygon_maps(List[List[Polygon]]):
-            list of predicted polygons for each image in a batch
+        masks(torch.tensor): mask of the image either gold or pred
+            depending on which polygons are being checked
+        polygons_batch(List[List[Polygon]]):
+            list of polygons for each image in a batch
+        number_classes(int): number of classes
     """
-    for idx in range(len(pred_masks)):
-        gold_mask = pred_masks[idx].numpy()
-        pred_polygons = gold_polygons_batch[idx]
-        add_classification_error_to_polygons(gold_mask, pred_polygons)
+    for idx in range(len(masks)):
+        gold_mask = masks[idx].numpy()
+        pred_polygons = polygons_batch[idx]
+        add_classification_error_to_polygons(gold_mask, pred_polygons, number_classes)
 
 
 def background_accuracy(img_mask: np.ndarray, polygon_mask: np.ndarray) -> float:
@@ -284,10 +283,9 @@ def add_lm_to_polygons_batch(
     """
 
     for idx in range(len(mislabeled_pixels)):
-        mislabeled_pixels = interpolate_lm_map(
+        mislabeled_pixel_map = interpolate_lm_map(
             mislabeled_pixels[idx], heights[idx], widths[idx]
-        )
-        mislabeled_pixel_map = mislabeled_pixels[idx].numpy()
+        ).numpy()
 
         gold_polygons = gold_polygons_batch[idx]
         pred_polygons = pred_polygons_batch[idx]
@@ -306,10 +304,9 @@ def interpolate_lm_map(
     """
     # for interpolate need to be in format bs, c, h, w and right now we only have h, w
     # this results in mislabeled_pixel_map.shape = (1, 1, h, w)
-    mislabeled_pixel_map = mislabeled_pixel_map.unsqueeze(0).unsqueeze(0)
-    mislabeled_pixel_map = F.interpolate(
-        mislabeled_pixel_map, size=(height, width), mode="nearest"
+    mislabeled_pixel_map_unsqueezed = mislabeled_pixel_map.unsqueeze(0).unsqueeze(0)
+    mislabeled_pixel_map_interpolated = F.interpolate(
+        mislabeled_pixel_map_unsqueezed, size=(height, width), mode="nearest"
     )
-
     # squeeze the extra dimensions back to (h, w)
-    return mislabeled_pixel_map.squeeze(0).squeeze(0)
+    return mislabeled_pixel_map_interpolated.squeeze(0).squeeze(0)

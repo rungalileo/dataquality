@@ -150,7 +150,8 @@ def calculate_union_area(
         union_mask = np.logical_and(current_pred_mask, current_gold_mask)
         # calculate the area
         union_area = np.sum(union_mask)
-        per_class_union_area.append(union_area)
+        all_area = np.sum(current_pred_mask) + np.sum(current_gold_mask)
+        per_class_union_area.append(all_area - union_area)
     return per_class_union_area
 
 
@@ -188,7 +189,7 @@ def calculate_mean_iou(
         iou_data.append(
             IouData(
                 iou=iou["mean_iou"].item(),
-                iou_per_class=iou["per_category_iou"],
+                iou_per_class=iou["per_category_iou"].tolist(),
                 area_per_class=calculate_union_area(pred_masks[i], gold_masks[i], nc),
                 iou_type=iou_type,
             )
@@ -211,7 +212,7 @@ def calculate_polygon_area(
         int: area of the polygon
     """
     polygon_img = draw_polygon(polygon, (height, width))
-    return polygon_img.sum()
+    return (polygon_img != 0).sum()
 
 
 def add_area_to_polygons(

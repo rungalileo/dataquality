@@ -13,10 +13,16 @@ class TaskType(str, Enum):
     tabular_classification = "tabular_classification"
     object_detection = "object_detection"
     semantic_segmentation = "semantic_segmentation"
+    prompt_evaluation = "prompt_evaluation"
 
     @staticmethod
-    def get_valid_tasks() -> List[str]:
-        return list(map(lambda x: x.value, TaskType))
+    def get_valid_tasks() -> List["TaskType"]:
+        """Tasks that are valid for dataquality."""
+        return [
+            task_type
+            for task_type in TaskType
+            if task_type not in [TaskType.prompt_evaluation]
+        ]
 
     @staticmethod
     def get_mapping(task_int: int) -> "TaskType":
@@ -29,4 +35,5 @@ class TaskType(str, Enum):
             4: TaskType.tabular_classification,
             5: TaskType.object_detection,
             6: TaskType.semantic_segmentation,
+            7: TaskType.prompt_evaluation,
         }[task_int]

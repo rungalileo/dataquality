@@ -1,4 +1,6 @@
+import json
 import os
+from tempfile import NamedTemporaryFile
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -8,9 +10,11 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader
 
 import dataquality as dq
+from dataquality import config
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
 from dataquality.clients.objectstore import ObjectStore
+from dataquality.core._config import GALILEO_DEFAULT_RESULT_BUCKET_NAME
 from dataquality.exceptions import GalileoException
 from dataquality.integrations.torch import TorchLogger, unwatch
 from dataquality.loggers.model_logger.semantic_segmentation import (
@@ -27,6 +31,7 @@ from dataquality.utils.semantic_segmentation.lm import (
     fill_confident_counts,
 )
 from dataquality.utils.semantic_segmentation.utils import mask_to_boundary
+from dataquality.utils.thread_pool import ThreadPoolManager, lock
 from dataquality.utils.torch import ModelHookManager, store_batch_indices
 
 a = Analytics(ApiClient, dq.config)  # type: ignore
@@ -37,7 +42,7 @@ object_store = ObjectStore()
 # Heuristic used to calculate Likely Mislabeled for Semantic Segmentation
 # A larger queue size corresponds to a more accurate estimate of LM.
 # We keep a queue size to overcome memory issues with large SemSeg datasets.
-LIKELY_MISLABELED_QUEUE_SIZE = 100
+LIKELY_MISLABELED_QUEUE_SIZE = 1000
 
 
 class SemanticTorchLogger(TorchLogger):
@@ -372,7 +377,39 @@ class SemanticTorchLogger(TorchLogger):
             )
             logger.log()
 
+    def upload_contours_split(self, split: str) -> None:
+        """Uploads all contours for a given split to minio
+
+        Args:
+            split (str): split name
+        """
+        model_logger = dq.get_model_logger()
+        project_path = f"{model_logger.LOG_FILE_DIR}/{config.current_project_id}"
+        local_contour_path = f"{project_path}/{config.current_run_id}/{split}/contours"
+
+        files = os.listdir(local_contour_path)
+        all_contours = {}
+        for file in files:
+            with open(f"{local_contour_path}/{file}") as f:
+                contours = json.load(f)
+                # uuid is the key for each contour from the polygon schema
+                all_contours[file.replace(".json", "")] = contours
+        with NamedTemporaryFile(mode="w+", delete=False) as temp_file:
+            json.dump(all_contours, temp_file)
+
+        obj_name = f"{model_logger.proj_run}/{split}/contours/contours.json"
+        object_store.create_object(
+            object_name=obj_name,
+            file_path=temp_file.name,
+            content_type="application/json",
+            progress=False,
+            bucket_name=GALILEO_DEFAULT_RESULT_BUCKET_NAME,
+        )
+
     def finish(self) -> None:
+        # call to eval to make sure we are not in train mode for batch norm
+        # in batch norm with 1 example can get an error if we are in train mode
+        self.model.eval()
         self.called_finish = True
         # finish function that runs our inference at the end of training
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -381,6 +418,12 @@ class SemanticTorchLogger(TorchLogger):
             dq.set_epoch_and_split(0, Split[split])
             with torch.no_grad():
                 self.run_one_epoch(dataloader, device)
+            split = self.logger_config.cur_split.lower()  # type: ignore
+            # Ensure all contours are written to disk before starting upload
+            ThreadPoolManager.wait_for_threads()
+            with lock:
+                self.upload_contours_split(split)
+        self.model.train()
 
     def run_one_epoch(self, dataloader: DataLoader, device: torch.device) -> None:
         if torch.cuda.is_available():
@@ -497,6 +540,9 @@ def watch(
         assert key in Split.__members__, GalileoException(
             f"Dataloader key {key} is not a valid split"
         )
+        current_split = Split[key].value
+        logger_config = dq.get_model_logger().logger_config
+        setattr(logger_config, f"{current_split}_logged", True)
         assert isinstance(dataloader, DataLoader), GalileoException(
             "Invalid dataloader. Must be a pytorch dataloader"
             "from torch.utils.data import DataLoader..."
