@@ -177,17 +177,14 @@ class ObjectDetectionModelLogger(BaseGalileoModelLogger):
         golds = np.concatenate([[-1] * num_pred, np.concatenate(self.labels)]).astype(
             np.int32
         )
-        # embs = np.concatenate([pred_emb_arrays, gold_emb_arrays])
         # but if there are no preds, we don't want to concat because that would fail
         embs = gold_emb_arrays
         if len(pred_emb_arrays) > 0:
             embs = np.concatenate([pred_emb_arrays, gold_emb_arrays])
-        # prob = np.concatenate([pred_prob_arrays, np.zeros(gold_prob_shape)])
         # but if there are no preds, we don't want to concat because that would fail
         prob = np.zeros(gold_prob_shape)
         if len(pred_prob_arrays) > 0:
             prob = np.concatenate([pred_prob_arrays, np.zeros(gold_prob_shape)])
-        # prob = np.concatenate([pred_prob_arrays, np.zeros(gold_prob_shape)])
         # but if there are no preds, we don't want to concat because that would fail
         bbox = gold_box_arrays
         if len(pred_box_arrays) > 0:
