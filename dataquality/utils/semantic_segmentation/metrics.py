@@ -1,14 +1,13 @@
 from tempfile import NamedTemporaryFile
 from typing import List, Tuple
 
-import evaluate
 import numpy as np
 import torch
 from PIL import Image
 
 from dataquality.clients.objectstore import ObjectStore
 from dataquality.core._config import GALILEO_DEFAULT_RESULT_BUCKET_NAME
-from dataquality.schemas.semantic_segmentation import IouData, IoUType, Polygon
+from dataquality.schemas.semantic_segmentation import IouData, Polygon
 from dataquality.utils.semantic_segmentation.polygons import draw_polygon
 
 object_store = ObjectStore()
@@ -138,7 +137,7 @@ def calculate_batch_iou(
        shape = (bs, height, width)
     :param iou_type: mean or boundary
     :param nc: number of classes
-    :return: list of IoU values for each image in the batch
+    :return: list of IoU data for each image in the batch
        shape = (bs,)
     """
     iou_data = []
@@ -168,7 +167,7 @@ def compute_iou(
     num_labels: int,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Computes the intersection over union for a single image
-    
+
     Computes the iou for a single image as well as returning the total union area
     per class
 
