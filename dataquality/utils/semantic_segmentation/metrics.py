@@ -170,15 +170,15 @@ def calculate_batch_iou(
     :return: list of IoU data for each image in the batch
        shape = (bs,)
     """
-    pred_masks = pred_masks.numpy()
-    gold_masks = gold_masks.numpy()
+    pred_masks_np = pred_masks.numpy()
+    gold_masks_np = gold_masks.numpy()
     iou_data = []
 
     # for iou need shape (bs, 1, height, width) to get per mask iou
-    for i in range(len(pred_masks)):
+    for i in range(len(pred_masks_np)):
         iou, area_per_class = compute_iou(
-            pred_masks[i : i + 1],  # tensor (1, height, width)
-            gold_masks[i : i + 1],  # tensor (1, height, width)
+            pred_masks_np[i : i + 1],  # tensor (1, height, width)
+            gold_masks_np[i : i + 1],  # tensor (1, height, width)
             num_labels=nc,
         )
 
