@@ -34,7 +34,6 @@ def calculate_batch_iou(
             pred_masks[i : i + 1],  # tensor (1, height, width)
             gold_masks[i : i + 1],  # tensor (1, height, width)
             num_labels=nc,
-            ignore_index=255,
         )
 
         iou_data.append(
@@ -52,7 +51,6 @@ def compute_iou(
     pred_mask: np.ndarray,
     gold_mask: np.ndarray,
     num_labels: int,
-    ignore_index: int
 ) -> Tuple[np.ndarray, np.ndarray]:
     intersection_bool = pred_mask == gold_mask
     
