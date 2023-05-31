@@ -220,16 +220,26 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         )
         # Errors
         add_class_errors_to_polygons_batch(
-            self.pred_masks, gold_polygons_batch, n_classes, "gold"
+            self.pred_masks,
+            gold_polygons_batch,
+            n_classes,
+            polygon_type="gold"
         )
         add_class_errors_to_polygons_batch(
-            self.gold_masks, pred_polygons_batch, n_classes, "pred"
+            self.gold_masks,
+            pred_polygons_batch,
+            n_classes,
+            polygon_type="pred"
         )
         add_background_errors_to_polygons_batch(
-            self.pred_masks, gold_polygons_batch, "gold"
+            self.pred_masks,
+            gold_polygons_batch,
+            polygon_type="gold"
         )
         add_background_errors_to_polygons_batch(
-            self.gold_masks, pred_polygons_batch, "pred"
+            self.gold_masks,
+            pred_polygons_batch,
+            polygon_type="pred"
         )
         heights = [img.shape[-1] for img in self.gold_masks]
         widths = [img.shape[-2] for img in self.gold_masks]
