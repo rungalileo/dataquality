@@ -36,6 +36,7 @@ class BaseLoggerConfig(BaseModel):
     finish: Callable = lambda: None  # Overwritten in Semantic Segmentation
     # True when calling `init` with a run that already exists
     existing_run: bool = False
+    allow_missing_in_df_ids = False
 
     class Config:
         validate_assignment = True
