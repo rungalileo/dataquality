@@ -20,7 +20,6 @@ from dataquality.utils.semantic_segmentation.errors import (
     add_dep_to_polygons_batch,
     add_lm_to_polygons_batch,
 )
-from dataquality.utils.semantic_segmentation.lm import upload_mislabeled_pixels
 from dataquality.utils.semantic_segmentation.metrics import (
     add_area_to_polygons_batch,
     calculate_and_upload_dep,
@@ -195,9 +194,6 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         """Returns a dictionary of data to be logged as a DataFrame"""
         # DEP & likely mislabeled
         mean_mislabeled = torch.mean(self.mislabled_pixels, dim=(1, 2)).numpy()
-        upload_mislabeled_pixels(
-            self.mislabled_pixels, self.image_ids, prefix=self.lm_path
-        )
 
         image_dep, dep_heatmaps = calculate_and_upload_dep(
             self.output_probs,
