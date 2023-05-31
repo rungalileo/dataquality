@@ -156,6 +156,7 @@ class SemanticSegmentationDataLogger(BaseGalileoDataLogger):
         """
         proj_run = f"{config.current_project_id}/{config.current_run_id}"
         minio_file = f"{proj_run}/{split}/0/data/data.hdf5"
+        cls._handle_numpy_types(df=in_frame)
         object_store.create_project_run_object_from_df(
             df=in_frame,
             object_name=minio_file,
@@ -173,6 +174,7 @@ class SemanticSegmentationDataLogger(BaseGalileoDataLogger):
             out_frame["id"] = vaex.vrange(0, len(out_frame), dtype="int32")
 
         polygon_minio_file = f"{proj_run}/{split}/0/prob/prob.hdf5"
+        cls._handle_numpy_types(df=out_frame)
         object_store.create_project_run_object_from_df(
             df=out_frame,
             object_name=polygon_minio_file,

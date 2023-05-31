@@ -1,6 +1,6 @@
 import json
+import os
 from collections import defaultdict
-from tempfile import NamedTemporaryFile
 from typing import List, Tuple
 from uuid import uuid4
 
@@ -9,7 +9,6 @@ import numpy as np
 import torch
 
 from dataquality.clients.objectstore import ObjectStore
-from dataquality.core._config import GALILEO_DEFAULT_RESULT_BUCKET_NAME
 from dataquality.schemas.ml import ClassType
 from dataquality.schemas.semantic_segmentation import Contour, Pixel, Polygon
 
@@ -146,26 +145,21 @@ def draw_polygon(polygon: Polygon, shape: Tuple[int, ...]) -> np.ndarray:
     )
 
 
-def upload_polygon_contours(
+def write_polygon_contours_to_disk(
     polygon: Polygon,
     prefix: str,
 ) -> None:
-    """Uploads a Polygon's contours to the cloud
+    """Writes polygons to disk in json format
 
     Args:
         polygon(Polygon): A Polygon object
         prefix(str): prefix of the object name in storage
-            - /proj-id/run-id/training/contours/1.json
+            \"{proj_run_path}/{split_name_path}/contours"
     """
-    obj_name = f"{prefix}/{polygon.uuid}.json"
 
-    with NamedTemporaryFile(mode="w+", delete=False) as f:
+    os.makedirs(prefix, exist_ok=True)
+    local_path = f"{prefix}/{polygon.uuid}.json"
+
+    with open(local_path, "w") as f:
         json.dump(polygon.contours_json, f)
-
-    object_store.create_object(
-        object_name=obj_name,
-        file_path=f.name,
-        content_type="application/json",
-        progress=False,
-        bucket_name=GALILEO_DEFAULT_RESULT_BUCKET_NAME,
-    )
+    f.close()
