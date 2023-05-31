@@ -20,12 +20,11 @@ from dataquality.utils.semantic_segmentation.errors import (
     add_dep_to_polygons_batch,
     add_lm_to_polygons_batch,
 )
+from dataquality.utils.semantic_segmentation.mean_iou import calculate_batch_iou
 from dataquality.utils.semantic_segmentation.metrics import (
     add_area_to_polygons_batch,
     calculate_and_upload_dep,
-    calculate_mean_iou,
 )
-from dataquality.utils.semantic_segmentation.mean_iou import calculate_batch_iou
 from dataquality.utils.semantic_segmentation.polygons import (
     find_polygons_batch,
     write_polygon_contours_to_disk,

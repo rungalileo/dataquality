@@ -1,14 +1,13 @@
 from tempfile import NamedTemporaryFile
 from typing import List, Tuple
 
-import evaluate
 import numpy as np
 import torch
 from PIL import Image
 
 from dataquality.clients.objectstore import ObjectStore
 from dataquality.core._config import GALILEO_DEFAULT_RESULT_BUCKET_NAME
-from dataquality.schemas.semantic_segmentation import IouData, IoUType, Polygon
+from dataquality.schemas.semantic_segmentation import IouData, Polygon
 from dataquality.utils.semantic_segmentation.polygons import draw_polygon
 
 object_store = ObjectStore()
@@ -199,17 +198,19 @@ def compute_iou(
     num_labels: int,
 ) -> Tuple[np.ndarray, np.ndarray]:
     intersection_bool = pred_mask == gold_mask
-    
-    intersection_pixels = np.histogram(pred_mask[intersection_bool], bins=num_labels, range=(0, num_labels))[0]
+
+    intersection_pixels = np.histogram(
+        pred_mask[intersection_bool], bins=num_labels, range=(0, num_labels)
+    )[0]
     pred_pixels = np.histogram(pred_mask, bins=num_labels, range=(0, num_labels))[0]
     gold_pixels = np.histogram(gold_mask, bins=num_labels, range=(0, num_labels))[0]
-    
+
     union_pixels_per_class = pred_pixels + gold_pixels - intersection_pixels
     iou_per_class = intersection_pixels / union_pixels_per_class
-    
+
     # fill the nans with 0s
     union_pixels_per_class = np.nan_to_num(union_pixels_per_class)
-    
+
     return iou_per_class, union_pixels_per_class
 
 
