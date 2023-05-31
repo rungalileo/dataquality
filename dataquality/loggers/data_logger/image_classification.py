@@ -268,7 +268,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         data: "id", "pred" + all the other cols not in emb or prob
         """
         validate_unique_ids(out_frame, epoch_or_inf_name)
-        allow_missing_in_df_ids = cls.logger_config.allow_missing_in_df_ids
+        allow_missing_in_df_ids = cls.logger_config.allow_missing_ids
         filter_ids: Set[int] = set()
         if allow_missing_in_df_ids:
             observed_ids = image_classification_logger_config.observed_ids
