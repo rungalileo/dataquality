@@ -234,9 +234,10 @@ def watch(
     :param last_hidden_state_layer: Layer to extract the embeddings from
     :param unpatch_on_start: Force unpatching of dataloaders
         instead of global patching
-    :param dataloader_random_sampling: Allow missing ids in the dataset if a RandomSampler
-        or WeightedRandomSampler is used. This is useful when logging less samples
-        during training than the total number of samples in the dataset.
+    :param dataloader_random_sampling: Whether a RandomSampler
+        or WeightedRandomSampler is being used. If random sampling
+        is being used, you must set this to True, otherwise logging
+        will fail at the end of training.
 
     """
     a.log_function("torch/watch")
