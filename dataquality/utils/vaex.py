@@ -26,7 +26,9 @@ GALILEO_DATA_EMBS_ENCODER = "GALILEO_DATA_EMBS_ENCODER"
 DEFAULT_DATA_EMBS_MODEL = "all-MiniLM-L6-v2"
 
 
-def _join_in_out_frames(in_df: DataFrame, out_df: DataFrame) -> DataFrame:
+def _join_in_out_frames(
+    in_df: DataFrame, out_df: DataFrame, allow_missing_in_df_ids: bool = False
+) -> DataFrame:
     """Helper function to join our input and output frames"""
     in_frame = in_df.copy()
     # There is an odd vaex bug where sometimes we lose the continuity of this dataframe
@@ -36,7 +38,7 @@ def _join_in_out_frames(in_df: DataFrame, out_df: DataFrame) -> DataFrame:
     in_frame["id"] = in_frame["id"].values
     out_frame = out_df.copy()
     in_out = out_frame.join(in_frame, on="id", how="inner", lsuffix="_L").copy()
-    if len(in_out) != len(out_frame):
+    if len(in_out) != len(out_frame) and not allow_missing_in_df_ids:
         num_missing = len(out_frame) - len(in_out)
         missing_ids = set(out_frame["id"].unique()) - set(in_out["id_L"].unique())
         split = out_frame["split"].unique()[0]
@@ -45,6 +47,14 @@ def _join_in_out_frames(in_df: DataFrame, out_df: DataFrame) -> DataFrame:
             f"for split {split}. {num_missing} corresponding input IDs are missing:\n"
             f"{missing_ids}"
         )
+    elif allow_missing_in_df_ids:
+        # If we're downsampling, we make sure the out and in have an id intersection
+        # and then we drop the out rows that don't have a corresponding in
+        in_ids = set(in_frame["id"].unique())
+        out_ids = set(out_frame["id"].unique())
+        id_intersection = np.array(list(in_ids.intersection(out_ids)))
+        in_out = in_out[in_out["id_L"].isin(id_intersection)]
+
     keep_cols = [c for c in in_out.get_column_names() if not c.endswith("_L")]
     in_out = in_out[keep_cols]
     return in_out

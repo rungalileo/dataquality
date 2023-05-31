@@ -3,8 +3,9 @@ from __future__ import annotations
 import glob
 import os
 import tempfile
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Set, Union
 
+import numpy as np
 import pandas as pd
 import vaex
 from vaex.dataframe import DataFrame
@@ -267,9 +268,24 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         data: "id", "pred" + all the other cols not in emb or prob
         """
         validate_unique_ids(out_frame, epoch_or_inf_name)
+        allow_missing_in_df_ids = cls.logger_config.dataloader_random_sampling
+        filter_ids: Set[int] = set()
+        if allow_missing_in_df_ids:
+            observed_ids = image_classification_logger_config.observed_ids
+            keys = [k for k in observed_ids.keys() if split in k]
+            if len(keys):
+                filter_ids = set(observed_ids[keys[0]])
+            for k in keys:
+                filter_ids = filter_ids.intersection(observed_ids[k])
 
         emb_cols = ["id"] if prob_only else ["id", "emb"]
         emb_df = out_frame[emb_cols]
+        if allow_missing_in_df_ids:
+            filter_ids_arr: np.ndarray = np.array(list(filter_ids))
+            del filter_ids
+            in_frame = in_frame[in_frame["id"].isin(filter_ids_arr)]
+            out_frame = out_frame[out_frame["id"].isin(filter_ids_arr)]
+
         # The in_frame has gold, so we join with the out_frame to get the probabilities
         prob_df = out_frame.join(in_frame[["id", "gold"]], on="id")[
             cls._get_prob_cols()
@@ -288,6 +304,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             #  prob_df on the server. This is confusing code
             data_cols = in_frame.get_column_names() + ["pred"]
             data_cols = ["id"] + [c for c in data_cols if c not in remove_cols]
+
             data_df = in_frame.join(out_frame[["id", "pred"]], on="id")[data_cols]
 
         dataframes = BaseLoggerDataFrames(prob=prob_df, emb=emb_df, data=data_df)
