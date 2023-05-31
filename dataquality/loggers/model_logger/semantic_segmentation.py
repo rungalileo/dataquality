@@ -16,7 +16,7 @@ from dataquality.schemas.semantic_segmentation import IoUType, Polygon
 from dataquality.schemas.split import Split
 from dataquality.utils.semantic_segmentation.errors import (
     add_background_errors_to_polygons_batch,
-    add_classification_error_to_polygons_batch,
+    add_class_errors_to_polygons_batch,
     add_dep_to_polygons_batch,
     add_lm_to_polygons_batch,
 )
@@ -219,11 +219,11 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             self.pred_masks, self.gold_masks
         )
         # Errors
-        add_classification_error_to_polygons_batch(
-            self.pred_masks, gold_polygons_batch, n_classes
+        add_class_errors_to_polygons_batch(
+            self.pred_masks, gold_polygons_batch, n_classes, "gold"
         )
-        add_classification_error_to_polygons_batch(
-            self.gold_masks, pred_polygons_batch, n_classes
+        add_class_errors_to_polygons_batch(
+            self.gold_masks, pred_polygons_batch, n_classes, "pred"
         )
         add_background_errors_to_polygons_batch(
             self.pred_masks, gold_polygons_batch, "gold"

@@ -18,6 +18,7 @@ class SemSegCols(str, Enum):
 
 
 class ErrorType(str, Enum):
+    class_confusion = "class_confusion"
     classification = "classification"
     missed = "missed"
     background = "background"
