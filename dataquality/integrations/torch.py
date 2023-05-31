@@ -5,11 +5,13 @@ from warnings import warn
 from torch import Tensor
 from torch.nn import Module
 from torch.utils.data import DataLoader
+from torch.utils.data.sampler import SequentialSampler
 from transformers.modeling_outputs import TokenClassifierOutput
 
 import dataquality as dq
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
+from dataquality.core.log import get_data_logger
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.task_type import TaskType
 from dataquality.schemas.torch import DimensionSlice, HelperData, InputDim, Layer
@@ -193,6 +195,7 @@ def watch(
     logits_fn: Optional[Callable] = None,
     last_hidden_state_layer: Union[Module, str, None] = None,
     unpatch_on_start: bool = False,
+    dataloader_random_sampling: bool = False,
 ) -> None:
     """
     wraps a PyTorch model and optionally dataloaders to log the
@@ -229,6 +232,13 @@ def watch(
     :param model: Pytorch Model to be wrapped
     :param dataloaders: List of dataloaders to be wrapped
     :param last_hidden_state_layer: Layer to extract the embeddings from
+    :param unpatch_on_start: Force unpatching of dataloaders
+        instead of global patching
+    :param dataloader_random_sampling: Whether a RandomSampler
+        or WeightedRandomSampler is being used. If random sampling
+        is being used, you must set this to True, otherwise logging
+        will fail at the end of training.
+
     """
     a.log_function("torch/watch")
     assert dq.config.task_type, GalileoException(
@@ -244,6 +254,8 @@ def watch(
         )
 
     helper_data = dq.get_model_logger().logger_config.helper_data
+    logger_config = get_data_logger().logger_config
+
     print("Attaching dataquality to model and dataloaders")
     tl = TorchLogger(
         model=model,
@@ -265,6 +277,10 @@ def watch(
     )
     if len(dataloaders) > 0 and is_single_process_dataloader:
         for dataloader in dataloaders:
+            if not isinstance(getattr(dataloader, "sampler", None), SequentialSampler):
+                logger_config = get_data_logger().logger_config
+                logger_config.dataloader_random_sampling = True
+
             assert isinstance(dataloader, DataLoader), GalileoException(
                 "Invalid dataloader. Must be a pytorch dataloader"
                 "from torch.utils.data import DataLoader..."
@@ -283,6 +299,8 @@ def watch(
         # Patch the dataloader class globally
         # Can be unpatched with unwatch()
         patch_dataloaders(tl.helper_data)
+    if dataloader_random_sampling:
+        logger_config.dataloader_random_sampling = True
 
 
 def unwatch(model: Optional[Module] = None, force: bool = True) -> None:
