@@ -6,7 +6,7 @@ import torch
 import dataquality as dq
 from dataquality.schemas.split import Split
 from dataquality.utils.patcher import Cleanup, Patch, PatchManager, RefManager
-from dataquality.utils.setfit import run_model_predictions
+from dataquality.utils.setfit import log_preds_setfit
 
 if TYPE_CHECKING:
     from datasets import Dataset
@@ -241,7 +241,7 @@ class _PatchSetFitTrainer(Patch):
             if "id" not in dataset.features:
                 dataset = dataset.map(lambda x, idx: {"id": idx}, with_indices=True)
 
-            run_model_predictions(
+            log_preds_setfit(
                 model=model,
                 dataset=dataset,
                 dq_store=dq_store,
@@ -278,8 +278,17 @@ def watch(
     wait: bool = False,
     batch_size: Optional[int] = None,
 ) -> Optional[Callable]:
-    """Watch SetFit model by replacing predict_proba function with SetFitModelHook.
-    :param model: SetFit model"""
+    """Watch a SetFit model or trainer and extract model outputs for dataquality.
+    Returns a function that can be used to evaluate the model on a dataset.
+    :param setfit: SetFit model or trainer
+    :param labels: list of labels
+    :param project_name: name of project
+    :param run_name: name of run
+    :param finish: whether to run dq.finish after evaluation
+    :param wait: whether to wait for dq.finish
+    :param batch_size: batch size for evaluation
+    :return: dq_evaluate function
+    """
     from setfit import SetFitTrainer
 
     labels = labels or []
@@ -339,7 +348,7 @@ def evaluate(model: "SetFitModel") -> Callable:
         if column_mapping is not None:
             dataset = _apply_column_mapping(dataset, column_mapping)
 
-        return run_model_predictions(
+        return log_preds_setfit(
             model=model,
             dataset=dataset,
             dq_store=dq_store,
