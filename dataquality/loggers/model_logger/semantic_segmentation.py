@@ -23,7 +23,7 @@ from dataquality.utils.semantic_segmentation.errors import (
 from dataquality.utils.semantic_segmentation.metrics import (
     add_area_to_polygons_batch,
     calculate_and_upload_dep,
-    calculate_mean_iou,
+    calculate_batch_iou,
 )
 from dataquality.utils.semantic_segmentation.polygons import (
     find_polygons_batch,
@@ -204,10 +204,10 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
 
         # Calculate metrics - mean IoU and boundary IoU
         n_classes = len(self.logger_config.labels)
-        mean_iou_data = calculate_mean_iou(
+        mean_iou_data = calculate_batch_iou(
             self.pred_masks, self.gold_masks, IoUType.mean, n_classes
         )
-        boundary_iou_data = calculate_mean_iou(
+        boundary_iou_data = calculate_batch_iou(
             self.pred_boundary_masks,
             self.gold_boundary_masks,
             IoUType.boundary,
