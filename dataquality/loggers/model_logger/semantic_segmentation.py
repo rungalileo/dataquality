@@ -20,7 +20,6 @@ from dataquality.utils.semantic_segmentation.errors import (
     add_dep_to_polygons_batch,
     add_lm_to_polygons_batch,
 )
-from dataquality.utils.semantic_segmentation.lm import upload_mislabeled_pixels
 from dataquality.utils.semantic_segmentation.metrics import (
     add_area_to_polygons_batch,
     calculate_and_upload_dep,
