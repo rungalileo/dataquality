@@ -1,12 +1,9 @@
-from tempfile import NamedTemporaryFile
 from typing import List
 
 import numpy as np
 import torch
-from PIL import Image
 
 from dataquality.clients.objectstore import ObjectStore
-from dataquality.core._config import GALILEO_DEFAULT_RESULT_BUCKET_NAME
 
 object_store = ObjectStore()
 
@@ -333,6 +330,7 @@ def _calculate_confidence_joint(
     confident_counts = _get_confident_counts(probs, gold, per_class_threshold)
     confident_joint = normalize_confident_counts(confident_counts, count_per_class)
     return confident_joint
+
 
 def calculate_self_confidence_threshold(
     probs: torch.Tensor, gold: torch.Tensor
