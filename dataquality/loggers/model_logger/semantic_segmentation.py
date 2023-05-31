@@ -12,11 +12,11 @@ from dataquality.loggers.logger_config.semantic_segmentation import (
 )
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.schemas.ml import ClassType
-from dataquality.schemas.semantic_segmentation import IoUType, Polygon
+from dataquality.schemas.semantic_segmentation import IoUType, Polygon, PolygonType
 from dataquality.schemas.split import Split
 from dataquality.utils.semantic_segmentation.errors import (
     add_background_errors_to_polygons_batch,
-    add_classification_error_to_polygons_batch,
+    add_class_errors_to_polygons_batch,
     add_dep_to_polygons_batch,
     add_lm_to_polygons_batch,
 )
@@ -219,17 +219,23 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             self.pred_masks, self.gold_masks
         )
         # Errors
-        add_classification_error_to_polygons_batch(
-            self.pred_masks, gold_polygons_batch, n_classes
+        add_class_errors_to_polygons_batch(
+            self.pred_masks,
+            gold_polygons_batch,
+            n_classes,
+            polygon_type=PolygonType.gold,
         )
-        add_classification_error_to_polygons_batch(
-            self.gold_masks, pred_polygons_batch, n_classes
+        add_class_errors_to_polygons_batch(
+            self.gold_masks,
+            pred_polygons_batch,
+            n_classes,
+            polygon_type=PolygonType.pred,
         )
         add_background_errors_to_polygons_batch(
-            self.pred_masks, gold_polygons_batch, "gold"
+            self.pred_masks, gold_polygons_batch, polygon_type=PolygonType.gold
         )
         add_background_errors_to_polygons_batch(
-            self.gold_masks, pred_polygons_batch, "pred"
+            self.gold_masks, pred_polygons_batch, polygon_type=PolygonType.pred
         )
         heights = [img.shape[-1] for img in self.gold_masks]
         widths = [img.shape[-2] for img in self.gold_masks]
