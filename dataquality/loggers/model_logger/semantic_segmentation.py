@@ -195,9 +195,6 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         """Returns a dictionary of data to be logged as a DataFrame"""
         # DEP & likely mislabeled
         mean_mislabeled = torch.mean(self.mislabled_pixels, dim=(1, 2)).numpy()
-        upload_mislabeled_pixels(
-            self.mislabled_pixels, self.image_ids, prefix=self.lm_path
-        )
 
         image_dep, dep_heatmaps = calculate_and_upload_dep(
             self.output_probs,
