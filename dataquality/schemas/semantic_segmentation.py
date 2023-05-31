@@ -25,6 +25,11 @@ class ErrorType(str, Enum):
     none = None
 
 
+class PolygonType(str, Enum):
+    gold = "gold"
+    pred = "pred"
+
+
 class IoUType(str, Enum):
     mean = "mean"
     boundary = "boundary"

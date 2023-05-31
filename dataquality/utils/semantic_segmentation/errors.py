@@ -9,6 +9,7 @@ from dataquality.schemas.semantic_segmentation import (
     ClassificationErrorData,
     ErrorType,
     Polygon,
+    PolygonType,
 )
 from dataquality.utils.semantic_segmentation.constants import (
     BACKGROUND_CLASS,
@@ -91,9 +92,9 @@ def add_class_errors_to_polygons(
             mask, out_polygon_im, polygon.label_idx, number_classes
         )
         acc = polygon.cls_error_data.accuracy
-        if polygon_type == "pred" and acc < ERROR_THRESHOLD:
+        if polygon_type == PolygonType.pred and acc < ERROR_THRESHOLD:
             polygon.error_type = ErrorType.classification
-        if polygon_type == "gold" and acc < ERROR_THRESHOLD:
+        if polygon_type == PolygonType.gold and acc < ERROR_THRESHOLD:
             polygon.error_type = ErrorType.class_confusion
 
 
@@ -160,9 +161,9 @@ def add_background_errors_to_polygons(
         polygon_mask = draw_polygon(polygon, img_mask.shape[-2:])
         acc = background_accuracy(img_mask, polygon_mask)
         polygon.background_error_pct = acc
-        if polygon_type == "pred" and acc > ERROR_THRESHOLD:
+        if polygon_type == PolygonType.pred and acc > ERROR_THRESHOLD:
             polygon.error_type = ErrorType.background
-        elif polygon_type == "gold" and acc > ERROR_THRESHOLD:
+        elif polygon_type == PolygonType.gold and acc > ERROR_THRESHOLD:
             polygon.error_type = ErrorType.missed
 
 
