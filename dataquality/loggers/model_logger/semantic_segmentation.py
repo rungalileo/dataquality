@@ -208,10 +208,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         mean_iou_data = calculate_batch_iou(
             self.pred_masks, self.gold_masks, IoUType.mean, n_classes
         )
-        '''mean_iou_data = calculate_mean_iou(
-            self.pred_masks, self.gold_masks, IoUType.mean, n_classes
-        )'''
-        boundary_iou_data = calculate_mean_iou(
+        boundary_iou_data = calculate_batch_iou(
             self.pred_boundary_masks,
             self.gold_boundary_masks,
             IoUType.boundary,
