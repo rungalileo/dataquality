@@ -232,6 +232,12 @@ def watch(
     :param model: Pytorch Model to be wrapped
     :param dataloaders: List of dataloaders to be wrapped
     :param last_hidden_state_layer: Layer to extract the embeddings from
+    :param unpatch_on_start: Force unpatching of dataloaders
+        instead of global patching
+    :param allow_missing_ids: Allow missing ids in the dataset if a RandomSampler
+        or WeightedRandomSampler is used. This is useful when logging less samples
+        during training than the total number of samples in the dataset.
+
     """
     a.log_function("torch/watch")
     assert dq.config.task_type, GalileoException(
