@@ -77,6 +77,8 @@ test = [
     "types-PyYAML==6.0.12.9",
     "setfit",
     "accelerate>=0.19.0",
+    "typing-inspect==0.8.0",
+    "typing-extensions<4.6.0"
 ]
 dev = [
     "mypy>=1.0.0",

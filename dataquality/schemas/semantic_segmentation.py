@@ -4,6 +4,8 @@ from typing import List, Optional
 import numpy as np
 from pydantic import BaseModel
 
+from dataquality.schemas.ml import ClassType
+
 
 class SemSegCols(str, Enum):
     id = "id"
@@ -25,6 +27,20 @@ class ErrorType(str, Enum):
 class IoUType(str, Enum):
     mean = "mean"
     boundary = "boundary"
+
+
+class ClassificationErrorData(BaseModel):
+    """Data needed for determining classification errors on backend
+
+    accuracy: no pixels correctly classified / area of polygon
+    mislabeled_class: label idx of the class that was most frequently mislabeled
+    mislabeled_class_pct: the pct of pixels in the polygon
+        that were classified as mislabeled_class
+    """
+
+    accuracy: float
+    mislabeled_class: int
+    mislabeled_class_pct: float
 
 
 class IouData(BaseModel):
@@ -62,7 +78,7 @@ class Contour(BaseModel):
 class Polygon(BaseModel):
     uuid: str  # UUID4
     label_idx: int
-    misclassified_class_label: Optional[int] = None
+    cls_error_data: Optional[ClassificationErrorData] = None
     error_type: ErrorType = ErrorType.none
     background_error_pct: Optional[float] = None
     contours: List[Contour]
@@ -70,6 +86,7 @@ class Polygon(BaseModel):
     ghost_percentage: Optional[float] = None
     area: Optional[int] = None
     likely_mislabeled_pct: Optional[float] = None
+    class_type: ClassType
 
     @property
     def contours_opencv(self) -> List[np.ndarray]:

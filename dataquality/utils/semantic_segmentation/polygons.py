@@ -1,6 +1,6 @@
 import json
+import os
 from collections import defaultdict
-from tempfile import NamedTemporaryFile
 from typing import List, Tuple
 from uuid import uuid4
 
@@ -9,7 +9,7 @@ import numpy as np
 import torch
 
 from dataquality.clients.objectstore import ObjectStore
-from dataquality.core._config import GALILEO_DEFAULT_RESULT_BUCKET_NAME
+from dataquality.schemas.ml import ClassType
 from dataquality.schemas.semantic_segmentation import Contour, Pixel, Polygon
 
 object_store = ObjectStore()
@@ -38,15 +38,15 @@ def find_polygons_batch(
     gold_polygons_batch = []
 
     for i in range(bs):
-        pred_polygons = build_polygons_image(pred_masks_np[i])
+        pred_polygons = build_polygons_image(pred_masks_np[i], ClassType.pred)
         pred_polygons_batch.append(pred_polygons)
-        gold_polygons = build_polygons_image(gold_masks_np[i])
+        gold_polygons = build_polygons_image(gold_masks_np[i], ClassType.gold)
         gold_polygons_batch.append(gold_polygons)
 
     return pred_polygons_batch, gold_polygons_batch
 
 
-def build_polygons_image(mask: np.ndarray) -> List[Polygon]:
+def build_polygons_image(mask: np.ndarray, class_type: ClassType) -> List[Polygon]:
     """Returns a list of Polygons for the mask of a single image
 
     Args:
@@ -69,7 +69,9 @@ def build_polygons_image(mask: np.ndarray) -> List[Polygon]:
             class_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
         )
 
-        polygons_per_label = build_polygons_label(contours, hierarchy, label_idx)
+        polygons_per_label = build_polygons_label(
+            contours, hierarchy, label_idx, class_type
+        )
         polygons.extend(polygons_per_label)
 
     return polygons
@@ -79,6 +81,7 @@ def build_polygons_label(
     contours: Tuple[np.ndarray],
     hierarchy: np.ndarray,
     label_idx: int,
+    class_type: ClassType,
 ) -> List[Polygon]:
     """Builds the polygons given contours of a single label for one image
 
@@ -116,6 +119,7 @@ def build_polygons_label(
             uuid=str(uuid4()),
             label_idx=label_idx,
             contours=all_polygons[contour_parent_idx],
+            class_type=class_type,
         )
         final_polygons.append(polygon)
 
@@ -141,26 +145,21 @@ def draw_polygon(polygon: Polygon, shape: Tuple[int, ...]) -> np.ndarray:
     )
 
 
-def upload_polygon_contours(
+def write_polygon_contours_to_disk(
     polygon: Polygon,
     prefix: str,
 ) -> None:
-    """Uploads a Polygon's contours to the cloud
+    """Writes polygons to disk in json format
 
     Args:
         polygon(Polygon): A Polygon object
         prefix(str): prefix of the object name in storage
-            - /proj-id/run-id/training/contours/1.json
+            \"{proj_run_path}/{split_name_path}/contours"
     """
-    obj_name = f"{prefix}/{polygon.uuid}.json"
 
-    with NamedTemporaryFile(mode="w+", delete=False) as f:
+    os.makedirs(prefix, exist_ok=True)
+    local_path = f"{prefix}/{polygon.uuid}.json"
+
+    with open(local_path, "w") as f:
         json.dump(polygon.contours_json, f)
-
-    object_store.create_object(
-        object_name=obj_name,
-        file_path=f.name,
-        content_type="application/json",
-        progress=False,
-        bucket_name=GALILEO_DEFAULT_RESULT_BUCKET_NAME,
-    )
+    f.close()

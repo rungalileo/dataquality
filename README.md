@@ -2,7 +2,7 @@
 
 The Official Python Client for [Galileo](https://rungalileo.io).
 
-Galileo is a tool for understanding and improving the quality of your NLP (and soon CV!) data.
+Galileo is a tool for understanding and improving the quality of your NLP and CV data.
 
 Galileo gives you access to all of the information you need, at a UI and API level, to continuously build better and more robust datasets and models.
 
