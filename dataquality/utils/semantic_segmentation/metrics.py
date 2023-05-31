@@ -3,7 +3,7 @@ from typing import List, Tuple
 
 import numpy as np
 import torch
-from PIL import Image
+from PIL import Image, ImageColor
 
 from dataquality.clients.objectstore import ObjectStore
 from dataquality.core._config import GALILEO_DEFAULT_RESULT_BUCKET_NAME
@@ -30,6 +30,34 @@ def calculate_and_upload_dep(
     dep_heatmaps = calculate_dep_heatmaps(probs, gold_masks)
     upload_dep_heatmaps(dep_heatmaps, image_ids, obj_prefix)
     return calculate_image_dep(dep_heatmaps), dep_heatmaps
+
+def colorize_dep_heatmap(image: Image.Image, dep_mean: int) -> Image.Image:
+    """Recolors a grayscale image to a color image based on our dep mapping"""
+    color_1 = ImageColor.getrgb("#9bc33f")  # Red
+    color_2 = ImageColor.getrgb("#ece113")  # Yellow
+    color_3 = ImageColor.getrgb("#ba3612")  # Green
+
+    # Convert the image to RGB mode if needed
+    if image.mode != "RGB":
+        image = image.convert("RGB")
+
+    # Create a new image with the same size and mode as the original
+    image_np = np.array(image)
+    height, width, _ = image_np.shape
+    colorized_image = np.zeros((height, width, 3))
+    threshold_mask = image_np[:, :, 0] <= dep_mean
+
+    ratio = (image_np / dep_mean)[threshold_mask][:, 0]
+    colorized_image[threshold_mask, 0] = (1 - ratio) * color_1[0] + ratio * color_2[0]
+    colorized_image[threshold_mask, 1] = (1 - ratio) * color_1[1] + ratio * color_2[1]
+    colorized_image[threshold_mask, 2] = (1 - ratio) * color_1[2] + ratio * color_2[2]
+
+    ratio = ((image_np - dep_mean) / (255 - dep_mean))[~threshold_mask][:, 0]
+    colorized_image[~threshold_mask, 0] = (1 - ratio) * color_2[0] + ratio * color_3[0]
+    colorized_image[~threshold_mask, 1] = (1 - ratio) * color_2[1] + ratio * color_3[1]
+    colorized_image[~threshold_mask, 2] = (1 - ratio) * color_2[2] + ratio * color_3[2]
+
+    return Image.fromarray(colorized_image.astype(np.uint8))
 
 
 def calculate_dep_heatmaps(
@@ -82,6 +110,7 @@ def upload_dep_heatmaps(
         obj_name = f"{obj_prefix}/{image_id}.png"
         with NamedTemporaryFile(suffix=".png", mode="w+") as f:
             img = dep_heatmap_to_img(dep_heatmap)
+            img = colorize_dep_heatmap(img, 128)
             img.save(f.name)
 
             object_store.create_object(
