@@ -195,7 +195,7 @@ def watch(
     logits_fn: Optional[Callable] = None,
     last_hidden_state_layer: Union[Module, str, None] = None,
     unpatch_on_start: bool = False,
-    allow_missing_ids: bool = False,
+    dataloader_random_sampling: bool = False,
 ) -> None:
     """
     wraps a PyTorch model and optionally dataloaders to log the
@@ -234,7 +234,7 @@ def watch(
     :param last_hidden_state_layer: Layer to extract the embeddings from
     :param unpatch_on_start: Force unpatching of dataloaders
         instead of global patching
-    :param allow_missing_ids: Allow missing ids in the dataset if a RandomSampler
+    :param dataloader_random_sampling: Allow missing ids in the dataset if a RandomSampler
         or WeightedRandomSampler is used. This is useful when logging less samples
         during training than the total number of samples in the dataset.
 
@@ -278,7 +278,7 @@ def watch(
         for dataloader in dataloaders:
             if not isinstance(getattr(dataloader, "sampler", None), SequentialSampler):
                 logger_config = get_data_logger().logger_config
-                logger_config.allow_missing_ids = True
+                logger_config.dataloader_random_sampling = True
 
             assert isinstance(dataloader, DataLoader), GalileoException(
                 "Invalid dataloader. Must be a pytorch dataloader"
@@ -298,8 +298,8 @@ def watch(
         # Patch the dataloader class globally
         # Can be unpatched with unwatch()
         patch_dataloaders(tl.helper_data)
-    if allow_missing_ids:
-        logger_config.allow_missing_ids = True
+    if dataloader_random_sampling:
+        logger_config.dataloader_random_sampling = True
 
 
 def unwatch(model: Optional[Module] = None, force: bool = True) -> None:
