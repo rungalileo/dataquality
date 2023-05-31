@@ -126,75 +126,76 @@ def calculate_image_dep(dep_heatmap: torch.Tensor) -> List[float]:
     return dep_heatmap.mean(dim=(1, 2)).tolist()
 
 
-def calculate_union_area(
-    pred_mask: torch.Tensor, gold_mask: torch.Tensor, nc: int
-) -> List[int]:
-    """Calculates the union area for each class in the batch
-
-    Where the union area is the area of the union of the predicted mask and the
-    ground truth mask.
-
-    :param pred_mask: argmax of the prediction probabilities
-         shape = (height, width)
-    :param gold_mask: ground truth masks
-            shape = (height, width)
-    :param nc: number of classes
-
-    returns: List (int) of union area values for each class in the batch
-    """
-    per_class_union_area = []
-    for i in range(nc):
-        current_pred_mask = np.where(pred_mask == i, 1, 0)
-        current_gold_mask = np.where(gold_mask == i, 1, 0)
-        # take the elementwise and
-        union_mask = np.logical_and(current_pred_mask, current_gold_mask)
-        # calculate the area
-        union_area = np.sum(union_mask)
-        all_area = np.sum(current_pred_mask) + np.sum(current_gold_mask)
-        per_class_union_area.append(all_area - union_area)
-    return per_class_union_area
-
-
-def calculate_mean_iou(
-    pred_masks: torch.Tensor, gold_masks: torch.Tensor, iou_type: IoUType, nc: int
+def calculate_batch_iou(
+    pred_masks: np.ndarray, gold_masks: np.ndarray, iou_type: str, nc: int
 ) -> List[IouData]:
     """Calculates the Mean Intersection Over Union (mIoU) for each image in the batch
-
     If boundary masks are passed into this function, we return the
     boundary IoU (bIoU).
-
     :param pred_masks: argmax of the prediction probabilities
        shape = (bs, height, width)
     :param gold_masks: ground truth masks
        shape = (bs, height, width)
     :param iou_type: mean or boundary
     :param nc: number of classes
-
-    returns: List[IouData], where IouData contains:
-      - iou value for the image
-      - list of iou values per class
-      - list of areas per class (unioned over pred and gold masks)
+    :return: list of IoU values for each image in the batch
+       shape = (bs,)
     """
-    metric = evaluate.load("mean_iou")
     iou_data = []
 
     # for iou need shape (bs, 1, height, width) to get per mask iou
     for i in range(len(pred_masks)):
-        iou = metric._compute(
+        iou, area_per_class = compute_iou(
             pred_masks[i : i + 1],  # tensor (1, height, width)
             gold_masks[i : i + 1],  # tensor (1, height, width)
             num_labels=nc,
-            ignore_index=255,
         )
+
         iou_data.append(
             IouData(
-                iou=iou["mean_iou"].item(),
-                iou_per_class=iou["per_category_iou"].tolist(),
-                area_per_class=calculate_union_area(pred_masks[i], gold_masks[i], nc),
+                iou=np.nanmean(iou),
+                iou_per_class=iou.tolist(),
+                area_per_class=area_per_class.tolist(),
                 iou_type=iou_type,
             )
         )
     return iou_data
+
+
+def compute_iou(
+    pred_mask: np.ndarray,
+    gold_mask: np.ndarray,
+    num_labels: int,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Computes the intersection over union for a single image
+    
+    Computes the iou for a single image as well as returning the total union area
+    per class
+
+    Args:
+        pred_mask (np.ndarray): (h, w) pred mask
+        gold_mask (np.ndarray): (h, w) gold mask
+        num_labels (int): total number of labels including background
+
+    Returns:
+        Tuple[np.ndarray, np.ndarray]: the iou per class and the union area per class
+            in numpy array
+    """
+    intersection_bool = pred_mask == gold_mask
+
+    intersection_pixels = np.histogram(
+        pred_mask[intersection_bool], bins=num_labels, range=(0, num_labels)
+    )[0]
+    pred_pixels = np.histogram(pred_mask, bins=num_labels, range=(0, num_labels))[0]
+    gold_pixels = np.histogram(gold_mask, bins=num_labels, range=(0, num_labels))[0]
+
+    union_pixels_per_class = pred_pixels + gold_pixels - intersection_pixels
+    iou_per_class = intersection_pixels / union_pixels_per_class
+
+    # fill the nans with 0s
+    union_pixels_per_class = np.nan_to_num(union_pixels_per_class)
+
+    return iou_per_class, union_pixels_per_class
 
 
 def calculate_polygon_area(
