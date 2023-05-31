@@ -91,12 +91,9 @@ def map_indices_to_ids(id_map: List, indices: List) -> List:
         return [id_map[i] for i in indices]
     except IndexError:
         raise GalileoException(
-            "The indicies of the model output are not"
-            " matching the logged data samples. "
-            "Please make sure the model output and "
-            "the logged data samples have the same ids. "
-            "Avoid using RandomSampler/WeightedSampler "
-            "in the dataloader."
+            "The indicies of the model output are not matching the logged data "
+            "samples. If you are using RandomSampler or WeightedRandomSampler, "
+            "pass dataloader_random_sampling=True to the watch function"
         )
 
 
