@@ -1,12 +1,9 @@
-from tempfile import NamedTemporaryFile
 from typing import List
 
 import numpy as np
 import torch
-from PIL import Image
 
 from dataquality.clients.objectstore import ObjectStore
-from dataquality.core._config import GALILEO_DEFAULT_RESULT_BUCKET_NAME
 
 object_store = ObjectStore()
 
@@ -333,44 +330,6 @@ def _calculate_confidence_joint(
     confident_counts = _get_confident_counts(probs, gold, per_class_threshold)
     confident_joint = normalize_confident_counts(confident_counts, count_per_class)
     return confident_joint
-
-
-def upload_mislabeled_pixels(
-    mislabeled_pixels: torch.Tensor, image_ids: List[int], prefix: str
-) -> None:
-    """Uploads all self confidence values to minio
-
-    Args:
-        mislabeled_pixels (torch.Tensor): bs, h, w of value at gold
-        image_ids (List[int]): integer image ids
-        prefix (str): prefix to upload to
-    """
-    for i, image_id in enumerate(image_ids):
-        img = (mislabeled_pixels[i].numpy() * 255).astype(np.uint8)
-        img = Image.fromarray(img, mode="L")
-        img = img.resize((64, 64))
-        upload_im(img, prefix, image_id)
-
-
-def upload_im(img: Image.Image, prefix: str, id: int) -> None:
-    """Uploads one self confident image to minio
-
-    Args:
-        img (Image.Image): image to upload
-        prefix (str): prefix of the file name
-        id (int): integer id
-    """
-    # create a temp file to store the image
-
-    with NamedTemporaryFile(suffix=".png", mode="w+") as f:
-        img.save(f.name)
-        object_store.create_object(
-            object_name=f"{prefix}/{id}.png",
-            file_path=f.name,
-            content_type="image/png",
-            progress=False,
-            bucket_name=GALILEO_DEFAULT_RESULT_BUCKET_NAME,
-        )
 
 
 def calculate_self_confidence_threshold(

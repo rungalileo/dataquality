@@ -72,7 +72,7 @@ def disable_network_calls(request, monkeypatch):
 
 @pytest.fixture(scope="function")
 def cleanup_after_use() -> Generator:
-    for task_type in list(TaskType):
+    for task_type in TaskType.get_valid_tasks():
         dataquality.get_data_logger(task_type).logger_config.reset()
     try:
         if os.path.isdir(BaseGalileoLogger.LOG_FILE_DIR):
@@ -89,7 +89,7 @@ def cleanup_after_use() -> Generator:
             shutil.rmtree(BaseGalileoLogger.LOG_FILE_DIR)
         if os.path.exists(DQ_LOG_FILE_LOCATION):
             shutil.rmtree(DQ_LOG_FILE_LOCATION)
-        for task_type in list(TaskType):
+        for task_type in TaskType.get_valid_tasks():
             dataquality.get_data_logger(task_type).logger_config.reset()
 
 

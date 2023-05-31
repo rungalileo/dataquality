@@ -4,6 +4,8 @@ import numpy as np
 import torch
 
 import dataquality as dq
+from dataquality import config
+from dataquality.clients.objectstore import ObjectStore
 from dataquality.loggers.logger_config.semantic_segmentation import (
     SemanticSegmentationLoggerConfig,
     semantic_segmentation_logger_config,
@@ -18,7 +20,6 @@ from dataquality.utils.semantic_segmentation.errors import (
     add_dep_to_polygons_batch,
     add_lm_to_polygons_batch,
 )
-from dataquality.utils.semantic_segmentation.lm import upload_mislabeled_pixels
 from dataquality.utils.semantic_segmentation.metrics import (
     add_area_to_polygons_batch,
     calculate_and_upload_dep,
@@ -26,8 +27,10 @@ from dataquality.utils.semantic_segmentation.metrics import (
 )
 from dataquality.utils.semantic_segmentation.polygons import (
     find_polygons_batch,
-    upload_polygon_contours,
+    write_polygon_contours_to_disk,
 )
+
+object_store = ObjectStore()
 
 
 class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
@@ -106,8 +109,14 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         return f"{self.proj_run}/{self.split_name_path}/dep"
 
     @property
-    def contours_path(self) -> str:
-        return f"{self.proj_run}/{self.split_name_path}/contours"
+    def local_proj_run_path(self) -> str:
+        return (
+            f"{self.LOG_FILE_DIR}/{config.current_project_id}/{config.current_run_id}"
+        )
+
+    @property
+    def local_contours_path(self) -> str:
+        return f"{self.local_proj_run_path}/{self.split_name_path}/contours"
 
     def get_polygon_data(
         self,
@@ -160,9 +169,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 mislabeled_class_pcts.append(
                     polygon.cls_error_data.mislabeled_class_pct
                 )
-                upload_polygon_contours(polygon, self.contours_path)
+                write_polygon_contours_to_disk(polygon, self.local_contours_path)
                 polygon_ids.append(polygon.uuid)
-
         polygon_data = {
             "polygon_uuid": polygon_ids,
             "image_id": image_ids,
@@ -186,9 +194,6 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         """Returns a dictionary of data to be logged as a DataFrame"""
         # DEP & likely mislabeled
         mean_mislabeled = torch.mean(self.mislabled_pixels, dim=(1, 2)).numpy()
-        upload_mislabeled_pixels(
-            self.mislabled_pixels, self.image_ids, prefix=self.lm_path
-        )
 
         image_dep, dep_heatmaps = calculate_and_upload_dep(
             self.output_probs,

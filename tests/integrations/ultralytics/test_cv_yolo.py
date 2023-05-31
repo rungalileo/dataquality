@@ -65,18 +65,22 @@ def test_end2end_yolov8(
 
     dq.init(TaskType.object_detection)
     # TODO: Move test to dojo
-    ds_path = "tests/integrations/ultralytics/coco128.yaml"
-    model = YOLO("./tests/integrations/ultralytics/yolov8n.pt")
+    # For yolo:
+    # ds_path = "tests/integrations/ultralytics/coco128.yaml"
+    # For empty dataset:
+    ds_path = "tests/assets/yolo-demo/test.yaml"
+    model_path = "./tests/integrations/ultralytics/yolov8n_test.pt"
+    model = YOLO(model_path)
 
     for split in [Split.training, Split.validation]:  # ,
         dq.set_split(split)
         cfg = _read_config(ds_path)
-        tmp_cfg_path = temporary_cfg_for_val(cfg, split)
+        tmp_cfg_path = temporary_cfg_for_val(cfg, split, ds_path)
         if not tmp_cfg_path:
             continue
         dq.set_epoch(0)
         dq.set_split(split)
-        model = YOLO("./tests/integrations/ultralytics/yolov8n.pt")
+        model = YOLO(model_path)
         bucket = cfg["bucket"]
         labels = list(cfg.get("names", {}).values())
         relative_img_path = cfg[f"bucket_{ultralytics_split_mapping[split]}"]
@@ -100,7 +104,8 @@ def test_end2end_yolov8(
         emb_df = vaex.open(f"{TEST_PATH}/{split}/0/emb/emb.hdf5")
         assert sorted(emb_df.get_column_names()) == ["emb_pca", "id"]
         assert emb_df.emb_pca.dtype == "float32"
-        assert emb_df.emb_pca.shape == (len(emb_df), 100)
+        # less than 5 samples PCA is 5,5 otherwise 100
+        assert emb_df.emb_pca.shape == (len(emb_df), 5)
         prob_cols = [
             "id",
             "bbox",
@@ -115,7 +120,7 @@ def test_end2end_yolov8(
         assert sorted(prob_df.get_column_names()) == sorted(prob_cols)
         assert prob_df.bbox.shape == (len(prob_df), 4)
         assert prob_df.bbox.dtype == "float32"
-        assert prob_df.prob.shape == (len(prob_df), 80)
+        assert prob_df.prob.shape == (len(prob_df), len(labels))
         assert prob_df.bbox.dtype == "float32"
         assert prob_df.gold.dtype == "int32"
         assert prob_df.image_id.dtype == "int32"
