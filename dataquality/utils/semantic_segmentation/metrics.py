@@ -31,6 +31,7 @@ def calculate_and_upload_dep(
     upload_dep_heatmaps(dep_heatmaps, image_ids, obj_prefix)
     return calculate_image_dep(dep_heatmaps), dep_heatmaps
 
+
 def colorize_dep_heatmap(image: Image.Image, dep_mean: int) -> Image.Image:
     """Recolors a grayscale image to a color image based on our dep mapping"""
     color_1 = ImageColor.getrgb("#9bc33f")  # Red
@@ -155,7 +156,7 @@ def calculate_image_dep(dep_heatmap: torch.Tensor) -> List[float]:
 
 
 def calculate_batch_iou(
-    pred_masks: np.ndarray, gold_masks: np.ndarray, iou_type: str, nc: int
+    pred_masks: torch.Tensor, gold_masks: torch.Tensor, iou_type: str, nc: int
 ) -> List[IouData]:
     """Calculates the Mean Intersection Over Union (mIoU) for each image in the batch
     If boundary masks are passed into this function, we return the
@@ -169,6 +170,8 @@ def calculate_batch_iou(
     :return: list of IoU data for each image in the batch
        shape = (bs,)
     """
+    pred_masks = pred_masks.numpy()
+    gold_masks = gold_masks.numpy()
     iou_data = []
 
     # for iou need shape (bs, 1, height, width) to get per mask iou
