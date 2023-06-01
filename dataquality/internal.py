@@ -83,9 +83,7 @@ def reprocess_run(
     return res
 
 
-def rename_run(
-    project_name: str, run_name: str, new_name: str
-) -> None:
+def rename_run(project_name: str, run_name: str, new_name: str) -> None:
     """Assigns a new name to a run
 
     Useful if a run was named incorrectly, or if a run was created with a temporary
@@ -95,7 +93,7 @@ def rename_run(
     :param run_name: The name of the run
     :param new_name: The new name to assign to the run
     """
-    api_client._get_project_run_id(project_name, run_name)
+    api_client.update_run_name(project_name, run_name)
     print(
         f"Successfully renamed run {project_name}/{run_name} to "
         f"{project_name}/{new_name}"
