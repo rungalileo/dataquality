@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from dataquality.clients.api import ApiClient
 from dataquality.core._config import Config
 from dataquality.utils.ampli import AmpliMetric
+from dataquality.utils.patcher import Borg
 from dataquality.utils.profiler import (
     _installed_modules,
     change_function,
@@ -25,16 +26,6 @@ class ProfileModel(BaseModel):
 
     packages: Optional[Dict[str, str]]
     uuid: Optional[str]
-
-
-class Borg:
-    # We use a borg pattern to share state across all instances of this class.
-    # Due to submitting some errors in a thread,
-    # we want to share the thread pool executor
-    _shared_state: Dict[str, Any] = {}
-
-    def __init__(self) -> None:
-        self.__dict__ = self._shared_state
 
 
 class Analytics(Borg):

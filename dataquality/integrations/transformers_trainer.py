@@ -43,7 +43,7 @@ class DQTrainerCallback(TrainerCallback, TorchBaseInstance, Patch):
     def __init__(
         self,
         trainer: Trainer,
-        helper_data: TorchHelper,
+        torch_helper: TorchHelper,
         last_hidden_state_layer: Optional[Layer] = None,
         embedding_dim: Optional[InputDim] = None,
         logits_dim: Optional[InputDim] = None,
@@ -60,11 +60,11 @@ class DQTrainerCallback(TrainerCallback, TorchBaseInstance, Patch):
         :param embedding_fn: Function to extract the embedding from the last
             hidden state
         :param logits_fn: Function to extract the logits
-        :param helper_data: Store for the callback
+        :param torch_helper: Store for the callback
         """
         # Access the dq logger helper data
-        helper_data.clear()
-        self.helper_data = helper_data
+        torch_helper.clear()
+        self.helper_data = torch_helper
         self.model_outputs_store = self.helper_data.model_outputs_store
         self._training_validated = False
         self._model_setup = False
@@ -320,7 +320,7 @@ def watch(
         classifier_layer=classifier_layer,
         embedding_fn=embedding_fn,
         logits_fn=logits_fn,
-        helper_data=torch_helper_data,
+        torch_helper=torch_helper_data,
     )
     # We wrap the data collator to remove the id column
     RemoveIdCollatePatch(

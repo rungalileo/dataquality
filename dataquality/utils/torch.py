@@ -1,7 +1,7 @@
 import gc
 import re
 from collections import OrderedDict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import wraps
 from queue import Queue
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
@@ -23,38 +23,31 @@ from dataquality.exceptions import GalileoException
 from dataquality.schemas.task_type import TaskType
 from dataquality.schemas.torch import DimensionSlice, HelperData, Layer
 from dataquality.utils.helpers import wrap_fn
-from dataquality.utils.patcher import Patch, PatchManager
+from dataquality.utils.patcher import Borg, Patch, PatchManager
 
 
 @dataclass
 class TorchHelper:
-    model_outputs_store: Dict[str, Any]
-    dl_next_idx_ids: List[Any]
-    model: Any
-    model_input: Any
-    hook_manager: Any
-    batch: Dict[str, Any]
-    ids: List[Any]
-    patches: Any
-
-    def __init__(
-        self, model: Optional[Any] = None, hook_manager: Optional[Any] = None
-    ) -> None:
-        self.model_outputs_store = {}
-        self.ids = []
-        self.dl_next_idx_ids = []
-        self.model = model
-        self.hook_manager = hook_manager
-        self.batch = {}
-        self.model_input = None
+    model: Optional[Any] = None
+    hook_manager: Optional[Any] = None
+    model_outputs_store: Dict[str, Any] = field(default_factory=dict)
+    dl_next_idx_ids: List[Any] = field(default_factory=list)
+    model_input: Any = np.empty(0)
+    batch: Dict[str, Any] = field(default_factory=dict)
+    ids: List[Any] = field(default_factory=list)
+    patches: Optional[Any] = None
 
     def clear(self) -> None:
         """Resets the arrays of the class."""
         self.dl_next_idx_ids.clear()
         self.model_outputs_store.clear()
         self.ids.clear()
-        self.model_input = None
+        self.model_input = np.empty(0)
         self.batch.clear()
+
+    def __del__(self) -> None:
+        self.clear()
+        self.hook_manager = None
 
 
 class TorchBaseInstance:
@@ -275,14 +268,18 @@ def convert_fancy_idx_str_to_slice(
     return eval("np.s_[{}]".format(clean_str))
 
 
-class ModelHookManager:
+class ModelHookManager(Borg):
     """
     Manages hooks for models. Has the ability to find the layer automatically.
     Otherwise the layer or the layer name needs to be provided.
     """
 
     # Stores all hooks to remove them from the model later.
-    hooks: List[RemovableHandle] = []
+    def __init__(self) -> None:
+        """Class to manage patches"""
+        super().__init__()
+        if not hasattr(self, "patches"):
+            self.hooks: List[RemovableHandle] = []
 
     def get_embedding_layer_auto(self, model: Module) -> Module:
         """
@@ -575,11 +572,11 @@ class PatchSingleDataloaderNextIndex(Patch):
 class PatchDataloadersGlobally(Patch):
     name = "patch_dataloaders_globally"
 
-    def __init__(self, store: TorchHelper):
+    def __init__(self, torch_helper: TorchHelper):
         """Patch the dataloaders to store the indices of the batches.
         :param store: The store to save the indices to.
         """
-        self.store = store
+        self.store = torch_helper
         self.patch()
 
     def _patch(self) -> "Patch":

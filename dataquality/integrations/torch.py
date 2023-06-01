@@ -39,7 +39,7 @@ class TorchLogger(TorchBaseInstance):
 
     embedding_dim: Optional[DimensionSlice]
     logits_dim: Optional[DimensionSlice]
-    helper_data: TorchHelper
+    torch_helper: TorchHelper
     model: Module
 
     def __init__(
@@ -72,7 +72,7 @@ class TorchLogger(TorchBaseInstance):
         if helper_data is None:
             helper_data = {}
         helper_data["torch_helper"] = TorchHelper(model, self.hook_manager)
-        self.helper_data = helper_data["torch_helper"]
+        self.torch_helper = helper_data["torch_helper"]
         self._init_helper_data(self.hook_manager, self.model)
         self.logger_config = dq.get_data_logger().logger_config
 
@@ -82,8 +82,8 @@ class TorchLogger(TorchBaseInstance):
         patches for applied monkey patched functions and the hook manager.
         :param hm: Hook manager
         """
-        self.helper_data.clear()
-        self.helper_data = TorchHelper(model, hm)
+        self.torch_helper.clear()
+        self.torch_helper = TorchHelper(model, hm)
 
     def _attach_hooks_to_model(
         self, model: Module, classifier_layer: Layer, last_hidden_state_layer: Layer
@@ -152,12 +152,12 @@ class TorchLogger(TorchBaseInstance):
         # in the helper data. This is because the embeddings and logits are
         # extracted in the hooks and we need to log them in the on_step_end
         # method.
-        model_outputs_store = self.helper_data.model_outputs_store
+        model_outputs_store = self.torch_helper.model_outputs_store
         # Workaround for multiprocessing
         if model_outputs_store.get("ids") is None and len(
-            self.helper_data.dl_next_idx_ids
+            self.torch_helper.dl_next_idx_ids
         ):
-            model_outputs_store["ids"] = self.helper_data.dl_next_idx_ids.pop(0)
+            model_outputs_store["ids"] = self.torch_helper.dl_next_idx_ids.pop(0)
 
         # Log only if embedding exists
         assert model_outputs_store.get("embs") is not None, GalileoException(
@@ -285,13 +285,13 @@ def watch(
 
             # Patch the dataloader class
             PatchSingleDataloaderIterator(
-                dataloader, tl.helper_data.model_outputs_store
+                dataloader, tl.torch_helper.model_outputs_store
             )
 
     else:
         # Patch the dataloader class globally
         # Can be unpatched with unwatch()
-        PatchDataloadersGlobally(tl.helper_data)
+        PatchDataloadersGlobally(tl.torch_helper)
     if dataloader_random_sampling:
         logger_config.dataloader_random_sampling = True
     cleanup_manager = RefManager(lambda: unwatch(model))
