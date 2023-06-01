@@ -1,14 +1,13 @@
 from tempfile import NamedTemporaryFile
 from typing import List, Tuple
 
-import evaluate
 import numpy as np
 import torch
-from PIL import Image
+from PIL import Image, ImageColor
 
 from dataquality.clients.objectstore import ObjectStore
 from dataquality.core._config import GALILEO_DEFAULT_RESULT_BUCKET_NAME
-from dataquality.schemas.semantic_segmentation import IouData, IoUType, Polygon
+from dataquality.schemas.semantic_segmentation import IouData, Polygon
 from dataquality.utils.semantic_segmentation.polygons import draw_polygon
 
 object_store = ObjectStore()
@@ -31,6 +30,35 @@ def calculate_and_upload_dep(
     dep_heatmaps = calculate_dep_heatmaps(probs, gold_masks)
     upload_dep_heatmaps(dep_heatmaps, image_ids, obj_prefix)
     return calculate_image_dep(dep_heatmaps), dep_heatmaps
+
+
+def colorize_dep_heatmap(image: Image.Image, dep_mean: int) -> Image.Image:
+    """Recolors a grayscale image to a color image based on our dep mapping"""
+    color_1 = ImageColor.getrgb("#9bc33f")  # Red
+    color_2 = ImageColor.getrgb("#ece113")  # Yellow
+    color_3 = ImageColor.getrgb("#ba3612")  # Green
+
+    # Convert the image to RGB mode if needed
+    if image.mode != "RGB":
+        image = image.convert("RGB")
+
+    # Create a new image with the same size and mode as the original
+    image_np = np.array(image)
+    height, width, _ = image_np.shape
+    colorized_image = np.zeros((height, width, 3))
+    threshold_mask = image_np[:, :, 0] <= dep_mean
+
+    ratio = (image_np / dep_mean)[threshold_mask][:, 0]
+    colorized_image[threshold_mask, 0] = (1 - ratio) * color_1[0] + ratio * color_2[0]
+    colorized_image[threshold_mask, 1] = (1 - ratio) * color_1[1] + ratio * color_2[1]
+    colorized_image[threshold_mask, 2] = (1 - ratio) * color_1[2] + ratio * color_2[2]
+
+    ratio = ((image_np - dep_mean) / (255 - dep_mean))[~threshold_mask][:, 0]
+    colorized_image[~threshold_mask, 0] = (1 - ratio) * color_2[0] + ratio * color_3[0]
+    colorized_image[~threshold_mask, 1] = (1 - ratio) * color_2[1] + ratio * color_3[1]
+    colorized_image[~threshold_mask, 2] = (1 - ratio) * color_2[2] + ratio * color_3[2]
+
+    return Image.fromarray(colorized_image.astype(np.uint8))
 
 
 def calculate_dep_heatmaps(
@@ -83,6 +111,7 @@ def upload_dep_heatmaps(
         obj_name = f"{obj_prefix}/{image_id}.png"
         with NamedTemporaryFile(suffix=".png", mode="w+") as f:
             img = dep_heatmap_to_img(dep_heatmap)
+            img = colorize_dep_heatmap(img, 128)
             img.save(f.name)
 
             object_store.create_object(
@@ -126,75 +155,78 @@ def calculate_image_dep(dep_heatmap: torch.Tensor) -> List[float]:
     return dep_heatmap.mean(dim=(1, 2)).tolist()
 
 
-def calculate_union_area(
-    pred_mask: torch.Tensor, gold_mask: torch.Tensor, nc: int
-) -> List[int]:
-    """Calculates the union area for each class in the batch
-
-    Where the union area is the area of the union of the predicted mask and the
-    ground truth mask.
-
-    :param pred_mask: argmax of the prediction probabilities
-         shape = (height, width)
-    :param gold_mask: ground truth masks
-            shape = (height, width)
-    :param nc: number of classes
-
-    returns: List (int) of union area values for each class in the batch
-    """
-    per_class_union_area = []
-    for i in range(nc):
-        current_pred_mask = np.where(pred_mask == i, 1, 0)
-        current_gold_mask = np.where(gold_mask == i, 1, 0)
-        # take the elementwise and
-        union_mask = np.logical_and(current_pred_mask, current_gold_mask)
-        # calculate the area
-        union_area = np.sum(union_mask)
-        all_area = np.sum(current_pred_mask) + np.sum(current_gold_mask)
-        per_class_union_area.append(all_area - union_area)
-    return per_class_union_area
-
-
-def calculate_mean_iou(
-    pred_masks: torch.Tensor, gold_masks: torch.Tensor, iou_type: IoUType, nc: int
+def calculate_batch_iou(
+    pred_masks: torch.Tensor, gold_masks: torch.Tensor, iou_type: str, nc: int
 ) -> List[IouData]:
     """Calculates the Mean Intersection Over Union (mIoU) for each image in the batch
-
     If boundary masks are passed into this function, we return the
     boundary IoU (bIoU).
-
     :param pred_masks: argmax of the prediction probabilities
        shape = (bs, height, width)
     :param gold_masks: ground truth masks
        shape = (bs, height, width)
     :param iou_type: mean or boundary
     :param nc: number of classes
-
-    returns: List[IouData], where IouData contains:
-      - iou value for the image
-      - list of iou values per class
-      - list of areas per class (unioned over pred and gold masks)
+    :return: list of IoU data for each image in the batch
+       shape = (bs,)
     """
-    metric = evaluate.load("mean_iou")
+    pred_masks_np = pred_masks.numpy()
+    gold_masks_np = gold_masks.numpy()
     iou_data = []
 
     # for iou need shape (bs, 1, height, width) to get per mask iou
-    for i in range(len(pred_masks)):
-        iou = metric._compute(
-            pred_masks[i : i + 1],  # tensor (1, height, width)
-            gold_masks[i : i + 1],  # tensor (1, height, width)
+    for i in range(len(pred_masks_np)):
+        iou, area_per_class = compute_iou(
+            pred_masks_np[i : i + 1],  # tensor (1, height, width)
+            gold_masks_np[i : i + 1],  # tensor (1, height, width)
             num_labels=nc,
-            ignore_index=255,
         )
+
         iou_data.append(
             IouData(
-                iou=iou["mean_iou"].item(),
-                iou_per_class=iou["per_category_iou"].tolist(),
-                area_per_class=calculate_union_area(pred_masks[i], gold_masks[i], nc),
+                iou=np.nanmean(iou),
+                iou_per_class=iou.tolist(),
+                area_per_class=area_per_class.tolist(),
                 iou_type=iou_type,
             )
         )
     return iou_data
+
+
+def compute_iou(
+    pred_mask: np.ndarray,
+    gold_mask: np.ndarray,
+    num_labels: int,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Computes the intersection over union for a single image
+
+    Computes the iou for a single image as well as returning the total union area
+    per class
+
+    Args:
+        pred_mask (np.ndarray): (h, w) pred mask
+        gold_mask (np.ndarray): (h, w) gold mask
+        num_labels (int): total number of labels including background
+
+    Returns:
+        Tuple[np.ndarray, np.ndarray]: the iou per class and the union area per class
+            in numpy array
+    """
+    intersection_bool = pred_mask == gold_mask
+
+    intersection_pixels = np.histogram(
+        pred_mask[intersection_bool], bins=num_labels, range=(0, num_labels)
+    )[0]
+    pred_pixels = np.histogram(pred_mask, bins=num_labels, range=(0, num_labels))[0]
+    gold_pixels = np.histogram(gold_mask, bins=num_labels, range=(0, num_labels))[0]
+
+    union_pixels_per_class = pred_pixels + gold_pixels - intersection_pixels
+    iou_per_class = intersection_pixels / union_pixels_per_class
+
+    # fill the nans with 0s
+    union_pixels_per_class = np.nan_to_num(union_pixels_per_class)
+
+    return iou_per_class, union_pixels_per_class
 
 
 def calculate_polygon_area(
