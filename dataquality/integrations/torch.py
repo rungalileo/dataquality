@@ -15,12 +15,14 @@ from dataquality.core.log import get_data_logger
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.task_type import TaskType
 from dataquality.schemas.torch import DimensionSlice, HelperData, InputDim, Layer
-from dataquality.utils.helpers import map_indices_to_ids, wrap_fn
+from dataquality.utils.helpers import map_indices_to_ids
+from dataquality.utils.patcher import Cleanup, RefManager
 from dataquality.utils.torch import (
     ModelHookManager,
+    PatchDataloadersGlobally,
+    PatchSingleDataloaderIterator,
     TorchBaseInstance,
-    patch_dataloaders,
-    patch_iterator_with_store,
+    TorchHelper,
     remove_all_forward_hooks,
     unpatch,
 )
@@ -37,7 +39,7 @@ class TorchLogger(TorchBaseInstance):
 
     embedding_dim: Optional[DimensionSlice]
     logits_dim: Optional[DimensionSlice]
-
+    helper_data: TorchHelper
     model: Module
 
     def __init__(
@@ -49,7 +51,7 @@ class TorchLogger(TorchBaseInstance):
         classifier_layer: Optional[Layer] = None,
         embedding_fn: Optional[Callable] = None,
         logits_fn: Optional[Callable] = None,
-        helper_data: Dict[str, Any] = {},
+        helper_data: Optional[Dict[str, Any]] = None,
         task: Union[TaskType, None] = TaskType.text_classification,
     ):
         task_type = task or dq.config.task_type
@@ -67,7 +69,10 @@ class TorchLogger(TorchBaseInstance):
         self._init_dimension(embedding_dim, logits_dim)
         self.hook_manager = ModelHookManager()
         self._attach_hooks_to_model(model, classifier_layer, last_hidden_state_layer)
-        self.helper_data = helper_data
+        if helper_data is None:
+            helper_data = {}
+        helper_data["torch_helper"] = TorchHelper(model, self.hook_manager)
+        self.helper_data = helper_data["torch_helper"]
         self._init_helper_data(self.hook_manager, self.model)
         self.logger_config = dq.get_data_logger().logger_config
 
@@ -78,17 +83,7 @@ class TorchLogger(TorchBaseInstance):
         :param hm: Hook manager
         """
         self.helper_data.clear()
-        self.helper_data.update(
-            {
-                HelperData.dl_next_idx_ids: [],
-                HelperData.last_action: "init",
-                HelperData.patches: [],
-                HelperData.model_outputs_store: {},
-                HelperData.hook_manager: hm,
-                HelperData.model: model,
-                HelperData.batch: {},
-            }
-        )
+        self.helper_data = TorchHelper(model, hm)
 
     def _attach_hooks_to_model(
         self, model: Module, classifier_layer: Layer, last_hidden_state_layer: Layer
@@ -157,14 +152,12 @@ class TorchLogger(TorchBaseInstance):
         # in the helper data. This is because the embeddings and logits are
         # extracted in the hooks and we need to log them in the on_step_end
         # method.
-        model_outputs_store = self.helper_data[HelperData.model_outputs_store]
+        model_outputs_store = self.helper_data.model_outputs_store
         # Workaround for multiprocessing
         if model_outputs_store.get("ids") is None and len(
-            self.helper_data[HelperData.dl_next_idx_ids]
+            self.helper_data.dl_next_idx_ids
         ):
-            model_outputs_store["ids"] = self.helper_data[
-                HelperData.dl_next_idx_ids
-            ].pop(0)
+            model_outputs_store["ids"] = self.helper_data.dl_next_idx_ids.pop(0)
 
         # Log only if embedding exists
         assert model_outputs_store.get("embs") is not None, GalileoException(
@@ -289,36 +282,41 @@ def watch(
             assert (
                 getattr(dataloader, "num_workers", 0) == 0
             ), "Dataloaders with num_workers > 0 are not supported"
-            dataloader._get_iterator = wrap_fn(  # type: ignore
-                dataloader._get_iterator,
-                patch_iterator_with_store(
-                    tl.helper_data[HelperData.model_outputs_store]
-                ),
+
+            # Patch the dataloader class
+            PatchSingleDataloaderIterator(
+                dataloader, tl.helper_data.model_outputs_store
             )
+
     else:
         # Patch the dataloader class globally
         # Can be unpatched with unwatch()
-        patch_dataloaders(tl.helper_data)
+        PatchDataloadersGlobally(tl.helper_data)
     if dataloader_random_sampling:
         logger_config.dataloader_random_sampling = True
+    cleanup_manager = RefManager(lambda: unwatch(model))
+    helper_data["cleaner"] = Cleanup(cleanup_manager)
 
 
 def unwatch(model: Optional[Module] = None, force: bool = True) -> None:
     """Unwatches the model. Run after the run is finished.
     :param force: Force unwatch even if the model is not watched"""
 
-    helper_data = dq.get_model_logger().logger_config.helper_data
-    model = model or helper_data.get(HelperData.model, None)
+    helper_data = dq.get_model_logger().logger_config.helper_data.get(
+        "torch_helper", TorchHelper()
+    )
+
+    model = model or helper_data.model
     if not getattr(model or {}, "_dq", False):
         warn("Model is not watched, run watch(model) first")
         if not force:
             return
 
     # Unpatch the dataloaders
-    unpatch(helper_data.get(HelperData.patches, []))
+    unpatch(getattr(helper_data, HelperData.patches, []))
     # Detach hooks the model. in the future use the model passed
     # https://discuss.pytorch.org/t/how-to-check-where-the-hooks-are-in-the-model/120120/2
-    hook_manager = helper_data.get(HelperData.hook_manager, None)
+    hook_manager = helper_data.hook_manager
     if hook_manager:
         hook_manager.detach_hooks()
     # Remove the model from the helper data
@@ -326,7 +324,6 @@ def unwatch(model: Optional[Module] = None, force: bool = True) -> None:
         remove_all_forward_hooks(model)
     else:
         warnings.warn("model is not a Module")
-    if "model" in helper_data:
-        del helper_data[HelperData.model]
+    helper_data.model = None
     if model and hasattr(model, "_dq"):
         del model._dq
