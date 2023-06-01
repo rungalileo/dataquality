@@ -12,7 +12,7 @@ from transformers import (
 )
 
 import dataquality as dq
-from dataquality.integrations.experimental.keras import unwatch, watch
+from dataquality.integrations.keras import unwatch, watch
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.conftest import LOCATION
