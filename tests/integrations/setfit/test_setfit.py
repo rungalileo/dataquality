@@ -83,14 +83,22 @@ def test_setfitwatch(
     batch_size = 3
     ds_len = len(dataset)
     dq_evaluate = watch(model)
-    dataset = dataset.map(lambda x, idx: {"id": idx}, with_indices=True)
+    dataset = dataset.map(
+        lambda x, idx: {"id": idx, "meta_col": "meta"}, with_indices=True
+    )
     for i in range(0, ds_len, batch_size):
         print("batch", i)
         batch = dataset[i : i + batch_size]
-        dq_evaluate(batch, split=split)
-
-    dq.finish()
+        dq_evaluate(
+            batch,
+            split=split,
+            meta=["meta_col"],
+        )
     ThreadPoolManager.wait_for_threads()
+    dq.get_data_logger().upload()
+    train_data = vaex.open(f"{TEST_PATH}/training/0/data/data.hdf5")
+    assert train_data["meta_col"].unique() == ["meta"]
+    dq.finish()
 
 
 @patch.object(ApiClient, "valid_current_user", return_value=True)

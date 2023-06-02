@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 class DataSampleLogArgs:
     split: Split
     inference_name: Optional[str] = None
-    meta: Optional[List] = None
+    meta: Optional[Dict] = None
     texts: List[str] = field(default_factory=list)
     ids: List[int] = field(default_factory=list)
     labels: List = field(default_factory=list)
@@ -54,7 +54,7 @@ def log_preds_setfit(
     id_col = "id"
     label_col = "label"
     preds: List[Tensor] = []
-    log_args: DataSampleLogArgs = DataSampleLogArgs(split=split, meta=meta)
+    log_args: DataSampleLogArgs = DataSampleLogArgs(split=split)
     inference_dict: Dict[str, str] = {}
     if inference_name is not None:
         log_args.inference_name = inference_name
@@ -83,7 +83,10 @@ def log_preds_setfit(
         if not skip_logging:
             log_args.texts += batch[text_col]
             log_args.ids += batch[id_col]
-
+            if meta is not None:
+                log_args.meta = {
+                    meta_col: batch[f"feat_{meta_col}"] for meta_col in meta
+                }
             if len(log_args.texts) >= BATCH_LOG_SIZE:
                 dq.log_data_samples(**asdict(log_args))
                 log_args.clear()
