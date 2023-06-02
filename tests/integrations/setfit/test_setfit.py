@@ -87,7 +87,6 @@ def test_setfitwatch(
         lambda x, idx: {"id": idx, "meta_col": "meta"}, with_indices=True
     )
     for i in range(0, ds_len, batch_size):
-        print("batch", i)
         batch = dataset[i : i + batch_size]
         dq_evaluate(
             batch,
