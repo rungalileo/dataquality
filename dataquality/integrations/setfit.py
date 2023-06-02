@@ -283,7 +283,7 @@ def watch(
     finish: bool = True,
     wait: bool = False,
     batch_size: Optional[int] = None,
-    meta: Optional[Dict] = None,
+    meta: Optional[List] = None,
 ) -> Callable[
     ["Dataset", Split, Optional[Dict], Optional[str], Optional[Dict], int], torch.Tensor
 ]:
