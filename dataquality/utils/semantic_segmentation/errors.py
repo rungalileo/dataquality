@@ -9,6 +9,7 @@ from dataquality.schemas.semantic_segmentation import (
     ClassificationErrorData,
     ErrorType,
     Polygon,
+    PolygonType,
 )
 from dataquality.utils.semantic_segmentation.constants import (
     BACKGROUND_CLASS,
@@ -65,10 +66,11 @@ def calculate_classification_error(
     )
 
 
-def add_classification_error_to_polygons(
+def add_class_errors_to_polygons(
     mask: np.ndarray,
     polygons: List[Polygon],
     number_classes: int,
+    polygon_type: str,
 ) -> None:
     """Checks for polygon misclassifications and sets the Polygon error_type field
 
@@ -89,14 +91,18 @@ def add_classification_error_to_polygons(
         polygon.cls_error_data = calculate_classification_error(
             mask, out_polygon_im, polygon.label_idx, number_classes
         )
-        if polygon.cls_error_data.accuracy < ERROR_THRESHOLD:
+        acc = polygon.cls_error_data.accuracy
+        if polygon_type == PolygonType.pred and acc < ERROR_THRESHOLD:
             polygon.error_type = ErrorType.classification
+        if polygon_type == PolygonType.gold and acc < ERROR_THRESHOLD:
+            polygon.error_type = ErrorType.class_confusion
 
 
-def add_classification_error_to_polygons_batch(
+def add_class_errors_to_polygons_batch(
     masks: torch.Tensor,
     polygons_batch: List[List[Polygon]],
     number_classes: int,
+    polygon_type: str,
 ) -> None:
     """Calculates a set of misclassified polygon ids from the
     predicted mask for each image in a batch
@@ -113,7 +119,9 @@ def add_classification_error_to_polygons_batch(
     for idx in range(len(masks)):
         gold_mask = masks[idx].numpy()
         pred_polygons = polygons_batch[idx]
-        add_classification_error_to_polygons(gold_mask, pred_polygons, number_classes)
+        add_class_errors_to_polygons(
+            gold_mask, pred_polygons, number_classes, polygon_type
+        )
 
 
 def background_accuracy(img_mask: np.ndarray, polygon_mask: np.ndarray) -> float:
@@ -153,9 +161,9 @@ def add_background_errors_to_polygons(
         polygon_mask = draw_polygon(polygon, img_mask.shape[-2:])
         acc = background_accuracy(img_mask, polygon_mask)
         polygon.background_error_pct = acc
-        if polygon_type == "pred" and acc > ERROR_THRESHOLD:
+        if polygon_type == PolygonType.pred and acc > ERROR_THRESHOLD:
             polygon.error_type = ErrorType.background
-        elif polygon_type == "gold" and acc > ERROR_THRESHOLD:
+        elif polygon_type == PolygonType.gold and acc > ERROR_THRESHOLD:
             polygon.error_type = ErrorType.missed
 
 
