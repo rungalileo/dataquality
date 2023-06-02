@@ -165,7 +165,7 @@ class _PatchSetFitTrainer(Patch):
         finish: bool = True,
         wait: bool = False,
         batch_size: Optional[int] = None,
-        meta: Optional[Dict] = None,
+        meta: Optional[List] = None,
     ) -> None:
         """Patch to SetFit trainer to run dataquality after training.
         :param setfit_trainer: SetFit trainer
