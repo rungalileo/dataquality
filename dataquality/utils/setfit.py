@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 class DataSampleLogArgs:
     split: Split
     inference_name: Optional[str] = None
-    meta: Optional[Dict] = None
+    meta: Optional[List] = None
     texts: List[str] = field(default_factory=list)
     ids: List[int] = field(default_factory=list)
     labels: List = field(default_factory=list)
