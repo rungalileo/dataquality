@@ -285,7 +285,7 @@ def watch(
     batch_size: Optional[int] = None,
     meta: Optional[List] = None,
 ) -> Callable[
-    ["Dataset", Split, Optional[Dict], Optional[str], Optional[Dict], int], torch.Tensor
+    ["Dataset", Split, Optional[List], Optional[str], Optional[Dict], int], torch.Tensor
 ]:
     """Watch a SetFit model or trainer and extract model outputs for dataquality.
     Returns a function that can be used to evaluate the model on a dataset.
@@ -333,7 +333,7 @@ def watch(
 def evaluate(
     model: "SetFitModel",
 ) -> Callable[
-    ["Dataset", Split, Optional[Dict], Optional[str], Optional[Dict], int], torch.Tensor
+    ["Dataset", Split, Optional[List], Optional[str], Optional[Dict], int], torch.Tensor
 ]:
     """Watch SetFit model by replacing predict_proba function with SetFitModelHook.
     :param model: SetFit model
