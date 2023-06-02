@@ -4,11 +4,11 @@ import numpy as np
 import torch
 
 import dataquality as dq
+from dataquality.analytics import Analytics
+from dataquality.clients.api import ApiClient
 from dataquality.schemas.split import Split
 from dataquality.utils.patcher import Cleanup, Patch, PatchManager, RefManager
 from dataquality.utils.setfit import log_preds_setfit
-from dataquality.analytics import Analytics
-from dataquality.clients.api import ApiClient
 
 a = Analytics(ApiClient, dq.config)  # type: ignore
 a.log_import("setfit")
@@ -284,7 +284,9 @@ def watch(
     wait: bool = False,
     batch_size: Optional[int] = None,
     meta: Optional[Dict] = None,
-) -> Optional[Callable]:
+) -> Callable[
+    ["Dataset", Split, Optional[Dict], Optional[str], Optional[Dict], int], torch.Tensor
+]:
     """Watch a SetFit model or trainer and extract model outputs for dataquality.
     Returns a function that can be used to evaluate the model on a dataset.
     :param setfit: SetFit model or trainer
@@ -305,6 +307,12 @@ def watch(
 
     setfitmanager = PatchManager()
 
+    # If the user has already logged input data, skip it during evaluate
+    logger_config = dq.get_data_logger().logger_config
+    for split in ["training", "validation", "test", "inference"]:
+        split_key = f"setfit_skip_input_log_{split}"
+        logger_config.helper_data[split_key] = getattr(logger_config, f"{split}_logged")
+
     if isinstance(setfit, SetFitTrainer):
         patched_trainer = _PatchSetFitTrainer(
             setfit,
@@ -317,12 +325,16 @@ def watch(
             meta=meta,
         )
         setfitmanager.add_patch(patched_trainer)
-        return None
+        return evaluate(setfit.model)
     else:
         return evaluate(model)
 
 
-def evaluate(model: "SetFitModel") -> Callable:
+def evaluate(
+    model: "SetFitModel",
+) -> Callable[
+    ["Dataset", Split, Optional[Dict], Optional[str], Optional[Dict], int], torch.Tensor
+]:
     """Watch SetFit model by replacing predict_proba function with SetFitModelHook.
     :param model: SetFit model
     :return: SetFitModelHook object"""
@@ -338,7 +350,7 @@ def evaluate(model: "SetFitModel") -> Callable:
     def dq_evaluate(
         dataset: "Dataset",
         split: Split,
-        meta: Optional[Dict] = None,
+        meta: Optional[List] = None,
         inference_name: Optional[str] = None,
         column_mapping: Optional[Dict] = None,
         batch_size: int = 64,
@@ -346,6 +358,7 @@ def evaluate(model: "SetFitModel") -> Callable:
         """Evaluate SetFit model and log input and output to Galileo.
         :param batch: batch of data as a dictionary
         :param split: split of data (training, validation, test, inference)
+        :param meta: columns that should be logged as metadata
         :param inference_name: inference name (if split is inference, must be provided)
         :param column_mapping: mapping of column names (if different from default)
         :return: output of SetFitModel.predict_proba function"""

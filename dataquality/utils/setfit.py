@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 class DataSampleLogArgs:
     split: Split
     inference_name: Optional[str] = None
-    meta: Optional[Dict] = None
+    meta: Optional[List] = None
     texts: List[str] = field(default_factory=list)
     ids: List[int] = field(default_factory=list)
     labels: List = field(default_factory=list)
@@ -36,7 +36,7 @@ def log_preds_setfit(
     split: Split,
     dq_store: Dict,
     batch_size: int,
-    meta: Optional[Dict] = None,
+    meta: Optional[List] = None,
     inference_name: Optional[str] = None,
     return_preds: bool = False,
 ) -> Tensor:
@@ -64,7 +64,7 @@ def log_preds_setfit(
     labels = logger_config.labels
     # Check if the data should be logged by checking if the split is in the
     # input_data_logged
-    log_data = not getattr(logger_config, f"{split}_logged")
+    skip_logging = logger_config.helper_data[f"setfit_skip_input_log_{split}"]
     # Iterate over the dataset in batches and log the data samples
     # and model outputs
     for i in range(0, len(dataset), batch_size):
@@ -72,7 +72,7 @@ def log_preds_setfit(
         assert text_col in batch, f"column '{text_col}' must be in batch"
         assert id_col in batch, f"column '{id_col}' text must be in batch"
 
-        if inference_name is None and log_data:
+        if inference_name is None and not skip_logging:
             assert label_col in batch, f"column '{label_col}' must be in batch"
             log_args.labels += [labels[label] for label in batch[label_col]]
 
@@ -80,7 +80,7 @@ def log_preds_setfit(
         if return_preds:
             preds.append(pred)
         # 🔭🌕 Galileo logging
-        if log_data:
+        if not skip_logging:
             log_args.texts += batch[text_col]
             log_args.ids += batch[id_col]
 
@@ -99,7 +99,7 @@ def log_preds_setfit(
         )
 
     # Log any leftovers
-    if log_args and log_data:
+    if log_args and not skip_logging:
         dq.log_data_samples(**asdict(log_args))
     if not return_preds:
         return torch.tensor([])

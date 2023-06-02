@@ -248,7 +248,6 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
                 f"Dataset must be one of pandas, vaex, HF, or Iterable, "
                 f"but got {type(dataset)}"
             )
-        setattr(self.logger_config, f"{split}_logged", True)
 
     def _log_hf_dataset(
         self,
