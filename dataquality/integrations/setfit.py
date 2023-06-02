@@ -4,9 +4,15 @@ import numpy as np
 import torch
 
 import dataquality as dq
+from dataquality.analytics import Analytics
+from dataquality.clients.api import ApiClient
 from dataquality.schemas.split import Split
 from dataquality.utils.patcher import Cleanup, Patch, PatchManager, RefManager
 from dataquality.utils.setfit import log_preds_setfit
+
+a = Analytics(ApiClient, dq.config)  # type: ignore
+a.log_import("setfit")
+
 
 if TYPE_CHECKING:
     from datasets import Dataset
@@ -159,6 +165,7 @@ class _PatchSetFitTrainer(Patch):
         finish: bool = True,
         wait: bool = False,
         batch_size: Optional[int] = None,
+        meta: Optional[List] = None,
     ) -> None:
         """Patch to SetFit trainer to run dataquality after training.
         :param setfit_trainer: SetFit trainer
@@ -177,6 +184,7 @@ class _PatchSetFitTrainer(Patch):
         self.project_name = project_name
         self.run_name = run_name
         self.batch_size = batch_size
+        self.meta = meta
 
     def _patch(self) -> "Patch":
         """Patch SetFit trainer by replacing train function with self."""
@@ -223,19 +231,15 @@ class _PatchSetFitTrainer(Patch):
             labels = getattr(train_dataset.features.get("label", {}), "names", [])
         assert len(labels), "Labels must be set (watch(trainer, labels=[...]))"
         dq.set_labels_for_run(labels)
-        datasets = [train_dataset]
         if eval_dataset is not None:
             if self.trainer.column_mapping is not None:
                 eval_dataset = self.trainer._apply_column_mapping(
                     eval_dataset, self.trainer.column_mapping
                 )
-            datasets.append(eval_dataset)
 
-        for split in [Split.training, Split.validation]:
-            if split == Split.training:
-                dataset = train_dataset
-            else:
-                dataset = eval_dataset
+        for split, dataset in zip(
+            [Split.training, Split.validation], [train_dataset, eval_dataset]
+        ):
             if dataset is None:
                 continue
             if "id" not in dataset.features:
@@ -247,6 +251,7 @@ class _PatchSetFitTrainer(Patch):
                 dq_store=dq_store,
                 batch_size=batch_size,
                 split=split,
+                meta=self.meta,
             )
 
         if self.finish:
@@ -265,6 +270,7 @@ def unwatch(setfit_obj: Optional[Union["SetFitModel", "SetFitTrainer"]]) -> None
     function.
     :param setfit_obj: SetFitModel or SetFitTrainer
     """
+    a.log_function("setfit/unwatch")
     setfitmanager = PatchManager()
     setfitmanager.unpatch()
 
@@ -277,7 +283,10 @@ def watch(
     finish: bool = True,
     wait: bool = False,
     batch_size: Optional[int] = None,
-) -> Optional[Callable]:
+    meta: Optional[List] = None,
+) -> Callable[
+    ["Dataset", Split, Optional[List], Optional[str], Optional[Dict], int], torch.Tensor
+]:
     """Watch a SetFit model or trainer and extract model outputs for dataquality.
     Returns a function that can be used to evaluate the model on a dataset.
     :param setfit: SetFit model or trainer
@@ -289,12 +298,20 @@ def watch(
     :param batch_size: batch size for evaluation
     :return: dq_evaluate function
     """
+    a.log_function("setfit/watch")
+
     from setfit import SetFitTrainer
 
     labels = labels or []
     model = setfit
 
     setfitmanager = PatchManager()
+
+    # If the user has already logged input data, skip it during evaluate
+    logger_config = dq.get_data_logger().logger_config
+    for split in ["training", "validation", "test", "inference"]:
+        split_key = f"setfit_skip_input_log_{split}"
+        logger_config.helper_data[split_key] = getattr(logger_config, f"{split}_logged")
 
     if isinstance(setfit, SetFitTrainer):
         patched_trainer = _PatchSetFitTrainer(
@@ -305,14 +322,19 @@ def watch(
             run_name=run_name,
             project_name=project_name,
             batch_size=batch_size,
+            meta=meta,
         )
         setfitmanager.add_patch(patched_trainer)
-        return None
+        return evaluate(setfit.model)
     else:
         return evaluate(model)
 
 
-def evaluate(model: "SetFitModel") -> Callable:
+def evaluate(
+    model: "SetFitModel",
+) -> Callable[
+    ["Dataset", Split, Optional[List], Optional[str], Optional[Dict], int], torch.Tensor
+]:
     """Watch SetFit model by replacing predict_proba function with SetFitModelHook.
     :param model: SetFit model
     :return: SetFitModelHook object"""
@@ -328,6 +350,7 @@ def evaluate(model: "SetFitModel") -> Callable:
     def dq_evaluate(
         dataset: "Dataset",
         split: Split,
+        meta: Optional[List] = None,
         inference_name: Optional[str] = None,
         column_mapping: Optional[Dict] = None,
         batch_size: int = 64,
@@ -335,9 +358,11 @@ def evaluate(model: "SetFitModel") -> Callable:
         """Evaluate SetFit model and log input and output to Galileo.
         :param batch: batch of data as a dictionary
         :param split: split of data (training, validation, test, inference)
+        :param meta: columns that should be logged as metadata
         :param inference_name: inference name (if split is inference, must be provided)
         :param column_mapping: mapping of column names (if different from default)
         :return: output of SetFitModel.predict_proba function"""
+        a.log_function("setfit/evaluate")
 
         column_mapping = column_mapping or dict(
             text="text",
@@ -355,6 +380,7 @@ def evaluate(model: "SetFitModel") -> Callable:
             batch_size=batch_size,
             split=split,
             inference_name=inference_name,
+            meta=meta,
         )
 
     return dq_evaluate

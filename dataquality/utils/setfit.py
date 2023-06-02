@@ -1,4 +1,4 @@
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from typing import TYPE_CHECKING, Dict, List, Optional
 
 import torch
@@ -16,26 +16,12 @@ if TYPE_CHECKING:
 
 @dataclass
 class DataSampleLogArgs:
-    texts: List[str]
-    ids: List[int]
     split: Split
-    inference_name: Optional[str]
-    labels: List
-
-    def __init__(
-        self,
-        split: Split,
-        inference_name: Optional[str] = None,
-    ) -> None:
-        """DataSampleLogArgs is a helper class for logging data samples to Galileo.
-        :param split: The split of the data samples (for example "training")
-        :param inference_name: The name of the inference (for example "inference_run_1")
-        """
-        self.texts = []
-        self.ids = []
-        self.labels = []
-        self.split = split
-        self.inference_name = inference_name
+    inference_name: Optional[str] = None
+    meta: Optional[Dict] = None
+    texts: List[str] = field(default_factory=list)
+    ids: List[int] = field(default_factory=list)
+    labels: List = field(default_factory=list)
 
     def clear(self) -> None:
         """Resets the arrays of the class."""
@@ -50,6 +36,7 @@ def log_preds_setfit(
     split: Split,
     dq_store: Dict,
     batch_size: int,
+    meta: Optional[List] = None,
     inference_name: Optional[str] = None,
     return_preds: bool = False,
 ) -> Tensor:
@@ -73,8 +60,11 @@ def log_preds_setfit(
         log_args.inference_name = inference_name
         inference_dict["inference_name"] = inference_name
 
-    labels = dq.get_data_logger().logger_config.labels
-
+    logger_config = dq.get_data_logger().logger_config
+    labels = logger_config.labels
+    # Check if the data should be logged by checking if the split is in the
+    # input_data_logged
+    skip_logging = logger_config.helper_data[f"setfit_skip_input_log_{split}"]
     # Iterate over the dataset in batches and log the data samples
     # and model outputs
     for i in range(0, len(dataset), batch_size):
@@ -82,7 +72,7 @@ def log_preds_setfit(
         assert text_col in batch, f"column '{text_col}' must be in batch"
         assert id_col in batch, f"column '{id_col}' text must be in batch"
 
-        if inference_name is None:
+        if inference_name is None and not skip_logging:
             assert label_col in batch, f"column '{label_col}' must be in batch"
             log_args.labels += [labels[label] for label in batch[label_col]]
 
@@ -90,12 +80,16 @@ def log_preds_setfit(
         if return_preds:
             preds.append(pred)
         # 🔭🌕 Galileo logging
-        log_args.texts += batch[text_col]
-        log_args.ids += batch[id_col]
-
-        if len(log_args.texts) >= BATCH_LOG_SIZE:
-            dq.log_data_samples(**asdict(log_args))
-            log_args.clear()
+        if not skip_logging:
+            log_args.texts += batch[text_col]
+            log_args.ids += batch[id_col]
+            if meta is not None:
+                log_args.meta = {
+                    meta_col: batch[f"feat_{meta_col}"] for meta_col in meta
+                }
+            if len(log_args.texts) >= BATCH_LOG_SIZE:
+                dq.log_data_samples(**asdict(log_args))
+                log_args.clear()
 
         # 🔭🌕 Galileo logging
         dq.log_model_outputs(
@@ -106,8 +100,9 @@ def log_preds_setfit(
             epoch=0,
             **inference_dict,  # type: ignore
         )
+
     # Log any leftovers
-    if log_args:
+    if log_args and not skip_logging:
         dq.log_data_samples(**asdict(log_args))
     if not return_preds:
         return torch.tensor([])
