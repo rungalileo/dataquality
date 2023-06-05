@@ -332,6 +332,7 @@ class SemanticTorchLogger(TorchLogger):
         if not self.mask_col_name:
             self.find_mask_category(self.helper_data["batch"]["data"])
 
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # if we have not inferred the number of classes from the model architecture
         self.number_classes = self.helper_data[HelperData.model_outputs_store][
             "logits"
@@ -348,7 +349,7 @@ class SemanticTorchLogger(TorchLogger):
             )
 
             argmax, probs = self.get_argmax_probs()
-            gold_mask = logging_data[self.mask_col_name].clone()
+            gold_mask = logging_data[self.mask_col_name].clone().to(device)
 
             gold_boundary_masks = mask_to_boundary(
                 gold_mask.cpu().numpy()

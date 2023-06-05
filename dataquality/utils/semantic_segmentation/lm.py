@@ -248,8 +248,7 @@ def fill_confident_counts(
     # increment the count for each label
     # get the count of each label
     count_labels = torch.bincount(labels, minlength=confident_counts.shape[1])
-    for i in range(len(count_labels)):
-        confident_counts[given_class, i] += count_labels[i]
+    confident_counts[given_class, :] = count_labels.cpu()
     return confident_counts
 
 
