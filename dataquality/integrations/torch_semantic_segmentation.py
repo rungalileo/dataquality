@@ -260,7 +260,7 @@ class SemanticTorchLogger(TorchLogger):
         Returns:
             Mislabeled pixels tensor of shape (batch_size, height, width)
         """
-        self.queue_gold_and_pred(probs, gold_mask)
+        self.queue_gold_and_pred(probs, gold_mask.cpu())
         out_threshold = calculate_self_confidence_threshold(
             self.prob_queue, self.gold_queue
         )
@@ -344,14 +344,14 @@ class SemanticTorchLogger(TorchLogger):
             )
 
             argmax, probs = self.get_argmax_probs()
+            gold_mask = logging_data[self.mask_col_name].clone()
 
             gold_boundary_masks = mask_to_boundary(
-                logging_data[self.mask_col_name].clone().cpu().numpy()
+                gold_mask.cpu().numpy()
             )  # (bs, w, h)
             pred_boundary_masks = mask_to_boundary(
                 argmax.clone().cpu().numpy()
             )  # (bs, w, h)
-            gold_mask = logging_data[self.mask_col_name].cpu()  # (bs, w, h)
             if gold_mask.shape[1] == 1:
                 gold_mask = gold_mask.squeeze(1)  # (bs, w, h)
             if gold_mask.dtype == torch.float16:
