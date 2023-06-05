@@ -281,7 +281,7 @@ class SemanticTorchLogger(TorchLogger):
                 confident_counts=self.confident_count,
             )
         self.counts_per_class += torch.bincount(
-            gold_mask.view(-1), minlength=probs.shape[-1]
+            gold_mask.view(-1).cpu(), minlength=probs.shape[-1]
         )
         self_confidence = calculate_self_confidence(self.prob_queue, self.gold_queue)
         mislabeled_pixels = calculate_lm_for_batch(
