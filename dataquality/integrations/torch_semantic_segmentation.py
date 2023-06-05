@@ -42,7 +42,8 @@ object_store = ObjectStore()
 # Heuristic used to calculate Likely Mislabeled for Semantic Segmentation
 # A larger queue size corresponds to a more accurate estimate of LM.
 # We keep a queue size to overcome memory issues with large SemSeg datasets.
-LIKELY_MISLABELED_QUEUE_SIZE = 1000
+LIKELY_MISLABELED_QUEUE_SIZE = 500
+LIKELY_MISLABELED_MAP_SIZE = 32
 
 
 class SemanticTorchLogger(TorchLogger):
@@ -220,11 +221,12 @@ class SemanticTorchLogger(TorchLogger):
         bs = probs.shape[0]
         # interpolate expects N, C, H, W so have to reshuffle probs
         probs = probs.permute(0, 3, 1, 2)
-        # resize the tensors to be 64, 64 for compressed storage
-        probs = F.interpolate(probs, size=(64, 64), mode="bicubic")
+        # resize the tensors for compressed storage
+        size = (LIKELY_MISLABELED_MAP_SIZE, LIKELY_MISLABELED_MAP_SIZE)
+        probs = F.interpolate(probs, size=size, mode="bicubic")
         probs = probs.permute(0, 2, 3, 1)
         gold = gold.unsqueeze(1)
-        gold = F.interpolate(gold, size=(64, 64), mode="nearest").long()
+        gold = F.interpolate(gold, size=size, mode="nearest").long()
         gold = gold.squeeze(1)
 
         # stack on the end of the queue and remove front to keep only most recent
@@ -245,8 +247,10 @@ class SemanticTorchLogger(TorchLogger):
 
         # create a queue to store the last X probs and gold queue but start with empty
         # so as to not report mislabeled pixels until we have enough data
-        self.prob_queue = torch.empty((0, 64, 64, self.number_classes))
-        self.gold_queue = torch.empty((0, 64, 64))
+        self.prob_queue = torch.empty(
+            (0, LIKELY_MISLABELED_MAP_SIZE, LIKELY_MISLABELED_MAP_SIZE, self.number_classes)
+            )
+        self.gold_queue = torch.empty((0, LIKELY_MISLABELED_MAP_SIZE, LIKELY_MISLABELED_MAP_SIZE))
 
     def calculate_mislabeled_pixels(
         self, probs: torch.Tensor, gold_mask: torch.Tensor
