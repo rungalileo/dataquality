@@ -297,7 +297,7 @@ class SemanticTorchLogger(TorchLogger):
 
     def get_argmax_probs(
         self,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Helper function to get the argmax and logits from the model outputs
 
         Returns:
@@ -318,7 +318,7 @@ class SemanticTorchLogger(TorchLogger):
         ), "The model output shape is not as expected. \
                 Expected classes to be in last dimension"
 
-        argmax = preds.clone().argmax(dim=-1)
+        argmax = (preds.clone().argmax(dim=-1)).cpu()
         logits = preds.clone()  # (bs, w, h, classes)
         probs = (torch.nn.Softmax(dim=-1)(logits)).cpu()
         return argmax, probs
