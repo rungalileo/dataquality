@@ -253,28 +253,6 @@ def fill_confident_counts(
     return confident_counts
 
 
-def _get_confident_counts(
-    probs: torch.Tensor, gold: torch.Tensor, per_class_threshold: np.ndarray
-) -> torch.Tensor:
-    """Gets the count of all those above the threshold for each class
-
-    Args:
-        probs (torch.Tensor): probability mask for each sample
-        gold (torch.Tensor): label mask for each sample
-        per_class_threshold (np.ndarray): threshold for each class
-
-    Returns:
-        torch.Tensor: count of all those above the threshold for each class
-    """
-    confident_counts = torch.zeros((probs.shape[-1], probs.shape[-1]))
-    for i in range(probs.shape[-1]):
-        current_probs = probs[:, :, :, i].clone()
-        confident_counts = fill_confident_counts(
-            current_probs, gold, i, per_class_threshold[i], confident_counts
-        )
-    return confident_counts
-
-
 def normalize_confident_counts(
     confident_counts: torch.Tensor, class_counts: torch.Tensor
 ) -> torch.Tensor:
@@ -309,27 +287,6 @@ def normalize_confident_counts(
         confidence_joint.fill_diagonal_(1.0 / confidence_joint.shape[0])
 
     return confidence_joint
-
-
-def _calculate_confidence_joint(
-    probs: torch.Tensor, gold: torch.Tensor
-) -> torch.Tensor:
-    """Calculates the confidence joint of our data
-
-    Args:
-        prob (torch.Tensor): probability mask for each sample
-        gold (torch.Tensor): labels for each sample
-
-    Returns:
-        torch.Tensor: confidence joint of our data
-    """
-    count_per_class = torch.bincount(gold.view(-1), minlength=probs.shape[-1])
-    num_classes = probs.shape[-1]
-
-    per_class_threshold = np.array([0.5 for i in range(num_classes)])
-    confident_counts = _get_confident_counts(probs, gold, per_class_threshold)
-    confident_joint = normalize_confident_counts(confident_counts, count_per_class)
-    return confident_joint
 
 
 def calculate_self_confidence_threshold(
