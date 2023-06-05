@@ -302,7 +302,7 @@ class SemanticTorchLogger(TorchLogger):
             Tuple[torch.Tensor, torch.Tensor]: argmax and logits tensors
         """
         # resize the logits to the input size based on hooks
-        preds = self.helper_data[HelperData.model_outputs_store]["logits"].cpu()
+        preds = self.helper_data[HelperData.model_outputs_store]["logits"]
         if preds.dtype == torch.float16:
             preds = preds.to(torch.float32)
         input_shape = self.helper_data[HelperData.model_input].shape[-2:]
@@ -317,7 +317,7 @@ class SemanticTorchLogger(TorchLogger):
                 Expected classes to be in last dimension"
 
         argmax = preds.clone().argmax(dim=-1)
-        logits = preds  # (bs, w, h, classes)
+        logits = preds.clone()  # (bs, w, h, classes)
         return argmax, logits
 
     def _on_step_end(self) -> None:
@@ -354,7 +354,7 @@ class SemanticTorchLogger(TorchLogger):
             if gold_mask.dtype == torch.float16:
                 gold_mask = gold_mask.to(torch.float32)
 
-            probs = torch.nn.Softmax(dim=-1)(logits).cpu()  # (bs, w, h, classes)
+            probs = (torch.nn.Softmax(dim=-1)(logits)).cpu()  # (bs, w, h, classes)
             mislabeled_pixels = self.calculate_mislabeled_pixels(probs, gold_mask)
 
             # do not log if we are not in the final inference loop
