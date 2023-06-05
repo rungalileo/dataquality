@@ -295,7 +295,7 @@ class SemanticTorchLogger(TorchLogger):
         mislabeled_pixels = mislabeled_pixels[-bs:]
         return mislabeled_pixels
 
-    def get_argmax_logits_probs(
+    def get_argmax_probs(
         self,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Helper function to get the argmax and logits from the model outputs
@@ -321,7 +321,7 @@ class SemanticTorchLogger(TorchLogger):
         argmax = preds.clone().argmax(dim=-1)
         logits = preds.clone()  # (bs, w, h, classes)
         probs = (torch.nn.Softmax(dim=-1)(logits)).cpu()
-        return argmax, logits, probs
+        return argmax, probs
 
     def _on_step_end(self) -> None:
         """Function to be called at the end of step to log the inputs and outputs"""
@@ -343,7 +343,7 @@ class SemanticTorchLogger(TorchLogger):
                 split, logging_data
             )
 
-            argmax, logits, probs = self.get_argmax_logits_probs()
+            argmax, probs = self.get_argmax_probs()
 
             gold_boundary_masks = mask_to_boundary(
                 logging_data[self.mask_col_name].clone().cpu().numpy()
