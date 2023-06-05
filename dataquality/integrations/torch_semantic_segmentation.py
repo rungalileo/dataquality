@@ -298,7 +298,7 @@ class SemanticTorchLogger(TorchLogger):
     def get_argmax_probs(
         self,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Helper function to get the argmax and logits from the model outputs
+        """Helper function to get the argmax and probs from the model outputs
 
         Returns:
             Tuple[torch.Tensor, torch.Tensor]: argmax and logits tensors
