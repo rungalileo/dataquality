@@ -1,5 +1,6 @@
 from typing import Callable, Generator
 from unittest.mock import MagicMock, patch
+from uuid import uuid4
 
 import pandas as pd
 import tensorflow as tf
@@ -29,12 +30,12 @@ try:
     tokenizer = AutoTokenizer.from_pretrained(tmp_checkpoint)
 except Exception:
     tokenizer = AutoTokenizer.from_pretrained(checkpoint)
-    tokenizer.save_pretrained(tmp_checkpoint)
+    tokenizer.save_pretrained(tmp_checkpoint, filename_prefix=str(uuid4()))
 try:
     model = TFAutoModelForSequenceClassification.from_pretrained(tmp_checkpoint)
 except Exception:
     model = TFAutoModelForSequenceClassification.from_pretrained(checkpoint)
-    model.save_pretrained(tmp_checkpoint)
+    model.save_pretrained(tmp_checkpoint, filename_prefix=str(uuid4()))
 
 
 def preprocess_function(examples, tokenizer):
