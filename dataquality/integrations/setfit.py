@@ -6,6 +6,7 @@ import torch
 import dataquality as dq
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
+from dataquality.core.log import get_data_logger
 from dataquality.schemas.split import Split
 from dataquality.utils.patcher import Cleanup, Patch, PatchManager, RefManager
 from dataquality.utils.setfit import log_preds_setfit
@@ -273,6 +274,9 @@ def unwatch(setfit_obj: Optional[Union["SetFitModel", "SetFitTrainer"]]) -> None
     a.log_function("setfit/unwatch")
     setfitmanager = PatchManager()
     setfitmanager.unpatch()
+    helper_data = dq.get_data_logger().logger_config.helper_data
+    if helper_data:
+        helper_data.clear()
 
 
 def watch(
@@ -341,11 +345,9 @@ def evaluate(
     dq_hook = SetFitModelHook(model)
     dq_store = dq_hook.store
 
-    helper_data = dq.get_data_logger().logger_config.helper_data
-
     # Unpatch SetFit model after logging (when finished is called)
-    cleanup_manager = RefManager(dq_hook.unpatch)
-    helper_data["cleaner"] = Cleanup(cleanup_manager)
+    # cleanup_manager = RefManager(dq_hook.unpatch)
+    # helper_data["cleaner"] = Cleanup(cleanup_manager)
 
     def dq_evaluate(
         dataset: "Dataset",
@@ -354,6 +356,7 @@ def evaluate(
         inference_name: Optional[str] = None,
         column_mapping: Optional[Dict] = None,
         batch_size: int = 64,
+        epoch: Optional[int] = None,
     ) -> torch.Tensor:
         """Evaluate SetFit model and log input and output to Galileo.
         :param batch: batch of data as a dictionary
@@ -372,7 +375,11 @@ def evaluate(
 
         if column_mapping is not None:
             dataset = _apply_column_mapping(dataset, column_mapping)
-
+        if "id" not in dataset.features:
+            dataset = dataset.map(lambda x, idx: {"id": idx}, with_indices=True)
+        cur_epoch = get_data_logger().logger_config.cur_epoch
+        if epoch is not None:
+            cur_epoch = epoch
         return log_preds_setfit(
             model=model,
             dataset=dataset,
@@ -381,6 +388,7 @@ def evaluate(
             split=split,
             inference_name=inference_name,
             meta=meta,
+            epoch=cur_epoch,
         )
 
     return dq_evaluate

@@ -39,6 +39,7 @@ def log_preds_setfit(
     meta: Optional[List] = None,
     inference_name: Optional[str] = None,
     return_preds: bool = False,
+    epoch: Optional[int] = None,
 ) -> Tensor:
     """Logs the data samples and model outputs for a SetFit model.
     :param model: The SetFit model
@@ -62,6 +63,8 @@ def log_preds_setfit(
 
     logger_config = dq.get_data_logger().logger_config
     labels = logger_config.labels
+    epoch = 0 if epoch is None else epoch
+
     # Check if the data should be logged by checking if the split is in the
     # input_data_logged
     skip_logging = logger_config.helper_data[f"setfit_skip_input_log_{split}"]
@@ -90,14 +93,13 @@ def log_preds_setfit(
             if len(log_args.texts) >= BATCH_LOG_SIZE:
                 dq.log_data_samples(**asdict(log_args))
                 log_args.clear()
-
         # 🔭🌕 Galileo logging
         dq.log_model_outputs(
             ids=batch[id_col],
             probs=dq_store["output"],
             embs=dq_store["input_args"][0],
             split=split,
-            epoch=0,
+            epoch=epoch,
             **inference_dict,  # type: ignore
         )
 
