@@ -1,7 +1,5 @@
 from collections import defaultdict
-from typing import DefaultDict
-from typing import Dict
-from typing import List
+from typing import DefaultDict, Dict, List
 
 import numpy as np
 import spacy

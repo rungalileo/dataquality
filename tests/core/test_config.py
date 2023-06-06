@@ -1,8 +1,7 @@
 import os
 from typing import Callable
 from unittest import mock
-from unittest.mock import MagicMock
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
@@ -10,11 +9,13 @@ from packaging import version
 
 import dataquality
 from dataquality import __version__ as dq_version
-from dataquality.core._config import CLOUD_URL
-from dataquality.core._config import MINIMUM_API_VERSION
-from dataquality.core._config import _check_dq_version
-from dataquality.core._config import set_config
-from dataquality.core._config import url_is_localhost
+from dataquality.core._config import (
+    CLOUD_URL,
+    MINIMUM_API_VERSION,
+    _check_dq_version,
+    set_config,
+    url_is_localhost,
+)
 from dataquality.exceptions import GalileoException
 from tests.test_utils.mock_request import MockResponse
 

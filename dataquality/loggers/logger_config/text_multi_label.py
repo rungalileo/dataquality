@@ -1,8 +1,5 @@
 from collections import defaultdict
-from typing import DefaultDict
-from typing import List
-from typing import Optional
-from typing import Set
+from typing import DefaultDict, List, Optional, Set
 
 import numpy as np
 from pydantic import validator

@@ -1,16 +1,11 @@
 import logging
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Union
+from typing import Dict, List, Optional, Union
 
 import pandas as pd
-from datasets import Dataset
-from datasets import DatasetDict
+from datasets import Dataset, DatasetDict
 
 from dataquality.schemas.task_type import TaskType
-from dataquality.utils.auto import get_task_type_from_data
-from dataquality.utils.auto import set_global_logging_level
+from dataquality.utils.auto import get_task_type_from_data, set_global_logging_level
 
 AUTO_PROJECT_NAME = {
     TaskType.text_classification: "auto_tc",

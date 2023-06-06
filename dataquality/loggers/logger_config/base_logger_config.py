@@ -1,14 +1,7 @@
 from collections import defaultdict
-from typing import Any
-from typing import Callable
-from typing import DefaultDict
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Set
+from typing import Any, Callable, DefaultDict, Dict, List, Optional, Set
 
-from pydantic import BaseModel
-from pydantic import validator
+from pydantic import BaseModel, validator
 
 from dataquality.schemas.condition import Condition
 from dataquality.schemas.ner import TaggingSchema

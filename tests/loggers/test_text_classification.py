@@ -322,7 +322,9 @@ def test_log_int_labels(set_test_config: Callable, cleanup_after_use: Callable) 
 
 
 def test_log_int_labels_mapped(
-    set_test_config: Callable, cleanup_after_use: Callable, test_session_vars: TestSessionVariables
+    set_test_config: Callable,
+    cleanup_after_use: Callable,
+    test_session_vars: TestSessionVariables,
 ) -> None:
     """Tests that a user can log their labels as ints without issue"""
     set_test_config(task_type="text_classification")
@@ -350,7 +352,9 @@ def test_log_int_labels_mapped(
 
 
 def test_create_and_upload_data_embs(
-    cleanup_after_use: Callable, set_test_config: Callable, test_session_vars: TestSessionVariables
+    cleanup_after_use: Callable,
+    set_test_config: Callable,
+    test_session_vars: TestSessionVariables,
 ) -> None:
     set_test_config(task_type="text_classification")
     # Use the local mini bert model

@@ -223,8 +223,12 @@ def test_end_to_end_with_callback(
         evaluate(test_dataloader_dq, modeldq)
     unwatch()
     ThreadPoolManager.wait_for_threads()
-    validate_unique_ids(vaex.open(f"{test_session_vars.LOCATION}/{split}/0/*.hdf5"), "epoch")
-    validate_unique_ids(vaex.open(f"{test_session_vars.LOCATION}/{split}/1/*.hdf5"), "epoch")
+    validate_unique_ids(
+        vaex.open(f"{test_session_vars.LOCATION}/{split}/0/*.hdf5"), "epoch"
+    )
+    validate_unique_ids(
+        vaex.open(f"{test_session_vars.LOCATION}/{split}/1/*.hdf5"), "epoch"
+    )
     dq.finish()
 
 
@@ -277,4 +281,6 @@ def test_end_to_end_old_patch(
         evaluate(test_dataloader_dq, modeldq)
     unwatch()
     ThreadPoolManager.wait_for_threads()
-    validate_unique_ids(vaex.open(f"{test_session_vars.LOCATION}/{split}/0/*.hdf5"), "epoch")
+    validate_unique_ids(
+        vaex.open(f"{test_session_vars.LOCATION}/{split}/0/*.hdf5"), "epoch"
+    )

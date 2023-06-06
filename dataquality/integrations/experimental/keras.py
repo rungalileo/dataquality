@@ -1,10 +1,5 @@
 from functools import partial
-from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import Optional
-from typing import Tuple
-from typing import Union
+from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 import tensorflow as tf
 from tensorflow import keras
@@ -17,13 +12,15 @@ from dataquality.exceptions import GalileoException
 from dataquality.loggers.logger_config.base_logger_config import BaseLoggerConfig
 from dataquality.schemas.split import Split
 from dataquality.utils.helpers import wrap_fn
-from dataquality.utils.keras import combine_with_default_kwargs
-from dataquality.utils.keras import generate_indices
-from dataquality.utils.keras import generate_split
-from dataquality.utils.keras import get_x_len
-from dataquality.utils.keras import patch_layer_call
-from dataquality.utils.keras import save_input
-from dataquality.utils.keras import save_output
+from dataquality.utils.keras import (
+    combine_with_default_kwargs,
+    generate_indices,
+    generate_split,
+    get_x_len,
+    patch_layer_call,
+    save_input,
+    save_output,
+)
 
 a = Analytics(ApiClient, config)
 a.log_import("integrations/experimental/keras")

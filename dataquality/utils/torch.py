@@ -3,31 +3,23 @@ import re
 from collections import OrderedDict
 from functools import wraps
 from queue import Queue
-from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Tuple
-from typing import Type
-from typing import Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
 from warnings import warn
 
 import numpy as np  # noqa: F401
 from torch import Tensor
 from torch.nn import Module
-from torch.utils.data.dataloader import _BaseDataLoaderIter
-from torch.utils.data.dataloader import _MultiProcessingDataLoaderIter
-from torch.utils.data.dataloader import _SingleProcessDataLoaderIter
+from torch.utils.data.dataloader import (
+    _BaseDataLoaderIter,
+    _MultiProcessingDataLoaderIter,
+    _SingleProcessDataLoaderIter,
+)
 from torch.utils.hooks import RemovableHandle
-from transformers.modeling_outputs import BaseModelOutput
-from transformers.modeling_outputs import TokenClassifierOutput
+from transformers.modeling_outputs import BaseModelOutput, TokenClassifierOutput
 
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.task_type import TaskType
-from dataquality.schemas.torch import DimensionSlice
-from dataquality.schemas.torch import HelperData
-from dataquality.schemas.torch import Layer
+from dataquality.schemas.torch import DimensionSlice, HelperData, Layer
 from dataquality.utils.helpers import wrap_fn
 
 

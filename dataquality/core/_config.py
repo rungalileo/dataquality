@@ -3,8 +3,7 @@ import os
 import warnings
 from enum import Enum
 from pathlib import Path
-from typing import Dict
-from typing import Optional
+from typing import Dict, Optional
 
 import requests
 from packaging import version

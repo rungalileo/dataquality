@@ -1,9 +1,5 @@
 import inspect
-from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import List
-from typing import Union
+from typing import Any, Callable, Dict, List, Union
 
 from torch.nn import Module
 from transformers import Trainer

@@ -1,6 +1,4 @@
-from typing import Callable
-from typing import Generator
-from typing import List
+from typing import Callable, Generator, List
 
 import pytest
 import spacy

@@ -288,7 +288,10 @@ def test_ner_logging_bad_inputs(
 
 @pytest.mark.parametrize("as_tensor", [False, True])
 def test_ner_logging(
-    as_tensor: bool, cleanup_after_use: Callable, set_test_config: Callable, test_session_vars: TestSessionVariables
+    as_tensor: bool,
+    cleanup_after_use: Callable,
+    set_test_config: Callable,
+    test_session_vars: TestSessionVariables,
 ) -> None:
     """
     To validate:

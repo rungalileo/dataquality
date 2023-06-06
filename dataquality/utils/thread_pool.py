@@ -2,11 +2,7 @@ import os
 import threading
 from threading import Thread
 from time import sleep
-from typing import Any
-from typing import Callable
-from typing import Iterable
-from typing import List
-from typing import Optional
+from typing import Any, Callable, Iterable, List, Optional
 
 from dataquality.exceptions import GalileoException
 

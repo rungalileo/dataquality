@@ -1,23 +1,16 @@
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Union
+from typing import Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
-from datasets import ClassLabel
-from datasets import Dataset
-from datasets import DatasetDict
+from datasets import ClassLabel, Dataset, DatasetDict
 
 import dataquality as dq
-from dataquality import Analytics
-from dataquality import ApiClient
+from dataquality import Analytics, ApiClient
 from dataquality.dq_auto.base_data_manager import BaseDatasetManager
 from dataquality.dq_auto.tc_trainer import get_trainer
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
-from dataquality.utils.auto import add_val_data_if_missing
-from dataquality.utils.auto import run_name_from_hf_dataset
+from dataquality.utils.auto import add_val_data_if_missing, run_name_from_hf_dataset
 from dataquality.utils.auto_trainer import do_train
 
 a = Analytics(ApiClient, dq.config)

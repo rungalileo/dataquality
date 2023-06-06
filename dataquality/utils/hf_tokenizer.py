@@ -1,13 +1,10 @@
-from typing import Dict
-from typing import List
-from typing import Tuple
+from typing import Dict, List, Tuple
 
 from datasets import Dataset
 from transformers import PreTrainedTokenizerBase
 
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
-from dataquality.schemas.hf import HFCol
-from dataquality.schemas.hf import SpanKey
+from dataquality.schemas.hf import HFCol, SpanKey
 from dataquality.schemas.ner import TaggingSchema
 
 

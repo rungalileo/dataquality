@@ -90,7 +90,9 @@ def test_end2end_yolov8(
         os.remove(tmp_cfg_path)
 
     ThreadPoolManager.wait_for_threads()
-    image_df = vaex.open(f"{test_session_vars.LOCATION}/input_data/validation/data_0.arrow")
+    image_df = vaex.open(
+        f"{test_session_vars.LOCATION}/input_data/validation/data_0.arrow"
+    )
     box_df = vaex.open(f"{test_session_vars.LOCATION}/validation/0/*.hdf5")
     # Need to make sure that all image_ids in the box df exist in image df.
     # It's possible image_df has more, when an image has no GT and no pred boxes

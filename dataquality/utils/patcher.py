@@ -1,10 +1,6 @@
 import weakref
-from abc import ABC
-from abc import abstractmethod
-from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import List
+from abc import ABC, abstractmethod
+from typing import Any, Callable, Dict, List
 
 
 class RefManager:

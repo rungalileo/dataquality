@@ -1,6 +1,5 @@
 from enum import Enum
-from typing import List
-from typing import Union
+from typing import List, Union
 
 from dataquality.exceptions import GalileoException
 

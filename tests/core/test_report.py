@@ -5,16 +5,20 @@ from uuid import uuid4
 import freezegun
 import vaex
 
-from dataquality import AggregateFunction
-from dataquality import ConditionFilter
-from dataquality import Operator
-from dataquality import build_run_report
-from dataquality import get_data_logger
-from dataquality import register_run_report
+from dataquality import (
+    AggregateFunction,
+    ConditionFilter,
+    Operator,
+    build_run_report,
+    get_data_logger,
+    register_run_report,
+)
 from dataquality.clients.api import ApiClient
-from dataquality.core.report import _condition_to_verbose_string
-from dataquality.core.report import _condition_valid_for_df
-from dataquality.core.report import _get_email_datetime
+from dataquality.core.report import (
+    _condition_to_verbose_string,
+    _condition_valid_for_df,
+    _get_email_datetime,
+)
 from dataquality.schemas.report import ConditionStatus
 
 # https://stackoverflow.com/questions/73007409/freezeguns-freeze-time-throws-odd-transformers-error-when-used

@@ -1,10 +1,5 @@
-from dataclasses import asdict
-from dataclasses import dataclass
-from dataclasses import field
-from typing import TYPE_CHECKING
-from typing import Dict
-from typing import List
-from typing import Optional
+from dataclasses import asdict, dataclass, field
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 import torch
 from torch import Tensor

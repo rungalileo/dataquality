@@ -149,9 +149,15 @@ def test_hf_watch_e2e(
     trainer.predict(encoded_test_dataset)
     ThreadPoolManager.wait_for_threads()
     # All data for splits should be logged
-    assert len(vaex.open(f"{test_session_vars.LOCATION}/training/0/*.hdf5")) == len(train_dataset)
-    assert len(vaex.open(f"{test_session_vars.LOCATION}/validation/0/*.hdf5")) == len(val_dataset)
-    assert len(vaex.open(f"{test_session_vars.LOCATION}/test/0/*.hdf5")) == len(test_dataset)
+    assert len(vaex.open(f"{test_session_vars.LOCATION}/training/0/*.hdf5")) == len(
+        train_dataset
+    )
+    assert len(vaex.open(f"{test_session_vars.LOCATION}/validation/0/*.hdf5")) == len(
+        val_dataset
+    )
+    assert len(vaex.open(f"{test_session_vars.LOCATION}/test/0/*.hdf5")) == len(
+        test_dataset
+    )
     # Should upload without failing on data validation or otherwise
     dq.finish()
 
@@ -341,9 +347,15 @@ def test_hf_watch_with_pt_dataset_e2e(
     trainer.predict(val_dataset)
     ThreadPoolManager.wait_for_threads()
     # All data for splits should be logged
-    assert len(vaex.open(f"{test_session_vars.LOCATION}/training/0/*.hdf5")) == len(train_dataset)
-    assert len(vaex.open(f"{test_session_vars.LOCATION}/validation/0/*.hdf5")) == len(val_dataset)
-    assert len(vaex.open(f"{test_session_vars.LOCATION}/test/0/*.hdf5")) == len(test_dataset)
+    assert len(vaex.open(f"{test_session_vars.LOCATION}/training/0/*.hdf5")) == len(
+        train_dataset
+    )
+    assert len(vaex.open(f"{test_session_vars.LOCATION}/validation/0/*.hdf5")) == len(
+        val_dataset
+    )
+    assert len(vaex.open(f"{test_session_vars.LOCATION}/test/0/*.hdf5")) == len(
+        test_dataset
+    )
 
     # Should upload without failing on data validation or otherwise
     dq.finish()
@@ -388,6 +400,8 @@ def test_hf_watch_no_train(
     trainer.predict(encoded_test_dataset)
     ThreadPoolManager.wait_for_threads()
     # All data for splits should be logged
-    assert len(vaex.open(f"{test_session_vars.LOCATION}/test/0/*.hdf5")) == len(test_dataset)
+    assert len(vaex.open(f"{test_session_vars.LOCATION}/test/0/*.hdf5")) == len(
+        test_dataset
+    )
     # Should upload without failing on data validation or otherwise
     dq.finish()

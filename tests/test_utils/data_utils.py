@@ -35,11 +35,15 @@ def validate_uploaded_data(
         for subdir in SUBDIRS:
             # epoch = 0 for general testing
             try:
-                file_path = f"{test_session_vars.TEST_PATH}/{split}/0/{subdir}/{subdir}.hdf5"
+                file_path = (
+                    f"{test_session_vars.TEST_PATH}/{split}/0/{subdir}/{subdir}.hdf5"
+                )
                 data = vaex.open(file_path)
             except FileNotFoundError:
                 # Handle autolog test
-                file_path = f"{test_session_vars.TEST_PATH}/{split}/1/{subdir}/{subdir}.hdf5"
+                file_path = (
+                    f"{test_session_vars.TEST_PATH}/{split}/1/{subdir}/{subdir}.hdf5"
+                )
                 data = vaex.open(file_path)
 
             prob_cols = data.get_column_names(regex="prob*")

@@ -2,12 +2,7 @@ import json
 import os
 from json import JSONDecodeError
 from time import sleep
-from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Tuple
-from typing import Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import requests
 from pydantic.types import UUID4
@@ -15,8 +10,7 @@ from requests import Response
 
 from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
-from dataquality.schemas import RequestType
-from dataquality.schemas import Route
+from dataquality.schemas import RequestType, Route
 from dataquality.schemas.dataframe import FileType
 from dataquality.schemas.edit import Edit
 from dataquality.schemas.ner import TaggingSchema

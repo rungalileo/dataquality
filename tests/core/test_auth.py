@@ -8,8 +8,10 @@ import pytest
 import dataquality
 from dataquality.core.auth import GALILEO_AUTH_METHOD
 from dataquality.exceptions import GalileoException
-from tests.test_utils.mock_request import mocked_failed_login_requests
-from tests.test_utils.mock_request import mocked_login_requests
+from tests.test_utils.mock_request import (
+    mocked_failed_login_requests,
+    mocked_login_requests,
+)
 
 config = dataquality.config
 

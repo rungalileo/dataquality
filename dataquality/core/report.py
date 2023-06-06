@@ -1,7 +1,5 @@
 from datetime import datetime
-from typing import Dict
-from typing import List
-from typing import Tuple
+from typing import Dict, List, Tuple
 from uuid import UUID
 
 from vaex.dataframe import DataFrame
@@ -10,10 +8,12 @@ from dataquality.clients.api import ApiClient
 from dataquality.core.log import get_data_logger
 from dataquality.metrics import get_dataframe
 from dataquality.schemas.condition import Condition
-from dataquality.schemas.report import ConditionStatus
-from dataquality.schemas.report import ReportConditionData
-from dataquality.schemas.report import RunReportData
-from dataquality.schemas.report import SplitConditionData
+from dataquality.schemas.report import (
+    ConditionStatus,
+    ReportConditionData,
+    RunReportData,
+    SplitConditionData,
+)
 from dataquality.schemas.split import Split
 
 api_client = ApiClient()

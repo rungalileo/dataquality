@@ -1,10 +1,5 @@
 import warnings
-from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Union
+from typing import Any, Callable, Dict, List, Optional, Union
 from warnings import warn
 
 from torch import Tensor
@@ -19,18 +14,16 @@ from dataquality.clients.api import ApiClient
 from dataquality.core.log import get_data_logger
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.task_type import TaskType
-from dataquality.schemas.torch import DimensionSlice
-from dataquality.schemas.torch import HelperData
-from dataquality.schemas.torch import InputDim
-from dataquality.schemas.torch import Layer
-from dataquality.utils.helpers import map_indices_to_ids
-from dataquality.utils.helpers import wrap_fn
-from dataquality.utils.torch import ModelHookManager
-from dataquality.utils.torch import TorchBaseInstance
-from dataquality.utils.torch import patch_dataloaders
-from dataquality.utils.torch import patch_iterator_with_store
-from dataquality.utils.torch import remove_all_forward_hooks
-from dataquality.utils.torch import unpatch
+from dataquality.schemas.torch import DimensionSlice, HelperData, InputDim, Layer
+from dataquality.utils.helpers import map_indices_to_ids, wrap_fn
+from dataquality.utils.torch import (
+    ModelHookManager,
+    TorchBaseInstance,
+    patch_dataloaders,
+    patch_iterator_with_store,
+    remove_all_forward_hooks,
+    unpatch,
+)
 
 a = Analytics(ApiClient, dq.config)  # type: ignore
 a.log_import("torch")

@@ -1,6 +1,4 @@
-from typing import List
-from typing import Optional
-from typing import Set
+from typing import List, Optional, Set
 
 import numpy as np
 from pydantic import validator

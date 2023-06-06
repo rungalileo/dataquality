@@ -89,6 +89,8 @@ def test_end2end_fai(
     learn.add_cb(dqc)
     learn.fine_tune(1, 1e-2, freeze_epochs=0)
     for test_split in ["training", "validation"]:
-        validate_unique_ids(vaex.open(f"{test_session_vars.LOCATION}/{test_split}/0/*.hdf5"), "epoch")
+        validate_unique_ids(
+            vaex.open(f"{test_session_vars.LOCATION}/{test_split}/0/*.hdf5"), "epoch"
+        )
     dqc.unwatch()
     dq.finish()

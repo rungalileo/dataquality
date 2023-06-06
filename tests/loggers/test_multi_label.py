@@ -1,7 +1,5 @@
-from random import randint
-from random import sample
-from typing import Callable
-from typing import Tuple
+from random import randint, sample
+from typing import Callable, Tuple
 from unittest import mock
 
 import numpy as np

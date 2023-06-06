@@ -3,11 +3,13 @@ import random
 import pytest
 
 from dataquality.exceptions import GalileoException
-from dataquality.utils.name import ADJECTIVES
-from dataquality.utils.name import ANIMALS
-from dataquality.utils.name import COLORS
-from dataquality.utils.name import random_name
-from dataquality.utils.name import validate_name
+from dataquality.utils.name import (
+    ADJECTIVES,
+    ANIMALS,
+    COLORS,
+    random_name,
+    validate_name,
+)
 
 
 @pytest.mark.parametrize(

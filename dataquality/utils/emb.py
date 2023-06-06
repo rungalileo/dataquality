@@ -1,7 +1,6 @@
 import os
 import warnings
-from typing import Dict
-from typing import Optional
+from typing import Dict, Optional
 
 import vaex
 from huggingface_hub.utils import HfHubHTTPError
@@ -9,12 +8,16 @@ from pydantic import UUID4
 from vaex.dataframe import DataFrame
 
 from dataquality.clients.objectstore import ObjectStore
-from dataquality.utils.file import get_largest_epoch_for_splits
-from dataquality.utils.file import get_last_epoch_for_splits
+from dataquality.utils.file import (
+    get_largest_epoch_for_splits,
+    get_last_epoch_for_splits,
+)
 from dataquality.utils.hdf5_store import HDF5_STORE
-from dataquality.utils.vaex import add_umap_pca_to_df
-from dataquality.utils.vaex import create_data_embs_df
-from dataquality.utils.vaex import get_output_df
+from dataquality.utils.vaex import (
+    add_umap_pca_to_df,
+    create_data_embs_df,
+    get_output_df,
+)
 
 object_store = ObjectStore()
 DATA_EMB_PATH = "data_emb/data_emb.hdf5"

@@ -1,7 +1,5 @@
 import os
-from typing import Dict
-from typing import List
-from typing import Union
+from typing import Dict, List, Union
 
 import numpy as np
 import pyarrow as pa
@@ -14,13 +12,14 @@ from dataquality.clients.objectstore import ObjectStore
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.base_logger import BaseLoggerAttributes
 from dataquality.schemas.split import Split
-from dataquality.utils.cuda import PCA_CHUNK_SIZE
-from dataquality.utils.cuda import PCA_N_COMPONENTS
-from dataquality.utils.cuda import cuml_available
-from dataquality.utils.cuda import get_pca_embeddings
-from dataquality.utils.cuda import get_umap_embeddings
-from dataquality.utils.hdf5_store import HDF5_STORE
-from dataquality.utils.hdf5_store import concat_hdf5_files
+from dataquality.utils.cuda import (
+    PCA_CHUNK_SIZE,
+    PCA_N_COMPONENTS,
+    cuml_available,
+    get_pca_embeddings,
+    get_umap_embeddings,
+)
+from dataquality.utils.hdf5_store import HDF5_STORE, concat_hdf5_files
 from dataquality.utils.helpers import galileo_verbose_logging
 
 object_store = ObjectStore()

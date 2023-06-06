@@ -2,8 +2,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from dataquality.schemas.torch import HelperData
-from dataquality.utils.torch import patch_dataloaders
-from dataquality.utils.torch import unpatch
+from dataquality.utils.torch import patch_dataloaders, unpatch
 
 
 def test_mp():

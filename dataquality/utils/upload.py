@@ -5,11 +5,7 @@ import queue
 import tempfile
 from pathlib import Path
 from threading import Thread
-from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Union
+from typing import Any, Dict, List, Optional, Union
 
 import vaex
 from pydantic import UUID4

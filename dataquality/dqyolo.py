@@ -9,15 +9,19 @@ from ultralytics.yolo.utils import get_settings
 import dataquality as dq
 from dataquality.integrations.ultralytics import watch
 from dataquality.schemas.split import Split
-from dataquality.utils.dqyolo import find_last_run
-from dataquality.utils.dqyolo import get_conf_thres
-from dataquality.utils.dqyolo import get_dataset_path
-from dataquality.utils.dqyolo import get_iou_thres
-from dataquality.utils.dqyolo import get_model_path
-from dataquality.utils.dqyolo import validate_args
-from dataquality.utils.ultralytics import _read_config
-from dataquality.utils.ultralytics import temporary_cfg_for_val
-from dataquality.utils.ultralytics import ultralytics_split_mapping
+from dataquality.utils.dqyolo import (
+    find_last_run,
+    get_conf_thres,
+    get_dataset_path,
+    get_iou_thres,
+    get_model_path,
+    validate_args,
+)
+from dataquality.utils.ultralytics import (
+    _read_config,
+    temporary_cfg_for_val,
+    ultralytics_split_mapping,
+)
 
 # http://images.cocodataset.org.s3.amazonaws.com/train2017/000000000009.jpg
 # http://images.cocodataset.org.s3.amazonaws.com/test2017/000000000001.jpg

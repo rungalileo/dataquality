@@ -212,9 +212,7 @@ class TestTabularClassificationDataLogger:
         test_session_vars: TestSessionVariables,
     ) -> None:
         """Test upload uploads to Minio"""
-        prefix = (
-            f"{BaseGalileoLogger.LOG_FILE_DIR}/{test_session_vars.DEFAULT_PROJECT_ID}/{test_session_vars.DEFAULT_RUN_ID}"
-        )
+        prefix = f"{BaseGalileoLogger.LOG_FILE_DIR}/{test_session_vars.DEFAULT_PROJECT_ID}/{test_session_vars.DEFAULT_RUN_ID}"
         mock_os_walk.return_value = [
             (
                 f"{prefix}/training/data",
@@ -474,7 +472,9 @@ class TestTabularClassificationE2E:
             mock_reset_run.assert_not_called()
         else:
             mock_reset_run.assert_called_once_with(
-                test_session_vars.DEFAULT_PROJECT_ID, test_session_vars.DEFAULT_RUN_ID, TaskType.tabular_classification
+                test_session_vars.DEFAULT_PROJECT_ID,
+                test_session_vars.DEFAULT_RUN_ID,
+                TaskType.tabular_classification,
             )
 
     def test_log_pandas_e2e(
@@ -524,7 +524,12 @@ class TestTabularClassificationE2E:
                 "feature_names": tab_data["feature_names"],
             },
         )
-        self._assert_mocks(mock_upload_dq_log_file, mock_reset_run, mock_version_check, test_session_vars)
+        self._assert_mocks(
+            mock_upload_dq_log_file,
+            mock_reset_run,
+            mock_version_check,
+            test_session_vars,
+        )
 
     def test_log_arrays_e2e(
         self,
@@ -575,7 +580,12 @@ class TestTabularClassificationE2E:
                 "feature_names": tab_data["feature_names"],
             },
         )
-        self._assert_mocks(mock_upload_dq_log_file, mock_reset_run, mock_version_check, test_session_vars)
+        self._assert_mocks(
+            mock_upload_dq_log_file,
+            mock_reset_run,
+            mock_version_check,
+            test_session_vars,
+        )
 
     def test_log_pandas_e2e_inference(
         self,
@@ -632,7 +642,12 @@ class TestTabularClassificationE2E:
                 "feature_names": tab_data["feature_names"],
             },
         )
-        self._assert_mocks(mock_upload_dq_log_file, mock_reset_run, mock_version_check, test_session_vars)
+        self._assert_mocks(
+            mock_upload_dq_log_file,
+            mock_reset_run,
+            mock_version_check,
+            test_session_vars,
+        )
 
     def test_log_arrays_e2e_inference(
         self,
@@ -692,7 +707,12 @@ class TestTabularClassificationE2E:
                 "feature_names": tab_data["feature_names"],
             },
         )
-        self._assert_mocks(mock_upload_dq_log_file, mock_reset_run, mock_version_check, test_session_vars)
+        self._assert_mocks(
+            mock_upload_dq_log_file,
+            mock_reset_run,
+            mock_version_check,
+            test_session_vars,
+        )
 
     def test_log_pandas_e2e_inference_only(
         self,

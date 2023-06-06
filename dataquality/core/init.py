@@ -2,27 +2,28 @@ import os
 import shutil
 import warnings
 from datetime import datetime
-from typing import Dict
-from typing import Optional
-from typing import Tuple
+from typing import Dict, Optional, Tuple
 
 from pydantic.types import UUID4
-from tenacity import retry
-from tenacity import retry_if_exception_type
-from tenacity import stop_after_attempt
-from tenacity import wait_exponential_jitter
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential_jitter,
+)
 
 import dataquality
 from dataquality.clients.api import ApiClient
-from dataquality.core._config import EXOSCALE_FQDN_SUFFIX
-from dataquality.core._config import GALILEO_DEFAULT_IMG_BUCKET_NAME
-from dataquality.core._config import GALILEO_DEFAULT_RESULT_BUCKET_NAME
-from dataquality.core._config import GALILEO_DEFAULT_RUN_BUCKET_NAME
-from dataquality.core._config import _check_dq_version
-from dataquality.core._config import config
+from dataquality.core._config import (
+    EXOSCALE_FQDN_SUFFIX,
+    GALILEO_DEFAULT_IMG_BUCKET_NAME,
+    GALILEO_DEFAULT_RESULT_BUCKET_NAME,
+    GALILEO_DEFAULT_RUN_BUCKET_NAME,
+    _check_dq_version,
+    config,
+)
 from dataquality.core.auth import login
-from dataquality.exceptions import GalileoException
-from dataquality.exceptions import GalileoWarning
+from dataquality.exceptions import GalileoException, GalileoWarning
 from dataquality.loggers import BaseGalileoLogger
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.dq_logger import DQ_LOG_FILE_HOME

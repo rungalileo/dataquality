@@ -1,19 +1,14 @@
 import time
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import cv2
 import numpy as np
 import torch
 import torchvision
 import yaml
-from torchvision.ops.boxes import box_convert
-from torchvision.ops.boxes import box_iou
+from torchvision.ops.boxes import box_convert, box_iou
 from ultralytics.yolo.utils.plotting import Colors
 
 from dataquality.schemas.split import Split

@@ -3,17 +3,18 @@ from unittest import mock
 
 import pandas as pd
 import pytest
-from datasets import Dataset
-from datasets import DatasetDict
+from datasets import Dataset, DatasetDict
 
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
-from dataquality.utils.auto import _get_task_type_from_cols
-from dataquality.utils.auto import add_val_data_if_missing
-from dataquality.utils.auto import get_task_type_from_data
-from dataquality.utils.auto import load_data_from_str
-from dataquality.utils.auto import run_name_from_hf_dataset
+from dataquality.utils.auto import (
+    _get_task_type_from_cols,
+    add_val_data_if_missing,
+    get_task_type_from_data,
+    load_data_from_str,
+    run_name_from_hf_dataset,
+)
 from dataquality.utils.helpers import open_console_url
 
 TC_DATA = pd.DataFrame(

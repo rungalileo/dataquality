@@ -1,7 +1,4 @@
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Union
+from typing import Dict, List, Optional, Union
 from uuid import uuid4
 
 import dataquality

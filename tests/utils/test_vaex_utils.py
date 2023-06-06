@@ -1,8 +1,7 @@
 import numpy as np
 import vaex
 
-from dataquality.utils.vaex import add_pca_to_df
-from dataquality.utils.vaex import drop_empty_columns
+from dataquality.utils.vaex import add_pca_to_df, drop_empty_columns
 from tests.assets.constants import NUMPY_SEED
 
 

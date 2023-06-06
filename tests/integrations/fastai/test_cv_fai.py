@@ -94,8 +94,12 @@ def test_auto(
     dqc.prepare_split("test")
     preds, _ = learn.get_preds(dl=dl_test)
     for split in ["training", "validation"]:
-        validate_unique_ids(vaex.open(f"{test_session_vars.LOCATION}/{split}/1/*.hdf5"), "epoch")
-    validate_unique_ids(vaex.open(f"{test_session_vars.LOCATION}/test/0/*.hdf5"), "epoch")
+        validate_unique_ids(
+            vaex.open(f"{test_session_vars.LOCATION}/{split}/1/*.hdf5"), "epoch"
+        )
+    validate_unique_ids(
+        vaex.open(f"{test_session_vars.LOCATION}/test/0/*.hdf5"), "epoch"
+    )
     dqc.unwatch()
     dq.finish()
 

@@ -3,12 +3,7 @@ from __future__ import annotations
 import glob
 import os
 import tempfile
-from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Set
-from typing import Union
+from typing import Any, Dict, List, Optional, Set, Union
 
 import numpy as np
 import pandas as pd
@@ -17,15 +12,12 @@ from vaex.dataframe import DataFrame
 
 from dataquality import config
 from dataquality.exceptions import GalileoException
-from dataquality.loggers.data_logger.base_data_logger import DataSet
-from dataquality.loggers.data_logger.base_data_logger import MetasType
+from dataquality.loggers.data_logger.base_data_logger import DataSet, MetasType
 from dataquality.loggers.data_logger.text_classification import (
     TextClassificationDataLogger,
 )
 from dataquality.loggers.logger_config.image_classification import (
     ImageClassificationLoggerConfig,
-)
-from dataquality.loggers.logger_config.image_classification import (
     image_classification_logger_config,
 )
 from dataquality.schemas.dataframe import BaseLoggerDataFrames

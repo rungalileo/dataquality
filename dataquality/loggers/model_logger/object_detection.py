@@ -1,20 +1,18 @@
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Tuple
-from typing import Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
-from dataquality.loggers.logger_config.object_detection import BoxFormat
 from dataquality.loggers.logger_config.object_detection import (
+    BoxFormat,
     object_detection_logger_config,
 )
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
-from dataquality.utils.od import convert_cxywh_xyxy
-from dataquality.utils.od import convert_tlxywh_xyxy
-from dataquality.utils.od import filter_arrays_and_concatenate
-from dataquality.utils.od import scale_boxes
+from dataquality.utils.od import (
+    convert_cxywh_xyxy,
+    convert_tlxywh_xyxy,
+    filter_arrays_and_concatenate,
+    scale_boxes,
+)
 
 
 class ObjectDetectionModelLogger(BaseGalileoModelLogger):

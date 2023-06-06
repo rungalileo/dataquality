@@ -2,17 +2,8 @@ import platform
 import sys
 import traceback
 from functools import wraps
-from types import ModuleType
-from types import TracebackType
-from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import Iterable
-from typing import List
-from typing import Set
-from typing import Tuple
-from typing import Type
-from typing import Union
+from types import ModuleType, TracebackType
+from typing import Any, Callable, Dict, Iterable, List, Set, Tuple, Type, Union
 
 from dataquality.exceptions import GalileoException
 from dataquality.utils.ampli import AmpliMetric

@@ -1,9 +1,5 @@
 from enum import Enum
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Tuple
-from typing import Union
+from typing import Dict, List, Optional, Tuple, Union
 
 from pydantic import BaseModel
 from pydantic.class_validators import validator

@@ -1,7 +1,5 @@
 from pathlib import Path
-from typing import Callable
-from typing import List
-from typing import Type
+from typing import Callable, List, Type
 from unittest import mock
 
 import pytest
@@ -9,8 +7,7 @@ from pydantic import ValidationError
 
 import dataquality
 from dataquality.exceptions import GalileoException
-from dataquality.loggers.base_logger import BaseGalileoLogger
-from dataquality.loggers.base_logger import T
+from dataquality.loggers.base_logger import BaseGalileoLogger, T
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.schemas.split import Split
 

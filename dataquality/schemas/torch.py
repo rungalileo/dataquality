@@ -1,9 +1,5 @@
-from enum import Enum
-from enum import unique
-from typing import List
-from typing import Optional
-from typing import Tuple
-from typing import Union
+from enum import Enum, unique
+from typing import List, Optional, Tuple, Union
 
 from torch import Tensor
 from torch.nn import Module

@@ -1,9 +1,5 @@
 import warnings
-from typing import Any
-from typing import DefaultDict
-from typing import Dict
-from typing import List
-from typing import Optional
+from typing import Any, DefaultDict, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -13,14 +9,12 @@ from vaex.dataframe import DataFrame
 from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger.base_data_logger import MetaType
-from dataquality.loggers.data_logger.text_classification import MetasType
 from dataquality.loggers.data_logger.text_classification import (
+    MetasType,
     TextClassificationDataLogger,
 )
 from dataquality.loggers.logger_config.text_multi_label import (
     TextMultiLabelLoggerConfig,
-)
-from dataquality.loggers.logger_config.text_multi_label import (
     text_multi_label_logger_config,
 )
 from dataquality.schemas import __data_schema_version__

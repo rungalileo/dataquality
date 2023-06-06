@@ -5,12 +5,16 @@ import torch
 from PIL import Image
 from torch.nn import functional as F
 
-from dataquality.schemas.semantic_segmentation import ClassificationErrorData
-from dataquality.schemas.semantic_segmentation import ErrorType
-from dataquality.schemas.semantic_segmentation import Polygon
-from dataquality.schemas.semantic_segmentation import PolygonType
-from dataquality.utils.semantic_segmentation.constants import BACKGROUND_CLASS
-from dataquality.utils.semantic_segmentation.constants import ERROR_THRESHOLD
+from dataquality.schemas.semantic_segmentation import (
+    ClassificationErrorData,
+    ErrorType,
+    Polygon,
+    PolygonType,
+)
+from dataquality.utils.semantic_segmentation.constants import (
+    BACKGROUND_CLASS,
+    ERROR_THRESHOLD,
+)
 from dataquality.utils.semantic_segmentation.polygons import draw_polygon
 
 

@@ -1,11 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING
-from typing import List
-from typing import Optional
-from typing import Tuple
-from typing import Union
+from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -27,8 +23,6 @@ from dataquality.clients.objectstore import ObjectStore
 from dataquality.loggers.data_logger.base_data_logger import BaseGalileoDataLogger
 from dataquality.loggers.logger_config.tabular_classification import (
     TabularClassificationLoggerConfig,
-)
-from dataquality.loggers.logger_config.tabular_classification import (
     tabular_classification_logger_config,
 )
 from dataquality.schemas import __data_schema_version__

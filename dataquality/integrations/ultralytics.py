@@ -1,11 +1,5 @@
 from pathlib import Path
-from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Tuple
-from typing import Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from urllib.parse import urljoin
 
 import torch
@@ -16,20 +10,19 @@ from ultralytics.yolo.engine.predictor import BasePredictor
 from ultralytics.yolo.engine.trainer import BaseTrainer
 from ultralytics.yolo.engine.validator import BaseValidator
 from ultralytics.yolo.utils.ops import scale_boxes
-from ultralytics.yolo.utils.tal import dist2bbox
-from ultralytics.yolo.utils.tal import make_anchors
+from ultralytics.yolo.utils.tal import dist2bbox, make_anchors
 
 import dataquality as dq
 from dataquality import get_data_logger
 from dataquality.exceptions import GalileoException
-from dataquality.loggers.data_logger.object_detection import ObjectDetectionDataLogger
-from dataquality.loggers.data_logger.object_detection import ODCols
+from dataquality.loggers.data_logger.object_detection import (
+    ObjectDetectionDataLogger,
+    ODCols,
+)
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
-from dataquality.utils.dqyolo import CONF_DEFAULT
-from dataquality.utils.dqyolo import IOU_DEFAULT
-from dataquality.utils.ultralytics import non_max_suppression
-from dataquality.utils.ultralytics import process_batch_data
+from dataquality.utils.dqyolo import CONF_DEFAULT, IOU_DEFAULT
+from dataquality.utils.ultralytics import non_max_suppression, process_batch_data
 
 ultralytics.checks()
 

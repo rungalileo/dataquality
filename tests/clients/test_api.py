@@ -1,10 +1,7 @@
 import time
-from typing import Callable
-from typing import Dict
-from typing import List
+from typing import Callable, Dict, List
 from unittest import mock
-from unittest.mock import MagicMock
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -15,14 +12,16 @@ from dataquality.clients.api import ApiClient
 from dataquality.exceptions import GalileoException
 from dataquality.schemas import RequestType
 from dataquality.schemas.task_type import TaskType
-from tests.test_utils.mock_request import EXISTING_PROJECT
-from tests.test_utils.mock_request import EXISTING_RUN
-from tests.test_utils.mock_request import FAKE_NEW_RUN
-from tests.test_utils.mock_request import MockResponse
-from tests.test_utils.mock_request import mocked_delete_project_not_found
-from tests.test_utils.mock_request import mocked_delete_project_run
-from tests.test_utils.mock_request import mocked_get_project_run
-from tests.test_utils.mock_request import mocked_missing_project_name
+from tests.test_utils.mock_request import (
+    EXISTING_PROJECT,
+    EXISTING_RUN,
+    FAKE_NEW_RUN,
+    MockResponse,
+    mocked_delete_project_not_found,
+    mocked_delete_project_run,
+    mocked_get_project_run,
+    mocked_missing_project_name,
+)
 
 api_client = ApiClient()
 

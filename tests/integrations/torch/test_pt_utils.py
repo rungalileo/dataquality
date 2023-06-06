@@ -1,7 +1,9 @@
 import pytest
 
-from dataquality.utils.torch import convert_fancy_idx_str_to_slice
-from dataquality.utils.torch import validate_fancy_index_str
+from dataquality.utils.torch import (
+    convert_fancy_idx_str_to_slice,
+    validate_fancy_index_str,
+)
 
 
 def test_fancy_indexing_validation() -> None:

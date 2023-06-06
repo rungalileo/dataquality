@@ -96,7 +96,9 @@ def test_duplicate_ids_augmented_loop_thread(
         validate_unique_ids(df, "epoch")
 
 
-def test_duplicate_ids_augmented(set_test_config, cleanup_after_use, test_session_vars: TestSessionVariables) -> None:
+def test_duplicate_ids_augmented(
+    set_test_config, cleanup_after_use, test_session_vars: TestSessionVariables
+) -> None:
     """
     This test is to ensure that duplicate ids caused by augmentation are not logged
     """
@@ -183,7 +185,7 @@ def test_observed_ids_cleaned_up_after_finish(
     mock_version_check: MagicMock,
     set_test_config: callable,
     cleanup_after_use: callable,
-    test_session_vars: TestSessionVariables
+    test_session_vars: TestSessionVariables,
 ) -> None:
     """
     This test is to ensure that duplicate ids caused by augmentation are not logged
@@ -310,7 +312,7 @@ def test_hf_image_dataset_with_paths(
     mock_create_object: mock.MagicMock,
     set_test_config,
     cleanup_after_use,
-    test_session_vars: TestSessionVariables
+    test_session_vars: TestSessionVariables,
 ) -> None:
     """
     Tests that dq.log_image_dataset can handle imgs_location_colname when

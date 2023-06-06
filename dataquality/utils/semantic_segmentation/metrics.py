@@ -1,16 +1,13 @@
 from tempfile import NamedTemporaryFile
-from typing import List
-from typing import Tuple
+from typing import List, Tuple
 
 import numpy as np
 import torch
-from PIL import Image
-from PIL import ImageColor
+from PIL import Image, ImageColor
 
 from dataquality.clients.objectstore import ObjectStore
 from dataquality.core._config import GALILEO_DEFAULT_RESULT_BUCKET_NAME
-from dataquality.schemas.semantic_segmentation import IouData
-from dataquality.schemas.semantic_segmentation import Polygon
+from dataquality.schemas.semantic_segmentation import IouData, Polygon
 from dataquality.utils.semantic_segmentation.polygons import draw_polygon
 
 object_store = ObjectStore()
