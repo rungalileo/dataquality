@@ -260,14 +260,14 @@ class SemanticTorchLogger(TorchLogger):
         # so as to not report mislabeled pixels until we have enough data
         self.prob_queue = torch.empty(
             (
-                0,
+                500,
                 LIKELY_MISLABELED_MAP_SIZE,
                 LIKELY_MISLABELED_MAP_SIZE,
                 self.number_classes,
             )
         )
         self.gold_queue = torch.empty(
-            (0, LIKELY_MISLABELED_MAP_SIZE, LIKELY_MISLABELED_MAP_SIZE)
+            (500, LIKELY_MISLABELED_MAP_SIZE, LIKELY_MISLABELED_MAP_SIZE)
         )
 
     def calculate_mislabeled_pixels(
@@ -356,6 +356,8 @@ class SemanticTorchLogger(TorchLogger):
 
     def _on_step_end(self) -> None:
         """Function to be called at the end of step to log the inputs and outputs"""
+        import time
+        now = time.time()
         if not self.mask_col_name:
             self.find_mask_category(self.helper_data["batch"]["data"])
 
@@ -388,9 +390,11 @@ class SemanticTorchLogger(TorchLogger):
                 gold_mask = gold_mask.squeeze(1)  # (bs, w, h)
             if gold_mask.dtype == torch.float16:
                 gold_mask = gold_mask.to(torch.float32)
-
+            print(f"Time to get argmax and probs: {time.time() - now}")
+            now = time.time()
             mislabeled_pixels = self.calculate_mislabeled_pixels(probs, gold_mask)
-
+            print(f"Time to calculate mislabeled pixels: {time.time() - now}")
+            now = time.time()
             # do not log if we are not in the final inference loop
             if not self.called_finish:
                 return
