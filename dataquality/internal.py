@@ -3,7 +3,8 @@ import dataquality.metrics
 from dataquality import config
 from dataquality.clients.api import ApiClient
 from dataquality.exceptions import GalileoException
-from dataquality.schemas import RequestType, Route
+from dataquality.schemas import RequestType
+from dataquality.schemas import Route
 from dataquality.schemas.task_type import TaskType
 
 api_client = ApiClient()

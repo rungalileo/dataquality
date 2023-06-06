@@ -1,17 +1,16 @@
-from abc import ABC, abstractmethod
+from abc import ABC
+from abc import abstractmethod
 from collections import defaultdict
-from typing import (
-    Any,
-    Callable,
-    DefaultDict,
-    Dict,
-    Generator,
-    List,
-    Optional,
-    Tuple,
-    Union,
-    cast,
-)
+from typing import Any
+from typing import Callable
+from typing import DefaultDict
+from typing import Dict
+from typing import Generator
+from typing import List
+from typing import Optional
+from typing import Tuple
+from typing import Union
+from typing import cast
 
 import numpy as np
 import thinc
@@ -34,15 +33,16 @@ from dataquality.exceptions import GalileoException
 from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
 from dataquality.schemas.ner import TaggingSchema
-from dataquality.schemas.split import Split, conform_split
+from dataquality.schemas.split import Split
+from dataquality.schemas.split import conform_split
 from dataquality.utils.helpers import check_noop
 from dataquality.utils.spacy_integration import (
     convert_spacy_ents_for_doc_to_predictions,
-    convert_spacy_ner_logits_to_valid_logits,
-    validate_obj,
-    validate_spacy_is_not_using_gpu,
-    validate_spacy_version,
 )
+from dataquality.utils.spacy_integration import convert_spacy_ner_logits_to_valid_logits
+from dataquality.utils.spacy_integration import validate_obj
+from dataquality.utils.spacy_integration import validate_spacy_is_not_using_gpu
+from dataquality.utils.spacy_integration import validate_spacy_version
 
 a = Analytics(ApiClient, dataquality.config)
 a.log_import("spacy")

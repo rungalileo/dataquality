@@ -10,12 +10,7 @@ from dataquality.clients.api import ApiClient
 from dataquality.integrations.setfit import watch
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
-from tests.conftest import (
-    DEFAULT_PROJECT_ID,
-    DEFAULT_RUN_ID,
-    LOCAL_MODEL_PATH,
-    TEST_PATH,
-)
+from tests.conftest import LOCAL_MODEL_PATH, TestSessionVariables
 
 dataset = Dataset.from_dict(
     {"text": ["hello", "world", "foo", "bar"], "label": [0, 1] * 2}
@@ -70,10 +65,11 @@ def test_setfitwatch(
     mock_reset_run: MagicMock,
     mock_version_check: MagicMock,
     cleanup_after_use: Generator,
+    test_session_vars: TestSessionVariables,
 ) -> None:
     global dataset
-    mock_get_project_by_name.return_value = {"id": DEFAULT_PROJECT_ID}
-    mock_create_run.return_value = {"id": DEFAULT_RUN_ID}
+    mock_get_project_by_name.return_value = {"id": test_session_vars.DEFAULT_PROJECT_ID}
+    mock_create_run.return_value = {"id": test_session_vars.DEFAULT_RUN_ID}
     set_test_config(current_project_id=None, current_run_id=None)
 
     dq.init(task_type=TaskType.text_classification)
@@ -95,7 +91,7 @@ def test_setfitwatch(
         )
     ThreadPoolManager.wait_for_threads()
     dq.get_data_logger().upload()
-    train_data = vaex.open(f"{TEST_PATH}/training/0/data/data.hdf5")
+    train_data = vaex.open(f"{test_session_vars.TEST_PATH}/training/0/data/data.hdf5")
     assert train_data["meta_col"].unique() == ["meta"]
     dq.finish()
 
@@ -139,10 +135,11 @@ def test_log_dataset(
     mock_reset_run: MagicMock,
     mock_version_check: MagicMock,
     cleanup_after_use: Generator,
+    test_session_vars: TestSessionVariables,
 ) -> None:
     global dataset
-    mock_get_project_by_name.return_value = {"id": DEFAULT_PROJECT_ID}
-    mock_create_run.return_value = {"id": DEFAULT_RUN_ID}
+    mock_get_project_by_name.return_value = {"id": test_session_vars.DEFAULT_PROJECT_ID}
+    mock_create_run.return_value = {"id": test_session_vars.DEFAULT_RUN_ID}
     set_test_config(current_project_id=None, current_run_id=None)
 
     dq.init(task_type=TaskType.text_classification)
@@ -162,7 +159,7 @@ def test_log_dataset(
 
     ThreadPoolManager.wait_for_threads()
     dq.get_data_logger().upload()
-    train_data = vaex.open(f"{TEST_PATH}/training/0/data/data.hdf5")
+    train_data = vaex.open(f"{test_session_vars.TEST_PATH}/training/0/data/data.hdf5")
     assert train_data["meta_col"].unique() == ["meta"]
     dq.finish()
 

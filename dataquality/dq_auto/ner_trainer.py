@@ -1,17 +1,19 @@
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Tuple
 
 import numpy as np
 from datasets import DatasetDict
-from transformers import (
-    AutoModelForTokenClassification,
-    AutoTokenizer,
-    DataCollatorForTokenClassification,
-    EarlyStoppingCallback,
-    EvalPrediction,
-    IntervalStrategy,
-    Trainer,
-    TrainingArguments,
-)
+from transformers import AutoModelForTokenClassification
+from transformers import AutoTokenizer
+from transformers import DataCollatorForTokenClassification
+from transformers import EarlyStoppingCallback
+from transformers import EvalPrediction
+from transformers import IntervalStrategy
+from transformers import Trainer
+from transformers import TrainingArguments
 
 import dataquality as dq
 from dataquality.exceptions import GalileoException

@@ -6,10 +6,8 @@ import pytest
 from dataquality import __version__
 from dataquality.exceptions import GalileoException
 from dataquality.utils import version
-from tests.test_utils.mock_request import (
-    mocked_healthcheck_request,
-    mocked_healthcheck_request_new_api_version,
-)
+from tests.test_utils.mock_request import mocked_healthcheck_request
+from tests.test_utils.mock_request import mocked_healthcheck_request_new_api_version
 
 
 def test_version() -> None:

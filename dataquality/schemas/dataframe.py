@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from enum import Enum, unique
+from enum import Enum
+from enum import unique
 
 from pydantic import BaseModel
 from vaex.dataframe import DataFrame

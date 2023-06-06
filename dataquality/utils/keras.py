@@ -1,6 +1,11 @@
 import inspect
 from functools import partial
-from typing import Any, Callable, Dict, Optional, Tuple, Union
+from typing import Any
+from typing import Callable
+from typing import Dict
+from typing import Optional
+from typing import Tuple
+from typing import Union
 
 import tensorflow as tf
 from keras.engine import data_adapter

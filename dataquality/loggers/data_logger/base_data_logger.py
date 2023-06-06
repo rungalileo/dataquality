@@ -5,7 +5,13 @@ import sys
 import warnings
 from abc import abstractmethod
 from collections import Counter
-from typing import Any, Dict, Iterable, List, Optional, TypeVar, Union
+from typing import Any
+from typing import Dict
+from typing import Iterable
+from typing import List
+from typing import Optional
+from typing import TypeVar
+from typing import Union
 
 import numpy as np
 import pandas as pd
@@ -15,29 +21,28 @@ from vaex.dataframe import DataFrame
 
 from dataquality.clients.objectstore import ObjectStore
 from dataquality.core._config import config
-from dataquality.exceptions import GalileoException, GalileoWarning
-from dataquality.loggers.base_logger import BaseGalileoLogger, BaseLoggerAttributes
-from dataquality.schemas.dataframe import BaseLoggerDataFrames, DFVar
+from dataquality.exceptions import GalileoException
+from dataquality.exceptions import GalileoWarning
+from dataquality.loggers.base_logger import BaseGalileoLogger
+from dataquality.loggers.base_logger import BaseLoggerAttributes
+from dataquality.schemas.dataframe import BaseLoggerDataFrames
+from dataquality.schemas.dataframe import DFVar
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
 from dataquality.utils import tqdm
 from dataquality.utils.cloud import is_galileo_cloud
 from dataquality.utils.cuda import cuml_available
-from dataquality.utils.emb import (
-    DATA_EMB_PATH,
-    apply_umap_to_embs,
-    upload_umap_data_embs,
-)
+from dataquality.utils.emb import DATA_EMB_PATH
+from dataquality.utils.emb import apply_umap_to_embs
+from dataquality.utils.emb import upload_umap_data_embs
 from dataquality.utils.file import _shutil_rmtree_retry
 from dataquality.utils.helpers import galileo_verbose_logging
 from dataquality.utils.thread_pool import ThreadPoolManager
-from dataquality.utils.vaex import (
-    _join_in_out_frames,
-    create_data_embs_df,
-    filter_df,
-    get_output_df,
-    validate_unique_ids,
-)
+from dataquality.utils.vaex import _join_in_out_frames
+from dataquality.utils.vaex import create_data_embs_df
+from dataquality.utils.vaex import filter_df
+from dataquality.utils.vaex import get_output_df
+from dataquality.utils.vaex import validate_unique_ids
 
 DATA_FOLDERS = ["emb", "prob", "data"]
 DataSet = TypeVar("DataSet", bound=Union[Iterable, pd.DataFrame, DataFrame])

@@ -1,6 +1,13 @@
 from collections import defaultdict
-from enum import Enum, unique
-from typing import Any, DefaultDict, Dict, List, Optional, Tuple, Union
+from enum import Enum
+from enum import unique
+from typing import Any
+from typing import DefaultDict
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Tuple
+from typing import Union
 
 import numpy as np
 from numpy import ndarray
@@ -9,7 +16,9 @@ from dataquality.exceptions import LogBatchError
 from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.schemas import __data_schema_version__
-from dataquality.schemas.ner import NERErrorType, NERProbMethod, TaggingSchema
+from dataquality.schemas.ner import NERErrorType
+from dataquality.schemas.ner import NERProbMethod
+from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
 from dataquality.utils.ml import select_span_token_for_prob
 

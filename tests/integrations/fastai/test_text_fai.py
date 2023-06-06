@@ -16,7 +16,7 @@ from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import validate_unique_ids
-from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID, LOCATION
+from tests.conftest import TestSessionVariables
 from tests.test_utils.mock_data import mock_dict
 
 df = pd.DataFrame(mock_dict)
@@ -62,10 +62,11 @@ def test_end2end_fai(
     mock_reset_run: MagicMock,
     mock_version_check: MagicMock,
     cleanup_after_use: Generator,
+    test_session_vars: TestSessionVariables,
 ) -> None:
     global df
-    mock_get_project_by_name.return_value = {"id": DEFAULT_PROJECT_ID}
-    mock_create_run.return_value = {"id": DEFAULT_RUN_ID}
+    mock_get_project_by_name.return_value = {"id": test_session_vars.DEFAULT_PROJECT_ID}
+    mock_create_run.return_value = {"id": test_session_vars.DEFAULT_RUN_ID}
     set_test_config(current_project_id=None, current_run_id=None)
     dls = TextDataLoaders.from_df(
         df, text_col="text", label_col="label", drop_last=False, bs=2
@@ -88,6 +89,6 @@ def test_end2end_fai(
     learn.add_cb(dqc)
     learn.fine_tune(1, 1e-2, freeze_epochs=0)
     for test_split in ["training", "validation"]:
-        validate_unique_ids(vaex.open(f"{LOCATION}/{test_split}/0/*.hdf5"), "epoch")
+        validate_unique_ids(vaex.open(f"{test_session_vars.LOCATION}/{test_split}/0/*.hdf5"), "epoch")
     dqc.unwatch()
     dq.finish()

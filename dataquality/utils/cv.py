@@ -1,7 +1,8 @@
 import hashlib
 import os
 from io import BytesIO
-from typing import Any, Optional
+from typing import Any
+from typing import Optional
 
 from PIL import Image
 from pydantic import UUID4

@@ -1,6 +1,10 @@
-from datasets import ClassLabel, Dataset, Features, Value
+from datasets import ClassLabel
+from datasets import Dataset
+from datasets import Features
+from datasets import Value
 
-from tests.test_utils.mock_data import mock_dict, mock_dict_repeat
+from tests.test_utils.mock_data import mock_dict
+from tests.test_utils.mock_data import mock_dict_repeat
 
 features = Features(
     {

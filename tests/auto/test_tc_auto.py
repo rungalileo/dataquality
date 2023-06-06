@@ -6,15 +6,15 @@ import numpy as np
 import pandas as pd
 import pytest
 import vaex
-from datasets import ClassLabel, Dataset, DatasetDict
+from datasets import ClassLabel
+from datasets import Dataset
+from datasets import DatasetDict
 
 import dataquality as dq
-from dataquality.dq_auto.text_classification import (
-    TCDatasetManager,
-    _get_labels,
-    _log_dataset_dict,
-    auto,
-)
+from dataquality.dq_auto.text_classification import TCDatasetManager
+from dataquality.dq_auto.text_classification import _get_labels
+from dataquality.dq_auto.text_classification import _log_dataset_dict
+from dataquality.dq_auto.text_classification import auto
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.split import Split
 

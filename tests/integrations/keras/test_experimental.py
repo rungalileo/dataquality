@@ -16,9 +16,7 @@ import dataquality as dq
 from dataquality.integrations.experimental.keras import unwatch, watch
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
-from tests.conftest import LOCATION
-
-# from tests.conftest import LOCATION
+from tests.conftest import TestSessionVariables
 from tests.test_utils.hf_datasets_mock import mock_dataset_numbered, mock_hf_dataset
 
 tmp_checkpoint = "tmp/tiny-distillbert"
@@ -91,6 +89,7 @@ def test_hf_watch_e2e_numbered(
     mock_valid_user: MagicMock,
     set_test_config: Callable,
     cleanup_after_use: Generator,
+    test_session_vars: TestSessionVariables,
 ) -> None:
     """Base case: Tests creating a new project and run"""
     batch_size = 5
@@ -135,10 +134,10 @@ def test_hf_watch_e2e_numbered(
 
     ThreadPoolManager.wait_for_threads()
     # All data for splits should be logged
-    assert len(vaex.open(f"{LOCATION}/training/0/*.hdf5")) == len(
+    assert len(vaex.open(f"{test_session_vars.LOCATION}/training/0/*.hdf5")) == len(
         encoded_train_dataset_number
     )
-    assert len(vaex.open(f"{LOCATION}/test/0/*.hdf5")) == len(
+    assert len(vaex.open(f"{test_session_vars.LOCATION}/test/0/*.hdf5")) == len(
         encoded_test_dataset_number
     )
     # Should upload without failing on data validation or otherwise
@@ -160,6 +159,7 @@ def test_tf_watch_e2e_numbered(
     mock_valid_user: MagicMock,
     set_test_config: Callable,
     cleanup_after_use: Generator,
+    test_session_vars: TestSessionVariables,
 ) -> None:
     set_test_config(task_type=TaskType.text_classification)
     dataset_len = 13
@@ -227,9 +227,9 @@ def test_tf_watch_e2e_numbered(
     model_s.predict(x=x, batch_size=batch_size)
 
     ThreadPoolManager.wait_for_threads()
-    assert len(vaex.open(f"{LOCATION}/training/1/*.hdf5")) == len(x)
-    assert len(vaex.open(f"{LOCATION}/validation/1/*.hdf5")) == len(x)
-    assert len(vaex.open(f"{LOCATION}/test/1/*.hdf5")) == len(val_x)
+    assert len(vaex.open(f"{test_session_vars.LOCATION}/training/1/*.hdf5")) == len(x)
+    assert len(vaex.open(f"{test_session_vars.LOCATION}/validation/1/*.hdf5")) == len(x)
+    assert len(vaex.open(f"{test_session_vars.LOCATION}/test/1/*.hdf5")) == len(val_x)
     unwatch(model_s)
     dq.finish()
     model_s.fit(

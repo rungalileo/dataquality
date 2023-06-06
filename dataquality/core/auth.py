@@ -5,7 +5,8 @@ import webbrowser
 import requests
 
 from dataquality.clients.api import ApiClient
-from dataquality.core._config import config, url_is_localhost
+from dataquality.core._config import config
+from dataquality.core._config import url_is_localhost
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.route import Route
 from dataquality.utils.helpers import check_noop

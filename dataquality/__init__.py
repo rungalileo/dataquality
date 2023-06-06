@@ -33,7 +33,9 @@ If you want to train without a model, you can use the auto framework:
 __version__ = "v0.8.50"
 
 import sys
-from typing import Any, List, Optional
+from typing import Any
+from typing import List
+from typing import Optional
 
 import dataquality.core._config
 import dataquality.integrations
@@ -49,45 +51,44 @@ except (FileNotFoundError, AttributeError):
         "It looks like you've installed dataquality from a notebook. "
         "Please restart the kernel before continuing"
     ) from None
-from dataquality.core import configure, set_console_url
+from dataquality.core import configure
+from dataquality.core import set_console_url
 from dataquality.core._config import config
-from dataquality.core.auth import login, logout
-from dataquality.core.finish import finish, get_run_status, wait_for_run
+from dataquality.core.auth import login
+from dataquality.core.auth import logout
+from dataquality.core.finish import finish
+from dataquality.core.finish import get_run_status
+from dataquality.core.finish import wait_for_run
 from dataquality.core.init import init
-from dataquality.core.log import (
-    docs,
-    get_data_logger,
-    get_model_logger,
-    log_data_sample,
-    log_data_samples,
-    log_dataset,
-    log_image_dataset,
-    log_model_outputs,
-    log_xgboost,
-    set_epoch,
-    set_epoch_and_split,
-    set_labels_for_run,
-    set_split,
-    set_tagging_schema,
-    set_tasks_for_run,
-)
-from dataquality.core.report import build_run_report, register_run_report
+from dataquality.core.log import docs
+from dataquality.core.log import get_data_logger
+from dataquality.core.log import get_model_logger
+from dataquality.core.log import log_data_sample
+from dataquality.core.log import log_data_samples
+from dataquality.core.log import log_dataset
+from dataquality.core.log import log_image_dataset
+from dataquality.core.log import log_model_outputs
+from dataquality.core.log import log_xgboost
+from dataquality.core.log import set_epoch
+from dataquality.core.log import set_epoch_and_split
+from dataquality.core.log import set_labels_for_run
+from dataquality.core.log import set_split
+from dataquality.core.log import set_tagging_schema
+from dataquality.core.log import set_tasks_for_run
+from dataquality.core.report import build_run_report
+from dataquality.core.report import register_run_report
 from dataquality.dq_auto.auto import auto
 from dataquality.dq_auto.notebook import auto_notebook
 from dataquality.dq_start import DataQuality
-from dataquality.schemas.condition import (
-    AggregateFunction,
-    Condition,
-    ConditionFilter,
-    Operator,
-)
+from dataquality.schemas.condition import AggregateFunction
+from dataquality.schemas.condition import Condition
+from dataquality.schemas.condition import ConditionFilter
+from dataquality.schemas.condition import Operator
 from dataquality.utils.dq_logger import get_dq_log_file
-from dataquality.utils.helpers import (
-    disable_galileo,
-    disable_galileo_verbose,
-    enable_galileo,
-    enable_galileo_verbose,
-)
+from dataquality.utils.helpers import disable_galileo
+from dataquality.utils.helpers import disable_galileo_verbose
+from dataquality.utils.helpers import enable_galileo
+from dataquality.utils.helpers import enable_galileo_verbose
 
 __all__ = [
     "__version__",

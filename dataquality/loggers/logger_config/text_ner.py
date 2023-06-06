@@ -1,4 +1,6 @@
-from typing import Dict, List, Tuple
+from typing import Dict
+from typing import List
+from typing import Tuple
 
 import numpy as np
 from pydantic import validator

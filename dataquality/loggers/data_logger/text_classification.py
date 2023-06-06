@@ -1,6 +1,14 @@
 from collections import defaultdict
-from enum import Enum, unique
-from typing import Any, DefaultDict, Dict, Iterable, List, Optional, Union, cast
+from enum import Enum
+from enum import unique
+from typing import Any
+from typing import DefaultDict
+from typing import Dict
+from typing import Iterable
+from typing import List
+from typing import Optional
+from typing import Union
+from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -9,13 +17,11 @@ from vaex.dataframe import DataFrame
 
 import dataquality
 from dataquality.exceptions import GalileoException
-from dataquality.loggers.data_logger.base_data_logger import (
-    ITER_CHUNK_SIZE,
-    BaseGalileoDataLogger,
-    DataSet,
-    MetasType,
-    MetaType,
-)
+from dataquality.loggers.data_logger.base_data_logger import ITER_CHUNK_SIZE
+from dataquality.loggers.data_logger.base_data_logger import BaseGalileoDataLogger
+from dataquality.loggers.data_logger.base_data_logger import DataSet
+from dataquality.loggers.data_logger.base_data_logger import MetasType
+from dataquality.loggers.data_logger.base_data_logger import MetaType
 from dataquality.loggers.logger_config.text_classification import (
     text_classification_logger_config,
 )

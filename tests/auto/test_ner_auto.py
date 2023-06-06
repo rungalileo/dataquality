@@ -1,12 +1,15 @@
-from typing import Callable, Union
+from typing import Callable
+from typing import Union
 from unittest import mock
 
 import pandas as pd
 import pytest
-from datasets import Dataset, DatasetDict
+from datasets import Dataset
+from datasets import DatasetDict
 
 import dataquality as dq
-from dataquality.dq_auto.ner import NERDatasetManager, auto
+from dataquality.dq_auto.ner import NERDatasetManager
+from dataquality.dq_auto.ner import auto
 from dataquality.schemas.split import Split
 
 base_df = df = pd.DataFrame(

@@ -1,7 +1,14 @@
-from enum import Enum, unique
-from typing import Any, Dict, Optional
+from enum import Enum
+from enum import unique
+from typing import Any
+from typing import Dict
+from typing import Optional
 
-from pydantic import UUID4, BaseModel, StrictInt, StrictStr, validator
+from pydantic import UUID4
+from pydantic import BaseModel
+from pydantic import StrictInt
+from pydantic import StrictStr
+from pydantic import validator
 
 from dataquality.schemas.metrics import FilterParams
 

@@ -2,7 +2,8 @@ import os
 import sys
 from functools import partial
 from tempfile import NamedTemporaryFile
-from typing import Any, Optional
+from typing import Any
+from typing import Optional
 
 import requests
 from tqdm.auto import tqdm

@@ -16,7 +16,7 @@ from dataquality.loggers.data_logger.image_classification import (
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import validate_unique_ids
 from tests.assets.constants import TEST_IMAGES_FOLDER_ROOT
-from tests.conftest import LOCATION
+from tests.conftest import TestSessionVariables
 
 food_dataset = load_dataset("sasha/dog-food", split="train")
 food_dataset = food_dataset.select(range(20))
@@ -47,7 +47,7 @@ TESTING_DATASETS = {
 
 
 def test_duplicate_ids_augmented_loop_thread(
-    set_test_config, cleanup_after_use
+    set_test_config, cleanup_after_use, test_session_vars: TestSessionVariables
 ) -> None:
     """
     This test is to ensure that duplicate ids caused by augmentation are not logged
@@ -88,15 +88,15 @@ def test_duplicate_ids_augmented_loop_thread(
         )
 
         ThreadPoolManager.wait_for_threads()
-        df = vaex.open(f"{LOCATION}/{split}/0/*.hdf5")
+        df = vaex.open(f"{test_session_vars.LOCATION}/{split}/0/*.hdf5")
         assert len(df) == 5
         validate_unique_ids(df, "epoch")
-        df = vaex.open(f"{LOCATION}/{split}/1/*.hdf5")
+        df = vaex.open(f"{test_session_vars.LOCATION}/{split}/1/*.hdf5")
         assert len(df) == 5
         validate_unique_ids(df, "epoch")
 
 
-def test_duplicate_ids_augmented(set_test_config, cleanup_after_use) -> None:
+def test_duplicate_ids_augmented(set_test_config, cleanup_after_use, test_session_vars: TestSessionVariables) -> None:
     """
     This test is to ensure that duplicate ids caused by augmentation are not logged
     """
@@ -142,10 +142,10 @@ def test_duplicate_ids_augmented(set_test_config, cleanup_after_use) -> None:
 
     ThreadPoolManager.wait_for_threads()
     for split in ["training", "validation", "test"]:
-        df = vaex.open(f"{LOCATION}/{split}/0/*.hdf5")
+        df = vaex.open(f"{test_session_vars.LOCATION}/{split}/0/*.hdf5")
         assert len(df) == 5
         validate_unique_ids(df, "epoch")
-        df = vaex.open(f"{LOCATION}/{split}/1/*.hdf5")
+        df = vaex.open(f"{test_session_vars.LOCATION}/{split}/1/*.hdf5")
         assert len(df) == 5
         validate_unique_ids(df, "epoch")
 
@@ -183,6 +183,7 @@ def test_observed_ids_cleaned_up_after_finish(
     mock_version_check: MagicMock,
     set_test_config: callable,
     cleanup_after_use: callable,
+    test_session_vars: TestSessionVariables
 ) -> None:
     """
     This test is to ensure that duplicate ids caused by augmentation are not logged
@@ -232,10 +233,10 @@ def test_observed_ids_cleaned_up_after_finish(
 
     ThreadPoolManager.wait_for_threads()
     for split in ["training", "validation", "test"]:
-        df = vaex.open(f"{LOCATION}/{split}/0/*.hdf5")
+        df = vaex.open(f"{test_session_vars.LOCATION}/{split}/0/*.hdf5")
         assert len(df) == 5
         validate_unique_ids(df, "epoch")
-        df = vaex.open(f"{LOCATION}/{split}/1/*.hdf5")
+        df = vaex.open(f"{test_session_vars.LOCATION}/{split}/1/*.hdf5")
         assert len(df) == 5
         validate_unique_ids(df, "epoch")
 
@@ -249,7 +250,7 @@ def test_observed_ids_cleaned_up_after_finish(
     assert len(dq.get_model_logger().logger_config.observed_ids) == 0
 
 
-def _test_hf_image_dataset(name) -> None:
+def _test_hf_image_dataset(name, test_session_vars: TestSessionVariables) -> None:
     """
     Tests that dq.log_image_dataset can handle HF dataset inputs.
     """
@@ -266,7 +267,7 @@ def _test_hf_image_dataset(name) -> None:
 
     # read logged data
     ThreadPoolManager.wait_for_threads()
-    df = vaex.open(f"{LOCATION}/input_data/training/*.arrow")
+    df = vaex.open(f"{test_session_vars.LOCATION}/input_data/training/*.arrow")
 
     assert len(df) == len(food_dataset)
 
@@ -276,9 +277,10 @@ def test_hf_dataset_food(
     mock_create_object: mock.MagicMock,
     cleanup_after_use,
     set_test_config,
+    test_session_vars: TestSessionVariables,
 ) -> None:
     set_test_config(task_type="image_classification")
-    _test_hf_image_dataset("food")
+    _test_hf_image_dataset(name="food", test_session_vars=test_session_vars)
 
 
 @mock.patch("dataquality.clients.objectstore.ObjectStore.create_object")
@@ -286,9 +288,10 @@ def test_hf_dataset_mnist(
     mock_create_object: mock.MagicMock,
     cleanup_after_use,
     set_test_config,
+    test_session_vars: TestSessionVariables,
 ) -> None:
     set_test_config(task_type="image_classification")
-    _test_hf_image_dataset("mnist")
+    _test_hf_image_dataset(name="mnist", test_session_vars=test_session_vars)
 
 
 @mock.patch("dataquality.clients.objectstore.ObjectStore.create_object")
@@ -296,9 +299,10 @@ def test_hf_dataset_cifar10(
     mock_create_object: mock.MagicMock,
     cleanup_after_use,
     set_test_config,
+    test_session_vars: TestSessionVariables,
 ) -> None:
     set_test_config(task_type="image_classification")
-    _test_hf_image_dataset("cifar10")
+    _test_hf_image_dataset(name="cifar10", test_session_vars=test_session_vars)
 
 
 @mock.patch("dataquality.clients.objectstore.ObjectStore.create_object")
@@ -306,6 +310,7 @@ def test_hf_image_dataset_with_paths(
     mock_create_object: mock.MagicMock,
     set_test_config,
     cleanup_after_use,
+    test_session_vars: TestSessionVariables
 ) -> None:
     """
     Tests that dq.log_image_dataset can handle imgs_location_colname when
@@ -336,7 +341,7 @@ def test_hf_image_dataset_with_paths(
 
         # read logged data
         ThreadPoolManager.wait_for_threads()
-        df = vaex.open(f"{LOCATION}/input_data/training/*.arrow")
+        df = vaex.open(f"{test_session_vars.LOCATION}/input_data/training/*.arrow")
 
         assert len(df) == len(food_dataset)
 

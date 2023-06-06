@@ -1,4 +1,5 @@
-from typing import List, Optional
+from typing import List
+from typing import Optional
 
 CONF_DEFAULT = 0.25
 IOU_DEFAULT = 0.7

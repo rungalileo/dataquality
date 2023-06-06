@@ -1,15 +1,21 @@
 import warnings
 from abc import abstractmethod
-from typing import Dict, List, Optional, Union
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Union
 from uuid import uuid4
 
 import numpy as np
-from scipy.special import expit, softmax
+from scipy.special import expit
+from scipy.special import softmax
 
 from dataquality import config
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
-from dataquality.exceptions import GalileoException, GalileoWarning, LogBatchError
+from dataquality.exceptions import GalileoException
+from dataquality.exceptions import GalileoWarning
+from dataquality.exceptions import LogBatchError
 from dataquality.loggers.base_logger import BaseGalileoLogger
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
 from dataquality.schemas.split import Split

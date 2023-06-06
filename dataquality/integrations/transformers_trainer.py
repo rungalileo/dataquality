@@ -1,12 +1,17 @@
 # Imports for the hook manager
-from typing import Any, Callable, Dict, Optional
+from typing import Any
+from typing import Callable
+from typing import Dict
+from typing import Optional
 from warnings import warn
 
 from datasets import Dataset
 from torch.nn import Module
 from torch.utils.data import Dataset as TorchDataset
 from transformers import Trainer
-from transformers.trainer_callback import TrainerCallback, TrainerControl, TrainerState
+from transformers.trainer_callback import TrainerCallback
+from transformers.trainer_callback import TrainerControl
+from transformers.trainer_callback import TrainerState
 from transformers.training_args import TrainingArguments
 
 import dataquality as dq
@@ -15,15 +20,20 @@ from dataquality.clients.api import ApiClient
 from dataquality.exceptions import GalileoException
 from dataquality.integrations.torch import TorchBaseInstance
 from dataquality.schemas.split import Split
-from dataquality.schemas.torch import DimensionSlice, HelperData, InputDim, Layer
+from dataquality.schemas.torch import DimensionSlice
+from dataquality.schemas.torch import HelperData
+from dataquality.schemas.torch import InputDim
+from dataquality.schemas.torch import Layer
 from dataquality.utils.helpers import check_noop
-from dataquality.utils.patcher import Cleanup, Patch, PatchManager, RefManager
-from dataquality.utils.torch import (
-    ModelHookManager,
-    find_dq_hook_by_name,
-    remove_all_forward_hooks,
-)
-from dataquality.utils.transformers import RemoveIdCollatePatch, SignatureColumnsPatch
+from dataquality.utils.patcher import Cleanup
+from dataquality.utils.patcher import Patch
+from dataquality.utils.patcher import PatchManager
+from dataquality.utils.patcher import RefManager
+from dataquality.utils.torch import ModelHookManager
+from dataquality.utils.torch import find_dq_hook_by_name
+from dataquality.utils.torch import remove_all_forward_hooks
+from dataquality.utils.transformers import RemoveIdCollatePatch
+from dataquality.utils.transformers import SignatureColumnsPatch
 
 a = Analytics(ApiClient, dq.config)  # type: ignore
 a.log_import("transformers_trainer")

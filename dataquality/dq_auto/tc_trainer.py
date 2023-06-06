@@ -1,19 +1,21 @@
 from functools import partial
-from typing import Any, Dict, List, Tuple
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Tuple
 
 import numpy as np
-from datasets import Dataset, DatasetDict
-from transformers import (
-    AutoModelForSequenceClassification,
-    AutoTokenizer,
-    BatchEncoding,
-    EarlyStoppingCallback,
-    EvalPrediction,
-    IntervalStrategy,
-    PreTrainedTokenizerBase,
-    Trainer,
-    TrainingArguments,
-)
+from datasets import Dataset
+from datasets import DatasetDict
+from transformers import AutoModelForSequenceClassification
+from transformers import AutoTokenizer
+from transformers import BatchEncoding
+from transformers import EarlyStoppingCallback
+from transformers import EvalPrediction
+from transformers import IntervalStrategy
+from transformers import PreTrainedTokenizerBase
+from transformers import Trainer
+from transformers import TrainingArguments
 
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.split import Split

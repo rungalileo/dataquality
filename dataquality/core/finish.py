@@ -1,5 +1,7 @@
 import os
-from typing import Any, Dict, Optional
+from typing import Any
+from typing import Dict
+from typing import Optional
 
 from pydantic import UUID4
 
@@ -8,11 +10,15 @@ from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
 from dataquality.core._config import config
 from dataquality.core.report import build_run_report
-from dataquality.schemas import RequestType, Route
+from dataquality.schemas import RequestType
+from dataquality.schemas import Route
 from dataquality.schemas.job import JobName
 from dataquality.schemas.task_type import TaskType
-from dataquality.utils.dq_logger import DQ_LOG_FILE_HOME, upload_dq_log_file
-from dataquality.utils.helpers import check_noop, gpu_available, open_console_url
+from dataquality.utils.dq_logger import DQ_LOG_FILE_HOME
+from dataquality.utils.dq_logger import upload_dq_log_file
+from dataquality.utils.helpers import check_noop
+from dataquality.utils.helpers import gpu_available
+from dataquality.utils.helpers import open_console_url
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.version import _version_check
 

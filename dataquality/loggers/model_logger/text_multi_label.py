@@ -1,11 +1,17 @@
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Union
 
 import numpy as np
 from scipy.special import softmax
 
 from dataquality.loggers.logger_config.text_multi_label import (
     TextMultiLabelLoggerConfig,
+)
+from dataquality.loggers.logger_config.text_multi_label import (
     text_multi_label_logger_config,
 )
 from dataquality.loggers.model_logger.text_classification import (

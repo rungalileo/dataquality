@@ -1,5 +1,10 @@
-from enum import Enum, unique
-from typing import Any, Dict, List, Optional, Union
+from enum import Enum
+from enum import unique
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Union
 
 import numpy as np
 

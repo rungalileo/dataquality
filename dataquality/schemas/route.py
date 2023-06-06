@@ -1,5 +1,6 @@
 from enum import Enum
-from typing import Optional, Union
+from typing import Optional
+from typing import Union
 
 from pydantic import UUID4
 

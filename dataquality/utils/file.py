@@ -2,7 +2,8 @@ import os
 import shutil
 import time
 import warnings
-from typing import Dict, Optional
+from typing import Dict
+from typing import Optional
 
 from dataquality.exceptions import GalileoWarning
 from dataquality.schemas.split import Split

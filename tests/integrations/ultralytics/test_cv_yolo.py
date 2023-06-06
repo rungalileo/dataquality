@@ -15,7 +15,7 @@ from dataquality.utils.ultralytics import (
     temporary_cfg_for_val,
     ultralytics_split_mapping,
 )
-from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID, LOCATION, TEST_PATH
+from tests.conftest import TestSessionVariables
 
 
 @patch.object(ApiClient, "valid_current_user", return_value=True)
@@ -57,9 +57,10 @@ def test_end2end_yolov8(
     mock_reset_run: MagicMock,
     mock_version_check: MagicMock,
     cleanup_after_use: Generator,
+    test_session_vars: TestSessionVariables,
 ) -> None:
-    mock_get_project_by_name.return_value = {"id": DEFAULT_PROJECT_ID}
-    mock_create_run.return_value = {"id": DEFAULT_RUN_ID}
+    mock_get_project_by_name.return_value = {"id": test_session_vars.DEFAULT_PROJECT_ID}
+    mock_create_run.return_value = {"id": test_session_vars.DEFAULT_RUN_ID}
     set_test_config(current_project_id=None, current_run_id=None)
     from ultralytics import YOLO
 
@@ -89,8 +90,8 @@ def test_end2end_yolov8(
         os.remove(tmp_cfg_path)
 
     ThreadPoolManager.wait_for_threads()
-    image_df = vaex.open(f"{LOCATION}/input_data/validation/data_0.arrow")
-    box_df = vaex.open(f"{LOCATION}/validation/0/*.hdf5")
+    image_df = vaex.open(f"{test_session_vars.LOCATION}/input_data/validation/data_0.arrow")
+    box_df = vaex.open(f"{test_session_vars.LOCATION}/validation/0/*.hdf5")
     # Need to make sure that all image_ids in the box df exist in image df.
     # It's possible image_df has more, when an image has no GT and no pred boxes
     assert set(box_df["image_id"].unique()).issubset(image_df["id"].tolist())
@@ -99,9 +100,9 @@ def test_end2end_yolov8(
 
     for split in [Split.training, Split.validation]:
         dq.set_split(split)
-        data_df = vaex.open(f"{TEST_PATH}/{split}/0/data/data.hdf5")
-        prob_df = vaex.open(f"{TEST_PATH}/{split}/0/prob/prob.hdf5")
-        emb_df = vaex.open(f"{TEST_PATH}/{split}/0/emb/emb.hdf5")
+        data_df = vaex.open(f"{test_session_vars.TEST_PATH}/{split}/0/data/data.hdf5")
+        prob_df = vaex.open(f"{test_session_vars.TEST_PATH}/{split}/0/prob/prob.hdf5")
+        emb_df = vaex.open(f"{test_session_vars.TEST_PATH}/{split}/0/emb/emb.hdf5")
         assert sorted(emb_df.get_column_names()) == ["emb_pca", "id"]
         assert emb_df.emb_pca.dtype == "float32"
         # less than 5 samples PCA is 5,5 otherwise 100

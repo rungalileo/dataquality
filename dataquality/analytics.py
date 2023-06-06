@@ -3,21 +3,23 @@ import sys
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from types import TracebackType
-from typing import Any, Dict, Optional, Tuple, Type
+from typing import Any
+from typing import Dict
+from typing import Optional
+from typing import Tuple
+from typing import Type
 
 from pydantic import BaseModel
 
 from dataquality.clients.api import ApiClient
 from dataquality.core._config import Config
 from dataquality.utils.ampli import AmpliMetric
-from dataquality.utils.profiler import (
-    _installed_modules,
-    change_function,
-    exception_from_error,
-    get_device_info,
-    parse_exception,
-    parse_exception_ipython,
-)
+from dataquality.utils.profiler import _installed_modules
+from dataquality.utils.profiler import change_function
+from dataquality.utils.profiler import exception_from_error
+from dataquality.utils.profiler import get_device_info
+from dataquality.utils.profiler import parse_exception
+from dataquality.utils.profiler import parse_exception_ipython
 
 
 class ProfileModel(BaseModel):

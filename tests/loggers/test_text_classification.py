@@ -19,7 +19,7 @@ from dataquality.loggers.data_logger.text_classification import (
 )
 from dataquality.schemas.split import Split
 from dataquality.utils.vaex import GALILEO_DATA_EMBS_ENCODER
-from tests.conftest import LOCAL_MODEL_PATH, LOCATION, TEST_PATH
+from tests.conftest import LOCAL_MODEL_PATH, TestSessionVariables
 from tests.test_utils.tc_constants import TC_LABELS, TEST_HF_DS, TRAIN_HF_DS
 
 
@@ -322,7 +322,7 @@ def test_log_int_labels(set_test_config: Callable, cleanup_after_use: Callable) 
 
 
 def test_log_int_labels_mapped(
-    set_test_config: Callable, cleanup_after_use: Callable
+    set_test_config: Callable, cleanup_after_use: Callable, test_session_vars: TestSessionVariables
 ) -> None:
     """Tests that a user can log their labels as ints without issue"""
     set_test_config(task_type="text_classification")
@@ -345,12 +345,12 @@ def test_log_int_labels_mapped(
         dataquality.get_data_logger().logger_config.observed_labels
     ) == sorted(["banana", "strawberry"])
     assert sorted(dataquality.get_data_logger().logger_config.labels) == sorted(labels)
-    df = vaex.open(f"{LOCATION}/input_data/training/data_0.arrow")
+    df = vaex.open(f"{test_session_vars.LOCATION}/input_data/training/data_0.arrow")
     assert df["gold"].tolist() == ["banana", "banana", "strawberry"]
 
 
 def test_create_and_upload_data_embs(
-    cleanup_after_use: Callable, set_test_config: Callable
+    cleanup_after_use: Callable, set_test_config: Callable, test_session_vars: TestSessionVariables
 ) -> None:
     set_test_config(task_type="text_classification")
     # Use the local mini bert model
@@ -360,7 +360,7 @@ def test_create_and_upload_data_embs(
     df["text"] = "sentence number " + df["id"].astype(str)
     logger = TextClassificationDataLogger()
     logger.create_and_upload_data_embs(df, "training", 3)
-    data_embs_path = f"{TEST_PATH}/training/3/data_emb/data_emb.hdf5"
+    data_embs_path = f"{test_session_vars.TEST_PATH}/training/3/data_emb/data_emb.hdf5"
     data_embs = vaex.open(data_embs_path)
     assert len(data_embs) == 10
     assert data_embs.get_column_names() == ["id", "emb"]

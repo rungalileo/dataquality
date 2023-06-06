@@ -1,7 +1,8 @@
 import datasets
 
 from dataquality.exceptions import GalileoException
-from dataquality.utils.cv import _bytes_to_img, _write_image_bytes_to_objectstore
+from dataquality.utils.cv import _bytes_to_img
+from dataquality.utils.cv import _write_image_bytes_to_objectstore
 
 
 def _hf_map_image_feature(example: dict, imgs_colname: str) -> dict:

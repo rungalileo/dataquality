@@ -2,7 +2,10 @@ import numpy as np
 import pytest
 import vaex
 
-from dataquality import AggregateFunction, Condition, ConditionFilter, Operator
+from dataquality import AggregateFunction
+from dataquality import Condition
+from dataquality import ConditionFilter
+from dataquality import Operator
 
 
 @pytest.mark.parametrize(

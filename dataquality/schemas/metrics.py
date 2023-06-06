@@ -1,6 +1,11 @@
-from typing import Dict, List, Optional
+from typing import Dict
+from typing import List
+from typing import Optional
 
-from pydantic import BaseModel, Field, StrictStr, root_validator
+from pydantic import BaseModel
+from pydantic import Field
+from pydantic import StrictStr
+from pydantic import root_validator
 
 
 class HashableBaseModel(BaseModel):

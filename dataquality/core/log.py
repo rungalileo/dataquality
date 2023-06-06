@@ -1,6 +1,12 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Tuple
+from typing import Union
 
 import numpy as np
 import pandas as pd
@@ -13,7 +19,8 @@ from dataquality.clients.api import ApiClient
 from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
-from dataquality.loggers.data_logger.base_data_logger import ITER_CHUNK_SIZE, DataSet
+from dataquality.loggers.data_logger.base_data_logger import ITER_CHUNK_SIZE
+from dataquality.loggers.data_logger.base_data_logger import DataSet
 from dataquality.loggers.data_logger.image_classification import (
     ImageClassificationDataLogger,
 )

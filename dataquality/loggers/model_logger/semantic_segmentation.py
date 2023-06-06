@@ -1,4 +1,8 @@
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Union
 
 import numpy as np
 import torch
@@ -8,25 +12,29 @@ from dataquality import config
 from dataquality.clients.objectstore import ObjectStore
 from dataquality.loggers.logger_config.semantic_segmentation import (
     SemanticSegmentationLoggerConfig,
+)
+from dataquality.loggers.logger_config.semantic_segmentation import (
     semantic_segmentation_logger_config,
 )
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.schemas.ml import ClassType
-from dataquality.schemas.semantic_segmentation import IoUType, Polygon, PolygonType
+from dataquality.schemas.semantic_segmentation import IoUType
+from dataquality.schemas.semantic_segmentation import Polygon
+from dataquality.schemas.semantic_segmentation import PolygonType
 from dataquality.schemas.split import Split
 from dataquality.utils.semantic_segmentation.errors import (
     add_background_errors_to_polygons_batch,
+)
+from dataquality.utils.semantic_segmentation.errors import (
     add_class_errors_to_polygons_batch,
-    add_dep_to_polygons_batch,
-    add_lm_to_polygons_batch,
 )
-from dataquality.utils.semantic_segmentation.metrics import (
-    add_area_to_polygons_batch,
-    calculate_and_upload_dep,
-    calculate_batch_iou,
-)
+from dataquality.utils.semantic_segmentation.errors import add_dep_to_polygons_batch
+from dataquality.utils.semantic_segmentation.errors import add_lm_to_polygons_batch
+from dataquality.utils.semantic_segmentation.metrics import add_area_to_polygons_batch
+from dataquality.utils.semantic_segmentation.metrics import calculate_and_upload_dep
+from dataquality.utils.semantic_segmentation.metrics import calculate_batch_iou
+from dataquality.utils.semantic_segmentation.polygons import find_polygons_batch
 from dataquality.utils.semantic_segmentation.polygons import (
-    find_polygons_batch,
     write_polygon_contours_to_disk,
 )
 

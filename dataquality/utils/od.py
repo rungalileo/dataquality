@@ -1,6 +1,9 @@
 """Utils for Object Detection"""
 
-from typing import List, Optional, Tuple, Union
+from typing import List
+from typing import Optional
+from typing import Tuple
+from typing import Union
 
 import numpy as np
 

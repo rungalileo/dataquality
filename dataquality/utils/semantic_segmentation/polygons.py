@@ -1,7 +1,8 @@
 import json
 import os
 from collections import defaultdict
-from typing import List, Tuple
+from typing import List
+from typing import Tuple
 from uuid import uuid4
 
 import cv2
@@ -10,7 +11,9 @@ import torch
 
 from dataquality.clients.objectstore import ObjectStore
 from dataquality.schemas.ml import ClassType
-from dataquality.schemas.semantic_segmentation import Contour, Pixel, Polygon
+from dataquality.schemas.semantic_segmentation import Contour
+from dataquality.schemas.semantic_segmentation import Pixel
+from dataquality.schemas.semantic_segmentation import Polygon
 
 object_store = ObjectStore()
 

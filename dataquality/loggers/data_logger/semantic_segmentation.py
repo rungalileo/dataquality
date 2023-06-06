@@ -1,18 +1,22 @@
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Union
 
 import vaex
 
 from dataquality.clients.objectstore import ObjectStore
 from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
-from dataquality.loggers.data_logger.base_data_logger import (
-    BaseGalileoDataLogger,
-    DataSet,
-    MetasType,
-)
+from dataquality.loggers.data_logger.base_data_logger import BaseGalileoDataLogger
+from dataquality.loggers.data_logger.base_data_logger import DataSet
+from dataquality.loggers.data_logger.base_data_logger import MetasType
 from dataquality.loggers.logger_config.semantic_segmentation import (
     SemanticSegmentationLoggerConfig,
+)
+from dataquality.loggers.logger_config.semantic_segmentation import (
     semantic_segmentation_logger_config,
 )
 from dataquality.schemas import __data_schema_version__

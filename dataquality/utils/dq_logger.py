@@ -1,13 +1,16 @@
 import logging
 import os
-from typing import Any, Optional, Tuple
+from typing import Any
+from typing import Optional
+from typing import Tuple
 
 from pydantic import UUID4
 from requests import HTTPError
 
 from dataquality.clients.api import ApiClient
 from dataquality.clients.objectstore import ObjectStore
-from dataquality.core._config import ConfigData, config
+from dataquality.core._config import ConfigData
+from dataquality.core._config import config
 from dataquality.utils.helpers import check_noop
 
 DQ_LOG_FILE_HOME = f"{ConfigData.DEFAULT_GALILEO_CONFIG_DIR}/out"

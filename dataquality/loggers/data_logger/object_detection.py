@@ -1,26 +1,34 @@
 from collections import defaultdict
-from enum import Enum, unique
-from typing import Any, Dict, Iterable, List, Optional, Union
+from enum import Enum
+from enum import unique
+from typing import Any
+from typing import Dict
+from typing import Iterable
+from typing import List
+from typing import Optional
+from typing import Union
 
 import pandas as pd
 import vaex
 from pandas import DataFrame
 
 from dataquality.exceptions import GalileoException
-from dataquality.loggers.data_logger.base_data_logger import (
-    ITER_CHUNK_SIZE,
-    BaseGalileoDataLogger,
-    DataSet,
-    MetasType,
-)
+from dataquality.loggers.data_logger.base_data_logger import ITER_CHUNK_SIZE
+from dataquality.loggers.data_logger.base_data_logger import BaseGalileoDataLogger
+from dataquality.loggers.data_logger.base_data_logger import DataSet
+from dataquality.loggers.data_logger.base_data_logger import MetasType
 from dataquality.loggers.logger_config.object_detection import (
     ObjectDetectionLoggerConfig,
+)
+from dataquality.loggers.logger_config.object_detection import (
     object_detection_logger_config,
 )
 from dataquality.schemas import __data_schema_version__
-from dataquality.schemas.dataframe import BaseLoggerDataFrames, DFVar
+from dataquality.schemas.dataframe import BaseLoggerDataFrames
+from dataquality.schemas.dataframe import DFVar
 from dataquality.schemas.split import Split
-from dataquality.utils.vaex import add_pca_to_df, rename_df
+from dataquality.utils.vaex import add_pca_to_df
+from dataquality.utils.vaex import rename_df
 
 
 @unique

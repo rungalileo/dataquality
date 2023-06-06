@@ -17,7 +17,7 @@ from dataquality.integrations.fastai import FastAiDQCallback, convert_img_dl_to_
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import validate_unique_ids
-from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID, LOCATION
+from tests.conftest import TestSessionVariables
 
 
 @patch.object(ApiClient, "valid_current_user", return_value=True)
@@ -59,9 +59,10 @@ def test_auto(
     mock_reset_run: MagicMock,
     mock_version_check: MagicMock,
     cleanup_after_use: Generator,
+    test_session_vars: TestSessionVariables,
 ) -> None:
-    mock_get_project_by_name.return_value = {"id": DEFAULT_PROJECT_ID}
-    mock_create_run.return_value = {"id": DEFAULT_RUN_ID}
+    mock_get_project_by_name.return_value = {"id": test_session_vars.DEFAULT_PROJECT_ID}
+    mock_create_run.return_value = {"id": test_session_vars.DEFAULT_RUN_ID}
     set_test_config(current_project_id=None, current_run_id=None)
     label_func = lambda x: x[0].isupper()  # noqa: E731
     image_files = list(map(Path, glob("tests/assets/images/*"))) * 10
@@ -93,8 +94,8 @@ def test_auto(
     dqc.prepare_split("test")
     preds, _ = learn.get_preds(dl=dl_test)
     for split in ["training", "validation"]:
-        validate_unique_ids(vaex.open(f"{LOCATION}/{split}/1/*.hdf5"), "epoch")
-    validate_unique_ids(vaex.open(f"{LOCATION}/test/0/*.hdf5"), "epoch")
+        validate_unique_ids(vaex.open(f"{test_session_vars.LOCATION}/{split}/1/*.hdf5"), "epoch")
+    validate_unique_ids(vaex.open(f"{test_session_vars.LOCATION}/test/0/*.hdf5"), "epoch")
     dqc.unwatch()
     dq.finish()
 
@@ -167,9 +168,10 @@ def test_tab(
     mock_reset_run: MagicMock,
     mock_version_check: MagicMock,
     cleanup_after_use: Generator,
+    test_session_vars: TestSessionVariables,
 ) -> None:
-    mock_get_project_by_name.return_value = {"id": DEFAULT_PROJECT_ID}
-    mock_create_run.return_value = {"id": DEFAULT_RUN_ID}
+    mock_get_project_by_name.return_value = {"id": test_session_vars.DEFAULT_PROJECT_ID}
+    mock_create_run.return_value = {"id": test_session_vars.DEFAULT_RUN_ID}
     set_test_config(current_project_id=None, current_run_id=None)
     dq.init(task_type="image_classification")
     ds_len = 13

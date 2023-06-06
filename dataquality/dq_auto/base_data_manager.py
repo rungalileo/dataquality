@@ -1,11 +1,16 @@
-from typing import Dict, List, Optional, Union
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Union
 
 import pandas as pd
-from datasets import Dataset, DatasetDict
+from datasets import Dataset
+from datasets import DatasetDict
 
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.split import Split
-from dataquality.utils.auto import load_data_from_str, try_load_dataset_dict
+from dataquality.utils.auto import load_data_from_str
+from dataquality.utils.auto import try_load_dataset_dict
 
 
 class BaseDatasetManager:

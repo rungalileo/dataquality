@@ -2,7 +2,12 @@ import abc
 import datetime
 import inspect
 import random
-from typing import Any, Callable, Dict, List, Optional, Type
+from typing import Any
+from typing import Callable
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Type
 
 import dataquality as dq
 from dataquality import config

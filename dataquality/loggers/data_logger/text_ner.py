@@ -1,25 +1,32 @@
 import itertools
 import warnings
 from collections import defaultdict
-from enum import Enum, unique
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from enum import Enum
+from enum import unique
+from typing import Any
+from typing import Dict
+from typing import Iterable
+from typing import List
+from typing import Optional
+from typing import Tuple
+from typing import Union
 
 import pandas as pd
 import pyarrow as pa
 import vaex
 from vaex.dataframe import DataFrame
 
-from dataquality.exceptions import GalileoException, GalileoWarning
-from dataquality.loggers.data_logger.base_data_logger import (
-    ITER_CHUNK_SIZE,
-    BaseGalileoDataLogger,
-    DataSet,
-    MetasType,
-    MetaType,
-)
+from dataquality.exceptions import GalileoException
+from dataquality.exceptions import GalileoWarning
+from dataquality.loggers.data_logger.base_data_logger import ITER_CHUNK_SIZE
+from dataquality.loggers.data_logger.base_data_logger import BaseGalileoDataLogger
+from dataquality.loggers.data_logger.base_data_logger import DataSet
+from dataquality.loggers.data_logger.base_data_logger import MetasType
+from dataquality.loggers.data_logger.base_data_logger import MetaType
 from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
 from dataquality.schemas import __data_schema_version__
-from dataquality.schemas.dataframe import BaseLoggerDataFrames, DFVar
+from dataquality.schemas.dataframe import BaseLoggerDataFrames
+from dataquality.schemas.dataframe import DFVar
 from dataquality.schemas.ner import NERColumns as NERCols
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split

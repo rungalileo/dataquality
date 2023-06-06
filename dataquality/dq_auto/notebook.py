@@ -1,4 +1,5 @@
-from typing import Any, Dict
+from typing import Any
+from typing import Dict
 
 import dataquality as dq
 from dataquality.exceptions import GalileoException
