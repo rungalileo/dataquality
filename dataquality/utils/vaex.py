@@ -7,6 +7,7 @@ import vaex
 from sklearn.decomposition import IncrementalPCA
 from vaex.dataframe import DataFrame
 
+from dataquality import config
 from dataquality.clients.objectstore import ObjectStore
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.base_logger import BaseLoggerAttributes
@@ -30,6 +31,10 @@ DEFAULT_DATA_EMBS_MODEL = "all-MiniLM-L6-v2"
 
 COMPONENTS = "components"
 MEAN = "mean"
+PCA_COMPONENTS_NAME = "components.hdf5"
+PCA_COMPONENTS_OBJECT_PATH = f"pca/{PCA_COMPONENTS_NAME}"
+PCA_MEAN_NAME = "mean.hdf5"
+PCA_MEAN_OBJECT_PATH = f"pca/{PCA_MEAN_NAME}"
 
 
 def _join_in_out_frames(
@@ -87,6 +92,26 @@ def validate_unique_ids(df: DataFrame, epoch_or_inf_name: str) -> None:
                 f"dup ids and counts: {dups}"
             )
         raise GalileoException(exc)
+
+
+def _upload_pca_data(components: np.ndarray, mean: np.ndarray) -> None:
+    project_id, run_id = config.current_project_id, config.current_run_id
+    # Save the components as an hdf5 file
+    components_file = f"/tmp/{PCA_COMPONENTS_NAME}"
+    components_object_path = f"{project_id}/{run_id}/{PCA_COMPONENTS_OBJECT_PATH}"
+    vaex.from_dict({COMPONENTS: components}).export(components_file)
+    bucket = config.results_bucket_name
+    object_store.create_object(
+        components_object_path, components_file, progress=False, bucket_name=bucket
+    )
+
+    # Save the mean as an hdf5 file
+    mean_file_path = f"/tmp/{PCA_MEAN_NAME}"
+    mean_object_path = f"{project_id}/{run_id}/{PCA_MEAN_OBJECT_PATH}"
+    vaex.from_dict({MEAN: mean}).export(mean_file_path)
+    object_store.create_object(
+        mean_object_path, mean_file_path, progress=False, bucket_name=bucket
+    )
 
 
 def get_dup_ids(df: DataFrame) -> List:
@@ -150,8 +175,7 @@ def add_umap_pca_to_df(df: DataFrame, data_embs: bool = False) -> DataFrame:
     # We save the components and mean of the PCA model to minio
     # see utils/emb.py::apply_umap_to_embs
     if not data_embs:
-        df[COMPONENTS] = components
-        df[MEAN] = mean
+        _upload_pca_data(components, mean)
     dfc[x] = emb_xy[:, 0]
     dfc[y] = emb_xy[:, 1]
     return dfc
