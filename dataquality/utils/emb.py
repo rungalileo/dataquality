@@ -19,6 +19,7 @@ from dataquality.utils.vaex import (
     get_output_df,
 )
 
+object_store = ObjectStore()
 DATA_EMB_PATH = "data_emb/data_emb.hdf5"
 
 
@@ -70,6 +71,9 @@ def apply_umap_to_embs(run_dir: str, last_epoch: Optional[int]) -> None:
     """
     # Get the correct epoch to process for each split
     split_epoch = get_largest_epoch_for_splits(run_dir, last_epoch)
+    # In the case of inference only
+    if not split_epoch:
+        return
     concat_df = get_concat_emb_df(run_dir, split_epoch)
     df_emb = add_umap_pca_to_df(concat_df)
     save_processed_emb_dfs(df_emb, split_epoch, run_dir)
@@ -93,7 +97,6 @@ def upload_umap_data_embs(
     inference, we store it in the inference name. So when the split is inference,
     we further filter the dataframe by inference name and upload the df.
     """
-    object_store = ObjectStore()
     df = vaex.open(f"{input_data_dir}/**/data*.arrow")
     try:
         df_emb = create_data_embs_df(df, lazy=False)
