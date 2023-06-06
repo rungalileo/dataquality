@@ -127,7 +127,7 @@ def calculate_mislabled_by_noise(
         class_samples_margin = probs[:, actual_gold_idx] - probs[:, given_gold_idx]
         # We want the top `num_mislabeled` samples with the largest margin
         # for the actual/expected class relative to the given class
-        _, topk_idxs = class_samples_margin.topk(num_mislabeled)
+        _, topk_idxs = (-class_samples_margin).topk(num_mislabeled)
         mislabeled_idxs_in_class.extend(topk_idxs.tolist())
     return mislabeled_idxs_in_class
 
