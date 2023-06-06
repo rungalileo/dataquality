@@ -75,7 +75,8 @@ def load_ner_data_from_local(
     split_output_data = {}
     for subdir in SUBDIRS:
         file_path = (
-            f"{test_session_vars.TEST_PATH}/{split}/{inf_name_or_epoch}/{subdir}/{subdir}."
+            f"{test_session_vars.TEST_PATH}/{split}/{inf_name_or_epoch}/"
+            f"{subdir}/{subdir}."
             f"{'arrow' if subdir == 'data' else 'hdf5'}"
         )
         # Ensure files were cleaned up

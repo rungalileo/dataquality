@@ -169,7 +169,8 @@ class TestTabularClassificationDataLogger:
         logger.log()
 
         df_export_path = (
-            f"{BaseGalileoLogger.LOG_FILE_DIR}/{test_session_vars.DEFAULT_PROJECT_ID}/{test_session_vars.DEFAULT_RUN_ID}"
+            f"{BaseGalileoLogger.LOG_FILE_DIR}/{test_session_vars.DEFAULT_PROJECT_ID}/"
+            f"{test_session_vars.DEFAULT_RUN_ID}"
             "/training"
         )
         assert os.path.exists(f"{df_export_path}/data/data.hdf5")
@@ -212,7 +213,10 @@ class TestTabularClassificationDataLogger:
         test_session_vars: TestSessionVariables,
     ) -> None:
         """Test upload uploads to Minio"""
-        prefix = f"{BaseGalileoLogger.LOG_FILE_DIR}/{test_session_vars.DEFAULT_PROJECT_ID}/{test_session_vars.DEFAULT_RUN_ID}"
+        prefix = (
+            f"{BaseGalileoLogger.LOG_FILE_DIR}/{test_session_vars.DEFAULT_PROJECT_ID}/"
+            f"{test_session_vars.DEFAULT_RUN_ID}"
+        )
         mock_os_walk.return_value = [
             (
                 f"{prefix}/training/data",
@@ -230,18 +234,23 @@ class TestTabularClassificationDataLogger:
 
         assert mock_create_object.call_count == 2
         prefix = (
-            f"{BaseGalileoLogger.LOG_FILE_DIR}/{test_session_vars.DEFAULT_PROJECT_ID}/{test_session_vars.DEFAULT_RUN_ID}"
+            f"{BaseGalileoLogger.LOG_FILE_DIR}/{test_session_vars.DEFAULT_PROJECT_ID}/"
+            f"{test_session_vars.DEFAULT_RUN_ID}"
             "/training"
         )
         mock_create_object.assert_any_call(
             object_name=(
-                f"{test_session_vars.DEFAULT_PROJECT_ID}/{test_session_vars.DEFAULT_RUN_ID}/training/data/data.hdf5"
+                f"{test_session_vars.DEFAULT_PROJECT_ID}/"
+                f"{test_session_vars.DEFAULT_RUN_ID}"
+                "/training/data/data.hdf5"
             ),
             file_path=f"{prefix}/data/data.hdf5",
         )
         mock_create_object.assert_any_call(
             object_name=(
-                f"{test_session_vars.DEFAULT_PROJECT_ID}/{test_session_vars.DEFAULT_RUN_ID}/training/prob/prob.hdf5"
+                f"{test_session_vars.DEFAULT_PROJECT_ID}/"
+                f"{test_session_vars.DEFAULT_RUN_ID}"
+                "/training/prob/prob.hdf5"
             ),
             file_path=f"{prefix}/prob/prob.hdf5",
         )

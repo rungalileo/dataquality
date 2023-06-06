@@ -204,7 +204,10 @@ def patch_object_upload(self: Any, df: DataFrame, object_name: str) -> None:
     """
     # separate folder per split (test, train, val) and data type (emb, prob, data)
     split, epoch, data_type, file_name = object_name.split("/")[-4:]
-    export_path = f"{BaseGalileoLogger.LOG_FILE_DIR}/{config.current_project_id}/{config.current_run_id}/{split}/{epoch}/{data_type}"
+    export_path = (
+        f"{BaseGalileoLogger.LOG_FILE_DIR}/{config.current_project_id}/"
+        f"{config.current_run_id}/{split}/{epoch}/{data_type}"
+    )
     export_loc = f"{export_path}/{file_name}"
 
     if not os.path.isdir(export_path):

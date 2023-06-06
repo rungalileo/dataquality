@@ -47,9 +47,28 @@ class GalileoConfigVars(str, Enum):
         return bool(os.getenv("GALILEO_API_URL"))
 
 
-class ConfigData(str, Enum):
-    DEFAULT_GALILEO_CONFIG_DIR = f"{os.environ.get('HOME', str(Path.home()))}/.galileo"
-    DEFAULT_GALILEO_CONFIG_FILE = f"{DEFAULT_GALILEO_CONFIG_DIR}/config.json"
+class ConfigData:
+    def __init__(
+        self,
+        default_galileo_config_dir: Optional[str] = None,
+        default_galileo_config_file: Optional[str] = None,
+    ) -> None:
+        self.DEFAULT_GALILEO_CONFIG_DIR = default_galileo_config_dir or (
+            f"{os.environ.get('HOME', str(Path.home()))}/.galileo"
+        )
+        self.DEFAULT_GALILEO_CONFIG_FILE = (
+            default_galileo_config_file
+            or f"{self.DEFAULT_GALILEO_CONFIG_DIR}/config.json"
+        )
+        if os.environ.get("PYTEST_XDIST_WORKER_COUNT"):
+            pid = os.getpid()
+            self.DEFAULT_GALILEO_CONFIG_DIR += f"-{pid}"
+            self.DEFAULT_GALILEO_CONFIG_FILE = (
+                f"{self.DEFAULT_GALILEO_CONFIG_DIR}/config.json"
+            )
+
+
+config_data = ConfigData()
 
 
 class Config(BaseModel):
@@ -73,7 +92,7 @@ class Config(BaseModel):
     def update_file_config(self) -> None:
         config_json = self.dict()
 
-        with open(ConfigData.DEFAULT_GALILEO_CONFIG_FILE.value, "w+") as f:
+        with open(config_data.DEFAULT_GALILEO_CONFIG_FILE, "w+") as f:
             f.write(json.dumps(config_json, default=str))
 
     @validator("api_url", pre=True, always=True, allow_reuse=True)
@@ -182,10 +201,10 @@ def set_config(cloud: bool = True) -> Config:
     if galileo_disabled():
         return Config(api_url="")
     _check_console_url()
-    if not os.path.isdir(ConfigData.DEFAULT_GALILEO_CONFIG_DIR.value):
-        os.makedirs(ConfigData.DEFAULT_GALILEO_CONFIG_DIR.value, exist_ok=True)
-    if os.path.exists(ConfigData.DEFAULT_GALILEO_CONFIG_FILE.value):
-        with open(ConfigData.DEFAULT_GALILEO_CONFIG_FILE.value) as f:
+    if not os.path.isdir(config_data.DEFAULT_GALILEO_CONFIG_DIR):
+        os.makedirs(config_data.DEFAULT_GALILEO_CONFIG_DIR, exist_ok=True)
+    if os.path.exists(config_data.DEFAULT_GALILEO_CONFIG_FILE):
+        with open(config_data.DEFAULT_GALILEO_CONFIG_FILE) as f:
             try:
                 config_vars: Dict[str, str] = json.load(f)
             # If there's an issue reading the config file for any reason, quit and
@@ -225,8 +244,8 @@ def set_config(cloud: bool = True) -> Config:
 
 def reset_config(cloud: bool = True) -> Config:
     """Wipe the config file and reconfigure"""
-    if os.path.isfile(ConfigData.DEFAULT_GALILEO_CONFIG_FILE.value):
-        os.remove(ConfigData.DEFAULT_GALILEO_CONFIG_FILE.value)
+    if os.path.isfile(config_data.DEFAULT_GALILEO_CONFIG_FILE):
+        os.remove(config_data.DEFAULT_GALILEO_CONFIG_FILE)
     return set_config(cloud)
 
 

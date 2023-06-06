@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar, Union
 
 import numpy as np
 
-from dataquality.core._config import ConfigData, config
+from dataquality.core._config import config, config_data
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.logger_config.base_logger_config import (
     BaseLoggerConfig,
@@ -71,7 +71,7 @@ class BaseGalileoLogger:
     """
 
     __logger_name__ = ""
-    LOG_FILE_DIR = f"{ConfigData.DEFAULT_GALILEO_CONFIG_DIR}/logs"
+    LOG_FILE_DIR = f"{config_data.DEFAULT_GALILEO_CONFIG_DIR}/logs"  # type: ignore
     logger_config: BaseLoggerConfig = base_logger_config
 
     def __init__(self) -> None:
