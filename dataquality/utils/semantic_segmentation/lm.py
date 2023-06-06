@@ -1,6 +1,5 @@
 from typing import List
 
-import numpy as np
 import torch
 
 from dataquality.clients.objectstore import ObjectStore
@@ -126,11 +125,10 @@ def calculate_mislabled_by_noise(
 
         # Margin is how much more confident the model is in a non-given GT label
         class_samples_margin = probs[:, actual_gold_idx] - probs[:, given_gold_idx]
-        class_samples_margin = class_samples_margin.cpu().numpy()
         # We want the top `num_mislabeled` samples with the largest margin
         # for the actual/expected class relative to the given class
-        mislabeled_idxs = np.argsort(class_samples_margin)[-num_mislabeled:]
-        mislabeled_idxs_in_class.extend(mislabeled_idxs)
+        _, topk_idxs = (-class_samples_margin).topk(num_mislabeled)
+        mislabeled_idxs_in_class.extend(topk_idxs.tolist())
     return mislabeled_idxs_in_class
 
 
@@ -169,7 +167,7 @@ def get_mislabeled_by_class_confidence(
     num_samples = self_confidence.shape[0]
 
     # stable sort by self confidence with ids following along
-    sorted_confidence, sorted_indices = torch.sort(self_confidence)
+    _, sorted_indices = torch.sort(self_confidence)
     sorted_ids = ids[sorted_indices]
     sorted_gold = gold[sorted_indices]
     num_mislabeled_per_class = torch.round(
@@ -248,8 +246,7 @@ def fill_confident_counts(
     # increment the count for each label
     # get the count of each label
     count_labels = torch.bincount(labels, minlength=confident_counts.shape[1])
-    for i in range(len(count_labels)):
-        confident_counts[given_class, i] += count_labels[i]
+    confident_counts[given_class, :] = count_labels.cpu()
     return confident_counts
 
 

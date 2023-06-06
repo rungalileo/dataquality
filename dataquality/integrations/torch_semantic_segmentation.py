@@ -42,7 +42,8 @@ object_store = ObjectStore()
 # Heuristic used to calculate Likely Mislabeled for Semantic Segmentation
 # A larger queue size corresponds to a more accurate estimate of LM.
 # We keep a queue size to overcome memory issues with large SemSeg datasets.
-LIKELY_MISLABELED_QUEUE_SIZE = 1000
+LIKELY_MISLABELED_QUEUE_SIZE = 500
+LIKELY_MISLABELED_MAP_SIZE = 32
 
 
 class SemanticTorchLogger(TorchLogger):
@@ -218,21 +219,33 @@ class SemanticTorchLogger(TorchLogger):
             gold (torch.Tensor): gold masks resized to queue for LM
         """
         bs = probs.shape[0]
-        # interpolate expects N, C, H, W so have to reshuffle probs
-        probs = probs.permute(0, 3, 1, 2)
-        # resize the tensors to be 64, 64 for compressed storage
-        probs = F.interpolate(probs, size=(64, 64), mode="bicubic")
-        probs = probs.permute(0, 2, 3, 1)
-        gold = gold.unsqueeze(1)
-        gold = F.interpolate(gold, size=(64, 64), mode="nearest").long()
-        gold = gold.squeeze(1)
-
         # stack on the end of the queue and remove front to keep only most recent
         self.prob_queue: torch.Tensor = torch.cat((self.prob_queue, probs), dim=0)
         self.gold_queue: torch.Tensor = torch.cat((self.gold_queue, gold), dim=0)
         if self.prob_queue.shape[0] > self.queue_size:
             self.prob_queue = self.prob_queue[bs:]
             self.gold_queue = self.gold_queue[bs:]
+
+    def resize_probs_and_gold(
+        self, probs: torch.Tensor, gold: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Resize the probs and gold to the correct size
+
+        Args:
+            probs (torch.Tensor): probability vectors to resize
+            gold (torch.Tensor): gold masks to resize
+        """
+        probs.shape[0]
+        # interpolate expects N, C, H, W so have to reshuffle probs
+        probs = probs.permute(0, 3, 1, 2)
+        # resize the tensors for compressed storage
+        size = (LIKELY_MISLABELED_MAP_SIZE, LIKELY_MISLABELED_MAP_SIZE)
+        probs = F.interpolate(probs, size=size, mode="bicubic")
+        probs = probs.permute(0, 2, 3, 1)
+        gold = gold.unsqueeze(1)
+        gold = F.interpolate(gold, size=size, mode="nearest").long()
+        gold = gold.squeeze(1)
+        return probs, gold
 
     def _init_lm_labels(self) -> None:
         # initialize variables for likely mislabeled
@@ -245,8 +258,17 @@ class SemanticTorchLogger(TorchLogger):
 
         # create a queue to store the last X probs and gold queue but start with empty
         # so as to not report mislabeled pixels until we have enough data
-        self.prob_queue = torch.empty((0, 64, 64, self.number_classes))
-        self.gold_queue = torch.empty((0, 64, 64))
+        self.prob_queue = torch.empty(
+            (
+                0,
+                LIKELY_MISLABELED_MAP_SIZE,
+                LIKELY_MISLABELED_MAP_SIZE,
+                self.number_classes,
+            )
+        )
+        self.gold_queue = torch.empty(
+            (0, LIKELY_MISLABELED_MAP_SIZE, LIKELY_MISLABELED_MAP_SIZE)
+        )
 
     def calculate_mislabeled_pixels(
         self, probs: torch.Tensor, gold_mask: torch.Tensor
@@ -260,7 +282,9 @@ class SemanticTorchLogger(TorchLogger):
         Returns:
             Mislabeled pixels tensor of shape (batch_size, height, width)
         """
-        self.queue_gold_and_pred(probs, gold_mask)
+        # resize probs and gold
+        probs, gold_mask = self.resize_probs_and_gold(probs, gold_mask)
+        self.queue_gold_and_pred(probs, gold_mask.cpu())
         out_threshold = calculate_self_confidence_threshold(
             self.prob_queue, self.gold_queue
         )
@@ -277,7 +301,7 @@ class SemanticTorchLogger(TorchLogger):
                 confident_counts=self.confident_count,
             )
         self.counts_per_class += torch.bincount(
-            gold_mask.view(-1), minlength=probs.shape[-1]
+            gold_mask.view(-1).cpu(), minlength=probs.shape[-1]
         )
         self_confidence = calculate_self_confidence(self.prob_queue, self.gold_queue)
         mislabeled_pixels = calculate_lm_for_batch(
@@ -344,21 +368,19 @@ class SemanticTorchLogger(TorchLogger):
             )
 
             argmax, probs = self.get_argmax_probs()
+            gold_mask = logging_data[self.mask_col_name].clone()
 
             gold_boundary_masks = mask_to_boundary(
-                logging_data[self.mask_col_name].clone().cpu().numpy()
+                gold_mask.cpu().numpy()
             )  # (bs, w, h)
             pred_boundary_masks = mask_to_boundary(
                 argmax.clone().cpu().numpy()
             )  # (bs, w, h)
-            gold_mask = logging_data[self.mask_col_name].cpu()  # (bs, w, h)
             if gold_mask.shape[1] == 1:
                 gold_mask = gold_mask.squeeze(1)  # (bs, w, h)
             if gold_mask.dtype == torch.float16:
                 gold_mask = gold_mask.to(torch.float32)
-
             mislabeled_pixels = self.calculate_mislabeled_pixels(probs, gold_mask)
-
             # do not log if we are not in the final inference loop
             if not self.called_finish:
                 return
