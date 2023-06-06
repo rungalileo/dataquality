@@ -260,14 +260,14 @@ class SemanticTorchLogger(TorchLogger):
         # so as to not report mislabeled pixels until we have enough data
         self.prob_queue = torch.empty(
             (
-                500,
+                0,
                 LIKELY_MISLABELED_MAP_SIZE,
                 LIKELY_MISLABELED_MAP_SIZE,
                 self.number_classes,
             )
         )
         self.gold_queue = torch.empty(
-            (500, LIKELY_MISLABELED_MAP_SIZE, LIKELY_MISLABELED_MAP_SIZE)
+            (0, LIKELY_MISLABELED_MAP_SIZE, LIKELY_MISLABELED_MAP_SIZE)
         )
 
     def calculate_mislabeled_pixels(
