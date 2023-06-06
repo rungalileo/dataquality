@@ -20,6 +20,7 @@ from dataquality.utils.cloud import is_galileo_cloud
 from dataquality.utils.dq_logger import upload_dq_log_file
 from dataquality.utils.file import _shutil_rmtree_retry
 from dataquality.utils.imports import hf_available, tf_available, torch_available
+from dataquality.utils.patcher import PatchManager
 from dataquality.utils.tf import is_tf_2
 
 T = TypeVar("T", bound="BaseGalileoLogger")
@@ -303,6 +304,8 @@ class BaseGalileoLogger:
                     _shutil_rmtree_retry(path)
 
         cls.logger_config.reset()
+        pm = PatchManager()
+        pm.unpatch()
 
     def upload(self) -> None:
         ...
