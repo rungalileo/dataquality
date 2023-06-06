@@ -8,7 +8,7 @@ from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
 from dataquality.core.log import get_data_logger
 from dataquality.schemas.split import Split
-from dataquality.utils.patcher import Cleanup, Patch, PatchManager, RefManager
+from dataquality.utils.patcher import Patch, PatchManager
 from dataquality.utils.setfit import log_preds_setfit
 
 a = Analytics(ApiClient, dq.config)  # type: ignore

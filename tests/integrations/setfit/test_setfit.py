@@ -7,9 +7,8 @@ from setfit import SetFitModel, SetFitTrainer
 
 import dataquality as dq
 from dataquality.clients.api import ApiClient
-from dataquality.integrations.setfit import unwatch, watch
+from dataquality.integrations.setfit import watch
 from dataquality.schemas.task_type import TaskType
-from dataquality.utils.patcher import PatchManager
 from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.conftest import (
     DEFAULT_PROJECT_ID,
@@ -214,12 +213,11 @@ def test_end_to_end(
     set_test_config(current_project_id=None, current_run_id=None)
 
     # 🔭🌕 Galileo logging
+    from sentence_transformers.losses import CosineSimilarityLoss
+    from setfit import SetFitModel, SetFitTrainer
+
     import dataquality as dq
     from dataquality.integrations.setfit import watch
-
-    from setfit import SetFitModel
-    from sentence_transformers.losses import CosineSimilarityLoss
-    from setfit import SetFitTrainer
 
     model_id = "sentence-transformers/paraphrase-mpnet-base-v2"
     model = SetFitModel.from_pretrained(model_id, use_differentiable_head=True)
