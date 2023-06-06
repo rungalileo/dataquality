@@ -346,10 +346,6 @@ def evaluate(
     dq_hook = SetFitModelHook(model)
     dq_store = dq_hook.store
 
-    # Unpatch SetFit model after logging (when finished is called)
-    # cleanup_manager = RefManager(dq_hook.unpatch)
-    # helper_data["cleaner"] = Cleanup(cleanup_manager)
-
     def dq_evaluate(
         dataset: "Dataset",
         split: Split,
@@ -378,9 +374,9 @@ def evaluate(
             dataset = _apply_column_mapping(dataset, column_mapping)
         if "id" not in dataset.features:
             dataset = dataset.map(lambda x, idx: {"id": idx}, with_indices=True)
-        cur_epoch = get_data_logger().logger_config.cur_epoch
         if epoch is not None:
-            cur_epoch = epoch
+            dq.set_epoch(epoch)
+        cur_epoch = get_data_logger().logger_config.cur_epoch
         return log_preds_setfit(
             model=model,
             dataset=dataset,

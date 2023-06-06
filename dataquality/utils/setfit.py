@@ -63,7 +63,7 @@ def log_preds_setfit(
 
     logger_config = dq.get_data_logger().logger_config
     labels = logger_config.labels
-    epoch = 0 if epoch is None else epoch
+    epoch = epoch or 0
 
     # Check if the data should be logged by checking if the split is in the
     # input_data_logged
