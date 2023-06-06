@@ -239,7 +239,9 @@ def add_dep_to_polygons_batch(
         polygons = polygons_batch[idx]
         for polygon in polygons:
             polygon_img = draw_polygon(polygon, resized_dep_maps[idx].shape)
-            polygon.data_error_potential = calculate_dep_polygon(resized_dep_maps[idx], polygon_img)
+            polygon.data_error_potential = calculate_dep_polygon(
+                resized_dep_maps[idx], polygon_img
+            )
 
 
 def calculate_lm_pct(
