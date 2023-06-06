@@ -7,6 +7,7 @@ import vaex
 from sklearn.decomposition import IncrementalPCA
 from vaex.dataframe import DataFrame
 
+from dataquality.clients.objectstore import ObjectStore
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.base_logger import BaseLoggerAttributes
 from dataquality.schemas.split import Split
@@ -20,10 +21,15 @@ from dataquality.utils.cuda import (
 from dataquality.utils.hdf5_store import HDF5_STORE, concat_hdf5_files
 from dataquality.utils.helpers import galileo_verbose_logging
 
+object_store = ObjectStore()
+
 # To decide between "all-MiniLM-L6-v2" or "all-mpnet-base-v2"
 # https://www.sbert.net/docs/pretrained_models.html#model-overview
 GALILEO_DATA_EMBS_ENCODER = "GALILEO_DATA_EMBS_ENCODER"
 DEFAULT_DATA_EMBS_MODEL = "all-MiniLM-L6-v2"
+
+COMPONENTS = "components"
+MEAN = "mean"
 
 
 def _join_in_out_frames(
@@ -136,11 +142,16 @@ def add_umap_pca_to_df(df: DataFrame, data_embs: bool = False) -> DataFrame:
     note = "[data embs]" if data_embs else "[embs]"
     print(f"{note} Found cuda ML libraries")
     print(f"{note} Applying dimensionality reduction step 1/2")
-    emb_pca = get_pca_embeddings(dfc["emb"].to_numpy())
+    emb_pca, components, mean = get_pca_embeddings(dfc["emb"].to_numpy())
     print(f"{note} Applying dimensionality reduction step 2/2")
     emb_xy = get_umap_embeddings(emb_pca)
     x, y = ("data_x", "data_y") if data_embs else ("x", "y")
     dfc["emb_pca"] = emb_pca
+    # We save the components and mean of the PCA model to minio
+    # see utils/emb.py::apply_umap_to_embs
+    if not data_embs:
+        df[COMPONENTS] = components
+        df[MEAN] = mean
     dfc[x] = emb_xy[:, 0]
     dfc[y] = emb_xy[:, 1]
     return dfc

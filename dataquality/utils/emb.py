@@ -7,6 +7,7 @@ from huggingface_hub.utils import HfHubHTTPError
 from pydantic import UUID4
 from vaex.dataframe import DataFrame
 
+from dataquality import config
 from dataquality.clients.objectstore import ObjectStore
 from dataquality.utils.file import (
     get_largest_epoch_for_splits,
@@ -14,12 +15,20 @@ from dataquality.utils.file import (
 )
 from dataquality.utils.hdf5_store import HDF5_STORE
 from dataquality.utils.vaex import (
+    COMPONENTS,
+    MEAN,
     add_umap_pca_to_df,
     create_data_embs_df,
     get_output_df,
 )
 
+object_store = ObjectStore()
 DATA_EMB_PATH = "data_emb/data_emb.hdf5"
+
+PCA_COMPONENTS_NAME = "components.hdf5"
+PCA_COMPONENTS_OBJECT_PATH = f"pca/{PCA_COMPONENTS_NAME}"
+PCA_MEAN_NAME = "mean.hdf5"
+PCA_MEAN_OBJECT_PATH = f"pca/{PCA_MEAN_NAME}"
 
 
 def get_concat_emb_df(run_dir: str, split_epoch: Dict[str, int]) -> DataFrame:
@@ -59,6 +68,26 @@ def save_processed_emb_dfs(
         os.rename(tmp_loc, split_loc)
 
 
+def _upload_pca_data(df: DataFrame) -> None:
+    project_id, run_id = config.current_project_id, config.current_run_id
+    # Save the components as an hdf5 file
+    components_file = f"/tmp/{PCA_COMPONENTS_NAME}"
+    components_object_path = f"{project_id}/{run_id}/{PCA_COMPONENTS_OBJECT_PATH}"
+    df[[COMPONENTS]].export(components_file)
+    bucket = config.results_bucket_name
+    object_store.create_object(
+        components_object_path, components_file, progress=False, bucket_name=bucket
+    )
+
+    # Save the mean as an hdf5 file
+    mean_file_path = f"/tmp/{PCA_MEAN_NAME}"
+    mean_object_path = f"{project_id}/{run_id}/{PCA_MEAN_OBJECT_PATH}"
+    df[[MEAN]].export(mean_file_path)
+    object_store.create_object(
+        mean_object_path, mean_file_path, progress=False, bucket_name=bucket
+    )
+
+
 def apply_umap_to_embs(run_dir: str, last_epoch: Optional[int]) -> None:
     """In the event that the user has Nvidia cuml installed, we apply UMAP locally
 
@@ -70,6 +99,9 @@ def apply_umap_to_embs(run_dir: str, last_epoch: Optional[int]) -> None:
     """
     # Get the correct epoch to process for each split
     split_epoch = get_largest_epoch_for_splits(run_dir, last_epoch)
+    # In the case of inference only
+    if not split_epoch:
+        return
     concat_df = get_concat_emb_df(run_dir, split_epoch)
     df_emb = add_umap_pca_to_df(concat_df)
     save_processed_emb_dfs(df_emb, split_epoch, run_dir)
@@ -93,7 +125,6 @@ def upload_umap_data_embs(
     inference, we store it in the inference name. So when the split is inference,
     we further filter the dataframe by inference name and upload the df.
     """
-    object_store = ObjectStore()
     df = vaex.open(f"{input_data_dir}/**/data*.arrow")
     try:
         df_emb = create_data_embs_df(df, lazy=False)
