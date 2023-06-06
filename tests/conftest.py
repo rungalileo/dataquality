@@ -17,8 +17,12 @@ from dataquality.utils.dq_logger import DQ_LOG_FILE_HOME
 from tests.test_utils.mock_request import MockResponse
 
 DEFAULT_API_URL = "http://localhost:8088"
-DEFAULT_PROJECT_ID = UUID("399057bc-b276-4027-a5cf-48893ac45388")
-DEFAULT_RUN_ID = UUID("399057bc-b276-4027-a5cf-48893ac45388")
+# Use the process ID to create a unique project and run id per process pool
+pid = str(os.getpid())
+uuid_str = "399057bc-b276-4027-a5cf-48893ac45388"
+uuid_with_pid = uuid_str[:-len(pid)] + pid
+DEFAULT_PROJECT_ID = UUID(uuid_with_pid)
+DEFAULT_RUN_ID = UUID(uuid_with_pid)
 
 LOCATION = f"{BaseGalileoLogger.LOG_FILE_DIR}/{DEFAULT_PROJECT_ID}/{DEFAULT_RUN_ID}"
 DQ_LOG_FILE_LOCATION = f"{DQ_LOG_FILE_HOME}/{DEFAULT_RUN_ID}"
