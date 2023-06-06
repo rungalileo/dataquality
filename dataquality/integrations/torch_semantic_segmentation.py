@@ -370,7 +370,7 @@ class SemanticTorchLogger(TorchLogger):
             )
 
             argmax, probs = self.get_argmax_probs()
-            gold_mask = logging_data[self.mask_col_name].clone().to(device)
+            gold_mask = logging_data[self.mask_col_name].clone()
 
             gold_boundary_masks = mask_to_boundary(
                 gold_mask.cpu().numpy()
