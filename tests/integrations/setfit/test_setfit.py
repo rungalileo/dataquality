@@ -203,10 +203,11 @@ def test_end_to_end(
     mock_reset_run: MagicMock,
     mock_version_check: MagicMock,
     cleanup_after_use: Generator,
+    test_session_vars: TestSessionVariables,
 ) -> None:
     global dataset
-    mock_get_project_by_name.return_value = {"id": DEFAULT_PROJECT_ID}
-    mock_create_run.return_value = {"id": DEFAULT_RUN_ID}
+    mock_get_project_by_name.return_value = {"id": test_session_vars.DEFAULT_PROJECT_ID}
+    mock_create_run.return_value = {"id": test_session_vars.DEFAULT_RUN_ID}
     set_test_config(current_project_id=None, current_run_id=None)
 
     # 🔭🌕 Galileo logging
