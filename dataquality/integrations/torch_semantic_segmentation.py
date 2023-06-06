@@ -282,9 +282,6 @@ class SemanticTorchLogger(TorchLogger):
         Returns:
             Mislabeled pixels tensor of shape (batch_size, height, width)
         """
-        import time
-        start = time.time()
-        now = time.time()
         # resize probs and gold
         probs, gold_mask = self.resize_probs_and_gold(probs, gold_mask)
         self.queue_gold_and_pred(probs, gold_mask.cpu())
@@ -307,8 +304,6 @@ class SemanticTorchLogger(TorchLogger):
             gold_mask.view(-1).cpu(), minlength=probs.shape[-1]
         )
         self_confidence = calculate_self_confidence(self.prob_queue, self.gold_queue)
-        print(f"Time to calculate first half: {time.time() - now}")
-        now = time.time()
         mislabeled_pixels = calculate_lm_for_batch(
             self_confidence,
             self.confident_count,
@@ -317,13 +312,11 @@ class SemanticTorchLogger(TorchLogger):
             self.number_classes,
             self.prob_queue,
         )
-        print(f"Time to calculate second half: {time.time() - now}")
         # if we have not reached our queue size, we do not report mislabeled
         if self.prob_queue.shape[0] < self.queue_size:
             mislabeled_pixels = torch.zeros_like(mislabeled_pixels)
         bs = probs.shape[0]
         mislabeled_pixels = mislabeled_pixels[-bs:]
-        print(f"Time to calculate mislabeled pixels: {time.time() - now}")
         return mislabeled_pixels
 
     def get_argmax_probs(
