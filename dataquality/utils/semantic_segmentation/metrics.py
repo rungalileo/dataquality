@@ -1,5 +1,6 @@
 from tempfile import NamedTemporaryFile
 from typing import List, Tuple
+import os
 
 import numpy as np
 import torch
@@ -28,7 +29,7 @@ def calculate_and_upload_dep(
         Image dep is calculated by the average pixel dep.
     """
     dep_heatmaps = calculate_dep_heatmaps(probs, gold_masks)
-    upload_dep_heatmaps(dep_heatmaps, image_ids, obj_prefix)
+    write_dep_to_disk(dep_heatmaps, image_ids, obj_prefix)
     return calculate_image_dep(dep_heatmaps), dep_heatmaps
 
 
@@ -94,6 +95,21 @@ def calculate_dep_heatmaps(
     dep_masks = 1 - normalized_margin
     dep_masks = dep_masks.view(mask_size)
     return dep_masks
+
+def write_dep_to_disk(
+    dep_heatmaps: torch.Tensor,
+    image_ids: List[int],
+    prefix: str,
+) -> None:
+    os.makedirs(prefix, exist_ok=True)
+    for i, image_id in enumerate(image_ids):
+        dep_heatmap = dep_heatmaps[i].numpy()
+        obj_name = f"{prefix}/{image_id}.png"
+        with open(obj_name, "wb") as f:
+            img = dep_heatmap_to_img(dep_heatmap)
+            img = colorize_dep_heatmap(img, 128)
+            img.save(f, "PNG")
+        
 
 
 def upload_dep_heatmaps(

@@ -104,9 +104,13 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         return f"{self.proj_run}/{self.split_name_path}/LM"
 
     @property
-    def dep_path(self) -> str:
+    def minio_dep_path(self) -> str:
         """Minio path for Data Error Potential heatmaps"""
         return f"{self.proj_run}/{self.split_name_path}/dep"
+    
+    @property
+    def local_dep_path(self) -> str:
+        return f"{self.local_proj_run_path}/{self.split_name_path}/dep"
 
     @property
     def local_proj_run_path(self) -> str:
@@ -199,7 +203,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             self.output_probs,
             self.gold_masks,
             self.image_ids,
-            obj_prefix=self.dep_path,
+            obj_prefix=self.local_dep_path,
         )
 
         # Calculate metrics - mean IoU and boundary IoU
