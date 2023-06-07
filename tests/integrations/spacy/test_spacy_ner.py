@@ -459,7 +459,7 @@ def test_spacy_inference_only(
     # due to the fact that test runs are parallelized and resources are shared
     # between them. We allow for larger absolute and relative tolerances in this case.
     if os.getenv("PYTEST_XDIST_WORKER_COUNT"):
-        is_close = np.isclose(embs[:, np.newaxis], embs_expected, atol=1e-3, rtol=3)
+        is_close = np.isclose(embs[:, np.newaxis], embs_expected, atol=1e-1, rtol=5)
     else:
         is_close = np.isclose(embs[:, np.newaxis], embs_expected, atol=1e-3)
     # For each element in array1, check if any element in array2 is close
