@@ -205,8 +205,6 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             self.image_ids,
             obj_prefix=self.local_dep_path,
         )
-        print(f"Time to calculate DEP: {time.time() - now}")
-        now = time.time()
         # Calculate metrics - mean IoU and boundary IoU
         n_classes = len(self.logger_config.labels)
         mean_iou_data = calculate_batch_iou(
@@ -218,14 +216,11 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             IoUType.boundary,
             n_classes,
         )
-        print(f"Time to calculate IoU: {time.time() - now}")
-        now = time.time()
 
         # Image masks
         pred_polygons_batch, gold_polygons_batch = find_polygons_batch(
             self.pred_masks, self.gold_masks
         )
-        print(f"Time to calculate polygons: {time.time() - now}")
         heights = [img.shape[-2] for img in self.gold_masks]
         widths = [img.shape[-1] for img in self.gold_masks]
         add_errors_dep_to_polygons_batch(
@@ -248,9 +243,6 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             heights=heights,
             widths=widths,
         )
-        
-        print(f"Time to calculate polygon errors: {time.time() - now}")
-        now = time.time()
 
         image_data = {
             "image": [f"{self.bucket_url}/{pth}" for pth in self.image_paths],
@@ -277,11 +269,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             inference_name=self.inference_name,
             meta=meta_keys,
         )
-        print(f"Time to log dataset: {time.time() - now}")
-        now = time.time()
 
         polygon_data = self.get_polygon_data(pred_polygons_batch, gold_polygons_batch)
-        print(f"Time to get polygon data: {time.time() - now}")
         n_polygons = len(polygon_data["image_id"])
         if self.split == Split.inference:
             polygon_data["inference_name"] = [self.inference_name] * n_polygons
