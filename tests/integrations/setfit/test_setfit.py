@@ -12,19 +12,6 @@ from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.conftest import LOCAL_MODEL_PATH, TestSessionVariables
 
-dataset = Dataset.from_dict(
-    {"text": ["hello", "world", "foo", "bar"], "label": [0, 1] * 2}
-)
-model = SetFitModel.from_pretrained(LOCAL_MODEL_PATH)
-
-trainer = SetFitTrainer(
-    model=model,
-    train_dataset=dataset,
-    num_iterations=1,
-    column_mapping={"text": "text", "label": "label"},
-)
-trainer.train()
-
 
 @patch.object(ApiClient, "valid_current_user", return_value=True)
 @patch.object(dq.core.finish, "_version_check")
@@ -67,7 +54,19 @@ def test_setfitwatch(
     cleanup_after_use: Generator,
     test_session_vars: TestSessionVariables,
 ) -> None:
-    global dataset
+    dataset = Dataset.from_dict(
+        {"text": ["hello", "world", "foo", "bar"], "label": [0, 1] * 2}
+    )
+    model = SetFitModel.from_pretrained(LOCAL_MODEL_PATH)
+
+    trainer = SetFitTrainer(
+        model=model,
+        train_dataset=dataset,
+        num_iterations=1,
+        column_mapping={"text": "text", "label": "label"},
+    )
+    trainer.train()
+
     mock_get_project_by_name.return_value = {"id": test_session_vars.DEFAULT_PROJECT_ID}
     mock_create_run.return_value = {"id": test_session_vars.DEFAULT_RUN_ID}
     set_test_config(current_project_id=None, current_run_id=None)
@@ -137,7 +136,19 @@ def test_log_dataset(
     cleanup_after_use: Generator,
     test_session_vars: TestSessionVariables,
 ) -> None:
-    global dataset
+    dataset = Dataset.from_dict(
+        {"text": ["hello", "world", "foo", "bar"], "label": [0, 1] * 2}
+    )
+    model = SetFitModel.from_pretrained(LOCAL_MODEL_PATH)
+
+    trainer = SetFitTrainer(
+        model=model,
+        train_dataset=dataset,
+        num_iterations=1,
+        column_mapping={"text": "text", "label": "label"},
+    )
+    trainer.train()
+
     mock_get_project_by_name.return_value = {"id": test_session_vars.DEFAULT_PROJECT_ID}
     mock_create_run.return_value = {"id": test_session_vars.DEFAULT_RUN_ID}
     set_test_config(current_project_id=None, current_run_id=None)
@@ -205,7 +216,10 @@ def test_end_to_end(
     cleanup_after_use: Generator,
     test_session_vars: TestSessionVariables,
 ) -> None:
-    global dataset
+    dataset = Dataset.from_dict(
+        {"text": ["hello", "world", "foo", "bar"], "label": [0, 1] * 2}
+    )
+
     mock_get_project_by_name.return_value = {"id": test_session_vars.DEFAULT_PROJECT_ID}
     mock_create_run.return_value = {"id": test_session_vars.DEFAULT_RUN_ID}
     set_test_config(current_project_id=None, current_run_id=None)
