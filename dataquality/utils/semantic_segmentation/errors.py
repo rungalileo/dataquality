@@ -366,7 +366,7 @@ def add_errors_dep_to_polygons_batch(
             dep_maps_resized[idx], 
             lm_maps_resized[idx]
         )
-    print("add errors time: ", time.time() - now
+    print("add errors time: ", time.time() - now)
         
 def add_all_errors_for_polygon(
     mask: np.ndarray,
