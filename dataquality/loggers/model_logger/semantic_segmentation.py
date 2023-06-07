@@ -249,6 +249,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         )
         heights = [img.shape[-2] for img in self.gold_masks]
         widths = [img.shape[-1] for img in self.gold_masks]
+        print(f"Time to calculate polygons before dep: {time.time() - now}")
+        now = time.time()
 
         add_dep_to_polygons_batch(
             gold_polygons_batch,
@@ -274,7 +276,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             widths,
         )
         
-        print(f"Time to calculate polygons: {time.time() - now}")
+        print(f"Time to calculate polygons after dep: {time.time() - now}")
         now = time.time()
 
         image_data = {
