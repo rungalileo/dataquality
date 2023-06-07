@@ -231,15 +231,17 @@ def add_dep_to_polygons_batch(
     """
     resized_dep_maps = []
     for i, dep_map in enumerate(dep_heatmaps):
-        resized_image = Image.fromarray(dep_map).resize((width[i], height[i]))
-        resized_dep_maps.append(np.array(resized_image))
+        resized_image = Image.fromarray(dep_map).resize((height[i], width[i]))
+        resized_dep_maps.append(np.array(resized_image).transpose(1, 0))
 
     for idx in range(len(resized_dep_maps)):
         dep_map = resized_dep_maps[idx]
         polygons = polygons_batch[idx]
         for polygon in polygons:
-            polygon_img = draw_polygon(polygon, dep_map.shape)
-            polygon.data_error_potential = calculate_dep_polygon(dep_map, polygon_img)
+            polygon_img = draw_polygon(polygon, resized_dep_maps[idx].shape)
+            polygon.data_error_potential = calculate_dep_polygon(
+                resized_dep_maps[idx], polygon_img
+            )
 
 
 def calculate_lm_pct(

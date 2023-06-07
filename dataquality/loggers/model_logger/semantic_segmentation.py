@@ -237,8 +237,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         add_background_errors_to_polygons_batch(
             self.gold_masks, pred_polygons_batch, polygon_type=PolygonType.pred
         )
-        heights = [img.shape[-1] for img in self.gold_masks]
-        widths = [img.shape[-2] for img in self.gold_masks]
+        heights = [img.shape[-2] for img in self.gold_masks]
+        widths = [img.shape[-1] for img in self.gold_masks]
 
         add_dep_to_polygons_batch(
             gold_polygons_batch,

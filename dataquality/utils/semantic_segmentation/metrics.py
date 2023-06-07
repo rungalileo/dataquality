@@ -12,7 +12,7 @@ from dataquality.utils.semantic_segmentation.polygons import draw_polygon
 
 object_store = ObjectStore()
 
-MAX_DEP_HEATMAP_SIZE = 64
+MAX_DEP_HEATMAP_SIZE = 128
 
 
 def calculate_and_upload_dep(
@@ -140,7 +140,7 @@ def dep_heatmap_to_img(dep_heatmap: np.ndarray) -> Image:
     # Create a PIL Image object from the numpy array as grey-scale
     img = Image.fromarray(dep_heatmap, mode="L")
     if img.size[0] > MAX_DEP_HEATMAP_SIZE or img.size[1] > MAX_DEP_HEATMAP_SIZE:
-        img.resize((MAX_DEP_HEATMAP_SIZE, MAX_DEP_HEATMAP_SIZE))
+        img = img.resize((MAX_DEP_HEATMAP_SIZE, MAX_DEP_HEATMAP_SIZE))
     return img
 
 
