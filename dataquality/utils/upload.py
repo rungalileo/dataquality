@@ -96,6 +96,10 @@ class UploadDfWorker(Thread):
                         )
                     )
                 )
+                for i in self.file_list:
+                    os.system(f'mv {i} ./')
+                df.export('df.arrow')
+                import pdb; pdb.set_trace()
                 # list the df columns
                 df[self.export_cols].export(chunk_file_path)
                 print(chunk_file_path)
