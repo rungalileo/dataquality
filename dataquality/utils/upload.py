@@ -55,7 +55,6 @@ class UploadDfWorker(Thread):
             raise GalileoException(
                 "project_id is not set in your config. Have you run dq.init()?"
             )
-        print(file_path)
         return api_client.upload_file_for_project(
             project_id=str(project_id),
             file_path=file_path,
