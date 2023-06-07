@@ -1,4 +1,4 @@
-name: test
+name: ci
 
 on:
   push:
@@ -13,6 +13,7 @@ env:
 jobs:
   test:
     runs-on: galileo
+
     strategy:
       matrix:
         python-version: [3.7, 3.8, 3.9]
@@ -20,10 +21,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+
       - name: set up python
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
+
       - name: install dependencies
         run: |
           if [[ ${{ matrix.python-version }} == "3.7" ]]; then
@@ -31,8 +34,10 @@ jobs:
           else
             scripts/install.sh
           fi
+
       - name: test
         run: scripts/test.sh
+
       - name: upload coverage
         uses: codecov/codecov-action@v1
         with:
