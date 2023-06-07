@@ -30,8 +30,6 @@ from dataquality.utils.semantic_segmentation.polygons import (
     write_polygon_contours_to_disk,
 )
 
-import time
-
 object_store = ObjectStore()
 
 
