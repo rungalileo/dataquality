@@ -411,10 +411,8 @@ def add_background_error_to_polygon(
     acc = background_accuracy(mask, polygon_img,)
     polygon.background_error_pct = acc
     if polygon_type == PolygonType.pred and acc > ERROR_THRESHOLD:
-        print("background error")
         polygon.error_type = ErrorType.background
     elif polygon_type == PolygonType.gold and acc > ERROR_THRESHOLD:
-        print("missed")
         polygon.error_type = ErrorType.missed
         
 def add_class_errors_to_polygon(
