@@ -73,7 +73,7 @@ def calculate_dep_heatmaps(
     :return: (bs, height, width)
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    probs = probs.to(device)
+    probs = probs.clone().to(device)
     gold_masks = gold_masks.to(device)
     n_classes = probs.shape[-1]
     bs = probs.shape[0]
@@ -81,27 +81,19 @@ def calculate_dep_heatmaps(
     probs = probs.view(bs, -1, n_classes)  # (bs, n_pixels, n_classes)
     mask_size = gold_masks.shape
     gold_masks = gold_masks.view(bs, -1, 1)  # (bs, n_pixels, 1)
-    import time
-    now = time.time()
     gold_indices = (
         gold_masks.reshape((bs, -1, 1)).expand(-1, -1, probs.shape[2]).type(torch.int64)
     )  # (bs, n_pixels, n_classes)
     value_at_gold = torch.gather(probs, 2, gold_indices)[:, :, 0]  # (bs, n_pixels)
-    print(f"torch.gather took {time.time() - now} seconds")
-    now = time.time()
 
-    next_highest = probs.clone()
+    next_highest = probs
     # Takes GT indices and puts 0 at that index so we don't use it as next highest value
     next_highest.scatter_(2, gold_indices, 0)
     next_highest = next_highest.max(dim=2).values
-    print(f"next_highest took {time.time() - now} seconds")
-    now = time.time()
     margin = value_at_gold - next_highest
     # Since margin is between -1 and 1, we normalize it to be between 0 and 1
     normalized_margin = (1 + margin) / 2
     dep_masks = 1 - normalized_margin
-    print(f"dep_masks took {time.time() - now} seconds")
-    now = time.time()
     dep_masks = dep_masks.view(mask_size)
     return dep_masks.cpu()
 
