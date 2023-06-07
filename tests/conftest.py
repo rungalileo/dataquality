@@ -30,14 +30,12 @@ try:
     tokenizer = AutoTokenizer.from_pretrained(LOCAL_MODEL_PATH)
 except Exception:
     tokenizer = AutoTokenizer.from_pretrained(HF_TEST_BERT_PATH)
-    # if not (os.path.isdir(LOCAL_MODEL_PATH) and os.listdir(LOCAL_MODEL_PATH)):
     tokenizer.save_pretrained(LOCAL_MODEL_PATH)
 
 try:
     model = AutoModelForSequenceClassification.from_pretrained(LOCAL_MODEL_PATH)
 except Exception:
     model = AutoModelForSequenceClassification.from_pretrained(HF_TEST_BERT_PATH)
-    # if not (os.path.isdir(LOCAL_MODEL_PATH) and os.listdir(LOCAL_MODEL_PATH)):
     model.save_pretrained(LOCAL_MODEL_PATH)
 
 

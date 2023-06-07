@@ -1,3 +1,4 @@
+import os
 import pickle
 from typing import Callable, Dict, List, Tuple
 from unittest import mock
@@ -454,12 +455,14 @@ def test_spacy_inference_only(
     # Since order might change due to multi-threading we verify each embedding
     # is in the expected list, but don't check the exact order
     embs_expected = TestSpacyInfExpectedResults.gt_embs
-    is_close = np.isclose(embs[:, np.newaxis], embs_expected, atol=1e-3)
-    # For each element in array1, check if any element in array2 is close
-    any_close = np.any(is_close, axis=1)
-
     # Check if all elements in array1 have a close value in array2
-    assert np.all(any_close)
+    if os.getenv("PYTEST_XDIST_WORKER_COUNT"):
+        np.allclose(embs, embs_expected, atol=1e-3)
+    else:
+        is_close = np.isclose(embs[:, np.newaxis], embs_expected, atol=1e-3)
+        # For each element in array1, check if any element in array2 is close
+        any_close = np.any(is_close, axis=1)
+        assert np.all(any_close)
     # arrange the probs array to account for misordering of logged samples
     assert len(probs) == 7
     probs = probs.sort(["sample_id", "span_start"])
