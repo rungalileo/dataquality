@@ -454,7 +454,7 @@ def test_spacy_inference_only(
     # Since order might change due to multi-threading we verify each embedding
     # is in the expected list, but don't check the exact order
     embs_expected = TestSpacyInfExpectedResults.gt_embs
-    is_close = np.isclose(embs[:, np.newaxis], embs_expected, atol=1e-6)
+    is_close = np.isclose(embs[:, np.newaxis], embs_expected, atol=1e-10)
     # For each element in array1, check if any element in array2 is close
     any_close = np.any(is_close, axis=1)
 

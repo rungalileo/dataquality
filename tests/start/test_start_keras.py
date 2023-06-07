@@ -58,7 +58,7 @@ def test_text_keras(
     set_test_config(current_project_id=None, current_run_id=None)
     dataset_len = 13
     val_dataset_len = 14
-    dq.set_labels_for_run(tf.range(10).numpy())
+    dq.set_labels_for_run(list(tf.range(10).numpy()))
     train_dataset = pd.DataFrame(
         {
             "text": ["x"] * dataset_len,
