@@ -16,6 +16,7 @@ from dataquality.utils.semantic_segmentation.constants import (
     ERROR_THRESHOLD,
 )
 from dataquality.utils.semantic_segmentation.polygons import draw_polygon
+from dataquality.utils.thread_pool import ThreadPoolManager
 
 
 def calculate_classification_error(
@@ -42,16 +43,19 @@ def calculate_classification_error(
     """
     relevant_region = comparison_mask != BACKGROUND_CLASS
     relevant_pred_region = candidate_mask != BACKGROUND_CLASS
+    combined_relevant_region = relevant_region & relevant_pred_region
     # use the relevant region to only select the pixels in the polygon
     # use the relevant_pred_region to only select the pixels in the pred polygon
     # that are not background pixels as classification errors are only
     # counted for non-background pixels
     pointwise_accuracy = (candidate_mask == comparison_mask)[
-        relevant_region & relevant_pred_region
+        combined_relevant_region
     ]
-    float_accuracy = pointwise_accuracy.sum() / relevant_region.sum()
-
     area = relevant_region.sum()
+    float_accuracy = pointwise_accuracy.sum() / area
+    
+
+    
     region_pixels = candidate_mask[relevant_region]
     region_boolean = region_pixels != correct_class
     incorrect_pixels = region_pixels[region_boolean]
@@ -65,63 +69,6 @@ def calculate_classification_error(
         mislabeled_class_pct=areas[argmax] / area,
     )
 
-
-def add_class_errors_to_polygons(
-    mask: np.ndarray,
-    polygons: List[Polygon],
-    number_classes: int,
-    polygon_type: str,
-) -> None:
-    """Checks for polygon misclassifications and sets the Polygon error_type field
-
-    A misclassified polygon is a polygon from the predicted mask
-    that has a pixel accuracy less than ERROR_THRES (0.5)
-
-    In other words, if less than 50% of the pixels in the predicted polygon
-    were correct, then the polygon is misclassified.
-
-    Args:
-        mask (np.ndarray): mask of the image either gold or pred
-            depending on which polygons are being checked
-        polygons (List[Polygon]): list of polygons to check
-        number_classes (int): number of classes
-    """
-    for polygon in polygons:
-        out_polygon_im = draw_polygon(polygon, mask.shape[-2:])
-        polygon.cls_error_data = calculate_classification_error(
-            mask, out_polygon_im, polygon.label_idx, number_classes
-        )
-        acc = polygon.cls_error_data.accuracy
-        if polygon_type == PolygonType.pred and acc < ERROR_THRESHOLD:
-            polygon.error_type = ErrorType.classification
-        if polygon_type == PolygonType.gold and acc < ERROR_THRESHOLD:
-            polygon.error_type = ErrorType.class_confusion
-
-
-def add_class_errors_to_polygons_batch(
-    masks: torch.Tensor,
-    polygons_batch: List[List[Polygon]],
-    number_classes: int,
-    polygon_type: str,
-) -> None:
-    """Calculates a set of misclassified polygon ids from the
-    predicted mask for each image in a batch
-
-    Also sets the error type field on the bad polygons to "misclassified"
-
-    Args:
-        masks(torch.tensor): mask of the image either gold or pred
-            depending on which polygons are being checked
-        polygons_batch(List[List[Polygon]]):
-            list of polygons for each image in a batch
-        number_classes(int): number of classes
-    """
-    for idx in range(len(masks)):
-        gold_mask = masks[idx].numpy()
-        pred_polygons = polygons_batch[idx]
-        add_class_errors_to_polygons(
-            gold_mask, pred_polygons, number_classes, polygon_type
-        )
 
 
 def background_accuracy(img_mask: np.ndarray, polygon_mask: np.ndarray) -> float:
@@ -137,112 +84,6 @@ def background_accuracy(img_mask: np.ndarray, polygon_mask: np.ndarray) -> float
     """
     relevant_region = polygon_mask != BACKGROUND_CLASS
     return (img_mask == BACKGROUND_CLASS)[relevant_region].sum() / relevant_region.sum()
-
-
-def add_background_errors_to_polygons(
-    img_mask: np.ndarray,
-    img_polygons: List[Polygon],
-    polygon_type: str,
-) -> None:
-    """Sets error type and pct for missed or background polygons
-
-    For pred polygons we have 'background' errors
-    For gold polygons we have 'missed' errors
-
-    Otherwise, the logic is the exact same
-
-    Args:
-        img_mask(torch.tensor): argmax of the probabilities per image (pred or gold)
-        img_polygons([List[Polygon]):
-            Polygons per image (pred or gold)
-        polygon_type (str): either "pred" or "gold"
-    """
-    for polygon in img_polygons:
-        polygon_mask = draw_polygon(polygon, img_mask.shape[-2:])
-        acc = background_accuracy(img_mask, polygon_mask)
-        polygon.background_error_pct = acc
-        if polygon_type == PolygonType.pred and acc > ERROR_THRESHOLD:
-            polygon.error_type = ErrorType.background
-        elif polygon_type == PolygonType.gold and acc > ERROR_THRESHOLD:
-            polygon.error_type = ErrorType.missed
-
-
-def add_background_errors_to_polygons_batch(
-    masks: torch.Tensor,
-    polygons_batch: List[List[Polygon]],
-    polygon_type: str,
-) -> None:
-    """Add error type and error pct to polygons
-
-    For missed errors:
-      - The pred masks and gold polygons will be passed in
-
-    For background errors:
-      - The gold masks and pred polygons will be passed in
-
-    Args:
-        masks(torch.tensor): argmax of the probabilities in batch (pred or gold)
-        polygons_batch(List[List[Polygon]]):
-            Polygons per image in the batch (pred or gold)
-        polygon_type (str): either "pred" or "gold"
-    """
-    for idx in range(len(masks)):
-        img_mask = masks[idx].numpy()
-        img_polygons = polygons_batch[idx]
-        add_background_errors_to_polygons(img_mask, img_polygons, polygon_type)
-
-
-def calculate_dep_polygon(
-    dep_map: np.ndarray,
-    polygon_img: np.ndarray,
-) -> float:
-    """Calculate the mean dep score for one polygon drawn onto an image of all
-    zero's. We can then take the polygon's dep score by only selecting those pixels
-    with a value greater than 0 and averageing them.
-
-    Args:
-        dep_map (np.ndarray): heatmap of dep scores for an image
-        polygon_img (np.ndarray): image of all zeros with a polygon drawn on it
-
-    Returns:
-        dep_score (float): mean dep score for the polygon
-    """
-    relevant_region = polygon_img != BACKGROUND_CLASS
-    dep_score = dep_map[relevant_region].mean()
-    return dep_score
-
-
-def add_dep_to_polygons_batch(
-    polygons_batch: List[List[Polygon]],
-    dep_heatmaps: np.ndarray,
-    height: List[int],
-    width: List[int],
-) -> None:
-    """Takes the mean dep score within a polygon and sets the polygon's
-    dep score to the mean dep score
-
-    Args:
-        polygons_batch (List[List[[Polygon]]): list of the polygons (gold or pred)
-        dep_heatmaps (np.ndarray): heatmaps of DEP scores for an image
-        height (int): height of original image to resize the dep map to the correct
-            dims
-        width (int): width of original image to resize the dep map to the correct
-            dims
-    """
-    resized_dep_maps = []
-    for i, dep_map in enumerate(dep_heatmaps):
-        resized_image = Image.fromarray(dep_map).resize((height[i], width[i]))
-        resized_dep_maps.append(np.array(resized_image).transpose(1, 0))
-
-    for idx in range(len(resized_dep_maps)):
-        dep_map = resized_dep_maps[idx]
-        polygons = polygons_batch[idx]
-        for polygon in polygons:
-            polygon_img = draw_polygon(polygon, resized_dep_maps[idx].shape)
-            polygon.data_error_potential = calculate_dep_polygon(
-                resized_dep_maps[idx], polygon_img
-            )
-
 
 def calculate_lm_pct(
     mislabeled_pixel_map: torch.Tensor, polygon_img: np.ndarray
@@ -261,46 +102,6 @@ def calculate_lm_pct(
         return 0
 
     return (mislabeled_pixel_map != 0)[relevant_region].sum() / relevant_region.sum()
-
-
-def add_lm_to_polygons(
-    mislabeled_pixel_map: torch.Tensor, polygons: List[Polygon]
-) -> None:
-    """Calculates and attaches the LM percentage to each polygon
-    Args:
-        mislabeled_pixel_map (torch.Tensor): map of bs, h, w of mislabled pixels
-        gold_polygons (List[Polygon]): list of all gold polygons for an image
-    """
-    for polygon in polygons:
-        polygon_img = draw_polygon(polygon, mislabeled_pixel_map.shape[-2:])
-        polygon.likely_mislabeled_pct = calculate_lm_pct(
-            mislabeled_pixel_map, polygon_img
-        )
-
-
-def add_lm_to_polygons_batch(
-    mislabeled_pixels: torch.Tensor,
-    gold_polygons_batch: List[List[Polygon]],
-    pred_polygons_batch: List[List[Polygon]],
-    heights: List[int],
-    widths: List[int],
-) -> None:
-    """Calculate and attach the LM percentage per polygon in a batch
-    Args:
-        mislabeled_pixels (torch.Tensor): map of bs, h, w of mislabled pixels
-        polygons_batch (List[List[Polygon]]): polygons for each image
-        shape (Tuple[int, int]): shape of the image to be resized to
-    """
-
-    for idx in range(len(mislabeled_pixels)):
-        mislabeled_pixel_map = interpolate_lm_map(
-            mislabeled_pixels[idx], heights[idx], widths[idx]
-        ).numpy()
-
-        gold_polygons = gold_polygons_batch[idx]
-        pred_polygons = pred_polygons_batch[idx]
-        add_lm_to_polygons(mislabeled_pixel_map, gold_polygons)
-        add_lm_to_polygons(mislabeled_pixel_map, pred_polygons)
 
 
 def resize_lm_maps(
@@ -326,7 +127,6 @@ def resize_dep_maps(dep_map: torch.Tensor, height: int, width: int) -> np.ndarra
     )
     return dep_map_interpolated.squeeze(1).numpy()
 
-import time
 def add_errors_dep_to_polygons_batch(
     masks: np.ndarray,
     polygons: List[List[Polygon]],
@@ -350,11 +150,8 @@ def add_errors_dep_to_polygons_batch(
         widths (List[int]): width of each image
         
     """
-    now = time.time()
     lm_maps_resized = resize_lm_maps(mislabeled_pixels, heights[0], widths[0])
     dep_maps_resized = resize_dep_maps(dep_heatmaps, heights[0], widths[0])
-    print("resize time: ", time.time() - now)
-    now = time.time()
     for idx in range(len(masks)):
         mask = masks[idx].numpy()
         polygons_for_image = polygons[idx]
@@ -366,7 +163,6 @@ def add_errors_dep_to_polygons_batch(
             dep_maps_resized[idx], 
             lm_maps_resized[idx]
         )
-    print("add errors time: ", time.time() - now)
         
 def add_all_errors_for_polygon(
     mask: np.ndarray,
@@ -374,7 +170,7 @@ def add_all_errors_for_polygon(
     number_classes: int,
     polygon_type: str,
     dep_heatmap: np.ndarray,
-    mislabled_pixels: np.ndarray,
+    mislabeled_pixels: np.ndarray,
 ) -> None:
     """Calculates and attaches the error types to each polygon
 
@@ -386,13 +182,24 @@ def add_all_errors_for_polygon(
         dep_heatmap (np.ndarray): heatmap of the depth
         mislabled_pixels (np.ndarray): map of h, w of mislabled pixels
     """
-    for polygon in polygons:
+    '''for polygon in polygons:
         out_polygon_im = draw_polygon(polygon, mask.shape[-2:])
         add_class_errors_to_polygon(mask, out_polygon_im, polygon, polygon_type, number_classes)
         add_background_error_to_polygon(mask, out_polygon_im, polygon, polygon_type)
         add_dep_to_polygon(dep_heatmap, out_polygon_im, polygon)
         add_area_to_polygon(out_polygon_im, polygon)
-        add_lm_to_polygon(mislabled_pixels, out_polygon_im, polygon)
+        add_lm_to_polygon(mislabled_pixels, out_polygon_im, polygon)'''
+    for polygon in polygons:
+        ThreadPoolManager.add_thread(add_errors, args=(polygon, mask, number_classes, polygon_type, dep_heatmap, mislabeled_pixels))
+        
+        
+def add_errors(polygon, mask, number_classes, polygon_type, dep_heatmap, mislabeled_pixels):
+    out_polygon_im = draw_polygon(polygon, mask.shape[-2:])
+    add_class_errors_to_polygon(mask, out_polygon_im, polygon, polygon_type, number_classes)
+    add_background_error_to_polygon(mask, out_polygon_im, polygon, polygon_type)
+    add_dep_to_polygon(dep_heatmap, out_polygon_im, polygon)
+    add_area_to_polygon(out_polygon_im, polygon)
+    add_lm_to_polygon(mislabeled_pixels, out_polygon_im, polygon)
         
         
 
