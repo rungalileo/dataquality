@@ -104,11 +104,6 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         return f"{self.proj_run}/{self.split_name_path}/LM"
 
     @property
-    def minio_dep_path(self) -> str:
-        """Minio path for Data Error Potential heatmaps"""
-        return f"{self.proj_run}/{self.split_name_path}/dep"
-
-    @property
     def local_dep_path(self) -> str:
         return f"{self.local_proj_run_path}/{self.split_name_path}/dep"
 
