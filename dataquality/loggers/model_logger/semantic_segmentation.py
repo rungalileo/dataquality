@@ -107,7 +107,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
     def minio_dep_path(self) -> str:
         """Minio path for Data Error Potential heatmaps"""
         return f"{self.proj_run}/{self.split_name_path}/dep"
-    
+
     @property
     def local_dep_path(self) -> str:
         return f"{self.local_proj_run_path}/{self.split_name_path}/dep"
@@ -266,7 +266,6 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             heights,
             widths,
         )
-        
 
         image_data = {
             "image": [f"{self.bucket_url}/{pth}" for pth in self.image_paths],

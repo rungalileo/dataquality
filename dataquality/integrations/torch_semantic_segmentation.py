@@ -428,7 +428,7 @@ class SemanticTorchLogger(TorchLogger):
             progress=False,
             bucket_name=GALILEO_DEFAULT_RESULT_BUCKET_NAME,
         )
-        
+
     def upload_dep_split(self, split: str) -> None:
         """Uploads all dep files for a given split to minio
 
@@ -436,24 +436,24 @@ class SemanticTorchLogger(TorchLogger):
             split (str): split name
         """
         from dataquality.utils.upload import chunk_load_then_upload_df
+
         model_logger = dq.get_model_logger()
         project_path = f"{model_logger.LOG_FILE_DIR}/{config.current_project_id}"
         local_dep_path = f"{project_path}/{config.current_run_id}/{split}/dep"
-        
+
         files = os.listdir(local_dep_path)
         for i, file in enumerate(files):
             file = f"{local_dep_path}/{file}"
             files[i] = file
-            
+
         chunk_load_then_upload_df(
             file_list=files,
             project_id=config.current_project_id,
-            export_cols=['data'],
+            export_cols=["data"],
             temp_dir=local_dep_path,
             export_format="arrow",
             show_progress=False,
         )
-        
 
     def finish(self) -> None:
         # call to eval to make sure we are not in train mode for batch norm
