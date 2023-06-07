@@ -326,7 +326,7 @@ def resize_dep_maps(dep_map: torch.Tensor, height: int, width: int) -> np.ndarra
     )
     return dep_map_interpolated.squeeze(1).numpy()
 
-
+import time
 def add_errors_dep_to_polygons_batch(
     masks: np.ndarray,
     polygons: List[List[Polygon]],
@@ -350,8 +350,10 @@ def add_errors_dep_to_polygons_batch(
         widths (List[int]): width of each image
         
     """
+    now = time.time()
     lm_maps_resized = resize_lm_maps(mislabeled_pixels, heights[0], widths[0])
     dep_maps_resized = resize_dep_maps(dep_heatmaps, heights[0], widths[0])
+    print("resize time: ", time.time() - now)
     for idx in range(len(masks)):
         mask = masks[idx].numpy()
         polygons_for_image = polygons[idx]
@@ -382,6 +384,7 @@ def add_all_errors_for_polygon(
         dep_heatmap (np.ndarray): heatmap of the depth
         mislabled_pixels (np.ndarray): map of h, w of mislabled pixels
     """
+    now = time.time()
     for polygon in polygons:
         out_polygon_im = draw_polygon(polygon, mask.shape[-2:])
         # add class error
@@ -394,6 +397,7 @@ def add_all_errors_for_polygon(
         add_area_to_polygon(out_polygon_im, polygon)
         # add lm
         add_lm_to_polygon(mislabled_pixels, out_polygon_im, polygon)
+    print("add errors time: ", time.time() - now)
         
         
 
