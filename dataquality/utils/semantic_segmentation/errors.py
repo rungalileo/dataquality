@@ -233,8 +233,6 @@ def add_dep_to_polygons_batch(
     for i, dep_map in enumerate(dep_heatmaps):
         resized_image = Image.fromarray(dep_map).resize((height[i], width[i]))
         resized_dep_maps.append(np.array(resized_image).transpose(1, 0))
-        resized_image = Image.fromarray(dep_map).resize((height[i], width[i]))
-        resized_dep_maps.append(np.array(resized_image).transpose(1, 0))
 
     for idx in range(len(resized_dep_maps)):
         dep_map = resized_dep_maps[idx]
