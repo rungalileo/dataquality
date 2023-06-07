@@ -34,6 +34,8 @@ from dataquality.utils.semantic_segmentation.utils import mask_to_boundary
 from dataquality.utils.thread_pool import ThreadPoolManager, lock
 from dataquality.utils.torch import ModelHookManager, store_batch_indices
 
+import time
+
 a = Analytics(ApiClient, dq.config)  # type: ignore
 a.log_import("torch")
 object_store = ObjectStore()
@@ -349,6 +351,8 @@ class SemanticTorchLogger(TorchLogger):
 
     def _on_step_end(self) -> None:
         """Function to be called at the end of step to log the inputs and outputs"""
+        start = time.time()
+        now = time.time()
         if not self.mask_col_name:
             self.find_mask_category(self.helper_data["batch"]["data"])
 
@@ -360,7 +364,8 @@ class SemanticTorchLogger(TorchLogger):
             self._init_lm_labels()
             self.init_lm_labels_flag = True
         split = self.logger_config.cur_split.lower()  # type: ignore
-
+        print('torch_semseg before no grad:', time.time() - now)
+        now = time.time()
         with torch.no_grad():
             logging_data = self.helper_data["batch"]["data"]
             img_ids, image_paths = self.get_image_ids_and_image_paths(
@@ -380,7 +385,11 @@ class SemanticTorchLogger(TorchLogger):
                 gold_mask = gold_mask.squeeze(1)  # (bs, w, h)
             if gold_mask.dtype == torch.float16:
                 gold_mask = gold_mask.to(torch.float32)
+            print('torch semseg before mislabeled:', time.time() - now)
+            now = time.time()
             mislabeled_pixels = self.calculate_mislabeled_pixels(probs, gold_mask)
+            print('torch semseg after mislabeled:', time.time() - now)
+            now = time.time()
             # do not log if we are not in the final inference loop
             if not self.called_finish:
                 return
