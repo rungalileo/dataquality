@@ -28,8 +28,16 @@ def calculate_and_upload_dep(
     Returns the image DEP for each image in the batch. As well as the dep_heatmaps.
         Image dep is calculated by the average pixel dep.
     """
+    import time
+    now = time.time()
     dep_heatmaps = calculate_dep_heatmaps(probs, gold_masks)
+    print(f"calculate_dep_heatmaps took {time.time() - now} seconds")
+    now = time.time()
     write_dep_to_disk(dep_heatmaps, image_ids, obj_prefix)
+    print(f"write_dep_to_disk took {time.time() - now} seconds")
+    now = time.time()
+    calculate_image_dep(dep_heatmaps)
+    print(f"calculate_image_dep took {time.time() - now} seconds")
     return calculate_image_dep(dep_heatmaps), dep_heatmaps
 
 
