@@ -25,13 +25,14 @@ SUBDIRS = ["data", "emb", "prob"]
 
 # Load models locally
 HF_TEST_BERT_PATH = "hf-internal-testing/tiny-random-distilbert"
-LOCAL_MODEL_PATH = "tmp/testing-random-distilbert-sq"
+LOCAL_MODEL_PATH = f"{os.getcwd()}/tmp/testing-random-distilbert-sq"
 try:
     tokenizer = AutoTokenizer.from_pretrained(LOCAL_MODEL_PATH)
 except Exception:
     tokenizer = AutoTokenizer.from_pretrained(HF_TEST_BERT_PATH)
     if not (os.path.isdir(LOCAL_MODEL_PATH) and os.listdir(LOCAL_MODEL_PATH)):
         tokenizer.save_pretrained(LOCAL_MODEL_PATH)
+
 try:
     model = AutoModelForSequenceClassification.from_pretrained(LOCAL_MODEL_PATH)
 except Exception:
