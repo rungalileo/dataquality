@@ -55,6 +55,7 @@ class UploadDfWorker(Thread):
             raise GalileoException(
                 "project_id is not set in your config. Have you run dq.init()?"
             )
+        print(file_path)
         return api_client.upload_file_for_project(
             project_id=str(project_id),
             file_path=file_path,
@@ -96,10 +97,6 @@ class UploadDfWorker(Thread):
                         )
                     )
                 )
-                for i in self.file_list:
-                    os.system(f'mv {i} ./')
-                df.export('df.arrow')
-                import pdb; pdb.set_trace()
                 # list the df columns
                 df[self.export_cols].export(chunk_file_path)
                 print(chunk_file_path)

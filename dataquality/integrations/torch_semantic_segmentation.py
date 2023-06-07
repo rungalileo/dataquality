@@ -451,7 +451,8 @@ class SemanticTorchLogger(TorchLogger):
             project_id=config.current_project_id,
             export_cols=['data'],
             temp_dir=local_dep_path,
-            export_format="jpeg"
+            export_format="arrow",
+            show_progress=False,
         )
         
 
