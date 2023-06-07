@@ -7,10 +7,10 @@ from requests import HTTPError
 
 from dataquality.clients.api import ApiClient
 from dataquality.clients.objectstore import ObjectStore
-from dataquality.core._config import ConfigData, config
+from dataquality.core._config import config, config_data
 from dataquality.utils.helpers import check_noop
 
-DQ_LOG_FILE_HOME = f"{ConfigData.DEFAULT_GALILEO_CONFIG_DIR}/out"
+DQ_LOG_FILE_HOME = f"{config_data.DEFAULT_GALILEO_CONFIG_DIR}/out"  # type: ignore
 DQ_LOG_FILE = "out.log"
 
 

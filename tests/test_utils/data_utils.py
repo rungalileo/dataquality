@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 import dataquality
 from dataquality.schemas.split import Split
-from tests.conftest import LOCATION, SPLITS, SUBDIRS, TEST_PATH
+from tests.conftest import SPLITS, SUBDIRS, TestSessionVariables
 
 NUM_RECORDS = 50
 NUM_LOGS = 30
@@ -19,6 +19,7 @@ MULTI_LABEL_NUM_TASKS = 4
 
 
 def validate_uploaded_data(
+    test_session_vars: TestSessionVariables,
     expected_num_records: Optional[int] = None,
     meta_cols: Optional[List] = None,
     multi_label=False,
@@ -34,11 +35,15 @@ def validate_uploaded_data(
         for subdir in SUBDIRS:
             # epoch = 0 for general testing
             try:
-                file_path = f"{TEST_PATH}/{split}/0/{subdir}/{subdir}.hdf5"
+                file_path = (
+                    f"{test_session_vars.TEST_PATH}/{split}/0/{subdir}/{subdir}.hdf5"
+                )
                 data = vaex.open(file_path)
             except FileNotFoundError:
                 # Handle autolog test
-                file_path = f"{TEST_PATH}/{split}/1/{subdir}/{subdir}.hdf5"
+                file_path = (
+                    f"{test_session_vars.TEST_PATH}/{split}/1/{subdir}/{subdir}.hdf5"
+                )
                 data = vaex.open(file_path)
 
             prob_cols = data.get_column_names(regex="prob*")
@@ -81,13 +86,13 @@ def validate_uploaded_data(
             )
 
 
-def validate_cleanup_data():
+def validate_cleanup_data(test_session_vars: TestSessionVariables):
     """
     Checks for testing
     """
     for split in SPLITS:
         # Ensure files were cleaned up
-        assert not os.path.isdir(f"{LOCATION}/{split}")
+        assert not os.path.isdir(f"{test_session_vars.LOCATION}/{split}")
 
 
 def _log_text_classification_data(

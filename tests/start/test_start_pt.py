@@ -19,7 +19,7 @@ from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import validate_unique_ids
-from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID, LOCATION
+from tests.conftest import TestSessionVariables
 
 train_iter = iter(AG_NEWS(split="train"))
 tokenizer = get_tokenizer("basic_english")
@@ -210,9 +210,10 @@ def test_text_pt(
     mock_reset_run: MagicMock,
     mock_version_check: MagicMock,
     cleanup_after_use: Generator,
+    test_session_vars: TestSessionVariables,
 ) -> None:
-    mock_get_project_by_name.return_value = {"id": DEFAULT_PROJECT_ID}
-    mock_create_run.return_value = {"id": DEFAULT_RUN_ID}
+    mock_get_project_by_name.return_value = {"id": test_session_vars.DEFAULT_PROJECT_ID}
+    mock_create_run.return_value = {"id": test_session_vars.DEFAULT_RUN_ID}
     set_test_config(current_project_id=None, current_run_id=None)
 
     set_test_config(default_task_type=TaskType.text_classification)
@@ -242,5 +243,9 @@ def test_text_pt(
             dq.set_split(Split.validation)
             evaluate(test_dataloader_dq, modeldq)
         ThreadPoolManager.wait_for_threads()
-        validate_unique_ids(vaex.open(f"{LOCATION}/{split}/0/*.hdf5"), "epoch")
-        validate_unique_ids(vaex.open(f"{LOCATION}/{split}/1/*.hdf5"), "epoch")
+        validate_unique_ids(
+            vaex.open(f"{test_session_vars.LOCATION}/{split}/0/*.hdf5"), "epoch"
+        )
+        validate_unique_ids(
+            vaex.open(f"{test_session_vars.LOCATION}/{split}/1/*.hdf5"), "epoch"
+        )

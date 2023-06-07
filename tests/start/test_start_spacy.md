@@ -13,7 +13,7 @@ import dataquality as dq
 from dataquality import DataQuality
 from dataquality.clients.api import ApiClient
 from dataquality.utils.thread_pool import ThreadPoolManager
-from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID, LOCATION
+from tests.conftest import TestSessionVariables
 from tests.test_utils.spacy_integration import train_model
 from tests.test_utils.spacy_integration_constants import NER_TRAINING_DATA
 
@@ -44,9 +44,10 @@ def test_spacy_txt(
     mock_reset_run: MagicMock,
     mock_version_check: MagicMock,
     cleanup_after_use: Generator,
+    test_session_vars: TestSessionVariables,
 ) -> None:
-    mock_get_project_by_name.return_value = {"id": DEFAULT_PROJECT_ID}
-    mock_create_run.return_value = {"id": DEFAULT_RUN_ID}
+    mock_get_project_by_name.return_value = {"id": test_session_vars.DEFAULT_PROJECT_ID}
+    mock_create_run.return_value = {"id": test_session_vars.DEFAULT_RUN_ID}
     set_test_config(current_project_id=None, current_run_id=None)
     nlp = spacy.blank("en")
     nlp.add_pipe("ner")
@@ -74,4 +75,4 @@ def test_spacy_txt(
             dq.set_split(Split.test)
             nlp.evaluate(training_examples, batch_size=MINIBATCH_SZ)
         ThreadPoolManager.wait_for_threads()
-        assert len(vaex.open(f"{LOCATION}/training/0/*.hdf5"))
+        assert len(vaex.open(f"{test_session_vars.LOCATION}/training/0/*.hdf5"))

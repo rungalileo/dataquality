@@ -282,6 +282,7 @@ def test_export_run_no_data(
     mock_get_task_type.return_value = TaskType.text_classification
     # In export_run we use requests.post as a context manager (with requests.post(...))
     # so we need to mock the `__enter__` return value
+    config.token = "sometoken"
     mock_post.return_value.__enter__.return_value = MockResponse(
         status_code=200, json_data={}, headers={"Galileo-No-Data": "true"}
     )

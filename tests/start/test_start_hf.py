@@ -6,7 +6,7 @@ from transformers import Trainer, TrainingArguments
 
 import dataquality
 from dataquality.clients.api import ApiClient
-from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID, model, tokenizer
+from tests.conftest import TestSessionVariables, model, tokenizer
 from tests.test_utils.hf_datasets_mock import mock_hf_dataset, mock_hf_dataset_repeat
 
 metric = load_metric("accuracy")
@@ -104,9 +104,10 @@ def test_start_hf_tc(
     mock_reset_run: MagicMock,
     mock_version_check: MagicMock,
     cleanup_after_use: Generator,
+    test_session_vars: TestSessionVariables,
 ) -> None:
-    mock_get_project_by_name.return_value = {"id": DEFAULT_PROJECT_ID}
-    mock_create_run.return_value = {"id": DEFAULT_RUN_ID}
+    mock_get_project_by_name.return_value = {"id": test_session_vars.DEFAULT_PROJECT_ID}
+    mock_create_run.return_value = {"id": test_session_vars.DEFAULT_RUN_ID}
     set_test_config(current_project_id=None, current_run_id=None)
     train_dataset = mock_dataset_with_ids
     val_dataset = mock_dataset_with_ids
