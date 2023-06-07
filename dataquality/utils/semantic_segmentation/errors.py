@@ -182,15 +182,13 @@ def add_all_errors_for_polygon(
         dep_heatmap (np.ndarray): heatmap of the depth
         mislabled_pixels (np.ndarray): map of h, w of mislabled pixels
     """
-    '''for polygon in polygons:
+    for polygon in polygons:
         out_polygon_im = draw_polygon(polygon, mask.shape[-2:])
         add_class_errors_to_polygon(mask, out_polygon_im, polygon, polygon_type, number_classes)
         add_background_error_to_polygon(mask, out_polygon_im, polygon, polygon_type)
         add_dep_to_polygon(dep_heatmap, out_polygon_im, polygon)
         add_area_to_polygon(out_polygon_im, polygon)
-        add_lm_to_polygon(mislabled_pixels, out_polygon_im, polygon)'''
-    for polygon in polygons:
-        ThreadPoolManager.add_thread(add_errors, args=(polygon, mask, number_classes, polygon_type, dep_heatmap, mislabeled_pixels))
+        add_lm_to_polygon(mislabeled_pixels, out_polygon_im, polygon)
         
         
 def add_errors(polygon, mask, number_classes, polygon_type, dep_heatmap, mislabeled_pixels):
