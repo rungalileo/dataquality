@@ -19,6 +19,7 @@ from dataquality.utils.semantic_segmentation.errors import (
     add_class_errors_to_polygons_batch,
     add_dep_to_polygons_batch,
     add_lm_to_polygons_batch,
+    add_errors_dep_to_polygons_batch
 )
 from dataquality.utils.semantic_segmentation.metrics import (
     add_area_to_polygons_batch,
@@ -228,7 +229,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         pred_polygons_batch, gold_polygons_batch = find_polygons_batch(
             self.pred_masks, self.gold_masks
         )
-        # Errors
+        '''# Errors
         add_class_errors_to_polygons_batch(
             self.pred_masks,
             gold_polygons_batch,
@@ -274,6 +275,28 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             pred_polygons_batch,
             heights,
             widths,
+        )'''
+        heights = [img.shape[-2] for img in self.gold_masks]
+        widths = [img.shape[-1] for img in self.gold_masks]
+        add_errors_dep_to_polygons_batch(
+            self.pred_masks,
+            gold_polygons_batch,
+            n_classes,
+            polygon_type=PolygonType.gold,
+            dep_heatmaps=dep_heatmaps,
+            mislabeled_pixels=self.mislabled_pixels,
+            heights=heights,
+            widths=widths,
+        )
+        add_errors_dep_to_polygons_batch(
+            self.gold_masks,
+            pred_polygons_batch,
+            n_classes,
+            polygon_type=PolygonType.pred,
+            dep_heatmaps=dep_heatmaps,
+            mislabeled_pixels=self.mislabled_pixels,
+            heights=heights,
+            widths=widths,
         )
         
         print(f"Time to calculate polygons after dep: {time.time() - now}")
