@@ -816,7 +816,6 @@ class ApiClient:
         export_cols: List[str],
     ) -> Any:
         url = f"{config.api_url}/{Route.projects}/{project_id}/{Route.upload_file}"
-        print(url)
         res = self.make_request(
             return_response_without_validation=True,
             request=RequestType.POST,
