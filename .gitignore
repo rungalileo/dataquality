@@ -182,5 +182,6 @@ coco_deeplab_hooks.ipynb
 CV_datasets/
 coco_hf_dataset.py
 large_run.ipynb
+*.png
 
 *.cache
