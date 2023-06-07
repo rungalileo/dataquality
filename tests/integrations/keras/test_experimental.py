@@ -28,12 +28,15 @@ try:
     tokenizer = AutoTokenizer.from_pretrained(tmp_checkpoint)
 except Exception:
     tokenizer = AutoTokenizer.from_pretrained(checkpoint)
-    tokenizer.save_pretrained(tmp_checkpoint, filename_prefix=str(os.getpid()))
+    if not (os.path.isdir(tmp_checkpoint) and os.listdir(tmp_checkpoint)):
+        tokenizer.save_pretrained(tmp_checkpoint)
+
 try:
     model = TFAutoModelForSequenceClassification.from_pretrained(tmp_checkpoint)
 except Exception:
     model = TFAutoModelForSequenceClassification.from_pretrained(checkpoint)
-    model.save_pretrained(tmp_checkpoint, filename_prefix=str(os.getpid()))
+    if not (os.path.isdir(tmp_checkpoint) and os.listdir(tmp_checkpoint)):
+        model.save_pretrained(tmp_checkpoint)
 
 
 def preprocess_function(examples, tokenizer):
