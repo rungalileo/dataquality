@@ -72,6 +72,9 @@ def calculate_dep_heatmaps(
     :param gold_masks: np array of gold masks as ints, size = (bs, height, width)
     :return: (bs, height, width)
     """
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    probs = probs.to(device)
+    gold_masks = gold_masks.to(device)
     n_classes = probs.shape[-1]
     bs = probs.shape[0]
     # flatten the height and width dimensions
@@ -100,7 +103,7 @@ def calculate_dep_heatmaps(
     print(f"dep_masks took {time.time() - now} seconds")
     now = time.time()
     dep_masks = dep_masks.view(mask_size)
-    return dep_masks
+    return dep_masks.cpu()
 
 def write_dep_to_disk(
     dep_heatmaps: torch.Tensor,
