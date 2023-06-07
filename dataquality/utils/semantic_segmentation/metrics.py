@@ -95,6 +95,7 @@ def calculate_dep_heatmaps(
     normalized_margin = (1 + margin) / 2
     dep_masks = 1 - normalized_margin
     dep_masks = dep_masks.view(mask_size)
+    gold_masks = gold_masks.cpu()
     return dep_masks.cpu()
 
 def write_dep_to_disk(

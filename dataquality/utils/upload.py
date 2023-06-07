@@ -96,9 +96,7 @@ class UploadDfWorker(Thread):
                         )
                     )
                 )
-                # list the df columns
                 df[self.export_cols].export(chunk_file_path)
-                print(chunk_file_path)
                 res = self._upload_file_for_project(
                     file_path=chunk_file_path,
                     project_id=self.project_id,
