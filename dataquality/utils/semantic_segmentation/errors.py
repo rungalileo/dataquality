@@ -354,6 +354,7 @@ def add_errors_dep_to_polygons_batch(
     lm_maps_resized = resize_lm_maps(mislabeled_pixels, heights[0], widths[0])
     dep_maps_resized = resize_dep_maps(dep_heatmaps, heights[0], widths[0])
     print("resize time: ", time.time() - now)
+    now = time.time()
     for idx in range(len(masks)):
         mask = masks[idx].numpy()
         polygons_for_image = polygons[idx]
@@ -365,6 +366,7 @@ def add_errors_dep_to_polygons_batch(
             dep_maps_resized[idx], 
             lm_maps_resized[idx]
         )
+    print("add errors time: ", time.time() - now
         
 def add_all_errors_for_polygon(
     mask: np.ndarray,
@@ -384,20 +386,13 @@ def add_all_errors_for_polygon(
         dep_heatmap (np.ndarray): heatmap of the depth
         mislabled_pixels (np.ndarray): map of h, w of mislabled pixels
     """
-    now = time.time()
     for polygon in polygons:
         out_polygon_im = draw_polygon(polygon, mask.shape[-2:])
-        # add class error
         add_class_errors_to_polygon(mask, out_polygon_im, polygon, polygon_type, number_classes)
-        # add background error
         add_background_error_to_polygon(mask, out_polygon_im, polygon, polygon_type)
-        # add dep metrics
         add_dep_to_polygon(dep_heatmap, out_polygon_im, polygon)
-        # add area
         add_area_to_polygon(out_polygon_im, polygon)
-        # add lm
         add_lm_to_polygon(mislabled_pixels, out_polygon_im, polygon)
-    print("add errors time: ", time.time() - now)
         
         
 
