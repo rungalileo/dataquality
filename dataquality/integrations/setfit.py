@@ -6,8 +6,9 @@ import torch
 import dataquality as dq
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
+from dataquality.core.log import get_data_logger
 from dataquality.schemas.split import Split
-from dataquality.utils.patcher import Cleanup, Patch, PatchManager, RefManager
+from dataquality.utils.patcher import Patch, PatchManager
 from dataquality.utils.setfit import log_preds_setfit
 
 a = Analytics(ApiClient, dq.config)  # type: ignore
@@ -159,8 +160,6 @@ class _PatchSetFitTrainer(Patch):
     def __init__(
         self,
         setfit_trainer: "SetFitTrainer",
-        project_name: str,
-        run_name: str,
         labels: List[str] = [],
         finish: bool = True,
         wait: bool = False,
@@ -181,8 +180,6 @@ class _PatchSetFitTrainer(Patch):
         self.labels = labels
         self.finish = finish
         self.wait = wait
-        self.project_name = project_name
-        self.run_name = run_name
         self.batch_size = batch_size
         self.meta = meta
 
@@ -216,14 +213,7 @@ class _PatchSetFitTrainer(Patch):
             train_dataset = self.trainer._apply_column_mapping(
                 train_dataset, self.trainer.column_mapping
             )
-        if not dq.config.task_type:
-            init_kwargs: Dict[str, Any] = {}
-            if self.project_name:
-                init_kwargs["project_name"] = self.project_name
-            if self.run_name:
-                init_kwargs["run_name"] = self.run_name
 
-            dq.init("text_classification", **init_kwargs)
         labels: List = self.labels
         if not labels:
             labels = dq.get_data_logger().logger_config.labels
@@ -273,6 +263,9 @@ def unwatch(setfit_obj: Optional[Union["SetFitModel", "SetFitTrainer"]]) -> None
     a.log_function("setfit/unwatch")
     setfitmanager = PatchManager()
     setfitmanager.unpatch()
+    helper_data = dq.get_data_logger().logger_config.helper_data
+    if helper_data:
+        helper_data.clear()
 
 
 def watch(
@@ -302,6 +295,14 @@ def watch(
 
     from setfit import SetFitTrainer
 
+    if not dq.config.task_type:
+        init_kwargs: Dict[str, Any] = {}
+        if project_name:
+            init_kwargs["project_name"] = project_name
+        if run_name:
+            init_kwargs["run_name"] = run_name
+        dq.init("text_classification", **init_kwargs)
+
     labels = labels or []
     model = setfit
 
@@ -319,14 +320,18 @@ def watch(
             labels=labels,
             finish=finish,
             wait=wait,
-            run_name=run_name,
-            project_name=project_name,
             batch_size=batch_size,
             meta=meta,
         )
         setfitmanager.add_patch(patched_trainer)
         return evaluate(setfit.model)
     else:
+        if not labels:
+            labels = dq.get_data_logger().logger_config.labels
+        assert labels and len(
+            labels
+        ), "Labels must be set (watch(trainer, labels=[...]))"
+        dq.set_labels_for_run(labels)
         return evaluate(model)
 
 
@@ -341,12 +346,6 @@ def evaluate(
     dq_hook = SetFitModelHook(model)
     dq_store = dq_hook.store
 
-    helper_data = dq.get_data_logger().logger_config.helper_data
-
-    # Unpatch SetFit model after logging (when finished is called)
-    cleanup_manager = RefManager(dq_hook.unpatch)
-    helper_data["cleaner"] = Cleanup(cleanup_manager)
-
     def dq_evaluate(
         dataset: "Dataset",
         split: Split,
@@ -354,6 +353,7 @@ def evaluate(
         inference_name: Optional[str] = None,
         column_mapping: Optional[Dict] = None,
         batch_size: int = 64,
+        epoch: Optional[int] = None,
     ) -> torch.Tensor:
         """Evaluate SetFit model and log input and output to Galileo.
         :param batch: batch of data as a dictionary
@@ -372,7 +372,11 @@ def evaluate(
 
         if column_mapping is not None:
             dataset = _apply_column_mapping(dataset, column_mapping)
-
+        if "id" not in dataset.features:
+            dataset = dataset.map(lambda x, idx: {"id": idx}, with_indices=True)
+        if epoch is not None:
+            dq.set_epoch(epoch)
+        cur_epoch = get_data_logger().logger_config.cur_epoch
         return log_preds_setfit(
             model=model,
             dataset=dataset,
@@ -381,6 +385,7 @@ def evaluate(
             split=split,
             inference_name=inference_name,
             meta=meta,
+            epoch=cur_epoch,
         )
 
     return dq_evaluate

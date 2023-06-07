@@ -1,4 +1,3 @@
-from pathlib import Path
 from typing import Callable, List, Type
 from unittest import mock
 
@@ -107,8 +106,9 @@ class TestBaseLoggersInference:
         logger = BaseGalileoModelLogger()
         logger.write_model_output(inference_data)
 
+        dir = dataquality.core._config.config_data.DEFAULT_GALILEO_CONFIG_DIR
         local_file = (
-            f"{Path.home()}/.galileo/logs/{dataquality.config.current_project_id}/"
+            f"{dir}/logs/{dataquality.config.current_project_id}/"
             f"{dataquality.config.current_run_id}/inference/customers"
         )
         # Assert _save_hdf5_file is called with correct args

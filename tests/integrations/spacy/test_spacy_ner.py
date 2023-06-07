@@ -1,3 +1,4 @@
+import os
 import pickle
 from typing import Callable, Dict, List, Tuple
 from unittest import mock
@@ -26,7 +27,7 @@ from dataquality.integrations.spacy import (
 from dataquality.loggers.logger_config.text_ner import text_ner_logger_config
 from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
 from dataquality.utils.thread_pool import ThreadPoolManager
-from tests.conftest import LOCATION
+from tests.conftest import TestSessionVariables
 from tests.test_utils.spacy_integration import load_ner_data_from_local, train_model
 from tests.test_utils.spacy_integration_constants import (
     LONG_SHORT_DATA,
@@ -65,7 +66,9 @@ def test_log_input_list_of_tuples(nlp_watch: Language) -> None:
 
 
 def test_log_input_examples(
-    nlp_init: Language, training_examples: List[Example]
+    nlp_init: Language,
+    training_examples: List[Example],
+    test_session_vars: TestSessionVariables,
 ) -> None:
     watch(nlp_init)
     log_input_examples(training_examples, "training")
@@ -78,7 +81,9 @@ def test_log_input_examples(
         ]
     )
 
-    logged_data = vaex.open(f"{LOCATION}/input_data/training/data_0.arrow")
+    logged_data = vaex.open(
+        f"{test_session_vars.LOCATION}/input_data/training/data_0.arrow"
+    )
 
     assert logged_data["id"].tolist() == [0, 1, 2, 3, 4]
     assert logged_data["split"].tolist() == ["training"] * len(training_examples)
@@ -145,6 +150,7 @@ def test_unwatch(nlp: Language, training_examples: List[Example]) -> None:
 def test_embeddings_get_updated(
     nlp: Language,
     training_examples: List[Example],
+    test_session_vars: TestSessionVariables,
 ) -> None:
     """This test both checks our spacy wrapper end to end and that embs update.
 
@@ -154,14 +160,18 @@ def test_embeddings_get_updated(
     train_model(nlp, training_examples, num_epochs=2)
     unwatch(nlp)
 
-    _, embs, _ = load_ner_data_from_local("training", inf_name_or_epoch=1)
+    _, embs, _ = load_ner_data_from_local(
+        split="training", test_session_vars=test_session_vars, inf_name_or_epoch=1
+    )
     embs = embs["emb"].to_numpy()
 
     dataquality.get_data_logger()._cleanup()
 
     train_model(nlp, training_examples, num_epochs=1)
 
-    _, embs_2, _ = load_ner_data_from_local("training", inf_name_or_epoch=0)
+    _, embs_2, _ = load_ner_data_from_local(
+        split="training", test_session_vars=test_session_vars, inf_name_or_epoch=0
+    )
     embs_2 = embs_2["emb"].to_numpy()
 
     assert embs.shape == embs_2.shape
@@ -171,6 +181,7 @@ def test_embeddings_get_updated(
 def test_spacy_ner(
     nlp: Language,
     training_examples: List[Example],
+    test_session_vars: TestSessionVariables,
 ) -> None:
     """An end to end test of functionality"""
     spacy.util.fix_random_seed(0)
@@ -184,7 +195,9 @@ def test_spacy_ner(
     assert np.allclose(training_losses, res, atol=1e-01)
 
     data, embs, probs = load_ner_data_from_local(
-        "training", inf_name_or_epoch=num_epochs - 1
+        split="training",
+        test_session_vars=test_session_vars,
+        inf_name_or_epoch=num_epochs - 1,
     )
 
     assert len(data) == 5
@@ -369,13 +382,19 @@ def test_log_input_docs_list_of_strs(nlp_watch: Language) -> None:
     )
 
 
-def test_log_input_docs(nlp_watch: Language, inference_docs: List[Doc]) -> None:
+def test_log_input_docs(
+    nlp_watch: Language,
+    inference_docs: List[Doc],
+    test_session_vars: TestSessionVariables,
+) -> None:
     log_input_docs(inference_docs, "inf-name")
 
     # assert that we added ids to the docs for later joining with model outputs
     assert all([doc.user_data["id"] == i for i, doc in enumerate(inference_docs)])
 
-    logged_data = vaex.open(f"{LOCATION}/input_data/inference/data_0.arrow")
+    logged_data = vaex.open(
+        f"{test_session_vars.LOCATION}/input_data/inference/data_0.arrow"
+    )
 
     assert logged_data["id"].tolist() == [0, 1, 2, 3, 4]
     assert logged_data["split"].tolist() == ["inference"] * len(inference_docs)
@@ -396,7 +415,10 @@ def test_log_input_docs(nlp_watch: Language, inference_docs: List[Doc]) -> None:
 
 @mock.patch.object(TextNERModelLogger, "_extract_pred_spans")
 def test_spacy_inference_only(
-    mock_extract_pred_spans: MagicMock, nlp_watch: Language, inference_docs: List[Doc]
+    mock_extract_pred_spans: MagicMock,
+    nlp_watch: Language,
+    inference_docs: List[Doc],
+    test_session_vars: TestSessionVariables,
 ) -> None:
     spacy.util.fix_random_seed(0)
     # We don't care what the nlp model actually predicts,
@@ -412,7 +434,9 @@ def test_spacy_inference_only(
     logger.upload()
 
     data, embs, probs = load_ner_data_from_local(
-        "inference", inf_name_or_epoch="inf-name"
+        split="inference",
+        inf_name_or_epoch="inf-name",
+        test_session_vars=test_session_vars,
     )
 
     assert len(data) == 5
@@ -431,7 +455,13 @@ def test_spacy_inference_only(
     # Since order might change due to multi-threading we verify each embedding
     # is in the expected list, but don't check the exact order
     embs_expected = TestSpacyInfExpectedResults.gt_embs
-    is_close = np.isclose(embs[:, np.newaxis], embs_expected, atol=1e-3)
+    # When running with pytest-xdist, the embeddings are slightly different
+    # due to the fact that test runs are parallelized and resources are shared
+    # between them. We allow for larger absolute and relative tolerances in this case.
+    if os.getenv("PYTEST_XDIST_WORKER_COUNT"):
+        is_close = np.isclose(embs[:, np.newaxis], embs_expected, atol=1e-1, rtol=5)
+    else:
+        is_close = np.isclose(embs[:, np.newaxis], embs_expected, atol=1e-3)
     # For each element in array1, check if any element in array2 is close
     any_close = np.any(is_close, axis=1)
 
@@ -457,7 +487,10 @@ def test_spacy_inference_only(
 
 @pytest.mark.skip(reason="flaky, needs a fix")
 def test_spacy_training_then_inference(
-    nlp: Language, training_examples: List[Example], inference_docs: List[Doc]
+    nlp: Language,
+    training_examples: List[Example],
+    inference_docs: List[Doc],
+    test_session_vars: TestSessionVariables,
 ) -> None:
     """Test that we can log training data, then inference data
 
@@ -487,7 +520,7 @@ def test_spacy_training_then_inference(
     logger.upload()
 
     train_data, train_embs, train_probs = load_ner_data_from_local(
-        "training", inf_name_or_epoch=1
+        split="training", inf_name_or_epoch=1, test_session_vars=test_session_vars
     )
     assert len(train_data) == 5
     assert len(train_embs) == len(train_probs) == 8
@@ -495,7 +528,9 @@ def test_spacy_training_then_inference(
     assert train_data.split.tolist() == ["training"] * 5
 
     inf_data, inf_embs, inf_probs = load_ner_data_from_local(
-        "inference", inf_name_or_epoch="inf-name"
+        split="inference",
+        inf_name_or_epoch="inf-name",
+        test_session_vars=test_session_vars,
     )
     assert len(inf_data) == 5
     assert inf_data.split.tolist() == ["inference"] * 5

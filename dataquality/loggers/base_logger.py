@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar, Union
 
 import numpy as np
 
-from dataquality.core._config import ConfigData, config
+from dataquality.core._config import config, config_data
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.logger_config.base_logger_config import (
     BaseLoggerConfig,
@@ -20,6 +20,7 @@ from dataquality.utils.cloud import is_galileo_cloud
 from dataquality.utils.dq_logger import upload_dq_log_file
 from dataquality.utils.file import _shutil_rmtree_retry
 from dataquality.utils.imports import hf_available, tf_available, torch_available
+from dataquality.utils.patcher import PatchManager
 from dataquality.utils.tf import is_tf_2
 
 T = TypeVar("T", bound="BaseGalileoLogger")
@@ -70,7 +71,7 @@ class BaseGalileoLogger:
     """
 
     __logger_name__ = ""
-    LOG_FILE_DIR = f"{ConfigData.DEFAULT_GALILEO_CONFIG_DIR}/logs"
+    LOG_FILE_DIR = f"{config_data.DEFAULT_GALILEO_CONFIG_DIR}/logs"  # type: ignore
     logger_config: BaseLoggerConfig = base_logger_config
 
     def __init__(self) -> None:
@@ -303,6 +304,8 @@ class BaseGalileoLogger:
                     _shutil_rmtree_retry(path)
 
         cls.logger_config.reset()
+        pm = PatchManager()
+        pm.unpatch()
 
     def upload(self) -> None:
         ...

@@ -16,7 +16,7 @@ from dataquality.core.auth import GALILEO_AUTH_METHOD
 from dataquality.core.init import create_run_name
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.task_type import TaskType
-from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID
+from tests.conftest import TestSessionVariables
 from tests.exceptions import LoginInvoked
 from tests.test_utils.mock_request import (
     EXISTING_PROJECT,
@@ -50,14 +50,15 @@ def test_init(
     mock_get_project_by_name: MagicMock,
     task_type: str,
     set_test_config: Callable,
+    test_session_vars: TestSessionVariables,
 ) -> None:
     """Base case: Tests creating a new project and run"""
-    mock_create_project.return_value = {"id": DEFAULT_PROJECT_ID}
-    mock_create_run.return_value = {"id": DEFAULT_RUN_ID}
+    mock_create_project.return_value = {"id": test_session_vars.DEFAULT_PROJECT_ID}
+    mock_create_run.return_value = {"id": test_session_vars.DEFAULT_RUN_ID}
 
     dataquality.init(task_type=task_type)
-    assert config.current_run_id == DEFAULT_RUN_ID
-    assert config.current_project_id == DEFAULT_PROJECT_ID
+    assert config.current_run_id == test_session_vars.DEFAULT_RUN_ID
+    assert config.current_project_id == test_session_vars.DEFAULT_PROJECT_ID
 
     mock_get_project_by_name.assert_called_once_with(ANY)
     mock_create_project.assert_called_once_with(ANY, is_public=True)
@@ -78,13 +79,14 @@ def test_init_reset_logger_config(
     mock_get_project_run_by_name: MagicMock,
     mock_get_project_by_name: MagicMock,
     set_test_config: Callable,
+    test_session_vars: TestSessionVariables,
 ) -> None:
-    mock_get_project_by_name.return_value = {"id": DEFAULT_PROJECT_ID}
-    mock_get_project_run_by_name.return_value = {"id": DEFAULT_RUN_ID}
+    mock_get_project_by_name.return_value = {"id": test_session_vars.DEFAULT_PROJECT_ID}
+    mock_get_project_run_by_name.return_value = {"id": test_session_vars.DEFAULT_RUN_ID}
 
     dataquality.init(task_type="text_classification")
-    assert config.current_run_id == DEFAULT_RUN_ID
-    assert config.current_project_id == DEFAULT_PROJECT_ID
+    assert config.current_run_id == test_session_vars.DEFAULT_RUN_ID
+    assert config.current_project_id == test_session_vars.DEFAULT_PROJECT_ID
     dataquality.set_labels_for_run(["a", "b", "c", "d"])
     dataquality.init(task_type="text_classification")
     assert not dataquality.get_data_logger().logger_config.labels
@@ -106,14 +108,15 @@ def test_init_new_private_project(
     mock_create_project: MagicMock,
     mock_get_project_by_name: MagicMock,
     set_test_config: Callable,
+    test_session_vars: TestSessionVariables,
 ) -> None:
     """Base case: Tests creating a new project and run"""
-    mock_create_project.return_value = {"id": DEFAULT_PROJECT_ID}
-    mock_create_run.return_value = {"id": DEFAULT_RUN_ID}
+    mock_create_project.return_value = {"id": test_session_vars.DEFAULT_PROJECT_ID}
+    mock_create_run.return_value = {"id": test_session_vars.DEFAULT_RUN_ID}
 
     dataquality.init(task_type="text_classification", is_public=False)
-    assert config.current_run_id == DEFAULT_RUN_ID
-    assert config.current_project_id == DEFAULT_PROJECT_ID
+    assert config.current_run_id == test_session_vars.DEFAULT_RUN_ID
+    assert config.current_project_id == test_session_vars.DEFAULT_PROJECT_ID
 
     mock_get_project_by_name.assert_called_once_with(ANY)
     mock_create_project.assert_called_once_with(ANY, is_public=False)
@@ -139,15 +142,16 @@ def test_init_existing_project(
     mock_create_project: MagicMock,
     mock_get_project_by_name: MagicMock,
     set_test_config: Callable,
+    test_session_vars: TestSessionVariables,
 ) -> None:
     """Tests calling init passing in an existing project"""
-    mock_get_project_by_name.return_value = {"id": DEFAULT_PROJECT_ID}
-    mock_create_run.return_value = {"id": DEFAULT_RUN_ID}
+    mock_get_project_by_name.return_value = {"id": test_session_vars.DEFAULT_PROJECT_ID}
+    mock_create_run.return_value = {"id": test_session_vars.DEFAULT_RUN_ID}
 
     set_test_config(current_project_id=None, current_run_id=None)
     dataquality.init(task_type="text_classification", project_name=EXISTING_PROJECT)
-    assert config.current_run_id == DEFAULT_RUN_ID
-    assert config.current_project_id == DEFAULT_PROJECT_ID
+    assert config.current_run_id == test_session_vars.DEFAULT_RUN_ID
+    assert config.current_project_id == test_session_vars.DEFAULT_PROJECT_ID
 
     mock_get_project_by_name.assert_called_once_with(EXISTING_PROJECT)
     mock_create_project.assert_not_called()
@@ -173,16 +177,17 @@ def test_init_new_project(
     mock_create_project: MagicMock,
     mock_get_project_by_name: MagicMock,
     set_test_config: Callable,
+    test_session_vars: TestSessionVariables,
 ) -> None:
     """Tests calling init passing in a new project"""
-    mock_create_project.return_value = {"id": DEFAULT_PROJECT_ID}
-    mock_create_run.return_value = {"id": DEFAULT_RUN_ID}
+    mock_create_project.return_value = {"id": test_session_vars.DEFAULT_PROJECT_ID}
+    mock_create_run.return_value = {"id": test_session_vars.DEFAULT_RUN_ID}
 
     set_test_config(current_project_id=None, current_run_id=None)
 
     dataquality.init(task_type="text_classification", project_name="new_proj")
-    assert config.current_run_id == DEFAULT_RUN_ID
-    assert config.current_project_id == DEFAULT_PROJECT_ID
+    assert config.current_run_id == test_session_vars.DEFAULT_RUN_ID
+    assert config.current_project_id == test_session_vars.DEFAULT_PROJECT_ID
 
     mock_get_project_by_name.assert_called_once_with("new_proj")
     mock_create_project.assert_called_once_with("new_proj", is_public=True)
@@ -206,10 +211,11 @@ def test_init_existing_project_new_run(
     mock_create_project: MagicMock,
     mock_get_project_by_name: MagicMock,
     set_test_config: Callable,
+    test_session_vars: TestSessionVariables,
 ) -> None:
     """Tests calling init with an existing project but a new run"""
-    mock_get_project_by_name.return_value = {"id": DEFAULT_PROJECT_ID}
-    mock_create_run.return_value = {"id": DEFAULT_RUN_ID}
+    mock_get_project_by_name.return_value = {"id": test_session_vars.DEFAULT_PROJECT_ID}
+    mock_create_run.return_value = {"id": test_session_vars.DEFAULT_RUN_ID}
 
     set_test_config(current_project_id=None, current_run_id=None)
     dataquality.init(
@@ -217,8 +223,8 @@ def test_init_existing_project_new_run(
         project_name=EXISTING_PROJECT,
         run_name="new_run",
     )
-    assert config.current_run_id == DEFAULT_RUN_ID
-    assert config.current_project_id == DEFAULT_PROJECT_ID
+    assert config.current_run_id == test_session_vars.DEFAULT_RUN_ID
+    assert config.current_project_id == test_session_vars.DEFAULT_PROJECT_ID
 
     mock_get_project_by_name.assert_called_once_with(EXISTING_PROJECT)
     mock_create_project.assert_not_called()
@@ -242,10 +248,11 @@ def test_init_existing_project_existing_run(
     mock_create_project: MagicMock,
     mock_get_project_by_name: MagicMock,
     set_test_config: Callable,
+    test_session_vars: TestSessionVariables,
 ) -> None:
     """Tests calling init with an existing project and existing run"""
-    mock_get_project_by_name.return_value = {"id": DEFAULT_PROJECT_ID}
-    mock_get_project_run_by_name.return_value = {"id": DEFAULT_RUN_ID}
+    mock_get_project_by_name.return_value = {"id": test_session_vars.DEFAULT_PROJECT_ID}
+    mock_get_project_run_by_name.return_value = {"id": test_session_vars.DEFAULT_RUN_ID}
 
     set_test_config(current_project_id=None, current_run_id=None)
     dataquality.init(
@@ -253,8 +260,8 @@ def test_init_existing_project_existing_run(
         project_name=EXISTING_PROJECT,
         run_name=EXISTING_RUN,
     )
-    assert config.current_run_id == DEFAULT_RUN_ID
-    assert config.current_project_id == DEFAULT_PROJECT_ID
+    assert config.current_run_id == test_session_vars.DEFAULT_RUN_ID
+    assert config.current_project_id == test_session_vars.DEFAULT_PROJECT_ID
 
     # Called once to see if exists, called again to get the labels for the run
     assert mock_get_project_run_by_name.call_count == 2
@@ -278,17 +285,18 @@ def test_init_new_project_run(
     mock_create_project: MagicMock,
     mock_get_project_by_name: MagicMock,
     set_test_config: Callable,
+    test_session_vars: TestSessionVariables,
 ) -> None:
     """Tests calling init with a new project and new run"""
-    mock_create_project.return_value = {"id": DEFAULT_PROJECT_ID}
-    mock_create_run.return_value = {"id": DEFAULT_RUN_ID}
+    mock_create_project.return_value = {"id": test_session_vars.DEFAULT_PROJECT_ID}
+    mock_create_run.return_value = {"id": test_session_vars.DEFAULT_RUN_ID}
 
     set_test_config(current_project_id=None, current_run_id=None)
     dataquality.init(
         task_type="text_classification", project_name="new_proj", run_name="new_run"
     )
-    assert config.current_run_id == DEFAULT_RUN_ID
-    assert config.current_project_id == DEFAULT_PROJECT_ID
+    assert config.current_run_id == test_session_vars.DEFAULT_RUN_ID
+    assert config.current_project_id == test_session_vars.DEFAULT_PROJECT_ID
 
     mock_get_project_by_name.assert_called_once_with("new_proj")
     mock_create_project.assert_called_once_with("new_proj", is_public=True)
@@ -341,6 +349,7 @@ def test_init_project_name_collision(
     mock_create_project: MagicMock,
     mock_get_project_by_name: MagicMock,
     set_test_config: Callable,
+    test_session_vars: TestSessionVariables,
 ) -> None:
     """Tests init with a project name created by another user at same time
 
@@ -357,14 +366,14 @@ def test_init_project_name_collision(
     mock_get_project_by_name.side_effect = [
         GalileoException,
         GalileoException,
-        {"id": DEFAULT_PROJECT_ID},
+        {"id": test_session_vars.DEFAULT_PROJECT_ID},
     ]
-    mock_get_project_run_by_name.return_value = {"id": DEFAULT_RUN_ID}
+    mock_get_project_run_by_name.return_value = {"id": test_session_vars.DEFAULT_RUN_ID}
     dataquality.init(
         task_type="text_classification", project_name="race-condition-proj"
     )
-    assert config.current_run_id == DEFAULT_RUN_ID
-    assert config.current_project_id == DEFAULT_PROJECT_ID
+    assert config.current_run_id == test_session_vars.DEFAULT_RUN_ID
+    assert config.current_project_id == test_session_vars.DEFAULT_PROJECT_ID
 
     assert mock_get_project_by_name.call_count == 3
     mock_create_project.assert_not_called()
@@ -433,9 +442,10 @@ def test_init_successful_login(
     mock_create_project: MagicMock,
     mock_get_project_by_name: MagicMock,
     set_test_config: Callable,
+    test_session_vars: TestSessionVariables,
 ) -> None:
-    mock_create_project.return_value = {"id": DEFAULT_PROJECT_ID}
-    mock_create_run.return_value = {"id": DEFAULT_RUN_ID}
+    mock_create_project.return_value = {"id": test_session_vars.DEFAULT_PROJECT_ID}
+    mock_create_run.return_value = {"id": test_session_vars.DEFAULT_RUN_ID}
 
     set_test_config(token=None, current_project_id=None, current_run_id=None)
     # When no token is passed in we should call login
@@ -443,8 +453,8 @@ def test_init_successful_login(
     mock_login.assert_called_once()
 
     # We also test the remaining init flow
-    assert config.current_run_id == DEFAULT_RUN_ID
-    assert config.current_project_id == DEFAULT_PROJECT_ID
+    assert config.current_run_id == test_session_vars.DEFAULT_RUN_ID
+    assert config.current_project_id == test_session_vars.DEFAULT_PROJECT_ID
 
 
 @patch.object(
@@ -480,9 +490,10 @@ def test_init_expired_token_login_full(
     mock_create_project: MagicMock,
     mock_get_project_by_name: MagicMock,
     set_test_config: Callable,
+    test_session_vars: TestSessionVariables,
 ) -> None:
-    mock_create_project.return_value = {"id": DEFAULT_PROJECT_ID}
-    mock_create_run.return_value = {"id": DEFAULT_RUN_ID}
+    mock_create_project.return_value = {"id": test_session_vars.DEFAULT_PROJECT_ID}
+    mock_create_run.return_value = {"id": test_session_vars.DEFAULT_RUN_ID}
 
     set_test_config(current_project_id=None, current_run_id=None)
     # When a token is passed in but user auth fails we should call login
@@ -490,8 +501,8 @@ def test_init_expired_token_login_full(
 
     mock_login.assert_called_once()
     # We also test the remaining init flow
-    assert config.current_run_id == DEFAULT_RUN_ID
-    assert config.current_project_id == DEFAULT_PROJECT_ID
+    assert config.current_run_id == test_session_vars.DEFAULT_RUN_ID
+    assert config.current_project_id == test_session_vars.DEFAULT_PROJECT_ID
 
 
 @patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=False)
@@ -523,17 +534,18 @@ def test_init_invalid_user_login_full(
     mock_create_project: MagicMock,
     mock_get_project_by_name: MagicMock,
     set_test_config: Callable,
+    test_session_vars: TestSessionVariables,
 ) -> None:
-    mock_create_project.return_value = {"id": DEFAULT_PROJECT_ID}
-    mock_create_run.return_value = {"id": DEFAULT_RUN_ID}
+    mock_create_project.return_value = {"id": test_session_vars.DEFAULT_PROJECT_ID}
+    mock_create_run.return_value = {"id": test_session_vars.DEFAULT_RUN_ID}
 
     set_test_config(current_project_id=None, current_run_id=None)
     # When current user is not valid we should call login
     dataquality.init(task_type="text_classification")
     mock_login.assert_called_once()
     # We also test the remaining init flow
-    assert config.current_run_id == DEFAULT_RUN_ID
-    assert config.current_project_id == DEFAULT_PROJECT_ID
+    assert config.current_run_id == test_session_vars.DEFAULT_RUN_ID
+    assert config.current_project_id == test_session_vars.DEFAULT_PROJECT_ID
 
 
 @patch("dataquality.core.init._check_dq_version")
