@@ -26,7 +26,7 @@ $ which python pip
 
 [`pyenv`](https://github.com/pyenv/pyenv) is suggested for local python development.
 
-## Flit
+## Development
 
 This project uses `setuptools` to manage our project's dependencies and `invoke` for running tasks.
 
@@ -37,8 +37,6 @@ pip install --upgrade pip
 pip install invoke
 inv all
 ```
-
-## Development
 
 To install a development version of the package in another python environment, simply use that virtual enviroment's pip:
 
