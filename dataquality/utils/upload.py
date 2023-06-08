@@ -78,16 +78,16 @@ class UploadDfWorker(Thread):
 
     def _file_prefix(
         self,
-        project_id: Optional[str] = None,
-        run_id: Optional[str] = None,
+        project_id: Optional[UUID4] = None,
+        run_id: Optional[UUID4] = None,
         split: Optional[str] = None,
         folder: Optional[str] = None,
     ) -> str:
         file_suffix = ""
         if project_id:
-            file_suffix += f"/{project_id}"
+            file_suffix += f"/{str(project_id)}"
         if run_id:
-            file_suffix += f"/{run_id}"
+            file_suffix += f"/{str(run_id)}"
         if split:
             file_suffix += f"/{split}"
         if folder:

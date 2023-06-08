@@ -445,8 +445,8 @@ class SemanticTorchLogger(TorchLogger):
         for i, file in enumerate(files):
             file = f"{local_dep_path}/{file}"
             files[i] = file
-        project_id = f"{config.current_project_id}"
-        run_id = f"{config.current_run_id}"
+        project_id = config.current_project_id
+        run_id = config.current_run_id
         split = f"{split}"
         chunk_load_then_upload_df(
             file_list=files,
