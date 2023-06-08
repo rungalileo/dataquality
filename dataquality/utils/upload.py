@@ -28,6 +28,7 @@ class UploadDfWorker(Thread):
         export_format: str,
         export_cols: List[str],
         temp_dir: str,
+        bucket: str,
         show_progress: bool = True,
         pbar: Optional[Any] = None,
         step: Optional[int] = None,
@@ -44,6 +45,7 @@ class UploadDfWorker(Thread):
         self.pbar = pbar
         self.step = step
         self.temp_dir = temp_dir
+        self.bucket = bucket
 
     def _upload_file_for_project(
         self,
@@ -60,6 +62,7 @@ class UploadDfWorker(Thread):
             file_path=file_path,
             export_format=self.export_format,
             export_cols=self.export_cols,
+            bucket=self.bucket,
         )
 
     def run(self) -> None:
@@ -118,6 +121,7 @@ def chunk_load_then_upload_df(
     file_list: List[str],
     export_cols: List[str],
     temp_dir: str,
+    bucket: str,
     project_id: Optional[UUID4] = None,
     parallel: bool = False,
     step: int = 50,
@@ -158,6 +162,7 @@ def chunk_load_then_upload_df(
             pbar=pbar,
             step=step,
             temp_dir=temp_dir,
+            bucket=bucket,
         )
         worker.start()
         workers.append(worker)

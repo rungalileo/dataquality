@@ -453,6 +453,7 @@ class SemanticTorchLogger(TorchLogger):
             temp_dir=local_dep_path,
             export_format="arrow",
             show_progress=False,
+            bucket=GALILEO_DEFAULT_RESULT_BUCKET_NAME,
         )
 
     def finish(self) -> None:
