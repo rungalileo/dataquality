@@ -190,7 +190,7 @@ def set_global_logging_level(
             logging.getLogger(name).setLevel(level)
 
 
-def _add_class_label_to_dataset(
+def add_class_label_to_dataset(
     ds: Dataset, labels: Optional[List[str]] = None
 ) -> Dataset:
     """Map a not ClassLabel 'label' column to a ClassLabel, if possible"""

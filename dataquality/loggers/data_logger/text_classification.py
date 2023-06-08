@@ -23,7 +23,7 @@ from dataquality.loggers.logger_config.text_classification import (
 from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.split import Split
-from dataquality.utils.auto import _add_class_label_to_dataset
+from dataquality.utils.auto import add_class_label_to_dataset
 from dataquality.utils.vaex import rename_df
 
 
@@ -300,11 +300,10 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
 
         # Make sure the class labels are set
         if (
-            isinstance(dataset[0].get(label), int)
-            and self.logger_config.labels
+            self.logger_config.labels
             and not isinstance(dataset.features[label], ClassLabel)
         ):
-            dataset = _add_class_label_to_dataset(dataset, self.logger_config.labels)
+            dataset = add_class_label_to_dataset(dataset, self.logger_config.labels)
 
         for i in range(0, len(dataset), batch_size):
             chunk = dataset[i : i + batch_size]

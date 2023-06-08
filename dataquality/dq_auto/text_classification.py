@@ -11,7 +11,7 @@ from dataquality.dq_auto.tc_trainer import get_trainer
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.auto import (
-    _add_class_label_to_dataset,
+    add_class_label_to_dataset,
     add_val_data_if_missing,
     run_name_from_hf_dataset,
 )
@@ -56,7 +56,7 @@ class TCDatasetManager(BaseDatasetManager):
         # of the hf DatasetDict will handle this missing label column if it's an
         # issue. See `_validate_dataset_dict`
         ds = Dataset.from_pandas(df_copy)
-        return _add_class_label_to_dataset(ds, labels)
+        return add_class_label_to_dataset(ds, labels)
 
     def _validate_dataset_dict(
         self,
@@ -83,7 +83,7 @@ class TCDatasetManager(BaseDatasetManager):
             if key not in inference_names:
                 assert "label" in ds.features, "Dataset must have column `label`"
                 if not isinstance(ds.features["label"], ClassLabel):
-                    ds = _add_class_label_to_dataset(ds, labels)
+                    ds = add_class_label_to_dataset(ds, labels)
             if "id" not in ds.features:
                 ds = ds.add_column("id", list(range(ds.num_rows)))
             clean_dd[key] = ds
