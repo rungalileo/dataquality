@@ -12,8 +12,8 @@ from pydantic import UUID4
 from tqdm import tqdm
 
 from dataquality import config
-from dataquality.core._config import GALILEO_DEFAULT_IMG_BUCKET_NAME
 from dataquality.clients.api import ApiClient
+from dataquality.core._config import GALILEO_DEFAULT_IMG_BUCKET_NAME
 from dataquality.exceptions import GalileoException
 
 api_client = ApiClient()
