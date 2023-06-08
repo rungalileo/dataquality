@@ -34,6 +34,9 @@ class UploadDfWorker(Thread):
         pbar: Optional[Any] = None,
         step: Optional[int] = None,
         use_local_image_names: bool = False,
+        run_id: Optional[UUID4] = None,
+        split: Optional[str] = None,
+        folder: Optional[str] = None,
     ) -> None:
         Thread.__init__(self)
         self.queue = request_queue
@@ -49,11 +52,16 @@ class UploadDfWorker(Thread):
         self.temp_dir = temp_dir
         self.bucket = bucket
         self.use_local_image_names = use_local_image_names
+        self.run_id = run_id
+        self.split = split
+        self.folder = folder
 
     def _upload_file_for_project(
         self,
         file_path: str,
         project_id: Optional[UUID4] = None,
+        run_id: Optional[UUID4] = None,
+        split: Optional[str] = None,
     ) -> Any:
         project_id = project_id or config.current_project_id
         if project_id is None:
@@ -67,6 +75,24 @@ class UploadDfWorker(Thread):
             export_cols=self.export_cols,
             bucket=self.bucket,
         )
+        
+    def _file_suffix(
+        self, 
+        project_id: Optional[str] = None, 
+        run_id: Optional[str] = None,
+        split: Optional[str] = None,
+        folder: Optional[str] = None,
+        ) -> str:
+        file_suffix = ""
+        if project_id:
+            file_suffix += f"/{project_id}"
+        if run_id:
+            file_suffix += f"/{run_id}"
+        if split:
+            file_suffix += f"/{split}"
+        if folder:
+            file_suffix += f"/{folder}"
+        return file_suffix + '/'
 
     def run(self) -> None:
         while True:
@@ -86,15 +112,22 @@ class UploadDfWorker(Thread):
                 ) -> Dict[str, Union[str, bytes]]:
                     with open(file_path, "rb") as f:
                         img = f.read()
+                        object_path = self._file_suffix(
+                                project_id=self.project_id,
+                                run_id=self.run_id,
+                                split=self.split,
+                                folder=self.folder,
+                            )
                         if self.use_local_image_names:
-                            hash = file_path.split("/")[-1].split(".")[0]
+                            object_path += file_path.split("/")[-1].split(".")[0]
                         else:
-                            hash = hashlib.md5(img).hexdigest()
+                            object_path += hashlib.md5(img).hexdigest()
                         ext = os.path.splitext(file_path)[1]
+                        print(object_path + ext)
                         return {
                             "file_path": file_path,
                             "data": img,
-                            "object_path": f"{self.project_id}/{hash}{ext}",
+                            "object_path": object_path + ext,
                         }
 
                 df = vaex.from_records(
@@ -110,6 +143,8 @@ class UploadDfWorker(Thread):
                 res = self._upload_file_for_project(
                     file_path=chunk_file_path,
                     project_id=self.project_id,
+                    run_id=self.run_id,
+                    split=self.split,
                 )
                 os.remove(chunk_file_path)
                 if res.ok:
@@ -129,6 +164,9 @@ def chunk_load_then_upload_df(
     temp_dir: str,
     bucket: str = GALILEO_DEFAULT_IMG_BUCKET_NAME,
     project_id: Optional[UUID4] = None,
+    run_id: Optional[UUID4] = None,
+    split: Optional[str] = None,
+    folder: Optional[str] = None,
     parallel: bool = False,
     step: int = 50,
     num_workers: int = 1,
@@ -171,6 +209,9 @@ def chunk_load_then_upload_df(
             temp_dir=temp_dir,
             bucket=bucket,
             use_local_image_names=use_local_image_names,
+            run_id=run_id,
+            split=split,
+            folder=folder,
         )
         worker.start()
         workers.append(worker)
