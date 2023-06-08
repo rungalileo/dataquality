@@ -2,7 +2,6 @@ from typing import List
 
 import numpy as np
 import torch
-from PIL import Image
 from torch.nn import functional as F
 
 from dataquality.schemas.semantic_segmentation import (
@@ -16,7 +15,6 @@ from dataquality.utils.semantic_segmentation.constants import (
     ERROR_THRESHOLD,
 )
 from dataquality.utils.semantic_segmentation.polygons import draw_polygon
-from dataquality.utils.thread_pool import ThreadPoolManager
 
 
 def calculate_classification_error(
@@ -48,14 +46,10 @@ def calculate_classification_error(
     # use the relevant_pred_region to only select the pixels in the pred polygon
     # that are not background pixels as classification errors are only
     # counted for non-background pixels
-    pointwise_accuracy = (candidate_mask == comparison_mask)[
-        combined_relevant_region
-    ]
+    pointwise_accuracy = (candidate_mask == comparison_mask)[combined_relevant_region]
     area = relevant_region.sum()
     float_accuracy = pointwise_accuracy.sum() / area
-    
 
-    
     region_pixels = candidate_mask[relevant_region]
     region_boolean = region_pixels != correct_class
     incorrect_pixels = region_pixels[region_boolean]
@@ -68,7 +62,6 @@ def calculate_classification_error(
         mislabeled_class=argmax,
         mislabeled_class_pct=areas[argmax] / area,
     )
-
 
 
 def background_accuracy(img_mask: np.ndarray, polygon_mask: np.ndarray) -> float:
@@ -84,6 +77,7 @@ def background_accuracy(img_mask: np.ndarray, polygon_mask: np.ndarray) -> float
     """
     relevant_region = polygon_mask != BACKGROUND_CLASS
     return (img_mask == BACKGROUND_CLASS)[relevant_region].sum() / relevant_region.sum()
+
 
 def calculate_lm_pct(
     mislabeled_pixel_map: torch.Tensor, polygon_img: np.ndarray
@@ -118,14 +112,15 @@ def resize_lm_maps(
     # squeeze the extra dimensions back to (h, w)
     return mislabeled_pixel_map_interpolated.squeeze(1).numpy()
 
+
 def resize_dep_maps(dep_map: torch.Tensor, height: int, width: int) -> np.ndarray:
-    """Resize the dep map to the correct size (size of the mask)
-    """
+    """Resize the dep map to the correct size (size of the mask)"""
     dep_map_unsqueezed = dep_map.unsqueeze(1)
     dep_map_interpolated = F.interpolate(
         dep_map_unsqueezed, size=(height, width), mode="bicubic"
     )
     return dep_map_interpolated.squeeze(1).numpy()
+
 
 def add_errors_dep_to_polygons_batch(
     masks: np.ndarray,
@@ -133,7 +128,7 @@ def add_errors_dep_to_polygons_batch(
     number_classes: int,
     polygon_type: str,
     dep_heatmaps: torch.Tensor,
-    mislabeled_pixels:np.ndarray,
+    mislabeled_pixels: np.ndarray,
     heights: List[int],
     widths: List[int],
 ) -> None:
@@ -148,7 +143,7 @@ def add_errors_dep_to_polygons_batch(
         mislabeled_pixels (torch.Tensor): map of bs, h, w of mislabled pixels
         heights (List[int]): height of each image
         widths (List[int]): width of each image
-        
+
     """
     lm_maps_resized = resize_lm_maps(mislabeled_pixels, heights[0], widths[0])
     dep_maps_resized = resize_dep_maps(dep_heatmaps, heights[0], widths[0])
@@ -156,14 +151,15 @@ def add_errors_dep_to_polygons_batch(
         mask = masks[idx].numpy()
         polygons_for_image = polygons[idx]
         add_all_errors_for_polygon(
-            mask, 
-            polygons_for_image, 
-            number_classes, 
-            polygon_type, 
-            dep_maps_resized[idx], 
-            lm_maps_resized[idx]
+            mask,
+            polygons_for_image,
+            number_classes,
+            polygon_type,
+            dep_maps_resized[idx],
+            lm_maps_resized[idx],
         )
-        
+
+
 def add_all_errors_for_polygon(
     mask: np.ndarray,
     polygons: List[Polygon],
@@ -184,22 +180,14 @@ def add_all_errors_for_polygon(
     """
     for polygon in polygons:
         out_polygon_im = draw_polygon(polygon, mask.shape[-2:])
-        add_class_errors_to_polygon(mask, out_polygon_im, polygon, polygon_type, number_classes)
+        add_class_errors_to_polygon(
+            mask, out_polygon_im, polygon, polygon_type, number_classes
+        )
         add_background_error_to_polygon(mask, out_polygon_im, polygon, polygon_type)
         add_dep_to_polygon(dep_heatmap, out_polygon_im, polygon)
         add_area_to_polygon(out_polygon_im, polygon)
         add_lm_to_polygon(mislabeled_pixels, out_polygon_im, polygon)
-        
-        
-def add_errors(polygon, mask, number_classes, polygon_type, dep_heatmap, mislabeled_pixels):
-    out_polygon_im = draw_polygon(polygon, mask.shape[-2:])
-    add_class_errors_to_polygon(mask, out_polygon_im, polygon, polygon_type, number_classes)
-    add_background_error_to_polygon(mask, out_polygon_im, polygon, polygon_type)
-    add_dep_to_polygon(dep_heatmap, out_polygon_im, polygon)
-    add_area_to_polygon(out_polygon_im, polygon)
-    add_lm_to_polygon(mislabeled_pixels, out_polygon_im, polygon)
-        
-        
+
 
 def add_background_error_to_polygon(
     mask: np.ndarray, polygon_img: np.ndarray, polygon: Polygon, polygon_type: str
@@ -212,19 +200,23 @@ def add_background_error_to_polygon(
         polygon (Polygon): actual polygon object
         polygon_type (str): polygon type either gold or pred
     """
-    acc = background_accuracy(mask, polygon_img,)
+    acc = background_accuracy(
+        mask,
+        polygon_img,
+    )
     polygon.background_error_pct = acc
     if polygon_type == PolygonType.pred and acc > ERROR_THRESHOLD:
         polygon.error_type = ErrorType.background
     elif polygon_type == PolygonType.gold and acc > ERROR_THRESHOLD:
         polygon.error_type = ErrorType.missed
-        
+
+
 def add_class_errors_to_polygon(
-    mask: np.ndarray, 
-    polygon_img: np.ndarray, 
-    polygon: Polygon, 
+    mask: np.ndarray,
+    polygon_img: np.ndarray,
+    polygon: Polygon,
     polygon_type: str,
-    number_classes: int
+    number_classes: int,
 ) -> None:
     """Adds class error to a polygon
 
@@ -236,15 +228,18 @@ def add_class_errors_to_polygon(
         number_classes (int): number of classes in the mask
     """
     polygon.cls_error_data = calculate_classification_error(
-            mask, polygon_img, polygon.label_idx, number_classes
-        )
+        mask, polygon_img, polygon.label_idx, number_classes
+    )
     acc = polygon.cls_error_data.accuracy
     if polygon_type == PolygonType.pred and acc < ERROR_THRESHOLD:
         polygon.error_type = ErrorType.classification
     if polygon_type == PolygonType.gold and acc < ERROR_THRESHOLD:
         polygon.error_type = ErrorType.class_confusion
-        
-def add_dep_to_polygon(dep_map: np.ndarray, polygon_img: np.ndarray, polygon: Polygon) -> None:
+
+
+def add_dep_to_polygon(
+    dep_map: np.ndarray, polygon_img: np.ndarray, polygon: Polygon
+) -> None:
     """Adds dep of the polygon to a specific polygon
 
     Args:
@@ -255,7 +250,8 @@ def add_dep_to_polygon(dep_map: np.ndarray, polygon_img: np.ndarray, polygon: Po
     relevant_region = polygon_img != BACKGROUND_CLASS
     dep_score = dep_map[relevant_region].mean()
     polygon.data_error_potential = dep_score
-    
+
+
 def add_area_to_polygon(polygon_img: np.ndarray, polygon: Polygon) -> None:
     """Adds area of the polygon to a specific polygon
 
@@ -264,8 +260,11 @@ def add_area_to_polygon(polygon_img: np.ndarray, polygon: Polygon) -> None:
         polygon (Polygon): polygon object
     """
     polygon.area = (polygon_img != 0).sum()
-    
-def add_lm_to_polygon(mislabeled_pixels: np.ndarray, polygon_img: np.ndarray, polygon: Polygon) -> None:
+
+
+def add_lm_to_polygon(
+    mislabeled_pixels: np.ndarray, polygon_img: np.ndarray, polygon: Polygon
+) -> None:
     """Adds lm of the polygon to a specific polygon
 
     Args:

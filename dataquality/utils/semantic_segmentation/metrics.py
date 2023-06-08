@@ -1,6 +1,6 @@
+import os
 from tempfile import NamedTemporaryFile
 from typing import List, Tuple
-import os
 
 import numpy as np
 import torch
@@ -98,6 +98,7 @@ def calculate_dep_heatmaps(
     gold_masks = gold_masks.cpu()
     return dep_masks.cpu()
 
+
 def write_dep_to_disk(
     dep_heatmaps: torch.Tensor,
     image_ids: List[int],
@@ -111,7 +112,6 @@ def write_dep_to_disk(
             img = dep_heatmap_to_img(dep_heatmap)
             img = colorize_dep_heatmap(img, 128)
             img.save(f, "PNG")
-        
 
 
 def upload_dep_heatmaps(

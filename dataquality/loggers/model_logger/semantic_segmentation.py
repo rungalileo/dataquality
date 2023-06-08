@@ -15,10 +15,9 @@ from dataquality.schemas.ml import ClassType
 from dataquality.schemas.semantic_segmentation import IoUType, Polygon, PolygonType
 from dataquality.schemas.split import Split
 from dataquality.utils.semantic_segmentation.errors import (
-    add_errors_dep_to_polygons_batch
+    add_errors_dep_to_polygons_batch,
 )
 from dataquality.utils.semantic_segmentation.metrics import (
-    add_area_to_polygons_batch,
     calculate_and_upload_dep,
     calculate_batch_iou,
 )
@@ -26,8 +25,6 @@ from dataquality.utils.semantic_segmentation.polygons import (
     find_polygons_batch,
     write_polygon_contours_to_disk,
 )
-
-import time
 
 object_store = ObjectStore()
 
@@ -102,11 +99,6 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         """Minio path for Likely Mislabeled heatmaps"""
         return f"{self.proj_run}/{self.split_name_path}/LM"
 
-    @property
-    def minio_dep_path(self) -> str:
-        """Minio path for Data Error Potential heatmaps"""
-        return f"{self.proj_run}/{self.split_name_path}/dep"
-    
     @property
     def local_dep_path(self) -> str:
         return f"{self.local_proj_run_path}/{self.split_name_path}/dep"
@@ -196,7 +188,6 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
     def _get_data_dict(self) -> Dict:
         """Returns a dictionary of data to be logged as a DataFrame"""
         # DEP & likely mislabeled
-        now = time.time()
         mean_mislabeled = torch.mean(self.mislabled_pixels, dim=(1, 2)).numpy()
 
         image_dep, dep_heatmaps = calculate_and_upload_dep(

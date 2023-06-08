@@ -34,8 +34,6 @@ from dataquality.utils.semantic_segmentation.utils import mask_to_boundary
 from dataquality.utils.thread_pool import ThreadPoolManager, lock
 from dataquality.utils.torch import ModelHookManager, store_batch_indices
 
-import time
-
 a = Analytics(ApiClient, dq.config)  # type: ignore
 a.log_import("torch")
 object_store = ObjectStore()
@@ -430,7 +428,7 @@ class SemanticTorchLogger(TorchLogger):
             progress=False,
             bucket_name=GALILEO_DEFAULT_RESULT_BUCKET_NAME,
         )
-        
+
     def upload_dep_split(self, split: str) -> None:
         """Uploads all dep files for a given split to minio
 
@@ -438,24 +436,31 @@ class SemanticTorchLogger(TorchLogger):
             split (str): split name
         """
         from dataquality.utils.upload import chunk_load_then_upload_df
+
         model_logger = dq.get_model_logger()
         project_path = f"{model_logger.LOG_FILE_DIR}/{config.current_project_id}"
         local_dep_path = f"{project_path}/{config.current_run_id}/{split}/dep"
-        
+
         files = os.listdir(local_dep_path)
         for i, file in enumerate(files):
             file = f"{local_dep_path}/{file}"
             files[i] = file
-            
+        project_id = f"{config.current_project_id}"
+        run_id = f"{config.current_run_id}"
+        split = f"{split}"
         chunk_load_then_upload_df(
             file_list=files,
-            project_id=config.current_project_id,
-            export_cols=['data'],
+            project_id=project_id,
+            run_id=run_id,
+            split=split,
+            folder="dep",
+            export_cols=["data", "object_path"],
             temp_dir=local_dep_path,
             export_format="arrow",
             show_progress=False,
+            bucket=GALILEO_DEFAULT_RESULT_BUCKET_NAME,
+            use_local_image_names=True,
         )
-        
 
     def finish(self) -> None:
         # call to eval to make sure we are not in train mode for batch norm
