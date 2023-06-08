@@ -30,12 +30,12 @@ jobs:
         run: pip install invoke
 
       - name: install dependencies
-        if: ${{ matrix.python-version }} != "3.7"
-        run: inv install
-
-      - name: install dependencies (python 3.7)
-        if: ${{ matrix.python-version }} == "3.7"
-        run: inv install --no-editable -e dev,test,doc,py37
+        run: |
+          if [[ ${{ matrix.python-version }} == "3.7" ]]; then
+            inv install --no-editable -e dev,test,doc,py37
+          else
+            inv install --no-editable
+          fi
 
       - name: test
         run: inv test
