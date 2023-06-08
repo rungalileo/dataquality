@@ -445,6 +445,7 @@ class SemanticTorchLogger(TorchLogger):
         for i, file in enumerate(files):
             file = f"{local_dep_path}/{file}"
             files[i] = file
+        print(files)
 
         chunk_load_then_upload_df(
             file_list=files,
@@ -454,6 +455,7 @@ class SemanticTorchLogger(TorchLogger):
             export_format="arrow",
             show_progress=False,
             bucket=GALILEO_DEFAULT_RESULT_BUCKET_NAME,
+            use_local_image_names=True
         )
 
     def finish(self) -> None:

@@ -12,6 +12,7 @@ from pydantic import UUID4
 from tqdm import tqdm
 
 from dataquality import config
+from dataquality.core._config import GALILEO_DEFAULT_IMG_BUCKET_NAME
 from dataquality.clients.api import ApiClient
 from dataquality.exceptions import GalileoException
 
@@ -32,6 +33,7 @@ class UploadDfWorker(Thread):
         show_progress: bool = True,
         pbar: Optional[Any] = None,
         step: Optional[int] = None,
+        use_local_image_names: bool = False,
     ) -> None:
         Thread.__init__(self)
         self.queue = request_queue
@@ -46,6 +48,7 @@ class UploadDfWorker(Thread):
         self.step = step
         self.temp_dir = temp_dir
         self.bucket = bucket
+        self.use_local_image_names = use_local_image_names
 
     def _upload_file_for_project(
         self,
@@ -83,7 +86,10 @@ class UploadDfWorker(Thread):
                 ) -> Dict[str, Union[str, bytes]]:
                     with open(file_path, "rb") as f:
                         img = f.read()
-                        hash = hashlib.md5(img).hexdigest()
+                        if self.use_local_image_names:
+                            hash = file_path.split("/")[-1].split(".")[0]
+                        else:
+                            hash = hashlib.md5(img).hexdigest()
                         ext = os.path.splitext(file_path)[1]
                         return {
                             "file_path": file_path,
@@ -121,7 +127,7 @@ def chunk_load_then_upload_df(
     file_list: List[str],
     export_cols: List[str],
     temp_dir: str,
-    bucket: str,
+    bucket: str = GALILEO_DEFAULT_IMG_BUCKET_NAME,
     project_id: Optional[UUID4] = None,
     parallel: bool = False,
     step: int = 50,
@@ -129,6 +135,7 @@ def chunk_load_then_upload_df(
     stop_val: str = "END",
     export_format: str = "arrow",
     show_progress: bool = True,
+    use_local_image_names: bool = False,
 ) -> None:
     if parallel:
         num_workers = multiprocessing.cpu_count()
@@ -163,6 +170,7 @@ def chunk_load_then_upload_df(
             step=step,
             temp_dir=temp_dir,
             bucket=bucket,
+            use_local_image_names=use_local_image_names,
         )
         worker.start()
         workers.append(worker)
