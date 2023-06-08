@@ -75,14 +75,14 @@ class UploadDfWorker(Thread):
             export_cols=self.export_cols,
             bucket=self.bucket,
         )
-        
+
     def _file_suffix(
-        self, 
-        project_id: Optional[str] = None, 
+        self,
+        project_id: Optional[str] = None,
         run_id: Optional[str] = None,
         split: Optional[str] = None,
         folder: Optional[str] = None,
-        ) -> str:
+    ) -> str:
         file_suffix = ""
         if project_id:
             file_suffix += f"/{project_id}"
@@ -92,7 +92,7 @@ class UploadDfWorker(Thread):
             file_suffix += f"/{split}"
         if folder:
             file_suffix += f"/{folder}"
-        return file_suffix + '/'
+        return file_suffix + "/"
 
     def run(self) -> None:
         while True:
@@ -113,17 +113,16 @@ class UploadDfWorker(Thread):
                     with open(file_path, "rb") as f:
                         img = f.read()
                         object_path = self._file_suffix(
-                                project_id=self.project_id,
-                                run_id=self.run_id,
-                                split=self.split,
-                                folder=self.folder,
-                            )
+                            project_id=self.project_id,
+                            run_id=self.run_id,
+                            split=self.split,
+                            folder=self.folder,
+                        )
                         if self.use_local_image_names:
                             object_path += file_path.split("/")[-1].split(".")[0]
                         else:
                             object_path += hashlib.md5(img).hexdigest()
                         ext = os.path.splitext(file_path)[1]
-                        print(object_path + ext)
                         return {
                             "file_path": file_path,
                             "data": img,

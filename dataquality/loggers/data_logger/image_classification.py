@@ -143,7 +143,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             chunk_load_then_upload_df(
                 file_list=file_list,
                 export_cols=["data", "object_path"],
-                object_path=project_id,
+                project_id=project_id,
                 temp_dir=temp_dir,
                 parallel=parallel,
                 export_format=export_format,
