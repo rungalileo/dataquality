@@ -39,24 +39,30 @@ def clean(ctx: Context) -> None:
 
 
 @task
-def install(
-    ctx: Context, extras: Optional[List[str]] = None, editable: bool = True
-) -> None:
+def install(ctx: Context, extras: Optional[str] = None, editable: bool = True) -> None:
     """install
 
     Install dependencies.
+
+    Args:
+        ctx (Context): The invoke context.
+        extras (str, optional): The extras to install. Defaults to None. If None,
+            then the default extras are installed. Specify as a comma-separated
+            string.
+        editable (bool, optional): Whether to install in editable mode. Defaults to
+            True.
     """
     if extras is None:
-        extras = ["dev", "test", "doc"]
+        extras = "dev,test,doc"
     ctx.run(
         "pip install --upgrade pip",
         pty=True,
         echo=True,
     )
     if editable:
-        cmd = f"pip install -e '.[{','.join(extras)}]'"
+        cmd = f"pip install -e '.[{extras}]'"
     else:
-        cmd = f"pip install '.[{','.join(extras)}]'"
+        cmd = f"pip install '.[{extras}]'"
     ctx.run(
         cmd,
         pty=True,

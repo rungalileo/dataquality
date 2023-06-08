@@ -35,7 +35,7 @@ jobs:
 
       - name: install dependencies (python 3.7)
         if: ${{ matrix.python-version }} == "3.7"
-        run: inv install -e dev,test,doc,py37
+        run: inv install --no-editable -e dev,test,doc,py37
 
       - name: test
         run: inv test
