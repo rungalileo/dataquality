@@ -76,7 +76,7 @@ class UploadDfWorker(Thread):
             bucket=self.bucket,
         )
 
-    def _file_suffix(
+    def _file_prefix(
         self,
         project_id: Optional[str] = None,
         run_id: Optional[str] = None,
@@ -112,7 +112,7 @@ class UploadDfWorker(Thread):
                 ) -> Dict[str, Union[str, bytes]]:
                     with open(file_path, "rb") as f:
                         img = f.read()
-                        object_path = self._file_suffix(
+                        object_path = self._file_prefix(
                             project_id=self.project_id,
                             run_id=self.run_id,
                             split=self.split,
