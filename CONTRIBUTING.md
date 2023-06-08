@@ -28,33 +28,26 @@ $ which python pip
 
 ## Flit
 
-This project uses `flit` to manage our project's dependencies.
+This project uses `setuptools` to manage our project's dependencies and `invoke` for running tasks.
 
-After activating the environment as described above, install flit:
-
-```sh
-$ pip install flit
-```
-
-Install dependencies
+After activating the environment as described above, install `invoke` and setup your local environment:
 
 ```sh
-./scripts/install.sh
+pip install --upgrade pip
+pip install invoke
+inv all
 ```
 
 ## Development
-Developing with Flit is simple. Symlink this repo to your venv so you can make changes
-and test them without reinstalling the package.
 
-Run the following from the root of dataquality:
+To install a development version of the package in another python environment, simply use that virtual enviroment's pip:
+
 ```sh
-flit install -s
+pip install -e .
 ```
 
-You can specify which python environment to install into using the `--python` flag
-(useful for developing/testing from external venvs)
-
 ### Debugging
+
 If you're looking to debug some code in dataquality, for example with `pdb` in jupyter,
 you can do that easily:
 1. Install and symlink `dataquality` as shown above
@@ -66,7 +59,7 @@ you can do that easily:
 ## Formatting
 
 ```sh
-./scripts/format.sh
+inv format
 ```
 
 ## Tests
@@ -76,13 +69,13 @@ You will need to have a local cluster running, read our [API documentation](http
 Set some local env variables
 
 ```
-. ./scripts/set-local-env.sh
+GALILEO_CONSOLE_URL="http://localhost:3000"
 ```
 
 Now run your tests!
 
 ```sh
-./scripts/test-cov-html.sh
+inv test
 ```
 
 
@@ -91,7 +84,7 @@ Now run your tests!
 Run this from this project's root directory to boot up tests.
 
 ```
-. ./scripts/set-local-env.sh; jupyter notebook docs/
+GALILEO_CONSOLE_URL="http://localhost:3000" jupyter notebook docs/
 ```
 
 
@@ -100,7 +93,7 @@ Run this from this project's root directory to boot up tests.
 Everything is done through github actions. Make sure to bump the version of the package
 
 ```
-./scripts/bump-version.sh
+inv update-version-number
 ```
 
 commit the change and publish a new version.
