@@ -449,7 +449,7 @@ class SemanticTorchLogger(TorchLogger):
         chunk_load_then_upload_df(
             file_list=files,
             project_id=config.current_project_id,
-            export_cols=["data"],
+            export_cols=["data", "object_path"],
             temp_dir=local_dep_path,
             export_format="arrow",
             show_progress=False,
