@@ -11,10 +11,8 @@ import vaex
 from pydantic import UUID4
 from tqdm import tqdm
 
-from dataquality import config
 from dataquality.clients.api import ApiClient
 from dataquality.core._config import GALILEO_DEFAULT_IMG_BUCKET_NAME
-from dataquality.exceptions import GalileoException
 
 api_client = ApiClient()
 
@@ -30,17 +28,17 @@ class UploadDfWorker(Thread):
         export_cols: List[str],
         temp_dir: str,
         bucket: str,
+        object_path: str,
         show_progress: bool = True,
         pbar: Optional[Any] = None,
         step: Optional[int] = None,
-        use_local_image_names: bool = False,
-        folder_suffix: Optional[str] = None,
+        use_data_md5_hash: bool = True,
     ) -> None:
         Thread.__init__(self)
+        self.project_id = project_id
         self.queue = request_queue
         self.results: list = []
         self.stop_val = stop_val
-        self.project_id = project_id
         self.file_list = file_list
         self.export_format = export_format
         self.export_cols = export_cols
@@ -49,26 +47,8 @@ class UploadDfWorker(Thread):
         self.step = step
         self.temp_dir = temp_dir
         self.bucket = bucket
-        self.use_local_image_names = use_local_image_names
-        self.folder_suffix = folder_suffix
-
-    def _upload_file_for_project(
-        self,
-        file_path: str,
-        project_id: Optional[UUID4] = None,
-    ) -> Any:
-        project_id = project_id or config.current_project_id
-        if project_id is None:
-            raise GalileoException(
-                "project_id is not set in your config. Have you run dq.init()?"
-            )
-        return api_client.upload_file_for_project(
-            project_id=str(project_id),
-            file_path=file_path,
-            export_format=self.export_format,
-            export_cols=self.export_cols,
-            bucket=self.bucket,
-        )
+        self.object_path = object_path
+        self.use_data_md5_hash = use_data_md5_hash
 
     def run(self) -> None:
         while True:
@@ -88,19 +68,20 @@ class UploadDfWorker(Thread):
                 ) -> Dict[str, Union[str, bytes]]:
                     with open(file_path, "rb") as f:
                         img = f.read()
-                        object_path = f"{self.project_id}/"
-                        if self.folder_suffix:
-                            object_path += f"{self.folder_suffix}/"
 
-                        if self.use_local_image_names:
-                            object_path += file_path.split("/")[-1].split(".")[0]
+                        if self.use_data_md5_hash:
+                            # Use a md5 hash of the data as the file name
+                            # This can be used to de-dup data (e.g. images)
+                            file_name = hashlib.md5(img).hexdigest()
                         else:
-                            object_path += hashlib.md5(img).hexdigest()
+                            # Get the file name without the extension
+                            file_name = file_path.split("/")[-1].split(".")[0]
                         ext = os.path.splitext(file_path)[1]
                         return {
                             "file_path": file_path,
                             "data": img,
-                            "object_path": object_path + ext,
+                            "object_path": os.path.join(self.object_path, file_name)
+                            + ext,
                         }
 
                 df = vaex.from_records(
@@ -113,9 +94,12 @@ class UploadDfWorker(Thread):
                 )
 
                 df[self.export_cols].export(chunk_file_path)
-                res = self._upload_file_for_project(
+                res = api_client.upload_file_for_project(
+                    project_id=str(self.project_id),
                     file_path=chunk_file_path,
-                    project_id=self.project_id,
+                    export_format=self.export_format,
+                    export_cols=self.export_cols,
+                    bucket=self.bucket,
                 )
                 os.remove(chunk_file_path)
                 if res.ok:
@@ -133,22 +117,24 @@ def chunk_load_then_upload_df(
     file_list: List[str],
     export_cols: List[str],
     temp_dir: str,
-    bucket: str = GALILEO_DEFAULT_IMG_BUCKET_NAME,
     project_id: Optional[UUID4] = None,
-    folder_suffix: Optional[str] = None,
+    object_path: Optional[str] = None,
+    bucket: str = GALILEO_DEFAULT_IMG_BUCKET_NAME,
     parallel: bool = False,
     step: int = 50,
     num_workers: int = 1,
     stop_val: str = "END",
     export_format: str = "arrow",
     show_progress: bool = True,
-    use_local_image_names: bool = False,
+    use_data_md5_hash: bool = True,
 ) -> None:
     if parallel:
         num_workers = multiprocessing.cpu_count()
 
     if project_id is None:
         raise ValueError("project_id must be provided")
+
+    object_path = object_path or str(project_id)
 
     # Create queue and add the ends of the chunks
     total = len(file_list)
@@ -177,8 +163,8 @@ def chunk_load_then_upload_df(
             step=step,
             temp_dir=temp_dir,
             bucket=bucket,
-            use_local_image_names=use_local_image_names,
-            folder_suffix=folder_suffix.strip("/") if folder_suffix else None,
+            use_data_md5_hash=use_data_md5_hash,
+            object_path=object_path,
         )
         worker.start()
         workers.append(worker)
