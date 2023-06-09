@@ -195,7 +195,7 @@ def watch(
     logits_fn: Optional[Callable] = None,
     last_hidden_state_layer: Union[Module, str, None] = None,
     unpatch_on_start: bool = False,
-    dataloader_random_sampling: bool = False,
+    dataloader_random_sampling: bool = True,
 ) -> None:
     """
     wraps a PyTorch model and optionally dataloaders to log the

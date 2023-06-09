@@ -5,7 +5,7 @@ import sys
 import warnings
 from abc import abstractmethod
 from collections import Counter
-from typing import Any, Dict, Iterable, List, Optional, TypeVar, Union
+from typing import Any, Dict, Iterable, List, Optional, Set, TypeVar, Union
 
 import numpy as np
 import pandas as pd
@@ -447,6 +447,18 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         """
         validate_unique_ids(out_frame, epoch_or_inf_name)
         allow_missing_in_df_ids = cls.logger_config.dataloader_random_sampling
+        filter_ids: Set[int] = set()
+        if allow_missing_in_df_ids:
+            observed_ids = cls.logger_config.observed_ids
+            keys = [k for k in observed_ids.keys() if split in k]
+            if len(keys):
+                filter_ids = set(observed_ids[keys[0]])
+            for k in keys:
+                filter_ids = filter_ids.intersection(observed_ids[k])
+            filter_ids_arr: np.ndarray = np.array(list(filter_ids))
+            del filter_ids
+            in_frame = in_frame[in_frame["id"].isin(filter_ids_arr)]
+            out_frame = out_frame[out_frame["id"].isin(filter_ids_arr)]
 
         in_out = _join_in_out_frames(
             in_frame, out_frame, allow_missing_in_df_ids=allow_missing_in_df_ids

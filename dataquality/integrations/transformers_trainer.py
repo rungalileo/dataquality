@@ -12,6 +12,7 @@ from transformers.training_args import TrainingArguments
 import dataquality as dq
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
+from dataquality.core.log import get_data_logger
 from dataquality.exceptions import GalileoException
 from dataquality.integrations.torch import TorchBaseInstance
 from dataquality.schemas.split import Split
@@ -288,6 +289,7 @@ def watch(
     embedding_fn: Optional[Callable] = None,
     logits_fn: Optional[Callable] = None,
     last_hidden_state_layer: Optional[Layer] = None,
+    dataloader_random_sampling: bool = True,
 ) -> None:
     """*Hook* into to the **trainer** to log to Galileo.
     :param trainer: Trainer object from the transformers library
@@ -299,6 +301,8 @@ def watch(
     :param embedding_fn: Function to extract the embedding
     :param last_hidden_state_layer: Name of the last hidden state layer if
         classifier_layer is not provided
+    :param dataloader_random_sampling: If True, the data will be dropped that is not
+        logged by the model
     """
     a.log_function("transformers_trainer/watch")
     helper_data = dq.get_model_logger().logger_config.helper_data
@@ -331,6 +335,9 @@ def watch(
     # Unpatch Trainer after logging (when finished is called)
     cleanup_manager = RefManager(lambda: unwatch(trainer))
     helper_data["cleaner"] = Cleanup(cleanup_manager)
+    logger_config = get_data_logger().logger_config
+    if dataloader_random_sampling:
+        logger_config.dataloader_random_sampling = True
 
 
 def unwatch(trainer: Trainer) -> None:

@@ -273,7 +273,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         allow_missing_in_df_ids = cls.logger_config.dataloader_random_sampling
         filter_ids: Set[int] = set()
         if allow_missing_in_df_ids:
-            observed_ids = image_classification_logger_config.observed_ids
+            observed_ids = cls.logger_config.observed_ids
             keys = [k for k in observed_ids.keys() if split in k]
             if len(keys):
                 filter_ids = set(observed_ids[keys[0]])

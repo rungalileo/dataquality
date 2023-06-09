@@ -1,4 +1,5 @@
 import os
+import warnings
 from typing import Dict, List, Union
 
 import numpy as np
@@ -38,7 +39,7 @@ PCA_MEAN_OBJECT_PATH = f"pca/{PCA_MEAN_NAME}"
 
 
 def _join_in_out_frames(
-    in_df: DataFrame, out_df: DataFrame, allow_missing_in_df_ids: bool = False
+    in_df: DataFrame, out_df: DataFrame, allow_missing_in_df_ids: bool = True
 ) -> DataFrame:
     """Helper function to join our input and output frames"""
     in_frame = in_df.copy()
@@ -61,6 +62,8 @@ def _join_in_out_frames(
     elif allow_missing_in_df_ids:
         # If we're downsampling, we make sure the out and in have an id intersection
         # and then we drop the out rows that don't have a corresponding in
+        if len(in_out) != len(out_frame):
+            warnings.warn("There are IDs that have not been logged by the model.")
         in_ids = set(in_frame["id"].unique())
         out_ids = set(out_frame["id"].unique())
         id_intersection = np.array(list(in_ids.intersection(out_ids)))

@@ -1,5 +1,5 @@
 from enum import Enum, unique
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Set, Union
 
 import numpy as np
 
@@ -172,6 +172,7 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
 
     def _get_data_dict(self) -> Dict[str, Any]:
         # Handle the binary case by converting it to 2-class classification
+        self._filter_duplicate_ids()
         probs = np.array(self.probs)
         if probs.shape[-1] == 1:
             self.probs = np.column_stack((1 - probs, probs))
@@ -188,6 +189,41 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         if self.split == Split.inference:
             data["inference_name"] = [self.inference_name] * num_samples_in_batch
         return data
+
+    def _filter_duplicate_ids(self) -> None:
+        """To avoid duplicate ids, when augmentation is used.
+        Filter out duplicate ids in the batch. This is done by keeping track of
+        the ids that have been observed in the current epoch in the config"""
+
+        key = f"{self.split}_{self.epoch}"
+        if key not in self.logger_config.observed_ids:
+            self.logger_config.observed_ids[key] = set()
+        observed_ids = self.logger_config.observed_ids[key]
+        unique_ids: Set = set()
+        unique_ids.update(self.ids)
+        _unique_ids = unique_ids.difference(observed_ids)
+        observed_ids.update(_unique_ids)
+        id_to_index = dict()
+        for index, id in enumerate(self.ids):
+            id_to_index[id] = index
+
+        # If there are duplicate ids, filter out the duplicates
+        if len(self.ids) > len(_unique_ids):
+            # cur_epoch = get_data_logger().logger_config.cur_epoch
+
+            get_dq_logger().warning(
+                f"Duplicate ids found in epoch. {self.epoch}"
+                f"Batch size: {len(self.ids)}, "
+                f"Unique ids: {len(_unique_ids)}"
+                f"Split: {self.split}"
+            )
+            unique_indices = [id_to_index[id] for id in _unique_ids]
+            if len(self.embs) > 0:
+                self.embs = np.array(self.embs)[unique_indices]
+            if len(self.probs) > 0:
+                self.probs = np.array(self.probs)[unique_indices]
+            if len(self.ids) > 0:
+                self.ids = np.array(self.ids)[unique_indices]
 
     def _set_num_labels(self, data: Dict) -> None:
         self.logger_config.observed_num_labels = len(data["prob"][0])
