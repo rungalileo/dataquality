@@ -15,7 +15,7 @@ from dataquality.schemas.ml import ClassType
 from dataquality.schemas.semantic_segmentation import IoUType, Polygon, PolygonType
 from dataquality.schemas.split import Split
 from dataquality.utils.semantic_segmentation.errors import (
-    add_errors_dep_to_polygons_batch,
+    add_errors_and_metrics_to_polygons_batch,
 )
 from dataquality.utils.semantic_segmentation.metrics import (
     calculate_and_upload_dep,
@@ -209,7 +209,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         )
         heights = [img.shape[-2] for img in self.gold_masks]
         widths = [img.shape[-1] for img in self.gold_masks]
-        add_errors_dep_to_polygons_batch(
+        add_errors_and_metrics_to_polygons_batch(
             self.pred_masks,
             gold_polygons_batch,
             n_classes,
@@ -219,7 +219,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             heights=heights,
             widths=widths,
         )
-        add_errors_dep_to_polygons_batch(
+        add_errors_and_metrics_to_polygons_batch(
             self.gold_masks,
             pred_polygons_batch,
             n_classes,
