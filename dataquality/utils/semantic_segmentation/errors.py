@@ -199,7 +199,7 @@ def add_lm_to_polygon(
     polygon.likely_mislabeled_pct = calculate_lm_pct(mislabeled_pixels, polygon_img)
 
 
-def add_all_errors_and_metrics_for_polygon(
+def add_all_errors_and_metrics_for_image(
     mask: np.ndarray,
     polygons: List[Polygon],
     number_classes: int,
@@ -256,7 +256,7 @@ def add_errors_and_metrics_to_polygons_batch(
     for idx in range(len(masks)):
         mask = masks[idx].numpy()
         polygons_for_image = polygons[idx]
-        add_all_errors_and_metrics_for_polygon(
+        add_all_errors_and_metrics_for_image(
             mask,
             polygons_for_image,
             number_classes,
