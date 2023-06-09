@@ -33,6 +33,7 @@ from dataquality.utils.semantic_segmentation.lm import (
 from dataquality.utils.semantic_segmentation.utils import mask_to_boundary
 from dataquality.utils.thread_pool import ThreadPoolManager, lock
 from dataquality.utils.torch import ModelHookManager, store_batch_indices
+from dataquality.utils.upload import chunk_load_then_upload_df
 
 a = Analytics(ApiClient, dq.config)  # type: ignore
 a.log_import("torch")
@@ -435,25 +436,22 @@ class SemanticTorchLogger(TorchLogger):
         Args:
             split (str): split name
         """
-        from dataquality.utils.upload import chunk_load_then_upload_df
 
         model_logger = dq.get_model_logger()
         project_path = f"{model_logger.LOG_FILE_DIR}/{config.current_project_id}"
         local_dep_path = f"{project_path}/{config.current_run_id}/{split}/dep"
 
-        files = os.listdir(local_dep_path)
-        for i, file in enumerate(files):
-            file = f"{local_dep_path}/{file}"
-            files[i] = file
-        project_id = f"{config.current_project_id}"
+        dep_paths = []
+        for file in os.listdir(local_dep_path):
+            dep_paths.append(f"{local_dep_path}/{file}")
+        project_id = config.current_project_id
         run_id = f"{config.current_run_id}"
         split = f"{split}"
+        folder_suffix = f"{run_id}/{split}/dep"
         chunk_load_then_upload_df(
-            file_list=files,
+            file_list=dep_paths,
             project_id=project_id,
-            run_id=run_id,
-            split=split,
-            folder="dep",
+            folder_suffix=folder_suffix,
             export_cols=["data", "object_path"],
             temp_dir=local_dep_path,
             export_format="arrow",
