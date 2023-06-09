@@ -10,6 +10,7 @@ from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelL
 from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.split import Split
 from dataquality.utils.dq_logger import get_dq_logger
+from dataquality.utils.thread_pool import lock
 
 
 @unique
@@ -167,8 +168,15 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
                 self.logger_config.last_epoch = self.epoch
 
     def write_model_output(self, model_output: Dict) -> None:
-        self._set_num_labels(model_output)
-        super().write_model_output(model_output)
+        """Only write model output if there is data to write.
+
+        In classification, it is possible that after filtering
+        duplicate IDs, there are none to write. In that case,
+        we'll get an error trying to write them, so we skip
+        """
+        if len(model_output["id"]):
+            self._set_num_labels(model_output)
+            return super().write_model_output(model_output)
 
     def _filter_duplicate_ids(self) -> None:
         """To avoid duplicate ids, when augmentation is used.
@@ -176,8 +184,10 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         Filter out duplicate ids in the batch. This is done by keeping track of
         the ids that have been observed in the current epoch in the config
         """
-
-        key = f"{self.split}_{self.epoch}"
+        if self.split == Split.inference:
+            key = f"{self.split}_{self.inference_name}"
+        else:
+            key = f"{self.split}_{self.epoch}"
         if key not in self.logger_config.observed_ids:
             self.logger_config.observed_ids[key] = set()
         observed_ids = self.logger_config.observed_ids[key]
@@ -208,7 +218,8 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
                 self.ids = np.array(self.ids)[unique_indices]
 
     def _get_data_dict(self) -> Dict[str, Any]:
-        self._filter_duplicate_ids()
+        with lock:
+            self._filter_duplicate_ids()
         # Handle the binary case by converting it to 2-class classification
         probs = np.array(self.probs)
         if probs.shape[-1] == 1:

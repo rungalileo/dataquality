@@ -546,10 +546,10 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
             filter_ids = set(observed_ids[keys[0]])
         for k in keys:
             filter_ids = filter_ids.intersection(observed_ids[k])
-
-        filter_ids_arr: np.ndarray = np.array(list(filter_ids))
-        in_frame = in_frame[in_frame["id"].isin(filter_ids_arr)]
-        out_frame = out_frame[out_frame["id"].isin(filter_ids_arr)]
+        if filter_ids:
+            filter_ids_arr: np.ndarray = np.array(list(filter_ids))
+            in_frame = in_frame[in_frame["id"].isin(filter_ids_arr)].extract()
+            out_frame = out_frame[out_frame["id"].isin(filter_ids_arr)].extract()
         return super().process_in_out_frames(
             in_frame, out_frame, prob_only, epoch_or_inf_name, split
         )

@@ -4,10 +4,12 @@ from typing import DefaultDict, List, Optional, Set
 import numpy as np
 from pydantic import validator
 
-from dataquality.loggers.logger_config.base_logger_config import BaseLoggerConfig
+from dataquality.loggers.logger_config.text_classification import (
+    TextClassificationLoggerConfig,
+)
 
 
-class TextMultiLabelLoggerConfig(BaseLoggerConfig):
+class TextMultiLabelLoggerConfig(TextClassificationLoggerConfig):
     labels: Optional[List[List[str]]] = None
     observed_num_labels: Optional[List[int]] = None
     observed_labels: DefaultDict[int, Set] = defaultdict(set)

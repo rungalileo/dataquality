@@ -211,7 +211,7 @@ def test_logging_duplicate_ids(
     cleanup_after_use: Callable, set_test_config: Callable
 ) -> None:
     """
-    Tests that logging duplicate ids triggers a failure
+    Tests that logging duplicate ids triggers a warning
     """
     num_records = 50
     _log_text_classification_data(num_records=num_records, unique_ids=False)
@@ -219,12 +219,8 @@ def test_logging_duplicate_ids(
         # Equivalent to the users `finish` call, but we don't want to clean up files yet
         ThreadPoolManager.wait_for_threads()
         c = dataquality.get_data_logger("text_classification")
-        with pytest.raises(GalileoException) as e:
+        with pytest.warns():
             c.upload()
-
-        assert str(e.value).startswith(
-            "It seems your logged output data has duplicate ids"
-        )
     finally:
         # Mock finish() call without calling the API
         ThreadPoolManager.wait_for_threads()
