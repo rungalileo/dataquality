@@ -229,12 +229,12 @@ def add_all_errors_and_metrics_for_polygon(
 
 
 def add_errors_and_metrics_to_polygons_batch(
-    masks: np.ndarray,
+    masks: torch.Tensor,
     polygons: List[List[Polygon]],
     number_classes: int,
     polygon_type: str,
     dep_heatmaps: torch.Tensor,
-    mislabeled_pixels: np.ndarray,
+    mislabeled_pixels: torch.Tensor,
     height: int,
     width: int,
 ) -> None:
