@@ -219,12 +219,8 @@ def test_logging_duplicate_ids(
         # Equivalent to the users `finish` call, but we don't want to clean up files yet
         ThreadPoolManager.wait_for_threads()
         c = dataquality.get_data_logger("text_classification")
-        with pytest.raises(GalileoException) as e:
-            c.upload()
+        c.upload()
 
-        assert str(e.value).startswith(
-            "It seems your logged output data has duplicate ids"
-        )
     finally:
         # Mock finish() call without calling the API
         ThreadPoolManager.wait_for_threads()

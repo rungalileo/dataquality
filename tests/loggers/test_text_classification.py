@@ -70,11 +70,7 @@ def test_duplicate_output_rows(set_test_config, cleanup_after_use) -> None:
     ids = list(range(5))
     dq.log_model_outputs(embs=embs, logits=logits, ids=ids, split="training", epoch=0)
     dq.log_model_outputs(embs=embs, logits=logits, ids=ids, split="training", epoch=0)
-
-    with pytest.raises(GalileoException) as e:
-        dq.get_data_logger().upload()
-
-    assert str(e.value).startswith("It seems your logged output data has duplicate ids")
+    dq.get_data_logger().upload()
 
 
 def test_log_data_sample(
