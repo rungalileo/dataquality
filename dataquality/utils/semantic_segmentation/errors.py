@@ -168,7 +168,7 @@ def add_class_errors_to_polygon(
 
 
 def calculate_lm_pct(
-    mislabeled_pixel_map: torch.Tensor, polygon_img: np.ndarray
+    mislabeled_pixel_map: np.ndarray, polygon_img: np.ndarray
 ) -> float:
     """Calculates the percentage of mislabeled pixels in a polygon
 
