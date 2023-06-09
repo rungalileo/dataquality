@@ -1,6 +1,6 @@
 from collections import defaultdict
 from enum import Enum, unique
-from typing import Any, DefaultDict, Dict, Iterable, List, Optional, Union, cast
+from typing import Any, DefaultDict, Dict, Iterable, List, Optional, Set, Union, cast
 
 import numpy as np
 import pandas as pd
@@ -526,4 +526,30 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
             f"logged labels of {cls.logger_config.observed_labels}. Set labels must "
             "contain all logged labels. Update your labels with "
             "`dq.set_labels_for_run` or fix input data."
+        )
+
+    @classmethod
+    def process_in_out_frames(
+        cls,
+        in_frame: DataFrame,
+        out_frame: DataFrame,
+        prob_only: bool,
+        epoch_or_inf_name: str,
+        split: str,
+    ) -> BaseLoggerDataFrames:
+        # Handle missing IDs in the dataframe. Remove rows that weren't logged
+        # in every epoch
+        filter_ids: Set[int] = set()
+        observed_ids = cls.logger_config.observed_ids
+        keys = [k for k in observed_ids.keys() if split in k]
+        if len(keys):
+            filter_ids = set(observed_ids[keys[0]])
+        for k in keys:
+            filter_ids = filter_ids.intersection(observed_ids[k])
+
+        filter_ids_arr: np.ndarray = np.array(list(filter_ids))
+        in_frame = in_frame[in_frame["id"].isin(filter_ids_arr)]
+        out_frame = out_frame[out_frame["id"].isin(filter_ids_arr)]
+        return super().process_in_out_frames(
+            in_frame, out_frame, prob_only, epoch_or_inf_name, split
         )
