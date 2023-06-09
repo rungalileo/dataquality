@@ -117,7 +117,7 @@ def chunk_load_then_upload_df(
     file_list: List[str],
     export_cols: List[str],
     temp_dir: str,
-    project_id: UUID4,
+    project_id: Optional[UUID4] = None,
     object_path: Optional[str] = None,
     bucket: str = GALILEO_DEFAULT_IMG_BUCKET_NAME,
     parallel: bool = False,
@@ -131,7 +131,10 @@ def chunk_load_then_upload_df(
     if parallel:
         num_workers = multiprocessing.cpu_count()
 
-    object_path = object_path or project_id
+    if project_id is None:
+        raise ValueError("project_id must be provided")
+
+    object_path = object_path or str(project_id)
 
     # Create queue and add the ends of the chunks
     total = len(file_list)
