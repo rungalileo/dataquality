@@ -7,8 +7,8 @@ from torch.nn import Module
 from torch.utils.data import Dataset as TorchDataset
 from transformers import Trainer
 from transformers.trainer_callback import TrainerCallback, TrainerControl, TrainerState
-from transformers.training_args import TrainingArguments
 from transformers.trainer_utils import EvaluationStrategy
+from transformers.training_args import TrainingArguments
 
 import dataquality as dq
 from dataquality.analytics import Analytics
@@ -302,7 +302,7 @@ def watch(
         classifier_layer is not provided
     """
     a.log_function("transformers_trainer/watch")
-    if trainer.args.evaluation_strategy == EvaluationStrategy.steps:
+    if trainer.args.evaluation_strategy == EvaluationStrategy.STEPS:
         raise GalileoException(
             "Evaluation strategy 'steps' is not supported by 'watch'. Please use 'epoch'"
         )

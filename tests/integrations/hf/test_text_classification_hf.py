@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 
 import evaluate
 import numpy as np
+import pytest
 import torch
 import vaex
 from torch.nn import Module
@@ -16,6 +17,7 @@ from transformers import (
 
 import dataquality as dq
 from dataquality import config
+from dataquality.exceptions import GalileoException
 from dataquality.integrations.transformers_trainer import watch
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
@@ -405,3 +407,17 @@ def test_hf_watch_no_train(
     )
     # Should upload without failing on data validation or otherwise
     dq.finish()
+
+
+def test_watch_raises_error_evaluation_strategy_steps() -> None:
+    """Test that watch raises an error when evaluation strategy is steps"""
+    training_args = TrainingArguments(
+        evaluation_strategy="steps",
+        output_dir=".",
+    )
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+    )
+    with pytest.raises(GalileoException):
+        watch(trainer)
