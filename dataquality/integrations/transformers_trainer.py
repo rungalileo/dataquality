@@ -8,6 +8,7 @@ from torch.utils.data import Dataset as TorchDataset
 from transformers import Trainer
 from transformers.trainer_callback import TrainerCallback, TrainerControl, TrainerState
 from transformers.training_args import TrainingArguments
+from transformers.trainer_utils import EvaluationStrategy
 
 import dataquality as dq
 from dataquality.analytics import Analytics
@@ -301,6 +302,10 @@ def watch(
         classifier_layer is not provided
     """
     a.log_function("transformers_trainer/watch")
+    if trainer.args.evaluation_strategy == EvaluationStrategy.steps:
+        raise GalileoException(
+            "Evaluation strategy 'steps' is not supported by 'watch'. Please use 'epoch'"
+        )
     helper_data = dq.get_model_logger().logger_config.helper_data
     # Callback which we add to the trainer
     # The columns needed for the forward process
