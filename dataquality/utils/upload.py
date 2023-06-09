@@ -90,8 +90,8 @@ class UploadDfWorker(Thread):
                         img = f.read()
                         object_path = f"{self.project_id}/"
                         if self.folder_suffix:
-                            self.object_path += f'{self.folder_suffix}/'
-                        
+                            object_path += f"{self.folder_suffix}/"
+
                         if self.use_local_image_names:
                             object_path += file_path.split("/")[-1].split(".")[0]
                         else:

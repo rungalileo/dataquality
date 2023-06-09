@@ -439,16 +439,17 @@ class SemanticTorchLogger(TorchLogger):
 
         model_logger = dq.get_model_logger()
         project_path = f"{model_logger.LOG_FILE_DIR}/{config.current_project_id}"
-        dep_folder_local = f"{project_path}/{config.current_run_id}/{split}/dep"
+        local_dep_path = f"{project_path}/{config.current_run_id}/{split}/dep"
 
         dep_paths = []
         for file in os.listdir(local_dep_path):
             dep_paths.append(f"{local_dep_path}/{file}")
         project_id = config.current_project_id
-        run_id = config.current_run_id
+        run_id = f"{config.current_run_id}"
         split = f"{split}"
+        folder_suffix = f"{run_id}/{split}/dep"
         chunk_load_then_upload_df(
-            file_list=files,
+            file_list=dep_paths,
             project_id=project_id,
             folder_suffix=folder_suffix,
             export_cols=["data", "object_path"],
