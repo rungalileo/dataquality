@@ -304,7 +304,8 @@ def watch(
     a.log_function("transformers_trainer/watch")
     if trainer.args.evaluation_strategy == EvaluationStrategy.STEPS:
         raise GalileoException(
-            "Evaluation strategy 'steps' is not supported by 'watch'. Please use 'epoch'"
+            "Evaluation strategy 'steps' is not supported by 'watch'. "
+            "Please use 'epoch'"
         )
     helper_data = dq.get_model_logger().logger_config.helper_data
     # Callback which we add to the trainer
