@@ -17,11 +17,11 @@ from dataquality.utils.semantic_segmentation.constants import (
 from dataquality.utils.semantic_segmentation.polygons import draw_polygon
 
 
-def resize_lm_maps(
+def resize_maps(
     mislabeled_pixel_map: torch.Tensor, height: int, width: int
 ) -> np.ndarray:
-    """Resize the lm map to the correct size (size of the mask)
-    for interpolate need to be in format bs, c, h, w and right now we only have h, w
+    """Resize the lm/dep map to the correct size (size of the mask)
+    for interpolate need to be in format bs, c, h, w and right now we only have bs, h, w
     this results in mislabeled_pixel_map.shape = (1, 1, h, w)
     """
     mislabeled_pixel_map_unsqueezed = mislabeled_pixel_map.unsqueeze(1)
@@ -30,15 +30,6 @@ def resize_lm_maps(
     )
     # squeeze the extra dimensions back to (h, w)
     return mislabeled_pixel_map_interpolated.squeeze(1).numpy()
-
-
-def resize_dep_maps(dep_map: torch.Tensor, height: int, width: int) -> np.ndarray:
-    """Resize the dep map to the correct size (size of the mask)"""
-    dep_map_unsqueezed = dep_map.unsqueeze(1)
-    dep_map_interpolated = F.interpolate(
-        dep_map_unsqueezed, size=(height, width), mode="bicubic"
-    )
-    return dep_map_interpolated.squeeze(1).numpy()
 
 
 def background_accuracy(img_mask: np.ndarray, polygon_mask: np.ndarray) -> float:
@@ -244,8 +235,8 @@ def add_errors_and_metrics_to_polygons_batch(
     polygon_type: str,
     dep_heatmaps: torch.Tensor,
     mislabeled_pixels: np.ndarray,
-    heights: List[int],
-    widths: List[int],
+    height: int,
+    width: int,
 ) -> None:
     """Calculates and attaches the error types to each polygon for a whole batch
 
@@ -260,8 +251,8 @@ def add_errors_and_metrics_to_polygons_batch(
         widths (List[int]): width of each image
 
     """
-    lm_maps_resized = resize_lm_maps(mislabeled_pixels, heights[0], widths[0])
-    dep_maps_resized = resize_dep_maps(dep_heatmaps, heights[0], widths[0])
+    lm_maps_resized = resize_maps(mislabeled_pixels, height, width)
+    dep_maps_resized = resize_maps(dep_heatmaps, height, width)
     for idx in range(len(masks)):
         mask = masks[idx].numpy()
         polygons_for_image = polygons[idx]

@@ -209,6 +209,9 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         )
         heights = [img.shape[-2] for img in self.gold_masks]
         widths = [img.shape[-1] for img in self.gold_masks]
+        
+        # all immages will have the same height and width in order to be in a batch
+        # so we can just take the first one for the below functions
         add_errors_and_metrics_to_polygons_batch(
             self.pred_masks,
             gold_polygons_batch,
@@ -216,8 +219,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             polygon_type=PolygonType.gold,
             dep_heatmaps=dep_heatmaps,
             mislabeled_pixels=self.mislabled_pixels,
-            heights=heights,
-            widths=widths,
+            heights=heights[0],
+            widths=widths[0],
         )
         add_errors_and_metrics_to_polygons_batch(
             self.gold_masks,
@@ -226,8 +229,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             polygon_type=PolygonType.pred,
             dep_heatmaps=dep_heatmaps,
             mislabeled_pixels=self.mislabled_pixels,
-            heights=heights,
-            widths=widths,
+            heights=heights[0],
+            widths=widths[0],
         )
 
         image_data = {
