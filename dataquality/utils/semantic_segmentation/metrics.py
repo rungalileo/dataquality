@@ -20,7 +20,7 @@ def calculate_and_upload_dep(
     probs: torch.Tensor,
     gold_masks: torch.Tensor,
     image_ids: List[int],
-    obj_prefix: str,
+    local_folder_path: str,
 ) -> Tuple[List[float], torch.Tensor]:
     """Calculates the Data Error Potential (DEP) for each image in the batch
 
@@ -29,7 +29,7 @@ def calculate_and_upload_dep(
         Image dep is calculated by the average pixel dep.
     """
     dep_heatmaps = calculate_dep_heatmaps(probs, gold_masks)
-    write_dep_to_disk(dep_heatmaps, image_ids, obj_prefix)
+    write_dep_to_disk(dep_heatmaps, image_ids, local_folder_path)
     return calculate_image_dep(dep_heatmaps), dep_heatmaps
 
 
@@ -102,12 +102,19 @@ def calculate_dep_heatmaps(
 def write_dep_to_disk(
     dep_heatmaps: torch.Tensor,
     image_ids: List[int],
-    prefix: str,
+    local_folder_path: str,
 ) -> None:
-    os.makedirs(prefix, exist_ok=True)
+    """Writes dep to disk as a png locally
+
+    Args:
+        dep_heatmaps (torch.Tensor): bs x height x width dep heatmaps
+        image_ids (List[int]): image id for each image in the batch
+        local_folder_path (str): folder path to store the dep heatmaps
+    """
+    os.makedirs(local_folder_path, exist_ok=True)
     for i, image_id in enumerate(image_ids):
         dep_heatmap = dep_heatmaps[i].numpy()
-        obj_name = f"{prefix}/{image_id}.png"
+        obj_name = f"{local_folder_path}/{image_id}.png"
         with open(obj_name, "wb") as f:
             img = dep_heatmap_to_img(dep_heatmap)
             img = colorize_dep_heatmap(img, 128)

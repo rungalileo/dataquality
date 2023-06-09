@@ -99,11 +99,6 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         super().validate_and_format()
 
     @property
-    def lm_path(self) -> str:
-        """Minio path for Likely Mislabeled heatmaps"""
-        return f"{self.proj_run}/{self.split_name_path}/LM"
-
-    @property
     def local_dep_path(self) -> str:
         return f"{self.local_proj_run_path}/{self.split_name_path}/dep"
 
@@ -198,7 +193,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             self.output_probs,
             self.gold_masks,
             self.image_ids,
-            obj_prefix=self.local_dep_path,
+            local_folder_path=self.local_dep_path,
         )
         # Calculate metrics - mean IoU and boundary IoU
         n_classes = len(self.logger_config.labels)
