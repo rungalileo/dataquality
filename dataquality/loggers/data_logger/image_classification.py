@@ -147,6 +147,8 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
                 temp_dir=temp_dir,
                 parallel=parallel,
                 export_format=export_format,
+                use_data_md5_hash=True,
+                object_path=str(project_id),
             )
             df = vaex.open(f"{temp_dir}/*.arrow")
         df = df.to_pandas_df()
