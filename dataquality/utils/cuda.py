@@ -15,7 +15,7 @@ def cuml_available() -> bool:
         import cuml  # noqa F401
 
         return True
-    except ImportError:
+    except Exception:
         return False
 
 
