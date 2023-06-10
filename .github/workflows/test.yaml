@@ -38,6 +38,9 @@ jobs:
           fi
 
       - name: test
+        run: inv lint
+
+      - name: test
         run: inv test
 
       - name: upload coverage
