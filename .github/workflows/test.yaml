@@ -37,7 +37,7 @@ jobs:
             inv install --no-editable
           fi
 
-      - name: test
+      - name: lint
         run: inv lint
 
       - name: test
