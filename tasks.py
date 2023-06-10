@@ -1,5 +1,5 @@
 from enum import Enum, unique
-from typing import List, Optional
+from typing import Optional
 
 from invoke import task
 from invoke.context import Context
