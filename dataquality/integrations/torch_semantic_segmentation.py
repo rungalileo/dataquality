@@ -1,7 +1,13 @@
 import json
 import os
 from tempfile import NamedTemporaryFile
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any
+from typing import Callable
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Tuple
+from typing import Union
 
 import numpy as np
 import torch
@@ -16,7 +22,8 @@ from dataquality.clients.api import ApiClient
 from dataquality.clients.objectstore import ObjectStore
 from dataquality.core._config import GALILEO_DEFAULT_RESULT_BUCKET_NAME
 from dataquality.exceptions import GalileoException
-from dataquality.integrations.torch import TorchLogger, unwatch
+from dataquality.integrations.torch import TorchLogger
+from dataquality.integrations.torch import unwatch
 from dataquality.loggers.model_logger.semantic_segmentation import (
     SemanticSegmentationModelLogger,
 )
@@ -24,15 +31,17 @@ from dataquality.schemas.semantic_segmentation import SemSegCols
 from dataquality.schemas.split import Split
 from dataquality.schemas.torch import HelperData
 from dataquality.utils.helpers import wrap_fn
+from dataquality.utils.semantic_segmentation.lm import calculate_lm_for_batch
+from dataquality.utils.semantic_segmentation.lm import calculate_self_confidence
 from dataquality.utils.semantic_segmentation.lm import (
-    calculate_lm_for_batch,
-    calculate_self_confidence,
     calculate_self_confidence_threshold,
-    fill_confident_counts,
 )
+from dataquality.utils.semantic_segmentation.lm import fill_confident_counts
 from dataquality.utils.semantic_segmentation.utils import mask_to_boundary
-from dataquality.utils.thread_pool import ThreadPoolManager, lock
-from dataquality.utils.torch import ModelHookManager, store_batch_indices
+from dataquality.utils.thread_pool import ThreadPoolManager
+from dataquality.utils.thread_pool import lock
+from dataquality.utils.torch import ModelHookManager
+from dataquality.utils.torch import store_batch_indices
 from dataquality.utils.upload import chunk_load_then_upload_df
 
 a = Analytics(ApiClient, dq.config)  # type: ignore
@@ -566,12 +575,11 @@ def watch(
     :param unpatch_on_start: Whether to unpatch the model before patching it
     """
     print(
-        "We assume the dataloaders passed only have transforms that Tensor, Resize, \
-        and Normalize the image and mask\n"
-        "‼ Any cropping or shearing transforms passed will lead to unexpected \
-        results\n"
-        "See docs at https://dq.readthedocs.io/en/latest/ (placeholder) for more info \
-        \n \n"
+        "We assume the dataloaders passed only have transforms that Tensor, Resize"
+        "and Normalize the image and mask\n"
+        "Any cropping or shearing transforms passed will lead to unexpected"
+        "results\n"
+        "See docs at https://docs.rungalileo.io/galileo/how-to-and-faq/python-sdk/watch for more info"
     )
 
     a.log_function("torch/watch")
