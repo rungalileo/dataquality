@@ -1,4 +1,6 @@
+import copy
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
+import uuid
 
 import numpy as np
 import torch
@@ -277,6 +279,7 @@ def watch(
     wait: bool = False,
     batch_size: Optional[int] = None,
     meta: Optional[List] = None,
+    validate_before_training: bool = True,
 ) -> Callable[
     ["Dataset", Split, Optional[List], Optional[str], Optional[Dict], int], torch.Tensor
 ]:
@@ -293,10 +296,10 @@ def watch(
     """
     a.log_function("setfit/watch")
 
-    from setfit import SetFitTrainer
+    from setfit import SetFitTrainer, sample_dataset
 
+    init_kwargs: Dict[str, Any] = {}
     if not dq.config.task_type:
-        init_kwargs: Dict[str, Any] = {}
         if project_name:
             init_kwargs["project_name"] = project_name
         if run_name:
@@ -304,9 +307,6 @@ def watch(
         dq.init("text_classification", **init_kwargs)
 
     labels = labels or []
-    model = setfit
-
-    setfitmanager = PatchManager()
 
     # If the user has already logged input data, skip it during evaluate
     logger_config = dq.get_data_logger().logger_config
@@ -315,6 +315,11 @@ def watch(
         logger_config.helper_data[split_key] = getattr(logger_config, f"{split}_logged")
 
     if isinstance(setfit, SetFitTrainer):
+        if validate_before_training:
+            dq_config = copy.deepcopy(dq.config)
+            dq_logger_config = copy.deepcopy(logger_config)
+            dq_helper_data = copy.deepcopy(dq_logger_config.helper_data)
+        setfitmanager = PatchManager()
         patched_trainer = _PatchSetFitTrainer(
             setfit,
             labels=labels,
@@ -324,8 +329,42 @@ def watch(
             meta=meta,
         )
         setfitmanager.add_patch(patched_trainer)
+
+        if validate_before_training:
+            random_id = str(uuid.uuid4())
+            dq.init(
+                "text_classification",
+                project_name="validate_project_name",
+                run_name=random_id,
+            )
+            logger_config.helper_data = dq_helper_data
+            train_dataset = setfit.train_dataset
+            eval_dataset = setfit.eval_dataset
+            setfit.train_dataset = sample_dataset(setfit.train_dataset, num_samples=2)
+            setfit.eval_dataset = sample_dataset(setfit.eval_dataset, num_samples=2)
+            setfit.train(num_epochs=1)
+            setfit.evaluate()
+            c = dq.get_data_logger("text_classification")
+            c.upload()
+            dq.core.init.delete_run("validate_project_name", random_id)
+            setfit.train_dataset = train_dataset
+            setfit.eval_dataset = eval_dataset
+            setfitmanager.unpatch()
+            dq.config = dq_config
+            dq.get_data_logger().logger_config = dq_logger_config
+            patched_trainer = _PatchSetFitTrainer(
+                setfit,
+                labels=labels,
+                finish=finish,
+                wait=wait,
+                batch_size=batch_size,
+                meta=meta,
+            )
+            setfitmanager.add_patch(patched_trainer)
+
         return evaluate(setfit.model)
     else:
+        model = setfit
         if not labels:
             labels = dq.get_data_logger().logger_config.labels
         assert labels and len(
