@@ -43,7 +43,7 @@ object_store = ObjectStore()
 # Heuristic used to calculate Likely Mislabeled for Semantic Segmentation
 # A larger queue size corresponds to a more accurate estimate of LM.
 # We keep a queue size to overcome memory issues with large SemSeg datasets.
-LIKELY_MISLABELED_QUEUE_SIZE = 500
+LIKELY_MISLABELED_QUEUE_SIZE = 8
 LIKELY_MISLABELED_MAP_SIZE = 32
 
 
@@ -314,8 +314,10 @@ class SemanticTorchLogger(TorchLogger):
             self.prob_queue,
         )
         # if we have not reached our queue size, we do not report mislabeled
+        print(np.unique(mislabeled_pixels), self.prob_queue.shape)
         if self.prob_queue.shape[0] < self.queue_size:
             mislabeled_pixels = torch.zeros_like(mislabeled_pixels)
+        print(np.unique(mislabeled_pixels), self.prob_queue.shape)
         bs = probs.shape[0]
         mislabeled_pixels = mislabeled_pixels[-bs:]
         return mislabeled_pixels
