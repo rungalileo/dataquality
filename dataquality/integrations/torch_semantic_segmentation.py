@@ -566,12 +566,12 @@ def watch(
     :param unpatch_on_start: Whether to unpatch the model before patching it
     """
     print(
-        "We assume the dataloaders passed only have transforms that Tensor, Resize, \
-        and Normalize the image and mask\n"
-        "‼ Any cropping or shearing transforms passed will lead to unexpected \
-        results\n"
-        "See docs at https://dq.readthedocs.io/en/latest/ (placeholder) for more info \
-        \n \n"
+        "We assume the dataloaders passed only have transforms that Tensor, Resize "
+        "and Normalize the image and mask\n"
+        "Any cropping or shearing transforms passed will lead to unexpected "
+        "results\n"
+        "See docs at https://docs.rungalileo.io/galileo/how-to-and-faq/python-sdk/watch"
+        " for more info"
     )
 
     a.log_function("torch/watch")
