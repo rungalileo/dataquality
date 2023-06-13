@@ -206,7 +206,7 @@ def auto(
     if task_type == TaskType.text_classification:
         from dataquality.dq_auto.text_classification import auto as auto_tc
 
-        auto_tc(
+        return auto_tc(
             hf_data=hf_data,
             hf_inference_names=hf_inference_names,
             train_data=train_data,
@@ -225,7 +225,7 @@ def auto(
     elif task_type == TaskType.text_ner:
         from dataquality.dq_auto.ner import auto as auto_ner
 
-        auto_ner(
+        return auto_ner(
             hf_data=hf_data,
             hf_inference_names=hf_inference_names,
             train_data=train_data,

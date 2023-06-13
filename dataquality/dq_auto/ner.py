@@ -175,4 +175,4 @@ def auto(
         run_name=run_name,
     )
     trainer, encoded_data = get_trainer(dd, hf_model, num_train_epochs, labels)
-    do_train(trainer, encoded_data, wait)
+    return do_train(trainer, encoded_data, wait)
