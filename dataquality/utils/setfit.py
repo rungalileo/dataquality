@@ -1,17 +1,21 @@
+import uuid
 from dataclasses import asdict, dataclass, field
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
 import torch
 from torch import Tensor
 
 import dataquality as dq
+from dataquality.integrations.setfit import _PatchSetFitTrainer
 from dataquality.schemas.split import Split
+from dataquality.schemas.task_type import TaskType
+from dataquality.utils.patcher import PatchManager
 
 BATCH_LOG_SIZE = 10_000
 
 if TYPE_CHECKING:
     from datasets import Dataset
-    from setfit import SetFitModel
+    from setfit import SetFitModel, SetFitTrainer
 
 
 @dataclass
@@ -109,3 +113,83 @@ def log_preds_setfit(
     if not return_preds:
         return torch.tensor([])
     return torch.concat(preds)
+
+
+def _prepare_config() -> None:
+    # If the user has already logged input data, skip it during evaluate
+    logger_config = dq.get_data_logger().logger_config
+    for split in ["training", "validation", "test", "inference"]:
+        split_key = f"setfit_skip_input_log_{split}"
+        logger_config.helper_data[split_key] = getattr(logger_config, f"{split}_logged")
+
+
+def _setup_patches(
+    setfit: Union["SetFitModel", "SetFitTrainer"],
+    labels: List[str],
+    finish: bool = True,
+    wait: bool = False,
+    batch_size: Optional[int] = None,
+    meta: Optional[List] = None,
+) -> None:
+    setfitmanager = PatchManager()
+    patched_trainer = _PatchSetFitTrainer(
+        setfit,
+        labels=labels,
+        finish=finish,
+        wait=wait,
+        batch_size=batch_size,
+        meta=meta,
+    )
+    setfitmanager.add_patch(patched_trainer)
+
+
+def validate_setfit(
+    setfit: Union["SetFitModel", "SetFitTrainer"],
+    labels: List[str],
+    batch_size: Optional[int] = None,
+    meta: Optional[List] = None,
+) -> None:
+    """Validates a SetFit model.
+    :param setfit: The SetFit model or trainer
+    :param labels: The labels of the model
+    :param wait: Whether to wait for the run to finish
+    :param batch_size: The batch size
+    :param meta: The meta columns
+    """
+    from setfit import sample_dataset
+
+    dq_project_name = dq.config.current_project_name
+    dq_run_name = dq.config.current_run_name
+    random_id = str(uuid.uuid4())
+    dq.init(
+        "text_classification",
+        project_name="validate_project_name",
+        run_name=random_id,
+    )
+    _prepare_config()
+    _setup_patches(
+        setfit,
+        labels,
+        finish=False,
+        batch_size=batch_size,
+        meta=meta,
+    )
+    train_dataset = setfit.train_dataset
+    eval_dataset = setfit.eval_dataset
+    setfit.train_dataset = sample_dataset(setfit.train_dataset, num_samples=2)
+    setfit.eval_dataset = sample_dataset(setfit.eval_dataset, num_samples=2)
+    setfit.train(num_epochs=1)
+    setfit.evaluate()
+    c = dq.get_data_logger(TaskType.text_classification)
+    c.upload()
+    c._cleanup()
+    dq.core.init.delete_run("validate_project_name", random_id)
+    setfit.train_dataset = train_dataset
+    setfit.eval_dataset = eval_dataset
+    PatchManager().unpatch()
+    dq.init(
+        "text_classification",
+        project_name=dq_project_name,
+        run_name=dq_run_name,
+    )
+    _prepare_config()
