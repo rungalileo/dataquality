@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Un
 import numpy as np
 import pandas as pd
 import torch
+from datasets import Dataset, DatasetDict
 
 import dataquality as dq
 from dataquality.analytics import Analytics
@@ -24,7 +25,6 @@ a.log_import("setfit")
 
 
 if TYPE_CHECKING:
-    from datasets import Dataset, DatasetDict
     from setfit import SetFitModel, SetFitTrainer
 
 
@@ -400,12 +400,12 @@ def evaluate(
 
 
 def auto(
-    hf_data: Optional[Union["DatasetDict", str]] = None,
+    hf_data: Optional[Union[DatasetDict, str]] = None,
     hf_inference_names: Optional[List[str]] = None,
-    train_data: Optional[Union[pd.DataFrame, "Dataset", str]] = None,
-    val_data: Optional[Union[pd.DataFrame, "Dataset", str]] = None,
-    test_data: Optional[Union[pd.DataFrame, "Dataset", str]] = None,
-    inference_data: Optional[Dict[str, Union[pd.DataFrame, "Dataset", str]]] = None,
+    train_data: Optional[Union[pd.DataFrame, Dataset, str]] = None,
+    val_data: Optional[Union[pd.DataFrame, Dataset, str]] = None,
+    test_data: Optional[Union[pd.DataFrame, Dataset, str]] = None,
+    inference_data: Optional[Dict[str, Union[pd.DataFrame, Dataset, str]]] = None,
     max_padding_length: int = 200,
     num_train_epochs: int = 15,
     hf_model: str = "sentence-transformers/paraphrase-mpnet-base-v2",
@@ -552,7 +552,7 @@ def auto(
 
 def do_train(
     trainer: "SetFitTrainer",
-    encoded_data: DatasetDict,
+    encoded_data: "DatasetDict",
     wait: bool,
     create_data_embs: Optional[bool] = None,
 ) -> "SetFitTrainer":
