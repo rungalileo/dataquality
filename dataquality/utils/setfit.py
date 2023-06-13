@@ -1,8 +1,10 @@
 from dataclasses import asdict, dataclass, field
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 import torch
+from datasets import DatasetDict
 from torch import Tensor
+from transformers import Trainer
 
 import dataquality as dq
 from dataquality.schemas.split import Split
@@ -109,3 +111,29 @@ def log_preds_setfit(
     if not return_preds:
         return torch.tensor([])
     return torch.concat(preds)
+
+
+def get_trainer(
+    dd: DatasetDict,
+    labels: List[str],
+    model_checkpoint: str,
+    max_padding_length: int,
+    num_train_epochs: int,
+) -> Tuple[Trainer, DatasetDict]:
+    from sentence_transformers.losses import CosineSimilarityLoss
+    from setfit import SetFitModel, SetFitTrainer
+
+    # Used to properly seed the model
+    def model_init() -> Any:
+        return SetFitModel.from_pretrained(model_checkpoint)
+
+    has_val = Split.validation in dd
+
+    trainer = SetFitTrainer(
+        model=model_init(),
+        train_dataset=dd[Split.training],
+        eval_dataset=dd[Split.validation] if has_val else None,
+        loss_class=CosineSimilarityLoss,
+        num_iterations=20,
+    )
+    return trainer, dd

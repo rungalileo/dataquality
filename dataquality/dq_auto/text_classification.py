@@ -3,6 +3,7 @@ from typing import Dict, List, Optional, Union
 import numpy as np
 import pandas as pd
 from datasets import ClassLabel, Dataset, DatasetDict
+from transformers import Trainer
 
 import dataquality as dq
 from dataquality import Analytics, ApiClient
@@ -139,7 +140,7 @@ def auto(
     run_name: Optional[str] = None,
     wait: bool = True,
     create_data_embs: Optional[bool] = None,
-) -> None:
+) -> Trainer:
     """Automatically gets insights on a text classification dataset
 
     Given either a pandas dataframe, file_path, or huggingface dataset path, this
@@ -272,4 +273,4 @@ def auto(
     trainer, encoded_data = get_trainer(
         dd, labels, hf_model, max_padding_length, num_train_epochs
     )
-    do_train(trainer, encoded_data, wait, create_data_embs)
+    return do_train(trainer, encoded_data, wait, create_data_embs)
