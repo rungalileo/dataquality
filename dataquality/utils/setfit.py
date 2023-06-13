@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 import torch
 from datasets import DatasetDict
 from torch import Tensor
-from transformers import Trainer
 
 import dataquality as dq
 from dataquality.schemas.split import Split
@@ -13,7 +12,7 @@ BATCH_LOG_SIZE = 10_000
 
 if TYPE_CHECKING:
     from datasets import Dataset
-    from setfit import SetFitModel
+    from setfit import SetFitModel, SetFitTrainer
 
 
 @dataclass
@@ -114,12 +113,12 @@ def log_preds_setfit(
 
 
 def get_trainer(
-    dd: DatasetDict,
+    dd: "DatasetDict",
     labels: List[str],
     model_checkpoint: str,
     max_padding_length: int,
     num_train_epochs: int,
-) -> Tuple[Trainer, DatasetDict]:
+) -> Tuple["SetFitTrainer", "DatasetDict"]:
     from sentence_transformers.losses import CosineSimilarityLoss
     from setfit import SetFitModel, SetFitTrainer
 
