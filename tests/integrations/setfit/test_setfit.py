@@ -199,6 +199,7 @@ def test_log_dataset(
     },
 )
 @patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
+@patch.object(dq.clients.api.ApiClient, "_get_project_run_id")
 def test_end_to_end(
     mock_valid_user: MagicMock,
     mock_dq_healthcheck: MagicMock,
