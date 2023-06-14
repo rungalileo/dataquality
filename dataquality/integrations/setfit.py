@@ -60,9 +60,7 @@ def watch(
     batch_size: Optional[int] = None,
     meta: Optional[List] = None,
     validate_before_training: bool = True,
-) -> Callable[
-    ["Dataset", Split, Optional[List], Optional[str], Optional[Dict], int], torch.Tensor
-]:
+) -> Callable:
     """Watch a SetFit model or trainer and extract model outputs for dataquality.
     Returns a function that can be used to evaluate the model on a dataset.
     :param setfit: SetFit model or trainer
@@ -123,9 +121,7 @@ def watch(
 
 def evaluate(
     model: "SetFitModel",
-) -> Callable[
-    ["Dataset", Split, Optional[List], Optional[str], Optional[Dict], int], torch.Tensor
-]:
+) -> Callable:
     """Watch SetFit model by replacing predict_proba function with SetFitModelHook.
     :param model: SetFit model
     :return: SetFitModelHook object"""
@@ -133,7 +129,7 @@ def evaluate(
     dq_store = dq_hook.store
 
     def dq_evaluate(
-        dataset: "Dataset",
+        dataset: Dataset,
         split: Split,
         meta: Optional[List] = None,
         inference_name: Optional[str] = None,
@@ -330,7 +326,7 @@ def auto(
 
 def do_train(
     trainer: "SetFitTrainer",
-    encoded_data: "DatasetDict",
+    encoded_data: DatasetDict,
     wait: bool,
     create_data_embs: Optional[bool] = None,
 ) -> "SetFitTrainer":
@@ -340,7 +336,7 @@ def do_train(
         # We pass in a huggingface dataset but typing wise they expect a torch dataset
         dq_evaluate(
             encoded_data[Split.test],
-            split=Split.test,  # type: ignore
+            split=Split.test,
             # for inference set the split to inference
             # and pass an inference_name="inference_run_1"
         )

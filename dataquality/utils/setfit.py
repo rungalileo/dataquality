@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
-from datasets import DatasetDict
+from datasets import Dataset, DatasetDict
 from torch import Tensor
 
 import dataquality as dq
@@ -15,7 +15,6 @@ from dataquality.utils.patcher import Patch, PatchManager
 BATCH_LOG_SIZE = 10_000
 
 if TYPE_CHECKING:
-    from datasets import Dataset
     from setfit import SetFitModel, SetFitTrainer
 
 
@@ -37,7 +36,7 @@ class DataSampleLogArgs:
 
 def log_preds_setfit(
     model: "SetFitModel",
-    dataset: "Dataset",
+    dataset: Dataset,
     split: Split,
     dq_store: Dict,
     batch_size: int,
@@ -196,16 +195,12 @@ def validate_setfit(
     _prepare_config()
 
 
-def _apply_column_mapping(
-    dataset: "Dataset", column_mapping: Dict[str, str]
-) -> "Dataset":
+def _apply_column_mapping(dataset: Dataset, column_mapping: Dict[str, str]) -> Dataset:
     """
     Applies the provided column mapping to the dataset, renaming columns accordingly.
     Extra features not in the column mapping are prefixed with `"feat_"`.
     """
     if type(dataset) == dict:
-        from datasets import Dataset
-
         dataset = Dataset.from_dict(dataset)
     dataset = dataset.rename_columns(
         {
