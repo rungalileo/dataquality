@@ -442,12 +442,10 @@ class _PatchSetFitModel(Patch):
 
 
 def get_trainer(
-    dd: "DatasetDict",
-    labels: List[str],
+    dd: DatasetDict,
     model_checkpoint: str,
-    max_padding_length: int,
-    num_train_epochs: int,
-) -> Tuple["SetFitTrainer", "DatasetDict"]:
+    training_args: Optional[Dict[str, Any]],
+) -> Tuple["SetFitTrainer", DatasetDict]:
     from sentence_transformers.losses import CosineSimilarityLoss
     from setfit import SetFitModel, SetFitTrainer
 
@@ -456,12 +454,16 @@ def get_trainer(
         return SetFitModel.from_pretrained(model_checkpoint)
 
     has_val = Split.validation in dd
-
+    setfit_args = {
+        "loss_class": CosineSimilarityLoss,
+        "num_iterations": 20,
+    }
+    if training_args is not None:
+        setfit_args.update(training_args)
     trainer = SetFitTrainer(
         model=model_init(),
         train_dataset=dd[Split.training],
         eval_dataset=dd[Split.validation] if has_val else None,
-        loss_class=CosineSimilarityLoss,
-        num_iterations=20,
+        **setfit_args,
     )
     return trainer, dd
