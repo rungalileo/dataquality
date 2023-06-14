@@ -814,6 +814,7 @@ class ApiClient:
         file_path: str,
         export_format: str,
         export_cols: List[str],
+        bucket: str,
     ) -> Any:
         url = f"{config.api_url}/{Route.projects}/{project_id}/{Route.upload_file}"
         res = self.make_request(
@@ -832,6 +833,7 @@ class ApiClient:
                         {
                             "export_format": export_format,
                             "export_cols": export_cols,
+                            "bucket": bucket,
                         }
                     ),
                     "application/json",

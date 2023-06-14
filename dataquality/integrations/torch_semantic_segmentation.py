@@ -33,6 +33,7 @@ from dataquality.utils.semantic_segmentation.lm import (
 from dataquality.utils.semantic_segmentation.utils import mask_to_boundary
 from dataquality.utils.thread_pool import ThreadPoolManager, lock
 from dataquality.utils.torch import ModelHookManager, store_batch_indices
+from dataquality.utils.upload import chunk_load_then_upload_df
 
 a = Analytics(ApiClient, dq.config)  # type: ignore
 a.log_import("torch")
@@ -360,7 +361,6 @@ class SemanticTorchLogger(TorchLogger):
             self._init_lm_labels()
             self.init_lm_labels_flag = True
         split = self.logger_config.cur_split.lower()  # type: ignore
-
         with torch.no_grad():
             logging_data = self.helper_data["batch"]["data"]
             img_ids, image_paths = self.get_image_ids_and_image_paths(
@@ -430,6 +430,37 @@ class SemanticTorchLogger(TorchLogger):
             bucket_name=GALILEO_DEFAULT_RESULT_BUCKET_NAME,
         )
 
+    def upload_dep_split(self, split: str) -> None:
+        """Uploads all dep files for a given split to minio
+
+        Args:
+            split (str): split name
+        """
+        project_id = config.current_project_id
+        run_id = str(config.current_run_id)
+        split = split
+
+        model_logger = dq.get_model_logger()
+        project_path = f"{model_logger.LOG_FILE_DIR}/{project_id}"
+        local_dep_path = f"{project_path}/{run_id}/{split}/dep"
+
+        dep_paths = []
+        for file in os.listdir(local_dep_path):
+            dep_paths.append(f"{local_dep_path}/{file}")
+
+        object_path = f"{project_id}/{run_id}/{split}/dep"
+        chunk_load_then_upload_df(
+            file_list=dep_paths,
+            project_id=project_id,
+            object_path=object_path,
+            export_cols=["data", "object_path"],
+            temp_dir=local_dep_path,
+            export_format="arrow",
+            show_progress=False,
+            bucket=GALILEO_DEFAULT_RESULT_BUCKET_NAME,
+            use_data_md5_hash=False,
+        )
+
     def finish(self) -> None:
         # call to eval to make sure we are not in train mode for batch norm
         # in batch norm with 1 example can get an error if we are in train mode
@@ -447,6 +478,7 @@ class SemanticTorchLogger(TorchLogger):
             ThreadPoolManager.wait_for_threads()
             with lock:
                 self.upload_contours_split(split)
+                self.upload_dep_split(split)
         self.model.train()
 
     def run_one_epoch(self, dataloader: DataLoader, device: torch.device) -> None:
@@ -534,12 +566,12 @@ def watch(
     :param unpatch_on_start: Whether to unpatch the model before patching it
     """
     print(
-        "We assume the dataloaders passed only have transforms that Tensor, Resize, \
-        and Normalize the image and mask\n"
-        "‼ Any cropping or shearing transforms passed will lead to unexpected \
-        results\n"
-        "See docs at https://dq.readthedocs.io/en/latest/ (placeholder) for more info \
-        \n \n"
+        "We assume the dataloaders passed only have transforms that Tensor, Resize "
+        "and Normalize the image and mask\n"
+        "Any cropping or shearing transforms passed will lead to unexpected "
+        "results\n"
+        "See docs at https://docs.rungalileo.io/galileo/how-to-and-faq/python-sdk/watch"
+        " for more info"
     )
 
     a.log_function("torch/watch")
