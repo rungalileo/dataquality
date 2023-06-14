@@ -1,10 +1,8 @@
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
-
 import contextlib
 import io
-import numpy as np
-import pandas as pd
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
 
+import pandas as pd
 import torch
 from datasets import Dataset, DatasetDict
 
@@ -18,21 +16,18 @@ from dataquality.dq_auto.text_classification import (
     _log_dataset_dict,
 )
 from dataquality.schemas.split import Split
+from dataquality.schemas.task_type import TaskType
+from dataquality.utils.auto import run_name_from_hf_dataset
 from dataquality.utils.patcher import PatchManager
 from dataquality.utils.setfit import (
     SetFitModelHook,
     _apply_column_mapping,
     _prepare_config,
     _setup_patches,
+    get_trainer,
     log_preds_setfit,
     validate_setfit,
 )
-
-from dataquality.schemas.task_type import TaskType
-from dataquality.utils.auto import run_name_from_hf_dataset
-from dataquality.utils.patcher import Patch, PatchManager
-from dataquality.utils.setfit import get_trainer, log_preds_setfit
-
 
 a = Analytics(ApiClient, dq.config)  # type: ignore
 a.log_import("setfit")

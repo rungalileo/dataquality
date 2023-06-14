@@ -1,7 +1,6 @@
 import uuid
 from dataclasses import asdict, dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -115,7 +114,6 @@ def log_preds_setfit(
     if not return_preds:
         return torch.tensor([])
     return torch.concat(preds)
-
 
 
 def _prepare_config() -> None:
@@ -430,6 +428,7 @@ class _PatchSetFitModel(Patch):
         """Unpatch SetFit model by replacing save_pretrained"""
         setattr(self.model, self.function_name, self.old_fn)
 
+
 def get_trainer(
     dd: "DatasetDict",
     labels: List[str],
@@ -454,4 +453,3 @@ def get_trainer(
         num_iterations=20,
     )
     return trainer, dd
-
