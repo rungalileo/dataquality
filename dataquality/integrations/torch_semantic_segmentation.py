@@ -226,6 +226,7 @@ class SemanticTorchLogger(TorchLogger):
         if self.prob_queue.shape[0] > self.queue_size:
             self.prob_queue = self.prob_queue[bs:]
             self.gold_queue = self.gold_queue[bs:]
+        print('in queue_gold_and_pred', self.prob_queue.shape, self.gold_queue.shape)
 
     def resize_probs_and_gold(
         self, probs: torch.Tensor, gold: torch.Tensor
