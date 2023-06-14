@@ -17,6 +17,7 @@ from dataquality.dq_auto.text_classification import (
 )
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.split import Split
+from dataquality.utils.auto import add_class_label_to_dataset
 
 manager = TCDatasetManager()
 
@@ -77,7 +78,7 @@ def test_add_class_label_to_dataset() -> None:
     ds = Dataset.from_dict(
         {"text": ["sample1", "sample2", "sample3"], "label": ["green", "blue", "green"]}
     )
-    ds = manager._add_class_label_to_dataset(ds)
+    ds = add_class_label_to_dataset(ds)
     assert ds["label"] == [1, 0, 1]
     assert ds.features["label"].names == ["blue", "green"]
 
@@ -86,7 +87,7 @@ def test_add_class_label_to_dataset_int_fields() -> None:
     ds = Dataset.from_dict(
         {"text": ["sample1", "sample2", "sample3"], "label": [1, 0, 1]}
     )
-    ds = manager._add_class_label_to_dataset(ds)
+    ds = add_class_label_to_dataset(ds)
     assert ds["label"] == [1, 0, 1]
     assert isinstance(ds.features["label"], ClassLabel)
     assert ds.features["label"].names == [0, 1]
@@ -98,7 +99,7 @@ def test_add_class_label_to_dataset_no_label() -> None:
             "text": ["sample1", "sample2", "sample3"],
         }
     )
-    ds = manager._add_class_label_to_dataset(ds)
+    ds = add_class_label_to_dataset(ds)
     assert "label" not in ds.features
 
 
@@ -107,7 +108,7 @@ def test_add_class_label_to_dataset_int_labels_label_list_provided() -> None:
         {"text": ["sample1", "sample2", "sample3"], "label": [1, 0, 1]}
     )
     labels = ["red", "green", "blue"]
-    ds = manager._add_class_label_to_dataset(ds, labels)
+    ds = add_class_label_to_dataset(ds, labels)
     assert ds["label"] == [1, 0, 1]
     assert isinstance(ds.features["label"], ClassLabel)
     assert ds.features["label"].names == labels
