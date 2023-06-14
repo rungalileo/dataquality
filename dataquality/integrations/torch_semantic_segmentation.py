@@ -43,7 +43,7 @@ object_store = ObjectStore()
 # Heuristic used to calculate Likely Mislabeled for Semantic Segmentation
 # A larger queue size corresponds to a more accurate estimate of LM.
 # We keep a queue size to overcome memory issues with large SemSeg datasets.
-LIKELY_MISLABELED_QUEUE_SIZE = 8
+LIKELY_MISLABELED_QUEUE_SIZE = 40
 LIKELY_MISLABELED_MAP_SIZE = 32
 
 
