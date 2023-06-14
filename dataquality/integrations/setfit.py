@@ -100,13 +100,13 @@ def watch(
                 )
 
         _setup_patches(
-                setfit,
-                labels,
-                finish=finish,
-                wait=wait,
-                batch_size=batch_size,
-                meta=meta,
-            )
+            setfit,
+            labels,
+            finish=finish,
+            wait=wait,
+            batch_size=batch_size,
+            meta=meta,
+        )
         return evaluate(setfit.model)
     else:
         model = setfit
