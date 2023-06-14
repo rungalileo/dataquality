@@ -1,13 +1,10 @@
-import logging
 from typing import Dict, List, Optional, Union
 
 import pandas as pd
-import datasets
 from datasets import Dataset, DatasetDict
-import transformers
 
 from dataquality.schemas.task_type import TaskType
-from dataquality.utils.auto import get_task_type_from_data, set_global_logging_level
+from dataquality.utils.auto import get_task_type_from_data
 
 AUTO_PROJECT_NAME = {
     TaskType.text_classification: "auto_tc",
@@ -187,9 +184,9 @@ def auto(
             run_name="run_1_raw_data"
         )
     """
-    # Remove all output from transformers and torch except the progress bar
-    # set_global_logging_level(logging.ERROR, ["torch"])
-    # set_global_logging_level(logging.ERROR, ["transformers"])
+    import datasets
+    import transformers
+
     transformers.logging.enable_progress_bar()
     datasets.logging.enable_progress_bar()
 
