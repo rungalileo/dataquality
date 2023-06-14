@@ -562,7 +562,7 @@ def do_train(
         # We pass in a huggingface dataset but typing wise they expect a torch dataset
         dq_evaluate(
             encoded_data[Split.test],
-            split=Split.test,  # type: ignore
+            split=Split.test,  # type: ignore[call-arg]
             # for inference set the split to inference
             # and pass an inference_name="inference_run_1"
         )
@@ -571,8 +571,8 @@ def do_train(
     for inf_name in inf_names:
         dq_evaluate(
             encoded_data[inf_name],
-            split=Split.inference,  # type: ignore
-            inference_name=inf_name,  # type: ignore
+            split=Split.inference,  # type: ignore[call-arg]
+            inference_name=inf_name,  # type: ignore[call-arg]
         )
 
     dq.finish(wait=wait, create_data_embs=create_data_embs)
