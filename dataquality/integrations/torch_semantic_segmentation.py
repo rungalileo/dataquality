@@ -284,7 +284,7 @@ class SemanticTorchLogger(TorchLogger):
             Mislabeled pixels tensor of shape (batch_size, height, width)
         """
         # resize probs and gold
-        print('prob queue' self.prob_queue.shape)
+        print('prob queue', self.prob_queue.shape)
         probs, gold_mask = self.resize_probs_and_gold(probs, gold_mask)
         self.queue_gold_and_pred(probs, gold_mask.cpu())
         out_threshold = calculate_self_confidence_threshold(
