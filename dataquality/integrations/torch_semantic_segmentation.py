@@ -224,6 +224,7 @@ class SemanticTorchLogger(TorchLogger):
         # stack on the end of the queue and remove front to keep only most recent
         self.prob_queue: torch.Tensor = torch.cat((self.prob_queue, probs), dim=0)
         self.gold_queue: torch.Tensor = torch.cat((self.gold_queue, gold), dim=0)
+        print('queue shapes', self.prob_queue.shape, self.gold_queue.shape)
         if self.prob_queue.shape[0] > self.queue_size:
             self.prob_queue = self.prob_queue[bs:]
             self.gold_queue = self.gold_queue[bs:]
