@@ -223,6 +223,13 @@ class SemanticTorchLogger(TorchLogger):
         # stack on the end of the queue and remove front to keep only most recent
         self.prob_queue: torch.Tensor = torch.cat((self.prob_queue, probs), dim=0)
         self.gold_queue: torch.Tensor = torch.cat((self.gold_queue, gold), dim=0)
+    
+    def truncate_queue(self) -> None:
+        """Truncate the queue to the batch size
+
+        Args:
+            bs (int): batch size
+        """
         if self.prob_queue.shape[0] > self.queue_size:
             self.prob_queue = self.prob_queue[-self.queue_size:]
             self.gold_queue = self.gold_queue[-self.queue_size:]
@@ -284,10 +291,8 @@ class SemanticTorchLogger(TorchLogger):
             Mislabeled pixels tensor of shape (batch_size, height, width)
         """
         # resize probs and gold
-        print('prob queue', self.prob_queue.shape)
         probs, gold_mask = self.resize_probs_and_gold(probs, gold_mask)
         self.queue_gold_and_pred(probs, gold_mask.cpu())
-        print("queue's", self.prob_queue.shape, self.gold_queue.shape)
         out_threshold = calculate_self_confidence_threshold(
             self.prob_queue, self.gold_queue
         )
@@ -295,7 +300,6 @@ class SemanticTorchLogger(TorchLogger):
             self.thresholds[cls] = (
                 self.thresholds[cls] * 0.999 + out_threshold[cls] * 0.001
             )
-        print("queue's", self.prob_queue.shape, self.gold_queue.shape)
         for class_idx in range(self.number_classes):
             self.confident_count = fill_confident_counts(
                 probs[..., class_idx],
@@ -307,7 +311,6 @@ class SemanticTorchLogger(TorchLogger):
         self.counts_per_class += torch.bincount(
             gold_mask.view(-1).cpu(), minlength=probs.shape[-1]
         )
-        print("queue's", self.prob_queue.shape, self.gold_queue.shape)
         self_confidence = calculate_self_confidence(self.prob_queue, self.gold_queue)
         mislabeled_pixels = calculate_lm_for_batch(
             self_confidence,
@@ -318,12 +321,12 @@ class SemanticTorchLogger(TorchLogger):
             self.prob_queue,
         )
         # if we have not reached our queue size, we do not report mislabeled
-        print(np.unique(mislabeled_pixels), self.prob_queue.shape)
         if self.prob_queue.shape[0] < self.queue_size:
             mislabeled_pixels = torch.zeros_like(mislabeled_pixels)
         print(np.unique(mislabeled_pixels), self.prob_queue.shape)
         bs = probs.shape[0]
         mislabeled_pixels = mislabeled_pixels[-bs:]
+        self.truncate_queue()
         return mislabeled_pixels
 
     def get_argmax_probs(

@@ -35,8 +35,6 @@ def calculate_lm_for_batch(
     )
     mislabeled_by_noise = get_mislabeled_by_noise(confident_joint, probs, gold)
     
-    
-
     final_mislabeled = mislabeled_by_conf * mislabeled_by_noise
     print(np.unique(mislabeled_by_conf), np.unique(mislabeled_by_noise), np.unique(final_mislabeled))
 
@@ -208,7 +206,6 @@ def calculate_self_confidence(probs: torch.Tensor, gold: torch.Tensor) -> torch.
 
     bs, h, w, c = probs.shape
     probs = probs.view(bs, h * w, c)
-    print(probs.shape, gold.shape)
     gold_indices = (
         gold.reshape((bs, -1, 1)).expand(-1, -1, probs.shape[2]).type(torch.int64)
     )  # (bs, n_pixels, n_classes)
