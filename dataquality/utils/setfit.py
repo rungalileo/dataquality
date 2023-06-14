@@ -355,8 +355,6 @@ class _PatchSetFitTrainer(Patch):
 
         labels: List = self.labels
         if not labels:
-            labels = dq.get_data_logger().logger_config.labels
-        if not labels:
             labels = getattr(train_dataset.features.get("label", {}), "names", [])
         assert len(labels), "Labels must be set (watch(trainer, labels=[...]))"
         dq.set_labels_for_run(labels)
