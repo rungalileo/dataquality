@@ -77,6 +77,8 @@ class Config(BaseModel):
     current_user: Optional[str] = None
     current_project_id: Optional[UUID4] = None
     current_run_id: Optional[UUID4] = None
+    current_project_name: Optional[str] = None
+    current_run_name: Optional[str] = None
     task_type: Optional[TaskType] = None
     root_bucket_name: str = GALILEO_DEFAULT_RUN_BUCKET_NAME
     results_bucket_name: str = GALILEO_DEFAULT_RESULT_BUCKET_NAME

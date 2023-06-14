@@ -179,21 +179,12 @@ def docs_build(ctx: Context) -> None:
 
     Build the docs.
     """
-    ctx.run(
-        "cd docs/autodocs",
-        pty=True,
-        echo=True,
-    )
-    ctx.run(
-        "make markdown",
-        pty=True,
-        echo=True,
-    )
-    ctx.run(
-        "cd ../..",
-        pty=True,
-        echo=True,
-    )
+    with ctx.cd("docs/autodocs"):
+        ctx.run(
+            "make markdown",
+            pty=True,
+            echo=True,
+        )
 
 
 @unique

@@ -57,7 +57,7 @@ dataquality.integrations.fastai
 dataquality.integrations.setfit
 -----------
 .. automodule:: dataquality.integrations.setfit
-    :members: watch, unwatch
+    :members: watch, unwatch, auto
     :show-inheritance:
     :member-order: bysource
 
