@@ -1,13 +1,22 @@
-import contextlib
-import io
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
 
+import contextlib
+import io
+import numpy as np
+import pandas as pd
+
 import torch
+from datasets import Dataset, DatasetDict
 
 import dataquality as dq
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
 from dataquality.core.log import get_data_logger
+from dataquality.dq_auto.text_classification import (
+    TCDatasetManager,
+    _get_labels,
+    _log_dataset_dict,
+)
 from dataquality.schemas.split import Split
 from dataquality.utils.patcher import PatchManager
 from dataquality.utils.setfit import (
@@ -19,12 +28,17 @@ from dataquality.utils.setfit import (
     validate_setfit,
 )
 
+from dataquality.schemas.task_type import TaskType
+from dataquality.utils.auto import run_name_from_hf_dataset
+from dataquality.utils.patcher import Patch, PatchManager
+from dataquality.utils.setfit import get_trainer, log_preds_setfit
+
+
 a = Analytics(ApiClient, dq.config)  # type: ignore
 a.log_import("setfit")
 
 
 if TYPE_CHECKING:
-    from datasets import Dataset
     from setfit import SetFitModel, SetFitTrainer
 
 
@@ -166,3 +180,183 @@ def evaluate(
         )
 
     return dq_evaluate
+
+
+def auto(
+    hf_data: Optional[Union[DatasetDict, str]] = None,
+    hf_inference_names: Optional[List[str]] = None,
+    train_data: Optional[Union[pd.DataFrame, Dataset, str]] = None,
+    val_data: Optional[Union[pd.DataFrame, Dataset, str]] = None,
+    test_data: Optional[Union[pd.DataFrame, Dataset, str]] = None,
+    inference_data: Optional[Dict[str, Union[pd.DataFrame, Dataset, str]]] = None,
+    max_padding_length: int = 200,
+    num_train_epochs: int = 15,
+    hf_model: str = "sentence-transformers/paraphrase-mpnet-base-v2",
+    labels: Optional[List[str]] = None,
+    project_name: str = "auto_tc",
+    run_name: Optional[str] = None,
+    wait: bool = True,
+    create_data_embs: Optional[bool] = None,
+) -> "SetFitTrainer":
+    """Automatically gets insights on a text classification dataset
+
+    Given either a pandas dataframe, file_path, or huggingface dataset path, this
+    function will load the data, train a huggingface transformer model, and
+    provide Galileo insights via a link to the Galileo Console
+
+    One of `hf_data`, `train_data` should be provided. If neither of those are, a
+    demo dataset will be loaded by Galileo for training.
+
+    :param hf_data: Union[DatasetDict, str] Use this param if you have huggingface
+        data in the hub or in memory. Otherwise see `train_data`, `val_data`,
+        and `test_data`. If provided, train_data, val_data, and test_data are ignored
+    :param hf_inference_names: A list of key names in `hf_data` to be run as inference
+        runs after training. If set, those keys must exist in `hf_data`
+    :param train_data: Optional training data to use. Can be one of
+        * Pandas dataframe
+        * Huggingface dataset
+        * Path to a local file
+        * Huggingface dataset hub path
+    :param val_data: Optional validation data to use. The validation data is what is
+        used for the evaluation dataset in huggingface, and what is used for early
+        stopping. If not provided, but test_data is, that will be used as the evaluation
+        set. If neither val nor test are available, the train data will be randomly
+        split 80/20 for use as evaluation data.
+        Can be one of
+        * Pandas dataframe
+        * Huggingface dataset
+        * Path to a local file
+        * Huggingface dataset hub path
+    :param test_data: Optional test data to use. The test data, if provided with val,
+        will be used after training is complete, as the held-out set. If no validation
+        data is provided, this will instead be used as the evaluation set.
+        Can be one of
+        * Pandas dataframe
+        * Huggingface dataset
+        * Path to a local file
+        * Huggingface dataset hub path
+    :param inference_data: Optional inference datasets to run with after training
+        completes. The structure is a dictionary with the key being the infeerence name
+        and the value one of
+        * Pandas dataframe
+        * Huggingface dataset
+        * Path to a local file
+        * Huggingface dataset hub path
+    :param max_padding_length: The max length for padding the input text
+        during tokenization. Default 200
+    :param hf_model: The pretrained AutoModel from huggingface that will be used to
+        tokenize and train on the provided data. Default distilbert-base-uncased
+    :param labels: Optional list of labels for this dataset. If not provided, they
+        will attempt to be extracted from the data
+    :param project_name: Optional project name. If not set, a random name will
+        be generated
+    :param run_name: Optional run name for this data. If not set, a random name will
+        be generated
+    :param wait: Whether to wait for Galileo to complete processing your run.
+        Default True
+    :param create_data_embs: Whether to create data embeddings for this run. Default
+        False
+
+    To see auto insights on a random, pre-selected dataset, simply run
+    ```python
+        from dataquality.auto.text_classification import auto
+
+        auto()
+    ```
+
+    An example using `auto` with a hosted huggingface dataset
+    ```python
+        from dataquality.auto.text_classification import auto
+
+        auto(hf_data="rungalileo/trec6")
+    ```
+
+    An example using `auto` with sklearn data as pandas dataframes
+    ```python
+        import pandas as pd
+        from sklearn.datasets import fetch_20newsgroups
+        from dataquality.auto.text_classification import auto
+
+        # Load the newsgroups dataset from sklearn
+        newsgroups_train = fetch_20newsgroups(subset='train')
+        newsgroups_test = fetch_20newsgroups(subset='test')
+        # Convert to pandas dataframes
+        df_train = pd.DataFrame(
+            {"text": newsgroups_train.data, "label": newsgroups_train.target}
+        )
+        df_test = pd.DataFrame(
+            {"text": newsgroups_test.data, "label": newsgroups_test.target}
+        )
+
+        auto(
+             train_data=df_train,
+             test_data=df_test,
+             labels=newsgroups_train.target_names,
+             project_name="newsgroups_work",
+             run_name="run_1_raw_data"
+        )
+    ```
+
+    An example of using `auto` with a local CSV file with `text` and `label` columns
+    ```python
+    from dataquality.auto.text_classification import auto
+
+    auto(
+         train_data="train.csv",
+         test_data="test.csv",
+         project_name="data_from_local",
+         run_name="run_1_raw_data"
+    )
+    ```
+    """
+    manager = TCDatasetManager()
+    dd = manager.get_dataset_dict(
+        hf_data,
+        hf_inference_names,
+        train_data,
+        val_data,
+        test_data,
+        inference_data,
+        labels,
+    )
+    labels = _get_labels(dd, labels)
+    dq.login()
+    a.log_function("auto/tc")
+    if not run_name and isinstance(hf_data, str):
+        run_name = run_name_from_hf_dataset(hf_data)
+    dq.init(TaskType.text_classification, project_name=project_name, run_name=run_name)
+    dq.set_labels_for_run(labels)
+    _log_dataset_dict(dd)
+    trainer, encoded_data = get_trainer(
+        dd, labels, hf_model, max_padding_length, num_train_epochs
+    )
+    return do_train(trainer, encoded_data, wait, create_data_embs)
+
+
+def do_train(
+    trainer: "SetFitTrainer",
+    encoded_data: "DatasetDict",
+    wait: bool,
+    create_data_embs: Optional[bool] = None,
+) -> "SetFitTrainer":
+    dq_evaluate = watch(trainer, finish=False)
+    trainer.train()
+    if Split.test in encoded_data:
+        # We pass in a huggingface dataset but typing wise they expect a torch dataset
+        dq_evaluate(
+            encoded_data[Split.test],
+            split=Split.test,  # type: ignore
+            # for inference set the split to inference
+            # and pass an inference_name="inference_run_1"
+        )
+
+    inf_names = [k for k in encoded_data if k not in Split.get_valid_keys()]
+    for inf_name in inf_names:
+        dq_evaluate(
+            encoded_data[inf_name],
+            split=Split.inference,  # type: ignore
+            inference_name=inf_name,  # type: ignore
+        )
+
+    dq.finish(wait=wait, create_data_embs=create_data_embs)
+    return trainer
