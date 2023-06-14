@@ -386,11 +386,8 @@ class SemanticTorchLogger(TorchLogger):
                 gold_mask = gold_mask.squeeze(1)  # (bs, w, h)
             if gold_mask.dtype == torch.float16:
                 gold_mask = gold_mask.to(torch.float32)
-            print('probs', probs.shape)
-            print('gold_mask', gold_mask.shape)
             mislabeled_pixels = self.calculate_mislabeled_pixels(probs, gold_mask)
-            print('probs', probs.shape)
-            print('gold_mask', gold_mask.shape)
+            print("mislabeled_pixels", mislabeled_pixels.shape)
             # do not log if we are not in the final inference loop
             if not self.called_finish:
                 return
