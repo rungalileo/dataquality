@@ -220,11 +220,9 @@ class SemanticTorchLogger(TorchLogger):
             gold (torch.Tensor): gold masks resized to queue for LM
         """
         bs = probs.shape[0]
-        print('IN queue gold and pred', probs.shape, gold.shape)
         # stack on the end of the queue and remove front to keep only most recent
         self.prob_queue: torch.Tensor = torch.cat((self.prob_queue, probs), dim=0)
         self.gold_queue: torch.Tensor = torch.cat((self.gold_queue, gold), dim=0)
-        print('queue shapes', self.prob_queue.shape, self.gold_queue.shape)
         if self.prob_queue.shape[0] > self.queue_size:
             self.prob_queue = self.prob_queue[bs:]
             self.gold_queue = self.gold_queue[bs:]
@@ -289,6 +287,7 @@ class SemanticTorchLogger(TorchLogger):
         print('prob queue', self.prob_queue.shape)
         probs, gold_mask = self.resize_probs_and_gold(probs, gold_mask)
         self.queue_gold_and_pred(probs, gold_mask.cpu())
+        print("queue's", self.prob_queue.shape, self.gold_queue.shape)
         out_threshold = calculate_self_confidence_threshold(
             self.prob_queue, self.gold_queue
         )
@@ -296,6 +295,7 @@ class SemanticTorchLogger(TorchLogger):
             self.thresholds[cls] = (
                 self.thresholds[cls] * 0.999 + out_threshold[cls] * 0.001
             )
+        print("queue's", self.prob_queue.shape, self.gold_queue.shape)
         for class_idx in range(self.number_classes):
             self.confident_count = fill_confident_counts(
                 probs[..., class_idx],
@@ -307,6 +307,7 @@ class SemanticTorchLogger(TorchLogger):
         self.counts_per_class += torch.bincount(
             gold_mask.view(-1).cpu(), minlength=probs.shape[-1]
         )
+        print("queue's", self.prob_queue.shape, self.gold_queue.shape)
         self_confidence = calculate_self_confidence(self.prob_queue, self.gold_queue)
         mislabeled_pixels = calculate_lm_for_batch(
             self_confidence,
