@@ -1,6 +1,10 @@
+import os
 from typing import Dict
 
 import pyarrow as pa
+
+from dataquality.utils.thread_pool import lock
+
 
 def save_arrow_file(location: str, file_name: str, data: Dict) -> None:
     """
@@ -8,4 +12,5 @@ def save_arrow_file(location: str, file_name: str, data: Dict) -> None:
     """
     if not os.path.isdir(location):
         with lock:
-            os.makedirs(location, exist_ok=True 
+            os.makedirs(location, exist_ok=True )
+    # TODO: Create arrow file and save
