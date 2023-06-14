@@ -220,6 +220,7 @@ class SemanticTorchLogger(TorchLogger):
             gold (torch.Tensor): gold masks resized to queue for LM
         """
         bs = probs.shape[0]
+        print('IN queue gold and pred', probs.shape, gold.shape)
         # stack on the end of the queue and remove front to keep only most recent
         self.prob_queue: torch.Tensor = torch.cat((self.prob_queue, probs), dim=0)
         self.gold_queue: torch.Tensor = torch.cat((self.gold_queue, gold), dim=0)
