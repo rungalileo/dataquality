@@ -208,6 +208,7 @@ def calculate_self_confidence(probs: torch.Tensor, gold: torch.Tensor) -> torch.
 
     bs, h, w, c = probs.shape
     probs = probs.view(bs, h * w, c)
+    print(probs.shape, gold.shape)
     gold_indices = (
         gold.reshape((bs, -1, 1)).expand(-1, -1, probs.shape[2]).type(torch.int64)
     )  # (bs, n_pixels, n_classes)
