@@ -84,8 +84,7 @@ def watch(
             init_kwargs["run_name"] = run_name
         dq.init("text_classification", **init_kwargs)
 
-    labels = labels or []
-    
+    labels = labels or dq.get_data_logger().logger_config.labels
     _prepare_config()
     if isinstance(setfit, SetFitTrainer):
         if validate_before_training:
@@ -100,7 +99,7 @@ def watch(
                     meta=meta,
                 )
 
-            _setup_patches(
+        _setup_patches(
                 setfit,
                 labels,
                 finish=finish,
@@ -111,8 +110,6 @@ def watch(
         return evaluate(setfit.model)
     else:
         model = setfit
-
-        labels = labels or dq.get_data_logger().logger_config.labels
         assert labels and len(
             labels
         ), "Labels must be set (watch(trainer, labels=[...]))"
