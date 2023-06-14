@@ -1,7 +1,6 @@
 from typing import List
 
 import torch
-import numpy as np
 
 from dataquality.clients.objectstore import ObjectStore
 

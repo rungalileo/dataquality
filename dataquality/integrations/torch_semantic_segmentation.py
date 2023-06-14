@@ -300,6 +300,10 @@ class SemanticTorchLogger(TorchLogger):
             self.thresholds[cls] = (
                 self.thresholds[cls] * 0.999 + out_threshold[cls] * 0.001
             )
+        # zero out the confident count to avoid overestimating
+        self.confident_count = torch.zeros(
+            (self.number_classes, self.number_classes), dtype=torch.int64
+        )
         for class_idx in range(self.number_classes):
             self.confident_count = fill_confident_counts(
                 probs[..., class_idx],
@@ -389,7 +393,6 @@ class SemanticTorchLogger(TorchLogger):
             if gold_mask.dtype == torch.float16:
                 gold_mask = gold_mask.to(torch.float32)
             mislabeled_pixels = self.calculate_mislabeled_pixels(probs, gold_mask)
-            print("mislabeled_pixels", mislabeled_pixels.shape)
             # do not log if we are not in the final inference loop
             if not self.called_finish:
                 return
