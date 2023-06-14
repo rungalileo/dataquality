@@ -32,6 +32,7 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         split: str = "",
         epoch: Optional[int] = None,
         inference_name: Optional[str] = None,
+        labels: Optional[np.ndarray] = None,
     ) -> None:
         super().__init__()
         # Need to compare to None because they may be np arrays which cannot be
@@ -43,6 +44,7 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         self.epoch = epoch
         self.split: str = split
         self.inference_name = inference_name
+        self.labels = labels
 
     def _log(self) -> None:
         """Threaded logger target

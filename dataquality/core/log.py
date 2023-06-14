@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 
+from dataquality.loggers.logger_config.seq2seq import seq2seq_logger_config
+
 if TYPE_CHECKING:
     import xgboost as xgb
 
@@ -365,6 +367,7 @@ def log_model_outputs(
     probs: Optional[Union[List, np.ndarray]] = None,
     inference_name: Optional[str] = None,
     exclude_embs: bool = False,
+    labels: Optional[np.ndarray] = None,
 ) -> None:
     """Logs model outputs for model during training/test/validation.
 
@@ -403,6 +406,7 @@ def log_model_outputs(
         logits=logits.astype(np.float32) if isinstance(logits, np.ndarray) else logits,
         probs=probs.astype(np.float32) if isinstance(probs, np.ndarray) else probs,
         inference_name=inference_name,
+        labels=labels.astype(np.float32) if isinstance(labels, np.ndarray) else labels,
     )
     model_logger.log()
 
@@ -600,3 +604,18 @@ def set_epoch_and_split(
     """
     set_epoch(epoch)
     set_split(split, inference_name)
+
+
+@check_noop
+def set_tokenizer(tokenizer: Any) -> None:
+    """Seq2seq only. Set the tokenizer for your run
+
+    Must be a fast tokenizer, and must support `decode`, `encode`, `encode_plus`
+    """
+    task_type = _get_task_type()
+    assert task_type == TaskType.seq2seq, "This method is only supported for seq2seq"
+    assert getattr(tokenizer, "is_fast", False), "Tokenizer must be a fast tokenizer"
+    assert hasattr(tokenizer, "encode"), "Tokenizer must support `encode`"
+    assert hasattr(tokenizer, "decode"), "Tokenizer must support `decode`"
+    assert hasattr(tokenizer, "encode_plus"), "Tokenizer must support `encode_plus`"
+    seq2seq_logger_config.tokenizer = tokenizer
