@@ -299,9 +299,8 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         )
 
         # Make sure the class labels are set
-        if (
-            self.logger_config.labels
-            and not isinstance(dataset.features[label], ClassLabel)
+        if self.logger_config.labels and not isinstance(
+            dataset.features[label], ClassLabel
         ):
             dataset = add_class_label_to_dataset(dataset, self.logger_config.labels)
 
