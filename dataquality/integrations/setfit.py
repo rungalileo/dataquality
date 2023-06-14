@@ -76,6 +76,7 @@ def watch(
 
     from setfit import SetFitTrainer
 
+    print("dataquality watch setfit")
     init_kwargs: Dict[str, Any] = {}
     if not dq.config.task_type:
         if project_name:
