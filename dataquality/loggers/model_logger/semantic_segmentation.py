@@ -161,7 +161,6 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 )
                 write_polygon_contours_to_disk(polygon, self.local_contours_path)
                 polygon_ids.append(polygon.uuid)
-        print(np.unique(lm_pcts))
         polygon_data = {
             "polygon_uuid": polygon_ids,
             "image_id": image_ids,

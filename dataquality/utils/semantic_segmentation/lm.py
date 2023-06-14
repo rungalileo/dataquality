@@ -36,7 +36,6 @@ def calculate_lm_for_batch(
     mislabeled_by_noise = get_mislabeled_by_noise(confident_joint, probs, gold)
     
     final_mislabeled = mislabeled_by_conf * mislabeled_by_noise
-    print(np.unique(mislabeled_by_conf), np.unique(mislabeled_by_noise), np.unique(final_mislabeled))
 
     return final_mislabeled
 
