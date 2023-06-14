@@ -77,7 +77,7 @@ def test_setfitwatch(
     split = "training"
     batch_size = 3
     ds_len = len(dataset)
-    dq_evaluate = watch(model)
+    dq_evaluate = watch(model, validate_before_training=False)
     dataset = dataset.map(
         lambda x, idx: {"id": idx, "meta_col": "meta"}, with_indices=True
     )
@@ -163,7 +163,7 @@ def test_log_dataset(
         lambda x, idx: {"id": idx, "meta_col": "meta"}, with_indices=True
     )
     dq.log_dataset(dataset, split=split, meta=["meta_col"])
-    dq_evaluate = watch(model)
+    dq_evaluate = watch(model, validate_before_training=False)
     for i in range(0, ds_len, batch_size):
         batch = dataset[i : i + batch_size]
         dq_evaluate(batch, split)
@@ -253,6 +253,7 @@ def test_end_to_end(
         batch_size=512,  # Speed up prediction
         # 🔭🌕 Set finish to False to add test
         finish=False,
+        validate_before_training=False,
     )
     trainer.freeze()
     trainer.train()
@@ -264,7 +265,7 @@ def test_end_to_end(
 
     # trainer.evaluate()
     # unwatch(trainer)
-    dq_evaluate = watch(model, batch_size=512)
+    dq_evaluate = watch(model, batch_size=512, validate_before_training=False)
     dq_evaluate(
         dataset,
         split="test",
