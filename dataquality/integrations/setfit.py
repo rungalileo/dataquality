@@ -76,14 +76,14 @@ def watch(
 
     from setfit import SetFitTrainer
 
-    print("dataquality watch setfit")
-    init_kwargs: Dict[str, Any] = {}
     if not dq.config.task_type:
+        init_kwargs: Dict[str, Any] = {}
         if project_name:
             init_kwargs["project_name"] = project_name
         if run_name:
             init_kwargs["run_name"] = run_name
         dq.init("text_classification", **init_kwargs)
+        print("dataquality initialized on SetFitTrainer/SetFitModel")
 
     labels = labels or dq.get_data_logger().logger_config.labels
     _prepare_config()

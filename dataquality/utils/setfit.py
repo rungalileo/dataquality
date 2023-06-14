@@ -116,7 +116,10 @@ def log_preds_setfit(
 
 
 def _prepare_config() -> None:
-    # If the user has already logged input data, skip it during evaluate
+    """
+    Prepares the config for the SetFit model.
+    If the user has already logged input data, skip it during evaluate
+    """
     logger_config = dq.get_data_logger().logger_config
     for split in ["training", "validation", "test", "inference"]:
         split_key = f"setfit_skip_input_log_{split}"
@@ -131,6 +134,15 @@ def _setup_patches(
     batch_size: Optional[int] = None,
     meta: Optional[List] = None,
 ) -> None:
+    """Sets up the patches for a SetFit model.
+    :param setfit: The SetFit model or trainer
+    :param labels: The labels of the model
+    :param finish: Whether to finish the run
+    :param wait: Whether to wait for the run to finish
+    :param batch_size: The batch size
+    :param meta: The meta columns
+    """
+
     setfitmanager = PatchManager()
     patched_trainer = _PatchSetFitTrainer(
         setfit,
@@ -158,8 +170,10 @@ def validate_setfit(
     """
     from setfit import sample_dataset
 
+    # Store the current project and run name
     dq_project_name = dq.config.current_project_name
     dq_run_name = dq.config.current_run_name
+    # Create a random project and run name to avoid collisions
     random_id = str(uuid.uuid4())
     dq.init(
         "text_classification",
@@ -176,14 +190,17 @@ def validate_setfit(
     )
     train_dataset = setfit.train_dataset
     eval_dataset = setfit.eval_dataset
+    # Sample the dataset to speed up the test
     setfit.train_dataset = sample_dataset(setfit.train_dataset, num_samples=2)
     setfit.eval_dataset = sample_dataset(setfit.eval_dataset, num_samples=2)
     setfit.train(num_epochs=1)
     setfit.evaluate()
     c = dq.get_data_logger(TaskType.text_classification)
+    # Mock the finish with upload
     c.upload()
     c._cleanup()
     dq.core.init.delete_run("validate_project_name", random_id)
+    # Restore the original datasets, project and run name
     setfit.train_dataset = train_dataset
     setfit.eval_dataset = eval_dataset
     PatchManager().unpatch()
