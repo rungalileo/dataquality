@@ -629,7 +629,7 @@ def watch(
     # to find the data (ie bucket_url/image_path == dataset_path/image_path)
 
     tl = SemanticTorchLogger(
-        bucket_url=bucket_url,
+        bucket_url=bucket_url.rstrip("/"),
         dataset_path=dataset_path,
         dataloaders=dataloaders,
         mask_col_name=mask_col_name,
