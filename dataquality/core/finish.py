@@ -41,14 +41,19 @@ def finish(
         available, else default False.
     """
     a.log_function("dq/finish")
-    if create_data_embs is None:
-        create_data_embs = gpu_available()
     ThreadPoolManager.wait_for_threads()
     assert config.current_project_id, "You must have an active project to call finish"
     assert config.current_run_id, "You must have an active run to call finish"
     assert config.task_type, "You must have a task type to call finish"
     data_logger = dataquality.get_data_logger()
     data_logger.validate_labels()
+    if create_data_embs is None:
+        # Currently only have data-embedding models for NLP tasks
+        create_data_embs = gpu_available() and config.task_type in [
+            TaskType.text_classification,
+            TaskType.text_multi_label,
+            TaskType.text_ner,
+        ]
 
     _version_check()
 
