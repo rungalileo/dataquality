@@ -329,7 +329,6 @@ def auto(
         trainer,
         encoded_data,
         wait,
-        column_mapping,
         create_data_embs,
     )
 
@@ -338,7 +337,6 @@ def do_train(
     trainer: "SetFitTrainer",
     encoded_data: DatasetDict,
     wait: bool,
-    column_mapping: Optional[Dict[str, Any]] = None,
     create_data_embs: Optional[bool] = None,
 ) -> "SetFitTrainer":
     watch(trainer, finish=False)
@@ -353,7 +351,6 @@ def do_train(
         dq_evaluate(
             encoded_data[Split.test],
             split=Split.test,
-            column_mapping=column_mapping,
             # for inference set the split to inference
             # and pass an inference_name="inference_run_1"
         )
@@ -364,7 +361,6 @@ def do_train(
             encoded_data[inf_name],
             split=Split.inference,  # type: ignore
             inference_name=inf_name,  # type: ignore
-            column_mapping=column_mapping,
         )
 
     dq.finish(wait=wait, create_data_embs=create_data_embs)
