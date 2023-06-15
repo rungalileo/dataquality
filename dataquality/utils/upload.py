@@ -11,7 +11,6 @@ import vaex
 from pydantic import UUID4
 from tqdm import tqdm
 
-from dataquality import config
 from dataquality.clients.api import ApiClient
 
 api_client = ApiClient()
@@ -117,9 +116,9 @@ def chunk_load_then_upload_df(
     file_list: List[str],
     export_cols: List[str],
     temp_dir: str,
+    bucket: str,
     project_id: Optional[UUID4] = None,
     object_path: Optional[str] = None,
-    bucket: str = config.images_bucket_name,
     parallel: bool = False,
     step: int = 50,
     num_workers: int = 1,
