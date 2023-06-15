@@ -80,7 +80,8 @@ def watch(
 
     pm = PatchManager()
     pm.unpatch()
-    if not previously_initialized:
+
+    if not previously_initialized or (not dq.config.task_type and not project_name):
         init_kwargs: Dict[str, Any] = {}
         if project_name:
             init_kwargs["project_name"] = project_name
