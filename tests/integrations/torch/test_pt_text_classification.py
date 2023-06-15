@@ -122,7 +122,7 @@ class TextClassificationModel(nn.Module):
 
 num_class = len(set([label for (label, text) in train_iter]))
 vocab_size = len(vocab)
-emsize = 64
+emsize = 8
 model = TextClassificationModel(vocab_size, emsize, num_class).to(device)
 modeldq = TextClassificationModel(vocab_size, emsize, num_class).to(device)
 
