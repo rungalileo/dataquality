@@ -6,8 +6,8 @@ import numpy as np
 import torch
 from PIL import Image, ImageColor
 
+from dataquality import config
 from dataquality.clients.objectstore import ObjectStore
-from dataquality.core._config import GALILEO_DEFAULT_RESULT_BUCKET_NAME
 from dataquality.schemas.semantic_segmentation import IouData, Polygon
 from dataquality.utils.semantic_segmentation.polygons import draw_polygon
 
@@ -144,7 +144,7 @@ def upload_dep_heatmaps(
                 file_path=f.name,
                 content_type="image/png",
                 progress=False,
-                bucket_name=GALILEO_DEFAULT_RESULT_BUCKET_NAME,
+                bucket_name=config.results_bucket_name,
             )
 
 
