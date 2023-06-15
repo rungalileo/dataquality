@@ -25,7 +25,7 @@ from dataquality.utils.vaex import add_pca_to_df, rename_df
 
 @unique
 class GalileoDataLoggerAttributes(str, Enum):
-    image = "image"
+    image = "text"
     ids = "ids"
     # mixin restriction on str (due to "str".split(...))
     split = "split"  # type: ignore
@@ -37,7 +37,7 @@ class GalileoDataLoggerAttributes(str, Enum):
 
 
 class ODCols(str, Enum):
-    image = "image"
+    image = "text"
     bbox = "bbox"
     gold_cls = "gold_cls"
     id = "id"
