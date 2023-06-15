@@ -329,6 +329,9 @@ def auto(
         )
     dq.set_labels_for_run(labels)
     _log_dataset_dict(dd)
+    if not isinstance(hf_model, str):
+        return do_model_eval(hf_model, dd, wait, create_data_embs)
+
     trainer, encoded_data = get_trainer(dd, hf_model, training_args)
     return do_train(
         trainer,
@@ -336,6 +339,38 @@ def auto(
         wait,
         create_data_embs,
     )
+
+
+def do_model_eval(
+    model: "SetFitModel",
+    encoded_data: DatasetDict,
+    wait: bool,
+    create_data_embs: Optional[bool] = None,
+) -> "SetFitModel":
+    dq_evaluate = watch(
+        model,
+        finish=False,
+    )
+    for split in [Split.train, Split.test, Split.val]:
+        if split in encoded_data:
+            # We pass in a huggingface dataset but typing wise they expect a torch dataset
+            dq_evaluate(
+                encoded_data[Split.test],
+                split=Split.test,
+                # for inference set the split to inference
+                # and pass an inference_name="inference_run_1"
+            )
+
+    inf_names = [k for k in encoded_data if k not in Split.get_valid_keys()]
+    for inf_name in inf_names:
+        dq_evaluate(
+            encoded_data[inf_name],
+            split=Split.inference,  # type: ignore
+            inference_name=inf_name,  # type: ignore
+        )
+
+    dq.finish(wait=wait, create_data_embs=create_data_embs)
+    return model
 
 
 def do_train(
