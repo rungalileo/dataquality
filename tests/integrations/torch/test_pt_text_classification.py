@@ -5,11 +5,10 @@ import pandas as pd
 import torch
 import vaex
 from torch import nn
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 from torch.utils.data.dataset import random_split
 from torchtext.data.functional import to_map_style_dataset
 from torchtext.data.utils import get_tokenizer
-from torchtext.datasets import AG_NEWS
 from torchtext.vocab import build_vocab_from_iterator
 
 import dataquality as dq
@@ -19,9 +18,41 @@ from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import validate_unique_ids
 from tests.conftest import TestSessionVariables
 
-train_iter = iter(AG_NEWS(split="train"))
+# Step 1: Create your mock dataframe
+data = {
+    "label": ["Sports", "Tech", "Politics"] * 2,
+    "text": [
+        "This is a sample text about {}.".format(i)
+        for i in ["Sports", "Tech", "Politics"] * 2
+    ],
+}
+mock_df = pd.DataFrame(data)
+
+# Step 2: Split dataframe into training and testing data
+train_df, test_df = mock_df, mock_df
+labels = pd.concat([train_df["label"], test_df["label"]]).unique()
+labels.sort()
+label_map = {label: i for i, label in enumerate(labels)}
+
+
+# Define dataset class
+class MockDataset(Dataset):
+    def __init__(self, dataframe: pd.DataFrame) -> None:
+        self.dataframe = dataframe
+
+    def __getitem__(self, index: int) -> tuple:
+        label, text = self.dataframe.iloc[index]
+        return label_map[label], text
+
+    def __len__(self) -> int:
+        return len(self.dataframe)
+
+
+# Step 5: Create Dataset
+train_iter = MockDataset(train_df)
+test_iter = MockDataset(test_df)
+
 tokenizer = get_tokenizer("basic_english")
-train_iter = AG_NEWS(split="train")
 
 
 def yield_tokens(data_iter):
@@ -40,7 +71,7 @@ def text_pipeline(x):
 
 
 def label_pipeline(x):
-    return int(x) - 1
+    return int(x)
 
 
 text_pipeline("here is the an example")
@@ -64,7 +95,6 @@ def collate_batch(batch):
     return label_list.to(device), text_list.to(device), offsets.to(device)
 
 
-train_iter = AG_NEWS(split="train")
 dataloader = DataLoader(
     train_iter, batch_size=8, shuffle=False, collate_fn=collate_batch
 )
@@ -90,7 +120,6 @@ class TextClassificationModel(nn.Module):
         return self.classifier(embedded)
 
 
-train_iter = AG_NEWS(split="train")
 num_class = len(set([label for (label, text) in train_iter]))
 vocab_size = len(vocab)
 emsize = 64
@@ -151,22 +180,16 @@ criterion = torch.nn.CrossEntropyLoss()
 optimizer = torch.optim.SGD(model.parameters(), lr=LR)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1.0, gamma=0.1)
 total_accu = None
-train_iter, test_iter = AG_NEWS()
 train_dataset = to_map_style_dataset(train_iter)
 num_train = int(len(train_dataset) * 0.95)
 split_train_, split_valid_ = random_split(
     train_dataset, [num_train, len(train_dataset) - num_train]
 )
 
-ag_train = to_map_style_dataset(AG_NEWS(split="train"))[:192]
-ag_test = to_map_style_dataset(AG_NEWS(split="test"))[192:220]
-train_df = pd.DataFrame(ag_train)
-test_df = pd.DataFrame(ag_test)
+
 train_df = train_df.reset_index().rename(columns={0: "label", 1: "text", "index": "id"})
 train_df["id"] = train_df["id"] + 10000
 test_df = test_df.reset_index().rename(columns={0: "label", 1: "text", "index": "id"})
-labels = pd.concat([train_df["label"], test_df["label"]]).unique()
-labels.sort()
 
 
 @patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
@@ -195,7 +218,7 @@ def test_end_to_end_with_callback(
     dq.log_dataset(test_df, split="test")
 
     train_dataloader_dq = DataLoader(
-        ag_train,
+        MockDataset(mock_df),
         batch_size=BATCH_SIZE,
         num_workers=2,
         shuffle=True,
@@ -204,7 +227,10 @@ def test_end_to_end_with_callback(
         # pin_memory=False,
     )
     test_dataloader_dq = DataLoader(
-        ag_test, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_batch
+        MockDataset(mock_df),
+        batch_size=BATCH_SIZE,
+        shuffle=True,
+        collate_fn=collate_batch,
     )
     unwatch(modeldq)
     # 🔭🌕 Logging the dataset with Galileo
@@ -259,10 +285,16 @@ def test_end_to_end_old_patch(
     dq.log_dataset(test_df, split="test")
 
     train_dataloader_dq = DataLoader(
-        ag_train, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_batch
+        MockDataset(mock_df),
+        batch_size=BATCH_SIZE,
+        shuffle=True,
+        collate_fn=collate_batch,
     )
     test_dataloader_dq = DataLoader(
-        ag_test, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_batch
+        MockDataset(mock_df),
+        batch_size=BATCH_SIZE,
+        shuffle=True,
+        collate_fn=collate_batch,
     )
 
     # 🔭🌕 Logging the dataset with Galileo
