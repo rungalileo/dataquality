@@ -10,7 +10,6 @@ import dataquality as dq
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
 from dataquality.core.log import get_data_logger
-from dataquality.dq_auto.auto import AUTO_PROJECT_NAME
 from dataquality.dq_auto.text_classification import (
     TCDatasetManager,
     _get_labels,
@@ -176,13 +175,15 @@ def evaluate(
 
 
 def auto(
+    setfit_model: Union[
+        "SetFitModel", str
+    ] = "sentence-transformers/paraphrase-mpnet-base-v2",
     hf_data: Optional[Union[DatasetDict, str]] = None,
     hf_inference_names: Optional[List[str]] = None,
     train_data: Optional[Union[pd.DataFrame, Dataset, str]] = None,
     val_data: Optional[Union[pd.DataFrame, Dataset, str]] = None,
     test_data: Optional[Union[pd.DataFrame, Dataset, str]] = None,
     inference_data: Optional[Dict[str, Union[pd.DataFrame, Dataset, str]]] = None,
-    hf_model: str = "sentence-transformers/paraphrase-mpnet-base-v2",
     labels: Optional[List[str]] = None,
     project_name: str = "auto_tc_setfit",
     run_name: Optional[str] = None,
@@ -190,7 +191,7 @@ def auto(
     column_mapping: Optional[Dict[str, str]] = None,
     wait: bool = True,
     create_data_embs: Optional[bool] = None,
-) -> "SetFitTrainer":
+) -> Union["SetFitModel", "SetFitTrainer"]:
     """Automatically processes and generates insights on a text classification dataset.
 
     Given a pandas dataframe, a file path, or a Huggingface dataset path, this
@@ -202,6 +203,10 @@ def auto(
 
     Parameters
     ----------
+    setfit : SetFitModel or Huggingface model name
+        Computes text embeddings for a given text dataset with the model.
+        If a string is provided, it will be used to load a Huggingface model
+        and train it on the data.
     hf_data : Union[DatasetDict, str], optional
         Use this parameter if you have Huggingface data in the hub or in memory.
         Otherwise see `train_data`, `val_data`, and `test_data`. If provided,
@@ -225,9 +230,6 @@ def auto(
         Optional inference datasets to run after training. The structure is a dictionary
         with the key being the inference name and the value being a pandas dataframe, a
         Huggingface dataset, path to a local file, or Huggingface dataset hub path.
-    hf_model : str, optional
-        The pretrained Huggingface model to tokenize and train on the provided data.
-        Default is "sentence-transformers/paraphrase-mpnet-base-v2".
     labels : list of str, optional
         List of labels for this dataset. If not provided, they will attempt to
         be extracted from the data.
@@ -250,22 +252,8 @@ def auto(
 
     Returns
     -------
-    SetFitTrainer
+    SetFitModel or SetFitTrainer
         A SetFitTrainer instance trained on the provided dataset.
-
-    To see auto insights on a random, pre-selected dataset, simply run
-    ```python
-        from dataquality.integrations.setfit import auto
-
-        auto()
-    ```
-
-    An example using `auto` with a hosted huggingface dataset
-    ```python
-        from dataquality.integrations.setfit import auto
-
-        auto(hf_data="rungalileo/trec6")
-    ```
 
     An example using `auto` with sklearn data as pandas dataframes
     ```python
@@ -284,7 +272,7 @@ def auto(
             {"text": newsgroups_test.data, "label": newsgroups_test.target}
         )
 
-        auto(
+        auto(model=model,
              train_data=df_train,
              test_data=df_test,
              labels=newsgroups_train.target_names,
@@ -298,6 +286,7 @@ def auto(
     from dataquality.auto.text_classification import auto
 
     auto(
+         setfit_model="sentence-transformers/paraphrase-mpnet-base-v2",
          train_data="train.csv",
          test_data="test.csv",
          project_name="data_from_local",
@@ -318,8 +307,8 @@ def auto(
     )
     labels = _get_labels(dd, labels)
     dq.login()
-    a.log_function("auto/tc")
-    project_name = project_name or AUTO_PROJECT_NAME[TaskType.text_classification]
+    a.log_function("setfit/auto")
+
     if not run_name:
         run_name = run_name_from_hf_dataset(hf_data or "setfit_auto")
     if not dq.config.task_type:
@@ -327,16 +316,18 @@ def auto(
             TaskType.text_classification, project_name=project_name, run_name=run_name
         )
     dq.set_labels_for_run(labels)
-    if not isinstance(hf_model, str):
-        return do_model_eval(hf_model, dd, wait, create_data_embs)
-
-    trainer, encoded_data = get_trainer(dd, hf_model, training_args)
-    return do_train(
-        trainer,
-        encoded_data,
-        wait,
-        create_data_embs,
-    )
+    if isinstance(setfit_model, str):
+        # Load the model and train it
+        trainer, encoded_data = get_trainer(dd, setfit_model, training_args)
+        return do_train(
+            trainer,
+            encoded_data,
+            wait,
+            create_data_embs,
+        )
+    else:
+        # Don't train, just evaluate
+        return do_model_eval(setfit_model, dd, wait, create_data_embs)
 
 
 def do_model_eval(
