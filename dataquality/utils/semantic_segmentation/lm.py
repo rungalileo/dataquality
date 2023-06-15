@@ -33,6 +33,7 @@ def calculate_lm_for_batch(
         self_confidence, confident_joint, gold=gold, num_classes=number_classes
     )
     mislabeled_by_noise = get_mislabeled_by_noise(confident_joint, probs, gold)
+
     final_mislabeled = mislabeled_by_conf * mislabeled_by_noise
 
     return final_mislabeled
