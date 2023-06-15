@@ -58,7 +58,6 @@ def watch(
     batch_size: Optional[int] = None,
     meta: Optional[List] = None,
     validate_before_training: bool = False,
-    previously_initialized: bool = False,
 ) -> Callable:
     """Watch a SetFit model or trainer and extract model outputs for dataquality.
     Returns a function that can be used to evaluate the model on a dataset.
@@ -71,7 +70,6 @@ def watch(
     :param batch_size: batch size for evaluation
     :param meta: meta data for evaluation
     :param validate_before_training: whether to do a testrun before training
-    :param previously_initialized: whether the project has already been initialized
     :return: dq_evaluate function
     """
     a.log_function("setfit/watch")
@@ -80,8 +78,10 @@ def watch(
 
     pm = PatchManager()
     pm.unpatch()
-
-    if not previously_initialized or (not dq.config.task_type and not project_name):
+    # If dq.init has been previously called, we don't need to call it again
+    # To detect this we check the paramater and the dq.config.task_type and
+    # no project_name
+    if project_name or dq.config.task_type != TaskType.text_classification:
         init_kwargs: Dict[str, Any] = {}
         if project_name:
             init_kwargs["project_name"] = project_name
@@ -339,7 +339,6 @@ def do_model_eval(
     dq_evaluate = watch(
         model,
         finish=False,
-        previously_initialized=True,
     )
     for split in [Split.train, Split.test, Split.val]:
         if split in encoded_data:
@@ -368,10 +367,10 @@ def do_train(
     wait: bool,
     create_data_embs: Optional[bool] = None,
 ) -> "SetFitTrainer":
-    watch(trainer, finish=False, previously_initialized=True)
+    watch(trainer, finish=False)
 
     trainer.train()
-    dq_evaluate = watch(trainer, finish=False, previously_initialized=True)
+    dq_evaluate = watch(trainer, finish=False)
     if Split.test in encoded_data:
         # We pass in a huggingface dataset but typing wise they expect a torch dataset
         dq_evaluate(
