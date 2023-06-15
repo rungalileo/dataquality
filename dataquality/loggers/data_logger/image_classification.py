@@ -80,7 +80,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         For docstring see top level method located in core/log.py
         """
         if type(dataset).__name__ == "ImageFolder":
-            dataset = self._prepare_df_from_ImageFolder(dataset, imgs_remote_location, split)
+            dataset = self._prepare_df_from_ImageFolder(dataset, imgs_remote_location)
             imgs_location_colname = "text"
 
         if imgs_colname is None and imgs_location_colname is None:
