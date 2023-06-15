@@ -60,7 +60,8 @@ class SemanticTorchLogger(TorchLogger):
         """
         Class to log semantic segmentation models to Galileo
 
-        :param remote_img_location: name of the bucket that currently stores images in cloud
+        :param remote_img_location: name of the bucket that currently stores
+            images in cloud
         :param local_path_to_dataset_root: path to the parent dataset folder
         :param mask_col_name: name of the column that contains the mask
         :param dataloaders: dataloaders to be logged
@@ -550,7 +551,8 @@ def watch(
 
         train_dataloader = torch.utils.data.DataLoader()
         model = SemSegModel()
-        watch(model, remote_img_location, local_path_to_dataset_root, [train_dataloader, test_dataloader])
+        watch(model, remote_img_location, local_path_to_dataset_root,
+            [train_dataloader, test_dataloader])
         for epoch in range(NUM_EPOCHS):
             dq.set_epoch_and_split(epoch,"training")
             train()
@@ -560,7 +562,8 @@ def watch(
 
     :param model: Pytorch Model to be wrapped
     :param remote_img_location: Name of the bucket from which the images come
-    :param local_path_to_dataset_root: Path to the dataset which we can remove from the image path
+    :param local_path_to_dataset_root: Path to the dataset which we can remove
+        from the image path
     :param dataloaders: List of dataloaders to be wrapped
     :param mask_col_name: Name of the column in the dataloader that contains the mask
     :param unpatch_on_start: Whether to unpatch the model before patching it
@@ -614,7 +617,8 @@ def watch(
 
     # we assume that the image_path they pass to us is relative to the bucket / dataset
     # ie if the path they give to us should be the same path we can use in their bucket
-    # to find the data (ie remote_img_location/image_path == local_path_to_dataset_root/image_path)
+    # to find the data
+    #   (ie remote_img_location/image_path == local_path_to_dataset_root/image_path)
 
     tl = SemanticTorchLogger(
         remote_img_location=remote_img_location,
