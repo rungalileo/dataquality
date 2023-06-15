@@ -17,11 +17,10 @@ from dataquality.dq_auto.text_classification import (
 )
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
-from dataquality.utils.auto import run_name_from_hf_dataset
+from dataquality.utils.auto import _apply_column_mapping, run_name_from_hf_dataset
 from dataquality.utils.patcher import PatchManager
 from dataquality.utils.setfit import (
     SetFitModelHook,
-    _apply_column_mapping,
     _prepare_config,
     _setup_patches,
     get_trainer,
@@ -70,6 +69,8 @@ def watch(
     :param finish: whether to run dq.finish after evaluation
     :param wait: whether to wait for dq.finish
     :param batch_size: batch size for evaluation
+    :param meta: meta data for evaluation
+    :param validate_before_training: whether to validate model before training
     :return: dq_evaluate function
     """
     a.log_function("setfit/watch")
@@ -186,6 +187,7 @@ def auto(
     project_name: str = "auto_tc_setfit",
     run_name: Optional[str] = None,
     training_args: Optional[Dict[str, Any]] = None,
+    column_mapping: Optional[Dict[str, str]] = None,
     wait: bool = True,
     create_data_embs: Optional[bool] = None,
 ) -> "SetFitTrainer":
@@ -238,6 +240,9 @@ def auto(
         A dictionary of arguments for the SetFitTrainer. It allows you
         to customize training configuration such as learning rate,
         batch size, number of epochs, etc.
+    column_mapping : dict, optional
+        A dictionary of column names to use for the provided data.
+        Needs to map to the following keys: "text", "id", "label".
     wait : bool, optional
         Whether to wait for the processing of your run to complete. Default is True.
     create_data_embs : bool, optional
@@ -309,6 +314,7 @@ def auto(
         test_data,
         inference_data,
         labels,
+        column_mapping,
     )
     labels = _get_labels(dd, labels)
     dq.login()
@@ -319,24 +325,35 @@ def auto(
     dq.set_labels_for_run(labels)
     _log_dataset_dict(dd)
     trainer, encoded_data = get_trainer(dd, hf_model, training_args)
-    return do_train(trainer, encoded_data, wait, create_data_embs)
+    return do_train(
+        trainer,
+        encoded_data,
+        wait,
+        column_mapping,
+        create_data_embs,
+    )
 
 
 def do_train(
     trainer: "SetFitTrainer",
     encoded_data: DatasetDict,
     wait: bool,
+    column_mapping: Optional[Dict[str, Any]] = None,
     create_data_embs: Optional[bool] = None,
 ) -> "SetFitTrainer":
     watch(trainer, finish=False)
 
     trainer.train()
-    dq_evaluate = watch(trainer, finish=False)
+    dq_evaluate = watch(
+        trainer,
+        finish=False,
+    )
     if Split.test in encoded_data:
         # We pass in a huggingface dataset but typing wise they expect a torch dataset
         dq_evaluate(
             encoded_data[Split.test],
             split=Split.test,
+            column_mapping=column_mapping,
             # for inference set the split to inference
             # and pass an inference_name="inference_run_1"
         )
@@ -347,6 +364,7 @@ def do_train(
             encoded_data[inf_name],
             split=Split.inference,  # type: ignore
             inference_name=inf_name,  # type: ignore
+            column_mapping=column_mapping,
         )
 
     dq.finish(wait=wait, create_data_embs=create_data_embs)

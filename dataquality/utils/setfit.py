@@ -212,33 +212,6 @@ def validate_setfit(
     _prepare_config()
 
 
-def _apply_column_mapping(dataset: Dataset, column_mapping: Dict[str, str]) -> Dataset:
-    """
-    Applies the provided column mapping to the dataset, renaming columns accordingly.
-    Extra features not in the column mapping are prefixed with `"feat_"`.
-    """
-    if type(dataset) == dict:
-        dataset = Dataset.from_dict(dataset)
-    dataset = dataset.rename_columns(
-        {
-            **column_mapping,
-            **{
-                col: f"feat_{col}"
-                for col in dataset.column_names
-                if col not in column_mapping
-            },
-        }
-    )
-    dset_format = dataset.format
-    dataset = dataset.with_format(
-        type=dset_format["type"],
-        columns=dataset.column_names,
-        output_all_columns=dset_format["output_all_columns"],
-        **dset_format["format_kwargs"],
-    )
-    return dataset
-
-
 class SetFitModelHook(Patch):
     """Hook to SetFit model to store input and output of predict_proba function."""
 

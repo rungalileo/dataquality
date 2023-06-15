@@ -7,7 +7,7 @@ from setfit import SetFitModel, SetFitTrainer
 
 import dataquality as dq
 from dataquality.clients.api import ApiClient
-from dataquality.integrations.setfit import watch
+from dataquality.integrations.setfit import auto, watch
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.conftest import LOCAL_MODEL_PATH, TestSessionVariables
@@ -274,3 +274,68 @@ def test_end_to_end(
         # and pass an inference_name="inference_run_1"
     )
     dq.finish()
+
+
+# @patch.object(ApiClient, "valid_current_user", return_value=True)
+# @patch.object(dq.core.finish, "_version_check")
+# @patch.object(dq.core.finish, "_reset_run")
+# @patch.object(dq.core.finish, "upload_dq_log_file")
+# @patch.object(ApiClient, "make_request")
+# @patch.object(dq.core.finish, "wait_for_run")
+# @patch.object(ApiClient, "get_project_by_name")
+# @patch.object(ApiClient, "create_project")
+# @patch.object(ApiClient, "get_project_run_by_name", return_value={})
+# @patch.object(ApiClient, "create_run")
+# @patch("dataquality.core.init._check_dq_version")
+# @patch.object(
+#     dq.clients.api.ApiClient,
+#     "get_healthcheck_dq",
+#     return_value={
+#         "bucket_names": {
+#             "images": "galileo-images",
+#             "results": "galileo-project-runs-results",
+#             "root": "galileo-project-runs",
+#         },
+#         "minio_fqdn": "127.0.0.1:9000",
+#     },
+# )
+# @patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
+# @patch.object(dq.clients.api.ApiClient, "_get_project_run_id")
+# def test_auto(
+#     mock_valid_user: MagicMock,
+#     mock_dq_healthcheck: MagicMock,
+#     mock_check_dq_version: MagicMock,
+#     mock_create_run: MagicMock,
+#     mock_get_project_run_by_name: MagicMock,
+#     mock_create_project: MagicMock,
+#     mock_get_project_by_name: MagicMock,
+#     set_test_config: Callable,
+#     mock_wait_for_run: MagicMock,
+#     mock_make_request: MagicMock,
+#     mock_upload_log_file: MagicMock,
+#     mock_reset_run: MagicMock,
+#     mock_version_check: MagicMock,
+#     cleanup_after_use: Generator,
+#     test_session_vars: TestSessionVariables,
+# ) -> None:
+#     dataset = Dataset.from_dict(
+#         {"text": ["hello", "world", "foo", "bar"], "label": [0, 1] * 2}
+#     )
+
+#     mock_get_project_by_name.return_value = {"id": test_session_vars.DEFAULT_PROJECT_ID}
+#     mock_create_run.return_value = {"id": test_session_vars.DEFAULT_RUN_ID}
+#     set_test_config(current_project_id=None, current_run_id=None)
+
+#     column_mapping = {"text": "text", "label": "label"}
+
+#     labels = ["nocat", "cat"]
+#     auto(
+#         train_data=dataset,
+#         val_data=dataset,
+#         test_data=dataset,
+#         inference_data={"eval": dataset},
+#         run_name="labels",
+#         training_args={"num_epochs": 2},
+#         labels=labels,
+#         column_mapping=column_mapping,
+#     )
