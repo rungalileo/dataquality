@@ -11,8 +11,8 @@ import vaex
 from pydantic import UUID4
 from tqdm import tqdm
 
+from dataquality import config
 from dataquality.clients.api import ApiClient
-from dataquality.core._config import GALILEO_DEFAULT_IMG_BUCKET_NAME
 
 api_client = ApiClient()
 
@@ -119,7 +119,7 @@ def chunk_load_then_upload_df(
     temp_dir: str,
     project_id: Optional[UUID4] = None,
     object_path: Optional[str] = None,
-    bucket: str = GALILEO_DEFAULT_IMG_BUCKET_NAME,
+    bucket: str = config.images_bucket_name,
     parallel: bool = False,
     step: int = 50,
     num_workers: int = 1,
