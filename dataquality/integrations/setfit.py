@@ -10,6 +10,7 @@ import dataquality as dq
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
 from dataquality.core.log import get_data_logger
+from dataquality.dq_auto.auto import AUTO_PROJECT_NAME
 from dataquality.dq_auto.text_classification import (
     TCDatasetManager,
     _get_labels,
@@ -319,9 +320,13 @@ def auto(
     labels = _get_labels(dd, labels)
     dq.login()
     a.log_function("auto/tc")
-    if not run_name and isinstance(hf_data, str):
-        run_name = run_name_from_hf_dataset(hf_data)
-    dq.init(TaskType.text_classification, project_name=project_name, run_name=run_name)
+    project_name = project_name or AUTO_PROJECT_NAME[TaskType.text_classification]
+    if not run_name:
+        run_name = run_name_from_hf_dataset(hf_data or "setfit_auto")
+    if not dq.config.task_type:
+        dq.init(
+            TaskType.text_classification, project_name=project_name, run_name=run_name
+        )
     dq.set_labels_for_run(labels)
     _log_dataset_dict(dd)
     trainer, encoded_data = get_trainer(dd, hf_model, training_args)
