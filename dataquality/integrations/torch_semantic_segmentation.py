@@ -219,11 +219,11 @@ class SemanticTorchLogger(TorchLogger):
             probs (torch.Tensor): probability vectors to queue for LM
             gold (torch.Tensor): gold masks resized to queue for LM
         """
-        bs = probs.shape[0]
+        probs.shape[0]
         # stack on the end of the queue and remove front to keep only most recent
         self.prob_queue: torch.Tensor = torch.cat((self.prob_queue, probs), dim=0)
         self.gold_queue: torch.Tensor = torch.cat((self.gold_queue, gold), dim=0)
-    
+
     def truncate_queue(self) -> None:
         """Truncate the queue to the batch size
 
@@ -231,8 +231,8 @@ class SemanticTorchLogger(TorchLogger):
             bs (int): batch size
         """
         if self.prob_queue.shape[0] > self.queue_size:
-            self.prob_queue = self.prob_queue[-self.queue_size:]
-            self.gold_queue = self.gold_queue[-self.queue_size:]
+            self.prob_queue = self.prob_queue[-self.queue_size :]
+            self.gold_queue = self.gold_queue[-self.queue_size :]
 
     def resize_probs_and_gold(
         self, probs: torch.Tensor, gold: torch.Tensor
