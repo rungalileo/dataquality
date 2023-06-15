@@ -56,6 +56,7 @@ from dataquality.core.finish import finish, get_run_status, wait_for_run
 from dataquality.core.init import init
 from dataquality.core.log import (
     docs,
+    get_current_run_labels,
     get_data_logger,
     get_model_logger,
     log_data_sample,
@@ -100,6 +101,7 @@ __all__ = [
     "configure",
     "finish",
     "set_labels_for_run",
+    "get_current_run_labels",
     "get_data_logger",
     "get_model_logger",
     "set_tasks_for_run",

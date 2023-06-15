@@ -487,18 +487,25 @@ def set_labels_for_run(labels: Union[List[List[str]], List[str]]) -> None:
     if get_data_logger().logger_config.existing_run:
         if not isinstance(labels, list):
             labels = list(labels)
-        if sorted(labels) != sorted(get_data_logger().logger_config.labels):
+        if labels != get_data_logger().logger_config.labels:
             raise GalileoException(
-                "This run already has data logged to Galileo, and labels have been "
-                "set. You cannot change the labels of an existing run. If you need new "
-                "labels, delete this run (dq.delete_run()) or use a new run name. "
-                f"Current labels: {get_data_logger().logger_config.labels}"
-            )
+                "The labels provided to do match the values or order of the existing "
+                "labels for this run. You cannot change the labels of an existing run, "
+                "or the order of those labels. Use the following to get your run "
+                "labels: `dq.get_current_run_labels()` If you need new labels, delete "
+                "this run (dq.delete_run()) or use a new run name."
+            ) from None
     else:
         a.log_function("dq/set_labels_for_run")
         if isinstance(labels[0], (int, np.integer)):
             get_data_logger().logger_config.int_labels = True
         get_data_logger().logger_config.labels = labels
+
+
+@check_noop
+def get_current_run_labels() -> Optional[List[str]]:
+    """Returns the current run labels, if there are any"""
+    return get_data_logger().logger_config.labels
 
 
 @check_noop
