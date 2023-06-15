@@ -58,6 +58,7 @@ def watch(
     batch_size: Optional[int] = None,
     meta: Optional[List] = None,
     validate_before_training: bool = False,
+    data_previously_logged: bool = False,
 ) -> Callable:
     """Watch a SetFit model or trainer and extract model outputs for dataquality.
     Returns a function that can be used to evaluate the model on a dataset.
@@ -78,7 +79,7 @@ def watch(
 
     pm = PatchManager()
     pm.unpatch()
-    if not dq.config.task_type:
+    if not data_previously_logged:
         init_kwargs: Dict[str, Any] = {}
         if project_name:
             init_kwargs["project_name"] = project_name
