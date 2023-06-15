@@ -14,7 +14,6 @@ from dataquality.dq_auto.auto import AUTO_PROJECT_NAME
 from dataquality.dq_auto.text_classification import (
     TCDatasetManager,
     _get_labels,
-    _log_dataset_dict,
 )
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
@@ -328,7 +327,6 @@ def auto(
             TaskType.text_classification, project_name=project_name, run_name=run_name
         )
     dq.set_labels_for_run(labels)
-    _log_dataset_dict(dd)
     if not isinstance(hf_model, str):
         return do_model_eval(hf_model, dd, wait, create_data_embs)
 
@@ -353,10 +351,9 @@ def do_model_eval(
     )
     for split in [Split.train, Split.test, Split.val]:
         if split in encoded_data:
-            # We pass in a huggingface dataset but typing wise they expect a torch dataset
             dq_evaluate(
-                encoded_data[Split.test],
-                split=Split.test,
+                encoded_data[split],
+                split=split,
                 # for inference set the split to inference
                 # and pass an inference_name="inference_run_1"
             )

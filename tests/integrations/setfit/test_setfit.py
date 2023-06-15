@@ -7,7 +7,6 @@ from setfit import SetFitModel, SetFitTrainer
 
 import dataquality as dq
 from dataquality.integrations.setfit import auto, watch
-from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.conftest import LOCAL_MODEL_PATH, TestSessionVariables
 
