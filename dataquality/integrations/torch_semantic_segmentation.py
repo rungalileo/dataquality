@@ -219,7 +219,6 @@ class SemanticTorchLogger(TorchLogger):
             probs (torch.Tensor): probability vectors to queue for LM
             gold (torch.Tensor): gold masks resized to queue for LM
         """
-        probs.shape[0]
         # stack on the end of the queue and remove front to keep only most recent
         self.prob_queue: torch.Tensor = torch.cat((self.prob_queue, probs), dim=0)
         self.gold_queue: torch.Tensor = torch.cat((self.gold_queue, gold), dim=0)
