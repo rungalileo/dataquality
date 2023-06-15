@@ -50,7 +50,7 @@ LIKELY_MISLABELED_MAP_SIZE = 32
 class SemanticTorchLogger(TorchLogger):
     def __init__(
         self,
-        remote_img_path: str,
+        remote_img_location: str,
         local_path_to_dataset_root: str,
         dataloaders: Dict[str, torch.utils.data.DataLoader],
         mask_col_name: Optional[str] = None,
@@ -60,7 +60,7 @@ class SemanticTorchLogger(TorchLogger):
         """
         Class to log semantic segmentation models to Galileo
 
-        :param remote_img_path: name of the bucket that currently stores images in cloud
+        :param remote_img_location: name of the bucket that currently stores images in cloud
         :param local_path_to_dataset_root: path to the parent dataset folder
         :param mask_col_name: name of the column that contains the mask
         :param dataloaders: dataloaders to be logged
@@ -78,7 +78,7 @@ class SemanticTorchLogger(TorchLogger):
         self.id_to_relative_path: Dict[str, Any] = {
             split: {} for split in dataloaders.keys()
         }
-        self.remote_img_path = remote_img_path
+        self.remote_img_location = remote_img_location
         self.dataloaders = dataloaders
         self.image_col = "image"
         self.converted_datasets = []
@@ -385,7 +385,7 @@ class SemanticTorchLogger(TorchLogger):
             if not self.called_finish:
                 return
             logger = SemanticSegmentationModelLogger(
-                remote_img_path=self.remote_img_path,
+                remote_img_location=self.remote_img_location,
                 image_paths=image_paths,
                 image_ids=img_ids,
                 gold_masks=gold_mask,  # Torch tensor (bs, w, h)
@@ -538,7 +538,7 @@ def patch_iterator_and_batch(store: Dict[str, Any]) -> Callable:
 
 def watch(
     model: Module,
-    remote_img_path: str,
+    remote_img_location: str,
     local_path_to_dataset_root: str,
     dataloaders: Dict[str, DataLoader],
     mask_col_name: Optional[str] = None,
@@ -550,7 +550,7 @@ def watch(
 
         train_dataloader = torch.utils.data.DataLoader()
         model = SemSegModel()
-        watch(model, remote_img_path, local_path_to_dataset_root, [train_dataloader, test_dataloader])
+        watch(model, remote_img_location, local_path_to_dataset_root, [train_dataloader, test_dataloader])
         for epoch in range(NUM_EPOCHS):
             dq.set_epoch_and_split(epoch,"training")
             train()
@@ -559,7 +559,7 @@ def watch(
         dq.finish()
 
     :param model: Pytorch Model to be wrapped
-    :param remote_img_path: Name of the bucket from which the images come
+    :param remote_img_location: Name of the bucket from which the images come
     :param local_path_to_dataset_root: Path to the dataset which we can remove from the image path
     :param dataloaders: List of dataloaders to be wrapped
     :param mask_col_name: Name of the column in the dataloader that contains the mask
@@ -614,10 +614,10 @@ def watch(
 
     # we assume that the image_path they pass to us is relative to the bucket / dataset
     # ie if the path they give to us should be the same path we can use in their bucket
-    # to find the data (ie remote_img_path/image_path == local_path_to_dataset_root/image_path)
+    # to find the data (ie remote_img_location/image_path == local_path_to_dataset_root/image_path)
 
     tl = SemanticTorchLogger(
-        remote_img_path=remote_img_path,
+        remote_img_location=remote_img_location,
         local_path_to_dataset_root=local_path_to_dataset_root,
         dataloaders=dataloaders,
         mask_col_name=mask_col_name,
