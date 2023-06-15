@@ -59,7 +59,7 @@ def watch(
     wait: bool = False,
     batch_size: Optional[int] = None,
     meta: Optional[List] = None,
-    validate_before_training: bool = True,
+    validate_before_training: bool = False,
 ) -> Callable:
     """Watch a SetFit model or trainer and extract model outputs for dataquality.
     Returns a function that can be used to evaluate the model on a dataset.
