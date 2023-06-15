@@ -14,7 +14,6 @@ from dataquality import config
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
 from dataquality.clients.objectstore import ObjectStore
-from dataquality.core._config import GALILEO_DEFAULT_RESULT_BUCKET_NAME
 from dataquality.exceptions import GalileoException
 from dataquality.integrations.torch import TorchLogger, unwatch
 from dataquality.loggers.model_logger.semantic_segmentation import (
@@ -439,7 +438,7 @@ class SemanticTorchLogger(TorchLogger):
             file_path=temp_file.name,
             content_type="application/json",
             progress=False,
-            bucket_name=GALILEO_DEFAULT_RESULT_BUCKET_NAME,
+            bucket_name=config.results_bucket_name,
         )
 
     def upload_dep_split(self, split: str) -> None:
@@ -469,7 +468,7 @@ class SemanticTorchLogger(TorchLogger):
             temp_dir=local_dep_path,
             export_format="arrow",
             show_progress=False,
-            bucket=GALILEO_DEFAULT_RESULT_BUCKET_NAME,
+            bucket=config.results_bucket_name,
             use_data_md5_hash=False,
         )
 
