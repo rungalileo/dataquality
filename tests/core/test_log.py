@@ -30,4 +30,4 @@ def test_set_labels_existing_run_same_labels_unsorted(set_test_config: Callable)
     with pytest.raises(GalileoException) as e:
         dq.set_labels_for_run(["B", "C", "A"])
     assert str(e.value).startswith("The labels provided to do match")
-    assert logger_config.labels == ["A", "B", "C"]
+    assert logger_config.labels == ["A", "B", "C"] == dq.get_current_run_labels()

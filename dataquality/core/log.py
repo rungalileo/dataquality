@@ -492,8 +492,8 @@ def set_labels_for_run(labels: Union[List[List[str]], List[str]]) -> None:
                 "The labels provided to do match the values or order of the existing "
                 "labels for this run. You cannot change the labels of an existing run, "
                 "or the order of those labels. Use the following to get your run "
-                "labels: `dq.cur_run_labels()` If you need new labels, delete this run "
-                "(dq.delete_run()) or use a new run name."
+                "labels: `dq.get_current_run_labels()` If you need new labels, delete "
+                "this run (dq.delete_run()) or use a new run name."
             ) from None
     else:
         a.log_function("dq/set_labels_for_run")
@@ -503,7 +503,7 @@ def set_labels_for_run(labels: Union[List[List[str]], List[str]]) -> None:
 
 
 @check_noop
-def cur_run_labels() -> Optional[List[str]]:
+def get_current_run_labels() -> Optional[List[str]]:
     """Returns the current run labels, if there are any"""
     return get_data_logger().logger_config.labels
 
