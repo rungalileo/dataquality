@@ -37,7 +37,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
 
     def __init__(
         self,
-        bucket_url: str = "",
+        remote_img_path: str = "",
         image_paths: List[str] = [],
         image_ids: List[int] = [],
         gold_masks: torch.Tensor = torch.empty(0),
@@ -81,7 +81,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             epoch=epoch,
             inference_name=inference_name,
         )
-        self.bucket_url = bucket_url
+        self.remote_img_path = remote_img_path
         self.image_paths = image_paths
         self.image_ids = image_ids
         self.gold_masks = gold_masks
@@ -234,7 +234,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         )
 
         image_data = {
-            "image": [f"{self.bucket_url}/{pth}" for pth in self.image_paths],
+            "image": [f"{self.remote_img_path}/{pth}" for pth in self.image_paths],
             "id": self.image_ids,
             "height": heights,
             "width": widths,
