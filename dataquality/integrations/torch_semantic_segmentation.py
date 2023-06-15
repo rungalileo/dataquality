@@ -220,13 +220,19 @@ class SemanticTorchLogger(TorchLogger):
             probs (torch.Tensor): probability vectors to queue for LM
             gold (torch.Tensor): gold masks resized to queue for LM
         """
-        bs = probs.shape[0]
         # stack on the end of the queue and remove front to keep only most recent
         self.prob_queue: torch.Tensor = torch.cat((self.prob_queue, probs), dim=0)
         self.gold_queue: torch.Tensor = torch.cat((self.gold_queue, gold), dim=0)
+
+    def truncate_queue(self) -> None:
+        """Truncate the queue to the batch size
+
+        Args:
+            bs (int): batch size
+        """
         if self.prob_queue.shape[0] > self.queue_size:
-            self.prob_queue = self.prob_queue[bs:]
-            self.gold_queue = self.gold_queue[bs:]
+            self.prob_queue = self.prob_queue[-self.queue_size :]
+            self.gold_queue = self.gold_queue[-self.queue_size :]
 
     def resize_probs_and_gold(
         self, probs: torch.Tensor, gold: torch.Tensor
@@ -294,6 +300,10 @@ class SemanticTorchLogger(TorchLogger):
             self.thresholds[cls] = (
                 self.thresholds[cls] * 0.999 + out_threshold[cls] * 0.001
             )
+        # zero out the confident count to avoid overestimating
+        self.confident_count = torch.zeros(
+            (self.number_classes, self.number_classes), dtype=torch.int64
+        )
         for class_idx in range(self.number_classes):
             self.confident_count = fill_confident_counts(
                 probs[..., class_idx],
@@ -319,6 +329,7 @@ class SemanticTorchLogger(TorchLogger):
             mislabeled_pixels = torch.zeros_like(mislabeled_pixels)
         bs = probs.shape[0]
         mislabeled_pixels = mislabeled_pixels[-bs:]
+        self.truncate_queue()
         return mislabeled_pixels
 
     def get_argmax_probs(
@@ -621,7 +632,7 @@ def watch(
     #   (ie imgs_remote_location/image_path == local_path_to_dataset_root/image_path)
 
     tl = SemanticTorchLogger(
-        imgs_remote_location=imgs_remote_location,
+        imgs_remote_location=imgs_remote_location.rstrip("/"),
         local_path_to_dataset_root=local_path_to_dataset_root,
         dataloaders=dataloaders,
         mask_col_name=mask_col_name,
