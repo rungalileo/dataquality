@@ -212,33 +212,6 @@ def validate_setfit(
     _prepare_config()
 
 
-def _apply_column_mapping(dataset: Dataset, column_mapping: Dict[str, str]) -> Dataset:
-    """
-    Applies the provided column mapping to the dataset, renaming columns accordingly.
-    Extra features not in the column mapping are prefixed with `"feat_"`.
-    """
-    if type(dataset) == dict:
-        dataset = Dataset.from_dict(dataset)
-    dataset = dataset.rename_columns(
-        {
-            **column_mapping,
-            **{
-                col: f"feat_{col}"
-                for col in dataset.column_names
-                if col not in column_mapping
-            },
-        }
-    )
-    dset_format = dataset.format
-    dataset = dataset.with_format(
-        type=dset_format["type"],
-        columns=dataset.column_names,
-        output_all_columns=dset_format["output_all_columns"],
-        **dset_format["format_kwargs"],
-    )
-    return dataset
-
-
 class SetFitModelHook(Patch):
     """Hook to SetFit model to store input and output of predict_proba function."""
 
@@ -442,12 +415,10 @@ class _PatchSetFitModel(Patch):
 
 
 def get_trainer(
-    dd: "DatasetDict",
-    labels: List[str],
+    dd: DatasetDict,
     model_checkpoint: str,
-    max_padding_length: int,
-    num_train_epochs: int,
-) -> Tuple["SetFitTrainer", "DatasetDict"]:
+    training_args: Optional[Dict[str, Any]],
+) -> Tuple["SetFitTrainer", DatasetDict]:
     from sentence_transformers.losses import CosineSimilarityLoss
     from setfit import SetFitModel, SetFitTrainer
 
@@ -456,12 +427,16 @@ def get_trainer(
         return SetFitModel.from_pretrained(model_checkpoint)
 
     has_val = Split.validation in dd
-
+    setfit_args = {
+        "loss_class": CosineSimilarityLoss,
+        "num_iterations": 20,
+    }
+    if training_args is not None:
+        setfit_args.update(training_args)
     trainer = SetFitTrainer(
         model=model_init(),
         train_dataset=dd[Split.training],
         eval_dataset=dd[Split.validation] if has_val else None,
-        loss_class=CosineSimilarityLoss,
-        num_iterations=20,
+        **setfit_args,
     )
     return trainer, dd
