@@ -329,7 +329,6 @@ class ModelHookManager:
         """Register a hook and save it in our hook list"""
         h = selected_layer.register_forward_hook(hook)
         self.hooks.append(h)
-        print(f"Attached hook")
         return h
 
     def detach_hooks(self) -> None:

@@ -88,7 +88,6 @@ class SemanticTorchLogger(TorchLogger):
             convert_dataset = self.convert_dataset(dataloader.dataset, split)
             self.converted_datasets.append(convert_dataset)
         # capture the model input
-        print('detach hooks')
         self.hook_manager.detach_hooks()
         if hasattr(self.model, "encoder"):
             self.hook_manager.attach_hook(self.model.encoder, self._dq_input_hook)
@@ -172,7 +171,6 @@ class SemanticTorchLogger(TorchLogger):
             logits = model_output
         model_outputs_store = self.helper_data[HelperData.model_outputs_store]
         model_outputs_store["logits"] = logits
-        print('in dq logits hook')
 
     def _dq_classifier_hook_with_step_end(
         self,
