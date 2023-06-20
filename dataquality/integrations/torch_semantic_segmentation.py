@@ -9,7 +9,7 @@ from torch import Tensor
 from torch.nn import Module
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
-from transformers.modeling_outputs import BaseModelOutput, TokenClassifierOutput
+from transformers.modeling_outputs import BaseModelOutput
 
 import dataquality as dq
 from dataquality import config
@@ -89,10 +89,7 @@ class SemanticTorchLogger(TorchLogger):
             self.converted_datasets.append(convert_dataset)
         # capture the model input
         self.hook_manager.detach_hooks()
-        if hasattr(self.model, "encoder"):
-            self.hook_manager.attach_hook(self.model.encoder, self._dq_input_hook)
-        else:
-            self.hook_manager.attach_hook(self.model, self._dq_input_hook)
+        self.hook_manager.attach_hook(self.model, self._dq_input_hook)
         self.hook_manager.attach_hook(
             self.model, self._dq_classifier_hook_with_step_end
         )
