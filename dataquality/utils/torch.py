@@ -157,7 +157,6 @@ class TorchBaseInstance:
             logits = logits[:, 1:, :]
         model_outputs_store = self.helper_data[HelperData.model_outputs_store]
         model_outputs_store["logits"] = logits
-        print('in dq logits hook')
 
     def _classifier_hook(
         self,
@@ -180,7 +179,7 @@ class TorchBaseInstance:
 
         self._dq_embedding_hook(model, None, model_input)
         self._dq_logit_hook(model, None, model_output)
-    
+
 
 
 # store indices
