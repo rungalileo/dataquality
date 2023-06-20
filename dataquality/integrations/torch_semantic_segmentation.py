@@ -34,7 +34,6 @@ from dataquality.utils.semantic_segmentation.utils import mask_to_boundary
 from dataquality.utils.thread_pool import ThreadPoolManager, lock
 from dataquality.utils.torch import ModelHookManager, store_batch_indices
 from dataquality.utils.upload import chunk_load_then_upload_df
-from transformers.modeling_outputs import BaseModelOutput
 
 a = Analytics(ApiClient, dq.config)  # type: ignore
 a.log_import("torch")
@@ -93,12 +92,13 @@ class SemanticTorchLogger(TorchLogger):
             self.hook_manager.attach_hook(self.model.encoder, self._dq_input_hook)
         else:
             self.hook_manager.attach_hook(self.model, self._dq_input_hook)
-        self.hook_manager.attach_hook(self.model, self._dq_classifier_hook_with_step_end)
+        self.hook_manager.attach_hook(
+            self.model, self._dq_classifier_hook_with_step_end
+        )
 
         self.called_finish = False
         self.queue_size = LIKELY_MISLABELED_QUEUE_SIZE
         self.init_lm_labels_flag = False
-        
 
     def convert_dataset(self, dataset: Any, split: str) -> List:
         """Convert the dataset to the format expected by the dataquality client
@@ -150,7 +150,7 @@ class SemanticTorchLogger(TorchLogger):
                 raise ValueError(
                     "No mask column found in the batch please specify in watch method"
                 )
-                
+
     def _dq_logit_hook(
         self,
         model: Module,
@@ -165,8 +165,8 @@ class SemanticTorchLogger(TorchLogger):
         :param model_input: Model input of the current layer
         :param model_output: Model output of the current layer
         """
-        if isinstance(model_output, dict) and 'out' in model_output:
-            logits = model_output['out']
+        if isinstance(model_output, dict) and "out" in model_output:
+            logits = model_output["out"]
         else:
             logits = model_output
         model_outputs_store = self.helper_data[HelperData.model_outputs_store]
@@ -188,7 +188,7 @@ class SemanticTorchLogger(TorchLogger):
         """
         self._classifier_hook(model, model_input, model_output)
         self._on_step_end()
-        
+
     def _dq_embedding_hook(
         self,
         model: Module,
@@ -214,7 +214,6 @@ class SemanticTorchLogger(TorchLogger):
         """
         # model input comes as a tuple of length 1
         self.helper_data[HelperData.model_input] = model_input[0].detach().cpu().numpy()
-        
 
     def _init_helper_data(self, hm: ModelHookManager, model: Module) -> None:
         """
