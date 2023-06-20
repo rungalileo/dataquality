@@ -130,6 +130,7 @@ class TorchBaseInstance:
         :param model_input: Model input of the current layer
         :param model_output: Model output of the current layer
         """
+        import pdb; pdb.set_trace()
         logits = None
         if self.logits_fn is not None:
             model_output = self.logits_fn(model_output)
@@ -156,6 +157,7 @@ class TorchBaseInstance:
             logits = logits[:, 1:, :]
         model_outputs_store = self.helper_data[HelperData.model_outputs_store]
         model_outputs_store["logits"] = logits
+        print('in dq logits hook')
 
     def _classifier_hook(
         self,
@@ -178,6 +180,7 @@ class TorchBaseInstance:
 
         self._dq_embedding_hook(model, None, model_input)
         self._dq_logit_hook(model, None, model_output)
+    
 
 
 # store indices
@@ -326,6 +329,7 @@ class ModelHookManager:
         """Register a hook and save it in our hook list"""
         h = selected_layer.register_forward_hook(hook)
         self.hooks.append(h)
+        print(f"Attached hook")
         return h
 
     def detach_hooks(self) -> None:
