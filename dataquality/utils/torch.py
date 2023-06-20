@@ -130,7 +130,6 @@ class TorchBaseInstance:
         :param model_input: Model input of the current layer
         :param model_output: Model output of the current layer
         """
-        import pdb; pdb.set_trace()
         logits = None
         if self.logits_fn is not None:
             model_output = self.logits_fn(model_output)
@@ -179,7 +178,6 @@ class TorchBaseInstance:
 
         self._dq_embedding_hook(model, None, model_input)
         self._dq_logit_hook(model, None, model_output)
-
 
 
 # store indices
