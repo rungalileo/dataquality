@@ -9,7 +9,6 @@ from torch import Tensor
 from torch.nn import Module
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
-from transformers.modeling_outputs import BaseModelOutput
 
 import dataquality as dq
 from dataquality import config
@@ -88,7 +87,7 @@ class SemanticTorchLogger(TorchLogger):
             convert_dataset = self.convert_dataset(dataloader.dataset, split)
             self.converted_datasets.append(convert_dataset)
         # capture the model input
-        # detach normal embedding hooks and logit hooks and attach specific 
+        # detach normal embedding hooks and logit hooks and attach specific
         # semantic segmentation hooks
         self.hook_manager.detach_hooks()
         self.hook_manager.attach_hook(self.model, self._dq_input_hook)
@@ -162,7 +161,7 @@ class SemanticTorchLogger(TorchLogger):
         """
         Hook to extract the logits from the model specific to semantic segmentation.
         Overrides the super class method.
-        
+
         :param model: Model pytorch model
         :param model_input: Model input of the current layer
         :param model_output: Model output of the current layer
