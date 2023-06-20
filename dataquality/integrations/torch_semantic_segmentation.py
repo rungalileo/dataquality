@@ -9,6 +9,7 @@ from torch import Tensor
 from torch.nn import Module
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
+from transformers.modeling_outputs import BaseModelOutput, TokenClassifierOutput
 
 import dataquality as dq
 from dataquality import config
@@ -192,8 +193,8 @@ class SemanticTorchLogger(TorchLogger):
     def _dq_embedding_hook(
         self,
         model: Module,
-        model_input: torch.Tensor,
-        model_output: Union[Any, torch.Tensor],
+        model_input: Optional[Tensor],
+        model_output: Union[BaseModelOutput, Tensor],
     ) -> None:
         pass
 
