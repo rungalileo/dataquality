@@ -517,6 +517,7 @@ class SemanticTorchLogger(TorchLogger):
         self.called_finish = True
         # finish function that runs our inference at the end of training
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model = self.model.to(device)
         for split, dataloader in self.dataloaders.items():
             # For sem seg the final inference loop is always considered epoch 0
             dq.set_epoch_and_split(0, Split[split])
