@@ -492,7 +492,7 @@ def remove_all_forward_hooks(
             remove_hook(child, all=all)
             remove_all_forward_hooks(child, all=all, start=False)
 
- 
+
 def find_dq_hook_by_name(model: Module, name: str = "_dq_", start: bool = True) -> bool:
     """Find a hook by name in a model.
     :param model: The model to search the hook in.
