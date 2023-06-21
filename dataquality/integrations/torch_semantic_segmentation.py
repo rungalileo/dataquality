@@ -360,7 +360,7 @@ class SemanticTorchLogger(TorchLogger):
         mislabeled_pixels = mislabeled_pixels[-bs:]
         self.truncate_queue()
         return mislabeled_pixels
-    
+
     def expand_binary_classification(self, probs: torch.Tensor) -> torch.Tensor:
         """Expands the binary classification to a 2 channel tensor
 
@@ -401,13 +401,13 @@ class SemanticTorchLogger(TorchLogger):
             probs = (torch.nn.Softmax(dim=-1)(logits)).cpu()
         else:
             probs = (torch.nn.Sigmoid()(logits)).cpu()
-            
+
         # expands the binary classification to a 2 channel tensor
         if probs.shape[3] == 1:
             probs = self.expand_binary_classification(probs)
-            
+
         argmax = (probs.clone().argmax(dim=-1)).cpu()
-        
+
         return argmax, probs
 
     def _on_step_end(self) -> None:
@@ -417,9 +417,9 @@ class SemanticTorchLogger(TorchLogger):
 
         # if we have not inferred the number of classes from the model architecture
         # takes the max of the logits shape and 2 in case of binary classification
-        self.number_classes = max(self.helper_data[HelperData.model_outputs_store][
-            "logits"
-        ].shape[1], 2)
+        self.number_classes = max(
+            self.helper_data[HelperData.model_outputs_store]["logits"].shape[1], 2
+        )
         if not self.init_lm_labels_flag:
             self._init_lm_labels()
             self.init_lm_labels_flag = True
