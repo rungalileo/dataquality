@@ -4,7 +4,7 @@ import re
 import warnings
 from datetime import datetime
 from random import choice
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 import pandas as pd
 from datasets import ClassLabel, Dataset, DatasetDict, load_dataset
@@ -188,3 +188,48 @@ def set_global_logging_level(
     for name in logging.root.manager.loggerDict:
         if re.match(prefix_re, name):
             logging.getLogger(name).setLevel(level)
+
+
+def add_class_label_to_dataset(
+    ds: Dataset, labels: Optional[List[str]] = None
+) -> Dataset:
+    """Map a not ClassLabel 'label' column to a ClassLabel, if possible"""
+    if "label" not in ds.features or isinstance(ds.features["label"], ClassLabel):
+        return ds
+    labels = labels if labels is not None else sorted(set(ds["label"]))
+    # For string columns, map the label2idx so we can cast to ClassLabel
+    if ds.features["label"].dtype == "string":
+        label_to_idx = dict(zip(labels, range(len(labels))))
+        ds = ds.map(lambda row: {"label": label_to_idx[row["label"]]})
+
+    # https://github.com/python/mypy/issues/6239
+    class_label = ClassLabel(num_classes=len(labels), names=labels)  # type: ignore
+    ds = ds.cast_column("label", class_label)
+    return ds
+
+
+def _apply_column_mapping(dataset: Dataset, column_mapping: Dict[str, str]) -> Dataset:
+    """
+    Applies the provided column mapping to the dataset, renaming columns accordingly.
+    Extra features not in the column mapping are prefixed with `"feat_"`.
+    """
+    if type(dataset) == dict:
+        dataset = Dataset.from_dict(dataset)
+    dataset = dataset.rename_columns(
+        {
+            **column_mapping,
+            **{
+                col: f"feat_{col}"
+                for col in dataset.column_names
+                if col not in column_mapping
+            },
+        }
+    )
+    dset_format = dataset.format
+    dataset = dataset.with_format(
+        type=dset_format["type"],
+        columns=dataset.column_names,
+        output_all_columns=dset_format["output_all_columns"],
+        **dset_format["format_kwargs"],
+    )
+    return dataset

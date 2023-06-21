@@ -19,7 +19,7 @@ from dataquality.loggers.data_logger.tabular_classification import (
 from dataquality.schemas.job import JobName
 from dataquality.schemas.request_type import RequestType
 from dataquality.schemas.task_type import TaskType
-from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID
+from tests.conftest import TestSessionVariables
 
 
 class TestTabularClassificationDataLogger:
@@ -112,6 +112,7 @@ class TestTabularClassificationDataLogger:
         fit_xgboost: xgb.XGBClassifier,
         tab_data: Dict,
         set_test_config: Callable,
+        test_session_vars: TestSessionVariables,
     ) -> None:
         set_test_config(task_type="tabular_classification")
         logger = TabularClassificationDataLogger(
@@ -125,8 +126,8 @@ class TestTabularClassificationDataLogger:
         logger.validate_and_prepare_logger()
         logger.save_feature_importances()
         mock_set_metrics.assert_called_once_with(
-            DEFAULT_PROJECT_ID,
-            DEFAULT_RUN_ID,
+            test_session_vars.DEFAULT_PROJECT_ID,
+            test_session_vars.DEFAULT_RUN_ID,
             data={
                 "key": "feature_importances",
                 "value": 0,
@@ -155,6 +156,7 @@ class TestTabularClassificationDataLogger:
         mock_save_feature_importances: mock.MagicMock,
         set_test_config: Callable,
         create_logger: Callable,
+        test_session_vars: TestSessionVariables,
     ) -> None:
         """Test log method
 
@@ -167,7 +169,8 @@ class TestTabularClassificationDataLogger:
         logger.log()
 
         df_export_path = (
-            f"{BaseGalileoLogger.LOG_FILE_DIR}/{DEFAULT_PROJECT_ID}/{DEFAULT_RUN_ID}"
+            f"{BaseGalileoLogger.LOG_FILE_DIR}/{test_session_vars.DEFAULT_PROJECT_ID}/"
+            f"{test_session_vars.DEFAULT_RUN_ID}"
             "/training"
         )
         assert os.path.exists(f"{df_export_path}/data/data.hdf5")
@@ -207,10 +210,12 @@ class TestTabularClassificationDataLogger:
         mock_os_walk: mock.MagicMock,
         mock_save_importances: mock.MagicMock,
         create_logger: Callable,
+        test_session_vars: TestSessionVariables,
     ) -> None:
         """Test upload uploads to Minio"""
         prefix = (
-            f"{BaseGalileoLogger.LOG_FILE_DIR}/{DEFAULT_PROJECT_ID}/{DEFAULT_RUN_ID}"
+            f"{BaseGalileoLogger.LOG_FILE_DIR}/{test_session_vars.DEFAULT_PROJECT_ID}/"
+            f"{test_session_vars.DEFAULT_RUN_ID}"
         )
         mock_os_walk.return_value = [
             (
@@ -229,18 +234,23 @@ class TestTabularClassificationDataLogger:
 
         assert mock_create_object.call_count == 2
         prefix = (
-            f"{BaseGalileoLogger.LOG_FILE_DIR}/{DEFAULT_PROJECT_ID}/{DEFAULT_RUN_ID}"
+            f"{BaseGalileoLogger.LOG_FILE_DIR}/{test_session_vars.DEFAULT_PROJECT_ID}/"
+            f"{test_session_vars.DEFAULT_RUN_ID}"
             "/training"
         )
         mock_create_object.assert_any_call(
             object_name=(
-                f"{DEFAULT_PROJECT_ID}/{DEFAULT_RUN_ID}/training/data/data.hdf5"
+                f"{test_session_vars.DEFAULT_PROJECT_ID}/"
+                f"{test_session_vars.DEFAULT_RUN_ID}"
+                "/training/data/data.hdf5"
             ),
             file_path=f"{prefix}/data/data.hdf5",
         )
         mock_create_object.assert_any_call(
             object_name=(
-                f"{DEFAULT_PROJECT_ID}/{DEFAULT_RUN_ID}/training/prob/prob.hdf5"
+                f"{test_session_vars.DEFAULT_PROJECT_ID}/"
+                f"{test_session_vars.DEFAULT_RUN_ID}"
+                "/training/prob/prob.hdf5"
             ),
             file_path=f"{prefix}/prob/prob.hdf5",
         )
@@ -462,6 +472,7 @@ class TestTabularClassificationE2E:
         mock_upload_dq_log_file: mock.MagicMock,
         mock_reset_run: mock.MagicMock,
         mock_version_check: mock.MagicMock,
+        test_session_vars: TestSessionVariables,
         inf_only: bool = False,
     ) -> None:
         mock_upload_dq_log_file.assert_called_once_with()
@@ -470,7 +481,9 @@ class TestTabularClassificationE2E:
             mock_reset_run.assert_not_called()
         else:
             mock_reset_run.assert_called_once_with(
-                DEFAULT_PROJECT_ID, DEFAULT_RUN_ID, TaskType.tabular_classification
+                test_session_vars.DEFAULT_PROJECT_ID,
+                test_session_vars.DEFAULT_RUN_ID,
+                TaskType.tabular_classification,
             )
 
     def test_log_pandas_e2e(
@@ -485,6 +498,7 @@ class TestTabularClassificationE2E:
         set_test_config: Callable,
         fit_xgboost: xgb.XGBClassifier,
         tab_data: Dict,
+        test_session_vars: TestSessionVariables,
     ) -> None:
         """Test logging input pandas dfs for training, validation and test splits"""
         set_test_config(task_type="tabular_classification")
@@ -510,8 +524,8 @@ class TestTabularClassificationE2E:
             RequestType.POST,
             url="http://localhost:8088/jobs",
             body={
-                "project_id": str(DEFAULT_PROJECT_ID),
-                "run_id": str(DEFAULT_RUN_ID),
+                "project_id": str(test_session_vars.DEFAULT_PROJECT_ID),
+                "run_id": str(test_session_vars.DEFAULT_RUN_ID),
                 "labels": ["class_0", "class_1", "class_2"],
                 "task_type": "tabular_classification",
                 "tasks": None,
@@ -519,7 +533,12 @@ class TestTabularClassificationE2E:
                 "feature_names": tab_data["feature_names"],
             },
         )
-        self._assert_mocks(mock_upload_dq_log_file, mock_reset_run, mock_version_check)
+        self._assert_mocks(
+            mock_upload_dq_log_file,
+            mock_reset_run,
+            mock_version_check,
+            test_session_vars,
+        )
 
     def test_log_arrays_e2e(
         self,
@@ -533,6 +552,7 @@ class TestTabularClassificationE2E:
         set_test_config: Callable,
         fit_xgboost: xgb.XGBClassifier,
         tab_data: Dict,
+        test_session_vars: TestSessionVariables,
     ) -> None:
         """Test logging input numpy arrays for training, validation and test splits"""
         set_test_config(task_type="tabular_classification")
@@ -560,8 +580,8 @@ class TestTabularClassificationE2E:
             RequestType.POST,
             url="http://localhost:8088/jobs",
             body={
-                "project_id": str(DEFAULT_PROJECT_ID),
-                "run_id": str(DEFAULT_RUN_ID),
+                "project_id": str(test_session_vars.DEFAULT_PROJECT_ID),
+                "run_id": str(test_session_vars.DEFAULT_RUN_ID),
                 "labels": ["class_0", "class_1", "class_2"],
                 "task_type": "tabular_classification",
                 "tasks": None,
@@ -569,7 +589,12 @@ class TestTabularClassificationE2E:
                 "feature_names": tab_data["feature_names"],
             },
         )
-        self._assert_mocks(mock_upload_dq_log_file, mock_reset_run, mock_version_check)
+        self._assert_mocks(
+            mock_upload_dq_log_file,
+            mock_reset_run,
+            mock_version_check,
+            test_session_vars,
+        )
 
     def test_log_pandas_e2e_inference(
         self,
@@ -583,6 +608,7 @@ class TestTabularClassificationE2E:
         set_test_config: Callable,
         fit_xgboost: xgb.XGBClassifier,
         tab_data: Dict,
+        test_session_vars: TestSessionVariables,
     ) -> None:
         """Test logging input pandas dfs for training and inference splits"""
         set_test_config(task_type="tabular_classification")
@@ -614,8 +640,8 @@ class TestTabularClassificationE2E:
             RequestType.POST,
             url="http://localhost:8088/jobs",
             body={
-                "project_id": str(DEFAULT_PROJECT_ID),
-                "run_id": str(DEFAULT_RUN_ID),
+                "project_id": str(test_session_vars.DEFAULT_PROJECT_ID),
+                "run_id": str(test_session_vars.DEFAULT_RUN_ID),
                 "labels": ["class_0", "class_1", "class_2"],
                 "task_type": "tabular_classification",
                 "tasks": None,
@@ -625,7 +651,12 @@ class TestTabularClassificationE2E:
                 "feature_names": tab_data["feature_names"],
             },
         )
-        self._assert_mocks(mock_upload_dq_log_file, mock_reset_run, mock_version_check)
+        self._assert_mocks(
+            mock_upload_dq_log_file,
+            mock_reset_run,
+            mock_version_check,
+            test_session_vars,
+        )
 
     def test_log_arrays_e2e_inference(
         self,
@@ -639,6 +670,7 @@ class TestTabularClassificationE2E:
         set_test_config: Callable,
         fit_xgboost: xgb.XGBClassifier,
         tab_data: Dict,
+        test_session_vars: TestSessionVariables,
     ) -> None:
         """Test logging input numpy arrays for training and inference splits"""
         set_test_config(task_type="tabular_classification")
@@ -673,8 +705,8 @@ class TestTabularClassificationE2E:
             RequestType.POST,
             url="http://localhost:8088/jobs",
             body={
-                "project_id": str(DEFAULT_PROJECT_ID),
-                "run_id": str(DEFAULT_RUN_ID),
+                "project_id": str(test_session_vars.DEFAULT_PROJECT_ID),
+                "run_id": str(test_session_vars.DEFAULT_RUN_ID),
                 "labels": ["class_0", "class_1", "class_2"],
                 "task_type": "tabular_classification",
                 "tasks": None,
@@ -684,7 +716,12 @@ class TestTabularClassificationE2E:
                 "feature_names": tab_data["feature_names"],
             },
         )
-        self._assert_mocks(mock_upload_dq_log_file, mock_reset_run, mock_version_check)
+        self._assert_mocks(
+            mock_upload_dq_log_file,
+            mock_reset_run,
+            mock_version_check,
+            test_session_vars,
+        )
 
     def test_log_pandas_e2e_inference_only(
         self,
@@ -698,6 +735,7 @@ class TestTabularClassificationE2E:
         set_test_config: Callable,
         fit_xgboost: xgb.XGBClassifier,
         tab_data: Dict,
+        test_session_vars: TestSessionVariables,
     ) -> None:
         """Test logging input data as pandas dfs for inference splits"""
         set_test_config(task_type="tabular_classification")
@@ -723,8 +761,8 @@ class TestTabularClassificationE2E:
             RequestType.POST,
             url="http://localhost:8088/jobs",
             body={
-                "project_id": str(DEFAULT_PROJECT_ID),
-                "run_id": str(DEFAULT_RUN_ID),
+                "project_id": str(test_session_vars.DEFAULT_PROJECT_ID),
+                "run_id": str(test_session_vars.DEFAULT_RUN_ID),
                 "labels": ["class_0", "class_1", "class_2"],
                 "task_type": "tabular_classification",
                 "tasks": None,
@@ -738,6 +776,7 @@ class TestTabularClassificationE2E:
             mock_upload_dq_log_file,
             mock_reset_run,
             mock_version_check,
+            test_session_vars,
             True,
         )
 
@@ -753,6 +792,7 @@ class TestTabularClassificationE2E:
         set_test_config: Callable,
         fit_xgboost: xgb.XGBClassifier,
         tab_data: Dict,
+        test_session_vars: TestSessionVariables,
     ) -> None:
         """Test logging input data as numpy arrays for inference splits"""
         set_test_config(task_type="tabular_classification")
@@ -780,8 +820,8 @@ class TestTabularClassificationE2E:
             RequestType.POST,
             url="http://localhost:8088/jobs",
             body={
-                "project_id": str(DEFAULT_PROJECT_ID),
-                "run_id": str(DEFAULT_RUN_ID),
+                "project_id": str(test_session_vars.DEFAULT_PROJECT_ID),
+                "run_id": str(test_session_vars.DEFAULT_RUN_ID),
                 "labels": ["class_0", "class_1", "class_2"],
                 "task_type": "tabular_classification",
                 "tasks": None,
@@ -795,5 +835,6 @@ class TestTabularClassificationE2E:
             mock_upload_dq_log_file,
             mock_reset_run,
             mock_version_check,
+            test_session_vars,
             True,
         )

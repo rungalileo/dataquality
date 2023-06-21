@@ -1,4 +1,10 @@
+from typing import Tuple
+
 import numpy as np
+
+from dataquality.clients.objectstore import ObjectStore
+
+object_store = ObjectStore()
 
 PCA_CHUNK_SIZE = 100_000
 PCA_N_COMPONENTS = 100
@@ -9,19 +15,24 @@ def cuml_available() -> bool:
         import cuml  # noqa F401
 
         return True
-    except ImportError:
+    except Exception:
         return False
 
 
-def get_pca_embeddings(embs: np.ndarray) -> np.ndarray:
+def get_pca_embeddings(embs: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Uses Cuda and GPUs to create the PCA embeddings before uploading
 
     Should only be called if cuda ML available (`cuda_available()`)
+
+    Returns the PCA embeddings, the components_ of the pca model, and the mean_ of
+    the pca model
     """
     import cuml
 
-    pca = cuml.IncrementalPCA(n_components=PCA_N_COMPONENTS, batch_size=PCA_CHUNK_SIZE)
-    return pca.fit_transform(embs)
+    n_components = min(PCA_N_COMPONENTS, *embs.shape)
+    pca = cuml.IncrementalPCA(n_components=n_components, batch_size=PCA_CHUNK_SIZE)
+    emb_pca = pca.fit_transform(embs)
+    return emb_pca, pca.components_, pca.mean_
 
 
 def get_umap_embeddings(embs: np.ndarray) -> np.ndarray:

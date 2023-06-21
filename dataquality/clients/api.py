@@ -148,6 +148,18 @@ class ApiClient:
         runs = self.make_request(RequestType.GET, url=url, params=params)
         return runs[0] if runs else {}
 
+    def update_run_name(self, project_name: str, run_name: str, new_name: str) -> Dict:
+        project_id, run_id = self._get_project_run_id(project_name, run_name)
+        if not project_id:
+            raise GalileoException(f"No project with name {project_name}")
+        if not run_id:
+            raise GalileoException(f"No run with name {run_name}")
+
+        url = f"{config.api_url}/{Route.projects}/{project_id}/{Route.runs}/{run_id}"
+        data = {"name": new_name}
+        run = self.make_request(RequestType.PUT, url=url, body=data)
+        return run if run else {}
+
     def create_project(self, project_name: str, is_public: bool = True) -> Dict:
         """Creates a project given a name and returns the project information"""
         body = {"name": project_name, "is_public": is_public}
@@ -802,6 +814,7 @@ class ApiClient:
         file_path: str,
         export_format: str,
         export_cols: List[str],
+        bucket: str,
     ) -> Any:
         url = f"{config.api_url}/{Route.projects}/{project_id}/{Route.upload_file}"
         res = self.make_request(
@@ -820,6 +833,7 @@ class ApiClient:
                         {
                             "export_format": export_format,
                             "export_cols": export_cols,
+                            "bucket": bucket,
                         }
                     ),
                     "application/json",

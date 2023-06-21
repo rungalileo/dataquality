@@ -24,7 +24,7 @@ from dataquality.loggers.model_logger.text_classification import (
 )
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
-from tests.conftest import TEST_PATH
+from tests.conftest import TestSessionVariables
 from tests.test_utils.data_utils import (
     NUM_LOGS,
     NUM_RECORDS,
@@ -39,7 +39,9 @@ MAX_DOC_LEN = BaseGalileoDataLogger.MAX_DOC_LEN
 
 
 def test_threaded_logging_and_upload(
-    cleanup_after_use: Callable, set_test_config: Callable
+    cleanup_after_use: Callable,
+    set_test_config: Callable,
+    test_session_vars: TestSessionVariables,
 ) -> None:
     """
     Tests that threaded calls to upload still yield non-missing datasets
@@ -56,16 +58,21 @@ def test_threaded_logging_and_upload(
         c = dataquality.get_data_logger("text_classification")
         c.validate_labels()
         c.upload()
-        validate_uploaded_data(num_records * num_logs)
+        validate_uploaded_data(
+            test_session_vars=test_session_vars,
+            expected_num_records=num_records * num_logs,
+        )
         c._cleanup()
-        validate_cleanup_data()
+        validate_cleanup_data(test_session_vars=test_session_vars)
     finally:
         # Mock finish() call without calling the API
         ThreadPoolManager.wait_for_threads()
 
 
 def test_multi_label_logging(
-    cleanup_after_use: Callable, set_test_config: Callable
+    cleanup_after_use: Callable,
+    set_test_config: Callable,
+    test_session_vars: TestSessionVariables,
 ) -> None:
     """
     Tests that threaded calls to upload still yield non-missing datasets
@@ -83,16 +90,22 @@ def test_multi_label_logging(
         c = dataquality.get_data_logger()
         c.validate_labels()
         c.upload()
-        validate_uploaded_data(num_records * num_logs, multi_label=True)
+        validate_uploaded_data(
+            test_session_vars=test_session_vars,
+            expected_num_records=num_records * num_logs,
+            multi_label=True,
+        )
         c._cleanup()
-        validate_cleanup_data()
+        validate_cleanup_data(test_session_vars=test_session_vars)
     finally:
         # Mock finish() call without calling the API
         ThreadPoolManager.wait_for_threads()
 
 
 def test_metadata_logging(
-    cleanup_after_use: Callable, set_test_config: Callable
+    cleanup_after_use: Callable,
+    set_test_config: Callable,
+    test_session_vars: TestSessionVariables,
 ) -> None:
     """
     Tests that logging metadata columns persist
@@ -107,16 +120,19 @@ def test_metadata_logging(
         ThreadPoolManager.wait_for_threads()
         c = dataquality.get_data_logger()
         c.upload()
-        validate_uploaded_data(meta_cols=meta_cols)
+        validate_uploaded_data(test_session_vars=test_session_vars, meta_cols=meta_cols)
         c._cleanup()
-        validate_cleanup_data()
+        validate_cleanup_data(test_session_vars=test_session_vars)
     finally:
         # Mock finish() call without calling the API
         ThreadPoolManager.wait_for_threads()
 
 
 def test_metadata_logging_different_splits(
-    cleanup_after_use: Callable, set_test_config: Callable, input_data: Callable
+    cleanup_after_use: Callable,
+    set_test_config: Callable,
+    input_data: Callable,
+    test_session_vars: TestSessionVariables,
 ) -> None:
     """
     Tests that logging metadata columns only attach to the splits we log them for
@@ -139,8 +155,8 @@ def test_metadata_logging_different_splits(
     dataquality.log_model_outputs(**output_data)
     dataquality.get_data_logger().upload()
 
-    train_data = vaex.open(f"{TEST_PATH}/training/0/data/data.hdf5")
-    test_data = vaex.open(f"{TEST_PATH}/test/0/data/data.hdf5")
+    train_data = vaex.open(f"{test_session_vars.TEST_PATH}/training/0/data/data.hdf5")
+    test_data = vaex.open(f"{test_session_vars.TEST_PATH}/test/0/data/data.hdf5")
 
     assert "training_meta" in train_data.get_column_names()
     assert "training_meta" not in test_data.get_column_names()
@@ -215,7 +231,10 @@ def test_logging_duplicate_ids(
 
 
 def test_logging_inference_run(
-    cleanup_after_use: Callable, set_test_config: Callable, input_data: Callable
+    cleanup_after_use: Callable,
+    set_test_config: Callable,
+    input_data: Callable,
+    test_session_vars: TestSessionVariables,
 ) -> None:
     """
     Tests that logging metadata columns only attach to the splits we log them for
@@ -250,9 +269,11 @@ def test_logging_inference_run(
     ThreadPoolManager.wait_for_threads()
     dataquality.get_data_logger().upload()
 
-    inference_data_1 = vaex.open(f"{TEST_PATH}/inference/all-customers/data/data.hdf5")
+    inference_data_1 = vaex.open(
+        f"{test_session_vars.TEST_PATH}/inference/all-customers/data/data.hdf5"
+    )
     inference_data_2 = vaex.open(
-        f"{TEST_PATH}/inference/last-week-customers/data/data.hdf5"
+        f"{test_session_vars.TEST_PATH}/inference/last-week-customers/data/data.hdf5"
     )
 
     assert "inference_meta_1" in inference_data_1.get_column_names()
@@ -262,17 +283,21 @@ def test_logging_inference_run(
     expected = [3.14, 42]
     assert all(a == pytest.approx(e, abs=1e-6) for a, e in zip(actual, expected))
 
-    inference_emb_1 = vaex.open(f"{TEST_PATH}/inference/all-customers/emb/emb.hdf5")
+    inference_emb_1 = vaex.open(
+        f"{test_session_vars.TEST_PATH}/inference/all-customers/emb/emb.hdf5"
+    )
     inference_emb_2 = vaex.open(
-        f"{TEST_PATH}/inference/last-week-customers/emb/emb.hdf5"
+        f"{test_session_vars.TEST_PATH}/inference/last-week-customers/emb/emb.hdf5"
     )
 
     assert np.isclose(inference_emb_1.emb.to_numpy(), embs_1).all()
     assert np.isclose(inference_emb_2.emb.to_numpy(), embs_2).all()
 
-    inference_prob_1 = vaex.open(f"{TEST_PATH}/inference/all-customers/prob/prob.hdf5")
+    inference_prob_1 = vaex.open(
+        f"{test_session_vars.TEST_PATH}/inference/all-customers/prob/prob.hdf5"
+    )
     inference_prob_2 = vaex.open(
-        f"{TEST_PATH}/inference/last-week-customers/prob/prob.hdf5"
+        f"{test_session_vars.TEST_PATH}/inference/last-week-customers/prob/prob.hdf5"
     )
 
     assert "logits" not in inference_prob_1.get_column_names()
@@ -291,7 +316,10 @@ def test_logging_inference_run(
 
 
 def test_logging_train_test_inference(
-    cleanup_after_use: Callable, set_test_config: Callable, input_data: Callable
+    cleanup_after_use: Callable,
+    set_test_config: Callable,
+    input_data: Callable,
+    test_session_vars: TestSessionVariables,
 ) -> None:
     """
     Tests that logging metadata columns only attach to the splits we log them for
@@ -332,9 +360,11 @@ def test_logging_train_test_inference(
     ThreadPoolManager.wait_for_threads()
     dataquality.get_data_logger().upload()
 
-    train_data = vaex.open(f"{TEST_PATH}/training/0/data/data.hdf5")
-    test_data = vaex.open(f"{TEST_PATH}/test/0/data/data.hdf5")
-    inference_data = vaex.open(f"{TEST_PATH}/inference/all-customers/data/data.hdf5")
+    train_data = vaex.open(f"{test_session_vars.TEST_PATH}/training/0/data/data.hdf5")
+    test_data = vaex.open(f"{test_session_vars.TEST_PATH}/test/0/data/data.hdf5")
+    inference_data = vaex.open(
+        f"{test_session_vars.TEST_PATH}/inference/all-customers/data/data.hdf5"
+    )
 
     assert "training_meta" in train_data.get_column_names()
     # Compare each pair of float numbers within the tolerance level (1e-6)
@@ -347,18 +377,22 @@ def test_logging_train_test_inference(
     expected = [3.14, 42]
     assert all(a == pytest.approx(e, abs=1e-6) for a, e in zip(actual, expected))
 
-    train_emb_data = vaex.open(f"{TEST_PATH}/training/0/emb/emb.hdf5")
-    test_emb_data = vaex.open(f"{TEST_PATH}/test/0/emb/emb.hdf5")
-    inference_emb_data = vaex.open(f"{TEST_PATH}/inference/all-customers/emb/emb.hdf5")
+    train_emb_data = vaex.open(f"{test_session_vars.TEST_PATH}/training/0/emb/emb.hdf5")
+    test_emb_data = vaex.open(f"{test_session_vars.TEST_PATH}/test/0/emb/emb.hdf5")
+    inference_emb_data = vaex.open(
+        f"{test_session_vars.TEST_PATH}/inference/all-customers/emb/emb.hdf5"
+    )
 
     assert np.isclose(train_emb_data.emb.to_numpy(), train_embs).all()
     assert np.isclose(test_emb_data.emb.to_numpy(), test_embs).all()
     assert np.isclose(inference_emb_data.emb.to_numpy(), inf_embs).all()
 
-    train_prob_data = vaex.open(f"{TEST_PATH}/training/0/prob/prob.hdf5")
-    test_prob_data = vaex.open(f"{TEST_PATH}/test/0/prob/prob.hdf5")
+    train_prob_data = vaex.open(
+        f"{test_session_vars.TEST_PATH}/training/0/prob/prob.hdf5"
+    )
+    test_prob_data = vaex.open(f"{test_session_vars.TEST_PATH}/test/0/prob/prob.hdf5")
     inference_prob_data = vaex.open(
-        f"{TEST_PATH}/inference/all-customers/prob/prob.hdf5"
+        f"{test_session_vars.TEST_PATH}/inference/all-customers/prob/prob.hdf5"
     )
 
     assert "training_meta" in train_data.get_column_names()

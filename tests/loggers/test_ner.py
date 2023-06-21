@@ -17,7 +17,7 @@ from dataquality.loggers.model_logger.text_ner import TextNERModelLogger
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
-from tests.conftest import TEST_PATH
+from tests.conftest import TestSessionVariables
 from tests.test_utils.ner_constants import (
     GOLD_SPANS,
     LABELS,
@@ -288,7 +288,10 @@ def test_ner_logging_bad_inputs(
 
 @pytest.mark.parametrize("as_tensor", [False, True])
 def test_ner_logging(
-    as_tensor: bool, cleanup_after_use: Callable, set_test_config: Callable
+    as_tensor: bool,
+    cleanup_after_use: Callable,
+    set_test_config: Callable,
+    test_session_vars: TestSessionVariables,
 ) -> None:
     """
     To validate:
@@ -416,7 +419,7 @@ def test_ner_logging(
         [],
     ]
 
-    prob_path = f"{TEST_PATH}/{split}/0/prob/prob.hdf5"
+    prob_path = f"{test_session_vars.TEST_PATH}/{split}/0/prob/prob.hdf5"
     prob_df = vaex.open(prob_path)
     assert list(prob_df.loss_prob_label.to_numpy()) == [0, 2, 6, 6, 5, 5, 6, 7]
     assert prob_df.loss_prob.shape == (8, 9)  # 8 spans, 9 labels
@@ -435,12 +438,12 @@ def test_ner_logging(
 
     assert len(prob_df[prob_df["(~is_gold) & (~is_pred)"]]) == 0
 
-    emb_path = f"{TEST_PATH}/{split}/0/emb/emb.hdf5"
+    emb_path = f"{test_session_vars.TEST_PATH}/{split}/0/emb/emb.hdf5"
     emb_df = vaex.open(emb_path)
 
     assert len(emb_df) == len(prob_df)
 
-    sample_path = f"{TEST_PATH}/{split}/0/data/data.arrow"
+    sample_path = f"{test_session_vars.TEST_PATH}/{split}/0/data/data.arrow"
     sample_df = vaex.open(sample_path)
 
     assert len(sample_df) == 3
@@ -468,7 +471,7 @@ def test_ner_logging(
     c = dataquality.get_data_logger()
     c.validate_labels()
     c.upload()
-    prob_path = f"{TEST_PATH}/{split}/0/prob/prob.hdf5"
+    prob_path = f"{test_session_vars.TEST_PATH}/{split}/0/prob/prob.hdf5"
     prob_df = vaex.open(prob_path)
     assert list(prob_df.loss_prob_label.to_numpy()) == [0, 2, 6, 6, 5, 5, 6, 7]
     assert prob_df.loss_prob.shape == (8, 9)  # 8 spans, 9 labels

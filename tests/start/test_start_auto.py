@@ -7,7 +7,7 @@ from sklearn.datasets import fetch_20newsgroups
 import dataquality
 import dataquality as dq
 from dataquality.clients.api import ApiClient
-from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID, LOCAL_MODEL_PATH
+from tests.conftest import LOCAL_MODEL_PATH, TestSessionVariables
 
 
 @patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
@@ -49,9 +49,10 @@ def test_auto(
     mock_reset_run: MagicMock,
     mock_version_check: MagicMock,
     cleanup_after_use: Generator,
+    test_session_vars: TestSessionVariables,
 ) -> None:
-    mock_get_project_by_name.return_value = {"id": DEFAULT_PROJECT_ID}
-    mock_create_run.return_value = {"id": DEFAULT_RUN_ID}
+    mock_get_project_by_name.return_value = {"id": test_session_vars.DEFAULT_PROJECT_ID}
+    mock_create_run.return_value = {"id": test_session_vars.DEFAULT_RUN_ID}
     set_test_config(current_project_id=None, current_run_id=None)
     df_train = pd.DataFrame({"text": ["hello"] * 20, "label": ["hello"] * 20})
     df_test = pd.DataFrame({"text": ["hello"] * 20, "label": ["hello"] * 20})

@@ -20,7 +20,7 @@ from dataquality.integrations.transformers_trainer import watch
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
-from tests.conftest import HF_TEST_BERT_PATH, LOCATION, model, tokenizer
+from tests.conftest import HF_TEST_BERT_PATH, TestSessionVariables, model, tokenizer
 from tests.test_utils.hf_datasets_mock import mock_hf_dataset, mock_hf_dataset_repeat
 from tests.test_utils.mock_request import (
     mocked_create_project_run,
@@ -122,6 +122,7 @@ def test_hf_watch_e2e(
     mock_valid_user: MagicMock,
     set_test_config: Callable,
     cleanup_after_use: Generator,
+    test_session_vars: TestSessionVariables,
 ) -> None:
     """Base case: Tests creating a new project and run"""
     set_test_config(task_type=TaskType.text_classification)
@@ -148,9 +149,15 @@ def test_hf_watch_e2e(
     trainer.predict(encoded_test_dataset)
     ThreadPoolManager.wait_for_threads()
     # All data for splits should be logged
-    assert len(vaex.open(f"{LOCATION}/training/0/*.hdf5")) == len(train_dataset)
-    assert len(vaex.open(f"{LOCATION}/validation/0/*.hdf5")) == len(val_dataset)
-    assert len(vaex.open(f"{LOCATION}/test/0/*.hdf5")) == len(test_dataset)
+    assert len(vaex.open(f"{test_session_vars.LOCATION}/training/0/*.hdf5")) == len(
+        train_dataset
+    )
+    assert len(vaex.open(f"{test_session_vars.LOCATION}/validation/0/*.hdf5")) == len(
+        val_dataset
+    )
+    assert len(vaex.open(f"{test_session_vars.LOCATION}/test/0/*.hdf5")) == len(
+        test_dataset
+    )
     # Should upload without failing on data validation or otherwise
     dq.finish()
 
@@ -313,6 +320,7 @@ def test_hf_watch_with_pt_dataset_e2e(
     mock_valid_user: MagicMock,
     set_test_config: Callable,
     cleanup_after_use: Generator,
+    test_session_vars: TestSessionVariables,
 ) -> None:
     """Base case: Tests creating a new project and run"""
     set_test_config(task_type=TaskType.text_classification)
@@ -339,9 +347,15 @@ def test_hf_watch_with_pt_dataset_e2e(
     trainer.predict(val_dataset)
     ThreadPoolManager.wait_for_threads()
     # All data for splits should be logged
-    assert len(vaex.open(f"{LOCATION}/training/0/*.hdf5")) == len(train_dataset)
-    assert len(vaex.open(f"{LOCATION}/validation/0/*.hdf5")) == len(val_dataset)
-    assert len(vaex.open(f"{LOCATION}/test/0/*.hdf5")) == len(test_dataset)
+    assert len(vaex.open(f"{test_session_vars.LOCATION}/training/0/*.hdf5")) == len(
+        train_dataset
+    )
+    assert len(vaex.open(f"{test_session_vars.LOCATION}/validation/0/*.hdf5")) == len(
+        val_dataset
+    )
+    assert len(vaex.open(f"{test_session_vars.LOCATION}/test/0/*.hdf5")) == len(
+        test_dataset
+    )
 
     # Should upload without failing on data validation or otherwise
     dq.finish()
@@ -362,6 +376,7 @@ def test_hf_watch_no_train(
     mock_valid_user: MagicMock,
     set_test_config: Callable,
     cleanup_after_use: Generator,
+    test_session_vars: TestSessionVariables,
 ) -> None:
     """Base case: Tests creating a new project and run"""
     set_test_config(task_type=TaskType.text_classification)
@@ -385,6 +400,8 @@ def test_hf_watch_no_train(
     trainer.predict(encoded_test_dataset)
     ThreadPoolManager.wait_for_threads()
     # All data for splits should be logged
-    assert len(vaex.open(f"{LOCATION}/test/0/*.hdf5")) == len(test_dataset)
+    assert len(vaex.open(f"{test_session_vars.LOCATION}/test/0/*.hdf5")) == len(
+        test_dataset
+    )
     # Should upload without failing on data validation or otherwise
     dq.finish()

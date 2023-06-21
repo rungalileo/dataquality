@@ -18,10 +18,16 @@ class SemSegCols(str, Enum):
 
 
 class ErrorType(str, Enum):
+    class_confusion = "class_confusion"
     classification = "classification"
     missed = "missed"
     background = "background"
     none = None
+
+
+class PolygonType(str, Enum):
+    gold = "gold"
+    pred = "pred"
 
 
 class IoUType(str, Enum):

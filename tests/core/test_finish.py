@@ -10,7 +10,7 @@ import dataquality
 import dataquality.core.log
 from dataquality.exceptions import GalileoWarning
 from dataquality.schemas.task_type import TaskType
-from tests.conftest import DEFAULT_PROJECT_ID, DEFAULT_RUN_ID
+from tests.conftest import TestSessionVariables
 
 
 def test_finish_no_init() -> None:
@@ -150,6 +150,7 @@ def test_finish_with_conditions(
     mock_upload_log_file: MagicMock,
     mock_reset_run: MagicMock,
     mock_version_check: MagicMock,
+    test_session_vars: TestSessionVariables,
     set_test_config,
 ) -> None:
     set_test_config(task_type=TaskType.text_classification)
@@ -167,7 +168,7 @@ def test_finish_with_conditions(
     mock_build_run_report.assert_called_once_with(
         ["condition1", "condition2"],
         ["fake@example.com"],
-        project_id=DEFAULT_PROJECT_ID,
-        run_id=DEFAULT_RUN_ID,
+        project_id=test_session_vars.DEFAULT_PROJECT_ID,
+        run_id=test_session_vars.DEFAULT_RUN_ID,
         link="https://www.example.com",
     )

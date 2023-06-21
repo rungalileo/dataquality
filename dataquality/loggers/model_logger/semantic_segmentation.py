@@ -12,16 +12,12 @@ from dataquality.loggers.logger_config.semantic_segmentation import (
 )
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.schemas.ml import ClassType
-from dataquality.schemas.semantic_segmentation import IoUType, Polygon
+from dataquality.schemas.semantic_segmentation import IoUType, Polygon, PolygonType
 from dataquality.schemas.split import Split
 from dataquality.utils.semantic_segmentation.errors import (
-    add_background_errors_to_polygons_batch,
-    add_classification_error_to_polygons_batch,
-    add_dep_to_polygons_batch,
-    add_lm_to_polygons_batch,
+    add_errors_and_metrics_to_polygons_batch,
 )
 from dataquality.utils.semantic_segmentation.metrics import (
-    add_area_to_polygons_batch,
     calculate_and_upload_dep,
     calculate_batch_iou,
 )
@@ -41,7 +37,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
 
     def __init__(
         self,
-        bucket_url: str = "",
+        imgs_remote_location: str = "",
         image_paths: List[str] = [],
         image_ids: List[int] = [],
         gold_masks: torch.Tensor = torch.empty(0),
@@ -85,7 +81,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             epoch=epoch,
             inference_name=inference_name,
         )
-        self.bucket_url = bucket_url
+        self.imgs_remote_location = imgs_remote_location
         self.image_paths = image_paths
         self.image_ids = image_ids
         self.gold_masks = gold_masks
@@ -99,14 +95,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         super().validate_and_format()
 
     @property
-    def lm_path(self) -> str:
-        """Minio path for Likely Mislabeled heatmaps"""
-        return f"{self.proj_run}/{self.split_name_path}/LM"
-
-    @property
-    def dep_path(self) -> str:
-        """Minio path for Data Error Potential heatmaps"""
-        return f"{self.proj_run}/{self.split_name_path}/dep"
+    def local_dep_path(self) -> str:
+        return f"{self.local_proj_run_path}/{self.split_name_path}/dep"
 
     @property
     def local_proj_run_path(self) -> str:
@@ -199,9 +189,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             self.output_probs,
             self.gold_masks,
             self.image_ids,
-            obj_prefix=self.dep_path,
+            local_folder_path=self.local_dep_path,
         )
-
         # Calculate metrics - mean IoU and boundary IoU
         n_classes = len(self.logger_config.labels)
         mean_iou_data = calculate_batch_iou(
@@ -218,48 +207,34 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         pred_polygons_batch, gold_polygons_batch = find_polygons_batch(
             self.pred_masks, self.gold_masks
         )
-        # Errors
-        add_classification_error_to_polygons_batch(
-            self.pred_masks, gold_polygons_batch, n_classes
-        )
-        add_classification_error_to_polygons_batch(
-            self.gold_masks, pred_polygons_batch, n_classes
-        )
-        add_background_errors_to_polygons_batch(
-            self.pred_masks, gold_polygons_batch, "gold"
-        )
-        add_background_errors_to_polygons_batch(
-            self.gold_masks, pred_polygons_batch, "pred"
-        )
-        heights = [img.shape[-1] for img in self.gold_masks]
-        widths = [img.shape[-2] for img in self.gold_masks]
+        heights = [img.shape[-2] for img in self.gold_masks]
+        widths = [img.shape[-1] for img in self.gold_masks]
 
-        add_dep_to_polygons_batch(
+        # all immages will have the same height and width in order to be in a batch
+        # so we can just take the first one for the below functions
+        add_errors_and_metrics_to_polygons_batch(
+            self.pred_masks,
             gold_polygons_batch,
-            dep_heatmaps.numpy(),
-            height=heights,
-            width=widths,
+            n_classes,
+            polygon_type=PolygonType.gold,
+            dep_heatmaps=dep_heatmaps,
+            mislabeled_pixels=self.mislabled_pixels,
+            height=heights[0],
+            width=widths[0],
         )
-        add_dep_to_polygons_batch(
+        add_errors_and_metrics_to_polygons_batch(
+            self.gold_masks,
             pred_polygons_batch,
-            dep_heatmaps.numpy(),
-            height=heights,
-            width=widths,
-        )
-
-        add_area_to_polygons_batch(pred_polygons_batch, heights, widths)
-        add_area_to_polygons_batch(gold_polygons_batch, heights, widths)
-
-        add_lm_to_polygons_batch(
-            self.mislabled_pixels,
-            gold_polygons_batch,
-            pred_polygons_batch,
-            heights,
-            widths,
+            n_classes,
+            polygon_type=PolygonType.pred,
+            dep_heatmaps=dep_heatmaps,
+            mislabeled_pixels=self.mislabled_pixels,
+            height=heights[0],
+            width=widths[0],
         )
 
         image_data = {
-            "image": [f"{self.bucket_url}/{pth}" for pth in self.image_paths],
+            "image": [f"{self.imgs_remote_location}/{pth}" for pth in self.image_paths],
             "id": self.image_ids,
             "height": heights,
             "width": widths,

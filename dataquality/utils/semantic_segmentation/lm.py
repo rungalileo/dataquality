@@ -1,6 +1,5 @@
 from typing import List
 
-import numpy as np
 import torch
 
 from dataquality.clients.objectstore import ObjectStore
@@ -126,11 +125,11 @@ def calculate_mislabled_by_noise(
 
         # Margin is how much more confident the model is in a non-given GT label
         class_samples_margin = probs[:, actual_gold_idx] - probs[:, given_gold_idx]
-        class_samples_margin = class_samples_margin.cpu().numpy()
         # We want the top `num_mislabeled` samples with the largest margin
         # for the actual/expected class relative to the given class
-        mislabeled_idxs = np.argsort(class_samples_margin)[-num_mislabeled:]
-        mislabeled_idxs_in_class.extend(mislabeled_idxs)
+        num_mislabeled = min(num_mislabeled, class_samples_margin.shape[0])
+        _, topk_idxs = (-class_samples_margin).topk(num_mislabeled)
+        mislabeled_idxs_in_class.extend(topk_idxs.tolist())
     return mislabeled_idxs_in_class
 
 
@@ -169,7 +168,7 @@ def get_mislabeled_by_class_confidence(
     num_samples = self_confidence.shape[0]
 
     # stable sort by self confidence with ids following along
-    sorted_confidence, sorted_indices = torch.sort(self_confidence)
+    _, sorted_indices = torch.sort(self_confidence)
     sorted_ids = ids[sorted_indices]
     sorted_gold = gold[sorted_indices]
     num_mislabeled_per_class = torch.round(
@@ -248,30 +247,7 @@ def fill_confident_counts(
     # increment the count for each label
     # get the count of each label
     count_labels = torch.bincount(labels, minlength=confident_counts.shape[1])
-    for i in range(len(count_labels)):
-        confident_counts[given_class, i] += count_labels[i]
-    return confident_counts
-
-
-def _get_confident_counts(
-    probs: torch.Tensor, gold: torch.Tensor, per_class_threshold: np.ndarray
-) -> torch.Tensor:
-    """Gets the count of all those above the threshold for each class
-
-    Args:
-        probs (torch.Tensor): probability mask for each sample
-        gold (torch.Tensor): label mask for each sample
-        per_class_threshold (np.ndarray): threshold for each class
-
-    Returns:
-        torch.Tensor: count of all those above the threshold for each class
-    """
-    confident_counts = torch.zeros((probs.shape[-1], probs.shape[-1]))
-    for i in range(probs.shape[-1]):
-        current_probs = probs[:, :, :, i].clone()
-        confident_counts = fill_confident_counts(
-            current_probs, gold, i, per_class_threshold[i], confident_counts
-        )
+    confident_counts[given_class, :] = count_labels.cpu()
     return confident_counts
 
 
@@ -309,27 +285,6 @@ def normalize_confident_counts(
         confidence_joint.fill_diagonal_(1.0 / confidence_joint.shape[0])
 
     return confidence_joint
-
-
-def _calculate_confidence_joint(
-    probs: torch.Tensor, gold: torch.Tensor
-) -> torch.Tensor:
-    """Calculates the confidence joint of our data
-
-    Args:
-        prob (torch.Tensor): probability mask for each sample
-        gold (torch.Tensor): labels for each sample
-
-    Returns:
-        torch.Tensor: confidence joint of our data
-    """
-    count_per_class = torch.bincount(gold.view(-1), minlength=probs.shape[-1])
-    num_classes = probs.shape[-1]
-
-    per_class_threshold = np.array([0.5 for i in range(num_classes)])
-    confident_counts = _get_confident_counts(probs, gold, per_class_threshold)
-    confident_joint = normalize_confident_counts(confident_counts, count_per_class)
-    return confident_joint
 
 
 def calculate_self_confidence_threshold(

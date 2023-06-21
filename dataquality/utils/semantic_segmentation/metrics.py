@@ -1,3 +1,4 @@
+import os
 from tempfile import NamedTemporaryFile
 from typing import List, Tuple
 
@@ -5,21 +6,21 @@ import numpy as np
 import torch
 from PIL import Image, ImageColor
 
+from dataquality import config
 from dataquality.clients.objectstore import ObjectStore
-from dataquality.core._config import GALILEO_DEFAULT_RESULT_BUCKET_NAME
 from dataquality.schemas.semantic_segmentation import IouData, Polygon
 from dataquality.utils.semantic_segmentation.polygons import draw_polygon
 
 object_store = ObjectStore()
 
-MAX_DEP_HEATMAP_SIZE = 64
+MAX_DEP_HEATMAP_SIZE = 128
 
 
 def calculate_and_upload_dep(
     probs: torch.Tensor,
     gold_masks: torch.Tensor,
     image_ids: List[int],
-    obj_prefix: str,
+    local_folder_path: str,
 ) -> Tuple[List[float], torch.Tensor]:
     """Calculates the Data Error Potential (DEP) for each image in the batch
 
@@ -28,7 +29,7 @@ def calculate_and_upload_dep(
         Image dep is calculated by the average pixel dep.
     """
     dep_heatmaps = calculate_dep_heatmaps(probs, gold_masks)
-    upload_dep_heatmaps(dep_heatmaps, image_ids, obj_prefix)
+    write_dep_to_disk(dep_heatmaps, image_ids, local_folder_path)
     return calculate_image_dep(dep_heatmaps), dep_heatmaps
 
 
@@ -71,29 +72,53 @@ def calculate_dep_heatmaps(
     :param gold_masks: np array of gold masks as ints, size = (bs, height, width)
     :return: (bs, height, width)
     """
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    probs = probs.clone().to(device)
+    gold_masks = gold_masks.to(device)
     n_classes = probs.shape[-1]
     bs = probs.shape[0]
     # flatten the height and width dimensions
     probs = probs.view(bs, -1, n_classes)  # (bs, n_pixels, n_classes)
     mask_size = gold_masks.shape
     gold_masks = gold_masks.view(bs, -1, 1)  # (bs, n_pixels, 1)
-
     gold_indices = (
         gold_masks.reshape((bs, -1, 1)).expand(-1, -1, probs.shape[2]).type(torch.int64)
     )  # (bs, n_pixels, n_classes)
     value_at_gold = torch.gather(probs, 2, gold_indices)[:, :, 0]  # (bs, n_pixels)
 
-    next_highest = probs.clone()
+    next_highest = probs
     # Takes GT indices and puts 0 at that index so we don't use it as next highest value
     next_highest.scatter_(2, gold_indices, 0)
     next_highest = next_highest.max(dim=2).values
-
     margin = value_at_gold - next_highest
     # Since margin is between -1 and 1, we normalize it to be between 0 and 1
     normalized_margin = (1 + margin) / 2
     dep_masks = 1 - normalized_margin
     dep_masks = dep_masks.view(mask_size)
-    return dep_masks
+    gold_masks = gold_masks.cpu()
+    return dep_masks.cpu()
+
+
+def write_dep_to_disk(
+    dep_heatmaps: torch.Tensor,
+    image_ids: List[int],
+    local_folder_path: str,
+) -> None:
+    """Writes dep to disk as a png locally
+
+    Args:
+        dep_heatmaps (torch.Tensor): bs x height x width dep heatmaps
+        image_ids (List[int]): image id for each image in the batch
+        local_folder_path (str): folder path to store the dep heatmaps
+    """
+    os.makedirs(local_folder_path, exist_ok=True)
+    for i, image_id in enumerate(image_ids):
+        dep_heatmap = dep_heatmaps[i].numpy()
+        obj_name = f"{local_folder_path}/{image_id}.png"
+        with open(obj_name, "wb") as f:
+            img = dep_heatmap_to_img(dep_heatmap)
+            img = colorize_dep_heatmap(img, 128)
+            img.save(f, "PNG")
 
 
 def upload_dep_heatmaps(
@@ -119,7 +144,7 @@ def upload_dep_heatmaps(
                 file_path=f.name,
                 content_type="image/png",
                 progress=False,
-                bucket_name=GALILEO_DEFAULT_RESULT_BUCKET_NAME,
+                bucket_name=config.results_bucket_name,
             )
 
 
@@ -140,7 +165,7 @@ def dep_heatmap_to_img(dep_heatmap: np.ndarray) -> Image:
     # Create a PIL Image object from the numpy array as grey-scale
     img = Image.fromarray(dep_heatmap, mode="L")
     if img.size[0] > MAX_DEP_HEATMAP_SIZE or img.size[1] > MAX_DEP_HEATMAP_SIZE:
-        img.resize((MAX_DEP_HEATMAP_SIZE, MAX_DEP_HEATMAP_SIZE))
+        img = img.resize((MAX_DEP_HEATMAP_SIZE, MAX_DEP_HEATMAP_SIZE))
     return img
 
 

@@ -14,7 +14,7 @@ from vaex.dataframe import DataFrameLocal
 import dataquality
 from dataquality.integrations.spacy import log_input_examples, watch
 from dataquality.schemas.split import Split
-from tests.conftest import SUBDIRS, TEST_PATH
+from tests.conftest import SUBDIRS, TestSessionVariables
 
 MINIBATCH_SZ = 3
 
@@ -65,6 +65,7 @@ def train_model(
 
 def load_ner_data_from_local(
     split: str,
+    test_session_vars: TestSessionVariables,
     inf_name_or_epoch: Union[str, int] = "",
 ) -> Tuple[pd.DataFrame, DataFrameLocal, DataFrameLocal]:
     """Loads post-logging locally created files.
@@ -74,7 +75,8 @@ def load_ner_data_from_local(
     split_output_data = {}
     for subdir in SUBDIRS:
         file_path = (
-            f"{TEST_PATH}/{split}/{inf_name_or_epoch}/{subdir}/{subdir}."
+            f"{test_session_vars.TEST_PATH}/{split}/{inf_name_or_epoch}/"
+            f"{subdir}/{subdir}."
             f"{'arrow' if subdir == 'data' else 'hdf5'}"
         )
         # Ensure files were cleaned up
