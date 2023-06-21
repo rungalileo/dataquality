@@ -220,7 +220,7 @@ class AutoInsights(BaseInsights):
     def validate(self, task_type: TaskType, labels: Optional[List[str]] = []) -> None:
         """Validate the task type and labels.
         :param task_type: The task type
-        :param labels: The labels 
+        :param labels: The labels
         """
         pass
 
