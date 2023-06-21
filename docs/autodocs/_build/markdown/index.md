@@ -79,15 +79,6 @@
     * [`unwatch()`](api/dataquality.md#dataquality.integrations.experimental.keras.unwatch)
 
 
-* [dataquality.integrations.spacy](api/dataquality.md#dataquality-integrations-spacy)
-
-
-    * [`watch()`](api/dataquality.md#dataquality.integrations.spacy.watch)
-
-
-    * [`unwatch()`](api/dataquality.md#dataquality.integrations.spacy.unwatch)
-
-
 * [dataquality.integrations.hf](api/dataquality.md#dataquality-integrations-hf)
 
 

@@ -147,53 +147,6 @@ class TFInsights(BaseInsights):
         self.watch = keras_watch
 
 
-class SpacyInsights(BaseInsights):
-    framework = ModelFramework.spacy
-    call_finish = False
-
-    def __init__(self, model: Any) -> None:
-        super().__init__(model)
-        from dataquality.integrations.spacy import unwatch as spacy_unwatch
-        from dataquality.integrations.spacy import watch as spacy_watch
-
-        self.unwatch = spacy_unwatch
-        self.watch = spacy_watch
-
-    def setup_training(
-        self,
-        labels: Optional[List[str]],
-        train_data: Any,
-        test_data: Optional[Any] = None,
-        val_data: Optional[Any] = None,
-    ) -> None:
-        """
-        Functionality is actually handled in the training step.
-        """
-        from dataquality.integrations.spacy import log_input_examples
-
-        if not (hasattr(self, "watch") and self.watch):
-            raise GalileoException("watch function missing in the trainer")
-        self.watch(self.model)
-        if train_data is not None:
-            log_input_examples(train_data, split=Split.train)
-            # log_input_examples(test_data, split=Split.validation)
-
-    def enter(self) -> None:
-        """Not used for spacy."""
-        pass
-
-    def validate(self, task_type: TaskType, labels: Optional[List[str]]) -> None:
-        """Validate the task type and labels.
-        :param task_type: The task type
-        :param labels: The labels (not used for spacy)
-        """
-        assert (
-            task_type is not None
-        ), """keyword argument task_type is required,
-        for example task_type='text_ner' """
-        assert task_type == TaskType.text_ner, "task_type must be text_ner"
-
-
 class TrainerInsights(BaseInsights):
     framework = ModelFramework.hf
 
@@ -267,7 +220,7 @@ class AutoInsights(BaseInsights):
     def validate(self, task_type: TaskType, labels: Optional[List[str]] = []) -> None:
         """Validate the task type and labels.
         :param task_type: The task type
-        :param labels: The labels (not used for spacy)
+        :param labels: The labels 
         """
         pass
 
@@ -278,10 +231,7 @@ def detect_model(model: Any, framework: Optional[ModelFramework]) -> Type[BaseIn
     :param framework: The framework to use, if provided it will be used instead of
          the model
     """
-    if hasattr(model, "pipe") or framework == ModelFramework.spacy:
-        # return SpacyInsights
-        raise GalileoException("Spacy is not supported yet")
-    elif hasattr(model, "fit") or framework == ModelFramework.keras:
+    if hasattr(model, "fit") or framework == ModelFramework.keras:
         return TFInsights
     elif hasattr(model, "register_forward_hook") or framework == ModelFramework.torch:
         return TorchInsights
@@ -320,8 +270,8 @@ class DataQuality:
         :param val_data: Optional: validation data
         :param labels: The labels for the run
         :param framework: The framework to use, if provided it will be used instead of
-            inferring it from the model. For example, if you have a spacy model, you
-            can pass framework="spacy". If you have a torch model, you can pass
+            inferring it from the model. For example, if you have a pytorch model, you
+            can pass framework="pytorch". If you have a torch model, you can pass
             framework="torch"
         :param args: Additional arguments
         :param kwargs: Additional keyword arguments

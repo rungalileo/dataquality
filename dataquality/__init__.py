@@ -8,8 +8,8 @@
 :param val_data: Optional: validation data
 :param labels: The labels for the run
 :param framework: The framework to use, if provided it will be used instead of
-    inferring it from the model. For example, if you have a spacy model, you
-    can pass framework="spacy". If you have a torch model, you can pass
+    inferring it from the model. For example, if you have a pytorch model, you
+    can pass framework="pytorch". If you have a torch model, you can pass
     framework="torch"
 :param args: Additional arguments
 :param kwargs: Additional keyword arguments
