@@ -110,6 +110,9 @@ class coco_hf_dataset_disk(torch.utils.data.Dataset):
             image = self.img_transform(image)
         if self.mask_transform:
             mask = self.mask_transform(mask)
+            
+        mask_bool = mask > 0
+        mask[mask_bool] = 1
         
         return {'image': image,
                 'image_path': image_path,
