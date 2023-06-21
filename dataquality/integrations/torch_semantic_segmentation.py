@@ -401,9 +401,7 @@ class SemanticTorchLogger(TorchLogger):
             probs = (torch.nn.Softmax(dim=-1)(logits)).cpu()
         else:
             probs = (torch.nn.Sigmoid()(logits)).cpu()
-
-        # expands the binary classification to a 2 channel tensor
-        if probs.shape[3] == 1:
+            # expands the binary classification to a 2 channel tensor
             probs = self.expand_binary_classification(probs)
 
         argmax = (probs.clone().argmax(dim=-1)).cpu()
