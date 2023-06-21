@@ -70,7 +70,7 @@ test = [
     "tensorflow>=2.9.1",
     "pytest-env>=0.8.1",
     "pytest-xdist>=2.4.0",
-    "spacy==3.2.1",
+    "spacy==3.4.4",
     "types-setuptools>=67.3.0.1",
     "types-cachetools>=4.2.4",
     "torchvision>=0.13.1",
