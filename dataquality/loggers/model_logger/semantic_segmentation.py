@@ -1,5 +1,5 @@
-from typing import Any, Dict, List, Optional, Union
 import os
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 import torch
@@ -108,7 +108,6 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
     @property
     def local_contours_path(self) -> str:
         return f"{self.local_proj_run_path}/{self.split_name_path}/contours"
-            
 
     def get_polygon_data(
         self,
@@ -139,7 +138,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         accuracies = []
         mislabeled_classes = []
         mislabeled_class_pcts = []
-        
+
         # create contours folder
         os.makedirs(self.local_contours_path, exist_ok=True)
 
@@ -217,7 +216,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         for i in range(len(self.image_ids)):
             if pred_polygons_batch[i] == [] and gold_polygons_batch[i] == []:
                 pred_polygons_batch[i] = [Polygon.empty_polygon()]
-            
+
         heights = [img.shape[-2] for img in self.gold_masks]
         widths = [img.shape[-1] for img in self.gold_masks]
 
@@ -243,7 +242,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             height=heights[0],
             width=widths[0],
         )
-        
+
         image_data = {
             "image": [f"{self.imgs_remote_location}/{pth}" for pth in self.image_paths],
             "id": self.image_ids,
