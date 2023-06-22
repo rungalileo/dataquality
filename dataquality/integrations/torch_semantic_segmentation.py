@@ -361,6 +361,17 @@ class SemanticTorchLogger(TorchLogger):
         self.truncate_queue()
         return mislabeled_pixels
 
+    def expand_binary_classification(self, probs: torch.Tensor) -> torch.Tensor:
+        """Expands the binary classification to a 2 channel tensor
+
+        Args:
+            probs (torch.Tensor): binary classification tensor
+
+        Returns:
+            torch.Tensor: bs, 2, h, w tensor
+        """
+        return torch.cat([1 - probs, probs], dim=3)
+
     def get_argmax_probs(
         self,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -377,16 +388,24 @@ class SemanticTorchLogger(TorchLogger):
         preds = F.interpolate(preds, size=input_shape, mode="bilinear")
 
         # checks whether the model is (n, classes, w, h), or (n, w, h, classes)
-        if preds.shape[1] == self.number_classes:
+        # takes the max in case of binary classification
+        if max(preds.shape[1], 2) == self.number_classes:
             preds = preds.permute(0, 2, 3, 1)
         assert (
-            preds.shape[-1] == self.number_classes
+            max(preds.shape[3], 2) == self.number_classes
         ), "The model output shape is not as expected. \
                 Expected classes to be in last dimension"
 
-        argmax = (preds.clone().argmax(dim=-1)).cpu()
         logits = preds.clone()  # (bs, w, h, classes)
-        probs = (torch.nn.Softmax(dim=-1)(logits)).cpu()
+        if preds.shape[3] > 1:
+            probs = (torch.nn.Softmax(dim=-1)(logits)).cpu()
+        else:
+            probs = (torch.nn.Sigmoid()(logits)).cpu()
+            # expands the binary classification to a 2 channel tensor
+            probs = self.expand_binary_classification(probs)
+
+        argmax = (probs.clone().argmax(dim=-1)).cpu()
+
         return argmax, probs
 
     def _on_step_end(self) -> None:
@@ -395,9 +414,10 @@ class SemanticTorchLogger(TorchLogger):
             self.find_mask_category(self.helper_data["batch"]["data"])
 
         # if we have not inferred the number of classes from the model architecture
-        self.number_classes = self.helper_data[HelperData.model_outputs_store][
-            "logits"
-        ].shape[1]
+        # takes the max of the logits shape and 2 in case of binary classification
+        self.number_classes = max(
+            self.helper_data[HelperData.model_outputs_store]["logits"].shape[1], 2
+        )
         if not self.init_lm_labels_flag:
             self._init_lm_labels()
             self.init_lm_labels_flag = True
@@ -421,6 +441,7 @@ class SemanticTorchLogger(TorchLogger):
                 gold_mask = gold_mask.squeeze(1)  # (bs, w, h)
             if gold_mask.dtype == torch.float16:
                 gold_mask = gold_mask.to(torch.float32)
+
             mislabeled_pixels = self.calculate_mislabeled_pixels(probs, gold_mask)
             # do not log if we are not in the final inference loop
             if not self.called_finish:
