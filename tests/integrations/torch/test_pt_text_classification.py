@@ -16,7 +16,6 @@ from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import validate_unique_ids
 from tests.conftest import TestSessionVariables
-from tests.test_utils import mock_data
 from tests.test_utils.mock_data import MockDataset, mock_df, test_df, train_df
 
 train_iter = MockDataset(train_df)
