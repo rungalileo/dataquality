@@ -90,7 +90,7 @@ class TextClassificationModel(nn.Module):
         return self.classifier(embedded)
 
 
-num_class = len(set([label for (label, text) in train_iter]))
+num_class = len(labels)
 vocab_size = len(vocab)
 emsize = 8
 model = TextClassificationModel(vocab_size, emsize, num_class).to(device)

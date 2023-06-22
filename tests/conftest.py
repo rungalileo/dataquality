@@ -22,12 +22,6 @@ TEST_STORE_DIR = "TEST_STORE"
 SPLITS = ["training", "test"]
 SUBDIRS = ["data", "emb", "prob"]
 
-# create tmp dir if it doesn't exist
-if not os.path.isdir("tmp"):
-    os.mkdir("tmp")
-
-os.environ["TORCH_HOME"] = os.path.join(os.getcwd(), "tmp")
-
 # Load models locally
 HF_TEST_BERT_PATH = "hf-internal-testing/tiny-random-distilbert"
 LOCAL_MODEL_PATH = f"{os.getcwd()}/tmp/testing-random-distilbert-sq"
