@@ -17,7 +17,8 @@ class coco_hf_dataset_disk(torch.utils.data.Dataset):
                  relative_mask_path: Optional[str],
                  mask_transform: transforms=None, 
                  img_transform: transforms=None, 
-                 size: int=1024,) -> None:
+                 size: int=1024,
+                 binary: bool = False) -> None:
         """"
         COCO val dataset from galileo-public-data/CV_datasets/COCO_seg_val_5000/all_images
         downloaded and located on disk.
@@ -44,6 +45,7 @@ class coco_hf_dataset_disk(torch.utils.data.Dataset):
             self.images = self.images[1:]
         if self.masks[0] == '.DS_Store':
             self.masks = self.masks[1:]
+        self.binary = binary
 
         num_images = len(self.images)
         num_masks = len(self.masks)
@@ -110,6 +112,10 @@ class coco_hf_dataset_disk(torch.utils.data.Dataset):
             image = self.img_transform(image)
         if self.mask_transform:
             mask = self.mask_transform(mask)
+            
+        if self.binary:
+            mask_bool = mask > 0
+            mask[mask_bool] = 1
         
         return {'image': image,
                 'image_path': image_path,
