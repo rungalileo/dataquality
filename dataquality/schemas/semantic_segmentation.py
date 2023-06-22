@@ -143,6 +143,9 @@ class Polygon(BaseModel):
         return Polygon(
             uuid=str(uuid.uuid4()),
             label_idx=-1,
+            data_error_potential=0.0,
+            area=0,
+            likely_mislabeled_pct=0.0,
             contours=[Contour(pixels=[Pixel(x=0, y=0)])],
             polygon_type=PolygonType.dummy,
         )
