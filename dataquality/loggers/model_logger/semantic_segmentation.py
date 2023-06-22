@@ -220,8 +220,6 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         for i in range(len(self.image_ids)):
             if pred_polygons_batch[i] == [] and gold_polygons_batch[i] == []:
                 pred_polygons_batch[i] = [Polygon.empty_polygon()]
-                gold_polygons_batch[i] = [Polygon.empty_polygon()]
-        print("pred_polygons_batch", pred_polygons_batch)
             
         heights = [img.shape[-2] for img in self.gold_masks]
         widths = [img.shape[-1] for img in self.gold_masks]
