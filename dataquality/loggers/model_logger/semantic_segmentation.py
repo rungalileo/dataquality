@@ -12,7 +12,6 @@ from dataquality.loggers.logger_config.semantic_segmentation import (
     semantic_segmentation_logger_config,
 )
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
-from dataquality.schemas.ml import ClassType
 from dataquality.schemas.semantic_segmentation import IoUType, Polygon, PolygonType
 from dataquality.schemas.split import Split
 from dataquality.utils.semantic_segmentation.errors import (
@@ -128,6 +127,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         """
         image_ids = []
         polygon_ids = []
+        polygon_types = []
         preds = []
         golds = []
         data_error_potentials = []
@@ -145,12 +145,21 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
 
             for polygon in all_polygons:
                 assert polygon.cls_error_data is not None  # for linting
-                if polygon.class_type == ClassType.gold:
+                polygon_types.append(polygon.polygon_type.value)
+                if polygon.polygon_type == PolygonType.gold:
                     golds.append(polygon.label_idx)
                     preds.append(-1)
-                else:
+                elif polygon.polygon_type == PolygonType.pred:
                     preds.append(polygon.label_idx)
                     golds.append(-1)
+                elif polygon.polygon_type == PolygonType.dummy:
+                    preds.append(-1)
+                    golds.append(-1)
+                else:
+                    raise ValueError(
+                        f"Polygon type {polygon.polygon_type} not recognized"
+                    )
+
                 image_ids.append(image_id)
                 data_error_potentials.append(polygon.data_error_potential)
                 errors.append(polygon.error_type.value)
@@ -164,6 +173,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 )
                 write_polygon_contours_to_disk(polygon, self.local_contours_path)
                 polygon_ids.append(polygon.uuid)
+
         polygon_data = {
             "polygon_uuid": polygon_ids,
             "image_id": image_ids,
@@ -180,6 +190,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "split": [self.split] * len(image_ids),
             "is_pred": [False if i == -1 else True for i in preds],
             "is_gold": [False if i == -1 else True for i in golds],
+            "polygon_type": polygon_types,
         }
         return polygon_data
 
@@ -189,7 +200,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         os.makedirs(self.local_contours_path, exist_ok=True)
         mean_mislabeled = torch.mean(self.mislabled_pixels, dim=(1, 2)).numpy()
 
-        image_dep, dep_heatmaps = calculate_and_upload_dep(
+        dep_heatmaps = calculate_and_upload_dep(
             self.output_probs,
             self.gold_masks,
             self.image_ids,
@@ -211,15 +222,15 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         pred_polygons_batch, gold_polygons_batch = find_polygons_batch(
             self.pred_masks, self.gold_masks
         )
-        
-        # in the case that both pred and gold polygons are empty, we need to 
-        # add an empty polygon in order to have an entry for that image in 
+
+        # in the case that both pred and gold polygons are empty, we need to
+        # add an empty polygon in order to have an entry for that image in
         # the polygon df and thus show it in the UI
         # therefore we add an empty polygon to the pred and have the api filter
         # out empty polygons in the processing step
         for i in range(len(self.image_ids)):
             if pred_polygons_batch[i] == [] and gold_polygons_batch[i] == []:
-                pred_polygons_batch[i] = [Polygon.empty_polygon()]
+                pred_polygons_batch[i] = [Polygon.dummy_polygon()]
 
         heights = [img.shape[-2] for img in self.gold_masks]
         widths = [img.shape[-1] for img in self.gold_masks]

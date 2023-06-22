@@ -5,8 +5,6 @@ from typing import List, Optional
 import numpy as np
 from pydantic import BaseModel
 
-from dataquality.schemas.ml import ClassType
-
 
 class SemSegCols(str, Enum):
     id = "id"
@@ -29,6 +27,7 @@ class ErrorType(str, Enum):
 class PolygonType(str, Enum):
     gold = "gold"
     pred = "pred"
+    dummy = "dummy"
 
 
 class IoUType(str, Enum):
@@ -93,7 +92,7 @@ class Polygon(BaseModel):
     ghost_percentage: Optional[float] = None
     area: Optional[int] = None
     likely_mislabeled_pct: Optional[float] = None
-    class_type: ClassType
+    polygon_type: PolygonType
 
     @property
     def contours_opencv(self) -> List[np.ndarray]:
@@ -136,21 +135,14 @@ class Polygon(BaseModel):
         return contours
 
     @staticmethod
-    def empty_polygon() -> "Polygon":
+    def dummy_polygon() -> "Polygon":
         """Creates an empty polygon with default values
-        in case we have an image with no polygons in either the 
+        in case we have an image with no polygons in either the
         pred or gold mask."""
 
         return Polygon(
             uuid=str(uuid.uuid4()),
             label_idx=-1,
-            cls_error_data=None,
-            error_type=ErrorType.none,
-            background_error_pct=0.0,
             contours=[Contour(pixels=[Pixel(x=0, y=0)])],
-            data_error_potential=0.0,
-            ghost_percentage=0.0,
-            area=1,
-            likely_mislabeled_pct=0.0,
-            class_type=ClassType.pred,
+            polygon_type=PolygonType.dummy,
         )
