@@ -138,7 +138,7 @@ class Polygon(BaseModel):
     @staticmethod
     def empty_polygon() -> "Polygon":
         dep = np.random.randint(0, 100) / 100.0
-        print(dep)
+
         return Polygon(
             uuid=str(uuid.uuid4()),
             label_idx=-1,
