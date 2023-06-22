@@ -1,3 +1,6 @@
+import pandas as pd
+from torch.utils.data import Dataset
+
 mock_dict = {
     "text": [
         "i didnt feel humiliated",
@@ -49,3 +52,34 @@ mock_dict_repeat = {
     ],
     "label": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 }
+
+
+# Step 1: Create your mock dataframe
+data = {
+    "label": ["Sports", "Tech", "Politics"] * 2,
+    "text": [
+        "This is a sample text about {}.".format(i)
+        for i in ["Sports", "Tech", "Politics"] * 2
+    ],
+}
+mock_df = pd.DataFrame(data)
+
+# Step 2: Split dataframe into training and testing data
+train_df, test_df = mock_df, mock_df
+labels = pd.concat([train_df["label"], test_df["label"]]).unique()
+labels.sort()
+label_map = {label: i for i, label in enumerate(labels)}
+
+
+# Define dataset class
+class MockDataset(Dataset):
+    def __init__(self, dataframe: pd.DataFrame) -> None:
+        self.dataframe = dataframe
+        self.labels = labels
+
+    def __getitem__(self, index: int) -> tuple:
+        label, text = self.dataframe.iloc[index]
+        return label_map[label], text
+
+    def __len__(self) -> int:
+        return len(self.dataframe)
