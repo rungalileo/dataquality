@@ -201,7 +201,9 @@ def test_condition() -> Callable:
     return curry
 
 
-def patch_object_upload(self: Any, df: DataFrame, object_name: str) -> None:
+def patch_object_upload(
+    self: Any, df: DataFrame, object_name: str, bucket_name: Optional[str] = None
+) -> None:
     """
     A patch for the object_store.create_project_run_object_from_df so we don't have to
     talk to minio for testing

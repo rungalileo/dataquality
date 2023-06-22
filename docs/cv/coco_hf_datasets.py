@@ -1,7 +1,6 @@
 import os
 from typing import Dict, Optional, Union
 
-import datasets
 import numpy as np
 import torch
 from google.cloud import storage
@@ -11,15 +10,17 @@ from tqdm import tqdm
 
 
 class coco_hf_dataset_disk(torch.utils.data.Dataset):
-    def __init__(self, 
-                 dataset_path: str,
-                 relative_img_path: Optional[str], 
-                 relative_mask_path: Optional[str],
-                 mask_transform: transforms=None, 
-                 img_transform: transforms=None, 
-                 size: int=1024,) -> None:
-        """"
-        COCO val dataset from galileo-public-data/CV_datasets/COCO_seg_val_5000/all_images
+    def __init__(
+        self,
+        dataset_path: str,
+        relative_img_path: Optional[str],
+        relative_mask_path: Optional[str],
+        mask_transform: transforms = None,
+        img_transform: transforms = None,
+        size: int = 1024,
+    ) -> None:
+        """COCO val dataset from
+        galileo-public-data/CV_datasets/COCO_seg_val_5000/all_images
         downloaded and located on disk.
         If no paths are provided we download the dataset from GCS and save it to disk.
 
@@ -40,9 +41,9 @@ class coco_hf_dataset_disk(torch.utils.data.Dataset):
         self.images = sorted(os.listdir(os.path.join(dataset_path, relative_img_path)))
         self.masks = sorted(os.listdir(os.path.join(dataset_path, relative_mask_path)))
         # remove .DS_Store
-        if self.images[0] == '.DS_Store':
+        if self.images[0] == ".DS_Store":
             self.images = self.images[1:]
-        if self.masks[0] == '.DS_Store':
+        if self.masks[0] == ".DS_Store":
             self.masks = self.masks[1:]
 
         num_images = len(self.images)
@@ -51,39 +52,47 @@ class coco_hf_dataset_disk(torch.utils.data.Dataset):
 
         # give default mask and image transforms
         if mask_transform is None:
-            mask_transform = transforms.Compose([transforms.Resize((size, size), 
-                                                                   resample=Image.NEAREST),
-                                                 transforms.ToTensor()])
+            mask_transform = transforms.Compose(
+                [
+                    transforms.Resize((size, size), resample=Image.NEAREST),
+                    transforms.ToTensor(),
+                ]
+            )
         if img_transform is None:
-            img_transform = transforms.Compose([transforms.Resize((size, size)),
-                                                transforms.ToTensor(),
-                                                transforms.Normalize([0.485, 0.456, 0.406],
-                                                                     [0.229, 0.224, 0.225])])
+            img_transform = transforms.Compose(
+                [
+                    transforms.Resize((size, size)),
+                    transforms.ToTensor(),
+                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+                ]
+            )
         self.mask_transform = mask_transform
         self.img_transform = img_transform
 
-        self.class_dict = { 'background': 0,
-                            'airplane': 1,
-                            'bicycle': 2,
-                            'bird': 3,
-                            'boat': 4,
-                            'bottle': 5,
-                            'bus': 6,
-                            'car': 7,
-                            'cat': 8,
-                            'chair': 9,
-                            'cow': 10,
-                            'dining table': 11,
-                            'dog': 12,
-                            'horse': 13,
-                            'motorcycle': 14,
-                            'person': 15,
-                            'potted plant': 16,
-                            'sheep': 17,
-                            'couch': 18,
-                            'train': 19,
-                            'tv': 20}
-                        
+        self.class_dict = {
+            "background": 0,
+            "airplane": 1,
+            "bicycle": 2,
+            "bird": 3,
+            "boat": 4,
+            "bottle": 5,
+            "bus": 6,
+            "car": 7,
+            "cat": 8,
+            "chair": 9,
+            "cow": 10,
+            "dining table": 11,
+            "dog": 12,
+            "horse": 13,
+            "motorcycle": 14,
+            "person": 15,
+            "potted plant": 16,
+            "sheep": 17,
+            "couch": 18,
+            "train": 19,
+            "tv": 20,
+        }
+
         self.int2str = {v: k for k, v in self.class_dict.items()}
         self.size = size
 
@@ -93,30 +102,37 @@ class coco_hf_dataset_disk(torch.utils.data.Dataset):
 
     def __getitem__(self, idx: int) -> Dict[str, Union[torch.Tensor, int, np.ndarray]]:
         # gets a single item from our dataset
-        
-        image_path = os.path.join(self.dataset_path, self.relative_img_path, self.images[idx])
-        mask_path = os.path.join(self.dataset_path, self.relative_mask_path, self.masks[idx])
+
+        image_path = os.path.join(
+            self.dataset_path, self.relative_img_path, self.images[idx]
+        )
+        mask_path = os.path.join(
+            self.dataset_path, self.relative_mask_path, self.masks[idx]
+        )
         image = Image.open(image_path)
         mask = Image.open(mask_path)
 
         # resize image and mask to given size
-        unnormalized_image = image.copy().resize((self.size, self.size), resample=Image.NEAREST)
+        unnormalized_image = image.copy().resize(
+            (self.size, self.size), resample=Image.NEAREST
+        )
         unnormalized_image = transforms.ToTensor()(unnormalized_image)
         unnormalized_image = expand_gray_channel()(unnormalized_image)
         unnormalized_image = np.array(unnormalized_image)
-        
 
         if self.img_transform:
             image = self.img_transform(image)
         if self.mask_transform:
             mask = self.mask_transform(mask)
-        
-        return {'image': image,
-                'image_path': image_path,
-                'mask_path': mask_path,
-                'mask': mask,
-                'idx': idx,
-                'unnormalized_image': unnormalized_image}
+
+        return {
+            "image": image,
+            "image_path": image_path,
+            "mask_path": mask_path,
+            "mask": mask,
+            "idx": idx,
+            "unnormalized_image": unnormalized_image,
+        }
 
 
 class expand_gray_channel:
@@ -127,28 +143,32 @@ class expand_gray_channel:
         if tensor.shape[0] == 1:
             return tensor.expand(3, -1, -1)
         return tensor
-    
+
 
 def download_gcs_data() -> None:
     # Initialize a client for Google Cloud Storage
     client = storage.Client()
 
     # Define the source bucket and folder paths
-    bucket_name = 'galileo-public-data'
-    dataset_path = '../../../'
-    folder_paths = ['CV_datasets/COCO_seg_val_5000/all_images', 
-                    'CV_datasets/COCO_seg_val_5000/all_masks']
+    bucket_name = "galileo-public-data"
+    dataset_path = "../../../"
+    folder_paths = [
+        "CV_datasets/COCO_seg_val_5000/all_images",
+        "CV_datasets/COCO_seg_val_5000/all_masks",
+    ]
 
     # Define the destination folder paths on disk
-    destination_paths = [os.path.join(dataset_path, 'all_images'), 
-                         os.path.join(dataset_path, 'all_masks')]
+    destination_paths = [
+        os.path.join(dataset_path, "all_images"),
+        os.path.join(dataset_path, "all_masks"),
+    ]
 
     if os.path.exists(os.path.join(dataset_path, folder_paths[0])):
-        print(f'Found dataset in {os.path.abspath(dataset_path)}')
+        print(f"Found dataset in {os.path.abspath(dataset_path)}")
         num_images = len(os.listdir(os.path.join(dataset_path, folder_paths[0])))
         num_masks = len(os.listdir(os.path.join(dataset_path, folder_paths[1])))
-        print(f'There are {num_images} images and {num_masks} masks')
-        print('Skipping download...')
+        print(f"There are {num_images} images and {num_masks} masks")
+        print("Skipping download...")
         return dataset_path, folder_paths[0], folder_paths[1]
 
     if not os.path.exists(dataset_path):
