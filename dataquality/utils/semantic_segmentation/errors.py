@@ -218,6 +218,9 @@ def add_all_errors_and_metrics_for_image(
         mislabled_pixels (np.ndarray): map of h, w of mislabled pixels
     """
     for polygon in polygons:
+        if polygon.polygon_type == PolygonType.dummy:
+            # We don't need to calculate errors for dummy polygons
+            continue
         out_polygon_im = draw_polygon(polygon, mask.shape[-2:])
         add_class_errors_to_polygon(
             mask, out_polygon_im, polygon, polygon_type, number_classes
