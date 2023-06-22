@@ -1,11 +1,10 @@
 from typing import Callable, Generator
 from unittest.mock import MagicMock, patch
 
-import pandas as pd
 import torch
 import vaex
 from torch import nn
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 from torch.utils.data.dataset import random_split
 from torchtext.data.functional import to_map_style_dataset
 from torchtext.data.utils import get_tokenizer
@@ -17,41 +16,11 @@ from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import validate_unique_ids
 from tests.conftest import TestSessionVariables
+from tests.test_utils.mock_data import MockDataset, mock_df, test_df, train_df
 
-# Step 1: Create your mock dataframe
-data = {
-    "label": ["Sports", "Tech", "Politics"] * 2,
-    "text": [
-        "This is a sample text about {}.".format(i)
-        for i in ["Sports", "Tech", "Politics"] * 2
-    ],
-}
-mock_df = pd.DataFrame(data)
-
-# Step 2: Split dataframe into training and testing data
-train_df, test_df = mock_df, mock_df
-labels = pd.concat([train_df["label"], test_df["label"]]).unique()
-labels.sort()
-label_map = {label: i for i, label in enumerate(labels)}
-
-
-# Define dataset class
-class MockDataset(Dataset):
-    def __init__(self, dataframe: pd.DataFrame) -> None:
-        self.dataframe = dataframe
-
-    def __getitem__(self, index: int) -> tuple:
-        label, text = self.dataframe.iloc[index]
-        return label_map[label], text
-
-    def __len__(self) -> int:
-        return len(self.dataframe)
-
-
-# Step 5: Create Dataset
 train_iter = MockDataset(train_df)
 test_iter = MockDataset(test_df)
-
+labels = train_iter.labels
 tokenizer = get_tokenizer("basic_english")
 
 
@@ -120,7 +89,7 @@ class TextClassificationModel(nn.Module):
         return self.classifier(embedded)
 
 
-num_class = len(set([label for (label, text) in train_iter]))
+num_class = len(labels)
 vocab_size = len(vocab)
 emsize = 8
 model = TextClassificationModel(vocab_size, emsize, num_class).to(device)
@@ -218,7 +187,7 @@ def test_end_to_end_with_callback(
     dq.log_dataset(test_df, split="test")
 
     train_dataloader_dq = DataLoader(
-        MockDataset(mock_df),
+        MockDataset(train_df),
         batch_size=BATCH_SIZE,
         num_workers=2,
         shuffle=True,
@@ -227,7 +196,7 @@ def test_end_to_end_with_callback(
         # pin_memory=False,
     )
     test_dataloader_dq = DataLoader(
-        MockDataset(mock_df),
+        MockDataset(test_df),
         batch_size=BATCH_SIZE,
         shuffle=True,
         collate_fn=collate_batch,

@@ -1,5 +1,4 @@
 import base64
-import zlib
 from io import BytesIO
 
 from datasets import load_dataset
