@@ -5,7 +5,6 @@ from uuid import UUID
 
 import pytest
 import requests
-import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 from vaex.dataframe import DataFrame
 
@@ -48,11 +47,6 @@ except Exception:
     )
 
     model.save_pretrained(LOCAL_MODEL_PATH)
-
-
-seg_model = torch.hub.load(
-    "pytorch/vision:v0.10.0", "deeplabv3_resnet50", pretrained=True
-).to("cpu")
 
 
 class TestSessionVariables:

@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 import torch
+import torch.nn as nn
 from PIL import Image
 from torch.utils.data import DataLoader
 from torchvision import transforms
@@ -12,7 +13,7 @@ import dataquality as dq
 from dataquality.clients.api import ApiClient
 from dataquality.clients.objectstore import ObjectStore
 from dataquality.integrations.torch_semantic_segmentation import watch
-from tests.conftest import TestSessionVariables, seg_model
+from tests.conftest import TestSessionVariables
 
 dataset_path = os.path.abspath("tests/assets/testseg")
 
@@ -209,10 +210,41 @@ validation_dataloader = DataLoader(
     validation_dataset, batch_size=6, shuffle=True, num_workers=1
 )
 
+
+class DummyDeepLabV3(nn.Module):
+    def __init__(self, input_channels=3, output_channels=21):
+        super().__init__()
+        self.conv = nn.Conv2d(
+            in_channels=input_channels,
+            out_channels=output_channels,
+            kernel_size=3,
+            stride=1,
+            padding=1,
+        )
+
+    def forward(self, x):
+        x = self.conv(x)
+        return {"out": x}
+
+    def init_weights(self):
+        self.conv.weight.data.fill_(1)
+        self.conv.bias.data.fill_(0) if self.conv.bias is not None else None
+
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = seg_model
+model = DummyDeepLabV3()
 criterion = torch.nn.CrossEntropyLoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=0.00001)
+
+
+class DummyOptimizer:
+    def zero_grad(self):
+        pass
+
+    def step(self):
+        pass
+
+
+optimizer = DummyOptimizer()
 
 
 @patch.object(dq.core.finish, "_version_check")
