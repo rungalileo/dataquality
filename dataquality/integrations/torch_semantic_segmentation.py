@@ -22,7 +22,6 @@ from dataquality.loggers.model_logger.semantic_segmentation import (
 )
 from dataquality.schemas.semantic_segmentation import SemSegCols
 from dataquality.schemas.split import Split
-from dataquality.schemas.torch import HelperData
 from dataquality.utils.helpers import wrap_fn
 from dataquality.utils.semantic_segmentation.lm import (
     calculate_lm_for_batch,
@@ -32,7 +31,7 @@ from dataquality.utils.semantic_segmentation.lm import (
 )
 from dataquality.utils.semantic_segmentation.utils import mask_to_boundary
 from dataquality.utils.thread_pool import ThreadPoolManager, lock
-from dataquality.utils.torch import ModelHookManager, store_batch_indices
+from dataquality.utils.torch import store_batch_indices
 from dataquality.utils.upload import chunk_load_then_upload_df
 
 a = Analytics(ApiClient, dq.config)  # type: ignore
@@ -67,8 +66,8 @@ class SemanticTorchLogger(TorchLogger):
         :param dataloaders: dataloaders to be logged
         """
         super().__init__(*args, **kwargs)
-
-        self._init_helper_data(self.hook_manager, self.model)
+        self.torch_helper_data.clear()
+        self.torch_helper_data.model = self.model
         self.mask_col_name = mask_col_name
         self.local_path_to_dataset_root = os.path.abspath(local_path_to_dataset_root)
 
@@ -170,7 +169,7 @@ class SemanticTorchLogger(TorchLogger):
             logits = model_output["out"]
         else:
             logits = model_output
-        model_outputs_store = self.helper_data[HelperData.model_outputs_store]
+        model_outputs_store = self.torch_helper_data.model_outputs_store
         model_outputs_store["logits"] = logits
 
     def _dq_classifier_hook_with_step_end(
@@ -206,33 +205,12 @@ class SemanticTorchLogger(TorchLogger):
 
         """
         # model input comes as a tuple of length 1
-        self.helper_data[HelperData.model_input] = model_input[0].detach().cpu().numpy()
-
-    def _init_helper_data(self, hm: ModelHookManager, model: Module) -> None:
-        """
-        Initialize the helper data with ids from the dataloader indices,
-        patches for applied monkey patched functions and the hook manager.
-        :param hm: Hook manager
-        :param model: torch.nn.Module model that we are hooking
-        """
-        self.helper_data.clear()
-        self.helper_data.update(
-            {
-                HelperData.dl_next_idx_ids: [],
-                HelperData.last_action: "init",
-                HelperData.patches: [],
-                HelperData.model_outputs_store: {},
-                HelperData.hook_manager: hm,
-                HelperData.model: model,
-                HelperData.batch: {},
-                HelperData.model_input: {},
-            }
-        )
+        self.torch_helper_data.model_input = model_input[0].detach().cpu().numpy()
 
     def get_image_ids_and_image_paths(
         self, split: str, logging_data: Dict[str, Any]
     ) -> Tuple[List[int], List[str]]:
-        img_ids = self.helper_data["batch"]["ids"]  # np.ndarray (bs,)
+        img_ids = self.torch_helper_data.batch["ids"]  # np.ndarray (bs,)
         # convert the img_ids to absolute ids from file map
         img_ids = [
             self.dataloader_path_to_id[split][path]
@@ -381,10 +359,10 @@ class SemanticTorchLogger(TorchLogger):
             Tuple[torch.Tensor, torch.Tensor]: argmax and logits tensors
         """
         # resize the logits to the input size based on hooks
-        preds = self.helper_data[HelperData.model_outputs_store]["logits"]
+        preds = self.torch_helper_data.model_outputs_store["logits"]
         if preds.dtype == torch.float16:
             preds = preds.to(torch.float32)
-        input_shape = self.helper_data[HelperData.model_input].shape[-2:]
+        input_shape = self.torch_helper_data.model_input.shape[-2:]
         preds = F.interpolate(preds, size=input_shape, mode="bilinear")
 
         # checks whether the model is (n, classes, w, h), or (n, w, h, classes)
@@ -411,19 +389,20 @@ class SemanticTorchLogger(TorchLogger):
     def _on_step_end(self) -> None:
         """Function to be called at the end of step to log the inputs and outputs"""
         if not self.mask_col_name:
-            self.find_mask_category(self.helper_data["batch"]["data"])
+            self.find_mask_category(self.torch_helper_data.batch["data"])
 
         # if we have not inferred the number of classes from the model architecture
+
         # takes the max of the logits shape and 2 in case of binary classification
         self.number_classes = max(
-            self.helper_data[HelperData.model_outputs_store]["logits"].shape[1], 2
+            self.torch_helper_data.model_outputs_store["logits"].shape[1], 2
         )
         if not self.init_lm_labels_flag:
             self._init_lm_labels()
             self.init_lm_labels_flag = True
         split = self.logger_config.cur_split.lower()  # type: ignore
         with torch.no_grad():
-            logging_data = self.helper_data["batch"]["data"]
+            logging_data = self.torch_helper_data.batch["data"]
             img_ids, image_paths = self.get_image_ids_and_image_paths(
                 split, logging_data
             )
@@ -695,5 +674,5 @@ def watch(
     for key, dataloader in dataloaders.items():
         dataloader._get_iterator = wrap_fn(  # type: ignore
             dataloader._get_iterator,
-            patch_iterator_and_batch(tl.helper_data["batch"]),
+            patch_iterator_and_batch(tl.torch_helper_data.batch),
         )

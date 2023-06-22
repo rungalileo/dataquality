@@ -1,6 +1,7 @@
 import gc
 import re
 from collections import OrderedDict
+from dataclasses import dataclass, field
 from functools import wraps
 from queue import Queue
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
@@ -9,6 +10,7 @@ from warnings import warn
 import numpy as np  # noqa: F401
 from torch import Tensor
 from torch.nn import Module
+from torch.utils.data import DataLoader
 from torch.utils.data.dataloader import (
     _BaseDataLoaderIter,
     _MultiProcessingDataLoaderIter,
@@ -21,6 +23,31 @@ from dataquality.exceptions import GalileoException
 from dataquality.schemas.task_type import TaskType
 from dataquality.schemas.torch import DimensionSlice, HelperData, Layer
 from dataquality.utils.helpers import wrap_fn
+from dataquality.utils.patcher import Borg, Patch, PatchManager
+
+
+@dataclass
+class TorchHelper:
+    model: Optional[Any] = None
+    hook_manager: Optional[Any] = None
+    model_outputs_store: Dict[str, Any] = field(default_factory=dict)
+    dl_next_idx_ids: List[Any] = field(default_factory=list)
+    model_input: Any = np.empty(0)
+    batch: Dict[str, Any] = field(default_factory=dict)
+    ids: List[Any] = field(default_factory=list)
+    patches: Optional[Any] = None
+
+    def clear(self) -> None:
+        """Resets the arrays of the class."""
+        self.dl_next_idx_ids.clear()
+        self.model_outputs_store.clear()
+        self.ids.clear()
+        self.model_input = np.empty(0)
+        self.batch.clear()
+
+    def __del__(self) -> None:
+        self.clear()
+        self.hook_manager = None
 
 
 class TorchBaseInstance:
@@ -29,7 +56,7 @@ class TorchBaseInstance:
     embedding_fn: Optional[Any] = None
     logits_fn: Optional[Any] = None
     task: TaskType
-    helper_data: Dict[str, Any]
+    torch_helper_data: TorchHelper
 
     def _init_dimension(
         self,
@@ -113,7 +140,7 @@ class TorchBaseInstance:
             # It is assumed that the CLS token is removed through this dimension
             # for NER tasks
             output_detached = output_detached[:, 1:, :]
-        model_outputs_store = self.helper_data[HelperData.model_outputs_store]
+        model_outputs_store = self.torch_helper_data.model_outputs_store
         model_outputs_store["embs"] = output_detached
 
     def _dq_logit_hook(
@@ -154,7 +181,7 @@ class TorchBaseInstance:
             # It is assumed that the CLS token is removed
             # through this dimension for NER tasks
             logits = logits[:, 1:, :]
-        model_outputs_store = self.helper_data[HelperData.model_outputs_store]
+        model_outputs_store = self.torch_helper_data.model_outputs_store
         model_outputs_store["logits"] = logits
 
     def _classifier_hook(
@@ -241,14 +268,18 @@ def convert_fancy_idx_str_to_slice(
     return eval("np.s_[{}]".format(clean_str))
 
 
-class ModelHookManager:
+class ModelHookManager(Borg):
     """
     Manages hooks for models. Has the ability to find the layer automatically.
     Otherwise the layer or the layer name needs to be provided.
     """
 
     # Stores all hooks to remove them from the model later.
-    hooks: List[RemovableHandle] = []
+    def __init__(self) -> None:
+        """Class to manage patches"""
+        super().__init__()
+        if not hasattr(self, "initialized"):
+            self.hooks: List[RemovableHandle] = []
 
     def get_embedding_layer_auto(self, model: Module) -> Module:
         """
@@ -324,6 +355,7 @@ class ModelHookManager:
 
     def attach_hook(self, selected_layer: Module, hook: Callable) -> RemovableHandle:
         """Register a hook and save it in our hook list"""
+        self.initialized = True
         h = selected_layer.register_forward_hook(hook)
         self.hooks.append(h)
         return h
@@ -334,68 +366,13 @@ class ModelHookManager:
             h.remove()
 
 
-def patch_dataloaders(store: Dict, reset_indices: bool = True) -> None:
-    """Patch the dataloaders to store the indices of the batches.
-    :param store: The store to save the indices to.
-    :param reset_indices: If true, the indices will be reset when indices are popped.
-    """
-
-    def wrap_next_index(func: Callable, key: str = "ids") -> Callable:
-        """
-        Wraps the next index function to store the indices.
-        """
-
-        @wraps(func)
-        def patched_next_index(*args: Any, **kwargs: Any) -> Any:
-            indices = func(*args, **kwargs)
-            if indices and key in store:
-                # TODO: investigate into ways to reset the indices
-                store[key].append(indices)
-            return indices
-
-        return patched_next_index
-
-    # Store all applied patches
-    if HelperData.patches not in store:
-        store[HelperData.patches] = []
-
-    # Patch the dataloader
-    if getattr(_BaseDataLoaderIter, "_patched", False):
-        # logger warning if already patched
-        warn("BaseDataLoaderIter already patched")
-        if hasattr(_BaseDataLoaderIter, "_old__next_index"):
-            setattr(
-                _BaseDataLoaderIter,
-                "_next_index",
-                wrap_next_index(
-                    getattr(_BaseDataLoaderIter, "_old__next_index"),
-                    HelperData.dl_next_idx_ids,
-                ),
-            )
-    else:
-        # patch the _BaseDataLoaderIter class to wrap the next index function
-        # save the old function on the class itself
-        setattr(
-            _BaseDataLoaderIter, "_old__next_index", _BaseDataLoaderIter._next_index
-        )
-        setattr(
-            _BaseDataLoaderIter,
-            "_next_index",
-            wrap_next_index(
-                _BaseDataLoaderIter._next_index, HelperData.dl_next_idx_ids
-            ),
-        )
-        setattr(_BaseDataLoaderIter, "_patched", True)
-        setattr(_BaseDataLoaderIter, "_patch_store", store)
-    # store the patch
-    store["patches"].append({"class": _BaseDataLoaderIter, "attr": "_next_index"})
-
-
 def unpatch(patches: List[Dict[str, Any]] = []) -> None:
     """
     Unpatch all patched classes and instances
     :param patches: list of patches
     """
+    manager = PatchManager()
+    manager.unpatch()
     # unpatch all instances and classes
     # starting with all classes
     for patch in patches:
@@ -512,3 +489,179 @@ def find_dq_hook_by_name(model: Module, name: str = "_dq_", start: bool = True) 
             if found:
                 return True
     return False
+
+
+class PatchSingleDataloaderIterator(Patch):
+    name = "patch_single_dataloader_iterator"
+
+    def __init__(
+        self,
+        dataloader_cls: DataLoader,
+        store: Dict[str, List[int]],
+        fn_name: str = "_get_iterator",
+    ):
+        """Initializes the class with a collate function,
+        columns to keep, and a store to save ids.
+
+        :param collate_fn: The collate function to wrap
+        :param keep_cols: The columns to keep
+        :param store: The store to use to save the ids
+        """
+        self.orig_cls = dataloader_cls
+        self._original_fn = getattr(dataloader_cls, fn_name)
+        self._fn_name = fn_name
+        self.store = store
+        self.patch()
+
+    def _patch(self) -> "Patch":
+        """Wraps the original collate function with the id removal functionality."""
+        setattr(self.orig_cls, self._fn_name, self)
+        return self
+
+    def _unpatch(self) -> None:
+        """Restores the original collate function,
+        removing the id removal functionality."""
+        setattr(self.orig_cls, self._fn_name, self._original_fn)
+
+    def __call__(self, *args: Any, **kwargs: Any) -> List[dict]:
+        iterrator = self._original_fn(*args, **kwargs)
+        iterrator._next_index = PatchSingleDataloaderNextIndex(
+            iterrator, self.store, fn_name="_next_index"
+        )
+        return iterrator
+
+
+class PatchSingleDataloaderNextIndex(Patch):
+    name = "patch_next_index"
+
+    def __init__(
+        self,
+        dataloader_cls: DataLoader,
+        store: Dict[str, List[int]],
+        fn_name: str = "_get_iterator",
+    ):
+        """Initializes the class with a collate function,
+        columns to keep, and a store to save ids.
+
+        :param collate_fn: The collate function to wrap
+        :param keep_cols: The columns to keep
+        :param store: The store to use to save the ids
+        """
+        self.orig_cls = dataloader_cls
+        self._original_fn = getattr(dataloader_cls, fn_name)
+        self._fn_name = fn_name
+        self.store = store
+        self.patch()
+
+    def _patch(self) -> "Patch":
+        """Wraps the original collate function with the id removal functionality."""
+        setattr(self.orig_cls, self._fn_name, self)
+        return self
+
+    def _unpatch(self) -> None:
+        """Restores the original collate function,
+        removing the id removal functionality."""
+        setattr(self.orig_cls, self._fn_name, self._original_fn)
+
+    def __call__(self, *args: Any, **kwargs: Any) -> List[dict]:
+        indices = self._original_fn(*args, **kwargs)
+        if indices:
+            self.store["ids"] = indices
+        return indices
+
+
+class PatchDataloadersGlobally(Patch):
+    name = "patch_dataloaders_globally"
+
+    def __init__(self, torch_helper: TorchHelper):
+        """Patch the dataloaders to store the indices of the batches.
+        :param store: The store to save the indices to.
+        """
+        self.store = torch_helper
+        self.patch()
+
+    def _patch(self) -> "Patch":
+        """Wraps the original collate function with the id removal functionality."""
+        self.patch_dataloaders()
+        return self
+
+    def _unpatch(self) -> None:
+        """Restores the original collate function,
+        removing the id removal functionality."""
+        base_dataloaders: List[
+            Union[Type[_BaseDataLoaderIter], _BaseDataLoaderIter]
+        ] = [
+            _BaseDataLoaderIter,
+            _SingleProcessDataLoaderIter,
+            _MultiProcessingDataLoaderIter,
+        ]
+        for obj in base_dataloaders:
+            try:
+                for attrib in dir(obj):
+                    if (
+                        attrib.startswith("_old_")
+                        and hasattr(obj, attrib[5:])
+                        and hasattr(obj, attrib)
+                    ):
+                        setattr(obj, attrib[5:], getattr(obj, attrib))
+                        if hasattr(obj, attrib):
+                            delattr(obj, attrib)
+
+                if getattr(obj, "_patched", False):
+                    delattr(obj, "_patched")
+            except ReferenceError:
+                pass
+
+    def patch_dataloaders(self) -> None:
+        """ """
+        store = self.store
+
+        def wrap_next_index(func: Callable, key: str = "ids") -> Callable:
+            """
+            Wraps the next index function to store the indices.
+            """
+
+            @wraps(func)
+            def patched_next_index(*args: Any, **kwargs: Any) -> Any:
+                indices = func(*args, **kwargs)
+                if indices:
+                    # TODO: investigate into ways to reset the indices
+                    arr = getattr(store, key, None)
+                    if arr is not None:
+                        arr.append(indices)
+                return indices
+
+            return patched_next_index
+
+        # Store all applied patches
+        if getattr(store, HelperData.patches, None) is None:
+            store.patches = []
+
+        # Patch the dataloader
+        if getattr(_BaseDataLoaderIter, "_patched", False):
+            # logger warning if already patched
+            warn("BaseDataLoaderIter already patched")
+            if hasattr(_BaseDataLoaderIter, "_old__next_index"):
+                setattr(
+                    _BaseDataLoaderIter,
+                    "_next_index",
+                    wrap_next_index(
+                        getattr(_BaseDataLoaderIter, "_old__next_index"),
+                        HelperData.dl_next_idx_ids,
+                    ),
+                )
+        else:
+            # patch the _BaseDataLoaderIter class to wrap the next index function
+            # save the old function on the class itself
+            setattr(
+                _BaseDataLoaderIter, "_old__next_index", _BaseDataLoaderIter._next_index
+            )
+            setattr(
+                _BaseDataLoaderIter,
+                "_next_index",
+                wrap_next_index(
+                    _BaseDataLoaderIter._next_index, HelperData.dl_next_idx_ids
+                ),
+            )
+            setattr(_BaseDataLoaderIter, "_patched", True)
+            setattr(_BaseDataLoaderIter, "_patch_store", store)

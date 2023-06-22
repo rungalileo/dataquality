@@ -22,20 +22,24 @@ TEST_STORE_DIR = "TEST_STORE"
 SPLITS = ["training", "test"]
 SUBDIRS = ["data", "emb", "prob"]
 
-
 # Load models locally
 HF_TEST_BERT_PATH = "hf-internal-testing/tiny-random-distilbert"
 LOCAL_MODEL_PATH = f"{os.getcwd()}/tmp/testing-random-distilbert-sq"
 try:
-    tokenizer = AutoTokenizer.from_pretrained(LOCAL_MODEL_PATH)
+    tokenizer = AutoTokenizer.from_pretrained(LOCAL_MODEL_PATH, device="cpu")
 except Exception:
-    tokenizer = AutoTokenizer.from_pretrained(HF_TEST_BERT_PATH)
+    tokenizer = AutoTokenizer.from_pretrained(HF_TEST_BERT_PATH, device="cpu")
     tokenizer.save_pretrained(LOCAL_MODEL_PATH)
 
 try:
-    model = AutoModelForSequenceClassification.from_pretrained(LOCAL_MODEL_PATH)
+    model = AutoModelForSequenceClassification.from_pretrained(
+        LOCAL_MODEL_PATH, device_map="cpu"
+    )
 except Exception:
-    model = AutoModelForSequenceClassification.from_pretrained(HF_TEST_BERT_PATH)
+    model = AutoModelForSequenceClassification.from_pretrained(HF_TEST_BERT_PATH).to(
+        "cpu"
+    )
+
     model.save_pretrained(LOCAL_MODEL_PATH)
 
 
@@ -196,7 +200,9 @@ def test_condition() -> Callable:
     return curry
 
 
-def patch_object_upload(self: Any, df: DataFrame, object_name: str) -> None:
+def patch_object_upload(
+    self: Any, df: DataFrame, object_name: str, bucket_name: Optional[str] = None
+) -> None:
     """
     A patch for the object_store.create_project_run_object_from_df so we don't have to
     talk to minio for testing

@@ -140,8 +140,8 @@ class TFInsights(BaseInsights):
 
     def __init__(self, model: Any) -> None:
         super().__init__(model)
-        from dataquality.integrations.experimental.keras import unwatch as keras_unwatch
-        from dataquality.integrations.experimental.keras import watch as keras_watch
+        from dataquality.integrations.keras import unwatch as keras_unwatch
+        from dataquality.integrations.keras import watch as keras_watch
 
         self.unwatch = keras_unwatch
         self.watch = keras_watch
