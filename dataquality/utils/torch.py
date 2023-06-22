@@ -56,7 +56,7 @@ class TorchBaseInstance:
     embedding_fn: Optional[Any] = None
     logits_fn: Optional[Any] = None
     task: TaskType
-    helper_data: TorchHelper
+    torch_helper_data: TorchHelper
 
     def _init_dimension(
         self,
@@ -140,7 +140,7 @@ class TorchBaseInstance:
             # It is assumed that the CLS token is removed through this dimension
             # for NER tasks
             output_detached = output_detached[:, 1:, :]
-        model_outputs_store = self.helper_data.model_outputs_store
+        model_outputs_store = self.torch_helper_data.model_outputs_store
         model_outputs_store["embs"] = output_detached
 
     def _dq_logit_hook(
@@ -181,7 +181,7 @@ class TorchBaseInstance:
             # It is assumed that the CLS token is removed
             # through this dimension for NER tasks
             logits = logits[:, 1:, :]
-        model_outputs_store = self.helper_data.model_outputs_store
+        model_outputs_store = self.torch_helper_data.model_outputs_store
         model_outputs_store["logits"] = logits
 
     def _classifier_hook(
@@ -278,7 +278,7 @@ class ModelHookManager(Borg):
     def __init__(self) -> None:
         """Class to manage patches"""
         super().__init__()
-        if not hasattr(self, "patches"):
+        if not hasattr(self, "initialized"):
             self.hooks: List[RemovableHandle] = []
 
     def get_embedding_layer_auto(self, model: Module) -> Module:
@@ -355,6 +355,7 @@ class ModelHookManager(Borg):
 
     def attach_hook(self, selected_layer: Module, hook: Callable) -> RemovableHandle:
         """Register a hook and save it in our hook list"""
+        self.initialized = True
         h = selected_layer.register_forward_hook(hook)
         self.hooks.append(h)
         return h

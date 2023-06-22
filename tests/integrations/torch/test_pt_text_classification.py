@@ -18,6 +18,8 @@ from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import validate_unique_ids
 from tests.conftest import TestSessionVariables
 
+torch.set_default_device("cpu")
+
 # Step 1: Create your mock dataframe
 data = {
     "label": ["Sports", "Tech", "Politics"] * 2,

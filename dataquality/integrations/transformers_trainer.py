@@ -64,8 +64,8 @@ class DQTrainerCallback(TrainerCallback, TorchBaseInstance, Patch):
         """
         # Access the dq logger helper data
         torch_helper.clear()
-        self.helper_data = torch_helper
-        self.model_outputs_store = self.helper_data.model_outputs_store
+        self.torch_helper_data = torch_helper
+        self.model_outputs_store = self.torch_helper_data.model_outputs_store
         self._training_validated = False
         self._model_setup = False
         # Hook manager for attaching hooks to the model
@@ -326,7 +326,7 @@ def watch(
     RemoveIdCollatePatch(
         trainer,
         signature_cols,
-        dqcallback.helper_data.model_outputs_store,
+        dqcallback.torch_helper_data.model_outputs_store,
     )
     dqcallback.patch()
     # Save the original signature columns and the callback for unwatch
