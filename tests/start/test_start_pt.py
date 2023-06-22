@@ -23,7 +23,7 @@ from tests.test_utils.mock_data import MockDataset, test_df, train_df
 # Step 5: Create Dataset
 train_iter = MockDataset(train_df)
 test_iter = MockDataset(test_df)
-labels = MockDataset.labels
+labels = train_iter.labels
 tokenizer = get_tokenizer("basic_english")
 train_df = train_df.reset_index().rename(columns={0: "label", 1: "text", "index": "id"})
 train_df["id"] = train_df["id"] + 10000

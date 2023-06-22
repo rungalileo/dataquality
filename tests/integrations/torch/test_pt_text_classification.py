@@ -21,7 +21,7 @@ from tests.test_utils.mock_data import MockDataset, mock_df, test_df, train_df
 
 train_iter = MockDataset(train_df)
 test_iter = MockDataset(test_df)
-labels = MockDataset.labels
+labels = train_iter.labels
 tokenizer = get_tokenizer("basic_english")
 
 
