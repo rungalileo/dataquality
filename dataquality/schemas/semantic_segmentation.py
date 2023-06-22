@@ -80,7 +80,6 @@ class Pixel(BaseModel):
 
 class Contour(BaseModel):
     pixels: List[Pixel]
-    
 
 
 class Polygon(BaseModel):
