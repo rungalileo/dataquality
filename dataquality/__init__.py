@@ -8,8 +8,8 @@
 :param val_data: Optional: validation data
 :param labels: The labels for the run
 :param framework: The framework to use, if provided it will be used instead of
-    inferring it from the model. For example, if you have a spacy model, you
-    can pass framework="spacy". If you have a torch model, you can pass
+    inferring it from the model. For example, if you have a torch model, you
+    can pass framework="torch". If you have a torch model, you can pass
     framework="torch"
 :param args: Additional arguments
 :param kwargs: Additional keyword arguments
@@ -30,7 +30,8 @@ If you want to train without a model, you can use the auto framework:
         dataquality.get_insights()
 """
 
-__version__ = "v0.8.55a0"
+
+__version__ = "v0.8.57"
 
 import sys
 from typing import Any, List, Optional
