@@ -139,9 +139,6 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         mislabeled_classes = []
         mislabeled_class_pcts = []
 
-        # create contours folder
-        os.makedirs(self.local_contours_path, exist_ok=True)
-
         for i, image_id in enumerate(self.image_ids):
             # We add pred polygons and then gold polygons
             all_polygons = pred_polygons_batch[i] + gold_polygons_batch[i]
@@ -189,6 +186,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
     def _get_data_dict(self) -> Dict:
         """Returns a dictionary of data to be logged as a DataFrame"""
         # DEP & likely mislabeled
+        os.makedirs(self.local_contours_path, exist_ok=True)
         mean_mislabeled = torch.mean(self.mislabled_pixels, dim=(1, 2)).numpy()
 
         image_dep, dep_heatmaps = calculate_and_upload_dep(
@@ -213,6 +211,12 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         pred_polygons_batch, gold_polygons_batch = find_polygons_batch(
             self.pred_masks, self.gold_masks
         )
+        
+        # in the case that both pred and gold polygons are empty, we need to 
+        # add an empty polygon in order to have an entry for that image in 
+        # the polygon df and thus show it in the UI
+        # therefore we add an empty polygon to the pred and have the api filter
+        # out empty polygons in the processing step
         for i in range(len(self.image_ids)):
             if pred_polygons_batch[i] == [] and gold_polygons_batch[i] == []:
                 pred_polygons_batch[i] = [Polygon.empty_polygon()]

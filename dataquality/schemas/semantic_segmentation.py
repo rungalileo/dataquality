@@ -137,7 +137,9 @@ class Polygon(BaseModel):
 
     @staticmethod
     def empty_polygon() -> "Polygon":
-        dep = np.random.randint(0, 100) / 100.0
+        """Creates an empty polygon with default values
+        in case we have an image with no polygons in either the 
+        pred or gold mask."""
 
         return Polygon(
             uuid=str(uuid.uuid4()),
@@ -146,9 +148,9 @@ class Polygon(BaseModel):
             error_type=ErrorType.none,
             background_error_pct=0.0,
             contours=[Contour(pixels=[Pixel(x=0, y=0)])],
-            data_error_potential=dep,
+            data_error_potential=0.0,
             ghost_percentage=0.0,
             area=1,
             likely_mislabeled_pct=0.0,
-            class_type=ClassType.gold,
+            class_type=ClassType.pred,
         )
