@@ -188,7 +188,7 @@ def test_end_to_end_with_callback(
     dq.log_dataset(test_df, split="test")
 
     train_dataloader_dq = DataLoader(
-        MockDataset(mock_data),
+        MockDataset(train_df),
         batch_size=BATCH_SIZE,
         num_workers=2,
         shuffle=True,
