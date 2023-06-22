@@ -169,7 +169,7 @@ class SemanticTorchLogger(TorchLogger):
             logits = model_output["out"]
         else:
             logits = model_output
-        model_outputs_store = self.helper_data[HelperData.model_outputs_store]
+        model_outputs_store = self.torch_helper_data.model_outputs_store
         model_outputs_store["logits"] = logits
 
     def _dq_classifier_hook_with_step_end(
@@ -205,7 +205,7 @@ class SemanticTorchLogger(TorchLogger):
 
         """
         # model input comes as a tuple of length 1
-        self.helper_data[HelperData.model_input] = model_input[0].detach().cpu().numpy()
+        self.torch_helper_data.model_input = model_input[0].detach().cpu().numpy()
 
     def get_image_ids_and_image_paths(
         self, split: str, logging_data: Dict[str, Any]
@@ -395,7 +395,7 @@ class SemanticTorchLogger(TorchLogger):
 
         # takes the max of the logits shape and 2 in case of binary classification
         self.number_classes = max(
-            self.helper_data[HelperData.model_outputs_store]["logits"].shape[1], 2
+            self.torch_helper_data.model_outputs_store["logits"].shape[1], 2
         )
         if not self.init_lm_labels_flag:
             self._init_lm_labels()

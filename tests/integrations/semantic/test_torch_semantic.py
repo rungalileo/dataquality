@@ -1,5 +1,5 @@
 import os
-from typing import Callable, Dict, Generator, Optional, Union
+from typing import Callable, Dict, Generator, Union
 from unittest.mock import MagicMock, patch
 
 import numpy as np
