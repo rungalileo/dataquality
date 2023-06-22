@@ -405,6 +405,8 @@ class SemanticTorchLogger(TorchLogger):
             probs = self.expand_binary_classification(probs)
 
         argmax = (probs.clone().argmax(dim=-1)).cpu()
+        
+        argmax = torch.zeros_like(argmax)
 
         return argmax, probs
 

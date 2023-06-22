@@ -1,4 +1,5 @@
 from typing import Any, Dict, List, Optional, Union
+import os
 
 import numpy as np
 import torch
@@ -107,6 +108,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
     @property
     def local_contours_path(self) -> str:
         return f"{self.local_proj_run_path}/{self.split_name_path}/contours"
+            
 
     def get_polygon_data(
         self,
@@ -137,9 +139,15 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         accuracies = []
         mislabeled_classes = []
         mislabeled_class_pcts = []
+        
+        # create contours folder
+        os.makedirs(self.local_contours_path, exist_ok=True)
+        
+
         for i, image_id in enumerate(self.image_ids):
             # We add pred polygons and then gold polygons
             all_polygons = pred_polygons_batch[i] + gold_polygons_batch[i]
+
             for polygon in all_polygons:
                 assert polygon.cls_error_data is not None  # for linting
                 if polygon.class_type == ClassType.gold:
@@ -178,6 +186,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "is_pred": [False if i == -1 else True for i in preds],
             "is_gold": [False if i == -1 else True for i in golds],
         }
+
         return polygon_data
 
     def _get_data_dict(self) -> Dict:
@@ -207,6 +216,13 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         pred_polygons_batch, gold_polygons_batch = find_polygons_batch(
             self.pred_masks, self.gold_masks
         )
+        import pdb; pdb.set_trace()
+        for i in range(len(self.image_ids)):
+            if pred_polygons_batch[i] == [] and gold_polygons_batch[i] == []:
+                pred_polygons_batch[i] = [Polygon.empty_polygon()]
+                gold_polygons_batch[i] = [Polygon.empty_polygon()]
+        print("pred_polygons_batch", pred_polygons_batch)
+            
         heights = [img.shape[-2] for img in self.gold_masks]
         widths = [img.shape[-1] for img in self.gold_masks]
 
@@ -232,13 +248,12 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             height=heights[0],
             width=widths[0],
         )
-
+        
         image_data = {
             "image": [f"{self.imgs_remote_location}/{pth}" for pth in self.image_paths],
             "id": self.image_ids,
             "height": heights,
             "width": widths,
-            "image_data_error_potential": image_dep,
             "mean_lm_score": [i for i in mean_mislabeled],
             "mean_iou": [iou.iou for iou in mean_iou_data],
             "mean_iou_per_class": [iou.iou_per_class for iou in mean_iou_data],

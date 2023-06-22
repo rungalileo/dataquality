@@ -1,5 +1,6 @@
 from enum import Enum
 from typing import List, Optional
+import uuid
 
 import numpy as np
 from pydantic import BaseModel
@@ -79,6 +80,7 @@ class Pixel(BaseModel):
 
 class Contour(BaseModel):
     pixels: List[Pixel]
+    
 
 
 class Polygon(BaseModel):
@@ -133,3 +135,21 @@ class Polygon(BaseModel):
             pixels = [pixel.deserialize_json for pixel in contour.pixels]
             contours.append(pixels)
         return contours
+    
+    @staticmethod
+    def empty_polygon() -> "Polygon":
+        dep = np.random.randint(0, 100) / 100.0
+        print(dep)
+        return Polygon(
+            uuid=str(uuid.uuid4()),
+            label_idx=-1,
+            cls_error_data = None,
+            error_type= ErrorType.none,
+            background_error_pct= 0.0,
+            contours=[Contour(pixels=[Pixel(x=0, y=0)])],
+            data_error_potential=dep,
+            ghost_percentage= 0.0,
+            area = 1,
+            likely_mislabeled_pct=0.0,
+            class_type=ClassType.gold,
+        )
