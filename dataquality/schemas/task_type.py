@@ -37,5 +37,5 @@ class TaskType(str, Enum):
             5: TaskType.object_detection,
             6: TaskType.semantic_segmentation,
             7: TaskType.prompt_evaluation,
-            8: TaskType.seq2seq
+            8: TaskType.seq2seq,
         }[task_int]

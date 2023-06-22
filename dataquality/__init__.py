@@ -70,6 +70,7 @@ from dataquality.core.log import (
     set_split,
     set_tagging_schema,
     set_tasks_for_run,
+    set_tokenizer,
 )
 from dataquality.core.report import build_run_report, register_run_report
 from dataquality.dq_auto.auto import auto
@@ -129,6 +130,7 @@ __all__ = [
     "auto",
     "DataQuality",
     "auto_notebook",
+    "set_tokenizer",
 ]
 
 try:

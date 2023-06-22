@@ -1,13 +1,14 @@
+from typing import Dict, List, Optional, Tuple, Union
 from uuid import uuid4
+
+import numpy as np
+import pyarrow as pa
 
 from dataquality import config
 from dataquality.loggers.logger_config.seq2seq import seq2seq_logger_config
-from dataquality.loggers.model_logger import BaseGalileoModelLogger
-import numpy as np
-from typing import Optional, Union, List, Dict, Tuple
-import pyarrow as pa
-
+from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.schemas.split import Split
+from dataquality.utils.arrow import save_arrow_file
 
 
 class Seq2SeqModelLogger(BaseGalileoModelLogger):
@@ -35,21 +36,24 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             inference_name=inference_name,
             labels=labels,
         )
-        assert (
-            self.labels is not None
-        ), "In Seq2Seq, labels must be provided for the batch"
+        # assert (
+        #     self.labels is not None
+        # ), "In Seq2Seq, labels must be provided for the batch"
         self.token_dep = pa.array([])
         self.token_gold_probs = pa.array([])
 
     def validate_and_format(self) -> None:
         """Validate the lengths, calculate token level dep, extract GT probs"""
-        self.labels = self._convert_tensor_ndarray(self.labels)
+        if self.labels is not None:
+            self.labels = self._convert_tensor_ndarray(self.labels)
         self.logits = self._convert_tensor_ndarray(self.logits)
         self.ids = self._convert_tensor_ndarray(self.ids)
-        assert len(self.ids) == len(self.logits) == len(self.labels), (
-            "Must pass in a valid batch with equal id, logit, and label length, got "
-            f"id: {len(self.ids)},logits: {len(self.logits)},labels: {len(self.labels)}"
+        assert len(self.ids) == len(self.logits), (
+            "Must pass in a valid batch with equal id and logit length, got "
+            f"id: {len(self.ids)},logits: {len(self.logits)}"
         )
+        if self.labels is not None:
+            assert len(self.labels) == len(self.ids), "TODO: Must be same len message"
 
         # Ground truth probs, including the padding for ignored labels
         probs = self.convert_logits_to_probs(self.logits)
@@ -143,7 +147,8 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         data = {
             "id": self.ids,
             "token_dep": self.token_dep,
-            "labels": self.labels,
+            "token_gold_probs": self.token_gold_probs,
+            "labels": pa.array(list(self.labels)),
             "split": [Split[self.split].value] * batch_size,
             "epoch": [self.epoch] * batch_size,
         }
@@ -168,5 +173,4 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             path = f"{location}/{split}/{epoch}"
 
         object_name = f"{str(uuid4()).replace('-', '')[:12]}.hdf5"
-        _save_hdf5_file(path, object_name, data)
-
+        save_arrow_file(path, object_name, data)

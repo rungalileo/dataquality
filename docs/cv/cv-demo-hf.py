@@ -46,7 +46,6 @@ def _raw_bytes_to_b64_str(b: bytes) -> str:
 
 
 def _main() -> None:
-
     dq.login()
 
     dq.init(

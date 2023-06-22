@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
+from transformers import PreTrainedTokenizerFast
 
 from dataquality.loggers.logger_config.seq2seq import seq2seq_logger_config
 
@@ -607,13 +608,16 @@ def set_epoch_and_split(
 
 
 @check_noop
-def set_tokenizer(tokenizer: Any) -> None:
+def set_tokenizer(tokenizer: PreTrainedTokenizerFast) -> None:
     """Seq2seq only. Set the tokenizer for your run
 
     Must be a fast tokenizer, and must support `decode`, `encode`, `encode_plus`
     """
     task_type = _get_task_type()
     assert task_type == TaskType.seq2seq, "This method is only supported for seq2seq"
+    assert isinstance(
+        tokenizer, PreTrainedTokenizerFast
+    ), "Tokenizer must be an instance of PreTrainedTokenizerFast"
     assert getattr(tokenizer, "is_fast", False), "Tokenizer must be a fast tokenizer"
     assert hasattr(tokenizer, "encode"), "Tokenizer must support `encode`"
     assert hasattr(tokenizer, "decode"), "Tokenizer must support `decode`"
