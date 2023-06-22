@@ -12,7 +12,7 @@ import dataquality as dq
 from dataquality.clients.api import ApiClient
 from dataquality.clients.objectstore import ObjectStore
 from dataquality.integrations.torch_semantic_segmentation import watch
-from tests.conftest import TestSessionVariables
+from tests.conftest import TestSessionVariables, seg_model
 
 dataset_path = os.path.abspath("tests/assets/testseg")
 
@@ -210,9 +210,7 @@ validation_dataloader = DataLoader(
 )
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = torch.hub.load(
-    "pytorch/vision:v0.10.0", "deeplabv3_resnet50", pretrained=True
-).to(device)
+model = seg_model
 criterion = torch.nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=0.00001)
 

@@ -5,6 +5,7 @@ from uuid import UUID
 
 import pytest
 import requests
+import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 from vaex.dataframe import DataFrame
 
@@ -22,7 +23,11 @@ TEST_STORE_DIR = "TEST_STORE"
 SPLITS = ["training", "test"]
 SUBDIRS = ["data", "emb", "prob"]
 
-os.environ["TORCH_HOME"] = os.getcwd()
+# create tmp dir if it doesn't exist
+if not os.path.isdir("tmp"):
+    os.mkdir("tmp")
+
+os.environ["TORCH_HOME"] = os.path.join(os.getcwd(), "tmp")
 
 # Load models locally
 HF_TEST_BERT_PATH = "hf-internal-testing/tiny-random-distilbert"
@@ -43,6 +48,11 @@ except Exception:
     )
 
     model.save_pretrained(LOCAL_MODEL_PATH)
+
+
+seg_model = torch.hub.load(
+    "pytorch/vision:v0.10.0", "deeplabv3_resnet50", pretrained=True
+).to("cpu")
 
 
 class TestSessionVariables:
