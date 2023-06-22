@@ -22,6 +22,7 @@ TEST_STORE_DIR = "TEST_STORE"
 SPLITS = ["training", "test"]
 SUBDIRS = ["data", "emb", "prob"]
 
+os.environ["TORCH_HOME"] = os.getcwd()
 
 # Load models locally
 HF_TEST_BERT_PATH = "hf-internal-testing/tiny-random-distilbert"
@@ -37,8 +38,8 @@ try:
         LOCAL_MODEL_PATH, device_map="cpu"
     )
 except Exception:
-    model = AutoModelForSequenceClassification.from_pretrained(
-        HF_TEST_BERT_PATH, device_map="cpu"
+    model = AutoModelForSequenceClassification.from_pretrained(HF_TEST_BERT_PATH).to(
+        "cpu"
     )
 
     model.save_pretrained(LOCAL_MODEL_PATH)
