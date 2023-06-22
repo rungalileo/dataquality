@@ -227,7 +227,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         # add an empty polygon in order to have an entry for that image in
         # the polygon df and thus show it in the UI
         # therefore we add an empty polygon to the pred and have the api filter
-        # out empty polygons in the processing step
+        # out empty polygons in the processing step so we do not skew metrics or ui
+        # by adding dummy polygons with their dummy values
         for i in range(len(self.image_ids)):
             if pred_polygons_batch[i] == [] and gold_polygons_batch[i] == []:
                 pred_polygons_batch[i] = [Polygon.dummy_polygon()]
