@@ -1,4 +1,3 @@
-import os
 from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
@@ -12,6 +11,7 @@ from dataquality.loggers.logger_config.semantic_segmentation import (
     semantic_segmentation_logger_config,
 )
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
+from dataquality.schemas.ml import ClassType
 from dataquality.schemas.semantic_segmentation import IoUType, Polygon, PolygonType
 from dataquality.schemas.split import Split
 from dataquality.utils.semantic_segmentation.errors import (
@@ -127,7 +127,6 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         """
         image_ids = []
         polygon_ids = []
-        polygon_types = []
         preds = []
         golds = []
         data_error_potentials = []
@@ -138,28 +137,17 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         accuracies = []
         mislabeled_classes = []
         mislabeled_class_pcts = []
-
         for i, image_id in enumerate(self.image_ids):
             # We add pred polygons and then gold polygons
             all_polygons = pred_polygons_batch[i] + gold_polygons_batch[i]
-
             for polygon in all_polygons:
                 assert polygon.cls_error_data is not None  # for linting
-                polygon_types.append(polygon.polygon_type.value)
-                if polygon.polygon_type == PolygonType.gold:
+                if polygon.class_type == ClassType.gold:
                     golds.append(polygon.label_idx)
                     preds.append(-1)
-                elif polygon.polygon_type == PolygonType.pred:
+                else:
                     preds.append(polygon.label_idx)
                     golds.append(-1)
-                elif polygon.polygon_type == PolygonType.dummy:
-                    preds.append(-1)
-                    golds.append(-1)
-                else:
-                    raise ValueError(
-                        f"Polygon type {polygon.polygon_type} not recognized"
-                    )
-
                 image_ids.append(image_id)
                 data_error_potentials.append(polygon.data_error_potential)
                 errors.append(polygon.error_type.value)
@@ -173,7 +161,6 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 )
                 write_polygon_contours_to_disk(polygon, self.local_contours_path)
                 polygon_ids.append(polygon.uuid)
-
         polygon_data = {
             "polygon_uuid": polygon_ids,
             "image_id": image_ids,
@@ -190,17 +177,15 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "split": [self.split] * len(image_ids),
             "is_pred": [False if i == -1 else True for i in preds],
             "is_gold": [False if i == -1 else True for i in golds],
-            "polygon_type": polygon_types,
         }
         return polygon_data
 
     def _get_data_dict(self) -> Dict:
         """Returns a dictionary of data to be logged as a DataFrame"""
         # DEP & likely mislabeled
-        os.makedirs(self.local_contours_path, exist_ok=True)
         mean_mislabeled = torch.mean(self.mislabled_pixels, dim=(1, 2)).numpy()
 
-        dep_heatmaps = calculate_and_upload_dep(
+        image_dep, dep_heatmaps = calculate_and_upload_dep(
             self.output_probs,
             self.gold_masks,
             self.image_ids,
@@ -222,17 +207,6 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         pred_polygons_batch, gold_polygons_batch = find_polygons_batch(
             self.pred_masks, self.gold_masks
         )
-
-        # in the case that both pred and gold polygons are empty, we need to
-        # add an empty polygon in order to have an entry for that image in
-        # the polygon df and thus show it in the UI
-        # therefore we add an empty polygon to the pred and have the api filter
-        # out empty polygons in the processing step so we do not skew metrics or ui
-        # by adding dummy polygons with their dummy values
-        for i in range(len(self.image_ids)):
-            if pred_polygons_batch[i] == [] and gold_polygons_batch[i] == []:
-                pred_polygons_batch[i] = [Polygon.dummy_polygon()]
-
         heights = [img.shape[-2] for img in self.gold_masks]
         widths = [img.shape[-1] for img in self.gold_masks]
 
@@ -264,6 +238,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "id": self.image_ids,
             "height": heights,
             "width": widths,
+            "image_data_error_potential": image_dep,
             "mean_lm_score": [i for i in mean_mislabeled],
             "mean_iou": [iou.iou for iou in mean_iou_data],
             "mean_iou_per_class": [iou.iou_per_class for iou in mean_iou_data],

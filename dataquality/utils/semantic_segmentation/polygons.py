@@ -9,12 +9,8 @@ import numpy as np
 import torch
 
 from dataquality.clients.objectstore import ObjectStore
-from dataquality.schemas.semantic_segmentation import (
-    Contour,
-    Pixel,
-    Polygon,
-    PolygonType,
-)
+from dataquality.schemas.ml import ClassType
+from dataquality.schemas.semantic_segmentation import Contour, Pixel, Polygon
 
 object_store = ObjectStore()
 
@@ -42,15 +38,15 @@ def find_polygons_batch(
     gold_polygons_batch = []
 
     for i in range(bs):
-        pred_polygons = build_polygons_image(pred_masks_np[i], PolygonType.pred)
+        pred_polygons = build_polygons_image(pred_masks_np[i], ClassType.pred)
         pred_polygons_batch.append(pred_polygons)
-        gold_polygons = build_polygons_image(gold_masks_np[i], PolygonType.gold)
+        gold_polygons = build_polygons_image(gold_masks_np[i], ClassType.gold)
         gold_polygons_batch.append(gold_polygons)
 
     return pred_polygons_batch, gold_polygons_batch
 
 
-def build_polygons_image(mask: np.ndarray, polygon_type: PolygonType) -> List[Polygon]:
+def build_polygons_image(mask: np.ndarray, class_type: ClassType) -> List[Polygon]:
     """Returns a list of Polygons for the mask of a single image
 
     Args:
@@ -74,7 +70,7 @@ def build_polygons_image(mask: np.ndarray, polygon_type: PolygonType) -> List[Po
         )
 
         polygons_per_label = build_polygons_label(
-            contours, hierarchy, label_idx, polygon_type
+            contours, hierarchy, label_idx, class_type
         )
         polygons.extend(polygons_per_label)
 
@@ -85,7 +81,7 @@ def build_polygons_label(
     contours: Tuple[np.ndarray],
     hierarchy: np.ndarray,
     label_idx: int,
-    polygon_type: PolygonType,
+    class_type: ClassType,
 ) -> List[Polygon]:
     """Builds the polygons given contours of a single label for one image
 
@@ -123,7 +119,7 @@ def build_polygons_label(
             uuid=str(uuid4()),
             label_idx=label_idx,
             contours=all_polygons[contour_parent_idx],
-            polygon_type=polygon_type,
+            class_type=class_type,
         )
         final_polygons.append(polygon)
 
