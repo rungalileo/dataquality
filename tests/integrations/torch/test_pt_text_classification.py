@@ -197,7 +197,7 @@ def test_end_to_end_with_callback(
         # pin_memory=False,
     )
     test_dataloader_dq = DataLoader(
-        MockDataset(mock_df),
+        MockDataset(test_df),
         batch_size=BATCH_SIZE,
         shuffle=True,
         collate_fn=collate_batch,
