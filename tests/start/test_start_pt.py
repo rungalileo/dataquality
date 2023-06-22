@@ -25,6 +25,9 @@ train_iter = MockDataset(train_df)
 test_iter = MockDataset(test_df)
 labels = MockDataset.labels
 tokenizer = get_tokenizer("basic_english")
+train_df = train_df.reset_index().rename(columns={0: "label", 1: "text", "index": "id"})
+train_df["id"] = train_df["id"] + 10000
+test_df = test_df.reset_index().rename(columns={0: "label", 1: "text", "index": "id"})
 
 
 def yield_tokens(data_iter):

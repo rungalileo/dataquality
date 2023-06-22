@@ -73,12 +73,14 @@ label_map = {label: i for i, label in enumerate(labels)}
 
 # Define dataset class
 class MockDataset(Dataset):
+    labels = labels
+
     def __init__(self, dataframe: pd.DataFrame) -> None:
         self.dataframe = dataframe
         self.labels = labels
 
     def __getitem__(self, index: int) -> tuple:
-        label, text = self.dataframe.iloc[index]
+        label, text = self.dataframe[["label", "text"]].iloc[index]
         return label_map[label], text
 
     def __len__(self) -> int:
