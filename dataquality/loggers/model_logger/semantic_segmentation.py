@@ -142,7 +142,6 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         
         # create contours folder
         os.makedirs(self.local_contours_path, exist_ok=True)
-        
 
         for i, image_id in enumerate(self.image_ids):
             # We add pred polygons and then gold polygons
@@ -186,7 +185,6 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "is_pred": [False if i == -1 else True for i in preds],
             "is_gold": [False if i == -1 else True for i in golds],
         }
-
         return polygon_data
 
     def _get_data_dict(self) -> Dict:
@@ -216,7 +214,6 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         pred_polygons_batch, gold_polygons_batch = find_polygons_batch(
             self.pred_masks, self.gold_masks
         )
-        import pdb; pdb.set_trace()
         for i in range(len(self.image_ids)):
             if pred_polygons_batch[i] == [] and gold_polygons_batch[i] == []:
                 pred_polygons_batch[i] = [Polygon.empty_polygon()]
