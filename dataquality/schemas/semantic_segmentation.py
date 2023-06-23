@@ -54,6 +54,11 @@ class IouData(BaseModel):
     iou_per_class: List[float]
     area_per_class: List[int]
     iou_type: IoUType
+    
+class DiceData(BaseModel):
+    dice_coefficient_mean: float
+    dice_per_class: List[float]
+    area_per_class: List[int]
 
 
 class Pixel(BaseModel):

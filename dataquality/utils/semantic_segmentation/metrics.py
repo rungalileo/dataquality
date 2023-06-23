@@ -9,7 +9,7 @@ import torchmetrics
 
 from dataquality import config
 from dataquality.clients.objectstore import ObjectStore
-from dataquality.schemas.semantic_segmentation import IouData, Polygon
+from dataquality.schemas.semantic_segmentation import IouData, Polygon, DiceData
 from dataquality.utils.semantic_segmentation.polygons import draw_polygon
 
 object_store = ObjectStore()
@@ -242,11 +242,52 @@ def compute_iou(
 
     return iou_per_class, union_pixels_per_class
 
+def compute_dice(
+    pred_mask: torch.Tensor, gold_mask: torch.Tensor, nc: int
+) -> DiceData:
+    """Computes the dice score for a single image by computing it 
+    for each class and returning the dice per class and total pixels
+    per class
+
+    Args:
+        pred_mask (torch.Tensor): argmax of the probability predictions
+        gold_mask (torch.Tensor): ground truth mask
+        nc (int): _description_
+
+    Returns:
+        DiceData: the dice score, dice score per class and the total pixels per class
+    """
+    intersection_bool = pred_mask == gold_mask
+
+    intersection_pixels = np.histogram(
+        pred_mask[intersection_bool], bins=nc, range=(0, nc)
+    )[0]
+    pred_pixels = np.histogram(pred_mask, bins=nc, range=(0, nc))[0]
+    gold_pixels = np.histogram(gold_mask, bins=nc, range=(0, nc))[0]
+
+    total_pixels_per_class = pred_pixels + gold_pixels
+    dice_per_class = (2 * intersection_pixels) / total_pixels_per_class
+
+    # fill the nans with 0s
+    total_pixels_per_class = np.nan_to_num(total_pixels_per_class)
+    data = DiceData(
+        dice_coefficient_mean=np.nanmean(dice_per_class),
+        dice_per_class=dice_per_class.tolist(),
+        area_per_class=total_pixels_per_class.tolist(),
+    )
+
+    return data
+    
+
 def calculate_batch_dice(
-    pred_masks: torch.Tensor, gold_masks: torch.Tensor
-) -> List[torch.Tensor]:
+    pred_masks: torch.Tensor, gold_masks: torch.Tensor, nc: int
+) -> List[DiceData]:
     """Function to calcuate the dice coefficient for each image in a batch
     
+    Dice score is the intersection over the total number of pixels per class.
+    We take the 'macro' average where we weight each class's dice score by the
+    amount of pixels in that class, and then after computing each class's dice
+    score we average them together.
 
     Args:
         pred_masks (torch.Tensor): argmax of predicted probabilities
@@ -257,10 +298,11 @@ def calculate_batch_dice(
     """
     dice_data = []
     for image_idx in range(len(pred_masks)):
-        dice = torchmetrics.functional.dice(
-            pred_masks[image_idx], gold_masks[image_idx]
-        )
-        dice_data.append(dice.item())
+        dice_data.append(compute_dice(
+            pred_masks[image_idx].numpy(),
+            gold_masks[image_idx].numpy(),
+            nc=nc
+        ))
     return dice_data
 
 
