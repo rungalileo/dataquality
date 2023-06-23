@@ -5,11 +5,10 @@ from typing import List, Tuple
 import numpy as np
 import torch
 from PIL import Image, ImageColor
-import torchmetrics
 
 from dataquality import config
 from dataquality.clients.objectstore import ObjectStore
-from dataquality.schemas.semantic_segmentation import IouData, Polygon, DiceData
+from dataquality.schemas.semantic_segmentation import DiceData, IouData, Polygon
 from dataquality.utils.semantic_segmentation.polygons import draw_polygon
 
 object_store = ObjectStore()
@@ -242,10 +241,9 @@ def compute_iou(
 
     return iou_per_class, union_pixels_per_class
 
-def compute_dice(
-    pred_mask: torch.Tensor, gold_mask: torch.Tensor, nc: int
-) -> DiceData:
-    """Computes the dice score for a single image by computing it 
+
+def compute_dice(pred_mask: torch.Tensor, gold_mask: torch.Tensor, nc: int) -> DiceData:
+    """Computes the dice score for a single image by computing it
     for each class and returning the dice per class and total pixels
     per class
 
@@ -277,13 +275,13 @@ def compute_dice(
     )
 
     return data
-    
+
 
 def calculate_batch_dice(
     pred_masks: torch.Tensor, gold_masks: torch.Tensor, nc: int
 ) -> List[DiceData]:
     """Function to calcuate the dice coefficient for each image in a batch
-    
+
     Dice score is the intersection over the total number of pixels per class.
     We take the 'macro' average where we weight each class's dice score by the
     amount of pixels in that class, and then after computing each class's dice
@@ -298,11 +296,11 @@ def calculate_batch_dice(
     """
     dice_data = []
     for image_idx in range(len(pred_masks)):
-        dice_data.append(compute_dice(
-            pred_masks[image_idx].numpy(),
-            gold_masks[image_idx].numpy(),
-            nc=nc
-        ))
+        dice_data.append(
+            compute_dice(
+                pred_masks[image_idx].numpy(), gold_masks[image_idx].numpy(), nc=nc
+            )
+        )
     return dice_data
 
 

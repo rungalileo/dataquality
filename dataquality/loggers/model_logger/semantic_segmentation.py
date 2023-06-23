@@ -19,8 +19,8 @@ from dataquality.utils.semantic_segmentation.errors import (
 )
 from dataquality.utils.semantic_segmentation.metrics import (
     calculate_and_upload_dep,
-    calculate_batch_iou,
     calculate_batch_dice,
+    calculate_batch_iou,
 )
 from dataquality.utils.semantic_segmentation.polygons import (
     find_polygons_batch,
@@ -218,11 +218,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             IoUType.boundary,
             n_classes,
         )
-        
-        dice_data = calculate_batch_dice(
-            self.pred_masks, self.gold_masks, nc=n_classes
-        )
-        
+
+        dice_data = calculate_batch_dice(self.pred_masks, self.gold_masks, nc=n_classes)
 
         # Image masks
         pred_polygons_batch, gold_polygons_batch = find_polygons_batch(
