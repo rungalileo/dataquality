@@ -1,4 +1,4 @@
-from typing import Any, List, Optional, Tuple, Union, cast, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, List, Optional, Tuple, Union, cast, Set
 
 import pandas as pd
 import pyarrow as pa
@@ -14,7 +14,9 @@ from dataquality.loggers.data_logger.base_data_logger import (
 )
 from dataquality.loggers.logger_config.seq2seq import seq2seq_logger_config
 from dataquality.schemas.split import Split
-from dataquality.utils.seq2seq import align_tokens_with_inputs
+from dataquality.utils.seq2seq import (
+    align_tokens_to_character_spans,
+)
 from dataquality.utils.vaex import rename_df
 
 if TYPE_CHECKING:
@@ -72,7 +74,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         # Character offsets for each token (from tokenized_inputs) in the dataset
         self.token_label_offsets: List[List[Tuple[int, int]]] = []
         # Index (or indices) into the token array for every offset
-        self.token_label_positions: List[List[int]] = []
+        self.token_label_positions: List[List[Set[int]]] = []
         self.ids: List[int] = []
         self.texts: List[str] = []
         self.labels: List[str] = []
@@ -95,20 +97,12 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         assert (
             self.logger_config.tokenizer is not None
         ), "You must set your tokenizer before logging. Use `dq.set_tokenizer`"
-        from time import time
-
-        print("tokenizing")
-        t0 = time()
         encoded_data = self.logger_config.tokenizer(
             self.labels, return_offsets_mapping=True
         )
-        print(f"tokenizing took {time()-t0:.2f}")
         self.tokenized_labels = encoded_data["input_ids"]
-        t0 = time()
-        self.token_label_positions, self.token_label_offsets = align_tokens_with_inputs(
-            self.texts, self.tokenized_labels, encoded_data["offset_mapping"]
-        )
-        print(f"align_tokens_with_inputs {time() - t0:.2f}")
+        aligned_data = align_tokens_to_character_spans(encoded_data["offset_mapping"])
+        self.token_label_offsets, self.token_label_positions = aligned_data
 
         id_to_tokens = dict(zip(self.ids, self.tokenized_labels))
         self.logger_config.split_token_map[self.token_map_key].update(id_to_tokens)
@@ -167,7 +161,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
                 chunk_df = rename_df(chunk_df, column_map)
                 self._log_df(chunk_df, meta)
         elif self.is_hf_dataset(dataset):
-            ds = cast("Dataset", dataset)
+            ds = cast("Dataset", dataset)  # For typing
             for chunk in range(0, len(ds), batch_size):
                 chunk = ds[chunk : chunk + batch_size]
                 chunk_df = pd.DataFrame(chunk)
