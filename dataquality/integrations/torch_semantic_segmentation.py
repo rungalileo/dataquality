@@ -384,8 +384,6 @@ class SemanticTorchLogger(TorchLogger):
 
         argmax = (probs.clone().argmax(dim=-1)).cpu()
 
-        argmax = torch.zeros_like(argmax)
-
         return argmax, probs
 
     def _on_step_end(self) -> None:
