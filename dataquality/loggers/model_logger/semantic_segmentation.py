@@ -144,7 +144,6 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             all_polygons = pred_polygons_batch[i] + gold_polygons_batch[i]
 
             for polygon in all_polygons:
-                assert polygon.cls_error_data is not None  # for linting
                 polygon_types.append(polygon.polygon_type.value)
                 if polygon.polygon_type == PolygonType.gold:
                     golds.append(polygon.label_idx)
@@ -166,11 +165,16 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 background_error_pcts.append(polygon.background_error_pct)
                 polygon_areas.append(polygon.area)
                 lm_pcts.append(polygon.likely_mislabeled_pct)
-                accuracies.append(polygon.cls_error_data.accuracy)
-                mislabeled_classes.append(polygon.cls_error_data.mislabeled_class)
-                mislabeled_class_pcts.append(
-                    polygon.cls_error_data.mislabeled_class_pct
-                )
+                if polygon.cls_error_data is not None:
+                    accuracies.append(polygon.cls_error_data.accuracy)
+                    mislabeled_classes.append(polygon.cls_error_data.mislabeled_class)
+                    mislabeled_class_pcts.append(
+                        polygon.cls_error_data.mislabeled_class_pct
+                    )
+                else:
+                    accuracies.append(None)
+                    mislabeled_classes.append(None)
+                    mislabeled_class_pcts.append(None)
                 write_polygon_contours_to_disk(polygon, self.local_contours_path)
                 polygon_ids.append(polygon.uuid)
 
