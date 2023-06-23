@@ -146,6 +146,11 @@ class Polygon(BaseModel):
             data_error_potential=0.0,
             area=0,
             likely_mislabeled_pct=0.0,
+            cls_error_data=ClassificationErrorData(
+                accuracy=0.0,
+                mislabeled_class=-1,
+                mislabeled_class_pct=0.0,
+            ),
             contours=[Contour(pixels=[Pixel(x=0, y=0)])],
             polygon_type=PolygonType.dummy,
         )
