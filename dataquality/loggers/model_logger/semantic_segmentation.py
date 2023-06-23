@@ -144,9 +144,9 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             all_polygons = pred_polygons_batch[i] + gold_polygons_batch[i]
 
             for polygon in all_polygons:
-                assert polygon.cls_error_data is not None, (
-                    "All polygons must have cls_error_data set"
-                )  # for linting
+                assert (
+                    polygon.cls_error_data is not None
+                ), "All polygons must have cls_error_data set"  # for linting
                 polygon_types.append(polygon.polygon_type.value)
                 if polygon.polygon_type == PolygonType.gold:
                     golds.append(polygon.label_idx)
