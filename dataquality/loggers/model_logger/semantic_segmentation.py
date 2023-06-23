@@ -20,6 +20,7 @@ from dataquality.utils.semantic_segmentation.errors import (
 from dataquality.utils.semantic_segmentation.metrics import (
     calculate_and_upload_dep,
     calculate_batch_iou,
+    calculate_batch_dice
 )
 from dataquality.utils.semantic_segmentation.polygons import (
     find_polygons_batch,
@@ -217,6 +218,9 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             IoUType.boundary,
             n_classes,
         )
+        dice_coefficent = calculate_batch_dice(
+            self.pred_masks, self.gold_masks
+        )
 
         # Image masks
         pred_polygons_batch, gold_polygons_batch = find_polygons_batch(
@@ -273,6 +277,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "boundary_area_per_class": [
                 iou.area_per_class for iou in boundary_iou_data
             ],
+            "dice_coefficent": dice_coefficent,
             # "epoch": [self.epoch] * len(self.image_ids),
         }
         not_meta = ["id", "image"]

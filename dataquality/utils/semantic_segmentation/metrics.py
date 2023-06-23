@@ -5,6 +5,7 @@ from typing import List, Tuple
 import numpy as np
 import torch
 from PIL import Image, ImageColor
+import torchmetrics
 
 from dataquality import config
 from dataquality.clients.objectstore import ObjectStore
@@ -240,6 +241,27 @@ def compute_iou(
     union_pixels_per_class = np.nan_to_num(union_pixels_per_class)
 
     return iou_per_class, union_pixels_per_class
+
+def calculate_batch_dice(
+    pred_masks: torch.Tensor, gold_masks: torch.Tensor
+) -> List[torch.Tensor]:
+    """Function to calcuate the dice coefficient for each image in a batch
+    
+
+    Args:
+        pred_masks (torch.Tensor): argmax of predicted probabilities
+        gold_masks (torch.Tensor): ground truth masks
+
+    Returns:
+        List[torch.Tensor]: a dice coefficient for each image in the batch
+    """
+    dice_data = []
+    for image_idx in range(len(pred_masks)):
+        dice = torchmetrics.functional.dice(
+            pred_masks[image_idx], gold_masks[image_idx]
+        )
+        dice_data.append(dice.item())
+    return dice_data
 
 
 def calculate_polygon_area(
