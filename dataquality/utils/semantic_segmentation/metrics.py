@@ -255,8 +255,8 @@ def calculate_batch_metric(
     for i in range(len(pred_masks)):
         metric_data.append(
             compute_metric(
-                pred_masks_np[i : i + 1].numpy(),
-                gold_masks_np[i : i + 1].numpy(),
+                pred_masks_np[i : i + 1],
+                gold_masks_np[i : i + 1],
                 metric_type,
                 num_labels,
             )
