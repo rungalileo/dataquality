@@ -137,7 +137,7 @@ def create_run_name(project_name: str) -> str:
         if today not in run["name"]:
             continue
         splitter = f"{today}_"
-        run_num = run["name"].split_(splitter)[-1]
+        run_num = run["name"].split(splitter)[-1]
         if run_num.isdigit() and int(run_num) > max_run_today:
             max_run_today = int(run_num)
     run_num = max_run_today + 1
