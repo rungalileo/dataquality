@@ -20,6 +20,7 @@ from dataquality.utils.auto import _apply_column_mapping, run_name_from_hf_datas
 from dataquality.utils.patcher import PatchManager
 from dataquality.utils.setfit import (
     SetFitModelHook,
+    _get_meta_cols,
     _prepare_config,
     _setup_patches,
     get_trainer,
@@ -340,19 +341,25 @@ def do_model_eval(
     )
     for split in [Split.train, Split.test, Split.val]:
         if split in encoded_data:
+            ds = encoded_data[split]
+            meta_columns = _get_meta_cols(ds)
             dq_evaluate(
                 encoded_data[split],
                 split=split,
+                meta=meta_columns
                 # for inference set the split to inference
                 # and pass an inference_name="inference_run_1"
             )
 
     inf_names = [k for k in encoded_data if k not in Split.get_valid_keys()]
     for inf_name in inf_names:
+        ds = encoded_data[inf_name]
+        meta_columns = _get_meta_cols(ds)
         dq_evaluate(
-            encoded_data[inf_name],
+            ds,
             split=Split.inference,  # type: ignore
             inference_name=inf_name,  # type: ignore
+            meta=meta_columns,
         )
 
     dq.finish(wait=wait, create_data_embs=create_data_embs)
@@ -366,24 +373,29 @@ def do_train(
     create_data_embs: Optional[bool] = None,
 ) -> "SetFitTrainer":
     watch(trainer, finish=False)
-
     trainer.train()
     dq_evaluate = watch(trainer, finish=False)
     if Split.test in encoded_data:
         # We pass in a huggingface dataset but typing wise they expect a torch dataset
+        ds = encoded_data[Split.test]
+        meta_columns = _get_meta_cols(ds)
         dq_evaluate(
-            encoded_data[Split.test],
+            ds,
             split=Split.test,
+            meta=meta_columns
             # for inference set the split to inference
             # and pass an inference_name="inference_run_1"
         )
 
     inf_names = [k for k in encoded_data if k not in Split.get_valid_keys()]
     for inf_name in inf_names:
+        ds = encoded_data[inf_name]
+        meta_columns = _get_meta_cols(ds)
         dq_evaluate(
-            encoded_data[inf_name],
+            ds,
             split=Split.inference,  # type: ignore
             inference_name=inf_name,  # type: ignore
+            meta=meta_columns,
         )
 
     dq.finish(wait=wait, create_data_embs=create_data_embs)

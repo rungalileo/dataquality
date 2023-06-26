@@ -34,6 +34,14 @@ class DataSampleLogArgs:
         self.labels.clear()
 
 
+def _get_meta_cols(ds: Dataset) -> List[str]:
+    """Returns the meta columns of a dataset."""
+    meta_columns = [col for col in ds.column_names if col.startswith("feat_")]
+    if meta_columns:
+        meta_columns = [col[5:] for col in meta_columns]
+    return meta_columns
+
+
 def log_preds_setfit(
     model: "SetFitModel",
     dataset: Dataset,
