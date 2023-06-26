@@ -30,9 +30,11 @@ class PolygonType(str, Enum):
     dummy = "dummy"
 
 
-class IoUType(str, Enum):
-    mean = "mean"
-    boundary = "boundary"
+class SemSegMetricType(str, Enum):
+    # IoUType
+    miou = "mean_iou"
+    biou = "boundary_iou"
+    dice = "dice"
 
 
 class ClassificationErrorData(BaseModel):
@@ -49,16 +51,10 @@ class ClassificationErrorData(BaseModel):
     mislabeled_class_pct: float
 
 
-class IouData(BaseModel):
-    iou: float
-    iou_per_class: List[float]
-    area_per_class: List[int]
-    iou_type: IoUType
-
-
-class DiceData(BaseModel):
-    dice_coefficient_mean: float
-    dice_per_class: List[float]
+class SemSegMetricData(BaseModel):
+    metric: SemSegMetricType
+    value: float
+    value_per_class: List[float]
     area_per_class: List[int]
 
 
