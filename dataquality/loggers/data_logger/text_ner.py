@@ -747,7 +747,7 @@ class TextNERDataLogger(BaseGalileoDataLogger):
         clean_labels = []
         for i in cls.logger_config.labels:
             if i and cls.is_valid_span_label(i):
-                label = i.split("-", maxsplit=1)[1]
+                label = i.split_("-", maxsplit=1)[1]
                 assert len(label) != 0, (
                     "The class names following the tag cannot be empty. For example "
                     "'B-' is not allowed, but 'B-some_class' is."

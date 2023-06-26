@@ -10,6 +10,11 @@ class Seq2SeqCols(str, Enum):
     tokenized_label = "tokenized_label"
     token_label_positions = "token_label_positions"
     token_label_offsets = "token_label_offsets"
+    token_deps = "token_deps"
+    token_gold_probs = "token_gold_probs"
+    # Mypy complained about split as an attribute, so we use `split_`
+    split_ = "split"
+    epoch = "epoch"
 
 
 @dataclass

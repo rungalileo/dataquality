@@ -9,7 +9,8 @@ from dataquality.loggers.logger_config.base_logger_config import BaseLoggerConfi
 class Seq2SeqLoggerConfig(BaseLoggerConfig):
     sample_length: Dict[str, int] = {}
     tokenizer: Optional[PreTrainedTokenizerFast] = None
-    split_token_map: Dict[str, Dict[int, List[int]]] = defaultdict(dict)
+    # For each split/inference-name, store sample id -> List[tokens] for the label
+    id_to_tokens: Dict[str, Dict[int, List[int]]] = defaultdict(dict)
 
     class Config:
         arbitrary_types_allowed = True

@@ -1,12 +1,11 @@
 from typing import Dict, List, Optional, Tuple, Union
-from uuid import uuid4
 
 import numpy as np
 import pyarrow as pa
 
-from dataquality import config
 from dataquality.loggers.logger_config.seq2seq import seq2seq_logger_config
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
+from dataquality.schemas.seq2seq import Seq2SeqCols as C
 from dataquality.schemas.split import Split
 from dataquality.utils.arrow import save_arrow_file
 
@@ -14,6 +13,7 @@ from dataquality.utils.arrow import save_arrow_file
 class Seq2SeqModelLogger(BaseGalileoModelLogger):
     __logger_name__ = "seq2seq"
     logger_config = seq2seq_logger_config
+    log_file_ext = "arrow"
 
     def __init__(
         self,
@@ -36,11 +36,14 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             inference_name=inference_name,
             labels=labels,
         )
-        # assert (
-        #     self.labels is not None
-        # ), "In Seq2Seq, labels must be provided for the batch"
         self.token_dep = pa.array([])
         self.token_gold_probs = pa.array([])
+
+    @property
+    def token_map_key(self) -> str:
+        if self.split == Split.inference and self.inference_name is not None:
+            return self.inference_name
+        return str(self.split)
 
     def validate_and_format(self) -> None:
         """Validate the lengths, calculate token level dep, extract GT probs"""
@@ -56,15 +59,36 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             assert len(self.labels) == len(self.ids), "TODO: Must be same len message"
 
         # Ground truth probs, including the padding for ignored labels
+        # TODO: This is incredibly slow. This is what needs to be optimized. Can we
+        #  potentially do this on the GPU with torch? And dont convert to a np array
         probs = self.convert_logits_to_probs(self.logits)
-        token_dep_padded, gold_probs_padded = self.get_token_dep(probs, self.labels)
-        self.token_dep, self.token_gold_probs = self.unpad_dep_probs(
-            token_dep_padded, gold_probs_padded, self.labels
+        self.token_dep, self.token_gold_probs = self.get_token_dep_probs(
+            self.ids, probs
         )
 
-    def get_token_dep(
-        self, probs: np.ndarray, labels: np.ndarray
+    def get_dep_for_sample(
+        self, sample_id: int, sample_probs: np.ndarray
     ) -> Tuple[np.ndarray, np.ndarray]:
+        assert (
+            self.logger_config.tokenizer is not None
+        ), "Must set your tokenizer. Use `dq.set_tokenizer`"
+        labels = self.logger_config.id_to_tokens[self.token_map_key][sample_id]
+        if self.logger_config.tokenizer.padding_side == "left":
+            probs = sample_probs[-len(labels) :]
+        else:
+            probs = sample_probs[: len(labels)]
+        gold_probs = probs[np.arange(len(labels)), labels]
+        probs_copy = probs.copy()
+        probs_copy[np.arange(len(labels)), labels] = 0
+        # Max non-gold probability
+        max_probs = np.max(probs_copy, axis=-1)
+        aum = gold_probs - max_probs
+        dep = (1 - aum) / 2
+        return dep, gold_probs
+
+    def get_token_dep_probs(
+        self, batch_ids: np.ndarray, batch_probs: np.ndarray
+    ) -> Tuple[pa.array, pa.array]:
         """Extracts DEP per token prediction
 
         First, extract the probabilities of the GT token label
@@ -73,9 +97,6 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         for each sample (text input) in the batch, every token of that sample has a
         probability vector of size vocab_size (which can be 30k+).
 
-        Labels is of shape [batch_size, max_token_length], where for each sample, it
-        indicates the index into the vocab that the token should be (the token label).
-
         We use advanced indexing to extract out only the probabilities for the token
         label for each sample, for each batch.
 
@@ -83,94 +104,38 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
 
         Finally, compute dep and return.
 
-        Returns: (token_dep, gold_probs)
-        """
-        batch_size, max_sequence_length, vocab_size = probs.shape
-        clean_labels = labels.copy()
-        # The labels are set to -100 for ignored tokens. Since the shape is of
-        # `max_token_length`, many tokens in a particular sample may be ignored if they
-        # don't exist. Similarly, in the case of a decoder-only model, the inputs will
-        # be a part of the sample, so the labels are set to -100 so they are ignored
-        clean_labels[clean_labels == -100] = 0
-
-        # Create an array of indices for advanced indexing
-        batch_indices = np.arange(batch_size)[:, np.newaxis]
-        sequence_indices = np.arange(max_sequence_length)[np.newaxis, :]
-
-        # Use advanced indexing to extract the logits for the label tokens
-        gold_probs = probs[batch_indices, sequence_indices, clean_labels]
-
-        # Now we set the location of the gold_probs to 0 so we can easily get the
-        # second highest, _non_gold_ probs
-        probs_no_gold = probs.copy()
-        probs_no_gold[batch_indices, sequence_indices, labels] = 0
-        # The probability of the second highest for each token in the sample
-        second_probs = probs_no_gold.max(axis=-1)
-        token_dep = (1 - (gold_probs - second_probs)) / 2
-        return token_dep, gold_probs
-
-    def unpad_dep_probs(
-        self, token_dep: np.ndarray, token_gold_probs: np.ndarray, labels: np.ndarray
-    ) -> Tuple[pa.array, pa.array]:
-        """Unpads the incoming numpy array by looking for padded/ignored indices
-
-        Ignored/padded indices are indicated by a -100 in the labels array.
-
-        token_dep, token_gold_probs, and labels are of shape
+        token_dep, token_probs, and labels are of shape
         [batch_size, max_token_length], but for each sample in the batch, the tokens
-        for that sample that are ignored are -100 in the labels matrix.
+        for that sample that are ignored/padded are indexed out by this function.
         So we use that to get only the ones we care about.
 
         We return a pyarrow array because each batch will have a different shape, which
         can't be represented in numpy
+
+        Returns: (token_dep, gold_probs)
         """
-        # batch_num, non_pad_idx = np.where(labels!=100)
-
-        # token_dep[batch_num, non_pad_idx]
-
         batch_deps = []
         batch_gold_probs = []
-        for batch_token_dep, batch_token_probs, batch_labels in zip(
-            token_dep, token_gold_probs, labels
-        ):
-            batch_deps.append(batch_token_dep[batch_labels != -100])
-            batch_gold_probs.append(batch_token_probs[batch_labels != -100])
-
-        dep = pa.array(batch_deps)
-        gold_probs = pa.array(batch_gold_probs)
-        return dep, gold_probs
+        for sample_id, sample_probs in zip(batch_ids, batch_probs):
+            dep, gold_probs = self.get_dep_for_sample(sample_id, sample_probs)
+            batch_deps.append(dep)
+            batch_gold_probs.append(gold_probs)
+        return pa.array(batch_deps), pa.array(batch_gold_probs)
 
     def _get_data_dict(self) -> Dict:
         """Returns the data dictionary for writing to disk"""
         # TODO: Do we need to include the labels?
         batch_size = len(self.ids)
         data = {
-            "id": self.ids,
-            "token_dep": self.token_dep,
-            "token_gold_probs": self.token_gold_probs,
-            "labels": pa.array(list(self.labels)),
-            "split": [Split[self.split].value] * batch_size,
-            "epoch": [self.epoch] * batch_size,
+            C.id.value: self.ids,
+            C.token_deps.value: self.token_dep,
+            C.token_gold_probs.value: self.token_gold_probs,
+            C.split_.value: [Split[self.split].value] * batch_size,
+            C.epoch.value: [self.epoch] * batch_size,
         }
         if self.split == Split.inference:
             data["inference_name"] = [self.inference_name] * batch_size
         return data
 
-    def write_model_output(self, data: Dict) -> None:
-        """Creates an arrow file from the current batch data"""
-        """Creates an hdf5 file from the data dict"""
-        location = (
-            f"{self.LOG_FILE_DIR}/{config.current_project_id}"
-            f"/{config.current_run_id}"
-        )
-        split = data["split"][0]
-
-        if split == Split.inference:
-            inference_name = data["inference_name"][0]
-            path = f"{location}/{split}/{inference_name}"
-        else:
-            epoch = data["epoch"][0]
-            path = f"{location}/{split}/{epoch}"
-
-        object_name = f"{str(uuid4()).replace('-', '')[:12]}.hdf5"
+    def _write_dict_to_disk(self, path: str, object_name: str, data: Dict) -> None:
         save_arrow_file(path, object_name, data)

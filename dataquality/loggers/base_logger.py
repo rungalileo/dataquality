@@ -206,7 +206,7 @@ class BaseGalileoLogger:
 
             if isinstance(arr, tf.Tensor):
                 if is_tf_2():
-                    with tf.device("/cpu:0"):
+                    with tf.device("cpu"):
                         arr = tf.identity(arr).numpy()
                 else:  # Just for TF1.x
                     arr = arr.numpy()
@@ -230,7 +230,7 @@ class BaseGalileoLogger:
                     )
             elif attr == "Labels" and config.task_type == TaskType.text_multi_label:
                 arr = np.array(arr, dtype=object)
-        return np.array(arr)
+        return np.array(arr) if not isinstance(arr, np.ndarray) else arr
 
     @staticmethod
     def _convert_tensor_to_py(v: Any) -> Union[str, int]:

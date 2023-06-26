@@ -107,7 +107,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         self.token_label_positions = aligned_data.token_label_positions
 
         id_to_tokens = dict(zip(self.ids, self.tokenized_labels))
-        self.logger_config.split_token_map[self.token_map_key].update(id_to_tokens)
+        self.logger_config.id_to_tokens[self.token_map_key].update(id_to_tokens)
 
     def _get_input_df(self) -> DataFrame:
         return vaex.from_dict(
@@ -115,6 +115,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
                 C.id.value: self.ids,
                 C.text.value: self.texts,
                 C.label.value: self.labels,
+                # TODO: Do we need to save this to the server?
                 C.tokenized_label.value: pa.array(self.tokenized_labels),
                 C.token_label_positions.value: pa.array(self.token_label_positions),
                 C.token_label_offsets.value: pa.array(self.token_label_offsets),
