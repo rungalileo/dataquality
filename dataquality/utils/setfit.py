@@ -91,9 +91,16 @@ def log_preds_setfit(
             log_args.texts += batch[text_col]
             log_args.ids += batch[id_col]
             if meta is not None:
-                log_args.meta = {
-                    meta_col: batch[f"feat_{meta_col}"] for meta_col in meta
-                }
+                meta_colum_batch = {}
+                for meta_col in meta:
+                    if meta_col in batch:
+                        meta_colum_batch[meta_col] = batch[meta_col]
+                    elif f"feat_{meta_col}" in batch:
+                        meta_colum_batch[meta_col] = batch[f"feat_{meta_col}"]
+                    else:
+                        print(f"Meta column: {meta_col} was not found in batch")
+                if meta_colum_batch:
+                    log_args.meta = meta_colum_batch
             if len(log_args.texts) >= BATCH_LOG_SIZE:
                 dq.log_data_samples(**asdict(log_args))
                 log_args.clear()

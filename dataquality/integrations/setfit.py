@@ -129,6 +129,7 @@ def evaluate(
     """Watch SetFit model by replacing predict_proba function with SetFitModelHook.
     :param model: SetFit model
     :return: SetFitModelHook object"""
+
     dq_hook = SetFitModelHook(model)
     dq_store = dq_hook.store
 
@@ -149,12 +150,12 @@ def evaluate(
         :param column_mapping: mapping of column names (if different from default)
         :return: output of SetFitModel.predict_proba function"""
         a.log_function("setfit/evaluate")
-
-        if column_mapping is not None:
-            st = SetFitTrainer()
-            st.column_mapping = column_mapping
-            st._validate_column_mapping(dataset)
-            dataset = st._apply_column_mapping(dataset, column_mapping)
+        column_mapping = column_mapping or dict(
+            id="id",
+            text="text",
+            label="label",
+        )
+        dataset = _apply_column_mapping(dataset, column_mapping)
         if "id" not in dataset.features:
             dataset = dataset.map(lambda x, idx: {"id": idx}, with_indices=True)
         if epoch is not None:
