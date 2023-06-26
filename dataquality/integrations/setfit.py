@@ -398,5 +398,5 @@ def do_train(
             meta=meta_columns,
         )
 
-    dq.finish(wait=wait, create_data_embs=create_data_embs)
+    # dq.finish(wait=wait, create_data_embs=create_data_embs)
     return trainer

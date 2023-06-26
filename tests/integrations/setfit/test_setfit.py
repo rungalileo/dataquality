@@ -90,7 +90,6 @@ def test_log_dataset(
     )
     model = SetFitModel.from_pretrained(LOCAL_MODEL_PATH)
     set_test_config(task_type="text_classification")
-
     trainer = SetFitTrainer(
         model=model,
         train_dataset=dataset,
@@ -98,7 +97,6 @@ def test_log_dataset(
         column_mapping={"text": "text", "label": "label"},
     )
     trainer.train()
-
     labels = ["nocat", "cat"]
     dq.set_labels_for_run(labels)
     split = "training"
@@ -156,6 +154,9 @@ def test_setfit_trainer(
     model_id = "sentence-transformers/paraphrase-mpnet-base-v2"
     model = SetFitModel.from_pretrained(model_id, use_differentiable_head=True)
     column_mapping = {"text": "text", "label": "label"}
+    dataset = dataset.map(
+        lambda x, idx: {"id": idx, "meta_col": "meta"}, with_indices=True
+    )
     trainer = SetFitTrainer(
         model=model,
         train_dataset=dataset,
@@ -257,7 +258,13 @@ def test_auto(
         test_data=dataset,
         inference_data={"eval": dataset},
         run_name="labels",
-        training_args={"num_epochs": 2},
+        training_args={"num_epochs": 1},
         labels=labels,
         column_mapping=column_mapping,
     )
+    train_data = vaex.open(f"{test_session_vars.TEST_PATH}/training/0/data/data.hdf5")
+    test_data = vaex.open(f"{test_session_vars.TEST_PATH}/test/0/data/data.hdf5")
+    val_data = vaex.open(f"{test_session_vars.TEST_PATH}/validation/0/data/data.hdf5")
+    assert train_data["meta_col"].unique() == ["meta"]
+    assert test_data["meta_col"].unique() == ["meta"]
+    assert val_data["meta_col"].unique() == ["meta"]

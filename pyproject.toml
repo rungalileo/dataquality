@@ -125,8 +125,8 @@ env = [
     "GALILEO_API_URL=http://localhost:8000"
 ]
 addopts = [
-    "-n",
-    "auto",
+    # "-n",
+    # "auto",
     "-o",
     "console_output_style=progress",
     "--durations=10",
