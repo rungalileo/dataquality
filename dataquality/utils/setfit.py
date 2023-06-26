@@ -40,7 +40,7 @@ def log_preds_setfit(
     split: Split,
     dq_store: Dict,
     batch_size: int,
-    meta: Optional[List] = None,
+    meta: Optional[List[str]] = None,
     inference_name: Optional[str] = None,
     return_preds: bool = False,
     epoch: Optional[int] = None,

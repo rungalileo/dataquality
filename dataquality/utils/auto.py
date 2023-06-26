@@ -215,6 +215,9 @@ def _apply_column_mapping(dataset: Dataset, column_mapping: Dict[str, str]) -> D
     """
     if type(dataset) == dict:
         dataset = Dataset.from_dict(dataset)
+    column_mapping = {
+        k: v for k, v in column_mapping.items() if k in dataset.column_names
+    }
     dataset = dataset.rename_columns(
         {
             **column_mapping,

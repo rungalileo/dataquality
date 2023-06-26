@@ -23,6 +23,7 @@ class NERDatasetManager(BaseDatasetManager):
         dd: DatasetDict,
         inference_names: List[str],
         labels: Optional[List[str]] = None,
+        validate_training: bool = True,
     ) -> DatasetDict:
         """Validates the core components of the provided (or created) DatasetDict)
 

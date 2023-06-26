@@ -13,6 +13,7 @@ from dataquality.core.log import get_data_logger
 from dataquality.dq_auto.text_classification import (
     TCDatasetManager,
     _get_labels,
+    _get_meta,
 )
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
@@ -297,6 +298,13 @@ def auto(
     )
     ```
     """
+    is_inference_only: bool = (
+        inference_data is not None
+        and not train_data
+        and not hf_data
+        and not val_data
+        and not test_data
+    )
     manager = TCDatasetManager()
     dd = manager.get_dataset_dict(
         hf_data,
@@ -307,8 +315,11 @@ def auto(
         inference_data,
         labels,
         column_mapping,
+        validate_training=not is_inference_only,
     )
-    labels = _get_labels(dd, labels)
+    if not is_inference_only:
+        labels = _get_labels(dd, labels)
+    meta = _get_meta(dd)
     dq.login()
     a.log_function("setfit/auto")
 
@@ -319,15 +330,10 @@ def auto(
     if isinstance(setfit_model, str):
         # Load the model and train it
         trainer, encoded_data = get_trainer(dd, setfit_model, training_args)
-        return do_train(
-            trainer,
-            encoded_data,
-            wait,
-            create_data_embs,
-        )
+        return do_train(trainer, encoded_data, wait, create_data_embs, meta=meta)
     else:
         # Don't train, just evaluate
-        return do_model_eval(setfit_model, dd, wait, create_data_embs)
+        return do_model_eval(setfit_model, dd, wait, create_data_embs, meta=meta)
 
 
 def do_model_eval(
@@ -335,6 +341,7 @@ def do_model_eval(
     encoded_data: DatasetDict,
     wait: bool,
     create_data_embs: Optional[bool] = None,
+    meta: Optional[List[str]] = None,
 ) -> "SetFitModel":
     dq_evaluate = watch(
         model,
@@ -345,6 +352,7 @@ def do_model_eval(
             dq_evaluate(
                 encoded_data[split],
                 split=split,
+                meta=meta,
                 # for inference set the split to inference
                 # and pass an inference_name="inference_run_1"
             )
@@ -355,6 +363,7 @@ def do_model_eval(
             encoded_data[inf_name],
             split=Split.inference,  # type: ignore
             inference_name=inf_name,  # type: ignore
+            meta=meta,
         )
 
     dq.finish(wait=wait, create_data_embs=create_data_embs)
@@ -366,16 +375,18 @@ def do_train(
     encoded_data: DatasetDict,
     wait: bool,
     create_data_embs: Optional[bool] = None,
+    meta: Optional[List[str]] = None,
 ) -> "SetFitTrainer":
-    watch(trainer, finish=False)
+    watch(trainer, finish=False, meta=meta)
 
     trainer.train()
-    dq_evaluate = watch(trainer, finish=False)
+    dq_evaluate = watch(trainer, finish=False, meta=meta)
     if Split.test in encoded_data:
         # We pass in a huggingface dataset but typing wise they expect a torch dataset
         dq_evaluate(
             encoded_data[Split.test],
             split=Split.test,
+            meta=meta,
             # for inference set the split to inference
             # and pass an inference_name="inference_run_1"
         )
@@ -386,6 +397,7 @@ def do_train(
             encoded_data[inf_name],
             split=Split.inference,  # type: ignore
             inference_name=inf_name,  # type: ignore
+            meta=meta,
         )
 
     dq.finish(wait=wait, create_data_embs=create_data_embs)

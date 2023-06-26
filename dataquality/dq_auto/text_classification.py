@@ -64,6 +64,7 @@ class TCDatasetManager(BaseDatasetManager):
         dd: DatasetDict,
         inference_names: List[str],
         labels: Optional[List[str]] = None,
+        validate_training: bool = True,
     ) -> DatasetDict:
         """Validates the core components of the provided (or created) DatasetDict)
 
@@ -91,11 +92,26 @@ class TCDatasetManager(BaseDatasetManager):
         return add_val_data_if_missing(clean_dd)
 
 
+def _get_meta(dd: DatasetDict) -> List[str]:
+    """Gets the meta columns for this dataset from the dataset if not provided."""
+    key = list(dd.keys())[0]
+    data = dd[key]
+    # if col starts with feat_
+    meta = [col for col in data.column_names if col.startswith("feat_")]
+    return meta
+
+
 def _get_labels(dd: DatasetDict, labels: Optional[List[str]] = None) -> List[str]:
     """Gets the labels for this dataset from the dataset if not provided."""
     if labels is not None and isinstance(labels, (list, np.ndarray)):
         return list(labels)
-    train_labels = dd[Split.train].features["label"]
+    try:
+        train_labels = dd[Split.train].features["label"]
+    except KeyError:
+        key = list(dd.keys())[0]
+        data = dd[key]
+        train_labels = data.features["label"]
+
     if hasattr(train_labels, "names"):
         return train_labels.names
     return sorted(set(dd[Split.train]["label"]))
@@ -239,6 +255,7 @@ def auto(
     )
     ```
     """
+
     manager = TCDatasetManager()
     dd = manager.get_dataset_dict(
         hf_data,
@@ -249,6 +266,7 @@ def auto(
         inference_data,
         labels,
     )
+
     labels = _get_labels(dd, labels)
     dq.login()
     a.log_function("auto/tc")

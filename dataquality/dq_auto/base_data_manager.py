@@ -20,13 +20,15 @@ class BaseDatasetManager:
         dd: DatasetDict,
         inference_names: List[str],
         labels: Optional[List[str]] = None,
+        validate_training: bool = True,
     ) -> DatasetDict:
         """Makes sure at `train` or `training` are in dict, removes invalid keys"""
         valid_splits = Split.get_valid_keys()
         valid_keys = valid_splits + inference_names
-        assert (
-            "train" in dd or "training" in dd
-        ), f"Must have `train` or `training` split in data, found {dd.keys()}"
+        if validate_training and not ("train" in dd or "training" in dd):
+            raise GalileoException(
+                f"Must have `train` or `training` split in data, found {dd.keys()}"
+            )
         # Only save valid keys + inference splits
         dd_pruned = DatasetDict({k: v for k, v in dd.items() if k in valid_keys})
         # Convert splits to enum Split if not inference
@@ -80,6 +82,7 @@ class BaseDatasetManager:
         inference_data: Optional[Dict[str, Union[pd.DataFrame, Dataset, str]]] = None,
         labels: Optional[List[str]] = None,
         column_mapping: Optional[Dict[str, str]] = None,
+        validate_training: bool = True,
     ) -> DatasetDict:
         """Creates and/or validates the DatasetDict provided by the user.
 
@@ -98,9 +101,10 @@ class BaseDatasetManager:
         else:
             # We don't need to check for train because `try_load_dataset_dict` validates
             # that it exists already. One of hf_data or train_data must exist
-            dd[Split.train] = self._convert_to_hf_dataset(
-                train_data, labels, column_mapping
-            )
+            if train_data is not None:
+                dd[Split.train] = self._convert_to_hf_dataset(
+                    train_data, labels, column_mapping
+                )
             if val_data is not None:
                 dd[Split.validation] = self._convert_to_hf_dataset(
                     val_data, labels, column_mapping
@@ -115,4 +119,4 @@ class BaseDatasetManager:
                         inf_df, labels, column_mapping
                     )
                     inf_names.append(inf_name)
-        return self._validate_dataset_dict(dd, inf_names, labels)
+        return self._validate_dataset_dict(dd, inf_names, labels, validate_training)
