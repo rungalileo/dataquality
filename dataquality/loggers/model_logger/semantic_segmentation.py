@@ -280,7 +280,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             ],
             "dice_coefficent": [dice.dice_coefficient_mean for dice in dice_data],
             "dice_coefficent_per_class": [dice.dice_per_class for dice in dice_data],
-            "dice_area_per_class": [dice.area_per_class for dice in dice_data],
+            "dice_coefficient_area_per_class": [dice.area_per_class for dice in dice_data],
             # "epoch": [self.epoch] * len(self.image_ids),
         }
         not_meta = ["id", "image"]
