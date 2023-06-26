@@ -129,7 +129,7 @@ def calculate_classification_error(
 
     region_pixels = candidate_mask[relevant_region]
     region_boolean = region_pixels != correct_class
-    incorrect_pixels = region_pixels[region_boolean]
+    incorrect_pixels = region_pixels[region_boolean].astype(np.int64)
     # count the number of pixels in the pred mask relevant region that are
     # not the correct class
     areas = np.bincount(incorrect_pixels, minlength=number_classes)
@@ -218,6 +218,9 @@ def add_all_errors_and_metrics_for_image(
         mislabled_pixels (np.ndarray): map of h, w of mislabled pixels
     """
     for polygon in polygons:
+        if polygon.polygon_type == PolygonType.dummy:
+            # We don't need to calculate errors for dummy polygons
+            continue
         out_polygon_im = draw_polygon(polygon, mask.shape[-2:])
         add_class_errors_to_polygon(
             mask, out_polygon_im, polygon, polygon_type, number_classes

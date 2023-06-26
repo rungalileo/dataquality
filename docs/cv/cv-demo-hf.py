@@ -1,10 +1,6 @@
 import base64
-import hashlib
 from io import BytesIO
-from typing import Any, Callable, Generator
-from unittest.mock import MagicMock, patch
 
-import vaex
 from datasets import load_dataset
 from PIL import Image
 from torchvision.transforms import Compose, Normalize, RandomResizedCrop, ToTensor
@@ -18,8 +14,6 @@ from transformers import (
 
 import dataquality as dq
 from dataquality.integrations.transformers_trainer import watch
-from dataquality.schemas.task_type import TaskType
-from dataquality.utils.thread_pool import ThreadPoolManager
 
 B64_CONTENT_TYPE_DELIMITER = ";base64,"
 
@@ -133,8 +127,6 @@ def _main() -> None:
     )
     watch(trainer)
     trainer.train()
-    # assert len(vaex.open(f"./training/0/*.hdf5")) == len(train_df)
-    # assert len(vaex.open(f"{LOCATION}/validation/0/*.hdf5")) == len(test_df)
     dq.finish()
 
 

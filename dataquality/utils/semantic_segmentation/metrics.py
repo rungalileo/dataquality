@@ -6,8 +6,8 @@ import numpy as np
 import torch
 from PIL import Image, ImageColor
 
+from dataquality import config
 from dataquality.clients.objectstore import ObjectStore
-from dataquality.core._config import GALILEO_DEFAULT_RESULT_BUCKET_NAME
 from dataquality.schemas.semantic_segmentation import IouData, Polygon
 from dataquality.utils.semantic_segmentation.polygons import draw_polygon
 
@@ -21,16 +21,15 @@ def calculate_and_upload_dep(
     gold_masks: torch.Tensor,
     image_ids: List[int],
     local_folder_path: str,
-) -> Tuple[List[float], torch.Tensor]:
+) -> torch.Tensor:
     """Calculates the Data Error Potential (DEP) for each image in the batch
 
     Uploads the heatmap to Minio as a png.
-    Returns the image DEP for each image in the batch. As well as the dep_heatmaps.
-        Image dep is calculated by the average pixel dep.
+    Returns the dep_heatmaps
     """
     dep_heatmaps = calculate_dep_heatmaps(probs, gold_masks)
     write_dep_to_disk(dep_heatmaps, image_ids, local_folder_path)
-    return calculate_image_dep(dep_heatmaps), dep_heatmaps
+    return dep_heatmaps
 
 
 def colorize_dep_heatmap(image: Image.Image, dep_mean: int) -> Image.Image:
@@ -144,7 +143,7 @@ def upload_dep_heatmaps(
                 file_path=f.name,
                 content_type="image/png",
                 progress=False,
-                bucket_name=GALILEO_DEFAULT_RESULT_BUCKET_NAME,
+                bucket_name=config.results_bucket_name,
             )
 
 
@@ -167,17 +166,6 @@ def dep_heatmap_to_img(dep_heatmap: np.ndarray) -> Image:
     if img.size[0] > MAX_DEP_HEATMAP_SIZE or img.size[1] > MAX_DEP_HEATMAP_SIZE:
         img = img.resize((MAX_DEP_HEATMAP_SIZE, MAX_DEP_HEATMAP_SIZE))
     return img
-
-
-def calculate_image_dep(dep_heatmap: torch.Tensor) -> List[float]:
-    """Calculates the Data Error Potential (DEP) for each image in the batch
-
-    :param dep_heatmap: DEP heatmap for each image in the batch
-        size = (bs, height, width)
-    :return: list of DEP values for each image in the batch
-        size = (bs,)
-    """
-    return dep_heatmap.mean(dim=(1, 2)).tolist()
 
 
 def calculate_batch_iou(

@@ -1,7 +1,6 @@
 import os
 from typing import Dict, Optional, Union
 
-import datasets
 import numpy as np
 import torch
 from google.cloud import storage
@@ -11,17 +10,17 @@ from tqdm import tqdm
 
 
 class coco_hf_dataset_disk(torch.utils.data.Dataset):
-    def __init__(
-        self,
-        dataset_path: str,
-        relative_img_path: Optional[str],
-        relative_mask_path: Optional[str],
-        mask_transform: transforms = None,
-        img_transform: transforms = None,
-        size: int = 1024,
-    ) -> None:
-        """ "
-        COCO val dataset from galileo-public-data/CV_datasets/COCO_seg_val_5000/all_images
+    def __init__(self,
+                 dataset_path: str,
+                 relative_img_path: Optional[str],
+                 relative_mask_path: Optional[str],
+                 mask_transform: transforms = None,
+                 img_transform: transforms = None,
+                 size: int = 1024,
+                 binary: bool = False) -> None:
+        """"
+        COCO val dataset from
+        galileo-public-data/CV_datasets/COCO_seg_val_5000/all_images
         downloaded and located on disk.
         If no paths are provided we download the dataset from GCS and save it to disk.
 
@@ -46,6 +45,7 @@ class coco_hf_dataset_disk(torch.utils.data.Dataset):
             self.images = self.images[1:]
         if self.masks[0] == ".DS_Store":
             self.masks = self.masks[1:]
+        self.binary = binary
 
         num_images = len(self.images)
         num_masks = len(self.masks)
@@ -126,14 +126,16 @@ class coco_hf_dataset_disk(torch.utils.data.Dataset):
         if self.mask_transform:
             mask = self.mask_transform(mask)
 
-        return {
-            "image": image,
-            "image_path": image_path,
-            "mask_path": mask_path,
-            "mask": mask,
-            "idx": idx,
-            "unnormalized_image": unnormalized_image,
-        }
+        if self.binary:
+            mask_bool = mask > 0
+            mask[mask_bool] = 1
+
+        return {'image': image,
+                'image_path': image_path,
+                'mask_path': mask_path,
+                'mask': mask,
+                'idx': idx,
+                'unnormalized_image': unnormalized_image}
 
 
 class expand_gray_channel:

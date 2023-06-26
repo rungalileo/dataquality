@@ -15,11 +15,12 @@ from dataquality.clients.api import ApiClient
 from dataquality.exceptions import GalileoException
 from dataquality.integrations.torch import TorchBaseInstance
 from dataquality.schemas.split import Split
-from dataquality.schemas.torch import DimensionSlice, HelperData, InputDim, Layer
+from dataquality.schemas.torch import DimensionSlice, InputDim, Layer
 from dataquality.utils.helpers import check_noop
 from dataquality.utils.patcher import Cleanup, Patch, PatchManager, RefManager
 from dataquality.utils.torch import (
     ModelHookManager,
+    TorchHelper,
     find_dq_hook_by_name,
     remove_all_forward_hooks,
 )
@@ -42,13 +43,13 @@ class DQTrainerCallback(TrainerCallback, TorchBaseInstance, Patch):
     def __init__(
         self,
         trainer: Trainer,
+        torch_helper: TorchHelper,
         last_hidden_state_layer: Optional[Layer] = None,
         embedding_dim: Optional[InputDim] = None,
         logits_dim: Optional[InputDim] = None,
         classifier_layer: Layer = "classifier",
         embedding_fn: Optional[Callable] = None,
         logits_fn: Optional[Callable] = None,
-        helper_data: Dict[str, Any] = {},
     ) -> None:
         """Callback for logging model outputs during training
         :param trainer: Trainer object from Huggingface transformers
@@ -59,12 +60,12 @@ class DQTrainerCallback(TrainerCallback, TorchBaseInstance, Patch):
         :param embedding_fn: Function to extract the embedding from the last
             hidden state
         :param logits_fn: Function to extract the logits
-        :param helper_data: Store for the callback
+        :param torch_helper: Store for the callback
         """
         # Access the dq logger helper data
-        helper_data[HelperData.model_outputs_store] = {}
-        self.helper_data = helper_data
-        self.model_outputs_store = self.helper_data[HelperData.model_outputs_store]
+        torch_helper.clear()
+        self.torch_helper_data = torch_helper
+        self.model_outputs_store = self.torch_helper_data.model_outputs_store
         self._training_validated = False
         self._model_setup = False
         # Hook manager for attaching hooks to the model
@@ -302,6 +303,8 @@ def watch(
     """
     a.log_function("transformers_trainer/watch")
     helper_data = dq.get_model_logger().logger_config.helper_data
+    torch_helper_data = TorchHelper()
+    helper_data["torch_helper"] = torch_helper_data
     # Callback which we add to the trainer
     # The columns needed for the forward process
     signature_patch = SignatureColumnsPatch(trainer)
@@ -317,13 +320,13 @@ def watch(
         classifier_layer=classifier_layer,
         embedding_fn=embedding_fn,
         logits_fn=logits_fn,
-        helper_data=helper_data,
+        torch_helper=torch_helper_data,
     )
     # We wrap the data collator to remove the id column
     RemoveIdCollatePatch(
         trainer,
         signature_cols,
-        dqcallback.helper_data[HelperData.model_outputs_store],
+        dqcallback.torch_helper_data.model_outputs_store,
     )
     dqcallback.patch()
     # Save the original signature columns and the callback for unwatch
