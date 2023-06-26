@@ -31,7 +31,6 @@ class PolygonType(str, Enum):
 
 
 class SemSegMetricType(str, Enum):
-    # IoUType
     miou = "mean_iou"
     biou = "boundary_iou"
     dice = "dice"
