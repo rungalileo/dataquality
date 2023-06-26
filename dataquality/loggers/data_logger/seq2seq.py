@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, List, Optional, Tuple, Union, cast, Set
+from typing import TYPE_CHECKING, Any, List, Optional, Set, Tuple, Union, cast
 
 import pandas as pd
 import pyarrow as pa
@@ -13,6 +13,7 @@ from dataquality.loggers.data_logger.base_data_logger import (
     MetasType,
 )
 from dataquality.loggers.logger_config.seq2seq import seq2seq_logger_config
+from dataquality.schemas.seq2seq import Seq2SeqCols as C
 from dataquality.schemas.split import Split
 from dataquality.utils.seq2seq import (
     align_tokens_to_character_spans,
@@ -102,19 +103,22 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         )
         self.tokenized_labels = encoded_data["input_ids"]
         aligned_data = align_tokens_to_character_spans(encoded_data["offset_mapping"])
-        self.token_label_offsets, self.token_label_positions = aligned_data
+        self.token_label_offsets = aligned_data.token_label_offsets
+        self.token_label_positions = aligned_data.token_label_positions
 
         id_to_tokens = dict(zip(self.ids, self.tokenized_labels))
         self.logger_config.split_token_map[self.token_map_key].update(id_to_tokens)
 
     def _get_input_df(self) -> DataFrame:
-        return vaex.from_arrays(
-            id=self.ids,
-            text=self.texts,
-            label=self.labels,
-            tokenized_label=pa.array(self.tokenized_labels),
-            token_label_positions=pa.array(self.token_label_positions),
-            token_label_offsets=pa.array(self.token_label_offsets),
+        return vaex.from_dict(
+            {
+                C.id.value: self.ids,
+                C.text.value: self.texts,
+                C.label.value: self.labels,
+                C.tokenized_label.value: pa.array(self.tokenized_labels),
+                C.token_label_positions.value: pa.array(self.token_label_positions),
+                C.token_label_offsets.value: pa.array(self.token_label_offsets),
+            }
         )
 
     def _log_df(
@@ -173,3 +177,11 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
                 f"Dataset must be one of pandas, vaex, or 🤗 dataset "
                 f"but got {type(dataset)}"
             )
+
+    @staticmethod
+    def get_valid_attributes() -> List[str]:
+        """
+        Returns a list of valid attributes that for this Logger class
+        :return: List[str]
+        """
+        return list(map(lambda x: x.value, C))

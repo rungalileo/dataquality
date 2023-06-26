@@ -1,6 +1,8 @@
 from collections import defaultdict
 from typing import Dict, List, Set, Tuple
 
+from dataquality.schemas.seq2seq import AlignedTokenData
+
 
 def _handle_overlapping_offsets(
     span_offsets: List[Tuple[int, int]],
@@ -163,12 +165,14 @@ def rollup_offset_mapping(
 
 def align_tokens_to_character_spans(
     samples_offsets: List[List[Tuple[int, int]]]
-) -> Tuple[List[List[Tuple[int, int]]], List[List[Set[int]]]]:
-    """Itertates through each samples offsets and creates character-aligned spans"""
+) -> AlignedTokenData:
+    """Iterates through each samples offsets and creates character-aligned spans"""
     all_offsets = []
     all_token_positions = []
     for offset_mapping in samples_offsets:
         offsets, token_positions = rollup_offset_mapping(offset_mapping)
         all_offsets.append(offsets)
         all_token_positions.append(token_positions)
-    return all_offsets, all_token_positions
+    return AlignedTokenData(
+        token_label_offsets=all_offsets, token_label_positions=all_token_positions
+    )
