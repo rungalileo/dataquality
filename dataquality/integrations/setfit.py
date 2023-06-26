@@ -150,14 +150,11 @@ def evaluate(
         :return: output of SetFitModel.predict_proba function"""
         a.log_function("setfit/evaluate")
 
-        column_mapping = column_mapping or dict(
-            text="text",
-            id="id",
-            label="label",
-        )
-
         if column_mapping is not None:
-            dataset = _apply_column_mapping(dataset, column_mapping)
+            st = SetFitTrainer()
+            st.column_mapping = column_mapping
+            st._validate_column_mapping(dataset)
+            dataset = st._apply_column_mapping(dataset, column_mapping)
         if "id" not in dataset.features:
             dataset = dataset.map(lambda x, idx: {"id": idx}, with_indices=True)
         if epoch is not None:

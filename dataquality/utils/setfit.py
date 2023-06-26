@@ -40,7 +40,7 @@ def log_preds_setfit(
     split: Split,
     dq_store: Dict,
     batch_size: int,
-    meta: Optional[List] = None,
+    meta: Optional[List[str]] = None,
     inference_name: Optional[str] = None,
     return_preds: bool = False,
     epoch: Optional[int] = None,
@@ -132,7 +132,7 @@ def _setup_patches(
     finish: bool = True,
     wait: bool = False,
     batch_size: Optional[int] = None,
-    meta: Optional[List] = None,
+    meta: Optional[List[str]] = None,
 ) -> None:
     """Sets up the patches for a SetFit model.
     :param setfit: The SetFit model or trainer
@@ -159,7 +159,7 @@ def validate_setfit(
     setfit: Union["SetFitModel", "SetFitTrainer"],
     labels: List[str],
     batch_size: Optional[int] = None,
-    meta: Optional[List] = None,
+    meta: Optional[List[str]] = None,
 ) -> None:
     """Validates a SetFit model.
     :param setfit: The SetFit model or trainer
@@ -289,7 +289,7 @@ class _PatchSetFitTrainer(Patch):
         finish: bool = True,
         wait: bool = False,
         batch_size: Optional[int] = None,
-        meta: Optional[List] = None,
+        meta: Optional[List[str]] = None,
     ) -> None:
         """Patch to SetFit trainer to run dataquality after training.
         :param setfit_trainer: SetFit trainer
