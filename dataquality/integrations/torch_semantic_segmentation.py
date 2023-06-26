@@ -348,7 +348,7 @@ class SemanticTorchLogger(TorchLogger):
         Returns:
             torch.Tensor: bs, 2, h, w tensor
         """
-        return torch.cat([1 - probs, probs], dim=3)
+        return torch.cat([1-probs, probs], dim=3)
 
     def get_argmax_probs(
         self,
