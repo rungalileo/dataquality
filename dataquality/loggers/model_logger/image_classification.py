@@ -24,6 +24,7 @@ class ImageClassificationModelLogger(TextClassificationModelLogger):
         split: str = "",
         epoch: Optional[int] = None,
         inference_name: Optional[str] = None,
+        labels: Optional[np.ndarray] = None,
     ) -> None:
         super().__init__(
             embs=embs,

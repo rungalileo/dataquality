@@ -2,6 +2,7 @@ from dataquality.loggers.data_logger import (
     image_classification,
     object_detection,
     semantic_segmentation,
+    seq2seq,
     tabular_classification,
     text_classification,
     text_multi_label,
@@ -18,4 +19,5 @@ __all__ = [
     "text_ner",
     "object_detection",
     "BaseGalileoDataLogger",
+    "seq2seq",
 ]

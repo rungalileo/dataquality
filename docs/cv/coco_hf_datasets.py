@@ -10,13 +10,13 @@ from tqdm import tqdm
 
 
 class coco_hf_dataset_disk(torch.utils.data.Dataset):
-    def __init__(self, 
+    def __init__(self,
                  dataset_path: str,
-                 relative_img_path: Optional[str], 
+                 relative_img_path: Optional[str],
                  relative_mask_path: Optional[str],
-                 mask_transform: transforms=None, 
-                 img_transform: transforms=None, 
-                 size: int=1024,
+                 mask_transform: transforms = None,
+                 img_transform: transforms = None,
+                 size: int = 1024,
                  binary: bool = False) -> None:
         """"
         COCO val dataset from
@@ -125,11 +125,11 @@ class coco_hf_dataset_disk(torch.utils.data.Dataset):
             image = self.img_transform(image)
         if self.mask_transform:
             mask = self.mask_transform(mask)
-            
+
         if self.binary:
             mask_bool = mask > 0
             mask[mask_bool] = 1
-        
+
         return {'image': image,
                 'image_path': image_path,
                 'mask_path': mask_path,
