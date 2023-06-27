@@ -1,6 +1,6 @@
 import uuid
 from dataclasses import asdict, dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -34,11 +34,10 @@ class DataSampleLogArgs:
         self.labels.clear()
 
 
-def _get_meta_cols(ds: Dataset) -> List[str]:
+def _get_meta_cols(cols: Iterable) -> List[str]:
     """Returns the meta columns of a dataset."""
-    meta_columns = [col for col in ds.column_names if col.startswith("feat_")]
-    if meta_columns:
-        meta_columns = [col[5:] for col in meta_columns]
+    default_cols = ["text", "label", "id"]
+    meta_columns = [col for col in cols if col not in default_cols]
     return meta_columns
 
 
@@ -82,6 +81,7 @@ def log_preds_setfit(
     skip_logging = logger_config.helper_data[f"setfit_skip_input_log_{split}"]
     # Iterate over the dataset in batches and log the data samples
     # and model outputs
+    meta = _get_meta_cols(dataset.column_names)
     for i in range(0, len(dataset), batch_size):
         batch = dataset[i : i + batch_size]
         assert text_col in batch, f"column '{text_col}' must be in batch"
@@ -103,8 +103,6 @@ def log_preds_setfit(
                 for meta_col in meta:
                     if meta_col in batch:
                         meta_colum_batch[meta_col] = batch[meta_col]
-                    elif f"feat_{meta_col}" in batch:
-                        meta_colum_batch[meta_col] = batch[f"feat_{meta_col}"]
                     else:
                         print(f"Meta column: {meta_col} was not found in batch")
                 if meta_colum_batch:
@@ -433,7 +431,7 @@ def get_trainer(
     dd: DatasetDict,
     model_checkpoint: str,
     training_args: Optional[Dict[str, Any]],
-) -> Tuple["SetFitTrainer", DatasetDict]:
+) -> "SetFitTrainer":
     from sentence_transformers.losses import CosineSimilarityLoss
     from setfit import SetFitModel, SetFitTrainer
 
@@ -454,4 +452,4 @@ def get_trainer(
         eval_dataset=dd[Split.validation] if has_val else None,
         **setfit_args,
     )
-    return trainer, dd
+    return trainer
