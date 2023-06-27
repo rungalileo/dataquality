@@ -23,6 +23,8 @@ analytics = Analytics(ApiClient, config)  # type: ignore
 
 
 class BaseGalileoModelLogger(BaseGalileoLogger):
+    log_file_ext = "hdf5"
+
     def __init__(
         self,
         embs: Optional[Union[List, np.ndarray]] = None,
@@ -32,6 +34,7 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         split: str = "",
         epoch: Optional[int] = None,
         inference_name: Optional[str] = None,
+        labels: Optional[np.ndarray] = None,
     ) -> None:
         super().__init__()
         # Need to compare to None because they may be np arrays which cannot be
@@ -116,7 +119,10 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
             epoch = data["epoch"][0]
             path = f"{location}/{split}/{epoch}"
 
-        object_name = f"{str(uuid4()).replace('-', '')[:12]}.hdf5"
+        object_name = f"{str(uuid4()).replace('-', '')[:12]}.{self.log_file_ext}"
+        self._write_dict_to_disk(path, object_name, data)
+
+    def _write_dict_to_disk(self, path: str, object_name: str, data: Dict) -> None:
         _save_hdf5_file(path, object_name, data)
 
     def set_split_epoch(self) -> None:
@@ -183,4 +189,6 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
                 sample_logits = sample_logits.reshape(-1)
             return self.convert_logits_to_prob_binary(sample_logits)
 
-        return softmax(np.array(sample_logits), axis=-1)
+        if not isinstance(sample_logits, np.ndarray):
+            sample_logits = np.ndarray(sample_logits)
+        return softmax(sample_logits, axis=-1)

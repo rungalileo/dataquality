@@ -59,6 +59,14 @@ class BaseLoggerAttributes(str, Enum):
     log_helper_data = "log_helper_data"
     inference_name = "inference_name"
     image = "image"
+    token_label_positions = "token_label_positions"
+    token_label_offsets = "token_label_offsets"
+    label = "label"
+    token_deps = "token_deps"
+    text = "text"
+    id = "id"
+    token_gold_probs = "token_gold_probs"
+    tokenized_label = "tokenized_label"
 
     @staticmethod
     def get_valid() -> List[str]:
@@ -206,7 +214,7 @@ class BaseGalileoLogger:
 
             if isinstance(arr, tf.Tensor):
                 if is_tf_2():
-                    with tf.device("/cpu:0"):
+                    with tf.device("cpu"):
                         arr = tf.identity(arr).numpy()
                 else:  # Just for TF1.x
                     arr = arr.numpy()
@@ -230,7 +238,7 @@ class BaseGalileoLogger:
                     )
             elif attr == "Labels" and config.task_type == TaskType.text_multi_label:
                 arr = np.array(arr, dtype=object)
-        return np.array(arr)
+        return np.array(arr) if not isinstance(arr, np.ndarray) else arr
 
     @staticmethod
     def _convert_tensor_to_py(v: Any) -> Union[str, int]:
