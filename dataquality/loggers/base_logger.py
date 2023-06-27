@@ -59,6 +59,14 @@ class BaseLoggerAttributes(str, Enum):
     log_helper_data = "log_helper_data"
     inference_name = "inference_name"
     image = "image"
+    token_label_positions = "token_label_positions"
+    token_label_offsets = "token_label_offsets"
+    label = "label"
+    token_deps = "token_deps"
+    text = "text"
+    id = "id"
+    token_gold_probs = "token_gold_probs"
+    tokenized_label = "tokenized_label"
 
     @staticmethod
     def get_valid() -> List[str]:

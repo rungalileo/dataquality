@@ -46,7 +46,6 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         self.epoch = epoch
         self.split: str = split
         self.inference_name = inference_name
-        self.labels = labels
 
     def _log(self) -> None:
         """Threaded logger target

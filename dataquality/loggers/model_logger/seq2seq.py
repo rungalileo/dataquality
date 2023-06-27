@@ -38,6 +38,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         )
         self.token_dep = pa.array([])
         self.token_gold_probs = pa.array([])
+        self.labels = labels
 
     @property
     def token_map_key(self) -> str:

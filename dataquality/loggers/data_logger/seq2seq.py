@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 class Seq2SeqDataLogger(BaseGalileoDataLogger):
     """Logging input data for Seq2Seq fine-tuning tasks
 
-    Logging input data for Seq2Seq requires 3 pieces of information:
+    Logging input data for Seq2Seq requires 2 pieces of information:
     1. tokenizer: This must be an instance of PreTrainedTokenizerFast from huggingface
         (ie T5TokenizerFast or GPT2TokenizerFast, etc). Your tokenizer should have an
         `.is_fast` property that returns True if it's a fast tokenizer.
@@ -93,10 +93,10 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         id_len = len(self.ids)
         assert id_len == text_len == label_len, (
             "IDs, text, and labels must be the same length, got "
-            f"(ids, text, labels) ({id_len}, {text_len}, {label_len})"
+            f"({id_len} ids, {text_len} text, {label_len} labels)"
         )
         assert (
-            self.logger_config.tokenizer is not None
+            self.logger_config.tokenizer
         ), "You must set your tokenizer before logging. Use `dq.set_tokenizer`"
         encoded_data = self.logger_config.tokenizer(
             self.labels, return_offsets_mapping=True
