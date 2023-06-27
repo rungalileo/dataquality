@@ -258,7 +258,7 @@ def test_auto(
 
     labels = ["nocat", "cat"]
     eval_ds = dataset.remove_columns("label")
-    m = auto(
+    model = auto(
         train_data=df,
         val_data=dataset,
         test_data=dataset,
@@ -269,3 +269,22 @@ def test_auto(
         labels=labels,
         column_mapping=column_mapping,
     )
+
+    dq_evaluate = watch(
+        model,
+        project_name="project_name",
+        run_name="labels",
+        labels=labels,
+        finish=False,
+    )
+    dq_evaluate(
+        eval_ds,
+        split="inference",
+        meta=["meta_col"],
+        # for inference set the split to inference
+        inference_name="inference_run_1",
+    )
+    ThreadPoolManager.wait_for_threads()
+    dq.get_data_logger().upload()
+    inf_data = vaex.open(f"{test_session_vars.TEST_PATH}/inference/*/data/data.hdf5")
+    assert inf_data["meta_col"].unique() == ["meta"]
