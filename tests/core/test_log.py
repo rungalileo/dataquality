@@ -1,4 +1,4 @@
-from collections import Callable
+from typing import Callable
 
 import pytest
 
@@ -9,7 +9,7 @@ from dataquality.loggers.logger_config.text_classification import (
 )
 
 
-def test_set_labels_existing_run_different_labels(set_test_config: Callable):
+def test_set_labels_existing_run_different_labels(set_test_config: Callable) -> None:
     logger_config.existing_run = True
     logger_config.labels = ["A", "B", "C"]
     with pytest.raises(GalileoException) as e:
@@ -17,14 +17,16 @@ def test_set_labels_existing_run_different_labels(set_test_config: Callable):
     assert str(e.value).startswith("The labels provided to do match")
 
 
-def test_set_labels_existing_run_same_labels(set_test_config: Callable):
+def test_set_labels_existing_run_same_labels(set_test_config: Callable) -> None:
     logger_config.existing_run = True
     logger_config.labels = ["A", "B", "C"]
     dq.set_labels_for_run(["A", "B", "C"])
     assert logger_config.labels == ["A", "B", "C"]
 
 
-def test_set_labels_existing_run_same_labels_unsorted(set_test_config: Callable):
+def test_set_labels_existing_run_same_labels_unsorted(
+    set_test_config: Callable,
+) -> None:
     logger_config.existing_run = True
     logger_config.labels = ["A", "B", "C"]
     with pytest.raises(GalileoException) as e:

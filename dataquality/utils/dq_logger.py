@@ -22,8 +22,10 @@ class CustomSplitAdapter(logging.LoggerAdapter):
     """
 
     def process(self, msg: str, kwargs: Any) -> Tuple[str, Any]:
-        split = kwargs.pop("split", self.extra["split"])
-        epoch = kwargs.pop("epoch", self.extra["epoch"])
+        _extras = self.extra or dict()
+        extras = dict(_extras)
+        split = kwargs.pop("split", extras.get("split", None))
+        epoch = kwargs.pop("epoch", extras.get("epoch", None))
         if epoch is not None:
             return "[%s] [epoch:%s]: %s" % (split, str(epoch), msg), kwargs
         return "[%s]: %s" % (split, msg), kwargs
