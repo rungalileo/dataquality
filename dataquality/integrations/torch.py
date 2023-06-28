@@ -144,13 +144,13 @@ class TorchLogger(TorchBaseInstance):
         self._on_step_end()
 
     def _on_step_end(self) -> None:
+        """Log the embeddings, ids and logits.
+
+        We save the embeddings and logits in a dict called model_output_store
+        in the helper data. This is because the embeddings and logits are
+        extracted in the hooks and we need to log them in the on_step_end
+        method.
         """
-        Log the embeddings, ids and logits.
-        """
-        # We save the embeddings and logits in a dict called model_outputs
-        # in the helper data. This is because the embeddings and logits are
-        # extracted in the hooks and we need to log them in the on_step_end
-        # method.
         model_outputs_store = self.torch_helper_data.model_outputs_store
         # Workaround for multiprocessing
         if model_outputs_store.get("ids") is None and len(
@@ -169,7 +169,11 @@ class TorchLogger(TorchBaseInstance):
             "id column missing in dataset (needed to map rows to the indices/ids)"
         )
         # Convert the indices to ids
-        cur_split = self.logger_config.cur_split.lower()  # type: ignore
+        cur_split = self.logger_config.cur_split
+        assert cur_split is not None, GalileoException(
+            "Current split must be set before logging"
+        )
+        cur_split = cur_split.lower()
         model_outputs_store["ids"] = map_indices_to_ids(
             self.logger_config.idx_to_id_map[cur_split], model_outputs_store["ids"]
         )
@@ -221,11 +225,6 @@ def watch(
     :param last_hidden_state_layer: Layer to extract the embeddings from
     :param unpatch_on_start: Force unpatching of dataloaders
         instead of global patching
-    :param model: Pytorch Model to be wrapped
-    :param dataloaders: List of dataloaders to be wrapped
-    :param last_hidden_state_layer: Layer to extract the embeddings from
-    :param unpatch_on_start: Force unpatching of dataloaders
-        instead of global patching
     :param dataloader_random_sampling: Whether a RandomSampler
         or WeightedRandomSampler is being used. If random sampling
         is being used, you must set this to True, otherwise logging
@@ -245,9 +244,8 @@ def watch(
             "Model is already being watched, run unwatch(model) first"
         )
 
-    helper_data = dq.get_model_logger().logger_config.helper_data
-
     logger_config = get_data_logger().logger_config
+    helper_data = logger_config.helper_data
 
     print("Attaching dataquality to model and dataloaders")
     tl = TorchLogger(
@@ -263,37 +261,36 @@ def watch(
     )
     # Patch the dataloader class if no dataloaders are passed
     # or if the dataloaders have num_workers > 0
-    if dataloaders is None:
-        dataloaders = []
+    dataloaders = dataloaders or []
     is_single_process_dataloader = all(
-        [getattr(d, "num_workers", 0) == 0 for d in dataloaders]
+        [d.num_workers == 0 for d in dataloaders]
     )
     if len(dataloaders) > 0 and is_single_process_dataloader:
         for dataloader in dataloaders:
-            if not isinstance(getattr(dataloader, "sampler", None), SequentialSampler):
-                logger_config = get_data_logger().logger_config
-                logger_config.dataloader_random_sampling = True
-
             assert isinstance(dataloader, DataLoader), GalileoException(
                 "Invalid dataloader. Must be a pytorch dataloader"
                 "from torch.utils.data import DataLoader..."
                 "train_dataloader = DataLoader(dataset)"
             )
             assert (
-                getattr(dataloader, "num_workers", 0) == 0
+                dataloader.num_workers == 0
             ), "Dataloaders with num_workers > 0 are not supported"
+
+            if not isinstance(dataloader.sampler, SequentialSampler):
+                logger_config.dataloader_random_sampling = True
 
             # Patch the dataloader class
             PatchSingleDataloaderIterator(
                 dataloader, tl.torch_helper_data.model_outputs_store
             )
-
     else:
         # Patch the dataloader class globally
         # Can be unpatched with unwatch()
         PatchDataloadersGlobally(tl.torch_helper_data)
+
     if dataloader_random_sampling:
         logger_config.dataloader_random_sampling = True
+
     cleanup_manager = RefManager(lambda: unwatch(model))
     helper_data["cleaner"] = Cleanup(cleanup_manager)
 
