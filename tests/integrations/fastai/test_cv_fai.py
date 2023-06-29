@@ -194,6 +194,7 @@ def test_tab(
         valid_idx=list(range(ds_len - int(ds_len * 0.3), ds_len)),
         y_names="label",
         drop_last=False,
+        num_workers=1,
     )
     tdl.device = torch.device("cpu")
     labels = list(map(str, range(0, ds_len)))
