@@ -286,7 +286,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 iou.area_per_class for iou in boundary_iou_data
             ],
             "dice_coefficient": [dice.value for dice in dice_data],
-            "dice_per_class": [dice.value_per_class for dice in dice_data],
+            "dice_coefficient_per_class": [dice.value_per_class for dice in dice_data],
             "dice_area_per_class": [dice.area_per_class for dice in dice_data],
             # "epoch": [self.epoch] * len(self.image_ids),
         }
