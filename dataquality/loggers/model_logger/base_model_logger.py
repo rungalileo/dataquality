@@ -73,7 +73,18 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
             )
             return
         data = self._get_data_dict()
+        data = self._downcast_data_dict(data)
         self.write_model_output(data)
+
+    def _downcast_data_dict(self, data: Dict) -> Dict:
+        """Downcasts any float/int 64 types to 32 before saving batch"""
+        for key, val in data.items():
+            if isinstance(val, np.ndarray):
+                if val.dtype == np.int64:
+                    data[key] = val.astype(np.int32)
+                elif val.dtype == np.float64:
+                    data[key] = val.astype(np.float32)
+        return data
 
     def _add_threaded_log(self) -> None:
         try:
