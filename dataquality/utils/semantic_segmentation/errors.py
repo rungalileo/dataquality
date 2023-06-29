@@ -129,7 +129,7 @@ def calculate_classification_error(
 
     region_pixels = candidate_mask[relevant_region]
     region_boolean = region_pixels != correct_class
-    incorrect_pixels = region_pixels[region_boolean]
+    incorrect_pixels = region_pixels[region_boolean].astype(np.int64)
     # count the number of pixels in the pred mask relevant region that are
     # not the correct class
     areas = np.bincount(incorrect_pixels, minlength=number_classes)

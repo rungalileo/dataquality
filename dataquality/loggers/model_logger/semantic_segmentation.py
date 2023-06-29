@@ -12,14 +12,18 @@ from dataquality.loggers.logger_config.semantic_segmentation import (
     semantic_segmentation_logger_config,
 )
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
-from dataquality.schemas.semantic_segmentation import IoUType, Polygon, PolygonType
+from dataquality.schemas.semantic_segmentation import (
+    Polygon,
+    PolygonType,
+    SemSegMetricType,
+)
 from dataquality.schemas.split import Split
 from dataquality.utils.semantic_segmentation.errors import (
     add_errors_and_metrics_to_polygons_batch,
 )
 from dataquality.utils.semantic_segmentation.metrics import (
     calculate_and_upload_dep,
-    calculate_batch_iou,
+    calculate_batch_metric,
 )
 from dataquality.utils.semantic_segmentation.polygons import (
     find_polygons_batch,
@@ -54,6 +58,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         split: str = "",
         epoch: Optional[int] = None,
         inference_name: Optional[str] = None,
+        labels: Optional[np.ndarray] = None,
     ) -> None:
         """Takes in SemSeg inputs as a list of batches
 
@@ -210,14 +215,17 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         )
         # Calculate metrics - mean IoU and boundary IoU
         n_classes = len(self.logger_config.labels)
-        mean_iou_data = calculate_batch_iou(
-            self.pred_masks, self.gold_masks, IoUType.mean, n_classes
+        mean_iou_data = calculate_batch_metric(
+            self.pred_masks, self.gold_masks, SemSegMetricType.miou, n_classes
         )
-        boundary_iou_data = calculate_batch_iou(
+        boundary_iou_data = calculate_batch_metric(
             self.pred_boundary_masks,
             self.gold_boundary_masks,
-            IoUType.boundary,
+            SemSegMetricType.biou,
             n_classes,
+        )
+        dice_data = calculate_batch_metric(
+            self.pred_masks, self.gold_masks, SemSegMetricType.dice, n_classes
         )
 
         # Image masks
@@ -267,14 +275,19 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "height": heights,
             "width": widths,
             "mean_lm_score": [i for i in mean_mislabeled],
-            "mean_iou": [iou.iou for iou in mean_iou_data],
-            "mean_iou_per_class": [iou.iou_per_class for iou in mean_iou_data],
+            "mean_iou": [iou.value for iou in mean_iou_data],
+            "mean_iou_per_class": [iou.value_per_class for iou in mean_iou_data],
             "mean_area_per_class": [iou.area_per_class for iou in mean_iou_data],
-            "boundary_iou": [iou.iou for iou in boundary_iou_data],
-            "boundary_iou_per_class": [iou.iou_per_class for iou in boundary_iou_data],
+            "boundary_iou": [iou.value for iou in boundary_iou_data],
+            "boundary_iou_per_class": [
+                iou.value_per_class for iou in boundary_iou_data
+            ],
             "boundary_area_per_class": [
                 iou.area_per_class for iou in boundary_iou_data
             ],
+            "dice_coefficient": [dice.value for dice in dice_data],
+            "dice_per_class": [dice.value_per_class for dice in dice_data],
+            "dice_area_per_class": [dice.area_per_class for dice in dice_data],
             # "epoch": [self.epoch] * len(self.image_ids),
         }
         not_meta = ["id", "image"]
