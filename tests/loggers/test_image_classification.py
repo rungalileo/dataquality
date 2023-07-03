@@ -1,7 +1,8 @@
 import os.path
 from tempfile import TemporaryDirectory
+from typing import Callable, Generator
 from unittest import mock
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import vaex
@@ -17,6 +18,7 @@ from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import validate_unique_ids
 from tests.assets.constants import TEST_IMAGES_FOLDER_ROOT
 from tests.conftest import TestSessionVariables
+from tests.test_utils.mock_data import MockDatasetCV
 
 food_dataset = load_dataset("sasha/dog-food", split="train")
 food_dataset = food_dataset.select(range(20))
@@ -415,3 +417,50 @@ def test_prepare_df_from_ImageFolder_inference() -> None:
     assert len(df) == 4
     assert set(df.id.unique()) == set(range(4))
     assert df.loc[0, "text"].endswith(".png")
+
+
+@patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
+@patch.object(dq.core.finish, "_version_check")
+@patch.object(dq.core.finish, "_reset_run")
+@patch.object(dq.core.finish, "upload_dq_log_file")
+@patch.object(dq.clients.api.ApiClient, "make_request")
+@patch.object(dq.core.finish, "wait_for_run")
+def test_smart_features(
+    mock_wait_for_run: MagicMock,
+    mock_make_request: MagicMock,
+    mock_upload_log_file: MagicMock,
+    mock_reset_run: MagicMock,
+    mock_version_check: MagicMock,
+    mock_valid_user: MagicMock,
+    set_test_config: Callable,
+    cleanup_after_use: Generator,
+    test_session_vars: TestSessionVariables,
+) -> None:
+    set_test_config(task_type="image_classification")
+
+    # Create Mock data and Log the input images
+    df_train = MockDatasetCV()
+    dq.set_labels_for_run(df_train.labels)
+    dq.log_image_dataset(
+        dataset=df_train.dataframe,
+        label="label",
+        imgs_location_colname="image_path",
+        split="training",
+    )
+
+    ThreadPoolManager.wait_for_threads()
+
+    # Test the CV Smart features
+    image_classification_logger = dq.get_data_logger()
+
+    in_frame_path = f"{image_classification_logger.input_data_path}/training"
+    in_frame_split = vaex.open(
+        f"{in_frame_path}/*.{image_classification_logger.INPUT_DATA_FILE_EXT}"
+    )
+
+    # TODO: remove and bake in the system. FOR NOW ADD THE images path manually
+    in_frame_split["image_path"] = df_train.dataframe["image_path"].to_numpy()
+
+    in_frame_split = image_classification_logger.add_cv_smart_features(in_frame_split)
+    # TODO: fix test
+    assert False
