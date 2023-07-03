@@ -22,6 +22,7 @@ from dataquality.loggers.logger_config.image_classification import (
 )
 from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.split import Split
+from dataquality.utils.cv_smart_features import generate_smart_features
 from dataquality.utils.upload import chunk_load_then_upload_df
 
 # smaller than ITER_CHUNK_SIZE from base_data_logger because very large chunks
@@ -326,3 +327,12 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         dataframes.prob.set_variable("progress_name", str(epoch_inf_val))
 
         return dataframes
+
+    def add_cv_smart_features(self, in_frame_split: DataFrame) -> DataFrame:
+        """
+        Add smart features on images (blurriness, contrast, etc) to the dataframe.
+        Overwriting the base method in the base_data_logger.
+        """
+        in_frame_split = generate_smart_features(in_frame_split)
+
+        return in_frame_split
