@@ -58,6 +58,7 @@ def auto(
     project_name: str = "auto_ner",
     run_name: Optional[str] = None,
     wait: bool = True,
+    early_stopping: bool = True,
 ) -> None:
     """Automatically gets insights on an NER or Token Classification dataset
 
@@ -118,6 +119,7 @@ def auto(
         be generated
     :param wait: Whether to wait for Galileo to complete processing your run.
         Default True
+    :param early_stopping: Whether to use early stopping. Default True
 
     To see auto insights on a random, pre-selected dataset, simply run
     ```python
@@ -174,5 +176,5 @@ def auto(
         project_name=project_name,
         run_name=run_name,
     )
-    trainer, encoded_data = get_trainer(dd, hf_model, num_train_epochs, labels)
+    trainer, encoded_data = get_trainer(dd, hf_model, num_train_epochs, labels, early_stopping=early_stopping)
     return do_train(trainer, encoded_data, wait)
