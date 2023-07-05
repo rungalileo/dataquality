@@ -176,5 +176,7 @@ def auto(
         project_name=project_name,
         run_name=run_name,
     )
-    trainer, encoded_data = get_trainer(dd, hf_model, num_train_epochs, labels, early_stopping=early_stopping)
+    trainer, encoded_data = get_trainer(
+        dd, hf_model, num_train_epochs, labels, early_stopping=early_stopping
+    )
     return do_train(trainer, encoded_data, wait)
