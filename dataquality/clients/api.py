@@ -1,5 +1,6 @@
 import json
 import os
+import time
 from json import JSONDecodeError
 from time import sleep
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -73,6 +74,7 @@ class ApiClient:
         header: Optional[Dict] = None,
         timeout: Union[int, None] = None,
         files: Optional[Dict] = None,
+        retry: bool = False,
         return_response_without_validation: bool = False,
     ) -> Any:
         """Makes an HTTP request.
@@ -82,15 +84,26 @@ class ApiClient:
         """
         self.__check_login()
         header = header or headers(config.token)
-        res = RequestType.get_method(request.value)(
-            url,
-            json=body,
-            params=params,
-            headers=header,
-            data=data,
-            timeout=timeout,
-            files=files,
-        )
+        max_retries = 3 if retry else 1
+        for i in range(max_retries):
+            try:
+                res = RequestType.get_method(request.value)(
+                    url,
+                    json=body,
+                    params=params,
+                    headers=header,
+                    data=data,
+                    timeout=timeout,
+                    files=files,
+                )
+                break
+            except requests.exceptions.RequestException as e:
+                if i < max_retries - 1:  # i is zero indexed
+                    time.sleep(1)  # wait a bit before retrying
+                    continue
+                else:
+                    raise e  # We've retried enough; re-raise the last exception
+
         if return_response_without_validation:
             return res
         self._validate_response(res)

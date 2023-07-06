@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 from functools import partial
 from tempfile import NamedTemporaryFile
 from typing import Any, Optional
@@ -66,6 +67,7 @@ class ObjectStore:
         content_type: str = "application/octet-stream",
         progress: bool = True,
         bucket_name: Optional[str] = None,
+        retry: bool = False,
     ) -> None:
         _bucket_name = bucket_name or config.root_bucket_name
         assert _bucket_name is not None, (
@@ -82,18 +84,29 @@ class ObjectStore:
                 bucket_name=_bucket_name,
             )
         else:
-            url = api_client.get_presigned_url(
-                project_id=object_name.split("/")[0],
-                method="put",
-                bucket_name=_bucket_name,
-                object_name=object_name,
-            )
-            self._upload_file_from_local(
-                url=url,
-                file_path=file_path,
-                content_type=content_type,
-                progress=progress,
-            )
+            max_retries = 3 if retry else 1
+            for i in range(max_retries):
+                try:
+                    url = api_client.get_presigned_url(
+                        project_id=object_name.split("/")[0],
+                        method="put",
+                        bucket_name=_bucket_name,
+                        object_name=object_name,
+                    )
+                    self._upload_file_from_local(
+                        url=url,
+                        file_path=file_path,
+                        content_type=content_type,
+                        progress=progress,
+                    )
+
+                    break
+                except requests.exceptions.RequestException as e:
+                    if i < max_retries - 1:  # i is zero indexed
+                        time.sleep(1)  # wait a bit before retrying
+                        continue
+                    else:
+                        raise e  # We've retried enough; re-raise the last exception
 
     def _create_object_exoscale(
         self,
