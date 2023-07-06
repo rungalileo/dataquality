@@ -1,6 +1,7 @@
 from typing import Callable, Generator
 from unittest.mock import MagicMock, patch
 
+import pandas as pd
 import vaex
 from datasets import Dataset
 from setfit import SetFitModel, SetFitTrainer
@@ -90,7 +91,6 @@ def test_log_dataset(
     )
     model = SetFitModel.from_pretrained(LOCAL_MODEL_PATH)
     set_test_config(task_type="text_classification")
-
     trainer = SetFitTrainer(
         model=model,
         train_dataset=dataset,
@@ -98,7 +98,6 @@ def test_log_dataset(
         column_mapping={"text": "text", "label": "label"},
     )
     trainer.train()
-
     labels = ["nocat", "cat"]
     dq.set_labels_for_run(labels)
     split = "training"
@@ -156,6 +155,9 @@ def test_setfit_trainer(
     model_id = "sentence-transformers/paraphrase-mpnet-base-v2"
     model = SetFitModel.from_pretrained(model_id, use_differentiable_head=True)
     column_mapping = {"text": "text", "label": "label"}
+    dataset = dataset.map(
+        lambda x, idx: {"id": idx, "meta_col": "meta"}, with_indices=True
+    )
     trainer = SetFitTrainer(
         model=model,
         train_dataset=dataset,
@@ -239,25 +241,50 @@ def test_auto(
     mock_get_project_by_name.return_value = {"id": test_session_vars.DEFAULT_PROJECT_ID}
     mock_create_run.return_value = {"id": test_session_vars.DEFAULT_RUN_ID}
     set_test_config(current_project_id=None, current_run_id=None)
-    dataset = Dataset.from_dict(
-        {"text": ["hello", "world", "foo", "bar"], "label": [0, 1] * 2}
-    )
+    example_data = {"text": ["hello", "world", "foo", "bar"], "label": [0, 1] * 2}
+    dataset = Dataset.from_dict(example_data)
+
     set_test_config(
         task_type="text_classification",
         project_name="test_project",
         run_name="test_run",
     )
-
+    df = pd.DataFrame(example_data)
+    df["meta_col"] = "meta"
+    dataset = dataset.map(
+        lambda x, idx: {"id": idx, "meta_col": "meta"}, with_indices=True
+    )
     column_mapping = {"text": "text", "label": "label"}
 
     labels = ["nocat", "cat"]
-    auto(
-        train_data=dataset,
+    eval_ds = dataset.remove_columns("label")
+    model = auto(
+        train_data=df,
         val_data=dataset,
         test_data=dataset,
-        inference_data={"eval": dataset},
+        inference_data={"eval": eval_ds},
+        project_name="project_name",
         run_name="labels",
-        training_args={"num_epochs": 2},
+        training_args={"num_epochs": 1, "num_iterations": 1},
         labels=labels,
         column_mapping=column_mapping,
     )
+
+    dq_evaluate = watch(
+        model,
+        project_name="project_name",
+        run_name="labels",
+        labels=labels,
+        finish=False,
+    )
+    dq_evaluate(
+        eval_ds,
+        split="inference",
+        meta=["meta_col"],
+        # for inference set the split to inference
+        inference_name="inference_run_1",
+    )
+    ThreadPoolManager.wait_for_threads()
+    dq.get_data_logger().upload()
+    inf_data = vaex.open(f"{test_session_vars.TEST_PATH}/inference/*/data/data.hdf5")
+    assert inf_data["meta_col"].unique() == ["meta"]

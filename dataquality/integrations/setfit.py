@@ -20,6 +20,7 @@ from dataquality.utils.auto import _apply_column_mapping, run_name_from_hf_datas
 from dataquality.utils.patcher import PatchManager
 from dataquality.utils.setfit import (
     SetFitModelHook,
+    _get_meta_cols,
     _prepare_config,
     _setup_patches,
     get_trainer,
@@ -129,6 +130,7 @@ def evaluate(
     """Watch SetFit model by replacing predict_proba function with SetFitModelHook.
     :param model: SetFit model
     :return: SetFitModelHook object"""
+
     dq_hook = SetFitModelHook(model)
     dq_store = dq_hook.store
 
@@ -149,15 +151,12 @@ def evaluate(
         :param column_mapping: mapping of column names (if different from default)
         :return: output of SetFitModel.predict_proba function"""
         a.log_function("setfit/evaluate")
-
         column_mapping = column_mapping or dict(
-            text="text",
             id="id",
+            text="text",
             label="label",
         )
-
-        if column_mapping is not None:
-            dataset = _apply_column_mapping(dataset, column_mapping)
+        dataset = _apply_column_mapping(dataset, column_mapping)
         if "id" not in dataset.features:
             dataset = dataset.map(lambda x, idx: {"id": idx}, with_indices=True)
         if epoch is not None:
@@ -194,7 +193,7 @@ def auto(
     column_mapping: Optional[Dict[str, str]] = None,
     wait: bool = True,
     create_data_embs: Optional[bool] = None,
-) -> Union["SetFitModel", "SetFitTrainer"]:
+) -> "SetFitModel":
     """Automatically processes and generates insights on a text classification dataset.
 
     Given a pandas dataframe, a file path, or a Huggingface dataset path, this
@@ -255,8 +254,8 @@ def auto(
 
     Returns
     -------
-    SetFitModel or SetFitTrainer
-        A SetFitTrainer instance trained on the provided dataset.
+    SetFitModel
+        A SetFitModel instance trained on the provided dataset.
 
     An example using `auto` with sklearn data as pandas dataframes
     ```python
@@ -298,6 +297,7 @@ def auto(
     ```
     """
     manager = TCDatasetManager()
+
     dd = manager.get_dataset_dict(
         hf_data,
         hf_inference_names,
@@ -318,16 +318,11 @@ def auto(
     dq.set_labels_for_run(labels)
     if isinstance(setfit_model, str):
         # Load the model and train it
-        trainer, encoded_data = get_trainer(dd, setfit_model, training_args)
-        return do_train(
-            trainer,
-            encoded_data,
-            wait,
-            create_data_embs,
-        )
-    else:
-        # Don't train, just evaluate
-        return do_model_eval(setfit_model, dd, wait, create_data_embs)
+        trainer = get_trainer(dd, setfit_model, training_args)
+        trainer.train()
+        setfit_model = trainer.model
+
+    return do_model_eval(setfit_model, dd, wait, create_data_embs)
 
 
 def do_model_eval(
@@ -342,51 +337,26 @@ def do_model_eval(
     )
     for split in [Split.train, Split.test, Split.val]:
         if split in encoded_data:
+            ds = encoded_data[split]
+            meta_columns = _get_meta_cols(ds.column_names)
             dq_evaluate(
                 encoded_data[split],
                 split=split,
+                meta=meta_columns
                 # for inference set the split to inference
                 # and pass an inference_name="inference_run_1"
             )
 
     inf_names = [k for k in encoded_data if k not in Split.get_valid_keys()]
     for inf_name in inf_names:
+        ds = encoded_data[inf_name]
+        meta_columns = _get_meta_cols(ds.column_names)
         dq_evaluate(
-            encoded_data[inf_name],
+            ds,
             split=Split.inference,  # type: ignore
             inference_name=inf_name,  # type: ignore
+            meta=meta_columns,
         )
 
     dq.finish(wait=wait, create_data_embs=create_data_embs)
     return model
-
-
-def do_train(
-    trainer: "SetFitTrainer",
-    encoded_data: DatasetDict,
-    wait: bool,
-    create_data_embs: Optional[bool] = None,
-) -> "SetFitTrainer":
-    watch(trainer, finish=False)
-
-    trainer.train()
-    dq_evaluate = watch(trainer, finish=False)
-    if Split.test in encoded_data:
-        # We pass in a huggingface dataset but typing wise they expect a torch dataset
-        dq_evaluate(
-            encoded_data[Split.test],
-            split=Split.test,
-            # for inference set the split to inference
-            # and pass an inference_name="inference_run_1"
-        )
-
-    inf_names = [k for k in encoded_data if k not in Split.get_valid_keys()]
-    for inf_name in inf_names:
-        dq_evaluate(
-            encoded_data[inf_name],
-            split=Split.inference,  # type: ignore
-            inference_name=inf_name,  # type: ignore
-        )
-
-    dq.finish(wait=wait, create_data_embs=create_data_embs)
-    return trainer
