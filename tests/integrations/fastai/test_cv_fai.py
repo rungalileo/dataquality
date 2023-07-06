@@ -1,8 +1,10 @@
 from glob import glob
 from pathlib import Path
+import random
 from typing import Any, Callable, Generator
 from unittest.mock import MagicMock, patch
-
+import numpy as np
+from torch.utils.data import DataLoader
 import pandas as pd
 import torch
 import torch.nn as nn
@@ -10,14 +12,19 @@ import vaex
 from fastai.metrics import accuracy
 from fastai.tabular.all import TabularDataLoaders, tabular_learner
 from fastai.vision.all import ImageDataLoaders, Resize, error_rate, vision_learner
+from torchvision import transforms
+from torchvision.datasets import ImageFolder
 
 import dataquality as dq
 from dataquality.clients.api import ApiClient
 from dataquality.integrations.fastai import FastAiDQCallback, convert_img_dl_to_df
+from dataquality.integrations.torch import watch
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import validate_unique_ids
 from tests.conftest import TestSessionVariables
+
+image_crop_size = [224, 224]
 
 
 @patch.object(ApiClient, "valid_current_user", return_value=True)
@@ -133,6 +140,17 @@ class PassThroughModel(nn.Module):
         self.fc.bias.data.fill_(0)
 
 
+def seed_worker(worker_id: int) -> None:
+    """Set seed for dataloader worker.
+
+    Based on the following post:
+    https://discuss.pytorch.org/t/reproducibility-with-all-the-bells-and-whistles/81097
+    """
+    worker_seed = torch.initial_seed() % 2**32
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)
+
+
 @patch.object(ApiClient, "valid_current_user", return_value=True)
 @patch.object(dq.core.finish, "_version_check")
 @patch.object(dq.core.finish, "_reset_run")
@@ -225,3 +243,48 @@ def test_tab(
     dqc = FastAiDQCallback(layer=model.fc, finish=False)
     learn.add_cb(dqc)
     learn.fit_one_cycle(1)
+    dq.finish()
+    transform = {
+        "inference": transforms.Compose(
+            [
+                transforms.Resize(image_crop_size),
+                transforms.ToTensor(),
+            ]
+        )
+    }
+    INF_NAME = "inf_dataset"
+    inf_dataset = ImageFolder(
+        root=f"tests/assets/images",
+        transform=transform["inference"],
+    )
+    BATCH_SIZE = 4
+    NUM_WORKERS = 1
+
+    inf_dataloader = DataLoader(
+        inf_dataset,
+        batch_size=BATCH_SIZE,
+        shuffle=False,
+        num_workers=NUM_WORKERS,
+        worker_init_fn=seed_worker,
+        pin_memory=True,
+    )
+    dq.set_split("inference", inference_name=INF_NAME)
+    watch(
+        model=model,
+        dataloaders=[inf_dataloader],
+    )
+
+    model.eval()
+
+    for inf_minibatch in inf_dataloader:
+        images = inf_minibatch[0].to("cpu")
+        model(pixel_values=images)
+    dq.get_data_logger().upload()
+
+    train_data = vaex.open(f"{test_session_vars.TEST_PATH}/training/0/data/data.hdf5")
+    test_data = vaex.open(f"{test_session_vars.TEST_PATH}/test/0/data/data.hdf5")
+    inf_data = vaex.open(f"{test_session_vars.TEST_PATH}/inference/*/*/data.hdf5")
+
+    assert len(train_data)
+    assert len(test_data)
+    assert len(inf_data)
