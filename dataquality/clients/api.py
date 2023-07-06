@@ -1,6 +1,5 @@
 import json
 import os
-import time
 from json import JSONDecodeError
 from time import sleep
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -8,6 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import requests
 from pydantic.types import UUID4
 from requests import Response
+from tenacity import RetryError, Retrying, stop_after_attempt
 
 from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
@@ -85,25 +85,22 @@ class ApiClient:
         self.__check_login()
         header = header or headers(config.token)
         max_retries = 3 if retry else 1
-        for i in range(max_retries):
-            try:
-                res = RequestType.get_method(request.value)(
-                    url,
-                    json=body,
-                    params=params,
-                    headers=header,
-                    data=data,
-                    timeout=timeout,
-                    files=files,
-                )
-                break
-            except requests.exceptions.RequestException as e:
-                if i < max_retries - 1:  # i is zero indexed
-                    time.sleep(1)  # wait a bit before retrying
-                    continue
-                else:
-                    raise e  # We've retried enough; re-raise the last exception
-
+        try:
+            for attempt in Retrying(stop=stop_after_attempt(max_retries)):
+                with attempt:
+                    res = RequestType.get_method(request.value)(
+                        url,
+                        json=body,
+                        params=params,
+                        headers=header,
+                        data=data,
+                        timeout=timeout,
+                        files=files,
+                    )
+        except RetryError as e:
+            raise GalileoException(
+                f"Failed to make request after {max_retries} attempts. " f"Error: {e}"
+            )
         if return_response_without_validation:
             return res
         self._validate_response(res)

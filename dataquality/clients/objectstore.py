@@ -1,17 +1,18 @@
 import os
 import sys
-import time
 from functools import partial
 from tempfile import NamedTemporaryFile
 from typing import Any, Optional
 
 import requests
+from tenacity import RetryError, Retrying, stop_after_attempt
 from tqdm.auto import tqdm
 from tqdm.utils import CallbackIOWrapper
 from vaex.dataframe import DataFrame
 
 from dataquality.core._config import config
 from dataquality.core.auth import api_client
+from dataquality.exceptions import GalileoException
 from dataquality.utils.file import get_file_extension
 
 
@@ -85,28 +86,26 @@ class ObjectStore:
             )
         else:
             max_retries = 3 if retry else 1
-            for i in range(max_retries):
-                try:
-                    url = api_client.get_presigned_url(
-                        project_id=object_name.split("/")[0],
-                        method="put",
-                        bucket_name=_bucket_name,
-                        object_name=object_name,
-                    )
-                    self._upload_file_from_local(
-                        url=url,
-                        file_path=file_path,
-                        content_type=content_type,
-                        progress=progress,
-                    )
-
-                    break
-                except requests.exceptions.RequestException as e:
-                    if i < max_retries - 1:  # i is zero indexed
-                        time.sleep(1)  # wait a bit before retrying
-                        continue
-                    else:
-                        raise e  # We've retried enough; re-raise the last exception
+            try:
+                for attempt in Retrying(stop=stop_after_attempt(3)):
+                    with attempt:
+                        url = api_client.get_presigned_url(
+                            project_id=object_name.split("/")[0],
+                            method="put",
+                            bucket_name=_bucket_name,
+                            object_name=object_name,
+                        )
+                        self._upload_file_from_local(
+                            url=url,
+                            file_path=file_path,
+                            content_type=content_type,
+                            progress=progress,
+                        )
+            except RetryError as e:
+                raise GalileoException(
+                    f"Failed to make request after {max_retries} attempts. "
+                    f"Error: {e}"
+                )
 
     def _create_object_exoscale(
         self,
