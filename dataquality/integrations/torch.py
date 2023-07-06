@@ -294,14 +294,13 @@ def watch(
         PatchDataloadersGlobally(tl.torch_helper_data)
     if dataloader_random_sampling:
         logger_config.dataloader_random_sampling = True
-    cleanup_manager = RefManager(lambda: unwatch(model))
-    helper_data["cleaner"] = Cleanup(cleanup_manager)
+    # cleanup_manager = RefManager(lambda: unwatch(model))
+    # helper_data["cleaner"] = Cleanup(cleanup_manager)
 
 
 def unwatch(model: Optional[Module] = None, force: bool = True) -> None:
     """Unwatches the model. Run after the run is finished.
     :param force: Force unwatch even if the model is not watched"""
-
     torch_helper_data: TorchHelper = (
         dq.get_model_logger().logger_config.helper_data.get(
             "torch_helper", TorchHelper()
@@ -316,7 +315,7 @@ def unwatch(model: Optional[Module] = None, force: bool = True) -> None:
 
     # Unpatch the dataloaders
 
-    unpatch(torch_helper_data.patches or [])
+    unpatch(torch_helper_data.patches)
     # Detach hooks the model. in the future use the model passed
     # https://discuss.pytorch.org/t/how-to-check-where-the-hooks-are-in-the-model/120120/2
     hook_manager = torch_helper_data.hook_manager

@@ -35,7 +35,7 @@ class TorchHelper:
     model_input: Any = np.empty(0)
     batch: Dict[str, Any] = field(default_factory=dict)
     ids: List[Any] = field(default_factory=list)
-    patches: Optional[Any] = None
+    patches: List[Dict] = field(default_factory=list)
 
     def clear(self) -> None:
         """Resets the arrays of the class."""
@@ -665,3 +665,4 @@ class PatchDataloadersGlobally(Patch):
             )
             setattr(_BaseDataLoaderIter, "_patched", True)
             setattr(_BaseDataLoaderIter, "_patch_store", store)
+        store.patches.append({"class": _BaseDataLoaderIter, "attr": "_next_index"})

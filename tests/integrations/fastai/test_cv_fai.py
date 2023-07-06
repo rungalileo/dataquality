@@ -1,3 +1,5 @@
+from dataquality.utils.patcher import PatchManager
+
 from glob import glob
 from pathlib import Path
 import random
@@ -26,6 +28,8 @@ from tests.conftest import TestSessionVariables
 
 image_crop_size = [224, 224]
 
+pm = PatchManager()
+
 
 @patch.object(ApiClient, "valid_current_user", return_value=True)
 @patch.object(dq.core.finish, "_version_check")
@@ -51,7 +55,7 @@ image_crop_size = [224, 224]
     },
 )
 @patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
-def test_auto(
+def test_callback(
     mock_valid_user: MagicMock,
     mock_dq_healthcheck: MagicMock,
     mock_check_dq_version: MagicMock,
@@ -108,7 +112,54 @@ def test_auto(
         vaex.open(f"{test_session_vars.LOCATION}/test/0/*.hdf5"), "epoch"
     )
     dqc.unwatch()
-    dq.finish()
+    transform = {
+        "inference": transforms.Compose(
+            [
+                transforms.Resize(image_crop_size),
+                transforms.ToTensor(),
+            ]
+        )
+    }
+    INF_NAME = "inf_dataset"
+    inf_dataset = ImageFolder(
+        root=f"tests/assets/train_images",
+        transform=transform["inference"],
+    )
+    BATCH_SIZE = 3
+    NUM_WORKERS = 1
+
+    inf_dataloader = DataLoader(
+        inf_dataset,
+        batch_size=BATCH_SIZE,
+        shuffle=False,
+        num_workers=NUM_WORKERS,
+        worker_init_fn=seed_worker,
+        pin_memory=True,
+    )
+
+    dq.log_image_dataset(
+        inf_dataset,
+        split="inference",
+        inference_name=INF_NAME,
+        imgs_remote_location="gs://galileo-public-data/CV_datasets/ImageNet10_animals_train_val/inference",
+    )
+    dq.set_split("inference", inference_name=INF_NAME)
+    model = dqc.model.cpu()
+    watch(
+        model=model,
+    )
+
+    model.eval()
+    for inf_minibatch in inf_dataloader:
+        images = inf_minibatch[0].to("cpu")
+
+        model(images)
+    ThreadPoolManager.wait_for_threads()
+    dq.get_data_logger().upload()
+    train_data = vaex.open(f"{test_session_vars.TEST_PATH}/training/0/*/*.hdf5")
+    inf_data = vaex.open(f"{test_session_vars.TEST_PATH}/inference/*/*/data.hdf5")
+    assert len(train_data)
+    assert len(inf_data)
 
 
 class PassThroughModel(nn.Module):
@@ -123,8 +174,6 @@ class PassThroughModel(nn.Module):
         self.fc = nn.Linear(embedding_dim, output_dim)
 
     def forward(self, _x, x, *args, **kwargs):
-        # print(x)
-        # print(args)
         x = self.embedding(x.long())
         x = x.view(x.size(0), -1)
         x = self.fc(x)
@@ -223,7 +272,7 @@ def test_tab(
 
     input_dim = ds_len
     embedding_dim = ds_len
-    output_dim = 1
+    output_dim = ds_len
     model = PassThroughModel(input_dim, embedding_dim, output_dim)
     model.init_weights()
     model.cpu()
@@ -244,47 +293,3 @@ def test_tab(
     learn.add_cb(dqc)
     learn.fit_one_cycle(1)
     dq.finish()
-    transform = {
-        "inference": transforms.Compose(
-            [
-                transforms.Resize(image_crop_size),
-                transforms.ToTensor(),
-            ]
-        )
-    }
-    INF_NAME = "inf_dataset"
-    inf_dataset = ImageFolder(
-        root=f"tests/assets/images",
-        transform=transform["inference"],
-    )
-    BATCH_SIZE = 4
-    NUM_WORKERS = 1
-
-    inf_dataloader = DataLoader(
-        inf_dataset,
-        batch_size=BATCH_SIZE,
-        shuffle=False,
-        num_workers=NUM_WORKERS,
-        worker_init_fn=seed_worker,
-        pin_memory=True,
-    )
-    dq.set_split("inference", inference_name=INF_NAME)
-    watch(
-        model=model,
-        dataloaders=[inf_dataloader],
-    )
-
-    model.eval()
-
-    for inf_minibatch in inf_dataloader:
-        images = inf_minibatch[0].to("cpu")
-        model(pixel_values=images)
-    dq.get_data_logger().upload()
-
-    train_data = vaex.open(f"{test_session_vars.TEST_PATH}/training/0/data/data.hdf5")
-    test_data = vaex.open(f"{test_session_vars.TEST_PATH}/test/0/data/data.hdf5")
-    inf_data = vaex.open(f"{test_session_vars.TEST_PATH}/inference/*/*/data.hdf5")
-
-    assert len(train_data)
-    assert len(test_data)
-    assert len(inf_data)
