@@ -78,6 +78,7 @@ def upload_dq_log_file() -> None:
             file_path=file_path,
             content_type="text/plain",
             progress=False,
+            retry=True,
         )
         remove_dq_log_file()
 

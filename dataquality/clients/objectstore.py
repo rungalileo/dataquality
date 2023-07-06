@@ -188,6 +188,7 @@ class ObjectStore:
                 object_name=object_name,
                 file_path=f.name,
                 bucket_name=bucket_name,
+                retry=True,
             )
 
     def download_file(

@@ -75,7 +75,7 @@ def finish(
             non_inference_logged=data_logger.non_inference_logged(),
         )
     res = api_client.make_request(
-        RequestType.POST, url=f"{config.api_url}/{Route.jobs}", body=body
+        RequestType.POST, url=f"{config.api_url}/{Route.jobs}", body=body, retry=True
     )
     print(
         f"Job {res['job_name']} successfully submitted. Results will be available "
