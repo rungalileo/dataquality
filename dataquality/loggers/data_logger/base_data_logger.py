@@ -10,6 +10,7 @@ from typing import Any, Dict, Iterable, List, Optional, TypeVar, Union
 import numpy as np
 import pandas as pd
 import vaex
+from datasets.arrow_dataset import Dataset as HFDataset
 from huggingface_hub.utils import HfHubHTTPError
 from vaex.dataframe import DataFrame
 
@@ -40,7 +41,7 @@ from dataquality.utils.vaex import (
 )
 
 DATA_FOLDERS = ["emb", "prob", "data"]
-DataSet = TypeVar("DataSet", bound=Union[Iterable, pd.DataFrame, DataFrame])
+DataSet = TypeVar("DataSet", bound=Union[Iterable, pd.DataFrame, HFDataset, DataFrame])
 MetasType = TypeVar("MetasType", bound=Dict[str, List[Union[str, float, int]]])
 MetaType = TypeVar("MetaType", bound=Dict[str, Union[str, float, int]])
 ITER_CHUNK_SIZE = 100_000
@@ -73,10 +74,13 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     DATA_FOLDER_EXTENSION = {data_folder: "hdf5" for data_folder in DATA_FOLDERS}
     INPUT_DATA_FILE_EXT = "arrow"
 
-    def __init__(self, meta: Optional[MetasType] = None) -> None:
+    def __init__(
+        self, meta: Optional[MetasType] = None, non_meta: Optional[MetasType] = None
+    ) -> None:
         super().__init__()
         self.meta: Dict = meta or {}
         self.log_export_progress = True
+        self.non_meta: Dict = non_meta or {}  # Extra data to log (that is not metadata)
 
     @property
     def input_data_path(self) -> str:
