@@ -32,7 +32,7 @@ dependencies = [
     "transformers>=4.17.0",
     "seqeval",
     "sentence-transformers>=2.2",
-    "Pillow",
+    "Pillow <10.0.0",
     "h5py >=3.1.0",
     "numpy<1.24.0",
     "tenacity>=8.1.0",
