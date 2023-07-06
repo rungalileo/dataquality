@@ -3,8 +3,8 @@ from functools import partial
 from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 import tensorflow as tf
-from tensorflow import keras
 from keras.engine import data_adapter
+from tensorflow import keras
 
 from dataquality.exceptions import GalileoException
 from dataquality.utils.tf import is_tf_2
