@@ -160,7 +160,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
     ) -> pd.DataFrame:
         """
         If remote paths already exist in the df, do nothing.
-        
+
         If not, upload the images to the objectstore and add their paths in the df in
         the column self.imgs_remote_colname := "gal_remote_images_paths".
         """
