@@ -92,7 +92,7 @@ def plot_bboxes(
     # show image
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     try:
-        cv2.imshow(image)  # if used in Python
+        cv2.imshow("bboxes", image)  # if used in Python
     except Exception:
         from google.colab.patches import cv2_imshow
 
