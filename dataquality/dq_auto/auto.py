@@ -27,6 +27,7 @@ def auto(
     run_name: Optional[str] = None,
     wait: bool = True,
     create_data_embs: Optional[bool] = None,
+    early_stopping: bool = True,
 ) -> None:
     """Automatically gets insights on a text classification or NER dataset
 
@@ -96,6 +97,7 @@ def auto(
         `dq.metrics.get_dataframe(..., include_data_embs=True)` in the `data_emb` col
         Only available for TC currently. NER coming soon. Default True if a GPU is
         available, else default False.
+    :param early_stopping: Whether to use early stopping. Default True
 
     For text classification datasets, the only required columns are `text` and `label`
 
@@ -222,6 +224,7 @@ def auto(
             wait=wait,
             create_data_embs=create_data_embs,
             num_train_epochs=num_train_epochs,
+            early_stopping=early_stopping,
         )
     elif task_type == TaskType.text_ner:
         from dataquality.dq_auto.ner import auto as auto_ner
@@ -239,6 +242,7 @@ def auto(
             run_name=run_name,
             wait=wait,
             num_train_epochs=num_train_epochs,
+            early_stopping=early_stopping,
         )
     else:
         raise Exception("auto is only supported for text classification and NER!")
