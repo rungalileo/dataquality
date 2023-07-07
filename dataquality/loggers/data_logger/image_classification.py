@@ -117,11 +117,11 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
 
         # Log the local images paths as non-metadata if they are provided + they are not
         # already logged as metadata
-        non_meta = []
+        extra_cols = []
         if (self.imgs_local_colname is not None) and (
             meta is None or self.imgs_local_colname not in meta
         ):
-            non_meta.append(self.imgs_local_colname)
+            extra_cols.append(self.imgs_local_colname)
 
         self.log_dataset(
             dataset=dataset,
@@ -132,7 +132,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             split=split,
             inference_name=inference_name,
             meta=meta,
-            non_meta=non_meta,
+            extra_cols=extra_cols,
         )
 
     def _has_remote_images(self, dataset: DataSet) -> bool:

@@ -75,12 +75,12 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     INPUT_DATA_FILE_EXT = "arrow"
 
     def __init__(
-        self, meta: Optional[MetasType] = None, non_meta: Optional[MetasType] = None
+        self, meta: Optional[MetasType] = None, extra_cols: Optional[MetasType] = None
     ) -> None:
         super().__init__()
         self.meta: Dict = meta or {}
         self.log_export_progress = True
-        self.non_meta: Dict = non_meta or {}  # Extra data to log (that is not metadata)
+        self.extra_cols: Dict = extra_cols or {}  # Extra data to log (not metadata)
 
     @property
     def input_data_path(self) -> str:
