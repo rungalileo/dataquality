@@ -1,12 +1,10 @@
-from dataquality.utils.patcher import PatchManager
-
+import random
 from glob import glob
 from pathlib import Path
-import random
 from typing import Any, Callable, Generator
 from unittest.mock import MagicMock, patch
+
 import numpy as np
-from torch.utils.data import DataLoader
 import pandas as pd
 import torch
 import torch.nn as nn
@@ -14,6 +12,7 @@ import vaex
 from fastai.metrics import accuracy
 from fastai.tabular.all import TabularDataLoaders, tabular_learner
 from fastai.vision.all import ImageDataLoaders, Resize, error_rate, vision_learner
+from torch.utils.data import DataLoader
 from torchvision import transforms
 from torchvision.datasets import ImageFolder
 
@@ -22,6 +21,7 @@ from dataquality.clients.api import ApiClient
 from dataquality.integrations.fastai import FastAiDQCallback, convert_img_dl_to_df
 from dataquality.integrations.torch import watch
 from dataquality.schemas.task_type import TaskType
+from dataquality.utils.patcher import PatchManager
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import validate_unique_ids
 from tests.conftest import TestSessionVariables
@@ -122,7 +122,7 @@ def test_callback(
     }
     INF_NAME = "inf_dataset"
     inf_dataset = ImageFolder(
-        root=f"tests/assets/train_images",
+        root="tests/assets/train_images",
         transform=transform["inference"],
     )
     BATCH_SIZE = 3

@@ -1,7 +1,7 @@
 import torch
 from torch.utils.data import DataLoader
-from dataquality.integrations.torch import unwatch
 
+from dataquality.integrations.torch import unwatch
 from dataquality.utils.torch import PatchDataloadersGlobally, TorchHelper, unpatch
 
 
