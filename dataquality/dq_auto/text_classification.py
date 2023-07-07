@@ -127,6 +127,7 @@ def auto(
     run_name: Optional[str] = None,
     wait: bool = True,
     create_data_embs: Optional[bool] = None,
+    early_stopping: bool = True,
 ) -> Trainer:
     """Automatically gets insights on a text classification dataset
 
@@ -186,6 +187,7 @@ def auto(
         Default True
     :param create_data_embs: Whether to create data embeddings for this run. Default
         False
+    :param early_stopping: Whether to use early stopping. Default True
 
     To see auto insights on a random, pre-selected dataset, simply run
     ```python
@@ -258,6 +260,11 @@ def auto(
     dq.set_labels_for_run(labels)
     _log_dataset_dict(dd)
     trainer, encoded_data = get_trainer(
-        dd, labels, hf_model, max_padding_length, num_train_epochs
+        dd,
+        labels,
+        hf_model,
+        max_padding_length,
+        num_train_epochs,
+        early_stopping=early_stopping,
     )
     return do_train(trainer, encoded_data, wait, create_data_embs)
