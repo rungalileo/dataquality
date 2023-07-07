@@ -21,7 +21,6 @@ from dataquality.clients.api import ApiClient
 from dataquality.integrations.fastai import FastAiDQCallback, convert_img_dl_to_df
 from dataquality.integrations.torch import watch
 from dataquality.schemas.task_type import TaskType
-from dataquality.utils.patcher import PatchManager
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import validate_unique_ids
 from tests.conftest import TestSessionVariables
