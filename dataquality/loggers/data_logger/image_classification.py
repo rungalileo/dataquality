@@ -99,14 +99,9 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             self.imgs_remote_colname = imgs_remote
 
         # Get the column mapping and rename imgs_local and imgs_remote if required
-        # Only add id -> "id" when !="id", since we accept dfs without the id column
-        column_map = column_map or ({id: "id"} if id != "id" else {})
-        imgs_local = (
-            None if imgs_local is None else column_map.get(imgs_local, imgs_local)
-        )
-        imgs_remote = (
-            None if imgs_remote is None else column_map.get(imgs_remote, imgs_remote)
-        )
+        # Always rename "text" since it is used internally and would create a conflict
+        column_map = column_map or {id: "id"}
+        column_map["text"] = column_map.get("text", "text_original")
 
         # If no remote paths are found, upload to the local images to the objectstore
         if isinstance(dataset, pd.DataFrame):
@@ -164,10 +159,6 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         If not, upload the images to the objectstore and add their paths in the df in
         the column self.imgs_remote_colname := "gal_remote_images_paths".
         """
-        # Rename text -> text_original if "text" exists (as its used internally)
-        column_map.update(
-            {"text": "text_original"} if "text" in dataset.columns else {}
-        )
         dataset = dataset.rename(columns=column_map)
 
         # No need to upload data if we already have access to remote images
@@ -227,12 +218,9 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
 
         assert isinstance(dataset, datasets.Dataset)
 
-        # Rename text -> text_original if "text" exists (as its used internally)
-        column_map.update(
-            {"text": "text_original"} if "text" in dataset.column_names else {}
-        )
         for old_col, new_col in column_map.items():
-            dataset = dataset.rename_column(old_col, new_col)
+            if old_col in dataset.column_names:
+                dataset = dataset.rename_column(old_col, new_col)
 
         # Find the id column, or create it.
         if id_ not in dataset.column_names:
@@ -301,7 +289,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
 
         # Also add remote paths, if a remote location is specified
         if imgs_remote_location is not None:
-            self.imgs_remote_colname = "text"  # getting renamed to "text" later anyways
+            self.imgs_remote_colname = "text_original"
             df[self.imgs_remote_colname] = df[self.imgs_local_colname].str.replace(
                 dataset.root, imgs_remote_location
             )
