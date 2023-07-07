@@ -172,7 +172,7 @@ class TorchLogger(TorchBaseInstance):
         assert cur_split is not None, GalileoException(
             "Current split must be set before logging"
         )
-        cur_split = cur_split.lower()
+        cur_split = cur_split.lower()  # type: ignore
         model_outputs_store["ids"] = map_indices_to_ids(
             self.logger_config.idx_to_id_map[cur_split], model_outputs_store["ids"]
         )
