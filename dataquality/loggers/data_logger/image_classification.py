@@ -87,8 +87,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         self.imgs_remote_location.
         """
         if type(dataset).__name__ == "ImageFolder":
-            # TODO: add support for also providing a df with metadata
-            # imgs_local ignored as it is not necessary
+            # imgs_local will be ignored as it is not necessary
             dataset = self._prepare_df_from_ImageFolder(
                 dataset=dataset, imgs_remote_location=imgs_remote, split=split
             )
@@ -145,7 +144,6 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         elif self.is_hf_dataset(dataset):
             columns = dataset.column_names  # type: ignore # noqa: F821
 
-        # TODO: should we also check that we can reach one of the images ?
         return (
             self.imgs_remote_colname is not None and self.imgs_remote_colname in columns
         )
