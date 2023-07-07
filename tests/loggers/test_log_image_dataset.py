@@ -129,7 +129,9 @@ def test_with_pd_local_and_remote(
     assert df["text"].tolist()[0] == cvdata.dataframe.loc[0, imgs_remote_colname]
 
 
+@patch.object(dq.clients.objectstore.ObjectStore, "create_object")
 def test_with_hf_local_only_images(
+    mock_create_object: MagicMock,
     set_test_config: Callable,
     cleanup_after_use: Generator,
     test_session_vars: TestSessionVariables,
