@@ -142,12 +142,12 @@ def test_callback(
     model = dqc.model.cpu()
     watch(
         model=model,
+        dataloaders=[inf_dataloader],
     )
 
     model.eval()
     for inf_minibatch in inf_dataloader:
         images = inf_minibatch[0].to("cpu")
-
         model(images)
     ThreadPoolManager.wait_for_threads()
     dq.get_data_logger().upload()
