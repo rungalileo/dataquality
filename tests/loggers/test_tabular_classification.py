@@ -532,7 +532,6 @@ class TestTabularClassificationE2E:
                 "ner_labels": [],
                 "feature_names": tab_data["feature_names"],
             },
-            retry=True,
         )
         self._assert_mocks(
             mock_upload_dq_log_file,
@@ -589,7 +588,6 @@ class TestTabularClassificationE2E:
                 "ner_labels": [],
                 "feature_names": tab_data["feature_names"],
             },
-            retry=True,
         )
         self._assert_mocks(
             mock_upload_dq_log_file,
@@ -652,7 +650,6 @@ class TestTabularClassificationE2E:
                 "non_inference_logged": True,
                 "feature_names": tab_data["feature_names"],
             },
-            retry=True,
         )
         self._assert_mocks(
             mock_upload_dq_log_file,
@@ -718,7 +715,6 @@ class TestTabularClassificationE2E:
                 "non_inference_logged": True,
                 "feature_names": tab_data["feature_names"],
             },
-            retry=True,
         )
         self._assert_mocks(
             mock_upload_dq_log_file,
@@ -775,7 +771,6 @@ class TestTabularClassificationE2E:
                 "non_inference_logged": False,
                 "feature_names": tab_data["feature_names"],
             },
-            retry=True,
         )
         self._assert_mocks(
             mock_upload_dq_log_file,
@@ -835,7 +830,6 @@ class TestTabularClassificationE2E:
                 "non_inference_logged": False,
                 "feature_names": tab_data["feature_names"],
             },
-            retry=True,
         )
         self._assert_mocks(
             mock_upload_dq_log_file,
