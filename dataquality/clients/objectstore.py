@@ -67,7 +67,6 @@ class ObjectStore:
         content_type: str = "application/octet-stream",
         progress: bool = True,
         bucket_name: Optional[str] = None,
-        retry: bool = False,
     ) -> None:
         _bucket_name = bucket_name or config.root_bucket_name
         assert _bucket_name is not None, (
