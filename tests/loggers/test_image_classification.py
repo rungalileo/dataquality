@@ -388,7 +388,12 @@ def test_prepare_df_from_ImageFolder_with_remote_imgs() -> None:
     )
 
     # Assert that the dataframe is how we'd expect it to be by looking at the folder
-    assert set(df.columns) == {"id", "gal_remote_images_paths", "label", "gal_local_images_paths"}
+    assert set(df.columns) == {
+        "id",
+        "gal_remote_images_paths",
+        "label",
+        "gal_local_images_paths",
+    }
     assert len(df) == 4
     assert set(df.label.unique()) == {"labelA", "labelB"}
     assert set(df.id.unique()) == set(range(4))
