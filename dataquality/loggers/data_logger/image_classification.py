@@ -138,12 +138,12 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
 
     def _has_remote_images(self, dataset: DataSet) -> bool:
         """Check if the dataset contains a column containing remote images"""
-        # TODO: should we check that we can reach one of the images ?
         if isinstance(dataset, pd.DataFrame):
             columns = dataset.columns
         elif self.is_hf_dataset(dataset):
             columns = dataset.column_names  # type: ignore # noqa: F821
 
+        # TODO: should we also check that we can reach one of the images ?
         return (
             self.imgs_remote_colname is not None and self.imgs_remote_colname in columns
         )
