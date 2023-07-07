@@ -14,7 +14,6 @@ from dataquality.schemas.task_type import TaskType
 from dataquality.utils.dq_logger import DQ_LOG_FILE_HOME, upload_dq_log_file
 from dataquality.utils.helpers import check_noop, gpu_available
 from dataquality.utils.thread_pool import ThreadPoolManager
-from dataquality.utils.version import _version_check
 
 api_client = ApiClient()
 a = Analytics(ApiClient, config)  # type: ignore
@@ -49,8 +48,6 @@ def finish(
     assert config.task_type, "You must have a task type to call finish"
     data_logger = dataquality.get_data_logger()
     data_logger.validate_labels()
-
-    _version_check()
 
     if data_logger.non_inference_logged():
         _reset_run(config.current_project_id, config.current_run_id, config.task_type)
