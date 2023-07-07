@@ -17,6 +17,7 @@ from dataquality.utils.auto import (
     run_name_from_hf_dataset,
 )
 from dataquality.utils.auto_trainer import do_train
+from dataquality.utils.setfit import _get_meta_cols
 
 a = Analytics(ApiClient, dq.config)
 a.log_import("auto_tc")
@@ -104,8 +105,7 @@ def _get_labels(dd: DatasetDict, labels: Optional[List[str]] = None) -> List[str
 def _log_dataset_dict(dd: DatasetDict) -> None:
     for key in dd:
         ds = dd[key]
-        default_cols = ["text", "label", "id"]
-        meta = [i for i in ds.features if i not in default_cols]
+        meta = _get_meta_cols(ds.features)
         if key in Split.get_valid_keys():
             dq.log_dataset(ds, meta=meta, split=key)
         else:

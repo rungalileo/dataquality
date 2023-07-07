@@ -69,7 +69,7 @@ def test_end2end_fai(
     mock_create_run.return_value = {"id": test_session_vars.DEFAULT_RUN_ID}
     set_test_config(current_project_id=None, current_run_id=None)
     dls = TextDataLoaders.from_df(
-        df, text_col="text", label_col="label", drop_last=False, bs=2
+        df, text_col="text", label_col="label", drop_last=False, bs=2, num_workers=1
     )
     dq.init(task_type=TaskType.text_classification)
     labels = dls.vocab[-1]

@@ -211,20 +211,21 @@ def add_class_label_to_dataset(
 def _apply_column_mapping(dataset: Dataset, column_mapping: Dict[str, str]) -> Dataset:
     """
     Applies the provided column mapping to the dataset, renaming columns accordingly.
-    Extra features not in the column mapping are prefixed with `"feat_"`.
     """
     if type(dataset) == dict:
         dataset = Dataset.from_dict(dataset)
-    dataset = dataset.rename_columns(
-        {
-            **column_mapping,
-            **{
-                col: f"feat_{col}"
-                for col in dataset.column_names
-                if col not in column_mapping
-            },
-        }
-    )
+    # Making sure the keys of the column mapping are in the dataset
+    # otherwise show a warning message and remove the key from the mapping
+    clean_column_mapping = {**column_mapping}
+    for key in list(clean_column_mapping.keys()):
+        if key not in dataset.column_names:
+            print(
+                f"Column '{key}' in the column_mapping "
+                "was not found in the dataset, so it was ignored."
+            )
+            clean_column_mapping.pop(key)
+
+    dataset = dataset.rename_columns(clean_column_mapping)
     dset_format = dataset.format
     dataset = dataset.with_format(
         type=dset_format["type"],
