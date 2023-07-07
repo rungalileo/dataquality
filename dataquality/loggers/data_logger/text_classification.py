@@ -113,7 +113,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         split: Optional[Split] = None,
         inference_name: Optional[str] = None,
         meta: Optional[MetasType] = None,
-        non_meta: Optional[MetasType] = None,
+        extra_cols: Optional[MetasType] = None,
         **kwargs: Any,  # For typing
     ) -> None:
         """Log input samples for text classification
@@ -149,6 +149,8 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
             data is required. Can be set here or via dq.set_split
         :param meta: Dict[str, List[str, int, float]]. Metadata for each text sample
             Format is the {"metadata_field_name": [metdata value per sample]}
+        :param extra_cols: Dict[str, List[str, int, float]]. Extra columns to log that
+            is not Metadata for each text sample. Same format as Metadata
         """
         self.validate_kwargs(kwargs)
         self.texts = texts
@@ -157,7 +159,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         self.labels = [str(i) for i in labels] if labels is not None else []
         self.inference_name = inference_name
         self.meta: Union[MetasType, Dict] = meta or {}
-        self.non_meta: Union[MetasType, Dict] = non_meta or {}
+        self.extra_cols: Union[MetasType, Dict] = extra_cols or {}
         self.log()
 
     def log_data_sample(
@@ -204,7 +206,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         split: Optional[Split] = None,
         inference_name: Optional[str] = None,
         meta: Union[List[str], List[int], None] = None,
-        non_meta: Union[List[str], List[int], None] = None,
+        extra_cols: Union[List[str], List[int], None] = None,
         **kwargs: Any,
     ) -> None:
         """
@@ -224,7 +226,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         :param meta: List[str, int]: The keys/indexes of each metadata field.
             Consider a pandas dataframe, this would be the list of columns corresponding
             to each metadata field to log
-        :param non_meta: List[str, int]: The keys/indexes of each extra column to log,
+        :param extra_cols: List[str, int]: The keys/indexes of each extra column to log,
             but which is non-metadata (i.e., should not appear in the UI)
         """
         self.validate_kwargs(kwargs)
@@ -236,12 +238,12 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
             column_map[label] = "label"
         if isinstance(dataset, pd.DataFrame):
             dataset = dataset.rename(columns=column_map)
-            self._log_df(dataset, meta, non_meta)
+            self._log_df(dataset, meta, extra_cols)
         elif isinstance(dataset, DataFrame):
             for chunk in range(0, len(dataset), batch_size):
                 chunk_df = dataset[chunk : chunk + batch_size]
                 chunk_df = rename_df(chunk_df, column_map)
-                self._log_df(chunk_df, meta, non_meta)
+                self._log_df(chunk_df, meta, extra_cols)
         elif self.is_hf_dataset(dataset):
             self._log_hf_dataset(
                 dataset,
@@ -249,7 +251,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
                 text,
                 id,
                 meta,
-                non_meta,
+                extra_cols,
                 label,
                 split,
                 inference_name,
@@ -261,7 +263,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
                 text,
                 id,
                 meta,
-                non_meta,
+                extra_cols,
                 label,
                 split,
                 inference_name,
@@ -279,7 +281,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         text: Union[str, int],
         id: Union[str, int],
         meta: Union[List[str], List[int], None] = None,
-        non_meta: Union[List[str], List[int], None] = None,
+        extra_cols: Union[List[str], List[int], None] = None,
         label: Optional[Union[str, int]] = None,
         split: Optional[Split] = None,
         inference_name: Optional[str] = None,
@@ -336,8 +338,8 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
                 label=parse_label(chunk[label]) if label else None,
             )
             chunk_meta = {col: chunk[col] for col in meta or []}
-            chunk_non_meta = {col: chunk[col] for col in non_meta or []}
-            self._log_dict(data, chunk_meta, chunk_non_meta, split, inference_name)
+            chunk_extra_cols = {col: chunk[col] for col in extra_cols or []}
+            self._log_dict(data, chunk_meta, chunk_extra_cols, split, inference_name)
 
     def _log_iterator(
         self,
@@ -346,14 +348,14 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         text: Union[str, int],
         id: Union[str, int],
         meta: Union[List[str], List[int], None] = None,
-        non_meta: Union[List[str], List[int], None] = None,
+        extra_cols: Union[List[str], List[int], None] = None,
         label: Optional[Union[str, int]] = None,
         split: Optional[Split] = None,
         inference_name: Optional[str] = None,
     ) -> None:
         batches = defaultdict(list)
         metas = defaultdict(list)
-        non_metas = defaultdict(list)
+        extra_cols_data = defaultdict(list)
         for chunk in dataset:
             batches["text"].append(self._convert_tensor_to_py(chunk[text]))
             batches["id"].append(self._convert_tensor_to_py(chunk[id]))
@@ -363,19 +365,19 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
                 batches = self._process_label(batches, chunk[label])
             for meta_col in meta or []:
                 metas[meta_col].append(self._convert_tensor_to_py(chunk[meta_col]))
-            for non_meta_col in non_meta or []:
-                non_metas[non_meta_col].append(
-                    self._convert_tensor_to_py(chunk[non_meta_col])
+            for extra_col in extra_cols or []:
+                extra_cols_data[extra_col].append(
+                    self._convert_tensor_to_py(chunk[extra_col])
                 )
 
             if len(batches["text"]) >= batch_size:
-                self._log_dict(batches, metas, non_metas, split, inference_name)
+                self._log_dict(batches, metas, extra_cols_data, split, inference_name)
                 batches.clear()
                 metas.clear()
-                non_metas.clear()
+                extra_cols_data.clear()
         # in case there are any left
         if batches:
-            self._log_dict(batches, metas, non_metas, split, inference_name)
+            self._log_dict(batches, metas, extra_cols_data, split, inference_name)
 
     def _process_label(self, batches: DefaultDict, label: Any) -> DefaultDict:
         """Process label for text-classification and multi-label accordingly"""
@@ -386,7 +388,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         self,
         d: Dict,
         meta: Dict,
-        non_meta: Dict,
+        extra_cols: Dict,
         split: Optional[Split] = None,
         inference_name: Optional[str] = None,
     ) -> None:
@@ -397,14 +399,14 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
             split=split,
             inference_name=inference_name,
             meta=meta,
-            non_meta=non_meta,
+            extra_cols=extra_cols,
         )
 
     def _log_df(
         self,
         df: Union[pd.DataFrame, DataFrame],
         meta: Union[List[str], List[int], None] = None,
-        non_meta: Union[List[str], List[int], None] = None,
+        extra_cols: Union[List[str], List[int], None] = None,
     ) -> None:
         """Helper to log a pandas or vaex df"""
         self.texts = df["text"].tolist()
@@ -414,8 +416,8 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
             self.labels = df["label"].tolist()
         for meta_col in meta or []:
             self.meta[str(meta_col)] = df[meta_col].tolist()
-        for non_meta_col in non_meta or []:
-            self.non_meta[str(non_meta_col)] = df[non_meta_col].tolist()
+        for extra_col in extra_cols or []:
+            self.extra_cols[str(extra_col)] = df[extra_col].tolist()
         self.log()
 
     @staticmethod
@@ -515,7 +517,7 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
             data_schema_version=__data_schema_version__,
             gold=self.labels if self.split != Split.inference.value else None,
             **self.meta,
-            **self.non_meta,
+            **self.extra_cols,
         )
         if self.inference_name:
             inp.update(inference_name=self.inference_name)
