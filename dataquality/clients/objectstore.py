@@ -5,6 +5,7 @@ from tempfile import NamedTemporaryFile
 from typing import Any, Optional
 
 import requests
+from tenacity import retry, stop_after_attempt, wait_exponential_jitter
 from tqdm.auto import tqdm
 from tqdm.utils import CallbackIOWrapper
 from vaex.dataframe import DataFrame
@@ -126,6 +127,10 @@ class ObjectStore:
             content_type=content_type,
         )
 
+    @retry(
+        stop=stop_after_attempt(4),
+        wait=wait_exponential_jitter(initial=0.1, max=10),
+    )
     def _upload_file_from_local(
         self,
         url: str,
