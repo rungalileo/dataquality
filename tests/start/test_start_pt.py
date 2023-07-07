@@ -164,7 +164,7 @@ split_train_, split_valid_ = random_split(
 
 
 @patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
-@patch.object(dq.core.finish, "_version_check")
+@patch.object(dq.core.init, "version_check")
 @patch.object(dq.core.finish, "_reset_run")
 @patch.object(dq.core.finish, "upload_dq_log_file")
 @patch.object(dq.clients.api.ApiClient, "make_request")

@@ -21,7 +21,8 @@ def version_check() -> None:
     server_semver = _get_api_version()
     if _major_version(client_semver) != _major_version(server_semver):
         get_dq_logger().warning(
-            "Major version mismatched between client, " f"{client_semver}, and server {server_semver}."
+            "Major version mismatched between client, "
+            f"{client_semver}, and server {server_semver}."
         )
 
 

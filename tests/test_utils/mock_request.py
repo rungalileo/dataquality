@@ -42,12 +42,6 @@ def mocked_healthcheck_request(request_url: str) -> MockResponse:
     return MockResponse({}, 200)
 
 
-def mocked_healthcheck_request_new_api_version(request_url: str) -> MockResponse:
-    if request_url.endswith("healthcheck"):
-        return MockResponse({"api_version": "100.0.0"}, 200)
-    return MockResponse({}, 200)
-
-
 def mocked_login_requests(
     request_url: str,
     json: Dict = {},

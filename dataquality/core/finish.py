@@ -71,10 +71,18 @@ def finish(
             job_name=JobName.inference,
             non_inference_logged=data_logger.non_inference_logged(),
         )
-    res = api_client.make_request(RequestType.POST, url=f"{config.api_url}/{Route.jobs}", body=body)
-    print(f"Job {res['job_name']} successfully submitted. Results will be available " f"soon at {res['link']}")
+    res = api_client.make_request(
+        RequestType.POST, url=f"{config.api_url}/{Route.jobs}", body=body
+    )
+    print(
+        f"Job {res['job_name']} successfully submitted. Results will be available "
+        f"soon at {res['link']}"
+    )
     if data_logger.logger_config.conditions:
-        print("Waiting for run to process before building run report... " "Don't close laptop or terminate shell.")
+        print(
+            "Waiting for run to process before building run report... "
+            "Don't close laptop or terminate shell."
+        )
         wait_for_run()
         build_run_report(
             data_logger.logger_config.conditions,
@@ -96,7 +104,9 @@ def finish(
 
 
 @check_noop
-def wait_for_run(project_name: Optional[str] = None, run_name: Optional[str] = None) -> None:
+def wait_for_run(
+    project_name: Optional[str] = None, run_name: Optional[str] = None
+) -> None:
     """
     Waits until a specific project run transitions from started to finished.
     Defaults to the current run if project_name and run_name are empty.
@@ -110,7 +120,9 @@ def wait_for_run(project_name: Optional[str] = None, run_name: Optional[str] = N
 
 
 @check_noop
-def get_run_status(project_name: Optional[str] = None, run_name: Optional[str] = None) -> Dict[str, Any]:
+def get_run_status(
+    project_name: Optional[str] = None, run_name: Optional[str] = None
+) -> Dict[str, Any]:
     """
     Returns the latest job of a specified project run.
     Defaults to the current run if project_name and run_name are empty.
@@ -126,7 +138,9 @@ def get_run_status(project_name: Optional[str] = None, run_name: Optional[str] =
 
 
 @check_noop
-def _reset_run(project_id: UUID4, run_id: UUID4, task_type: Optional[TaskType] = None) -> None:
+def _reset_run(
+    project_id: UUID4, run_id: UUID4, task_type: Optional[TaskType] = None
+) -> None:
     """Clear the data in minio before uploading new data
 
     If this is a run that already existed, we want to fully overwrite the old data.
@@ -135,7 +149,9 @@ def _reset_run(project_id: UUID4, run_id: UUID4, task_type: Optional[TaskType] =
     """
     old_run_id = run_id
     api_client.reset_run(project_id, old_run_id, task_type)
-    project_dir = f"{dataquality.get_data_logger().LOG_FILE_DIR}/{config.current_project_id}"
+    project_dir = (
+        f"{dataquality.get_data_logger().LOG_FILE_DIR}/{config.current_project_id}"
+    )
     # All of the logged user data is to the old run ID, so rename it to the new ID
     os.rename(f"{project_dir}/{old_run_id}", f"{project_dir}/{config.current_run_id}")
     # Move std logs as well
