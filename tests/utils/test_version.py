@@ -35,10 +35,8 @@ def test_version_check_fail(mock_get_healthcheck: MagicMock) -> None:
 @mock.patch("requests.get", side_effect=mocked_healthcheck_request)
 def test_version_check_pass(mock_get_healthcheck: MagicMock) -> None:
     version._version_check()
-    assert True
 
 
 @mock.patch("requests.get", return_value=MockResponse({"api_version": __version__.replace("v", "")}, 200))
 def test_version_check_pass_without_v(mock_get_healthcheck: MagicMock) -> None:
     version._version_check()
-    assert True
