@@ -260,6 +260,11 @@ def auto(
     dq.set_labels_for_run(labels)
     _log_dataset_dict(dd)
     trainer, encoded_data = get_trainer(
-        dd, labels, hf_model, max_padding_length, num_train_epochs, early_stopping=early_stopping
+        dd,
+        labels,
+        hf_model,
+        max_padding_length,
+        num_train_epochs,
+        early_stopping=early_stopping,
     )
     return do_train(trainer, encoded_data, wait, create_data_embs)
