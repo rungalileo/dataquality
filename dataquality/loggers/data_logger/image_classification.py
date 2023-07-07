@@ -30,6 +30,8 @@ from dataquality.utils.upload import chunk_load_then_upload_df
 from dataquality.utils.vaex import validate_unique_ids
 
 ITER_CHUNK_SIZE_IMAGES = 10000
+GAL_REMOTE_IMAGES_PATHS = "gal_remote_images_paths"
+GAL_LOCAL_IMAGES_PATHS = "gal_local_images_paths"
 
 
 class ImageClassificationDataLogger(TextClassificationDataLogger):
@@ -158,14 +160,14 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         If remote paths already exist in the df, do nothing.
 
         If not, upload the images to the objectstore and add their paths in the df in
-        the column self.imgs_remote_colname := "gal_remote_images_paths".
+        the column self.imgs_remote_colname := GAL_REMOTE_IMAGES_PATHS
         """
         dataset = dataset.rename(columns=column_map)
 
         # No need to upload data if we already have access to remote images
         if self._has_remote_images(dataset):
             return dataset
-        self.imgs_remote_colname = "gal_remote_images_paths"
+        self.imgs_remote_colname = GAL_REMOTE_IMAGES_PATHS
 
         file_list = dataset[self.imgs_local_colname].tolist()
         project_id = config.current_project_id
@@ -230,7 +232,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         # No need to upload data if we already have access to remote images
         if self._has_remote_images(dataset):
             return dataset
-        self.imgs_remote_colname = "gal_remote_images_paths"
+        self.imgs_remote_colname = GAL_REMOTE_IMAGES_PATHS
         assert (
             self.imgs_local_colname is not None
         ), "imgs_local has to be specified since imgs_remote is not in the df"
@@ -271,7 +273,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         coming from an ImageFolder dataset.
         """
         # Extract the local paths from the ImageFolder dataset and add them to the df
-        self.imgs_local_colname = "gal_local_images_paths"
+        self.imgs_local_colname = GAL_LOCAL_IMAGES_PATHS
 
         if split == Split.inference:
             df = pd.DataFrame(
@@ -290,7 +292,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
 
         # Also add remote paths, if a remote location is specified
         if imgs_remote_location is not None:
-            self.imgs_remote_colname = "gal_remote_images_paths"
+            self.imgs_remote_colname = GAL_REMOTE_IMAGES_PATHS
             df[self.imgs_remote_colname] = df[self.imgs_local_colname].str.replace(
                 dataset.root, imgs_remote_location
             )
