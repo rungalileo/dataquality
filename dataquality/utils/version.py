@@ -29,7 +29,7 @@ def _version_check() -> None:
 
 
 def _major_version(v: str) -> str:
-    return str(v).split(".")[0]
+    return str(v).replace("v", "").split(".")[0]
 
 
 def _get_client_version() -> str:
