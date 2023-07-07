@@ -152,7 +152,9 @@ def test_callback(
     ThreadPoolManager.wait_for_threads()
     dq.get_data_logger().upload()
     train_data = vaex.open(f"{test_session_vars.TEST_PATH}/training/0/*/*.hdf5")
-    inf_data = vaex.open(f"{test_session_vars.TEST_PATH}/inference/inf_dataset/*/*.hdf5")
+    inf_data = vaex.open(
+        f"{test_session_vars.TEST_PATH}/inference/inf_dataset/*/*.hdf5"
+    )
     assert len(train_data)
     assert len(inf_data)
 
