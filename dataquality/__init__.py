@@ -47,7 +47,8 @@ try:
     from dataquality.clients.api import ApiClient
 except (FileNotFoundError, AttributeError):
     raise Exception(
-        "It looks like you've installed dataquality from a notebook. " "Please restart the kernel before continuing"
+        "It looks like you've installed dataquality from a notebook. "
+        "Please restart the kernel before continuing"
     ) from None
 from dataquality.core import configure, set_console_url
 from dataquality.core._config import config
