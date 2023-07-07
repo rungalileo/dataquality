@@ -2,12 +2,12 @@ import requests
 
 from dataquality import __version__ as dq_client_version
 from dataquality.core._config import config
-from dataquality.exceptions import GalileoException
 from dataquality.schemas.route import Route
+from dataquality.utils.dq_logger import get_dq_logger
 
 
-def _version_check() -> None:
-    """_version_check.
+def version_check() -> None:
+    """version_check.
 
     Asserts that the dataquality python client and the api have
     matching major versions.
@@ -19,12 +19,9 @@ def _version_check() -> None:
     """
     client_semver = _get_client_version()
     server_semver = _get_api_version()
-    try:
-        assert _major_version(client_semver) == _major_version(server_semver)
-    except AssertionError:
-        raise GalileoException(
-            "Major mismatch between client, "
-            f"{client_semver}, and server {server_semver}."
+    if _major_version(client_semver) != _major_version(server_semver):
+        get_dq_logger().warning(
+            "Major version mismatched between client, " f"{client_semver}, and server {server_semver}."
         )
 
 

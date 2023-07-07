@@ -29,6 +29,7 @@ from dataquality.schemas.task_type import TaskType
 from dataquality.utils.dq_logger import DQ_LOG_FILE_HOME
 from dataquality.utils.helpers import check_noop
 from dataquality.utils.name import validate_name
+from dataquality.utils.version import version_check
 
 api_client = ApiClient()
 
@@ -39,9 +40,7 @@ class InitManager:
         wait=wait_exponential_jitter(initial=0.1, max=2),
         stop=stop_after_attempt(5),
     )
-    def get_or_create_project(
-        self, project_name: str, is_public: bool
-    ) -> Tuple[Dict, bool]:
+    def get_or_create_project(self, project_name: str, is_public: bool) -> Tuple[Dict, bool]:
         """Gets a project by name, or creates a new one if it doesn't exist.
 
         Returns:
@@ -59,9 +58,7 @@ class InitManager:
         print(f"✨ Initializing {created_str} {visibility} project '{project_name}'")
         return project, created
 
-    def get_or_create_run(
-        self, project_name: str, run_name: str, task_type: TaskType
-    ) -> Tuple[Dict, bool]:
+    def get_or_create_run(self, project_name: str, run_name: str, task_type: TaskType) -> Tuple[Dict, bool]:
         """Gets a run by name, or creates a new one if it doesn't exist.
 
         Returns:
@@ -78,9 +75,7 @@ class InitManager:
         print(f"🏃‍♂️ {verb} {created_str} run '{run_name}'")
         return run, created
 
-    def create_log_file_dir(
-        self, project_id: UUID4, run_id: UUID4, overwrite_local: bool
-    ) -> None:
+    def create_log_file_dir(self, project_id: UUID4, run_id: UUID4, overwrite_local: bool) -> None:
         write_output_dir = f"{BaseGalileoLogger.LOG_FILE_DIR}/{project_id}/{run_id}"
         stdout_dir = f"{DQ_LOG_FILE_HOME}/{run_id}"
         for out_dir in [write_output_dir, stdout_dir]:
@@ -182,6 +177,7 @@ def init(
     if not api_client.valid_current_user():
         login()
     _check_dq_version()
+    version_check()
     _init = InitManager()
     task_type = BaseGalileoLogger.validate_task(task_type)
     config.task_type = task_type
@@ -226,20 +222,13 @@ def init(
         "images",
         GALILEO_DEFAULT_IMG_BUCKET_NAME,
     )
-    config.minio_fqdn = _dq_healthcheck_response.get(
-        "minio_fqdn", os.getenv("MINIO_FQDN", None)
-    )
-    if config.minio_fqdn is not None and config.minio_fqdn.endswith(
-        EXOSCALE_FQDN_SUFFIX
-    ):
+    config.minio_fqdn = _dq_healthcheck_response.get("minio_fqdn", os.getenv("MINIO_FQDN", None))
+    if config.minio_fqdn is not None and config.minio_fqdn.endswith(EXOSCALE_FQDN_SUFFIX):
         config.is_exoscale_cluster = True
 
     proj_created_str = "new" if proj_created else "existing"
     run_created_str = "new" if run_created else "existing"
-    print(
-        f"🛰 Connected to {proj_created_str} project '{project_name}', "
-        f"and {run_created_str} run '{run_name}'."
-    )
+    print(f"🛰 Connected to {proj_created_str} project '{project_name}', " f"and {run_created_str} run '{run_name}'.")
 
     config.update_file_config()
     if config.current_project_id and config.current_run_id:
