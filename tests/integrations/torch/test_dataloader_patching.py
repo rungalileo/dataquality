@@ -1,7 +1,9 @@
+from typing import Callable
+
 import torch
 from torch.utils.data import DataLoader
-from dataquality.integrations.torch import unwatch
 
+from dataquality.integrations.torch import unwatch
 from dataquality.utils.torch import PatchDataloadersGlobally, TorchHelper, unpatch
 
 
@@ -191,17 +193,19 @@ def test_interrupt_mp():
         assert torch.LongTensor(batch).equal(torch.LongTensor(ids.pop(0)))
 
 
-def test_unwatch():
+def test_unwatch(set_test_config: Callable):
+    """Tests that after unwatch indices can still be extracted"""
     store = TorchHelper()
-    a = torch.arange(0, 10)
-    mp_dataloader = DataLoader(
-        a, batch_size=3, num_workers=2, persistent_workers=True, shuffle=True
+    indices = torch.arange(0, 10)
+    mp_dataloader = DataLoader(  # multiprocessing dataloader
+        indices, batch_size=3, num_workers=2, persistent_workers=True, shuffle=True
     )
     PatchDataloadersGlobally(store)
 
     for batch in mp_dataloader:
         ids = store.dl_next_idx_ids
         assert torch.LongTensor(batch).equal(torch.LongTensor(ids.pop(0)))
+
     unwatch()
 
     PatchDataloadersGlobally(store)

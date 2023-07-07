@@ -202,7 +202,6 @@ class TorchBaseInstance:
         :param model_input: Input of the current layer
         :param model_output: Output of the current layer
         """
-
         self._dq_embedding_hook(model, None, model_input)
         self._dq_logit_hook(model, None, model_output)
 
@@ -364,6 +363,7 @@ class ModelHookManager(Borg):
         """Remove all hooks from the model"""
         for h in self.hooks:
             h.remove()
+        self.hooks = []
 
 
 def unpatch(patches: List[Dict[str, Any]] = []) -> None:

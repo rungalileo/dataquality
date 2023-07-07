@@ -16,7 +16,6 @@ from dataquality.exceptions import GalileoException
 from dataquality.schemas.task_type import TaskType
 from dataquality.schemas.torch import DimensionSlice, InputDim, Layer
 from dataquality.utils.helpers import map_indices_to_ids
-from dataquality.utils.patcher import Cleanup, RefManager
 from dataquality.utils.torch import (
     ModelHookManager,
     PatchDataloadersGlobally,

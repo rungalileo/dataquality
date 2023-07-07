@@ -1,12 +1,10 @@
-from dataquality.utils.patcher import PatchManager
-
+import random
 from glob import glob
 from pathlib import Path
-import random
 from typing import Any, Callable, Generator
 from unittest.mock import MagicMock, patch
+
 import numpy as np
-from torch.utils.data import DataLoader
 import pandas as pd
 import torch
 import torch.nn as nn
@@ -14,6 +12,7 @@ import vaex
 from fastai.metrics import accuracy
 from fastai.tabular.all import TabularDataLoaders, tabular_learner
 from fastai.vision.all import ImageDataLoaders, Resize, error_rate, vision_learner
+from torch.utils.data import DataLoader
 from torchvision import transforms
 from torchvision.datasets import ImageFolder
 
@@ -25,10 +24,6 @@ from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import validate_unique_ids
 from tests.conftest import TestSessionVariables
-
-image_crop_size = [224, 224]
-
-pm = PatchManager()
 
 
 @patch.object(ApiClient, "valid_current_user", return_value=True)
@@ -115,14 +110,14 @@ def test_callback(
     transform = {
         "inference": transforms.Compose(
             [
-                transforms.Resize(image_crop_size),
+                transforms.Resize([224, 224]),
                 transforms.ToTensor(),
             ]
         )
     }
     INF_NAME = "inf_dataset"
     inf_dataset = ImageFolder(
-        root=f"tests/assets/train_images",
+        root="tests/assets/train_images",
         transform=transform["inference"],
     )
     BATCH_SIZE = 3
