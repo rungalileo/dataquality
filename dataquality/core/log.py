@@ -137,13 +137,14 @@ def log_image_dataset(
     """
     Log an image dataset of input samples for image classification
 
-    :param dataset: The dataset to log. This can be a Pandas/Vaex dataframe or an
+    :param dataset: The dataset to log. This can be a Pandas/HF dataframe or an
         ImageFolder (from Torchvision).
-    :param imgs_local: column name containing the images (local paths or bytes for HF
-        dataframes). Ignored when dataset is of type ImageFolder.
-    :param imgs_remote: column name containing the images
-    :param imgs_remote_location: If the dataset is of type ImageFolder and the
-        images are stored remotely, pass the folder name here to avoid upload
+    :param imgs_local: The name of the column containing the local images (typically
+        paths but could also be bytes for HF dataframes). Ignored for ImageFolder
+        where local paths are directly retrieved from the dataset.
+    :param imgs_remote: The name of the column containing paths to the remote images (in
+        the case of a df) or remote directory containing the images (in the case of
+        ImageFolder). Specifying this argument is required to skip uploading the images.
     :param batch_size: Number of samples to log in a batch. Default 10,000
     :param id: The name of the column containing the ids (in the dataframe)
     :param label: The name of the column containing the labels (in the dataframe)
