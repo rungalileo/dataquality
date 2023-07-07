@@ -289,7 +289,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
 
         # Also add remote paths, if a remote location is specified
         if imgs_remote_location is not None:
-            self.imgs_remote_colname = "text_original"
+            self.imgs_remote_colname = "gal_remote_images_paths"
             df[self.imgs_remote_colname] = df[self.imgs_local_colname].str.replace(
                 dataset.root, imgs_remote_location
             )
