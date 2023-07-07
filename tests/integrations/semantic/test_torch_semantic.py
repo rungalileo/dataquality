@@ -247,7 +247,7 @@ class DummyOptimizer:
 optimizer = DummyOptimizer()
 
 
-@patch.object(dq.core.finish, "_version_check")
+@patch.object(dq.core.init, "version_check")
 @patch.object(dq.core.finish, "_reset_run")
 @patch.object(dq.core.finish, "upload_dq_log_file")
 @patch.object(ApiClient, "make_request")

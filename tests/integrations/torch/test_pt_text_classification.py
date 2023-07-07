@@ -162,7 +162,7 @@ test_df = test_df.reset_index().rename(columns={0: "label", 1: "text", "index": 
 
 
 @patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
-@patch.object(dq.core.finish, "_version_check")
+@patch.object(dq.core.init, "version_check")
 @patch.object(dq.core.finish, "_reset_run")
 @patch.object(dq.core.finish, "upload_dq_log_file")
 @patch.object(dq.clients.api.ApiClient, "make_request")
@@ -228,7 +228,7 @@ def test_end_to_end_with_callback(
 
 
 @patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
-@patch.object(dq.core.finish, "_version_check")
+@patch.object(dq.core.init, "version_check")
 @patch.object(dq.core.finish, "_reset_run")
 @patch.object(dq.core.finish, "upload_dq_log_file")
 @patch.object(dq.clients.api.ApiClient, "make_request")
