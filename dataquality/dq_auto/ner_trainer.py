@@ -67,6 +67,7 @@ def get_trainer(
     model_checkpoint: str,
     num_train_epochs: int,
     labels: Optional[List[str]] = None,
+    early_stopping: bool = True,
 ) -> Tuple[Trainer, DatasetDict]:
     tokenizer = AutoTokenizer.from_pretrained(model_checkpoint, use_fast=True)
 
@@ -105,6 +106,9 @@ def get_trainer(
         use_mps_device=mps_available(),
     )
 
+    callbacks = []
+    if early_stopping:
+        callbacks.append(EarlyStoppingCallback(early_stopping_patience=1))
     # We pass huggingface datasets here but typing expects torch datasets, so we ignore
     trainer = Trainer(
         model_init=model_init,
@@ -114,6 +118,6 @@ def get_trainer(
         tokenizer=tokenizer,
         compute_metrics=compute_metrics,
         data_collator=DataCollatorForTokenClassification(tokenizer),
-        callbacks=[EarlyStoppingCallback(early_stopping_patience=1)],
+        callbacks=callbacks,
     )
     return trainer, encoded_datasets
