@@ -42,6 +42,7 @@ def log_data_samples(
     *,
     texts: List[str],
     ids: List[int],
+    split: Split,
     meta: Optional[Dict[str, List[Union[str, float, int]]]] = None,
     **kwargs: Any,
 ) -> None:
@@ -78,8 +79,7 @@ def log_data_samples(
 
     :param texts: List[str] the input samples to your model
     :param ids: List[int | str] the ids per sample
-    :param split: Optional[str] the split for this data. Can also be set via
-        dq.set_split
+    :param split: Split the split for this data
     :param meta: Dict[str, List[str | int | float]]. Log additional metadata fields to
     each sample. The name of the field is the key of the dictionary, and the values are
     a list that correspond in length and order to the text samples.
@@ -89,11 +89,11 @@ def log_data_samples(
         [config.task_type, config.current_project_id, config.current_run_id]
     ), "You must call dataquality.init before logging data"
     data_logger = get_data_logger()
-    data_logger.log_data_samples(texts=texts, ids=ids, meta=meta, **kwargs)
+    data_logger.log_data_samples(texts=texts, ids=ids, split=split, meta=meta, **kwargs)
 
 
 @check_noop
-def log_data_sample(*, text: str, id: int, **kwargs: Any) -> None:
+def log_data_sample(*, text: str, id: int, split: Split, **kwargs: Any) -> None:
     """Log a single input example to disk
 
     Fields are expected singular elements. Field names are in the singular of
@@ -102,8 +102,7 @@ def log_data_sample(*, text: str, id: int, **kwargs: Any) -> None:
 
     :param text: List[str] the input samples to your model
     :param id: List[int | str] the ids per sample
-    :param split: Optional[str] the split for this data. Can also be set via
-        dq.set_split
+    :param split: Split the split for this data
     :param kwargs: See dq.docs() for details on other task specific parameters
     """
     assert all(
@@ -116,12 +115,13 @@ def log_data_sample(*, text: str, id: int, **kwargs: Any) -> None:
     # We don't need to reset log_export_progress because this class instance is
     # ephemeral
     data_logger.log_export_progress = False
-    data_logger.log_data_sample(text=text, id=id, **kwargs)
+    data_logger.log_data_sample(text=text, id=id, split=split, **kwargs)
 
 
 @check_noop
 def log_image_dataset(
     dataset: DataSet,
+    split: Split,
     *,
     imgs_colname: Optional[str] = None,
     imgs_location_colname: Optional[str] = None,
@@ -129,7 +129,6 @@ def log_image_dataset(
     batch_size: int = ITER_CHUNK_SIZE,
     id: str = "id",
     label: Union[str, int] = "label",
-    split: Optional[Split] = None,
     inference_name: Optional[str] = None,
     meta: Union[List[str], List[int], None] = None,
     parallel: bool = False,
@@ -140,6 +139,7 @@ def log_image_dataset(
 
     :param dataset: The dataset to log. This can be a Pandas/Vaex dataframe or an
         ImageFolder (from Torchvision).
+    :param split: train/test/validation/inference.
     :param imgs_colname: If the images are passed as bytes in the dataframe, this
         indicates the name of the column containing the images
     :param imgs_location_colname: If the images are passed via their path in the
@@ -150,8 +150,6 @@ def log_image_dataset(
     :param batch_size: Number of samples to log in a batch. Default 10,000
     :param id: The name of the column containing the ids (in the dataframe)
     :param label: The name of the column containing the labels (in the dataframe)
-    :param split: train/test/validation/inference. Can be set here or via
-        dq.set_split
     :param inference_name: If logging inference data, a name for this inference
         data is required. Can be set here or via dq.set_split
     :param parallel: upload in parallel if set to True
@@ -184,10 +182,10 @@ def log_image_dataset(
 def log_xgboost(
     model: xgb.XGBClassifier,
     X: Union[pd.DataFrame, np.ndarray],
+    split: Split,
     *,
     y: Optional[Union[pd.Series, np.ndarray, List]] = None,
     feature_names: Optional[List[str]] = None,
-    split: Optional[Split] = None,
     inference_name: Optional[str] = None,
 ) -> None:
     """Log data for tabular classification models with XGBoost
@@ -239,12 +237,11 @@ def log_xgboost(
     :param model: XGBClassifier model fit on the training data
     :param X: The input data has a numpy array or pandas DataFrame. Data should
         have shape (n_samples, n_features)
+    :param split: Split the split for this data
     :param y: Optional pandas Series, List, or numpy array of ground truth labels with
         shape (n_samples,). Provide for non-inference only
     :param feature_names: List of feature names if X is input as numpy array.
        Must have length n_features
-    :param split: Optional[str] the split for this data. Can also be set via
-        dq.set_split
     :param inference_name: Optional[str] the inference_name for this data. Can also be
         set via dq.set_split
     """
@@ -271,11 +268,11 @@ def log_xgboost(
 @check_noop
 def log_dataset(
     dataset: DataSet,
+    split: Split,
     *,
     batch_size: int = ITER_CHUNK_SIZE,
     text: Union[str, int] = "text",
     id: Union[str, int] = "id",
-    split: Optional[Split] = None,
     meta: Union[List[str], List[int], None] = None,
     **kwargs: Any,
 ) -> None:
@@ -328,13 +325,12 @@ def log_dataset(
     Keyword arguments are specific to the task type. See dq.docs() for details
 
     :param dataset: The iterable or dataframe to log
+    :param split: Split the split for this data
     :batch_size: The number of data samples to log at a time. Useful when logging a
         memory mapped dataset. A larger batch_size will result in faster logging at the
         expense of more memory usage. Default 100,000
     :param text: str | int The column, key, or int index for text data. Default "text"
     :param id: str | int The column, key, or int index for id data. Default "id"
-    :param split: Optional[str] the split for this data. Can also be set via
-        dq.set_split
     :param meta: List[str | int] Additional keys/columns to your input data to be
         logged as metadata. Consider a pandas dataframe, this would be the list of
         columns corresponding to each metadata field to log
@@ -362,7 +358,7 @@ def log_model_outputs(
     *,
     ids: Union[List, np.ndarray],
     embs: Optional[Union[List, np.ndarray]] = None,
-    split: Optional[Split] = None,
+    split: Split,
     epoch: Optional[int] = None,
     logits: Optional[Union[List, np.ndarray]] = None,
     probs: Optional[Union[List, np.ndarray]] = None,
@@ -374,7 +370,7 @@ def log_model_outputs(
 
     :param ids: The ids for each sample. Must match input ids of logged samples
     :param embs: The embeddings per output sample
-    :param split: The current split. Must be set either here or via dq.set_split
+    :param split: The current split
     :param epoch: The current epoch. Must be set either here or via dq.set_epoch
     :param logits: The logits for each sample
     :param probs: Deprecated, use logits. If passed in, a softmax will NOT be applied

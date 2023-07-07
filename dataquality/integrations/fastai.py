@@ -311,7 +311,9 @@ class FastAiDQCallback(Callback):
         if self.disable_dq or not equal_len:
             return
 
-        dataquality.log_model_outputs(embs=embs, logits=logits, ids=ids)
+        dataquality.log_model_outputs(
+            embs=embs, logits=logits, ids=ids, split=cur_split
+        )
 
     def register_hooks(self) -> None:
         """
