@@ -96,7 +96,7 @@ class TorchBaseInstance:
 
         After extracting embeddings it sets them in the TorchHelper
         model_outputs_store dictionary.
-        
+
         Keyword arguments won't be passed to the hooks and only to the `forward`.
         The hook can modify the input. User can either return a tuple or a
         single modified value in the hook. We will wrap the value into a tuple

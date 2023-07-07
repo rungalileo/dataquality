@@ -261,9 +261,7 @@ def watch(
     # Patch the dataloader class if no dataloaders are passed
     # or if the dataloaders have num_workers > 0
     dataloaders = dataloaders or []
-    is_single_process_dataloader = all(
-        [d.num_workers == 0 for d in dataloaders]
-    )
+    is_single_process_dataloader = all([d.num_workers == 0 for d in dataloaders])
     if len(dataloaders) > 0 and is_single_process_dataloader:
         for dataloader in dataloaders:
             assert isinstance(dataloader, DataLoader), GalileoException(
