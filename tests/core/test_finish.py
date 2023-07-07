@@ -45,7 +45,6 @@ def test_get_run_status(mock_client: MagicMock) -> None:
     assert status.get("status") == "in_progress"
 
 
-@mock.patch.object(dataquality.core.finish, "_version_check")
 @mock.patch.object(dataquality.core.finish, "_reset_run")
 @mock.patch.object(dataquality.core.finish, "upload_dq_log_file")
 @mock.patch.object(dataquality.clients.api.ApiClient, "make_request")
@@ -60,7 +59,6 @@ def test_finish_waits_default(
     mock_make_request: MagicMock,
     mock_upload_log_file: MagicMock,
     mock_reset_run: MagicMock,
-    mock_version_check: MagicMock,
     set_test_config,
 ) -> None:
     set_test_config(task_type=TaskType.text_classification)
@@ -71,7 +69,6 @@ def test_finish_waits_default(
     mock_wait_for_run.assert_called_once()
 
 
-@mock.patch.object(dataquality.core.finish, "_version_check")
 @mock.patch.object(dataquality.core.finish, "_reset_run")
 @mock.patch.object(dataquality.core.finish, "upload_dq_log_file")
 @mock.patch.object(dataquality.clients.api.ApiClient, "make_request")
@@ -86,7 +83,6 @@ def test_finish_no_waits_when_false(
     mock_make_request: MagicMock,
     mock_upload_log_file: MagicMock,
     mock_reset_run: MagicMock,
-    mock_version_check: MagicMock,
     set_test_config,
 ) -> None:
     set_test_config(task_type=TaskType.text_classification)
@@ -97,7 +93,6 @@ def test_finish_no_waits_when_false(
     mock_wait_for_run.assert_not_called()
 
 
-@mock.patch.object(dataquality.core.finish, "_version_check")
 @mock.patch.object(dataquality.core.finish, "_reset_run")
 @mock.patch.object(dataquality.core.finish, "upload_dq_log_file")
 @mock.patch.object(dataquality.clients.api.ApiClient, "make_request")
@@ -107,7 +102,6 @@ def test_finish_ignores_missing_inference_name_inframe(
     mock_make_request: MagicMock,
     mock_upload_log_file: MagicMock,
     mock_reset_run: MagicMock,
-    mock_version_check: MagicMock,
     set_test_config: Callable,
     cleanup_after_use: Generator,
 ) -> None:
@@ -132,7 +126,6 @@ def test_finish_ignores_missing_inference_name_inframe(
         dataquality.finish()
 
 
-@mock.patch.object(dataquality.core.finish, "_version_check")
 @mock.patch.object(dataquality.core.finish, "_reset_run")
 @mock.patch.object(dataquality.core.finish, "upload_dq_log_file")
 @mock.patch.object(dataquality.clients.api.ApiClient, "make_request")
@@ -149,7 +142,6 @@ def test_finish_with_conditions(
     mock_make_request: MagicMock,
     mock_upload_log_file: MagicMock,
     mock_reset_run: MagicMock,
-    mock_version_check: MagicMock,
     test_session_vars: TestSessionVariables,
     set_test_config,
 ) -> None:

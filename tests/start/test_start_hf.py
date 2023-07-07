@@ -67,7 +67,7 @@ args_default = TrainingArguments(
 
 
 @patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=True)
-@patch.object(dataquality.core.finish, "_version_check")
+@patch.object(dataquality.core.init, "version_check")
 @patch.object(dataquality.core.finish, "_reset_run")
 @patch.object(dataquality.core.finish, "upload_dq_log_file")
 @patch.object(dataquality.clients.api.ApiClient, "make_request")

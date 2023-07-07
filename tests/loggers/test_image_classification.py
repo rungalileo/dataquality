@@ -154,10 +154,6 @@ def test_duplicate_ids_augmented(
 
 @mock.patch.object(
     dataquality.core.finish,
-    "_version_check",
-)
-@mock.patch.object(
-    dataquality.core.finish,
     "_reset_run",
 )
 @mock.patch.object(
@@ -182,7 +178,6 @@ def test_observed_ids_cleaned_up_after_finish(
     mock_make_request: MagicMock,
     mock_upload_log_file: MagicMock,
     mock_reset_run: MagicMock,
-    mock_version_check: MagicMock,
     set_test_config: callable,
     cleanup_after_use: callable,
     test_session_vars: TestSessionVariables,
