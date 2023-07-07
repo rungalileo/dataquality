@@ -164,6 +164,10 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         If not, upload the images to the objectstore and add their paths in the df in
         the column self.imgs_remote_colname := "gal_remote_images_paths".
         """
+        # Rename text -> text_original if "text" exists (as its used internally)
+        column_map.update(
+            {"text": "text_original"} if "text" in dataset.columns else {}
+        )
         dataset = dataset.rename(columns=column_map)
 
         # No need to upload data if we already have access to remote images
@@ -223,6 +227,10 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
 
         assert isinstance(dataset, datasets.Dataset)
 
+        # Rename text -> text_original if "text" exists (as its used internally)
+        column_map.update(
+            {"text": "text_original"} if "text" in dataset.column_names else {}
+        )
         for old_col, new_col in column_map.items():
             dataset = dataset.rename_column(old_col, new_col)
 

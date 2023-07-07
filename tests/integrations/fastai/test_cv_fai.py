@@ -81,15 +81,15 @@ def test_auto(
     dq.set_labels_for_run(["nocat", "cat"])
     for data, split in zip(dls, ["training", "validation"]):
         df = convert_img_dl_to_df(data)
-        df["text"] = "s3://..."
-        dq.log_image_dataset(df, split=split, imgs_local="text")
+        df["remote_images_paths"] = "s3://..."
+        dq.log_image_dataset(df, split=split, imgs_remote="remote_images_paths")
 
     ThreadPoolManager.wait_for_threads()
     learn = vision_learner(dls, "resnet10t", metrics=error_rate)
     dqc = FastAiDQCallback(finish=False)
     learn.add_cb(dqc)
     learn.fine_tune(2, freeze_epochs=0)
-    dq.log_image_dataset(df, imgs_local="text", split="test")
+    dq.log_image_dataset(df, imgs_remote="remote_images_paths", split="test")
     dl_test = learn.dls.test_dl(pd.Series(image_files[:-3]))
     dqc.prepare_split("test")
     preds, _ = learn.get_preds(dl=dl_test)
