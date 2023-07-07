@@ -45,10 +45,6 @@ class TorchHelper:
         self.model_input = np.empty(0)
         self.batch.clear()
 
-    def __del__(self) -> None:
-        self.clear()
-        self.hook_manager = None
-
 
 class TorchBaseInstance:
     embedding_dim: Optional[DimensionSlice]

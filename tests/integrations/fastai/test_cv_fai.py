@@ -140,20 +140,19 @@ def test_callback(
     )
     dq.set_split("inference", inference_name=INF_NAME)
     model = dqc.model.cpu()
-    watch(
-        model=model,
-        dataloaders=[inf_dataloader],
-    )
+    watch(model=model, classifier_layer=model[1][8])
 
     model.eval()
     for inf_minibatch in inf_dataloader:
+        dq.set_split("inference", inference_name=INF_NAME)
         images = inf_minibatch[0].to("cpu")
         model(images)
+
     ThreadPoolManager.wait_for_threads()
     dq.get_data_logger().upload()
     train_data = vaex.open(f"{test_session_vars.TEST_PATH}/training/0/*/*.hdf5")
     inf_data = vaex.open(
-        f"{test_session_vars.TEST_PATH}/inference/inf_dataset/*/*.hdf5"
+        f"{test_session_vars.TEST_PATH}/inference/{INF_NAME}/data/data.arrow"
     )
     assert len(train_data)
     assert len(inf_data)
