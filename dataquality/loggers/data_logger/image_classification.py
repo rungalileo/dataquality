@@ -79,14 +79,9 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         column_map: Optional[Dict[str, str]] = None,
         parallel: bool = False,
     ) -> Any:
-        """
-        For main docstring see top level method located in core/log.py.
-
-        In addition we set the variables self.imgs_local_colname and
-        self.imgs_remote_location.
-        """
+        """For main docstring see top level method located in core/log.py."""
         if type(dataset).__name__ == "ImageFolder":
-            # imgs_local will be ignored as it is not necessary
+            # imgs_local will be ignored (irrelevant since no dataframe is passed)
             dataset = self._prepare_df_from_ImageFolder(
                 dataset=dataset, imgs_remote_location=imgs_remote, split=split
             )
