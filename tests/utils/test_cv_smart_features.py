@@ -14,6 +14,7 @@ from dataquality.utils.cv_smart_features import (
     _low_contrast_ranges,
     _open_and_resize,
     analyze_image_smart_features,
+    generate_smart_features,
 )
 from tests.assets.constants import TEST_ASSETS_SMART_FEATS_DIR
 
@@ -98,13 +99,44 @@ def test_analyze_image_smart_features() -> None:
     assert image_data["width"] == 678  # Get width from image viewer
     assert image_data["height"] == 446  # Get height from image viewer
     assert image_data["channels"] == "Color"  # RGB image
-    assert _is_blurry_laplace(image_data["blurriness"])
+    assert _is_blurry_laplace(image_data["blur"])
     assert not _is_low_contrast(image_data["contrast"])
-    assert not _is_under_exposed(image_data["underexposure"])
-    assert not _is_over_exposed(image_data["overexposure"])
+    assert not _is_under_exposed(image_data["underexp"])
+    assert not _is_over_exposed(image_data["overexp"])
     assert not _is_low_content_entropy(image_data["entropy"])
 
 
 def test_generate_smart_features():
-    # TODO add test
+    """Check the method creating smart features on multiple images"""
+    images_names = [
+        low_contrast_imagename,
+        over_exposed_imagename,
+        under_exposed_imagename,
+        blurry_imagename,
+        lowcontent_imagename,
+        lowcontent_neardup_imagename,
+    ]
+    images_paths = [
+        f"{TEST_ASSETS_SMART_FEATS_DIR}/{image_name}" for image_name in images_names
+    ]
+
+    df = generate_smart_features(images_paths)
+    assert len(df) == len(images_names)
+    outlier_cols = {
+        "outlier_size",
+        "outlier_ratio",
+        "outlier_neardupid",
+        "outlier_channels",
+        "outlier_contrast",
+        "outlier_overexp",
+        "outlier_underexp",
+        "outlier_content",
+        "outlier_blur",
+    }
+    assert outlier_cols.issubset(df.columns)
+
+
+def test_generate_smart_features_multicore():
+    """Check that the method creating smart features on multiple images works with
+    multiple cores"""
     assert False

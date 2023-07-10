@@ -8,6 +8,7 @@ from datasets import load_dataset
 from torchvision.datasets import ImageFolder
 
 import dataquality as dq
+from dataquality.loggers.data_logger.image_classification import GAL_LOCAL_IMAGES_PATHS
 from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.assets.constants import TEST_IMAGES_FOLDER_ROOT
 from tests.conftest import TestSessionVariables
@@ -59,10 +60,10 @@ def test_with_pd_local_only(
     assert minio_path.count("/") == 1 and minio_path.split(".")[-1] == "png"
     # assert that the saved df also contains the local images in the specified column
     assert (
-        df[imgs_local_colname].tolist()[0]
+        df[GAL_LOCAL_IMAGES_PATHS].tolist()[0]
         == cvdata.dataframe.loc[0, imgs_local_colname]
     )
-    assert os.path.isfile(df[imgs_local_colname].tolist()[0])
+    assert os.path.isfile(df[GAL_LOCAL_IMAGES_PATHS].tolist()[0])
 
 
 def test_with_pd_remote_only(
@@ -121,10 +122,10 @@ def test_with_pd_local_and_remote(
 
     # assert that the saved df contains the local images in the specified column
     assert (
-        df[imgs_local_colname].tolist()[0]
+        df[GAL_LOCAL_IMAGES_PATHS].tolist()[0]
         == cvdata.dataframe.loc[0, imgs_local_colname]
     )
-    assert os.path.isfile(df[imgs_local_colname].tolist()[0])
+    assert os.path.isfile(df[GAL_LOCAL_IMAGES_PATHS].tolist()[0])
     # assert that the saved df contains the remote images under "text"
     assert df["text"].tolist()[0] == cvdata.dataframe.loc[0, imgs_remote_colname]
 
@@ -204,10 +205,10 @@ def test_with_hf_local_only_paths(
         assert minio_path.count("/") == 1 and minio_path.split(".")[-1] == "jpg"
         # assert that the saved df contains the local images in the specified column
         assert (
-            df[imgs_local_colname].tolist()[0]
+            df[GAL_LOCAL_IMAGES_PATHS].tolist()[0]
             == dataset_with_paths[imgs_local_colname][0]
         )
-        assert os.path.isfile(df[imgs_local_colname].tolist()[0])
+        assert os.path.isfile(df[GAL_LOCAL_IMAGES_PATHS].tolist()[0])
 
 
 def test_with_hf_local_and_remote(
@@ -255,10 +256,10 @@ def test_with_hf_local_and_remote(
         # assert that the saved df contains the remote images under "text"
         assert df["text"].tolist()[0] == dataset_with_paths[0].get(imgs_remote_colname)
         # assert that the saved df contains the local images in the specified column
-        assert df[imgs_local_colname].tolist()[0] == dataset_with_paths[0].get(
+        assert df[GAL_LOCAL_IMAGES_PATHS].tolist()[0] == dataset_with_paths[0].get(
             imgs_local_colname
         )
-        assert os.path.isfile(df[imgs_local_colname].tolist()[0])
+        assert os.path.isfile(df[GAL_LOCAL_IMAGES_PATHS].tolist()[0])
 
 
 @patch.object(dq.core.finish, "upload_dq_log_file")
@@ -294,8 +295,8 @@ def test_with_ImageFolder_local_only(
     minio_path = df["text"].tolist()[0]
     assert minio_path.count("/") == 1 and minio_path.split(".")[-1] == "png"
     # assert that the saved df also contains the local images in the specified column
-    assert df["gal_local_images_paths"].tolist()[0] == train_dataset.samples[0][0]
-    assert os.path.isfile(df["gal_local_images_paths"].tolist()[0])
+    assert df[GAL_LOCAL_IMAGES_PATHS].tolist()[0] == train_dataset.samples[0][0]
+    assert os.path.isfile(df[GAL_LOCAL_IMAGES_PATHS].tolist()[0])
 
 
 @patch.object(dq.core.finish, "upload_dq_log_file")
@@ -329,8 +330,8 @@ def test_with_ImageFolder_local_and_remote(
     df = vaex.open(f"{test_session_vars.LOCATION}/input_data/training/*.arrow")
 
     # assert that the saved df contains the local images in the specified column
-    assert df["gal_local_images_paths"].tolist()[0] == train_dataset.samples[0][0]
-    assert os.path.isfile(df["gal_local_images_paths"].tolist()[0])
+    assert df[GAL_LOCAL_IMAGES_PATHS].tolist()[0] == train_dataset.samples[0][0]
+    assert os.path.isfile(df[GAL_LOCAL_IMAGES_PATHS].tolist()[0])
     # assert that the saved df contains the remote images under "text"
     assert df["text"].tolist()[0].startswith(imgs_remote)
     assert df["text"].tolist()[0].endswith(train_dataset.samples[0][0].split("/")[-1])

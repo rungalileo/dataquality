@@ -3,6 +3,7 @@ from __future__ import annotations
 import glob
 import os
 import tempfile
+import warnings
 from typing import Any, Dict, List, Optional, Set, Union
 
 import numpy as np
@@ -22,7 +23,7 @@ from dataquality.loggers.logger_config.image_classification import (
 )
 from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.split import Split
-from dataquality.utils.cv_smart_features import generate_smart_features
+from dataquality.utils.cv_smart_features import VC, generate_smart_features
 from dataquality.utils.upload import chunk_load_then_upload_df
 
 # smaller than ITER_CHUNK_SIZE from base_data_logger because very large chunks
@@ -97,13 +98,32 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
                 raise GalileoException(
                     "Must provide either imgs_local or imgs_remote when using a df"
                 )
+            elif imgs_local is None:
+                warnings.warn(
+                    "Smart Features won't be calculated since no local paths to images"
+                    "were provided"
+                )
+            elif imgs_remote is None:
+                warnings.warn(
+                    "The images will be uploaded to a remote object store (can be"
+                    "slow). Provide remote paths to images to avoid this upload"
+                )
+
             self.imgs_local_colname = imgs_local
             self.imgs_remote_colname = imgs_remote
 
         # Get the column mapping and rename imgs_local and imgs_remote if required
-        # Always rename "text" since it is used internally and would create a conflict
         column_map = column_map or {id: "id"}
+        # Always rename "text" since it is used internally and would create a conflict
         column_map["text"] = column_map.get("text", "text_original")
+        # Rename the local column to a specific const name to be able to retrieve it
+        # later for smart features (even after re-instantiating the logger in dq.finish)
+        if (
+            self.imgs_local_colname is not None
+            and self.imgs_local_colname != GAL_LOCAL_IMAGES_PATHS
+        ):
+            column_map[self.imgs_local_colname] = GAL_LOCAL_IMAGES_PATHS
+            self.imgs_local_colname = GAL_LOCAL_IMAGES_PATHS
 
         # If no remote paths are found, upload to the local images to the objectstore
         if isinstance(dataset, pd.DataFrame):
@@ -387,11 +407,31 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
 
         return dataframes
 
-    def add_cv_smart_features(self, in_frame_split: DataFrame) -> DataFrame:
+    def add_cv_smart_features(self, in_frame: DataFrame) -> DataFrame:
         """
-        Add smart features on images (blurriness, contrast, etc) to the dataframe.
-        Overwriting the base method in the base_data_logger.
+        Calculate and add smart features on images (blurriness, contrast, etc) to the
+        dataframe.
+        This overwrite the base method (doing nothing) in the base_data_logger.
         """
-        in_frame_split = generate_smart_features(in_frame_split)
+        if GAL_LOCAL_IMAGES_PATHS not in in_frame.get_column_names():
+            return in_frame
 
-        return in_frame_split
+        images_paths = in_frame[GAL_LOCAL_IMAGES_PATHS].tolist()
+        smart_feats_frame = generate_smart_features(images_paths)
+
+        smart_feats_cols = [
+            col for col in smart_feats_frame.get_column_names() if "outlier" in col
+        ]
+        smart_feats_cols.append(VC.imagepath)
+
+        smart_feats_frame[VC.OutlierNearDup] = smart_feats_frame.func.where(
+            smart_feats_frame[VC.OutlierNearDupId].isin([None]), False, True
+        ).to_numpy()
+
+        in_frame = in_frame.join(
+            smart_feats_frame[smart_feats_cols],
+            left_on=GAL_LOCAL_IMAGES_PATHS,
+            right_on=VC.imagepath,
+        )
+
+        return in_frame

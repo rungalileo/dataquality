@@ -82,7 +82,7 @@ class VaexColumn:
     overexp: str = "overexp"
     underexp: str = "underexp"
     blur: str = "blur"
-    lowcontent: str = "entropy"
+    lowcontent: str = "content"
 
     OutlierSize: str = "outlier_size"
     OutlierRatio: str = "outlier_ratio"
@@ -210,7 +210,7 @@ def _is_under_exposed(
     return q_max_over <= under_exposed_max_thresh
 
 
-def _blurry_laplace(image_gray: Image) -> float:
+def _blurry_laplace(image_gray: Image.Image) -> float:
     """
     Bluriness detector method where we compute the Variance of the Laplacian.
     We use PIL to estimate the Laplacian via the 3x3 convolution filter
@@ -238,7 +238,7 @@ def _is_blurry_laplace(
     return blurriness < blurry_thresh
 
 
-def _image_content_entropy(image: Image) -> float:
+def _image_content_entropy(image: Image.Image) -> float:
     """
     Returns the entropy of the pixels on the image. A high entropy means a more complex
     image with lots of variation in the pixel values (histogram closer to being uniform)
@@ -371,20 +371,17 @@ def analyze_image_smart_features(
     return image_data
 
 
-def generate_smart_features(
-    df_input: DataFrame, image_path_col: str = "image_path"
-) -> DataFrame:
+def generate_smart_features(images_paths: List[str]) -> DataFrame:
     """
-    Add smart features on images (blurriness, contrast, etc) to the dataframe.
+    Create and return a dataframe containing the  smart features on images (blurriness,
+    contrast, etc).
     """
 
     hasher = PHash()
     images_data: List[dict] = []
 
-    images_path = df_input[image_path_col].tolist()
-
     # TODO: add parallelization here
-    for image_path in images_path:
+    for image_path in images_paths:
         image_data = analyze_image_smart_features(image_path, hasher)
         images_data.append(image_data)
 
@@ -464,4 +461,4 @@ def generate_smart_features(
     df[VC.OutlierUnderExp] = _is_under_exposed(df[VC.underexp])
     df[VC.OutlierLowContent] = _is_low_content_entropy(df[VC.lowcontent])
 
-    return df
+    return df.materialize()
