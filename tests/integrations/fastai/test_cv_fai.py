@@ -50,7 +50,7 @@ from tests.conftest import TestSessionVariables
     },
 )
 @patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
-def test_callback(
+def test_fast_ai_integration_e2e(
     mock_valid_user: MagicMock,
     mock_dq_healthcheck: MagicMock,
     mock_check_dq_version: MagicMock,
@@ -140,9 +140,6 @@ def test_callback(
     )
     dq.set_split("inference", inference_name=INF_NAME)
     model = dqc.model.cpu()
-    import pdb
-
-    pdb.set_trace()
     watch(model=model, dataloaders=[inf_dataloader], classifier_layer=model[1][8])
 
     model.eval()
@@ -222,7 +219,7 @@ def seed_worker(worker_id: int) -> None:
     },
 )
 @patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
-def test_tab(
+def test_tabular_dataloader(
     mock_valid_user: MagicMock,
     mock_dq_healthcheck: MagicMock,
     mock_check_dq_version: MagicMock,
