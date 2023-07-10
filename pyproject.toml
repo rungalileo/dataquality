@@ -13,7 +13,7 @@ readme = "README.md"
 license = {text = 'See LICENSE'}
 requires-python = ">=3.7"
 dependencies = [
-    "pydantic>=1.8.2",
+    "pydantic>=1.8.2,<2.0.0",
     "requests>=2.25.1",
     "types-requests>=2.25.2",
     "pandas>=0.20.0",
