@@ -98,7 +98,7 @@ def test_callback(
     dq.log_image_dataset(df, imgs_location_colname="text", split="test")
     dl_test = learn.dls.test_dl(pd.Series(image_files[:-3]))
     dqc.prepare_split("test")
-    preds, _ = learn.get_preds(dl=dl_test)
+    learn.get_preds(dl=dl_test)
     for split in ["training", "validation"]:
         validate_unique_ids(
             vaex.open(f"{test_session_vars.LOCATION}/{split}/1/*.hdf5"), "epoch"
@@ -140,11 +140,13 @@ def test_callback(
     )
     dq.set_split("inference", inference_name=INF_NAME)
     model = dqc.model.cpu()
-    watch(model=model, classifier_layer=model[1][8])
+    import pdb
+
+    pdb.set_trace()
+    watch(model=model, dataloaders=[inf_dataloader], classifier_layer=model[1][8])
 
     model.eval()
     for inf_minibatch in inf_dataloader:
-        dq.set_split("inference", inference_name=INF_NAME)
         images = inf_minibatch[0].to("cpu")
         model(images)
 
