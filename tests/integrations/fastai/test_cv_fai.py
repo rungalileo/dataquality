@@ -1,8 +1,10 @@
+import random
 from glob import glob
 from pathlib import Path
 from typing import Any, Callable, Generator
 from unittest.mock import MagicMock, patch
 
+import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
@@ -10,10 +12,14 @@ import vaex
 from fastai.metrics import accuracy
 from fastai.tabular.all import TabularDataLoaders, tabular_learner
 from fastai.vision.all import ImageDataLoaders, Resize, error_rate, vision_learner
+from torch.utils.data import DataLoader
+from torchvision import transforms
+from torchvision.datasets import ImageFolder
 
 import dataquality as dq
 from dataquality.clients.api import ApiClient
 from dataquality.integrations.fastai import FastAiDQCallback, convert_img_dl_to_df
+from dataquality.integrations.torch import watch
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import validate_unique_ids
@@ -44,7 +50,7 @@ from tests.conftest import TestSessionVariables
     },
 )
 @patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
-def test_auto(
+def test_fast_ai_integration_e2e(
     mock_valid_user: MagicMock,
     mock_dq_healthcheck: MagicMock,
     mock_check_dq_version: MagicMock,
@@ -92,7 +98,7 @@ def test_auto(
     dq.log_image_dataset(df, imgs_location_colname="text", split="test")
     dl_test = learn.dls.test_dl(pd.Series(image_files[:-3]))
     dqc.prepare_split("test")
-    preds, _ = learn.get_preds(dl=dl_test)
+    learn.get_preds(dl=dl_test)
     for split in ["training", "validation"]:
         validate_unique_ids(
             vaex.open(f"{test_session_vars.LOCATION}/{split}/1/*.hdf5"), "epoch"
@@ -101,7 +107,54 @@ def test_auto(
         vaex.open(f"{test_session_vars.LOCATION}/test/0/*.hdf5"), "epoch"
     )
     dqc.unwatch()
-    dq.finish()
+    transform = {
+        "inference": transforms.Compose(
+            [
+                transforms.Resize([224, 224]),
+                transforms.ToTensor(),
+            ]
+        )
+    }
+    INF_NAME = "inf_dataset"
+    inf_dataset = ImageFolder(
+        root="tests/assets/train_images",
+        transform=transform["inference"],
+    )
+    BATCH_SIZE = 3
+    NUM_WORKERS = 1
+
+    inf_dataloader = DataLoader(
+        inf_dataset,
+        batch_size=BATCH_SIZE,
+        shuffle=False,
+        num_workers=NUM_WORKERS,
+        worker_init_fn=seed_worker,
+        pin_memory=True,
+    )
+
+    dq.log_image_dataset(
+        inf_dataset,
+        split="inference",
+        inference_name=INF_NAME,
+        imgs_remote_location="gs://galileo-public-data/CV_datasets/ImageNet10_animals_train_val/inference",
+    )
+    dq.set_split("inference", inference_name=INF_NAME)
+    model = dqc.model.cpu()
+    watch(model=model, dataloaders=[inf_dataloader], classifier_layer=model[1][8])
+
+    model.eval()
+    for inf_minibatch in inf_dataloader:
+        images = inf_minibatch[0].to("cpu")
+        model(images)
+
+    ThreadPoolManager.wait_for_threads()
+    dq.get_data_logger().upload()
+    train_data = vaex.open(f"{test_session_vars.TEST_PATH}/training/0/*/*.hdf5")
+    inf_data = vaex.open(
+        f"{test_session_vars.TEST_PATH}/inference/{INF_NAME}/data/data.arrow"
+    )
+    assert len(train_data)
+    assert len(inf_data)
 
 
 class PassThroughModel(nn.Module):
@@ -116,8 +169,6 @@ class PassThroughModel(nn.Module):
         self.fc = nn.Linear(embedding_dim, output_dim)
 
     def forward(self, _x, x, *args, **kwargs):
-        # print(x)
-        # print(args)
         x = self.embedding(x.long())
         x = x.view(x.size(0), -1)
         x = self.fc(x)
@@ -131,6 +182,17 @@ class PassThroughModel(nn.Module):
         # Initialize the bias of the fc layer to be zero
         self.fc.weight.data.fill_(1)
         self.fc.bias.data.fill_(0)
+
+
+def seed_worker(worker_id: int) -> None:
+    """Set seed for dataloader worker.
+
+    Based on the following post:
+    https://discuss.pytorch.org/t/reproducibility-with-all-the-bells-and-whistles/81097
+    """
+    worker_seed = torch.initial_seed() % 2**32
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)
 
 
 @patch.object(ApiClient, "valid_current_user", return_value=True)
@@ -157,7 +219,7 @@ class PassThroughModel(nn.Module):
     },
 )
 @patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
-def test_tab(
+def test_tabular_dataloader(
     mock_valid_user: MagicMock,
     mock_dq_healthcheck: MagicMock,
     mock_check_dq_version: MagicMock,
@@ -205,7 +267,7 @@ def test_tab(
 
     input_dim = ds_len
     embedding_dim = ds_len
-    output_dim = 1
+    output_dim = ds_len
     model = PassThroughModel(input_dim, embedding_dim, output_dim)
     model.init_weights()
     model.cpu()
@@ -225,3 +287,4 @@ def test_tab(
     dqc = FastAiDQCallback(layer=model.fc, finish=False)
     learn.add_cb(dqc)
     learn.fit_one_cycle(1)
+    dq.finish()
