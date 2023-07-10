@@ -14,6 +14,7 @@ import dataquality
 import dataquality as dq
 from dataquality.loggers.data_logger.image_classification import (
     GAL_LOCAL_IMAGES_PATHS,
+    GAL_LOCAL_IMAGES_PATHS,
     ImageClassificationDataLogger,
 )
 from dataquality.utils.thread_pool import ThreadPoolManager
@@ -472,9 +473,6 @@ def test_smart_features(
     assert outlier_cols.issubset(in_frame_split.get_column_names())
 
 
-@patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
-@patch.object(dq.core.finish, "_version_check")
-@patch.object(dq.core.finish, "_reset_run")
 @patch.object(dq.core.finish, "upload_dq_log_file")
 @patch.object(dq.clients.api.ApiClient, "make_request")
 @patch.object(dq.core.finish, "wait_for_run")
@@ -482,9 +480,6 @@ def test_smart_features(
     mock_wait_for_run: MagicMock,
     mock_make_request: MagicMock,
     mock_upload_log_file: MagicMock,
-    mock_reset_run: MagicMock,
-    mock_version_check: MagicMock,
-    mock_valid_user: MagicMock,
     set_test_config: Callable,
     cleanup_after_use: Generator,
     test_session_vars: TestSessionVariables,
@@ -497,7 +492,7 @@ def test_smart_features(
     dq.log_image_dataset(
         dataset=df_train.dataframe,
         label="label",
-        imgs_location_colname="image_path",
+        imgs_local="image_path",
         split="training",
     )
 
@@ -515,5 +510,17 @@ def test_smart_features(
     in_frame_split["image_path"] = df_train.dataframe["image_path"].to_numpy()
 
     in_frame_split = image_classification_logger.add_cv_smart_features(in_frame_split)
-    # TODO: fix test
-    assert False
+
+    outlier_cols = {
+        "outlier_size",
+        "outlier_ratio",
+        "outlier_neardup",
+        "outlier_neardupid",
+        "outlier_channels",
+        "outlier_contrast",
+        "outlier_overexp",
+        "outlier_underexp",
+        "outlier_content",
+        "outlier_blur",
+    }
+    assert outlier_cols.issubset(in_frame_split.get_column_names())
