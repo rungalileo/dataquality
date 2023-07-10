@@ -358,7 +358,7 @@ def log_model_outputs(
     *,
     ids: Union[List, np.ndarray],
     embs: Optional[Union[List, np.ndarray]] = None,
-    split: Split,
+    split: Optional[Split] = None,
     epoch: Optional[int] = None,
     logits: Optional[Union[List, np.ndarray]] = None,
     probs: Optional[Union[List, np.ndarray]] = None,
@@ -370,7 +370,7 @@ def log_model_outputs(
 
     :param ids: The ids for each sample. Must match input ids of logged samples
     :param embs: The embeddings per output sample
-    :param split: The current split
+    :param split: The current split. Must be set either here or via dq.set_split
     :param epoch: The current epoch. Must be set either here or via dq.set_epoch
     :param logits: The logits for each sample
     :param probs: Deprecated, use logits. If passed in, a softmax will NOT be applied
