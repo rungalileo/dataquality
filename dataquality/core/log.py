@@ -123,7 +123,7 @@ def log_data_sample(*, text: str, id: int, **kwargs: Any) -> None:
 def log_image_dataset(
     dataset: DataSet,
     *,
-    imgs_local: Optional[str] = None,
+    imgs_local_colname: Optional[str] = None,
     imgs_remote: Optional[str] = None,
     batch_size: int = ITER_CHUNK_SIZE,
     id: str = "id",
@@ -139,9 +139,9 @@ def log_image_dataset(
 
     :param dataset: The dataset to log. This can be a Pandas/HF dataframe or an
         ImageFolder (from Torchvision).
-    :param imgs_local: The name of the column containing the local images (typically
-        paths but could also be bytes for HF dataframes). Ignored for ImageFolder
-        where local paths are directly retrieved from the dataset.
+    :param imgs_local_colname: The name of the column containing the local images
+        (typically paths but could also be bytes for HF dataframes). Ignored for
+        ImageFolder where local paths are directly retrieved from the dataset.
     :param imgs_remote: The name of the column containing paths to the remote images (in
         the case of a df) or remote directory containing the images (in the case of
         ImageFolder). Specifying this argument is required to skip uploading the images.
@@ -166,7 +166,7 @@ def log_image_dataset(
 
     data_logger.log_image_dataset(
         dataset=dataset,
-        imgs_local=imgs_local,
+        imgs_local_colname=imgs_local_colname,
         imgs_remote=imgs_remote,
         batch_size=batch_size,
         id=id,
