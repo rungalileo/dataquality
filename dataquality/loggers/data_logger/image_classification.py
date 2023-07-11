@@ -154,6 +154,8 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
     def _prepare_content(
         self,
         dataset: pd.DataFrame,
+        imgs_local_colname: Optional[str],
+        imgs_remote_colname: Optional[str],
         column_map: dict,
         parallel: bool = False,
     ) -> pd.DataFrame:
@@ -214,6 +216,8 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         self,
         dataset: DataSet,
         id_: str,
+        imgs_local_colname: Optional[str],
+        imgs_remote_colname: Optional[str],
         column_map: dict,
         # returns HF dataset, hard to express in mypy without
         # importing the datasets package
