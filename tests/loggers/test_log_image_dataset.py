@@ -46,7 +46,7 @@ def test_with_pd_local_only(
     dq.set_labels_for_run(cvdata.labels)
     dq.log_image_dataset(
         dataset=cvdata.dataframe,
-        imgs_local=imgs_local_colname,
+        imgs_local_colname=imgs_local_colname,
         split="training",
     )
 
@@ -110,7 +110,7 @@ def test_with_pd_local_and_remote(
     dq.set_labels_for_run(cvdata.labels)
     dq.log_image_dataset(
         dataset=cvdata.dataframe,
-        imgs_local=imgs_local_colname,
+        imgs_local_colname=imgs_local_colname,
         imgs_remote=imgs_remote_colname,
         split="training",
     )
@@ -151,7 +151,7 @@ def test_with_hf_local_only_images(
         dq.log_image_dataset(
             dataset=dataset,
             label="label",
-            imgs_local=imgs_local_colname,
+            imgs_local_colname=imgs_local_colname,
             split="training",
         )
 
@@ -191,7 +191,7 @@ def test_with_hf_local_only_paths(
         dq.set_labels_for_run(dataset_info["labels"])
         dq.log_image_dataset(
             dataset=dataset_with_paths,
-            imgs_local=imgs_local_colname,
+            imgs_local_colname=imgs_local_colname,
             split="training",
         )
 
@@ -243,7 +243,7 @@ def test_with_hf_local_and_remote(
         dq.set_labels_for_run(dataset_info["labels"])
         dq.log_image_dataset(
             dataset=dataset_with_paths,
-            imgs_local=imgs_local_colname,
+            imgs_local_colname=imgs_local_colname,
             imgs_remote=imgs_remote_colname,
             split="training",
         )

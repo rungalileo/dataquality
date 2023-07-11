@@ -3,7 +3,7 @@ from __future__ import annotations
 import glob
 import os
 import tempfile
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -56,8 +56,6 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             meta=meta,
             inference_name=inference_name,
         )
-        self.imgs_local_colname: Optional[str] = None
-        self.imgs_remote_colname: Optional[str] = None
 
     @property
     def support_data_embs(self) -> bool:
@@ -68,7 +66,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         self,
         dataset: Union[DataSet, "ImageFolder"],  # type: ignore # noqa: F821
         *,
-        imgs_local: Optional[str] = None,
+        imgs_local_colname: Optional[str] = None,
         imgs_remote: Optional[str] = None,
         batch_size: int = ITER_CHUNK_SIZE_IMAGES,
         id: str = "id",
@@ -80,19 +78,23 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         parallel: bool = False,
     ) -> Any:
         """For main docstring see top level method located in core/log.py."""
+        imgs_remote_colname: Optional[str]
+        has_local_paths = False
+        
         if type(dataset).__name__ == "ImageFolder":
             # imgs_local will be ignored (irrelevant since no dataframe is passed)
             dataset = self._prepare_df_from_ImageFolder(
                 dataset=dataset, imgs_remote_location=imgs_remote, split=split
             )
-            column_map = None  # make sure we don't accidentally use it (no df provided)
+            imgs_local_colname = GAL_LOCAL_IMAGES_PATHS
+            imgs_remote_colname = GAL_REMOTE_IMAGES_PATHS
+            has_local_paths = True
         else:
-            if imgs_local is None and imgs_remote is None:
+            if imgs_local_colname is None and imgs_remote is None:
                 raise GalileoException(
-                    "Must provide either imgs_local or imgs_remote when using a df"
+                    "Must provide imgs_local_colname or imgs_remote when using a df"
                 )
-            self.imgs_local_colname = imgs_local
-            self.imgs_remote_colname = imgs_remote
+            imgs_remote_colname = imgs_remote or GAL_REMOTE_IMAGES_PATHS
 
         # Get the column mapping and rename imgs_local and imgs_remote if required
         # Always rename "text" since it is used internally and would create a conflict
@@ -102,10 +104,21 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         # If no remote paths are found, upload to the local images to the objectstore
         if isinstance(dataset, pd.DataFrame):
             dataset = self._prepare_content(
-                dataset=dataset, column_map=column_map, parallel=parallel
+                dataset=dataset,
+                imgs_local_colname=imgs_local_colname,
+                imgs_remote_colname=imgs_remote_colname,
+                column_map=column_map,
+                parallel=parallel,
             )
+            has_local_paths = has_local_paths or (imgs_local_colname in dataset.columns)
         elif self.is_hf_dataset(dataset):
-            dataset = self._prepare_hf(dataset, id_=id, column_map=column_map)
+            dataset, has_local_paths = self._prepare_hf(
+                dataset,
+                id_=id,
+                imgs_local_colname=imgs_local_colname,
+                imgs_remote_colname=imgs_remote_colname,
+                column_map=column_map,
+            )
         else:
             raise GalileoException(
                 f"Dataset must be one of pandas or HF, but got {type(dataset)}"
@@ -114,15 +127,14 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         # Log the local images paths as non-metadata if they are provided + they are not
         # already logged as metadata
         extra_cols = []
-        if (self.imgs_local_colname is not None) and (
-            meta is None or self.imgs_local_colname not in meta
-        ):
-            extra_cols.append(self.imgs_local_colname)
+        if has_local_paths and (meta is None or imgs_local_colname not in meta):
+            assert imgs_local_colname is not None  # for mypy
+            extra_cols.append(imgs_local_colname)
 
         self.log_dataset(
             dataset=dataset,
             batch_size=batch_size,
-            text=self.imgs_remote_colname or "text",  # colname for remote images
+            text=imgs_remote_colname,
             id=id,
             label=label,
             split=split,
@@ -131,20 +143,22 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             extra_cols=extra_cols,
         )
 
-    def _has_remote_images(self, dataset: DataSet) -> bool:
+    def _has_remote_images(
+        self, dataset: DataSet, imgs_remote_colname: Optional[str]
+    ) -> bool:
         """Check if the dataset contains a column containing remote images"""
         if isinstance(dataset, pd.DataFrame):
             columns = dataset.columns
         elif self.is_hf_dataset(dataset):
             columns = dataset.column_names  # type: ignore # noqa: F821
 
-        return (
-            self.imgs_remote_colname is not None and self.imgs_remote_colname in columns
-        )
+        return imgs_remote_colname is not None and imgs_remote_colname in columns
 
     def _prepare_content(
         self,
         dataset: pd.DataFrame,
+        imgs_local_colname: Optional[str],
+        imgs_remote_colname: Optional[str],
         column_map: dict,
         parallel: bool = False,
     ) -> pd.DataFrame:
@@ -152,16 +166,15 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         If remote paths already exist in the df, do nothing.
 
         If not, upload the images to the objectstore and add their paths in the df in
-        the column self.imgs_remote_colname := GAL_REMOTE_IMAGES_PATHS
+        the column imgs_remote_colname := GAL_REMOTE_IMAGES_PATHS
         """
         dataset = dataset.rename(columns=column_map)
 
         # No need to upload data if we already have access to remote images
-        if self._has_remote_images(dataset):
+        if self._has_remote_images(dataset, imgs_remote_colname):
             return dataset
-        self.imgs_remote_colname = GAL_REMOTE_IMAGES_PATHS
 
-        file_list = dataset[self.imgs_local_colname].tolist()
+        file_list = dataset[imgs_local_colname].tolist()
         project_id = config.current_project_id
 
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -180,11 +193,9 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             df = vaex.open(f"{temp_dir}/*.arrow")
         df = df.to_pandas_df()
         # df has columns "file_path", "object_path" we merge with original dataset
-        # on imgs_location_colname and rename "object_path" to self.imgs_remote_colname
-        dataset = dataset.merge(
-            df, left_on=self.imgs_local_colname, right_on="file_path"
-        )
-        dataset.rename(columns={"object_path": self.imgs_remote_colname}, inplace=True)
+        # on imgs_location_colname and rename "object_path" to imgs_remote_colname
+        dataset = dataset.merge(df, left_on=imgs_local_colname, right_on="file_path")
+        dataset.rename(columns={"object_path": imgs_remote_colname}, inplace=True)
         dataset.drop(columns=["file_path"], inplace=True)
         for f in glob.glob(f"{temp_dir}/*.arrow"):
             os.remove(f)
@@ -205,10 +216,12 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         self,
         dataset: DataSet,
         id_: str,
+        imgs_local_colname: Optional[str],
+        imgs_remote_colname: Optional[str],
         column_map: dict,
         # returns HF dataset, hard to express in mypy without
         # importing the datasets package
-    ) -> Any:
+    ) -> Tuple[DataSet, bool]:
         import datasets
 
         assert isinstance(dataset, datasets.Dataset)
@@ -222,37 +235,41 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             dataset = dataset.add_column(name=id_, column=list(range(len(dataset))))
 
         # No need to upload data if we already have access to remote images
-        if self._has_remote_images(dataset):
-            return dataset
-        self.imgs_remote_colname = GAL_REMOTE_IMAGES_PATHS
+        if self._has_remote_images(dataset, imgs_remote_colname):
+            has_local_paths = (
+                imgs_local_colname is not None
+                and dataset.features[imgs_local_colname].dtype == "string"
+            )
+            return dataset, has_local_paths
         assert (
-            self.imgs_local_colname is not None
-        ), "imgs_local has to be specified since imgs_remote is not in the df"
+            imgs_local_colname is not None
+        ), "imgs_local_colname has to be specified since imgs_remote is not in the df"
 
-        if dataset.features[self.imgs_local_colname].dtype == "string":
+        imgs_remote_colname = GAL_REMOTE_IMAGES_PATHS
+        if dataset.features[imgs_local_colname].dtype == "string":
             # Case where the column contains paths to the images
             from dataquality.utils.hf_images import process_hf_image_paths_for_logging
 
             prepared = process_hf_image_paths_for_logging(
-                dataset, self.imgs_local_colname, self.imgs_remote_colname
+                dataset, imgs_local_colname, imgs_remote_colname
             )
-        elif isinstance(dataset.features[self.imgs_local_colname], datasets.Image):
+            has_local_paths = True
+        elif isinstance(dataset.features[imgs_local_colname], datasets.Image):
             # Case where the column contains Image feature
             # We will not have local paths in this case
             from dataquality.utils.hf_images import process_hf_image_feature_for_logging
 
             prepared = process_hf_image_feature_for_logging(
-                dataset, self.imgs_local_colname, self.imgs_remote_colname
+                dataset, imgs_local_colname, imgs_remote_colname
             )
-            # We don't want to log the local_col since it does not contain local paths
-            self.imgs_local_colname = None
+            has_local_paths = False
         else:
             raise GalileoException(
-                f"The argument imgs_local={repr(self.imgs_local_colname)} doesn't point"
+                f"The argument imgs_local={repr(imgs_local_colname)} doesn't point"
                 "to a column containing local paths or images. Pass a valid column name"
             )
 
-        return prepared
+        return prepared, has_local_paths
 
     def _prepare_df_from_ImageFolder(
         self,
@@ -265,15 +282,13 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         coming from an ImageFolder dataset.
         """
         # Extract the local paths from the ImageFolder dataset and add them to the df
-        self.imgs_local_colname = GAL_LOCAL_IMAGES_PATHS
-
         if split == Split.inference:
             df = pd.DataFrame(
-                columns=[self.imgs_local_colname], data=[img[0] for img in dataset.imgs]
+                columns=[GAL_LOCAL_IMAGES_PATHS], data=[img[0] for img in dataset.imgs]
             )
         else:
             df = pd.DataFrame(
-                columns=[self.imgs_local_colname, "label"], data=dataset.imgs
+                columns=[GAL_LOCAL_IMAGES_PATHS, "label"], data=dataset.imgs
             )
             label_idx_to_label = {
                 label_idx: label for label, label_idx in dataset.class_to_idx.items()
@@ -284,8 +299,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
 
         # Also add remote paths, if a remote location is specified
         if imgs_remote_location is not None:
-            self.imgs_remote_colname = GAL_REMOTE_IMAGES_PATHS
-            df[self.imgs_remote_colname] = df[self.imgs_local_colname].str.replace(
+            df[GAL_REMOTE_IMAGES_PATHS] = df[GAL_LOCAL_IMAGES_PATHS].str.replace(
                 dataset.root, imgs_remote_location
             )
 
