@@ -258,7 +258,7 @@ def _test_hf_image_dataset(name, test_session_vars: TestSessionVariables) -> Non
     dq.log_image_dataset(
         dataset=dataset_info["dataset"],
         label="label",
-        imgs_local=dataset_info["imgs_colname"],
+        imgs_local_colname=dataset_info["imgs_colname"],
         split="training",
     )
 
