@@ -332,7 +332,7 @@ def test_hf_image_dataset_with_paths(
         dq.log_image_dataset(
             dataset=dataset_with_paths,
             label="label",
-            imgs_local="path",
+            imgs_local_colname="path",
             split="training",
         )
 
