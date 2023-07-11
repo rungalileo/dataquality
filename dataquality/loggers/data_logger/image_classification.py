@@ -80,7 +80,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         """For main docstring see top level method located in core/log.py."""
         imgs_remote_colname: Optional[str]
         has_local_paths = False
-        
+
         if type(dataset).__name__ == "ImageFolder":
             # imgs_local will be ignored (irrelevant since no dataframe is passed)
             dataset = self._prepare_df_from_ImageFolder(
