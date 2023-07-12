@@ -88,14 +88,14 @@ def test_fast_ai_integration_e2e(
     for data, split in zip(dls, ["training", "validation"]):
         df = convert_img_dl_to_df(data)
         df["text"] = "s3://..."
-        dq.log_image_dataset(df, split=split, imgs_local="text")
+        dq.log_image_dataset(df, split=split, imgs_remote="text")
 
     ThreadPoolManager.wait_for_threads()
     learn = vision_learner(dls, "resnet10t", metrics=error_rate)
     dqc = FastAiDQCallback(finish=False)
     learn.add_cb(dqc)
     learn.fine_tune(2, freeze_epochs=0)
-    dq.log_image_dataset(df, imgs_local="text", split="test")
+    dq.log_image_dataset(df, imgs_remote="text", split="test")
     dl_test = learn.dls.test_dl(pd.Series(image_files[:-3]))
     dqc.prepare_split("test")
     learn.get_preds(dl=dl_test)
@@ -136,7 +136,7 @@ def test_fast_ai_integration_e2e(
         inf_dataset,
         split="inference",
         inference_name=INF_NAME,
-        imgs_remote_location="gs://galileo-public-data/CV_datasets/ImageNet10_animals_train_val/inference",
+        imgs_remote="gs://galileo-public-data/CV_datasets/ImageNet10_animals_train_val/inference",
     )
     dq.set_split("inference", inference_name=INF_NAME)
     model = dqc.model.cpu()

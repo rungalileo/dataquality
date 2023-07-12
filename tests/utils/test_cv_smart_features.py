@@ -103,7 +103,7 @@ def test_analyze_image_smart_features() -> None:
     assert not _is_low_contrast(image_data["contrast"])
     assert not _is_under_exposed(image_data["underexp"])
     assert not _is_over_exposed(image_data["overexp"])
-    assert not _is_low_content_entropy(image_data["entropy"])
+    assert not _is_low_content_entropy(image_data["content"])
 
 
 def test_generate_smart_features():
