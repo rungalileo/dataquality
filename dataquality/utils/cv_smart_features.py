@@ -1,10 +1,11 @@
 import warnings
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import vaex
 from imagededup.methods import PHash
+from multiprocess import Pool, cpu_count
 from PIL import Image, ImageFilter, ImageStat
 from vaex.dataframe import DataFrame
 from vaex.expression import Expression
@@ -66,11 +67,7 @@ PHASH_NEAR_DUPLICATE_THRESHOLD = 9
 
 @dataclass
 class VaexColumn:
-    """
-    A class holding the column names appearing with the smart feature methods.
-    The columns starting with "Outlier" are the ones that have to be passed further to
-    the UI to surface the anomalies.
-    """
+    """A class holding the column names appearing with the smart feature methods."""
 
     imagepath: str = "image_path"
     height: str = "height"
@@ -96,6 +93,12 @@ class VaexColumn:
         self.OutlierUnderExp: str = f"outlier_{self.underexp}"
         self.OutlierLowContent: str = f"outlier_{self.lowcontent}"
         self.OutlierBlur: str = f"outlier_{self.blur}"
+
+    def cols_to_display(self) -> List[str]:
+        """Return list of columns to display in the UI as anomalies."""
+        cols = [val for key, val in self.__dict__.items() if key.startswith("Outlier")]
+        cols.append(VC.imagepath)
+        return cols
 
 
 VC = VaexColumn()
@@ -371,19 +374,39 @@ def analyze_image_smart_features(
     return image_data
 
 
-def generate_smart_features(images_paths: List[str]) -> DataFrame:
+def analyze_image_smart_features_wrapper(hasher: Optional[PHash] = None) -> Callable:
+    """
+    Wrapper around analyze_image_smart_features to allow calling with only the path
+    argument and making it easier to parallelize.
+    """
+
+    def analyze_image_smart_features_only_image_path(image_path: str) -> Dict[str, Any]:
+        return analyze_image_smart_features(image_path, hasher)
+
+    return analyze_image_smart_features_only_image_path
+
+
+def generate_smart_features(images_paths: List[str], n_cores: int = -1) -> DataFrame:
     """
     Create and return a dataframe containing the  smart features on images (blurriness,
     contrast, etc).
+
+    Can run in parallel if n_cores is specified and different than 1. To use all
+    available cores set n_cores = -1.
     """
 
     hasher = PHash()
     images_data: List[dict] = []
 
-    # TODO: add parallelization here
-    for image_path in images_paths:
-        image_data = analyze_image_smart_features(image_path, hasher)
-        images_data.append(image_data)
+    ### Call the method (serially or in parallel depending on n_cores)
+    if n_cores == 1:
+        for image_path in images_paths:
+            image_data = analyze_image_smart_features(image_path, hasher)
+            images_data.append(image_data)
+    else:
+        p = Pool(n_cores if n_cores != -1 else cpu_count())
+        analyze_image_smart_features_par = analyze_image_smart_features_wrapper(hasher)
+        images_data = p.map(analyze_image_smart_features_par, images_paths)
 
     df = vaex.from_records(images_data)
 

@@ -404,17 +404,12 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         images_paths = in_frame[GAL_LOCAL_IMAGES_PATHS].tolist()
         smart_feats_frame = generate_smart_features(images_paths)
 
-        smart_feats_cols = [
-            col for col in smart_feats_frame.get_column_names() if "outlier" in col
-        ]
-        smart_feats_cols.append(VC.imagepath)
-
         smart_feats_frame[VC.OutlierNearDup] = smart_feats_frame.func.where(
             smart_feats_frame[VC.OutlierNearDupId].isin([None]), False, True
         ).to_numpy()
 
         in_frame = in_frame.join(
-            smart_feats_frame[smart_feats_cols],
+            smart_feats_frame[VC.cols_to_display()],
             left_on=GAL_LOCAL_IMAGES_PATHS,
             right_on=VC.imagepath,
         )

@@ -119,8 +119,8 @@ def test_generate_smart_features():
     images_paths = [
         f"{TEST_ASSETS_SMART_FEATS_DIR}/{image_name}" for image_name in images_names
     ]
-
     df = generate_smart_features(images_paths)
+
     assert len(df) == len(images_names)
     outlier_cols = {
         "outlier_size",
@@ -134,9 +134,3 @@ def test_generate_smart_features():
         "outlier_blur",
     }
     assert outlier_cols.issubset(df.columns)
-
-
-def test_generate_smart_features_multicore():
-    """Check that the method creating smart features on multiple images works with
-    multiple cores"""
-    assert False
