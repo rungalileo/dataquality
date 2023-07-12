@@ -31,11 +31,7 @@ If you want to train without a model, you can use the auto framework:
 """
 
 
-<<<<<<< HEAD
-__version__ = "0.9.5"
-=======
-__version__ = "0.9.4"
->>>>>>> f37f765 (fix: Move version validation to `init`, log warning instead of raising exception (#708))
+__version__ = "0.9.6"
 
 import sys
 from typing import Any, List, Optional
