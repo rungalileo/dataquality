@@ -4,7 +4,7 @@ import glob
 import os
 import tempfile
 import warnings
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -80,39 +80,30 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         parallel: bool = False,
     ) -> Any:
         """For main docstring see top level method located in core/log.py."""
-        imgs_remote_colname: Optional[str]
-        has_local_paths = False
-
         if type(dataset).__name__ == "ImageFolder":
             # imgs_local will be ignored (irrelevant since no dataframe is passed)
             dataset = self._prepare_df_from_ImageFolder(
                 dataset=dataset, imgs_remote_location=imgs_remote, split=split
             )
             imgs_local_colname = GAL_LOCAL_IMAGES_PATHS
-            imgs_remote_colname = GAL_REMOTE_IMAGES_PATHS
-            has_local_paths = True
-        else:
-            if imgs_local_colname is None and imgs_remote is None:
-                raise GalileoException(
-                    "Must provide imgs_local_colname or imgs_remote when using a df"
-                )
-            elif imgs_local is None:
-                warnings.warn(
-                    "Smart Features won't be calculated since no local paths to images"
-                    "were provided"
-                )
-            elif imgs_remote is None:
-                warnings.warn(
-                    "The images will be uploaded to a remote object store (can be"
-                    "slow). Provide remote paths to images to avoid this upload"
-                )
-
-            self.imgs_local_colname = imgs_local
-            self.imgs_remote_colname = imgs_remote
+        if imgs_local_colname is None and imgs_remote is None:
+            raise GalileoException(
+                "Must provide imgs_local_colname or imgs_remote when using a df"
+            )
+        elif imgs_local_colname is None:
+            warnings.warn(
+                "Smart Features won't be calculated since no local paths to images"
+                "were provided"
+            )
+        elif imgs_remote is None:
+            warnings.warn(
+                "The images will be uploaded to a remote object store (can be"
+                "slow). Provide remote paths to images to avoid this upload"
+            )
 
         # Get the column mapping and rename imgs_local and imgs_remote if required
-        column_map = column_map or {id: "id"}
         # Always rename "text" since it is used internally and would create a conflict
+        column_map = column_map or {id: "id"}
         column_map["text"] = column_map.get("text", "text_original")
         if imgs_local_colname is not None:
             column_map[imgs_local_colname] = GAL_LOCAL_IMAGES_PATHS
