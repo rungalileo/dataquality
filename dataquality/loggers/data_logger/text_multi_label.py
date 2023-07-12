@@ -179,9 +179,6 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
         self,
         d: Dict,
         meta: Dict,
-        extra_cols: Optional[
-            Dict
-        ] = None,  # not used, added for preserving the signature
         split: Optional[Split] = None,
         inference_name: Optional[str] = None,
     ) -> None:

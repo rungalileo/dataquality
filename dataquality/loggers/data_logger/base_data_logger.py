@@ -74,13 +74,10 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     DATA_FOLDER_EXTENSION = {data_folder: "hdf5" for data_folder in DATA_FOLDERS}
     INPUT_DATA_FILE_EXT = "arrow"
 
-    def __init__(
-        self, meta: Optional[MetasType] = None, extra_cols: Optional[MetasType] = None
-    ) -> None:
+    def __init__(self, meta: Optional[MetasType] = None) -> None:
         super().__init__()
         self.meta: Dict = meta or {}
         self.log_export_progress = True
-        self.extra_cols: Dict = extra_cols or {}  # Extra data to log (not metadata)
 
     @property
     def input_data_path(self) -> str:
@@ -222,6 +219,26 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     @property
     def support_data_embs(self) -> bool:
         return True
+
+    def apply_column_map(self, dataset: DataSet, column_map: Dict[str, str]) -> DataSet:
+        """Rename columns in the dataset according to the column_map
+
+        This function works for both pandas and HF datasets
+        """
+        # Remove any columns that are mapped to themselves
+        column_map = {k: v for k, v in column_map.items() if k != v}
+
+        if isinstance(dataset, pd.DataFrame):
+            dataset = dataset.rename(columns=column_map)
+        elif self.is_hf_dataset(dataset):
+            import datasets
+
+            assert isinstance(dataset, datasets.Dataset)
+            for old_col, new_col in column_map.items():
+                if old_col in dataset.column_names:  # HF breaks if col doesn't exist
+                    dataset = dataset.rename_column(old_col, new_col)
+
+        return dataset
 
     def upload(
         self, last_epoch: Optional[int] = None, create_data_embs: bool = False
