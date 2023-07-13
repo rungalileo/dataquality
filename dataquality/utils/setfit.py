@@ -33,6 +33,7 @@ class DataSampleLogArgs:
         self.texts.clear()
         self.ids.clear()
         self.labels.clear()
+        self.meta.clear()
 
 
 def _get_meta_cols(cols: Iterable) -> List[str]:
