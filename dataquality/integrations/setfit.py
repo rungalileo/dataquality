@@ -1,6 +1,7 @@
 import contextlib
 import io
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
+import os
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 import pandas as pd
 import torch
@@ -36,6 +37,54 @@ if TYPE_CHECKING:
     from setfit import SetFitModel, SetFitTrainer
 
 
+class Evaluate:
+    """Call function to evaluate SetFit model and log input and output to Galileo."""
+
+    def __init__(self, model: "SetFitModel", dq_store: Dict) -> None:
+        self.model = model
+        self.dq_store = dq_store
+
+    def __call__(
+        self,
+        dataset: Dataset,
+        split: Split,
+        meta: Optional[List] = None,
+        inference_name: Optional[str] = None,
+        column_mapping: Optional[Dict] = None,
+        batch_size: int = 64,
+        epoch: Optional[int] = None,
+    ) -> torch.Tensor:
+        """Evaluate SetFit model and log input and output to Galileo.
+        :param batch: batch of data as a dictionary
+        :param split: split of data (training, validation, test, inference)
+        :param meta: columns that should be logged as metadata
+        :param inference_name: inference name (if split is inference, must be provided)
+        :param column_mapping: mapping of column names (if different from default)
+        :return: output of SetFitModel.predict_proba function"""
+        a.log_function("setfit/evaluate")
+        column_mapping = column_mapping or dict(
+            id="id",
+            text="text",
+            label="label",
+        )
+        dataset = _apply_column_mapping(dataset, column_mapping)
+        if "id" not in dataset.features:
+            dataset = dataset.map(lambda x, idx: {"id": idx}, with_indices=True)
+        if epoch is not None:
+            dq.set_epoch(epoch)
+        cur_epoch = get_data_logger().logger_config.cur_epoch
+        return log_preds_setfit(
+            model=self.model,
+            dataset=dataset,
+            dq_store=self.dq_store,
+            batch_size=batch_size,
+            split=split,
+            inference_name=inference_name,
+            meta=meta,
+            epoch=cur_epoch,
+        )
+
+
 def unwatch(setfit_obj: Optional[Union["SetFitModel", "SetFitTrainer"]]) -> None:
     """Unpatch SetFit model by replacing predict_proba function with original
     function.
@@ -59,7 +108,7 @@ def watch(
     batch_size: Optional[int] = None,
     meta: Optional[List] = None,
     validate_before_training: bool = False,
-) -> Callable:
+) -> Evaluate:
     """Watch a SetFit model or trainer and extract model outputs for dataquality.
     Returns a function that can be used to evaluate the model on a dataset.
     :param setfit: SetFit model or trainer
@@ -124,56 +173,15 @@ def watch(
         return evaluate(model)
 
 
-def evaluate(
-    model: "SetFitModel",
-) -> Callable:
+def evaluate(model: "SetFitModel") -> Evaluate:
     """Watch SetFit model by replacing predict_proba function with SetFitModelHook.
     :param model: SetFit model
     :return: SetFitModelHook object"""
 
-    dq_hook = SetFitModelHook(model)
-    dq_store = dq_hook.store
-
-    def dq_evaluate(
-        dataset: Dataset,
-        split: Split,
-        meta: Optional[List] = None,
-        inference_name: Optional[str] = None,
-        column_mapping: Optional[Dict] = None,
-        batch_size: int = 64,
-        epoch: Optional[int] = None,
-    ) -> torch.Tensor:
-        """Evaluate SetFit model and log input and output to Galileo.
-        :param batch: batch of data as a dictionary
-        :param split: split of data (training, validation, test, inference)
-        :param meta: columns that should be logged as metadata
-        :param inference_name: inference name (if split is inference, must be provided)
-        :param column_mapping: mapping of column names (if different from default)
-        :return: output of SetFitModel.predict_proba function"""
-        a.log_function("setfit/evaluate")
-        column_mapping = column_mapping or dict(
-            id="id",
-            text="text",
-            label="label",
-        )
-        dataset = _apply_column_mapping(dataset, column_mapping)
-        if "id" not in dataset.features:
-            dataset = dataset.map(lambda x, idx: {"id": idx}, with_indices=True)
-        if epoch is not None:
-            dq.set_epoch(epoch)
-        cur_epoch = get_data_logger().logger_config.cur_epoch
-        return log_preds_setfit(
-            model=model,
-            dataset=dataset,
-            dq_store=dq_store,
-            batch_size=batch_size,
-            split=split,
-            inference_name=inference_name,
-            meta=meta,
-            epoch=cur_epoch,
-        )
-
-    return dq_evaluate
+    hook = SetFitModelHook(model)
+    dq_store = hook.store
+    evaluate = Evaluate(model, dq_store)
+    return evaluate
 
 
 def auto(
@@ -358,5 +366,6 @@ def do_model_eval(
             meta=meta_columns,
         )
 
-    dq.finish(wait=wait, create_data_embs=create_data_embs)
+    if not os.environ.get("DQ_SKIP_FINISH"):
+        dq.finish(wait=wait, create_data_embs=create_data_embs)
     return model
