@@ -29,6 +29,7 @@ class DataSampleLogArgs:
 
     def clear(self) -> None:
         """Resets the arrays of the class."""
+        print("ARGH")
         self.texts.clear()
         self.ids.clear()
         self.labels.clear()
@@ -68,10 +69,7 @@ def log_preds_setfit(
     label_col = "label"
     preds: List[Tensor] = []
     log_args: DataSampleLogArgs = DataSampleLogArgs(split=split)
-    inference_dict: Dict[str, str] = {}
-    if inference_name is not None:
-        log_args.inference_name = inference_name
-        inference_dict["inference_name"] = inference_name
+    log_args.inference_name = inference_name
 
     logger_config = dq.get_data_logger().logger_config
     labels = logger_config.labels
@@ -79,7 +77,7 @@ def log_preds_setfit(
 
     # Check if the data should be logged by checking if the split is in the
     # input_data_logged
-    skip_logging = logger_config.helper_data[f"setfit_skip_input_log_{split}"]
+    skip_logging = False  # logger_config.helper_data[f"setfit_skip_input_log_{split}"]
     # Iterate over the dataset in batches and log the data samples
     # and model outputs
     meta = _get_meta_cols(dataset.column_names)
@@ -111,7 +109,8 @@ def log_preds_setfit(
 
                     else:
                         print(f"Meta column: {meta_col} was not found in batch")
-
+            print("len(log_args.texts), BATCH_LOG_SIZE")
+            print(len(log_args.texts), BATCH_LOG_SIZE)
             if len(log_args.texts) >= BATCH_LOG_SIZE:
                 dq.log_data_samples(**asdict(log_args))
                 log_args.clear()
@@ -122,12 +121,20 @@ def log_preds_setfit(
             embs=dq_store["input_args"][0],
             split=split,
             epoch=epoch,
-            **inference_dict,  # type: ignore
+            inference_name=inference_name,
         )
+        print("split")
+        print(split)
 
     # Log any leftovers
-    if log_args and not skip_logging:
+    print("NAA", skip_logging, len(log_args.ids))
+    print(
+        print(batch[id_col]),
+    )
+    if len(log_args.ids) and not skip_logging:
         dq.log_data_samples(**asdict(log_args))
+        print("YAAA")
+    log_args.clear()
     if not return_preds:
         return torch.tensor([])
     return torch.concat(preds)
@@ -140,6 +147,7 @@ def _prepare_config() -> None:
     """
     logger_config = dq.get_data_logger().logger_config
     for split in ["training", "validation", "test", "inference"]:
+        continue
         split_key = f"setfit_skip_input_log_{split}"
         logger_config.helper_data[split_key] = getattr(logger_config, f"{split}_logged")
 

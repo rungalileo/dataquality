@@ -238,31 +238,32 @@ def test_auto(
     cleanup_after_use: Generator,
     test_session_vars: TestSessionVariables,
 ) -> None:
+    import os
+
     mock_get_project_by_name.return_value = {"id": test_session_vars.DEFAULT_PROJECT_ID}
     mock_create_run.return_value = {"id": test_session_vars.DEFAULT_RUN_ID}
     set_test_config(current_project_id=None, current_run_id=None)
     example_data = {"text": ["hello", "world", "foo", "bar"] * 2, "label": [0, 1] * 4}
     dataset = Dataset.from_dict(example_data)
-    dq.utils.setfit.BATCH_SIZE = 1
+    dq.utils.setfit.BATCH_LOG_SIZE = 1
     set_test_config(
         task_type="text_classification",
         project_name="test_project",
         run_name="test_run",
     )
     df = pd.DataFrame(example_data)
-    df["meta_col"] = "meta"
-    dataset = dataset.map(
-        lambda x, idx: {"id": idx, "meta_col": "meta"}, with_indices=True
-    )
+
+    dataset = dataset.map(lambda x, idx: {"id": idx}, with_indices=True)
     column_mapping = {"text": "text", "label": "label"}
 
     labels = ["nocat", "cat"]
-    eval_ds = dataset.remove_columns("label")
+    eval_ds = dataset.remove_columns("label").map(lambda x: {"meta_col": "meta"})
+    os.environ["DQ_SKIP_FINISH"] = "1"
     model = auto(
         train_data=df,
         val_data=dataset,
         test_data=dataset,
-        inference_data={"eval": eval_ds},
+        inference_data={"inftest": eval_ds},
         project_name="project_name",
         run_name="labels",
         training_args={"num_epochs": 1, "num_iterations": 1},
@@ -278,6 +279,18 @@ def test_auto(
         finish=False,
         batch_size=2,
     )
+
+    ThreadPoolManager.wait_for_threads()
+    import os
+
+    # print(os.listdir(f"{test_session_vars.TEST_PATH}/inference/"))
+    dq.get_data_logger().upload()
+
+    print(os.listdir(f"{test_session_vars.TEST_PATH}/inference/"))
+    inf_data_1 = vaex.open(
+        f"{test_session_vars.TEST_PATH}/inference/inftest/data/data.hdf5"
+    )
+    assert inf_data_1["meta_col"].unique() == ["meta"]
     dq_evaluate(
         eval_ds,
         split="inference",
@@ -286,7 +299,7 @@ def test_auto(
         inference_name="inference_run_1",
         batch_size=2,
     )
-    ThreadPoolManager.wait_for_threads()
-    dq.get_data_logger().upload()
-    inf_data = vaex.open(f"{test_session_vars.TEST_PATH}/inference/*/data/data.hdf5")
-    assert inf_data["meta_col"].unique() == ["meta"]
+    inf_data_2 = vaex.open(
+        f"{test_session_vars.TEST_PATH}/inference/inference_run_1/data/data.hdf5"
+    )
+    assert inf_data_2["meta_col"].unique() == ["meta"]
