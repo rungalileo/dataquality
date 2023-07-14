@@ -241,9 +241,9 @@ def test_auto(
     mock_get_project_by_name.return_value = {"id": test_session_vars.DEFAULT_PROJECT_ID}
     mock_create_run.return_value = {"id": test_session_vars.DEFAULT_RUN_ID}
     set_test_config(current_project_id=None, current_run_id=None)
-    example_data = {"text": ["hello", "world", "foo", "bar"], "label": [0, 1] * 2}
+    example_data = {"text": ["hello", "world", "foo", "bar"] * 2, "label": [0, 1] * 4}
     dataset = Dataset.from_dict(example_data)
-
+    dq.utils.setfit.BATCH_SIZE = 1
     set_test_config(
         task_type="text_classification",
         project_name="test_project",
@@ -276,6 +276,7 @@ def test_auto(
         run_name="labels",
         labels=labels,
         finish=False,
+        batch_size=2,
     )
     dq_evaluate(
         eval_ds,
@@ -283,6 +284,7 @@ def test_auto(
         meta=["meta_col"],
         # for inference set the split to inference
         inference_name="inference_run_1",
+        batch_size=2,
     )
     ThreadPoolManager.wait_for_threads()
     dq.get_data_logger().upload()

@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 class DataSampleLogArgs:
     split: Split
     inference_name: Optional[str] = None
-    meta: Optional[Dict] = None
+    meta: Dict = field(default_factory=dict)
     texts: List[str] = field(default_factory=list)
     ids: List[int] = field(default_factory=list)
     labels: List = field(default_factory=list)
@@ -32,6 +32,7 @@ class DataSampleLogArgs:
         self.texts.clear()
         self.ids.clear()
         self.labels.clear()
+        self.meta.clear()
 
 
 def _get_meta_cols(cols: Iterable) -> List[str]:
@@ -92,6 +93,8 @@ def log_preds_setfit(
             log_args.labels += [labels[label] for label in batch[label_col]]
 
         pred = model.predict_proba(batch[text_col])
+        print(f"Meta columns: {meta}")
+        meta_column_batch = log_args.meta
         if return_preds:
             preds.append(pred)
         # 🔭🌕 Galileo logging
@@ -99,14 +102,16 @@ def log_preds_setfit(
             log_args.texts += batch[text_col]
             log_args.ids += batch[id_col]
             if meta is not None:
-                meta_colum_batch = {}
                 for meta_col in meta:
                     if meta_col in batch:
-                        meta_colum_batch[meta_col] = batch[meta_col]
+                        if meta_col not in meta_column_batch:
+                            meta_column_batch[meta_col] = batch[meta_col]
+                        else:
+                            meta_column_batch[meta_col] += batch[meta_col]
+
                     else:
                         print(f"Meta column: {meta_col} was not found in batch")
-                if meta_colum_batch:
-                    log_args.meta = meta_colum_batch
+
             if len(log_args.texts) >= BATCH_LOG_SIZE:
                 dq.log_data_samples(**asdict(log_args))
                 log_args.clear()
