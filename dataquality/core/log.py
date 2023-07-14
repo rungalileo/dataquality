@@ -386,7 +386,6 @@ def log_model_outputs(
     The expected argument shapes come from the task_type being used
     See dq.docs() for more task specific details on parameter shape
     """
-    print("MODEL", split)
     assert all(
         [config.task_type, config.current_project_id, config.current_run_id]
     ), "You must call dataquality.init before logging data"

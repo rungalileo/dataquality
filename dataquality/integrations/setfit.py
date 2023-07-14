@@ -71,10 +71,8 @@ class Evaluate:
         if "id" not in dataset.features:
             dataset = dataset.map(lambda x, idx: {"id": idx}, with_indices=True)
         if epoch is not None:
-            print("EPOCH", epoch)
             dq.set_epoch(epoch)
         cur_epoch = get_data_logger().logger_config.cur_epoch
-        print("PEPOCH", cur_epoch)
         return log_preds_setfit(
             model=self.model,
             dataset=dataset,
@@ -361,13 +359,15 @@ def do_model_eval(
     for inf_name in inf_names:
         ds = encoded_data[inf_name]
         meta_columns = _get_meta_cols(ds.column_names)
-        print(meta_columns)
         dq_evaluate(
             ds,
             split=Split.inference,  # type: ignore
             inference_name=inf_name,  # type: ignore
             meta=meta_columns,
         )
+    # import glob
+    # print("GLOBB")
+    # print(glob.glob(f"/Users/franz/.galileo/logs/*/*/*/*"))
 
     if not os.environ.get("DQ_SKIP_FINISH"):
         dq.finish(wait=wait, create_data_embs=create_data_embs)

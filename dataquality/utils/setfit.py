@@ -29,7 +29,6 @@ class DataSampleLogArgs:
 
     def clear(self) -> None:
         """Resets the arrays of the class."""
-        print("ARGH")
         self.texts.clear()
         self.ids.clear()
         self.labels.clear()
@@ -109,8 +108,7 @@ def log_preds_setfit(
 
                     else:
                         print(f"Meta column: {meta_col} was not found in batch")
-            print("len(log_args.texts), BATCH_LOG_SIZE")
-            print(len(log_args.texts), BATCH_LOG_SIZE)
+
             if len(log_args.texts) >= BATCH_LOG_SIZE:
                 dq.log_data_samples(**asdict(log_args))
                 log_args.clear()
@@ -123,17 +121,10 @@ def log_preds_setfit(
             epoch=epoch,
             inference_name=inference_name,
         )
-        print("split")
-        print(split)
 
     # Log any leftovers
-    print("NAA", skip_logging, len(log_args.ids))
-    print(
-        print(batch[id_col]),
-    )
     if len(log_args.ids) and not skip_logging:
         dq.log_data_samples(**asdict(log_args))
-        print("YAAA")
     log_args.clear()
     if not return_preds:
         return torch.tensor([])
