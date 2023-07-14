@@ -365,9 +365,6 @@ def do_model_eval(
             inference_name=inf_name,  # type: ignore
             meta=meta_columns,
         )
-    # import glob
-    # print("GLOBB")
-    # print(glob.glob(f"/Users/franz/.galileo/logs/*/*/*/*"))
 
     if not os.environ.get("DQ_SKIP_FINISH"):
         dq.finish(wait=wait, create_data_embs=create_data_embs)

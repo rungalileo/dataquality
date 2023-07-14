@@ -76,7 +76,7 @@ def log_preds_setfit(
 
     # Check if the data should be logged by checking if the split is in the
     # input_data_logged
-    skip_logging = False  # logger_config.helper_data[f"setfit_skip_input_log_{split}"]
+    skip_logging = logger_config.helper_data[f"setfit_skip_input_log_{split}"]
     # Iterate over the dataset in batches and log the data samples
     # and model outputs
     meta = _get_meta_cols(dataset.column_names)
@@ -90,7 +90,6 @@ def log_preds_setfit(
             log_args.labels += [labels[label] for label in batch[label_col]]
 
         pred = model.predict_proba(batch[text_col])
-        print(f"Meta columns: {meta}")
         meta_column_batch = log_args.meta
         if return_preds:
             preds.append(pred)
@@ -138,7 +137,6 @@ def _prepare_config() -> None:
     """
     logger_config = dq.get_data_logger().logger_config
     for split in ["training", "validation", "test", "inference"]:
-        continue
         split_key = f"setfit_skip_input_log_{split}"
         logger_config.helper_data[split_key] = getattr(logger_config, f"{split}_logged")
 

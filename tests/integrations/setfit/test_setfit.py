@@ -285,12 +285,6 @@ def test_auto(
     # print(os.listdir(f"{test_session_vars.TEST_PATH}/inference/"))
     dq.get_data_logger().upload()
 
-    import glob
-
-    # inf_data_1 = vaex.open(
-    # f"{test_session_vars.TEST_PATH}/inference/inftest/data/data.hdf5"
-    # )
-    # assert inf_data_1["meta_col"].unique() == ["meta"]
     dq_evaluate(
         eval_ds,
         split="inference",
@@ -300,7 +294,6 @@ def test_auto(
         batch_size=2,
     )
     dq.get_data_logger().upload()
-    print(glob.glob(f"{test_session_vars.TEST_PATH}/*/*"))
 
     inf_data_2 = vaex.open(
         f"{test_session_vars.TEST_PATH}/inference/inference_run_1/data/data.hdf5"
