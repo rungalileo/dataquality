@@ -8,8 +8,8 @@
 :param val_data: Optional: validation data
 :param labels: The labels for the run
 :param framework: The framework to use, if provided it will be used instead of
-    inferring it from the model. For example, if you have a spacy model, you
-    can pass framework="spacy". If you have a torch model, you can pass
+    inferring it from the model. For example, if you have a torch model, you
+    can pass framework="torch". If you have a torch model, you can pass
     framework="torch"
 :param args: Additional arguments
 :param kwargs: Additional keyword arguments
@@ -30,7 +30,8 @@ If you want to train without a model, you can use the auto framework:
         dataquality.get_insights()
 """
 
-__version__ = "v0.8.50"
+
+__version__ = "0.9.7"
 
 import sys
 from typing import Any, List, Optional
@@ -56,6 +57,7 @@ from dataquality.core.finish import finish, get_run_status, wait_for_run
 from dataquality.core.init import init
 from dataquality.core.log import (
     docs,
+    get_current_run_labels,
     get_data_logger,
     get_model_logger,
     log_data_sample,
@@ -70,6 +72,7 @@ from dataquality.core.log import (
     set_split,
     set_tagging_schema,
     set_tasks_for_run,
+    set_tokenizer,
 )
 from dataquality.core.report import build_run_report, register_run_report
 from dataquality.dq_auto.auto import auto
@@ -100,6 +103,7 @@ __all__ = [
     "configure",
     "finish",
     "set_labels_for_run",
+    "get_current_run_labels",
     "get_data_logger",
     "get_model_logger",
     "set_tasks_for_run",
@@ -129,6 +133,7 @@ __all__ = [
     "auto",
     "DataQuality",
     "auto_notebook",
+    "set_tokenizer",
 ]
 
 try:

@@ -11,7 +11,6 @@ class AmpliMetric(str, Enum):
     dq_login = "dq_login"
     dq_import_torch = "dq_import_torch"
     dq_import_tensorflow = "dq_import_tensorflow"
-    dq_import_spacy = "dq_import_spacy"
     dq_function_call = "dq_function_call"
     dq_general_exception = "dq_general_exception"
     dq_log_data_exception = "dq_log_data_exception"

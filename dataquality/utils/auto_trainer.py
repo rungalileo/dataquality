@@ -13,7 +13,7 @@ def do_train(
     encoded_data: DatasetDict,
     wait: bool,
     create_data_embs: Optional[bool] = None,
-) -> None:
+) -> Trainer:
     watch(trainer)
     trainer.train()
     if Split.test in encoded_data:
@@ -25,3 +25,4 @@ def do_train(
         dq.set_split(Split.inference, inference_name=inf_name)
         trainer.predict(test_dataset=encoded_data[inf_name])
     dq.finish(wait=wait, create_data_embs=create_data_embs)
+    return trainer

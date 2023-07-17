@@ -29,6 +29,7 @@ from dataquality.schemas.task_type import TaskType
 from dataquality.utils.dq_logger import DQ_LOG_FILE_HOME
 from dataquality.utils.helpers import check_noop
 from dataquality.utils.name import validate_name
+from dataquality.utils.version import version_check
 
 api_client = ApiClient()
 
@@ -182,6 +183,7 @@ def init(
     if not api_client.valid_current_user():
         login()
     _check_dq_version()
+    version_check()
     _init = InitManager()
     task_type = BaseGalileoLogger.validate_task(task_type)
     config.task_type = task_type
@@ -200,6 +202,9 @@ def init(
         run_name = create_run_name(project_name)
     run_name = validate_name(run_name, assign_random=False)
     run, run_created = _init.get_or_create_run(project_name, run_name, task_type)
+    dataquality.config.current_project_name = project_name
+    dataquality.config.current_run_name = run_name
+
     if not run_created:
         warnings.warn(
             f"Run: {project_name}/{run_name} already exists! "

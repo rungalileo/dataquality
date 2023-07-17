@@ -7,32 +7,42 @@ on:
   pull_request:
     types: [opened, synchronize]
 
-env:
-  GALILEO_API_URL: "http://localhost:8000"
-
 jobs:
   test:
     runs-on: galileo
+
     strategy:
       matrix:
-        python-version: [3.7, 3.8, 3.9]
+        python-version: ["3.7", "3.8", "3.9", "3.10"]
       fail-fast: false
 
     steps:
       - uses: actions/checkout@v3
+
       - name: set up python
         uses: actions/setup-python@v4
         with:
+          cache: "pip"
+          cache-dependency-path: "pyproject.toml"
           python-version: ${{ matrix.python-version }}
+
+      - name: install invoke
+        run: pip install invoke
+
       - name: install dependencies
         run: |
           if [[ ${{ matrix.python-version }} == "3.7" ]]; then
-            scripts/install.sh --extras=py37
+            inv install --no-editable --extras dev,test,doc,py37
           else
-            scripts/install.sh
+            inv install --no-editable
           fi
+
+      - name: lint
+        run: inv lint
+
       - name: test
-        run: scripts/test.sh
+        run: inv test
+
       - name: upload coverage
         uses: codecov/codecov-action@v1
         with:

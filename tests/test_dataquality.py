@@ -576,7 +576,6 @@ def test_reset_run_new_task_type(
 
 
 @pytest.mark.parametrize("last_epoch", [1, 3, None, 10])
-@mock.patch.object(dataquality.core.finish, "_version_check")
 @mock.patch.object(dataquality.core.finish, "_reset_run")
 @mock.patch.object(dataquality.core.finish, "upload_dq_log_file")
 @mock.patch.object(dataquality.clients.api.ApiClient, "make_request")
@@ -591,7 +590,6 @@ def test_finish_last_epoch(
     mock_make_request: MagicMock,
     mock_upload_log_file: MagicMock,
     mock_reset_run: MagicMock,
-    mock_version_check: MagicMock,
     set_test_config: Callable,
     cleanup_after_use: Callable,
     last_epoch: int,

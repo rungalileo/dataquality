@@ -5,6 +5,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
+from torch import Tensor
 from torch.nn import Module
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
@@ -14,7 +15,6 @@ from dataquality import config
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
 from dataquality.clients.objectstore import ObjectStore
-from dataquality.core._config import GALILEO_DEFAULT_RESULT_BUCKET_NAME
 from dataquality.exceptions import GalileoException
 from dataquality.integrations.torch import TorchLogger, unwatch
 from dataquality.loggers.model_logger.semantic_segmentation import (
@@ -22,7 +22,6 @@ from dataquality.loggers.model_logger.semantic_segmentation import (
 )
 from dataquality.schemas.semantic_segmentation import SemSegCols
 from dataquality.schemas.split import Split
-from dataquality.schemas.torch import HelperData
 from dataquality.utils.helpers import wrap_fn
 from dataquality.utils.semantic_segmentation.lm import (
     calculate_lm_for_batch,
@@ -32,7 +31,7 @@ from dataquality.utils.semantic_segmentation.lm import (
 )
 from dataquality.utils.semantic_segmentation.utils import mask_to_boundary
 from dataquality.utils.thread_pool import ThreadPoolManager, lock
-from dataquality.utils.torch import ModelHookManager, store_batch_indices
+from dataquality.utils.torch import store_batch_indices
 from dataquality.utils.upload import chunk_load_then_upload_df
 
 a = Analytics(ApiClient, dq.config)  # type: ignore
@@ -50,8 +49,8 @@ LIKELY_MISLABELED_MAP_SIZE = 32
 class SemanticTorchLogger(TorchLogger):
     def __init__(
         self,
-        bucket_url: str,
-        dataset_path: str,
+        imgs_remote_location: str,
+        local_path_to_dataset_root: str,
         dataloaders: Dict[str, torch.utils.data.DataLoader],
         mask_col_name: Optional[str] = None,
         *args: Any,
@@ -60,16 +59,17 @@ class SemanticTorchLogger(TorchLogger):
         """
         Class to log semantic segmentation models to Galileo
 
-        :param bucket_url: name of the bucket that currently stores images in cloud
-        :param dataset_path: path to the parent dataset folder
+        :param imgs_remote_location: name of the bucket that currently stores
+            images in cloud
+        :param local_path_to_dataset_root: path to the parent dataset folder
         :param mask_col_name: name of the column that contains the mask
         :param dataloaders: dataloaders to be logged
         """
         super().__init__(*args, **kwargs)
-
-        self._init_helper_data(self.hook_manager, self.model)
+        self.torch_helper_data.clear()
+        self.torch_helper_data.model = self.model
         self.mask_col_name = mask_col_name
-        self.dataset_path = os.path.abspath(dataset_path)
+        self.local_path_to_dataset_root = os.path.abspath(local_path_to_dataset_root)
 
         # There is a hook on dataloader so must convert before attaching hook
         self.dataloader_path_to_id: Dict[str, Any] = {
@@ -78,7 +78,7 @@ class SemanticTorchLogger(TorchLogger):
         self.id_to_relative_path: Dict[str, Any] = {
             split: {} for split in dataloaders.keys()
         }
-        self.bucket_url = bucket_url
+        self.imgs_remote_location = imgs_remote_location
         self.dataloaders = dataloaders
         self.image_col = "image"
         self.converted_datasets = []
@@ -86,7 +86,13 @@ class SemanticTorchLogger(TorchLogger):
             convert_dataset = self.convert_dataset(dataloader.dataset, split)
             self.converted_datasets.append(convert_dataset)
         # capture the model input
+        # detach normal embedding hooks and logit hooks and attach specific
+        # semantic segmentation hooks
+        self.hook_manager.detach_hooks()
         self.hook_manager.attach_hook(self.model, self._dq_input_hook)
+        self.hook_manager.attach_hook(
+            self.model, self._dq_classifier_hook_with_step_end
+        )
 
         self.called_finish = False
         self.queue_size = LIKELY_MISLABELED_QUEUE_SIZE
@@ -120,7 +126,7 @@ class SemanticTorchLogger(TorchLogger):
             # cut the dataset path from the image path so we can use relative path
             # within the bucket to each image
             image_path = os.path.abspath(data["image_path"])
-            image_path = image_path.replace(self.dataset_path, "")
+            image_path = image_path.replace(self.local_path_to_dataset_root, "")
             self.id_to_relative_path[split][i] = image_path
 
             processed_dataset.append(
@@ -143,6 +149,29 @@ class SemanticTorchLogger(TorchLogger):
                     "No mask column found in the batch please specify in watch method"
                 )
 
+    def _dq_logit_hook(
+        self,
+        model: Module,
+        model_input: Optional[
+            Tensor
+        ],  # the classifier hook does not pass a model input
+        model_output: Union[Tuple[Tensor], Tensor],
+    ) -> None:
+        """
+        Hook to extract the logits from the model specific to semantic segmentation.
+        Overrides the super class method.
+
+        :param model: Model pytorch model
+        :param model_input: Model input of the current layer
+        :param model_output: Model output of the current layer
+        """
+        if isinstance(model_output, dict) and "out" in model_output:
+            logits = model_output["out"]
+        else:
+            logits = model_output
+        model_outputs_store = self.torch_helper_data.model_outputs_store
+        model_outputs_store["logits"] = logits
+
     def _dq_classifier_hook_with_step_end(
         self,
         model: Module,
@@ -158,6 +187,7 @@ class SemanticTorchLogger(TorchLogger):
         :param model_output: Model output
         """
         self._classifier_hook(model, model_input, model_output)
+        self._on_step_end()
 
     def _dq_input_hook(
         self,
@@ -175,34 +205,12 @@ class SemanticTorchLogger(TorchLogger):
 
         """
         # model input comes as a tuple of length 1
-        self.helper_data[HelperData.model_input] = model_input[0].detach().cpu().numpy()
-        self._on_step_end()
-
-    def _init_helper_data(self, hm: ModelHookManager, model: Module) -> None:
-        """
-        Initialize the helper data with ids from the dataloader indices,
-        patches for applied monkey patched functions and the hook manager.
-        :param hm: Hook manager
-        :param model: torch.nn.Module model that we are hooking
-        """
-        self.helper_data.clear()
-        self.helper_data.update(
-            {
-                HelperData.dl_next_idx_ids: [],
-                HelperData.last_action: "init",
-                HelperData.patches: [],
-                HelperData.model_outputs_store: {},
-                HelperData.hook_manager: hm,
-                HelperData.model: model,
-                HelperData.batch: {},
-                HelperData.model_input: {},
-            }
-        )
+        self.torch_helper_data.model_input = model_input[0].detach().cpu().numpy()
 
     def get_image_ids_and_image_paths(
         self, split: str, logging_data: Dict[str, Any]
     ) -> Tuple[List[int], List[str]]:
-        img_ids = self.helper_data["batch"]["ids"]  # np.ndarray (bs,)
+        img_ids = self.torch_helper_data.batch["ids"]  # np.ndarray (bs,)
         # convert the img_ids to absolute ids from file map
         img_ids = [
             self.dataloader_path_to_id[split][path]
@@ -219,13 +227,19 @@ class SemanticTorchLogger(TorchLogger):
             probs (torch.Tensor): probability vectors to queue for LM
             gold (torch.Tensor): gold masks resized to queue for LM
         """
-        bs = probs.shape[0]
         # stack on the end of the queue and remove front to keep only most recent
         self.prob_queue: torch.Tensor = torch.cat((self.prob_queue, probs), dim=0)
         self.gold_queue: torch.Tensor = torch.cat((self.gold_queue, gold), dim=0)
+
+    def truncate_queue(self) -> None:
+        """Truncate the queue to the batch size
+
+        Args:
+            bs (int): batch size
+        """
         if self.prob_queue.shape[0] > self.queue_size:
-            self.prob_queue = self.prob_queue[bs:]
-            self.gold_queue = self.gold_queue[bs:]
+            self.prob_queue = self.prob_queue[-self.queue_size :]
+            self.gold_queue = self.gold_queue[-self.queue_size :]
 
     def resize_probs_and_gold(
         self, probs: torch.Tensor, gold: torch.Tensor
@@ -293,6 +307,10 @@ class SemanticTorchLogger(TorchLogger):
             self.thresholds[cls] = (
                 self.thresholds[cls] * 0.999 + out_threshold[cls] * 0.001
             )
+        # zero out the confident count to avoid overestimating
+        self.confident_count = torch.zeros(
+            (self.number_classes, self.number_classes), dtype=torch.int64
+        )
         for class_idx in range(self.number_classes):
             self.confident_count = fill_confident_counts(
                 probs[..., class_idx],
@@ -318,7 +336,19 @@ class SemanticTorchLogger(TorchLogger):
             mislabeled_pixels = torch.zeros_like(mislabeled_pixels)
         bs = probs.shape[0]
         mislabeled_pixels = mislabeled_pixels[-bs:]
+        self.truncate_queue()
         return mislabeled_pixels
+
+    def expand_binary_classification(self, probs: torch.Tensor) -> torch.Tensor:
+        """Expands the binary classification to a 2 channel tensor
+
+        Args:
+            probs (torch.Tensor): binary classification tensor
+
+        Returns:
+            torch.Tensor: bs, 2, h, w tensor
+        """
+        return torch.cat([1 - probs, probs], dim=3)
 
     def get_argmax_probs(
         self,
@@ -329,40 +359,50 @@ class SemanticTorchLogger(TorchLogger):
             Tuple[torch.Tensor, torch.Tensor]: argmax and logits tensors
         """
         # resize the logits to the input size based on hooks
-        preds = self.helper_data[HelperData.model_outputs_store]["logits"]
+        preds = self.torch_helper_data.model_outputs_store["logits"]
         if preds.dtype == torch.float16:
             preds = preds.to(torch.float32)
-        input_shape = self.helper_data[HelperData.model_input].shape[-2:]
+        input_shape = self.torch_helper_data.model_input.shape[-2:]
         preds = F.interpolate(preds, size=input_shape, mode="bilinear")
 
         # checks whether the model is (n, classes, w, h), or (n, w, h, classes)
-        if preds.shape[1] == self.number_classes:
+        # takes the max in case of binary classification
+        if max(preds.shape[1], 2) == self.number_classes:
             preds = preds.permute(0, 2, 3, 1)
         assert (
-            preds.shape[-1] == self.number_classes
+            max(preds.shape[3], 2) == self.number_classes
         ), "The model output shape is not as expected. \
                 Expected classes to be in last dimension"
 
-        argmax = (preds.clone().argmax(dim=-1)).cpu()
         logits = preds.clone()  # (bs, w, h, classes)
-        probs = (torch.nn.Softmax(dim=-1)(logits)).cpu()
+        if preds.shape[3] > 1:
+            probs = (torch.nn.Softmax(dim=-1)(logits)).cpu()
+        else:
+            probs = (torch.nn.Sigmoid()(logits)).cpu()
+            # expands the binary classification to a 2 channel tensor
+            probs = self.expand_binary_classification(probs)
+
+        argmax = (probs.clone().argmax(dim=-1)).cpu()
+
         return argmax, probs
 
     def _on_step_end(self) -> None:
         """Function to be called at the end of step to log the inputs and outputs"""
         if not self.mask_col_name:
-            self.find_mask_category(self.helper_data["batch"]["data"])
+            self.find_mask_category(self.torch_helper_data.batch["data"])
 
         # if we have not inferred the number of classes from the model architecture
-        self.number_classes = self.helper_data[HelperData.model_outputs_store][
-            "logits"
-        ].shape[1]
+
+        # takes the max of the logits shape and 2 in case of binary classification
+        self.number_classes = max(
+            self.torch_helper_data.model_outputs_store["logits"].shape[1], 2
+        )
         if not self.init_lm_labels_flag:
             self._init_lm_labels()
             self.init_lm_labels_flag = True
         split = self.logger_config.cur_split.lower()  # type: ignore
         with torch.no_grad():
-            logging_data = self.helper_data["batch"]["data"]
+            logging_data = self.torch_helper_data.batch["data"]
             img_ids, image_paths = self.get_image_ids_and_image_paths(
                 split, logging_data
             )
@@ -380,12 +420,13 @@ class SemanticTorchLogger(TorchLogger):
                 gold_mask = gold_mask.squeeze(1)  # (bs, w, h)
             if gold_mask.dtype == torch.float16:
                 gold_mask = gold_mask.to(torch.float32)
+
             mislabeled_pixels = self.calculate_mislabeled_pixels(probs, gold_mask)
             # do not log if we are not in the final inference loop
             if not self.called_finish:
                 return
             logger = SemanticSegmentationModelLogger(
-                bucket_url=self.bucket_url,
+                imgs_remote_location=self.imgs_remote_location,
                 image_paths=image_paths,
                 image_ids=img_ids,
                 gold_masks=gold_mask,  # Torch tensor (bs, w, h)
@@ -427,7 +468,7 @@ class SemanticTorchLogger(TorchLogger):
             file_path=temp_file.name,
             content_type="application/json",
             progress=False,
-            bucket_name=GALILEO_DEFAULT_RESULT_BUCKET_NAME,
+            bucket_name=config.results_bucket_name,
         )
 
     def upload_dep_split(self, split: str) -> None:
@@ -457,7 +498,7 @@ class SemanticTorchLogger(TorchLogger):
             temp_dir=local_dep_path,
             export_format="arrow",
             show_progress=False,
-            bucket=GALILEO_DEFAULT_RESULT_BUCKET_NAME,
+            bucket=config.results_bucket_name,
             use_data_md5_hash=False,
         )
 
@@ -468,6 +509,7 @@ class SemanticTorchLogger(TorchLogger):
         self.called_finish = True
         # finish function that runs our inference at the end of training
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model = self.model.to(device)
         for split, dataloader in self.dataloaders.items():
             # For sem seg the final inference loop is always considered epoch 0
             dq.set_epoch_and_split(0, Split[split])
@@ -538,8 +580,8 @@ def patch_iterator_and_batch(store: Dict[str, Any]) -> Callable:
 
 def watch(
     model: Module,
-    bucket_url: str,
-    dataset_path: str,
+    imgs_remote_location: str,
+    local_path_to_dataset_root: str,
     dataloaders: Dict[str, DataLoader],
     mask_col_name: Optional[str] = None,
     unpatch_on_start: bool = False,
@@ -550,7 +592,8 @@ def watch(
 
         train_dataloader = torch.utils.data.DataLoader()
         model = SemSegModel()
-        watch(model, bucket_url, dataset_path, [train_dataloader, test_dataloader])
+        watch(model, imgs_remote_location, local_path_to_dataset_root,
+            [train_dataloader, test_dataloader])
         for epoch in range(NUM_EPOCHS):
             dq.set_epoch_and_split(epoch,"training")
             train()
@@ -559,19 +602,20 @@ def watch(
         dq.finish()
 
     :param model: Pytorch Model to be wrapped
-    :param bucket_url: Name of the bucket from which the images come
-    :param dataset_path: Path to the dataset which we can remove from the image path
+    :param imgs_remote_location: Name of the bucket from which the images come
+    :param local_path_to_dataset_root: Path to the dataset which we can remove
+        from the image path
     :param dataloaders: List of dataloaders to be wrapped
     :param mask_col_name: Name of the column in the dataloader that contains the mask
     :param unpatch_on_start: Whether to unpatch the model before patching it
     """
     print(
-        "We assume the dataloaders passed only have transforms that Tensor, Resize, \
-        and Normalize the image and mask\n"
-        "‼ Any cropping or shearing transforms passed will lead to unexpected \
-        results\n"
-        "See docs at https://dq.readthedocs.io/en/latest/ (placeholder) for more info \
-        \n \n"
+        "We assume the dataloaders passed only have transforms that Tensor, Resize "
+        "and Normalize the image and mask\n"
+        "Any cropping or shearing transforms passed will lead to unexpected "
+        "results\n"
+        "See docs at https://docs.rungalileo.io/galileo/how-to-and-faq/python-sdk/watch"
+        " for more info"
     )
 
     a.log_function("torch/watch")
@@ -614,11 +658,12 @@ def watch(
 
     # we assume that the image_path they pass to us is relative to the bucket / dataset
     # ie if the path they give to us should be the same path we can use in their bucket
-    # to find the data (ie bucket_url/image_path == dataset_path/image_path)
+    # to find the data
+    #   (ie imgs_remote_location/image_path == local_path_to_dataset_root/image_path)
 
     tl = SemanticTorchLogger(
-        bucket_url=bucket_url,
-        dataset_path=dataset_path,
+        imgs_remote_location=imgs_remote_location.rstrip("/"),
+        local_path_to_dataset_root=local_path_to_dataset_root,
         dataloaders=dataloaders,
         mask_col_name=mask_col_name,
         helper_data=helper_data,
@@ -629,5 +674,5 @@ def watch(
     for key, dataloader in dataloaders.items():
         dataloader._get_iterator = wrap_fn(  # type: ignore
             dataloader._get_iterator,
-            patch_iterator_and_batch(tl.helper_data["batch"]),
+            patch_iterator_and_batch(tl.torch_helper_data.batch),
         )

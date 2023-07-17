@@ -4,6 +4,9 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
+from transformers import PreTrainedTokenizerFast
+
+from dataquality.loggers.logger_config.seq2seq import seq2seq_logger_config
 
 if TYPE_CHECKING:
     import xgboost as xgb
@@ -357,19 +360,20 @@ def log_dataset(
 @check_noop
 def log_model_outputs(
     *,
-    embs: Optional[Union[List, np.ndarray]],
     ids: Union[List, np.ndarray],
+    embs: Optional[Union[List, np.ndarray]] = None,
     split: Optional[Split] = None,
     epoch: Optional[int] = None,
     logits: Optional[Union[List, np.ndarray]] = None,
     probs: Optional[Union[List, np.ndarray]] = None,
     inference_name: Optional[str] = None,
     exclude_embs: bool = False,
+    labels: Optional[np.ndarray] = None,
 ) -> None:
     """Logs model outputs for model during training/test/validation.
 
-    :param embs: The embeddings per output sample
     :param ids: The ids for each sample. Must match input ids of logged samples
+    :param embs: The embeddings per output sample
     :param split: The current split. Must be set either here or via dq.set_split
     :param epoch: The current epoch. Must be set either here or via dq.set_epoch
     :param logits: The logits for each sample
@@ -388,6 +392,10 @@ def log_model_outputs(
     assert (probs is not None) or (
         logits is not None
     ), "You must provide either logits or probs"
+    # No embeddings ever provided by user in seq2seq
+    if config.task_type == TaskType.seq2seq:
+        exclude_embs = True
+        embs = None
     assert (embs is None and exclude_embs) or (
         embs is not None and not exclude_embs
     ), "embs can be omitted if and only if exclude_embs is True"
@@ -403,6 +411,7 @@ def log_model_outputs(
         logits=logits.astype(np.float32) if isinstance(logits, np.ndarray) else logits,
         probs=probs.astype(np.float32) if isinstance(probs, np.ndarray) else probs,
         inference_name=inference_name,
+        labels=labels.astype(np.float32) if isinstance(labels, np.ndarray) else labels,
     )
     model_logger.log()
 
@@ -487,18 +496,25 @@ def set_labels_for_run(labels: Union[List[List[str]], List[str]]) -> None:
     if get_data_logger().logger_config.existing_run:
         if not isinstance(labels, list):
             labels = list(labels)
-        if sorted(labels) != sorted(get_data_logger().logger_config.labels):
+        if labels != get_data_logger().logger_config.labels:
             raise GalileoException(
-                "This run already has data logged to Galileo, and labels have been "
-                "set. You cannot change the labels of an existing run. If you need new "
-                "labels, delete this run (dq.delete_run()) or use a new run name. "
-                f"Current labels: {get_data_logger().logger_config.labels}"
-            )
+                "The labels provided to do match the values or order of the existing "
+                "labels for this run. You cannot change the labels of an existing run, "
+                "or the order of those labels. Use the following to get your run "
+                "labels: `dq.get_current_run_labels()` If you need new labels, delete "
+                "this run (dq.delete_run()) or use a new run name."
+            ) from None
     else:
         a.log_function("dq/set_labels_for_run")
         if isinstance(labels[0], (int, np.integer)):
             get_data_logger().logger_config.int_labels = True
         get_data_logger().logger_config.labels = labels
+
+
+@check_noop
+def get_current_run_labels() -> Optional[List[str]]:
+    """Returns the current run labels, if there are any"""
+    return get_data_logger().logger_config.labels
 
 
 @check_noop
@@ -600,3 +616,20 @@ def set_epoch_and_split(
     """
     set_epoch(epoch)
     set_split(split, inference_name)
+
+
+@check_noop
+def set_tokenizer(tokenizer: PreTrainedTokenizerFast) -> None:
+    """Seq2seq only. Set the tokenizer for your run
+
+    Must be a fast tokenizer, and must support `decode`, `encode`, `encode_plus`
+    """
+    task_type = _get_task_type()
+    assert task_type == TaskType.seq2seq, "This method is only supported for seq2seq"
+    assert isinstance(
+        tokenizer, PreTrainedTokenizerFast
+    ), "Tokenizer must be an instance of PreTrainedTokenizerFast"
+    assert getattr(tokenizer, "is_fast", False), "Tokenizer must be a fast tokenizer"
+    for attr in ["encode", "decode", "encode_plus", "padding_side"]:
+        assert hasattr(tokenizer, attr), f"Tokenizer must support `{attr}`"
+    seq2seq_logger_config.tokenizer = tokenizer

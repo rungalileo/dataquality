@@ -447,7 +447,6 @@ class TestTabularClassificationValidationErrors:
 
 
 @mock.patch.object(ObjectStore, "create_object")
-@mock.patch("dataquality.core.finish._version_check")
 @mock.patch.object(
     dq.clients.api.ApiClient,
     "get_healthcheck_dq",
@@ -471,12 +470,10 @@ class TestTabularClassificationE2E:
         self,
         mock_upload_dq_log_file: mock.MagicMock,
         mock_reset_run: mock.MagicMock,
-        mock_version_check: mock.MagicMock,
         test_session_vars: TestSessionVariables,
         inf_only: bool = False,
     ) -> None:
         mock_upload_dq_log_file.assert_called_once_with()
-        mock_version_check.assert_called_once_with()
         if inf_only:
             mock_reset_run.assert_not_called()
         else:
@@ -493,7 +490,6 @@ class TestTabularClassificationE2E:
         mock_upload_dq_log_file: mock.MagicMock,
         mock_reset_run: mock.MagicMock,
         mock_bucket_names: mock.MagicMock,
-        mock_version_check: mock.MagicMock,
         mock_upload_df_to_minio: mock.MagicMock,
         set_test_config: Callable,
         fit_xgboost: xgb.XGBClassifier,
@@ -536,7 +532,6 @@ class TestTabularClassificationE2E:
         self._assert_mocks(
             mock_upload_dq_log_file,
             mock_reset_run,
-            mock_version_check,
             test_session_vars,
         )
 
@@ -547,7 +542,6 @@ class TestTabularClassificationE2E:
         mock_upload_dq_log_file: mock.MagicMock,
         mock_reset_run: mock.MagicMock,
         mock_bucket_names: mock.MagicMock,
-        mock_version_check: mock.MagicMock,
         mock_upload_df_to_minio: mock.MagicMock,
         set_test_config: Callable,
         fit_xgboost: xgb.XGBClassifier,
@@ -592,7 +586,6 @@ class TestTabularClassificationE2E:
         self._assert_mocks(
             mock_upload_dq_log_file,
             mock_reset_run,
-            mock_version_check,
             test_session_vars,
         )
 
@@ -603,7 +596,6 @@ class TestTabularClassificationE2E:
         mock_upload_dq_log_file: mock.MagicMock,
         mock_reset_run: mock.MagicMock,
         mock_bucket_names: mock.MagicMock,
-        mock_version_check: mock.MagicMock,
         mock_upload_df_to_minio: mock.MagicMock,
         set_test_config: Callable,
         fit_xgboost: xgb.XGBClassifier,
@@ -654,7 +646,6 @@ class TestTabularClassificationE2E:
         self._assert_mocks(
             mock_upload_dq_log_file,
             mock_reset_run,
-            mock_version_check,
             test_session_vars,
         )
 
@@ -665,7 +656,6 @@ class TestTabularClassificationE2E:
         mock_upload_dq_log_file: mock.MagicMock,
         mock_reset_run: mock.MagicMock,
         mock_bucket_names: mock.MagicMock,
-        mock_version_check: mock.MagicMock,
         mock_upload_df_to_minio: mock.MagicMock,
         set_test_config: Callable,
         fit_xgboost: xgb.XGBClassifier,
@@ -719,7 +709,6 @@ class TestTabularClassificationE2E:
         self._assert_mocks(
             mock_upload_dq_log_file,
             mock_reset_run,
-            mock_version_check,
             test_session_vars,
         )
 
@@ -730,7 +719,6 @@ class TestTabularClassificationE2E:
         mock_upload_dq_log_file: mock.MagicMock,
         mock_reset_run: mock.MagicMock,
         mock_bucket_names: mock.MagicMock,
-        mock_version_check: mock.MagicMock,
         mock_upload_df_to_minio: mock.MagicMock,
         set_test_config: Callable,
         fit_xgboost: xgb.XGBClassifier,
@@ -775,7 +763,6 @@ class TestTabularClassificationE2E:
         self._assert_mocks(
             mock_upload_dq_log_file,
             mock_reset_run,
-            mock_version_check,
             test_session_vars,
             True,
         )
@@ -787,7 +774,6 @@ class TestTabularClassificationE2E:
         mock_upload_dq_log_file: mock.MagicMock,
         mock_reset_run: mock.MagicMock,
         mock_bucket_names: mock.MagicMock,
-        mock_version_check: mock.MagicMock,
         mock_upload_df_to_minio: mock.MagicMock,
         set_test_config: Callable,
         fit_xgboost: xgb.XGBClassifier,
@@ -834,7 +820,6 @@ class TestTabularClassificationE2E:
         self._assert_mocks(
             mock_upload_dq_log_file,
             mock_reset_run,
-            mock_version_check,
             test_session_vars,
             True,
         )

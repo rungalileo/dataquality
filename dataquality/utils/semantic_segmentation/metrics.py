@@ -1,14 +1,18 @@
 import os
 from tempfile import NamedTemporaryFile
-from typing import List, Tuple
+from typing import List
 
 import numpy as np
 import torch
 from PIL import Image, ImageColor
 
+from dataquality import config
 from dataquality.clients.objectstore import ObjectStore
-from dataquality.core._config import GALILEO_DEFAULT_RESULT_BUCKET_NAME
-from dataquality.schemas.semantic_segmentation import IouData, Polygon
+from dataquality.schemas.semantic_segmentation import (
+    Polygon,
+    SemSegMetricData,
+    SemSegMetricType,
+)
 from dataquality.utils.semantic_segmentation.polygons import draw_polygon
 
 object_store = ObjectStore()
@@ -21,16 +25,15 @@ def calculate_and_upload_dep(
     gold_masks: torch.Tensor,
     image_ids: List[int],
     local_folder_path: str,
-) -> Tuple[List[float], torch.Tensor]:
+) -> torch.Tensor:
     """Calculates the Data Error Potential (DEP) for each image in the batch
 
     Uploads the heatmap to Minio as a png.
-    Returns the image DEP for each image in the batch. As well as the dep_heatmaps.
-        Image dep is calculated by the average pixel dep.
+    Returns the dep_heatmaps
     """
     dep_heatmaps = calculate_dep_heatmaps(probs, gold_masks)
     write_dep_to_disk(dep_heatmaps, image_ids, local_folder_path)
-    return calculate_image_dep(dep_heatmaps), dep_heatmaps
+    return dep_heatmaps
 
 
 def colorize_dep_heatmap(image: Image.Image, dep_mean: int) -> Image.Image:
@@ -144,7 +147,7 @@ def upload_dep_heatmaps(
                 file_path=f.name,
                 content_type="image/png",
                 progress=False,
-                bucket_name=GALILEO_DEFAULT_RESULT_BUCKET_NAME,
+                bucket_name=config.results_bucket_name,
             )
 
 
@@ -169,73 +172,24 @@ def dep_heatmap_to_img(dep_heatmap: np.ndarray) -> Image:
     return img
 
 
-def calculate_image_dep(dep_heatmap: torch.Tensor) -> List[float]:
-    """Calculates the Data Error Potential (DEP) for each image in the batch
-
-    :param dep_heatmap: DEP heatmap for each image in the batch
-        size = (bs, height, width)
-    :return: list of DEP values for each image in the batch
-        size = (bs,)
-    """
-    return dep_heatmap.mean(dim=(1, 2)).tolist()
-
-
-def calculate_batch_iou(
-    pred_masks: torch.Tensor, gold_masks: torch.Tensor, iou_type: str, nc: int
-) -> List[IouData]:
-    """Calculates the Mean Intersection Over Union (mIoU) for each image in the batch
-    If boundary masks are passed into this function, we return the
-    boundary IoU (bIoU).
-    :param pred_masks: argmax of the prediction probabilities
-       shape = (bs, height, width)
-    :param gold_masks: ground truth masks
-       shape = (bs, height, width)
-    :param iou_type: mean or boundary
-    :param nc: number of classes
-    :return: list of IoU data for each image in the batch
-       shape = (bs,)
-    """
-    pred_masks_np = pred_masks.numpy()
-    gold_masks_np = gold_masks.numpy()
-    iou_data = []
-
-    # for iou need shape (bs, 1, height, width) to get per mask iou
-    for i in range(len(pred_masks_np)):
-        iou, area_per_class = compute_iou(
-            pred_masks_np[i : i + 1],  # tensor (1, height, width)
-            gold_masks_np[i : i + 1],  # tensor (1, height, width)
-            num_labels=nc,
-        )
-
-        iou_data.append(
-            IouData(
-                iou=np.nanmean(iou),
-                iou_per_class=iou.tolist(),
-                area_per_class=area_per_class.tolist(),
-                iou_type=iou_type,
-            )
-        )
-    return iou_data
-
-
-def compute_iou(
+def compute_metric(
     pred_mask: np.ndarray,
     gold_mask: np.ndarray,
+    metric_type: SemSegMetricType,
     num_labels: int,
-) -> Tuple[np.ndarray, np.ndarray]:
-    """Computes the intersection over union for a single image
+) -> SemSegMetricData:
+    """Computes the SemSeg metric data for a single image
 
-    Computes the iou for a single image as well as returning the total union area
-    per class
+    See 'calculate_batch_metric' for more details on the metrics
 
     Args:
-        pred_mask (np.ndarray): (h, w) pred mask
-        gold_mask (np.ndarray): (h, w) gold mask
-        num_labels (int): total number of labels including background
+        pred_mask (np.ndarray): argmax of the probability predictions
+        gold_mask (np.ndarray): ground truth mask
+        metric_type (SemSegMetricType): type of metric to compute
+        num_labels (int): number of classes
 
     Returns:
-        Tuple[np.ndarray, np.ndarray]: the iou per class and the union area per class
-            in numpy array
+        SemSegMetricData: metric data for the image
     """
     intersection_bool = pred_mask == gold_mask
 
@@ -245,13 +199,69 @@ def compute_iou(
     pred_pixels = np.histogram(pred_mask, bins=num_labels, range=(0, num_labels))[0]
     gold_pixels = np.histogram(gold_mask, bins=num_labels, range=(0, num_labels))[0]
 
-    union_pixels_per_class = pred_pixels + gold_pixels - intersection_pixels
-    iou_per_class = intersection_pixels / union_pixels_per_class
+    if metric_type == SemSegMetricType.dice:
+        pixels_per_class = pred_pixels + gold_pixels
+        metric_per_class = (2 * intersection_pixels) / pixels_per_class
+    else:
+        pixels_per_class = pred_pixels + gold_pixels - intersection_pixels
+        metric_per_class = intersection_pixels / pixels_per_class
 
     # fill the nans with 0s
-    union_pixels_per_class = np.nan_to_num(union_pixels_per_class)
+    pixels_per_class = np.nan_to_num(pixels_per_class)
+    data = SemSegMetricData(
+        metric=metric_type,
+        value=np.nanmean(metric_per_class),
+        value_per_class=metric_per_class.tolist(),
+        area_per_class=pixels_per_class.tolist(),
+    )
 
-    return iou_per_class, union_pixels_per_class
+    return data
+
+
+def calculate_batch_metric(
+    pred_masks: torch.Tensor,
+    gold_masks: torch.Tensor,
+    metric_type: SemSegMetricType,
+    num_labels: int,
+) -> List[SemSegMetricData]:
+    """Function to calcuate semseg metrics for each image in a batch
+
+    SemSeg metrics can be one of:
+        - Mean IoU
+        - Boundary IoU
+        - Dice coefficient
+
+    Dice score is the intersection over the total number of pixels per class.
+    We take the 'macro' average where we weight each class's dice score by the
+    amount of pixels in that class, and then after computing each class's dice
+    score we average them together.
+
+    IoU is simply the intersection over union, where boundary IoU is the IoU
+    computed on the boundary masks.
+
+    Args:
+        pred_masks (torch.Tensor): argmax of predicted probabilities
+        gold_masks (torch.Tensor): ground truth masks
+        metric_type (SemSegMetricType): type of metric to compute
+        num_labels (int): number of classes
+
+    Returns:
+        List[SemSegMetricData]: A metric data object for each image in the batch
+    """
+    pred_masks_np = pred_masks.numpy()
+    gold_masks_np = gold_masks.numpy()
+
+    metric_data = []
+    for i in range(len(pred_masks)):
+        metric_data.append(
+            compute_metric(
+                pred_masks_np[i : i + 1],
+                gold_masks_np[i : i + 1],
+                metric_type,
+                num_labels,
+            )
+        )
+    return metric_data
 
 
 def calculate_polygon_area(

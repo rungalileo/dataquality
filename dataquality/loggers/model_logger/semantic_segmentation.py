@@ -1,3 +1,4 @@
+import os
 from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
@@ -11,19 +12,18 @@ from dataquality.loggers.logger_config.semantic_segmentation import (
     semantic_segmentation_logger_config,
 )
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
-from dataquality.schemas.ml import ClassType
-from dataquality.schemas.semantic_segmentation import IoUType, Polygon, PolygonType
+from dataquality.schemas.semantic_segmentation import (
+    Polygon,
+    PolygonType,
+    SemSegMetricType,
+)
 from dataquality.schemas.split import Split
 from dataquality.utils.semantic_segmentation.errors import (
-    add_background_errors_to_polygons_batch,
-    add_class_errors_to_polygons_batch,
-    add_dep_to_polygons_batch,
-    add_lm_to_polygons_batch,
+    add_errors_and_metrics_to_polygons_batch,
 )
 from dataquality.utils.semantic_segmentation.metrics import (
-    add_area_to_polygons_batch,
     calculate_and_upload_dep,
-    calculate_batch_iou,
+    calculate_batch_metric,
 )
 from dataquality.utils.semantic_segmentation.polygons import (
     find_polygons_batch,
@@ -41,7 +41,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
 
     def __init__(
         self,
-        bucket_url: str = "",
+        imgs_remote_location: str = "",
         image_paths: List[str] = [],
         image_ids: List[int] = [],
         gold_masks: torch.Tensor = torch.empty(0),
@@ -58,6 +58,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         split: str = "",
         epoch: Optional[int] = None,
         inference_name: Optional[str] = None,
+        labels: Optional[np.ndarray] = None,
     ) -> None:
         """Takes in SemSeg inputs as a list of batches
 
@@ -85,7 +86,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             epoch=epoch,
             inference_name=inference_name,
         )
-        self.bucket_url = bucket_url
+        self.imgs_remote_location = imgs_remote_location
         self.image_paths = image_paths
         self.image_ids = image_ids
         self.gold_masks = gold_masks
@@ -131,6 +132,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         """
         image_ids = []
         polygon_ids = []
+        polygon_types = []
         preds = []
         golds = []
         data_error_potentials = []
@@ -141,17 +143,30 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         accuracies = []
         mislabeled_classes = []
         mislabeled_class_pcts = []
+
         for i, image_id in enumerate(self.image_ids):
             # We add pred polygons and then gold polygons
             all_polygons = pred_polygons_batch[i] + gold_polygons_batch[i]
+
             for polygon in all_polygons:
-                assert polygon.cls_error_data is not None  # for linting
-                if polygon.class_type == ClassType.gold:
+                assert (
+                    polygon.cls_error_data is not None
+                ), "All polygons must have cls_error_data set"  # for linting
+                polygon_types.append(polygon.polygon_type.value)
+                if polygon.polygon_type == PolygonType.gold:
                     golds.append(polygon.label_idx)
                     preds.append(-1)
-                else:
+                elif polygon.polygon_type == PolygonType.pred:
                     preds.append(polygon.label_idx)
                     golds.append(-1)
+                elif polygon.polygon_type == PolygonType.dummy:
+                    preds.append(-1)
+                    golds.append(-1)
+                else:
+                    raise ValueError(
+                        f"Polygon type {polygon.polygon_type} not recognized"
+                    )
+
                 image_ids.append(image_id)
                 data_error_potentials.append(polygon.data_error_potential)
                 errors.append(polygon.error_type.value)
@@ -165,6 +180,7 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 )
                 write_polygon_contours_to_disk(polygon, self.local_contours_path)
                 polygon_ids.append(polygon.uuid)
+
         polygon_data = {
             "polygon_uuid": polygon_ids,
             "image_id": image_ids,
@@ -181,15 +197,17 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
             "split": [self.split] * len(image_ids),
             "is_pred": [False if i == -1 else True for i in preds],
             "is_gold": [False if i == -1 else True for i in golds],
+            "polygon_type": polygon_types,
         }
         return polygon_data
 
     def _get_data_dict(self) -> Dict:
         """Returns a dictionary of data to be logged as a DataFrame"""
         # DEP & likely mislabeled
+        os.makedirs(self.local_contours_path, exist_ok=True)
         mean_mislabeled = torch.mean(self.mislabled_pixels, dim=(1, 2)).numpy()
 
-        image_dep, dep_heatmaps = calculate_and_upload_dep(
+        dep_heatmaps = calculate_and_upload_dep(
             self.output_probs,
             self.gold_masks,
             self.image_ids,
@@ -197,81 +215,79 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         )
         # Calculate metrics - mean IoU and boundary IoU
         n_classes = len(self.logger_config.labels)
-        mean_iou_data = calculate_batch_iou(
-            self.pred_masks, self.gold_masks, IoUType.mean, n_classes
+        mean_iou_data = calculate_batch_metric(
+            self.pred_masks, self.gold_masks, SemSegMetricType.miou, n_classes
         )
-        boundary_iou_data = calculate_batch_iou(
+        boundary_iou_data = calculate_batch_metric(
             self.pred_boundary_masks,
             self.gold_boundary_masks,
-            IoUType.boundary,
+            SemSegMetricType.biou,
             n_classes,
+        )
+        dice_data = calculate_batch_metric(
+            self.pred_masks, self.gold_masks, SemSegMetricType.dice, n_classes
         )
 
         # Image masks
         pred_polygons_batch, gold_polygons_batch = find_polygons_batch(
             self.pred_masks, self.gold_masks
         )
-        # Errors
-        add_class_errors_to_polygons_batch(
+
+        # in the case that both pred and gold polygons are empty, we need to
+        # add an empty polygon in order to have an entry for that image in
+        # the polygon df and thus show it in the UI
+        # therefore we add an empty polygon to the pred and have the api filter
+        # out empty polygons in the processing step so we do not skew metrics or ui
+        # by adding dummy polygons with their dummy values
+        for i in range(len(self.image_ids)):
+            if pred_polygons_batch[i] == [] and gold_polygons_batch[i] == []:
+                pred_polygons_batch[i] = [Polygon.dummy_polygon()]
+
+        heights = [img.shape[-2] for img in self.gold_masks]
+        widths = [img.shape[-1] for img in self.gold_masks]
+
+        # all immages will have the same height and width in order to be in a batch
+        # so we can just take the first one for the below functions
+        add_errors_and_metrics_to_polygons_batch(
             self.pred_masks,
             gold_polygons_batch,
             n_classes,
             polygon_type=PolygonType.gold,
+            dep_heatmaps=dep_heatmaps,
+            mislabeled_pixels=self.mislabled_pixels,
+            height=heights[0],
+            width=widths[0],
         )
-        add_class_errors_to_polygons_batch(
+        add_errors_and_metrics_to_polygons_batch(
             self.gold_masks,
             pred_polygons_batch,
             n_classes,
             polygon_type=PolygonType.pred,
-        )
-        add_background_errors_to_polygons_batch(
-            self.pred_masks, gold_polygons_batch, polygon_type=PolygonType.gold
-        )
-        add_background_errors_to_polygons_batch(
-            self.gold_masks, pred_polygons_batch, polygon_type=PolygonType.pred
-        )
-        heights = [img.shape[-2] for img in self.gold_masks]
-        widths = [img.shape[-1] for img in self.gold_masks]
-
-        add_dep_to_polygons_batch(
-            gold_polygons_batch,
-            dep_heatmaps.numpy(),
-            height=heights,
-            width=widths,
-        )
-        add_dep_to_polygons_batch(
-            pred_polygons_batch,
-            dep_heatmaps.numpy(),
-            height=heights,
-            width=widths,
-        )
-
-        add_area_to_polygons_batch(pred_polygons_batch, heights, widths)
-        add_area_to_polygons_batch(gold_polygons_batch, heights, widths)
-
-        add_lm_to_polygons_batch(
-            self.mislabled_pixels,
-            gold_polygons_batch,
-            pred_polygons_batch,
-            heights,
-            widths,
+            dep_heatmaps=dep_heatmaps,
+            mislabeled_pixels=self.mislabled_pixels,
+            height=heights[0],
+            width=widths[0],
         )
 
         image_data = {
-            "image": [f"{self.bucket_url}/{pth}" for pth in self.image_paths],
+            "image": [f"{self.imgs_remote_location}/{pth}" for pth in self.image_paths],
             "id": self.image_ids,
             "height": heights,
             "width": widths,
-            "image_data_error_potential": image_dep,
             "mean_lm_score": [i for i in mean_mislabeled],
-            "mean_iou": [iou.iou for iou in mean_iou_data],
-            "mean_iou_per_class": [iou.iou_per_class for iou in mean_iou_data],
+            "mean_iou": [iou.value for iou in mean_iou_data],
+            "mean_iou_per_class": [iou.value_per_class for iou in mean_iou_data],
             "mean_area_per_class": [iou.area_per_class for iou in mean_iou_data],
-            "boundary_iou": [iou.iou for iou in boundary_iou_data],
-            "boundary_iou_per_class": [iou.iou_per_class for iou in boundary_iou_data],
+            "boundary_iou": [iou.value for iou in boundary_iou_data],
+            "boundary_iou_per_class": [
+                iou.value_per_class for iou in boundary_iou_data
+            ],
             "boundary_area_per_class": [
                 iou.area_per_class for iou in boundary_iou_data
             ],
+            "dice_coefficient": [dice.value for dice in dice_data],
+            "dice_per_class": [dice.value_per_class for dice in dice_data],
+            "dice_area_per_class": [dice.area_per_class for dice in dice_data],
             # "epoch": [self.epoch] * len(self.image_ids),
         }
         not_meta = ["id", "image"]

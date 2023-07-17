@@ -5,6 +5,7 @@ from typing import Any, DefaultDict, Dict, Iterable, List, Optional, Union, cast
 import numpy as np
 import pandas as pd
 import vaex
+from datasets import ClassLabel
 from vaex.dataframe import DataFrame
 
 import dataquality
@@ -22,6 +23,7 @@ from dataquality.loggers.logger_config.text_classification import (
 from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.split import Split
+from dataquality.utils.auto import add_class_label_to_dataset
 from dataquality.utils.vaex import rename_df
 
 
@@ -295,6 +297,14 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
         assert dataset[0].get(id) is not None, GalileoException(
             f"id ({id}) field must be present in dataset"
         )
+
+        # Make sure the class labels are set
+        if (
+            label
+            and self.logger_config.labels
+            and not isinstance(dataset.features[label], ClassLabel)
+        ):
+            dataset = add_class_label_to_dataset(dataset, self.logger_config.labels)
 
         for i in range(0, len(dataset), batch_size):
             chunk = dataset[i : i + batch_size]

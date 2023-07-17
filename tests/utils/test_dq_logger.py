@@ -9,7 +9,6 @@ from dataquality.utils.dq_logger import dq_log_file_path
 
 
 @mock.patch("dataquality.core.finish._reset_run")
-@mock.patch("dataquality.core.finish._version_check")
 @mock.patch.object(dq.clients.api.ApiClient, "make_request")
 @mock.patch.object(dq.clients.api.ApiClient, "get_presigned_url")
 @mock.patch.object(
@@ -32,7 +31,6 @@ def test_std_log(
     mock_bucket_names: MagicMock,
     mock_presigned_url: MagicMock,
     mock_finish: MagicMock,
-    mock_version_check: MagicMock,
     mock_reset_run: MagicMock,
     set_test_config: Callable,
     cleanup_after_use: Callable,

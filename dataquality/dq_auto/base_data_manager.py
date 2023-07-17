@@ -5,7 +5,11 @@ from datasets import Dataset, DatasetDict
 
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.split import Split
-from dataquality.utils.auto import load_data_from_str, try_load_dataset_dict
+from dataquality.utils.auto import (
+    _apply_column_mapping,
+    load_data_from_str,
+    try_load_dataset_dict,
+)
 
 
 class BaseDatasetManager:
@@ -40,25 +44,31 @@ class BaseDatasetManager:
         self,
         data: Union[pd.DataFrame, Dataset, str],
         labels: Optional[List[str]] = None,
+        column_mapping: Optional[Dict[str, str]] = None,
     ) -> Dataset:
         """Loads the data into (hf) Dataset format.
 
         Data can be one of Dataset, pandas df, str. If str, it's either a path to a
         file or a path to a remote huggingface Dataset that we load with `load_dataset`
         """
+        ds = None
         if isinstance(data, Dataset):
-            return data
-        if isinstance(data, pd.DataFrame):
-            return self._convert_df_to_dataset(data, labels)
-        if isinstance(data, str):
+            ds = data
+        elif isinstance(data, pd.DataFrame):
+            ds = self._convert_df_to_dataset(data, labels)
+        elif isinstance(data, str):
             ds = load_data_from_str(data)
             if isinstance(ds, pd.DataFrame):
                 ds = self._convert_df_to_dataset(ds, labels)
-            return ds
-        raise GalileoException(
-            "Dataset must be one of pandas DataFrame, "
-            "huggingface Dataset, or string path"
-        )
+        if column_mapping is not None and ds is not None:
+            ds = _apply_column_mapping(ds, column_mapping)
+
+        if ds is None:
+            raise GalileoException(
+                "Dataset must be one of pandas DataFrame, "
+                "huggingface Dataset, or string path"
+            )
+        return ds
 
     def get_dataset_dict(
         self,
@@ -69,6 +79,7 @@ class BaseDatasetManager:
         test_data: Optional[Union[pd.DataFrame, Dataset, str]] = None,
         inference_data: Optional[Dict[str, Union[pd.DataFrame, Dataset, str]]] = None,
         labels: Optional[List[str]] = None,
+        column_mapping: Optional[Dict[str, str]] = None,
     ) -> DatasetDict:
         """Creates and/or validates the DatasetDict provided by the user.
 
@@ -87,13 +98,21 @@ class BaseDatasetManager:
         else:
             # We don't need to check for train because `try_load_dataset_dict` validates
             # that it exists already. One of hf_data or train_data must exist
-            dd[Split.train] = self._convert_to_hf_dataset(train_data, labels)
+            dd[Split.train] = self._convert_to_hf_dataset(
+                train_data, labels, column_mapping
+            )
             if val_data is not None:
-                dd[Split.validation] = self._convert_to_hf_dataset(val_data, labels)
+                dd[Split.validation] = self._convert_to_hf_dataset(
+                    val_data, labels, column_mapping
+                )
             if test_data is not None:
-                dd[Split.test] = self._convert_to_hf_dataset(test_data, labels)
+                dd[Split.test] = self._convert_to_hf_dataset(
+                    test_data, labels, column_mapping
+                )
             if inference_data is not None:
                 for inf_name, inf_df in inference_data.items():
-                    dd[inf_name] = self._convert_to_hf_dataset(inf_df, labels)
+                    dd[inf_name] = self._convert_to_hf_dataset(
+                        inf_df, labels, column_mapping
+                    )
                     inf_names.append(inf_name)
         return self._validate_dataset_dict(dd, inf_names, labels)

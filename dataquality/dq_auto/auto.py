@@ -1,11 +1,10 @@
-import logging
 from typing import Dict, List, Optional, Union
 
 import pandas as pd
 from datasets import Dataset, DatasetDict
 
 from dataquality.schemas.task_type import TaskType
-from dataquality.utils.auto import get_task_type_from_data, set_global_logging_level
+from dataquality.utils.auto import get_task_type_from_data
 
 AUTO_PROJECT_NAME = {
     TaskType.text_classification: "auto_tc",
@@ -28,6 +27,7 @@ def auto(
     run_name: Optional[str] = None,
     wait: bool = True,
     create_data_embs: Optional[bool] = None,
+    early_stopping: bool = True,
 ) -> None:
     """Automatically gets insights on a text classification or NER dataset
 
@@ -97,6 +97,7 @@ def auto(
         `dq.metrics.get_dataframe(..., include_data_embs=True)` in the `data_emb` col
         Only available for TC currently. NER coming soon. Default True if a GPU is
         available, else default False.
+    :param early_stopping: Whether to use early stopping. Default True
 
     For text classification datasets, the only required columns are `text` and `label`
 
@@ -185,9 +186,11 @@ def auto(
             run_name="run_1_raw_data"
         )
     """
-    # Remove all output from transformers and torch except the progress bar
-    set_global_logging_level(logging.ERROR, ["torch"])
-    set_global_logging_level(logging.ERROR, ["transformers"])
+    import datasets
+    import transformers
+
+    transformers.logging.enable_progress_bar()
+    datasets.logging.enable_progress_bar()
 
     # We need to import auto down here instead of at the top of the file like normal
     # because we simultaneously want analytic tracking on the files we import while
@@ -206,7 +209,7 @@ def auto(
     if task_type == TaskType.text_classification:
         from dataquality.dq_auto.text_classification import auto as auto_tc
 
-        auto_tc(
+        return auto_tc(
             hf_data=hf_data,
             hf_inference_names=hf_inference_names,
             train_data=train_data,
@@ -221,11 +224,12 @@ def auto(
             wait=wait,
             create_data_embs=create_data_embs,
             num_train_epochs=num_train_epochs,
+            early_stopping=early_stopping,
         )
     elif task_type == TaskType.text_ner:
         from dataquality.dq_auto.ner import auto as auto_ner
 
-        auto_ner(
+        return auto_ner(
             hf_data=hf_data,
             hf_inference_names=hf_inference_names,
             train_data=train_data,
@@ -238,6 +242,7 @@ def auto(
             run_name=run_name,
             wait=wait,
             num_train_epochs=num_train_epochs,
+            early_stopping=early_stopping,
         )
     else:
         raise Exception("auto is only supported for text classification and NER!")

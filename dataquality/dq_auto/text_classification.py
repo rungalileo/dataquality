@@ -3,6 +3,7 @@ from typing import Dict, List, Optional, Union
 import numpy as np
 import pandas as pd
 from datasets import ClassLabel, Dataset, DatasetDict
+from transformers import Trainer
 
 import dataquality as dq
 from dataquality import Analytics, ApiClient
@@ -10,8 +11,13 @@ from dataquality.dq_auto.base_data_manager import BaseDatasetManager
 from dataquality.dq_auto.tc_trainer import get_trainer
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
-from dataquality.utils.auto import add_val_data_if_missing, run_name_from_hf_dataset
+from dataquality.utils.auto import (
+    add_class_label_to_dataset,
+    add_val_data_if_missing,
+    run_name_from_hf_dataset,
+)
 from dataquality.utils.auto_trainer import do_train
+from dataquality.utils.setfit import _get_meta_cols
 
 a = Analytics(ApiClient, dq.config)
 a.log_import("auto_tc")
@@ -38,23 +44,6 @@ class TCDatasetManager(BaseDatasetManager):
                 df[c] = df[c].astype("str")
         return df
 
-    def _add_class_label_to_dataset(
-        self, ds: Dataset, labels: Optional[List[str]] = None
-    ) -> Dataset:
-        """Map a not ClassLabel 'label' column to a ClassLabel, if possible"""
-        if "label" not in ds.features or isinstance(ds.features["label"], ClassLabel):
-            return ds
-        labels = labels if labels is not None else sorted(set(ds["label"]))
-        # For string columns, map the label2idx so we can cast to ClassLabel
-        if ds.features["label"].dtype == "string":
-            label_to_idx = dict(zip(labels, range(len(labels))))
-            ds = ds.map(lambda row: {"label": label_to_idx[row["label"]]})
-
-        # https://github.com/python/mypy/issues/6239
-        class_label = ClassLabel(num_classes=len(labels), names=labels)  # type: ignore
-        ds = ds.cast_column("label", class_label)
-        return ds
-
     def _convert_df_to_dataset(
         self, df: pd.DataFrame, labels: Optional[List[str]] = None
     ) -> Dataset:
@@ -69,7 +58,7 @@ class TCDatasetManager(BaseDatasetManager):
         # of the hf DatasetDict will handle this missing label column if it's an
         # issue. See `_validate_dataset_dict`
         ds = Dataset.from_pandas(df_copy)
-        return self._add_class_label_to_dataset(ds, labels)
+        return add_class_label_to_dataset(ds, labels)
 
     def _validate_dataset_dict(
         self,
@@ -96,7 +85,7 @@ class TCDatasetManager(BaseDatasetManager):
             if key not in inference_names:
                 assert "label" in ds.features, "Dataset must have column `label`"
                 if not isinstance(ds.features["label"], ClassLabel):
-                    ds = self._add_class_label_to_dataset(ds, labels)
+                    ds = add_class_label_to_dataset(ds, labels)
             if "id" not in ds.features:
                 ds = ds.add_column("id", list(range(ds.num_rows)))
             clean_dd[key] = ds
@@ -116,8 +105,7 @@ def _get_labels(dd: DatasetDict, labels: Optional[List[str]] = None) -> List[str
 def _log_dataset_dict(dd: DatasetDict) -> None:
     for key in dd:
         ds = dd[key]
-        default_cols = ["text", "label", "id"]
-        meta = [i for i in ds.features if i not in default_cols]
+        meta = _get_meta_cols(ds.features)
         if key in Split.get_valid_keys():
             dq.log_dataset(ds, meta=meta, split=key)
         else:
@@ -139,7 +127,8 @@ def auto(
     run_name: Optional[str] = None,
     wait: bool = True,
     create_data_embs: Optional[bool] = None,
-) -> None:
+    early_stopping: bool = True,
+) -> Trainer:
     """Automatically gets insights on a text classification dataset
 
     Given either a pandas dataframe, file_path, or huggingface dataset path, this
@@ -198,6 +187,7 @@ def auto(
         Default True
     :param create_data_embs: Whether to create data embeddings for this run. Default
         False
+    :param early_stopping: Whether to use early stopping. Default True
 
     To see auto insights on a random, pre-selected dataset, simply run
     ```python
@@ -270,6 +260,11 @@ def auto(
     dq.set_labels_for_run(labels)
     _log_dataset_dict(dd)
     trainer, encoded_data = get_trainer(
-        dd, labels, hf_model, max_padding_length, num_train_epochs
+        dd,
+        labels,
+        hf_model,
+        max_padding_length,
+        num_train_epochs,
+        early_stopping=early_stopping,
     )
-    do_train(trainer, encoded_data, wait, create_data_embs)
+    return do_train(trainer, encoded_data, wait, create_data_embs)

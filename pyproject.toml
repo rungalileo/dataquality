@@ -1,17 +1,19 @@
 
 [build-system]
-requires = ["flit_core >=2,<3"]
-build-backend = "flit_core.buildapi"
-
-[tool.flit.metadata]
-module = "dataquality"
-author = "Galileo Technologies, Inc"
-author-email = "team@rungalileo.io"
-home-page = "https://www.github.com/rungalileo/dataquality"
-description-file = "README.md"
-requires-python = ">=3.7"
 requires = [
-    "pydantic>=1.8.2",
+    "setuptools>=65.0",
+    "wheel>=0.37",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dataquality"
+dynamic = ["version"]
+readme = "README.md"
+license = {text = 'See LICENSE'}
+requires-python = ">=3.7"
+dependencies = [
+    "pydantic>=1.8.2,<2.0.0",
     "requests>=2.25.1",
     "types-requests>=2.25.2",
     "pandas>=0.20.0",
@@ -37,14 +39,18 @@ requires = [
     "evaluate",
     "accelerate",
 ]
+[[project.authors]]
+name = "Galileo Technologies, Inc."
+email = "devs+dq@rungalileo.io"
 
-[tool.flit.scripts]
+[project.scripts]
 dqyolo = "dataquality.dqyolo:main"
 
-[tool.flit.metadata.urls]
+[project.urls]
+Homepage = "https://github.com/rungalileo/dataquality"
 Documentation = "https://rungalileo.gitbook.io/galileo"
 
-[tool.flit.metadata.requires-extra]
+[project.optional-dependencies]
 doc = [
     "furo",
     "sphinx",
@@ -58,13 +64,12 @@ test = [
     "ultralytics",
     "pytest>=7.2.1",
     "freezegun>=1.2.2",
-    "coverage>=7.0.5",
+    "coverage[toml]>=7.0.5",
     "pytest-cov>=4.0.0",
     "scikit-learn>=1.0",
-    "tensorflow>=2.9.1",
+    "tensorflow>=2.9.1,<2.13.0",
     "pytest-env>=0.8.1",
     "pytest-xdist>=2.4.0",
-    "spacy==3.2.1",
     "types-setuptools>=67.3.0.1",
     "types-cachetools>=4.2.4",
     "torchvision>=0.13.1",
@@ -79,18 +84,17 @@ test = [
     "setfit",
     "accelerate>=0.19.0",
     "typing-inspect==0.8.0",
-    "typing-extensions<4.6.0",
+    "typing-extensions==4.0.0",
 ]
 dev = [
     "mypy>=1.0.0",
-    "flake8",
+    "ruff>=0.0.98",
     "black>=23.1.0",
-    "isort>=5.11.5",
-    "autoflake",
     "jupyter==1.0.0",
+    "invoke>=1.6.0",
 ]
-
-# Need to be installed with `pip install 'dataquality[cuda]' --extra-index-url=https://pypi.nvidia.com/ `
+# Install this by adding the --extra-index-url option as shown below
+# `pip install 'dataquality[cuda]' --extra-index-url=https://pypi.nvidia.com/ `
 cuda = [
    "ucx-py-cu11<=0.30",
    "rmm-cu11==23.2.0",
@@ -100,22 +104,104 @@ cuda = [
    "cudf-cu11==23.2.0",
    "cuml-cu11==23.2.0"
 ]
-
 minio = [
     "minio>=7.1.0,<7.2.0"
 ]
-
 py37 = [
     "cachetools>=5.2.0",
     "types-cachetools>=5.3.0.0",
     "importlib-metadata<5.0.0",
     "timm<=0.6.13",
 ]
-
 setfit = [
     "setfit"
 ]
 
-[tool.isort]
-profile = "black"
+[tool.setuptools.dynamic]
+version = {attr = "dataquality.__version__"}
+
+[tool.pytest.ini_options]
+env = [
+    "GALILEO_API_URL=http://localhost:8000"
+]
+addopts = [
+    "-n",
+    "auto",
+    "-o",
+    "console_output_style=progress",
+    "--durations=10",
+    "--disable-warnings",
+    "--cov=dataquality",
+    "--cov=tests",
+    "--cov-report=term-missing",
+    "--cov-report=xml",
+    "--cov-report=html",
+]
+
+[tool.coverage.run]
+parallel = true
+source = [
+    "dataquality/",
+    "tests/"
+]
+omit = [
+    "*__init__.py",
+    "*metrics.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    'pragma: no cover',
+    'raise NotImplementedError'
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+[tool.coverage.xml]
+output = "coverage.xml"
+
+[tool.mypy]
+ignore_missing_imports = true
+disallow_untyped_defs = true
+
+[tool.ruff]
+line-length = 88
+ignore = ["D10"]
+include = ["*.py"]
+select = ["E", "F", "I"]
+target-version = "py310"
+extend-ignore = [
+    "D203",
+    "D204",
+    "D213",
+    "D215",
+    "D400",
+    "D404",
+    "D406",
+    "D407",
+    "D408",
+    "D409",
+    "D413",
+    "D415",
+    "E731",
+]
+
+[tool.black]
+target-version = ['py310']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.eggs
+  | \.git
+  | \.hg
+  | \.*_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+  | __pycache__
+)/
+'''
+
 

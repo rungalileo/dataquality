@@ -154,10 +154,6 @@ def test_duplicate_ids_augmented(
 
 @mock.patch.object(
     dataquality.core.finish,
-    "_version_check",
-)
-@mock.patch.object(
-    dataquality.core.finish,
     "_reset_run",
 )
 @mock.patch.object(
@@ -182,7 +178,6 @@ def test_observed_ids_cleaned_up_after_finish(
     mock_make_request: MagicMock,
     mock_upload_log_file: MagicMock,
     mock_reset_run: MagicMock,
-    mock_version_check: MagicMock,
     set_test_config: callable,
     cleanup_after_use: callable,
     test_session_vars: TestSessionVariables,
@@ -391,4 +386,27 @@ def test_prepare_df_from_ImageFolder_with_remote_imgs() -> None:
     assert set(df.label.unique()) == {"labelA", "labelB"}
     assert set(df.id.unique()) == set(range(4))
     assert df.loc[0, "text"].startswith(imgs_remote_location)
+    assert df.loc[0, "text"].endswith(".png")
+
+
+def test_prepare_df_from_ImageFolder_inference() -> None:
+    """
+    Check the format of the dataframe returned by
+    ImageClassificationDataLogger._prepare_df_from_ImageFolder, called in
+    dq.log_image_dataset
+    """
+
+    image_logger = ImageClassificationDataLogger()
+
+    train_dataset = ImageFolder(root=TEST_IMAGES_FOLDER_ROOT)
+
+    df = image_logger._prepare_df_from_ImageFolder(
+        dataset=train_dataset, split="inference"
+    )
+
+    # Assert that the dataframe is how we'd expect it to be by looking at the folder
+    # with no labels
+    assert set(df.columns) == {"id", "text"}
+    assert len(df) == 4
+    assert set(df.id.unique()) == set(range(4))
     assert df.loc[0, "text"].endswith(".png")

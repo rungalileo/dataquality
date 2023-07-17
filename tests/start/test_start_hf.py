@@ -62,11 +62,12 @@ args_default = TrainingArguments(
     load_best_model_at_end=True,
     metric_for_best_model=metric_name,
     push_to_hub=False,
+    use_mps_device=False,
 )
 
 
 @patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=True)
-@patch.object(dataquality.core.finish, "_version_check")
+@patch.object(dataquality.core.init, "version_check")
 @patch.object(dataquality.core.finish, "_reset_run")
 @patch.object(dataquality.core.finish, "upload_dq_log_file")
 @patch.object(dataquality.clients.api.ApiClient, "make_request")
