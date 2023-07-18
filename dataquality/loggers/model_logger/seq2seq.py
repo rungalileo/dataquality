@@ -5,7 +5,7 @@ import pyarrow as pa
 
 from dataquality.loggers.logger_config.seq2seq import seq2seq_logger_config
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
-from dataquality.schemas.seq2seq import Seq2SeqCols as C
+from dataquality.schemas.seq2seq import Seq2SeqOutputCols as C
 from dataquality.schemas.split import Split
 from dataquality.utils.arrow import save_arrow_file
 
@@ -70,6 +70,19 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
     def get_dep_for_sample(
         self, sample_id: int, sample_probs: np.ndarray
     ) -> Tuple[np.ndarray, np.ndarray]:
+        """Extracts DEP per token prediction for a single sample
+
+        Args:
+            sample_id: The sample id
+            sample_probs: The probabilities for each token in the sample
+                sample_probs.shape is [max_token_len, vocab_size]
+
+        Returns:
+            dep: The DEP per token prediction for the sample
+                dep.shape is [num_tokens_in_label]
+            gold_probs: The probabilities of the GT token label for the sample
+                gold_probs.shape is [num_tokens_in_label]
+        """
         assert (
             self.logger_config.tokenizer is not None
         ), "Must set your tokenizer. Use `dq.set_tokenizer`"
@@ -83,8 +96,8 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         probs_copy[np.arange(len(labels)), labels] = 0
         # Max non-gold probability
         max_probs = np.max(probs_copy, axis=-1)
-        aum = gold_probs - max_probs
-        dep = (1 - aum) / 2
+        margin = gold_probs - max_probs
+        dep = (1 - margin) / 2
         return dep, gold_probs
 
     def get_token_dep_probs(
@@ -114,6 +127,12 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         can't be represented in numpy
 
         Returns: (token_dep, gold_probs)
+            token_dep: The DEP per token prediction for the batch
+                len(token_dep) == batch_size
+                token_dep[i].shape is [num_tokens_in_label]
+            gold_probs: The probabilities of the GT token label for the batch
+                len(gold_probs) == batch_size
+                gold_probs[i].shape is [num_tokens_in_label]
         """
         batch_deps = []
         batch_gold_probs = []
@@ -135,7 +154,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             C.epoch.value: [self.epoch] * batch_size,
         }
         if self.split == Split.inference:
-            data["inference_name"] = [self.inference_name] * batch_size
+            data[C.inference_name.value] = [self.inference_name] * batch_size
         return data
 
     def _write_dict_to_disk(self, path: str, object_name: str, data: Dict) -> None:
