@@ -13,7 +13,7 @@ from dataquality.loggers.data_logger.base_data_logger import (
     MetasType,
 )
 from dataquality.loggers.logger_config.seq2seq import seq2seq_logger_config
-from dataquality.schemas.seq2seq import Seq2SeqCols as C
+from dataquality.schemas.seq2seq import Seq2SeqInputCols as C
 from dataquality.schemas.split import Split
 from dataquality.utils.seq2seq import (
     align_tokens_to_character_spans,
