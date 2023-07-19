@@ -428,7 +428,6 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         out_frame = get_output_df(
             dir_name, prob_only, split, epoch_or_inf
         )
-        import pdb; pdb.set_trace()
         epoch_or_inf_name = "inference_name" if split == Split.inference else "epoch"
         return cls.process_in_out_frames(
             in_frame, out_frame, prob_only, epoch_or_inf_name, split

@@ -230,10 +230,11 @@ def get_output_df(
     Applies the necessary conversions post-concatenation of files
     (see `concat_hdf5_files`)
     """
-    import pdb; pdb.set_trace()
     out_frame_ext = get_extension_for_dir(dir_name)
 
-    if out_frame_ext == ".hdf5":
+    if out_frame_ext == ".arrow":
+        out_frame = vaex.open(f"{dir_name}/*.arrow")
+    elif out_frame_ext == ".hdf5":
         out_frame_path = f"{dir_name}/{HDF5_STORE}"
         # It's possible the files were already concatenated and handled. In that case
         # just open the processed file
@@ -242,8 +243,11 @@ def get_output_df(
         
         str_cols = concat_hdf5_files(dir_name, prob_only)
         out_frame = vaex.open(out_frame_path)
-    elif out_frame_ext == ".arrow":
-        out_frame = vaex.open(f"{dir_name}/*.arrow")
+        # Post concat, string columns come back as bytes and need conversion
+        for col in str_cols:
+            out_frame[col] = out_frame[col].as_arrow().astype("str")
+            out_frame[col] = out_frame[f'astype({col}, "large_string")']
+
     else:
         raise GalileoException(
             f"Unsupported file extension {out_frame_ext} for output data"
@@ -256,15 +260,12 @@ def get_output_df(
         dtype = None
         epoch_or_inf_name = "epoch"
 
-    # Post concat, string columns come back as bytes and need conversion
-    for col in str_cols:
-        out_frame[col] = out_frame[col].as_arrow().astype("str")
-        out_frame[col] = out_frame[f'astype({col}, "large_string")']
     if prob_only:
         out_frame["split"] = vaex.vconstant(split, length=len(out_frame), dtype="str")
         out_frame[epoch_or_inf_name] = vaex.vconstant(
             epoch_or_inf, length=len(out_frame), dtype=dtype
         )
+
     return out_frame
 
 

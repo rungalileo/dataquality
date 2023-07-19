@@ -126,7 +126,6 @@ def concat_hdf5_files(location: str, prob_only: bool) -> List[str]:
     str_cols = []
     stores = {}
     files = os.listdir(location)
-    import pdb; pdb.set_trace()
     df = vaex.open(f"{location}/{files[0]}")
 
     # Construct a store per column
