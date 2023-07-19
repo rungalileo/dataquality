@@ -29,7 +29,6 @@ from dataquality.utils.upload import chunk_load_then_upload_df
 from dataquality.utils.vaex import validate_unique_ids
 
 ITER_CHUNK_SIZE_IMAGES = 10000
-GAL_REMOTE_IMAGES_PATHS = "gal_remote_images_paths"
 GAL_LOCAL_IMAGES_PATHS = "gal_local_images_paths"
 
 
@@ -94,12 +93,13 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
                 )
 
         # Get the column mapping and rename imgs_local and imgs_remote if required
-        # Always rename "text" since it is used internally and would create a conflict
         column_map = column_map or {id: "id"}
         if imgs_local_colname is not None:
             column_map[imgs_local_colname] = GAL_LOCAL_IMAGES_PATHS
+        # Rename the col with remote path to "text" (it would be renamed to "text" later
+        # anyways since IC inherits the logging methods from TC which uses "text")
         if imgs_remote is not None:
-            column_map[imgs_remote] = GAL_REMOTE_IMAGES_PATHS
+            column_map[imgs_remote] = "text"
 
         dataset = self.apply_column_map(dataset, column_map)
         # If no remote paths are found, upload to the local images to the objectstore
@@ -141,17 +141,17 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         dataset: pd.DataFrame,
         parallel: bool = False,
     ) -> Tuple[pd.DataFrame, bool]:
-        """Uploads local images to ObjectStore and adds remote paths to the df
+        """
+        Uploads local images to ObjectStore and adds remote paths to the df in a column
+        called "text".
 
         NOTE: If the dataset already contains remote paths, this function does nothing
-
-        If images were uploaded to remote the paths are added to the df in
-        the column imgs_remote_colname := GAL_REMOTE_IMAGES_PATHS
         """
+        has_local_paths = GAL_LOCAL_IMAGES_PATHS in dataset.columns
 
         # No need to upload data if we already have access to remote images
         if self._has_remote_images(dataset):
-            return dataset
+            return dataset, has_local_paths
 
         # If it doesn't have remote images, it necessarily has local images
         file_list = dataset[GAL_LOCAL_IMAGES_PATHS].tolist()
@@ -178,12 +178,11 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         dataset = dataset.merge(
             df, left_on=GAL_LOCAL_IMAGES_PATHS, right_on="file_path"
         )
-        dataset.rename(columns={"object_path": GAL_REMOTE_IMAGES_PATHS}, inplace=True)
+        dataset.rename(columns={"object_path": "text"}, inplace=True)
         dataset.drop(columns=["file_path"], inplace=True)
         for f in glob.glob(f"{temp_dir}/*.arrow"):
             os.remove(f)
 
-        has_local_paths = GAL_LOCAL_IMAGES_PATHS in dataset.columns
         return dataset, has_local_paths
 
     def convert_large_string(self, df: DataFrame) -> DataFrame:
@@ -231,7 +230,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             from dataquality.utils.hf_images import process_hf_image_paths_for_logging
 
             prepared = process_hf_image_paths_for_logging(
-                dataset, GAL_LOCAL_IMAGES_PATHS, GAL_REMOTE_IMAGES_PATHS
+                dataset, GAL_LOCAL_IMAGES_PATHS
             )
         elif isinstance(dataset.features[GAL_LOCAL_IMAGES_PATHS], datasets.Image):
             # Case where the column contains Image feature
@@ -239,7 +238,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             from dataquality.utils.hf_images import process_hf_image_feature_for_logging
 
             prepared = process_hf_image_feature_for_logging(
-                dataset, GAL_LOCAL_IMAGES_PATHS, GAL_REMOTE_IMAGES_PATHS
+                dataset, GAL_LOCAL_IMAGES_PATHS
             )
         else:
             raise GalileoException(
@@ -277,7 +276,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
 
         # Also add remote paths, if a remote location is specified
         if imgs_remote_location is not None:
-            df[GAL_REMOTE_IMAGES_PATHS] = df[GAL_LOCAL_IMAGES_PATHS].str.replace(
+            df["text"] = df[GAL_LOCAL_IMAGES_PATHS].str.replace(
                 dataset.root, imgs_remote_location
             )
 

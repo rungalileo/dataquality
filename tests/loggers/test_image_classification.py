@@ -383,15 +383,15 @@ def test_prepare_df_from_ImageFolder_with_remote_imgs() -> None:
     # Assert that the dataframe is how we'd expect it to be by looking at the folder
     assert set(df.columns) == {
         "id",
-        "gal_remote_images_paths",
+        "text",
         "label",
         "gal_local_images_paths",
     }
     assert len(df) == 4
     assert set(df.label.unique()) == {"labelA", "labelB"}
     assert set(df.id.unique()) == set(range(4))
-    assert df.loc[0, "gal_remote_images_paths"].startswith(imgs_remote_location)
-    assert df.loc[0, "gal_remote_images_paths"].endswith(".png")
+    assert df.loc[0, "text"].startswith(imgs_remote_location)
+    assert df.loc[0, "text"].endswith(".png")
 
 
 def test_prepare_df_from_ImageFolder_inference() -> None:

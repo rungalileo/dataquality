@@ -15,6 +15,7 @@ from dataquality import config
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
 from dataquality.exceptions import GalileoException
+from dataquality.loggers.data_logger.image_classification import GAL_LOCAL_IMAGES_PATHS
 from dataquality.loggers.logger_config.base_logger_config import BaseLoggerConfig
 from dataquality.schemas.split import Split
 from dataquality.utils.helpers import galileo_disabled
@@ -396,7 +397,7 @@ def convert_img_dl_to_df(dl: DataLoader, x_col: str = "image") -> pd.DataFrame:
     a.log_function("fastai/convert_img_dl_to_df")
     additional_data = {}
     if x_col == "image":
-        additional_data["text"] = dl.items
+        additional_data[GAL_LOCAL_IMAGES_PATHS] = dl.items
     x, y = [], []
     for x_item, y_item in dl.dataset:
         x.append(x_item)
