@@ -20,7 +20,6 @@ from dataquality.loggers.base_logger import BaseGalileoLogger, BaseLoggerAttribu
 from dataquality.schemas.dataframe import BaseLoggerDataFrames, DFVar
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
-from dataquality.schemas.task_type import TaskType
 from dataquality.utils import tqdm
 from dataquality.utils.cloud import is_galileo_cloud
 from dataquality.utils.cuda import cuml_available
@@ -78,11 +77,6 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         super().__init__()
         self.meta: Dict = meta or {}
         self.log_export_progress = True
-
-    @property
-    def input_data_path(self) -> str:
-        """The upload function is implemented in the sister DataConfig class"""
-        BaseGalileoModelLogger.get_logger(TaskType[self.__logger_name__])().upload()
 
     @property
     def input_data_path(self) -> str:
@@ -425,9 +419,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         :param split: The split we are logging for
         :param epoch_or_inf: The epoch or inference name we are logging for
         """
-        out_frame = get_output_df(
-            dir_name, prob_only, split, epoch_or_inf
-        )
+        out_frame = get_output_df(dir_name, prob_only, split, epoch_or_inf)
         epoch_or_inf_name = "inference_name" if split == Split.inference else "epoch"
         return cls.process_in_out_frames(
             in_frame, out_frame, prob_only, epoch_or_inf_name, split

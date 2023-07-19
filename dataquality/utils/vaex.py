@@ -240,7 +240,7 @@ def get_output_df(
         # just open the processed file
         if os.path.isfile(out_frame_path):
             return vaex.open(out_frame_path)
-        
+
         str_cols = concat_hdf5_files(dir_name, prob_only)
         out_frame = vaex.open(out_frame_path)
         # Post concat, string columns come back as bytes and need conversion

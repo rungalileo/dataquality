@@ -10,7 +10,7 @@ from dataquality.schemas.split import Split
 
 def get_extension_for_dir(dir_: str) -> str:
     """Returns the file extension of all files in the directory
-    
+
     Raises exception if there are no files in the directory
     or if there are multiple file extensions
     """
@@ -23,7 +23,7 @@ def get_extension_for_dir(dir_: str) -> str:
         raise GalileoException(
             f"Multiple file extensions found in {dir_}: {extensions}"
         )
-    
+
     return list(extensions)[0]
 
 
