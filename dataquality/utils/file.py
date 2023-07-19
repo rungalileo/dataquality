@@ -4,8 +4,27 @@ import time
 import warnings
 from typing import Dict, Optional
 
-from dataquality.exceptions import GalileoWarning
+from dataquality.exceptions import GalileoException, GalileoWarning
 from dataquality.schemas.split import Split
+
+
+def get_extension_for_dir(dir_: str) -> str:
+    """Returns the file extension of all files in the directory
+    
+    Raises exception if there are no files in the directory
+    or if there are multiple file extensions
+    """
+    files = os.listdir(dir_)
+    if len(files) == 0:
+        raise GalileoException(f"No files found in {dir_}")
+
+    extensions = set([get_file_extension(f) for f in files])
+    if len(extensions) > 1:
+        raise GalileoException(
+            f"Multiple file extensions found in {dir_}: {extensions}"
+        )
+    
+    return list(extensions)[0]
 
 
 def get_file_extension(path: str) -> str:

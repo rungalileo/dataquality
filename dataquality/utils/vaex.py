@@ -19,6 +19,7 @@ from dataquality.utils.cuda import (
     get_pca_embeddings,
     get_umap_embeddings,
 )
+from dataquality.utils.file import get_extension_for_dir
 from dataquality.utils.hdf5_store import HDF5_STORE, concat_hdf5_files
 from dataquality.utils.helpers import galileo_verbose_logging
 
@@ -229,13 +230,24 @@ def get_output_df(
     Applies the necessary conversions post-concatenation of files
     (see `concat_hdf5_files`)
     """
-    out_frame_path = f"{dir_name}/{HDF5_STORE}"
-    # It's possible the files were already concatenated and handled. In that case
-    # just open the processed file
-    if os.path.isfile(out_frame_path):
-        return vaex.open(out_frame_path)
-    str_cols = concat_hdf5_files(dir_name, prob_only)
-    out_frame = vaex.open(out_frame_path)
+    import pdb; pdb.set_trace()
+    out_frame_ext = get_extension_for_dir(dir_name)
+
+    if out_frame_ext == ".hdf5":
+        out_frame_path = f"{dir_name}/{HDF5_STORE}"
+        # It's possible the files were already concatenated and handled. In that case
+        # just open the processed file
+        if os.path.isfile(out_frame_path):
+            return vaex.open(out_frame_path)
+        
+        str_cols = concat_hdf5_files(dir_name, prob_only)
+        out_frame = vaex.open(out_frame_path)
+    elif out_frame_ext == ".arrow":
+        out_frame = vaex.open(f"{dir_name}/*.arrow")
+    else:
+        raise GalileoException(
+            f"Unsupported file extension {out_frame_ext} for output data"
+        )
 
     if split == Split.inference:
         dtype: Union[str, None] = "str"
