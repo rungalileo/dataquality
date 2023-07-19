@@ -35,7 +35,7 @@ class TorchHelper:
     model_input: Any = np.empty(0)
     batch: Dict[str, Any] = field(default_factory=dict)
     ids: List[Any] = field(default_factory=list)
-    patches: Optional[Any] = None
+    patches: List[Dict] = field(default_factory=list)
 
     def clear(self) -> None:
         """Resets the arrays of the class."""
@@ -44,10 +44,6 @@ class TorchHelper:
         self.ids.clear()
         self.model_input = np.empty(0)
         self.batch.clear()
-
-    def __del__(self) -> None:
-        self.clear()
-        self.hook_manager = None
 
 
 class TorchBaseInstance:
@@ -92,9 +88,12 @@ class TorchBaseInstance:
         model_input: Optional[Tensor],
         model_output: Union[BaseModelOutput, Tensor],
     ) -> None:
-        """
-        Hook to extract the embeddings from the model
-        Keyword arguments won't be passed to the hooks and only to the ``forward``.
+        """Hook to extract the embeddings from the model
+
+        After extracting embeddings it sets them in the TorchHelper
+        model_outputs_store dictionary.
+
+        Keyword arguments won't be passed to the hooks and only to the `forward`.
         The hook can modify the input. User can either return a tuple or a
         single modified value in the hook. We will wrap the value into a tuple
         if a single value is returned(unless that value is already a tuple).
@@ -140,19 +139,20 @@ class TorchBaseInstance:
             # It is assumed that the CLS token is removed through this dimension
             # for NER tasks
             output_detached = output_detached[:, 1:, :]
-        model_outputs_store = self.torch_helper_data.model_outputs_store
-        model_outputs_store["embs"] = output_detached
+
+        self.torch_helper_data.model_outputs_store["embs"] = output_detached
 
     def _dq_logit_hook(
         self,
         model: Module,
-        model_input: Optional[
-            Tensor
-        ],  # the classifier hook does not pass a model input
+        model_input: Optional[Tensor],
         model_output: Union[Tuple[Tensor], TokenClassifierOutput, Tensor],
     ) -> None:
-        """
-        Hook to extract the logits from the model.
+        """Hook to extract the logits from the model.
+
+        After extracting logits it sets them in the TorchHelper
+        model_outputs_store dictionary.
+
         :param model: Model pytorch model
         :param model_input: Model input of the current layer
         :param model_output: Model output of the current layer
@@ -181,8 +181,8 @@ class TorchBaseInstance:
             # It is assumed that the CLS token is removed
             # through this dimension for NER tasks
             logits = logits[:, 1:, :]
-        model_outputs_store = self.torch_helper_data.model_outputs_store
-        model_outputs_store["logits"] = logits
+
+        self.torch_helper_data.model_outputs_store["logits"] = logits
 
     def _classifier_hook(
         self,
@@ -190,8 +190,8 @@ class TorchBaseInstance:
         model_input: Union[BaseModelOutput, Tensor],
         model_output: Union[Tuple[Tensor], TokenClassifierOutput, Tensor],
     ) -> None:
-        """
-        Hook to extract the embeddings from the model
+        """Hook to extract logits and embeddings from the model
+
         Keyword arguments won't be passed to the hooks and only to the ``forward``.
         The hook can modify the input. User can either return a tuple or a
         single modified value in the hook. We will wrap the value into a tuple
@@ -202,7 +202,6 @@ class TorchBaseInstance:
         :param model_input: Input of the current layer
         :param model_output: Output of the current layer
         """
-
         self._dq_embedding_hook(model, None, model_input)
         self._dq_logit_hook(model, None, model_output)
 
@@ -364,6 +363,7 @@ class ModelHookManager(Borg):
         """Remove all hooks from the model"""
         for h in self.hooks:
             h.remove()
+        self.hooks = []
 
 
 def unpatch(patches: List[Dict[str, Any]] = []) -> None:
@@ -665,3 +665,4 @@ class PatchDataloadersGlobally(Patch):
             )
             setattr(_BaseDataLoaderIter, "_patched", True)
             setattr(_BaseDataLoaderIter, "_patch_store", store)
+        store.patches.append({"class": _BaseDataLoaderIter, "attr": "_next_index"})

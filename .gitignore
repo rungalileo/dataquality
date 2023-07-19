@@ -187,3 +187,5 @@ large_run.ipynb
 
 *.cache
 .python-version
+
+local_notebooks
