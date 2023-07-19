@@ -386,7 +386,7 @@ def test_prepare_df_from_ImageFolder_with_remote_imgs() -> None:
     # Assert that the dataframe is how we'd expect it to be by looking at the folder
     assert set(df.columns) == {
         "id",
-        "gal_remote_images_paths",
+        "text",
         "label",
         GAL_LOCAL_IMAGES_PATHS,
     }
