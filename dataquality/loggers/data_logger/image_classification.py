@@ -72,10 +72,10 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         imgs_remote: Optional[str] = None,
         batch_size: int = ITER_CHUNK_SIZE_IMAGES,
         id: str = "id",
-        label: Union[str, int] = "label",
+        label: str = "label",
         split: Optional[Split] = None,
         inference_name: Optional[str] = None,
-        meta: Union[List[str], List[int], None] = None,
+        meta: Optional[List[str]] = None,
         column_map: Optional[Dict[str, str]] = None,
         parallel: bool = False,
     ) -> Any:

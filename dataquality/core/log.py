@@ -127,10 +127,10 @@ def log_image_dataset(
     imgs_remote: Optional[str] = None,
     batch_size: int = ITER_CHUNK_SIZE,
     id: str = "id",
-    label: Union[str, int] = "label",
+    label: str = "label",
     split: Optional[Split] = None,
     inference_name: Optional[str] = None,
-    meta: Union[List[str], List[int], None] = None,
+    meta: Optional[List[str]] = None,
     parallel: bool = False,
     **kwargs: Any,
 ) -> None:
