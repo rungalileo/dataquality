@@ -191,7 +191,6 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
 
     @classmethod
     def _get_prob_cols(cls) -> List[str]:
-        # return ["id", "token_deps", "token_gold_probs"]
         return ["id"]
 
     @classmethod
