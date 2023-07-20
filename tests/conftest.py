@@ -2,12 +2,13 @@ import os
 import shutil
 from typing import Any, Callable, Dict, Generator, List, Optional, Union
 from uuid import UUID
-
+import warnings
 import pytest
 import requests
 import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 from vaex.dataframe import DataFrame
+from dataquality.exceptions import GalileoWarning
 
 import dataquality
 from dataquality import AggregateFunction, Condition, ConditionFilter, Operator, config
@@ -20,7 +21,7 @@ from tests.test_utils.mock_request import MockResponse
 try:
     torch.set_default_device("cpu")
 except AttributeError:
-    print("Torch default device not set to CPU")
+    warnings.warn("Torch default device not set to CPU", GalileoWarning)
 DEFAULT_API_URL = "http://localhost:8088"
 UUID_STR = "399057bc-b276-4027-a5cf-48893ac45388"
 TEST_STORE_DIR = "TEST_STORE"

@@ -70,7 +70,7 @@ encoded_test_dataset_repeat = mock_dataset_with_ids_repeat.map(
 
 # Training arguments and training part
 metric_name = "accuracy"
-batch_size = 3
+batch_size = 4
 
 args_default = TrainingArguments(
     output_dir="tmp",
