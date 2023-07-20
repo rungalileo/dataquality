@@ -80,20 +80,21 @@ class DQTrainerCallback(TrainerCallback, TorchBaseInstance, Patch):
     def _do_log(self) -> None:
         """Log the model outputs (called by the hook)"""
         # Log only if embedding exists
-        assert self.model_outputs_store.get("embs") is not None, GalileoException(
+        self.model_outputs_store.ids = self.model_outputs_store.ids_queue.pop(0)
+        assert self.model_outputs_store.embs is not None, GalileoException(
             "Embedding passed to the logger can not be logged"
         )
-        assert self.model_outputs_store.get("logits") is not None, GalileoException(
+        assert self.model_outputs_store.logits is not None, GalileoException(
             "Logits passed to the logger can not be logged"
         )
-        assert self.model_outputs_store.get("ids") is not None, GalileoException(
+        assert self.model_outputs_store.ids is not None, GalileoException(
             "Did you map IDs to your dataset before watching the model? You can run:\n"
             "`ds= dataset.map(lambda x, idx: {'id': idx}, with_indices=True)`\n"
             "id (index) column is needed in the dataset for logging"
         )
 
         # 🔭🌕 Galileo logging
-        dq.log_model_outputs(**self.model_outputs_store)
+        dq.log_model_outputs(**self.model_outputs_store.to_dict())
         self.model_outputs_store.clear()
 
     def validate(

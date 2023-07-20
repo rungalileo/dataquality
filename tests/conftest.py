@@ -1,21 +1,28 @@
 import os
 import shutil
+import warnings
 from typing import Any, Callable, Dict, Generator, List, Optional, Union
 from uuid import UUID
 
 import pytest
 import requests
+import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 from vaex.dataframe import DataFrame
 
 import dataquality
 from dataquality import AggregateFunction, Condition, ConditionFilter, Operator, config
 from dataquality.clients import objectstore
+from dataquality.exceptions import GalileoWarning
 from dataquality.loggers import BaseGalileoLogger
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.dq_logger import DQ_LOG_FILE_HOME
 from tests.test_utils.mock_request import MockResponse
 
+try:
+    torch.set_default_device("cpu")
+except AttributeError:
+    warnings.warn("Torch default device not set to CPU", GalileoWarning)
 DEFAULT_API_URL = "http://localhost:8088"
 UUID_STR = "399057bc-b276-4027-a5cf-48893ac45388"
 TEST_STORE_DIR = "TEST_STORE"
@@ -32,8 +39,8 @@ except Exception:
     tokenizer.save_pretrained(LOCAL_MODEL_PATH)
 
 try:
-    model = AutoModelForSequenceClassification.from_pretrained(
-        LOCAL_MODEL_PATH, device_map="cpu"
+    model = AutoModelForSequenceClassification.from_pretrained(LOCAL_MODEL_PATH).to(
+        "cpu"
     )
 except Exception:
     model = AutoModelForSequenceClassification.from_pretrained(HF_TEST_BERT_PATH).to(

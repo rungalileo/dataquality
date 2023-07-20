@@ -8,6 +8,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
 from warnings import warn
 
 import numpy as np  # noqa: F401
+import torch
 from torch import Tensor
 from torch.nn import Module
 from torch.utils.data import DataLoader
@@ -24,247 +25,6 @@ from dataquality.schemas.task_type import TaskType
 from dataquality.schemas.torch import DimensionSlice, HelperData, Layer
 from dataquality.utils.helpers import wrap_fn
 from dataquality.utils.patcher import Borg, Patch, PatchManager
-
-
-@dataclass
-class TorchHelper:
-    model: Optional[Any] = None
-    hook_manager: Optional[Any] = None
-    model_outputs_store: Dict[str, Any] = field(default_factory=dict)
-    dl_next_idx_ids: List[Any] = field(default_factory=list)
-    model_input: Any = np.empty(0)
-    batch: Dict[str, Any] = field(default_factory=dict)
-    ids: List[Any] = field(default_factory=list)
-    patches: List[Dict] = field(default_factory=list)
-
-    def clear(self) -> None:
-        """Resets the arrays of the class."""
-        self.dl_next_idx_ids.clear()
-        self.model_outputs_store.clear()
-        self.ids.clear()
-        self.model_input = np.empty(0)
-        self.batch.clear()
-
-
-class TorchBaseInstance:
-    embedding_dim: Optional[DimensionSlice]
-    logits_dim: Optional[DimensionSlice]
-    embedding_fn: Optional[Any] = None
-    logits_fn: Optional[Any] = None
-    task: TaskType
-    torch_helper_data: TorchHelper
-
-    def _init_dimension(
-        self,
-        embedding_dim: Optional[Union[str, DimensionSlice]],
-        logits_dim: Optional[Union[str, DimensionSlice]],
-    ) -> None:
-        """
-        Initialize the dimensions of the embeddings and logits
-        :param embedding_dim: Dimension of the embedding
-        :param logits_dim: Dimension of the logits
-        """
-        # If embedding_dim is a string, convert it to a slice
-        # else assume it is a slice or None
-        if isinstance(embedding_dim, str):
-            self.embedding_dim = convert_fancy_idx_str_to_slice(embedding_dim)
-        elif embedding_dim is not None:
-            self.embedding_dim = embedding_dim
-        else:
-            self.embedding_dim = None
-
-        # If logits_dim is a string, convert it to a slice
-        # else assume it is a slice or None
-        if isinstance(logits_dim, str):
-            self.logits_dim = convert_fancy_idx_str_to_slice(logits_dim)
-        elif logits_dim is not None:
-            self.logits_dim = logits_dim
-        else:
-            self.logits_dim = None
-
-    def _dq_embedding_hook(
-        self,
-        model: Module,
-        model_input: Optional[Tensor],
-        model_output: Union[BaseModelOutput, Tensor],
-    ) -> None:
-        """Hook to extract the embeddings from the model
-
-        After extracting embeddings it sets them in the TorchHelper
-        model_outputs_store dictionary.
-
-        Keyword arguments won't be passed to the hooks and only to the `forward`.
-        The hook can modify the input. User can either return a tuple or a
-        single modified value in the hook. We will wrap the value into a tuple
-        if a single value is returned(unless that value is already a tuple).
-        The hook will be called every time after :func:`forward` has computed an output.
-
-        :param model: Model pytorch model / layer
-        :param model_input: Input of the current layer
-        :param model_output: Output of the current layer
-        """
-        output = None
-        if self.embedding_fn is not None:
-            model_output = self.embedding_fn(model_output)
-        if isinstance(model_output, tuple) and len(model_output) == 1:
-            model_output = model_output[0]
-        if isinstance(model_output, Tensor):
-            output = model_output
-        elif hasattr(model_output, "last_hidden_state"):
-            output = model_output.last_hidden_state
-        if output is None:
-            raise GalileoException(
-                "Could not extract embeddings from the model. "
-                f"Passed embeddings type {type(model_output)} is not supported. "
-                "Pass a custom embedding_fn to extract the embeddings as a Tensor. "
-                "For example pass the following embedding_fn: "
-                "watch(model, embedding_fn=lambda x: x[0].last_hidden_state)"
-            )
-        output_detached = output.detach()
-        # If embedding has the CLS token, remove it
-        if self.embedding_dim is not None:
-            output_detached = output_detached[self.embedding_dim]
-        elif len(output_detached.shape) == 3 and (
-            self.task
-            in [
-                TaskType.text_classification,
-                TaskType.text_multi_label,
-                TaskType.image_classification,
-            ]
-        ):
-            # It is assumed that the CLS token is removed through this dimension
-            # for text classification tasks and multi label tasks
-            output_detached = output_detached[:, 0]
-        elif len(output_detached.shape) == 3 and self.task == TaskType.text_ner:
-            # It is assumed that the CLS token is removed through this dimension
-            # for NER tasks
-            output_detached = output_detached[:, 1:, :]
-
-        self.torch_helper_data.model_outputs_store["embs"] = output_detached
-
-    def _dq_logit_hook(
-        self,
-        model: Module,
-        model_input: Optional[Tensor],
-        model_output: Union[Tuple[Tensor], TokenClassifierOutput, Tensor],
-    ) -> None:
-        """Hook to extract the logits from the model.
-
-        After extracting logits it sets them in the TorchHelper
-        model_outputs_store dictionary.
-
-        :param model: Model pytorch model
-        :param model_input: Model input of the current layer
-        :param model_output: Model output of the current layer
-        """
-        logits = None
-        if self.logits_fn is not None:
-            model_output = self.logits_fn(model_output)
-        if isinstance(model_output, tuple) and len(model_output) == 1:
-            model_output = model_output[0]
-        if isinstance(model_output, Tensor):
-            logits = model_output
-        elif hasattr(model_output, "logits"):
-            logits = getattr(model_output, "logits")
-        if logits is None:
-            raise GalileoException(
-                "Could not extract logits from the model. "
-                f"Passed logits type {type(model_output)} is not supported. "
-                "Pass a custom logits_fn to extract the logits as a Tensor. "
-                "For example pass the following embedding_fn: "
-                "watch(model, logits_fn=lambda x: x[0])"
-            )
-        logits = logits.detach()
-        if self.logits_dim is not None:
-            logits = logits[self.logits_dim]
-        elif len(logits.shape) == 3 and self.task == TaskType.text_ner:
-            # It is assumed that the CLS token is removed
-            # through this dimension for NER tasks
-            logits = logits[:, 1:, :]
-
-        self.torch_helper_data.model_outputs_store["logits"] = logits
-
-    def _classifier_hook(
-        self,
-        model: Module,
-        model_input: Union[BaseModelOutput, Tensor],
-        model_output: Union[Tuple[Tensor], TokenClassifierOutput, Tensor],
-    ) -> None:
-        """Hook to extract logits and embeddings from the model
-
-        Keyword arguments won't be passed to the hooks and only to the ``forward``.
-        The hook can modify the input. User can either return a tuple or a
-        single modified value in the hook. We will wrap the value into a tuple
-        if a single value is returned(unless that value is already a tuple).
-        The hook will be called every time after :func:`forward` has computed an output.
-
-        :param model: Model pytorch model / layer
-        :param model_input: Input of the current layer
-        :param model_output: Output of the current layer
-        """
-        self._dq_embedding_hook(model, None, model_input)
-        self._dq_logit_hook(model, None, model_output)
-
-
-# store indices
-def store_batch_indices(store: Dict[str, List[int]]) -> Callable:
-    def process_batch_indices(
-        next_index_func: Callable, *args: Tuple, **kwargs: Dict[str, Any]
-    ) -> Callable:
-        """Stores the indices of the batch"""
-        indices = next_index_func(*args, **kwargs)
-        if indices:
-            store["ids"] = indices
-        return indices
-
-    return process_batch_indices
-
-
-# add patch to the dataloader iterator
-def patch_iterator_with_store(store: Dict[str, List[int]]) -> Callable:
-    """Patches the iterator of the dataloader to return the indices"""
-
-    def patch_iterator(
-        orig_iterator: Callable, *args: Tuple, **kwargs: Dict[str, Any]
-    ) -> Callable:
-        iteraror = orig_iterator(*args, **kwargs)
-        iteraror._next_index = wrap_fn(iteraror._next_index, store_batch_indices(store))
-        return iteraror
-
-    return patch_iterator
-
-
-def validate_fancy_index_str(input_str: str = "[:, 1:, :]") -> bool:
-    """Validates a fancy index string.
-    :param input_str: The string to validate for example "[:, 1:, :]"
-    :return: True if the string is valid, False otherwise
-    """
-    valid = re.fullmatch(r"[\s,\[\]\d:\(\)]+", input_str)
-    if valid:
-        if input_str.count("[") != input_str.count("]"):
-            return False
-        return True
-    return False
-
-
-def convert_fancy_idx_str_to_slice(
-    fstr: str = "[:, 1:, :]",
-) -> Union[Tuple, slice, int]:
-    """Converts a fancy index string to a slice.
-    :param fstr: The fancy index string to convert for example "[:, 1:, :]"
-    :return: The slice for example:
-    (slice(None, None, None), slice(1, None, None), slice(None, None, None))
-    """
-
-    clean_str = fstr
-    # Remove outer brackets
-    if fstr[0] == "[" and fstr[-1] == "]":
-        clean_str = clean_str[1:-1]
-    # Validate the string before we eval the fancy index
-    assert validate_fancy_index_str(
-        clean_str
-    ), 'Fancy index string is not valid. Valid format: "[:, 1:, :]"'
-    return eval("np.s_[{}]".format(clean_str))
 
 
 class ModelHookManager(Borg):
@@ -364,6 +124,272 @@ class ModelHookManager(Borg):
         for h in self.hooks:
             h.remove()
         self.hooks = []
+
+
+@dataclass
+class ModelOutputsStore:
+    embs: Optional[Tensor] = None
+    logits: Optional[Union[Tensor, Tuple[Tuple]]] = None
+    ids_queue: List[List[int]] = field(default_factory=list)
+    ids: Optional[List[int]] = None
+
+    def clear(self) -> None:
+        """Resets the arrays of the class."""
+        self.embs = None
+        self.logits = None
+        self.ids = None
+
+    def clear_all(self) -> None:
+        """Resets the arrays of the class."""
+        self.embs = None
+        self.logits = None
+        self.ids = None
+        self.ids_queue.clear()
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Returns the class as a dictionary."""
+        return {"embs": self.embs, "logits": self.logits, "ids": self.ids}
+
+
+@dataclass
+class TorchHelper:
+    model: Optional[Any] = None
+    hook_manager: Optional[ModelHookManager] = None
+    model_outputs_store: ModelOutputsStore = field(default_factory=ModelOutputsStore)
+    dl_next_idx_ids: List[Any] = field(default_factory=list)
+    model_input: Tensor = torch.empty(0)
+    batch: Dict[str, Any] = field(default_factory=dict)
+    ids: List[Any] = field(default_factory=list)
+    patches: List[Dict] = field(default_factory=list)
+
+    def clear(self) -> None:
+        """Resets the arrays of the class."""
+        self.dl_next_idx_ids.clear()
+        self.model_outputs_store.clear()
+        self.ids.clear()
+        self.model_input = torch.empty(0)
+        self.batch.clear()
+
+
+class TorchBaseInstance:
+    embedding_dim: Optional[DimensionSlice]
+    logits_dim: Optional[DimensionSlice]
+    embedding_fn: Optional[Any] = None
+    logits_fn: Optional[Any] = None
+    task: TaskType
+    torch_helper_data: TorchHelper
+
+    def _init_dimension(
+        self,
+        embedding_dim: Optional[Union[str, DimensionSlice]],
+        logits_dim: Optional[Union[str, DimensionSlice]],
+    ) -> None:
+        """
+        Initialize the dimensions of the embeddings and logits
+        :param embedding_dim: Dimension of the embedding
+        :param logits_dim: Dimension of the logits
+        """
+        # If embedding_dim is a string, convert it to a slice
+        # else assume it is a slice or None
+        if isinstance(embedding_dim, str):
+            self.embedding_dim = convert_fancy_idx_str_to_slice(embedding_dim)
+        elif embedding_dim is not None:
+            self.embedding_dim = embedding_dim
+        else:
+            self.embedding_dim = None
+
+        # If logits_dim is a string, convert it to a slice
+        # else assume it is a slice or None
+        if isinstance(logits_dim, str):
+            self.logits_dim = convert_fancy_idx_str_to_slice(logits_dim)
+        elif logits_dim is not None:
+            self.logits_dim = logits_dim
+        else:
+            self.logits_dim = None
+
+    def _dq_embedding_hook(
+        self,
+        model: Module,
+        model_input: Optional[Tensor],
+        model_output: Union[BaseModelOutput, Tensor],
+    ) -> None:
+        """Hook to extract the embeddings from the model
+
+        After extracting embeddings it sets them in the TorchHelper
+        model_outputs_store dictionary.
+
+        Keyword arguments won't be passed to the hooks and only to the `forward`.
+        The hook can modify the input. User can either return a tuple or a
+        single modified value in the hook. We will wrap the value into a tuple
+        if a single value is returned(unless that value is already a tuple).
+        The hook will be called every time after :func:`forward` has computed an output.
+
+        :param model: Model pytorch model / layer
+        :param model_input: Input of the current layer
+        :param model_output: Output of the current layer
+        """
+        output = None
+        if self.embedding_fn is not None:
+            model_output = self.embedding_fn(model_output)
+        if isinstance(model_output, tuple) and len(model_output) == 1:
+            model_output = model_output[0]
+        if isinstance(model_output, Tensor):
+            output = model_output
+        elif hasattr(model_output, "last_hidden_state"):
+            output = model_output.last_hidden_state
+        if output is None:
+            raise GalileoException(
+                "Could not extract embeddings from the model. "
+                f"Passed embeddings type {type(model_output)} is not supported. "
+                "Pass a custom embedding_fn to extract the embeddings as a Tensor. "
+                "For example pass the following embedding_fn: "
+                "watch(model, embedding_fn=lambda x: x[0].last_hidden_state)"
+            )
+        output_detached = output.detach()
+        # If embedding has the CLS token, remove it
+        if self.embedding_dim is not None:
+            output_detached = output_detached[self.embedding_dim]
+        elif len(output_detached.shape) == 3 and (
+            self.task
+            in [
+                TaskType.text_classification,
+                TaskType.text_multi_label,
+                TaskType.image_classification,
+            ]
+        ):
+            # It is assumed that the CLS token is removed through this dimension
+            # for text classification tasks and multi label tasks
+            output_detached = output_detached[:, 0]
+        elif len(output_detached.shape) == 3 and self.task == TaskType.text_ner:
+            # It is assumed that the CLS token is removed through this dimension
+            # for NER tasks
+            output_detached = output_detached[:, 1:, :]
+
+        self.torch_helper_data.model_outputs_store.embs = output_detached
+
+    def _dq_logit_hook(
+        self,
+        model: Module,
+        model_input: Optional[Tensor],
+        model_output: Union[Tuple[Tensor], TokenClassifierOutput, Tensor],
+    ) -> None:
+        """Hook to extract the logits from the model.
+
+        After extracting logits it sets them in the TorchHelper
+        model_outputs_store dictionary.
+
+        :param model: Model pytorch model
+        :param model_input: Model input of the current layer
+        :param model_output: Model output of the current layer
+        """
+        logits = None
+        if self.logits_fn is not None:
+            model_output = self.logits_fn(model_output)
+        if isinstance(model_output, tuple) and len(model_output) == 1:
+            model_output = model_output[0]
+        if isinstance(model_output, Tensor):
+            logits = model_output
+        elif hasattr(model_output, "logits"):
+            logits = getattr(model_output, "logits")
+        if logits is None:
+            raise GalileoException(
+                "Could not extract logits from the model. "
+                f"Passed logits type {type(model_output)} is not supported. "
+                "Pass a custom logits_fn to extract the logits as a Tensor. "
+                "For example pass the following embedding_fn: "
+                "watch(model, logits_fn=lambda x: x[0])"
+            )
+        logits = logits.detach()
+        if self.logits_dim is not None:
+            logits = logits[self.logits_dim]
+        elif len(logits.shape) == 3 and self.task == TaskType.text_ner:
+            # It is assumed that the CLS token is removed
+            # through this dimension for NER tasks
+            logits = logits[:, 1:, :]
+
+        self.torch_helper_data.model_outputs_store.logits = logits
+
+    def _classifier_hook(
+        self,
+        model: Module,
+        model_input: Union[BaseModelOutput, Tensor],
+        model_output: Union[Tuple[Tensor], TokenClassifierOutput, Tensor],
+    ) -> None:
+        """Hook to extract logits and embeddings from the model
+
+        Keyword arguments won't be passed to the hooks and only to the ``forward``.
+        The hook can modify the input. User can either return a tuple or a
+        single modified value in the hook. We will wrap the value into a tuple
+        if a single value is returned(unless that value is already a tuple).
+        The hook will be called every time after :func:`forward` has computed an output.
+
+        :param model: Model pytorch model / layer
+        :param model_input: Input of the current layer
+        :param model_output: Output of the current layer
+        """
+        self._dq_embedding_hook(model, None, model_input)
+        self._dq_logit_hook(model, None, model_output)
+
+
+# store indices
+def store_batch_indices(store: Dict[str, List[int]]) -> Callable:
+    def process_batch_indices(
+        next_index_func: Callable, *args: Tuple, **kwargs: Dict[str, Any]
+    ) -> Callable:
+        """Stores the indices of the batch"""
+        indices = next_index_func(*args, **kwargs)
+        if indices:
+            store["ids"] = indices
+        return indices
+
+    return process_batch_indices
+
+
+# add patch to the dataloader iterator
+def patch_iterator_with_store(store: Dict[str, List[int]]) -> Callable:
+    """Patches the iterator of the dataloader to return the indices"""
+
+    def patch_iterator(
+        orig_iterator: Callable, *args: Tuple, **kwargs: Dict[str, Any]
+    ) -> Callable:
+        iteraror = orig_iterator(*args, **kwargs)
+        iteraror._next_index = wrap_fn(iteraror._next_index, store_batch_indices(store))
+        return iteraror
+
+    return patch_iterator
+
+
+def validate_fancy_index_str(input_str: str = "[:, 1:, :]") -> bool:
+    """Validates a fancy index string.
+    :param input_str: The string to validate for example "[:, 1:, :]"
+    :return: True if the string is valid, False otherwise
+    """
+    valid = re.fullmatch(r"[\s,\[\]\d:\(\)]+", input_str)
+    if valid:
+        if input_str.count("[") != input_str.count("]"):
+            return False
+        return True
+    return False
+
+
+def convert_fancy_idx_str_to_slice(
+    fstr: str = "[:, 1:, :]",
+) -> Union[Tuple, slice, int]:
+    """Converts a fancy index string to a slice.
+    :param fstr: The fancy index string to convert for example "[:, 1:, :]"
+    :return: The slice for example:
+    (slice(None, None, None), slice(1, None, None), slice(None, None, None))
+    """
+
+    clean_str = fstr
+    # Remove outer brackets
+    if fstr[0] == "[" and fstr[-1] == "]":
+        clean_str = clean_str[1:-1]
+    # Validate the string before we eval the fancy index
+    assert validate_fancy_index_str(
+        clean_str
+    ), 'Fancy index string is not valid. Valid format: "[:, 1:, :]"'
+    return eval("np.s_[{}]".format(clean_str))
 
 
 def unpatch(patches: List[Dict[str, Any]] = []) -> None:
@@ -497,7 +523,7 @@ class PatchSingleDataloaderIterator(Patch):
     def __init__(
         self,
         dataloader_cls: DataLoader,
-        store: Dict[str, List[int]],
+        store: ModelOutputsStore,
         fn_name: str = "_get_iterator",
     ):
         """Initializes the class with a collate function,
@@ -537,7 +563,7 @@ class PatchSingleDataloaderNextIndex(Patch):
     def __init__(
         self,
         dataloader_cls: DataLoader,
-        store: Dict[str, List[int]],
+        store: ModelOutputsStore,
         fn_name: str = "_get_iterator",
     ):
         """Initializes the class with a collate function,
@@ -566,7 +592,7 @@ class PatchSingleDataloaderNextIndex(Patch):
     def __call__(self, *args: Any, **kwargs: Any) -> List[dict]:
         indices = self._original_fn(*args, **kwargs)
         if indices:
-            self.store["ids"] = indices
+            self.store.ids = indices
         return indices
 
 
