@@ -8,6 +8,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
 from warnings import warn
 
 import numpy as np  # noqa: F401
+import torch
 from torch import Tensor
 from torch.nn import Module
 from torch.utils.data import DataLoader
@@ -26,10 +27,109 @@ from dataquality.utils.helpers import wrap_fn
 from dataquality.utils.patcher import Borg, Patch, PatchManager
 
 
+class ModelHookManager(Borg):
+    """
+    Manages hooks for models. Has the ability to find the layer automatically.
+    Otherwise the layer or the layer name needs to be provided.
+    """
+
+    # Stores all hooks to remove them from the model later.
+    def __init__(self) -> None:
+        """Class to manage patches"""
+        super().__init__()
+        if not hasattr(self, "initialized"):
+            self.hooks: List[RemovableHandle] = []
+
+    def get_embedding_layer_auto(self, model: Module) -> Module:
+        """
+        Use a scoring algorithm to find the embedding layer automatically
+        given a model. The higher the score the more likely it is the embedding layer.
+        """
+        name, layer = next(model.named_children())
+        print(f'Selected layer for the last hidden state embedding "{name}"')
+        return layer
+
+    def get_layer_by_name(self, model: Module, name: str) -> Module:
+        """
+        Iterate over each layer and stop once the the layer name matches
+        :param model: Model
+        :parm name: string
+        """
+        queue: Queue = Queue()
+        start = model.named_children()
+        queue.put(start)
+        layer_names = []
+        layer_names_str: str = ""
+        while not queue.empty():
+            named_children = queue.get()
+            for layer_name, layer_model in named_children:
+                layer_names.append(layer_name)
+                layer_names_str = ", ".join(layer_names)
+                if layer_name == name:
+                    print(
+                        f'Found layer "{layer_name}" in '
+                        f'model layers: "{layer_names_str}"'
+                    )
+                    return layer_model
+                layer_model._get_name()
+                queue.put(layer_model.named_children())
+        raise GalileoException(
+            f"Layer could not be found in layers: {layer_names_str}. "
+            "make sure to check capitalization or pass layer directly."
+        )
+
+    def attach_hooks_to_model(
+        self,
+        model: Module,
+        hook_fn: Callable,
+        model_layer: Optional[Layer] = None,
+    ) -> RemovableHandle:
+        """Attach hook and save it in our hook list"""
+        if model_layer is None:
+            selected_layer = self.get_embedding_layer_auto(model)
+        elif isinstance(model_layer, str):
+            selected_layer = self.get_layer_by_name(model, model_layer)
+        else:
+            selected_layer = model_layer
+        return self.attach_hook(selected_layer, hook_fn)
+
+    def attach_classifier_hook(
+        self,
+        model: Module,
+        classifier_hook: Callable,
+        model_layer: Optional[Layer] = None,
+    ) -> RemovableHandle:
+        """Attach hook and save it in our hook list"""
+        if model_layer is None:
+            try:
+                selected_layer = self.get_layer_by_name(model, "classifier")
+            except GalileoException:
+                selected_layer = self.get_layer_by_name(model, "fc")
+        elif isinstance(model_layer, str):
+            selected_layer = self.get_layer_by_name(model, model_layer)
+        else:
+            selected_layer = model_layer
+
+        return self.attach_hook(selected_layer, classifier_hook)
+
+    def attach_hook(self, selected_layer: Module, hook: Callable) -> RemovableHandle:
+        """Register a hook and save it in our hook list"""
+        self.initialized = True
+        h = selected_layer.register_forward_hook(hook)
+        self.hooks.append(h)
+        return h
+
+    def detach_hooks(self) -> None:
+        """Remove all hooks from the model"""
+        for h in self.hooks:
+            h.remove()
+        self.hooks = []
+
+
 @dataclass
 class ModelOutputsStore:
     embs: Optional[Tensor] = None
-    logits: Optional[Any] = None
+    logits: Optional[Union[Tensor, Tuple[Tuple]]] = None
     ids_queue: List[List[int]] = field(default_factory=list)
     ids: Optional[List[int]] = None
 
@@ -54,10 +154,10 @@ class ModelOutputsStore:
 @dataclass
 class TorchHelper:
     model: Optional[Any] = None
-    hook_manager: Optional[Any] = None
+    hook_manager: Optional[ModelHookManager] = None
     model_outputs_store: ModelOutputsStore = field(default_factory=ModelOutputsStore)
     dl_next_idx_ids: List[Any] = field(default_factory=list)
-    model_input: Any = np.empty(0)
+    model_input: Tensor = torch.empty(0)
     batch: Dict[str, Any] = field(default_factory=dict)
     ids: List[Any] = field(default_factory=list)
     patches: List[Dict] = field(default_factory=list)
@@ -67,7 +167,7 @@ class TorchHelper:
         self.dl_next_idx_ids.clear()
         self.model_outputs_store.clear()
         self.ids.clear()
-        self.model_input = np.empty(0)
+        self.model_input = torch.empty(0)
         self.batch.clear()
 
 
@@ -290,105 +390,6 @@ def convert_fancy_idx_str_to_slice(
         clean_str
     ), 'Fancy index string is not valid. Valid format: "[:, 1:, :]"'
     return eval("np.s_[{}]".format(clean_str))
-
-
-class ModelHookManager(Borg):
-    """
-    Manages hooks for models. Has the ability to find the layer automatically.
-    Otherwise the layer or the layer name needs to be provided.
-    """
-
-    # Stores all hooks to remove them from the model later.
-    def __init__(self) -> None:
-        """Class to manage patches"""
-        super().__init__()
-        if not hasattr(self, "initialized"):
-            self.hooks: List[RemovableHandle] = []
-
-    def get_embedding_layer_auto(self, model: Module) -> Module:
-        """
-        Use a scoring algorithm to find the embedding layer automatically
-        given a model. The higher the score the more likely it is the embedding layer.
-        """
-        name, layer = next(model.named_children())
-        print(f'Selected layer for the last hidden state embedding "{name}"')
-        return layer
-
-    def get_layer_by_name(self, model: Module, name: str) -> Module:
-        """
-        Iterate over each layer and stop once the the layer name matches
-        :param model: Model
-        :parm name: string
-        """
-        queue: Queue = Queue()
-        start = model.named_children()
-        queue.put(start)
-        layer_names = []
-        layer_names_str: str = ""
-        while not queue.empty():
-            named_children = queue.get()
-            for layer_name, layer_model in named_children:
-                layer_names.append(layer_name)
-                layer_names_str = ", ".join(layer_names)
-                if layer_name == name:
-                    print(
-                        f'Found layer "{layer_name}" in '
-                        f'model layers: "{layer_names_str}"'
-                    )
-                    return layer_model
-                layer_model._get_name()
-                queue.put(layer_model.named_children())
-        raise GalileoException(
-            f"Layer could not be found in layers: {layer_names_str}. "
-            "make sure to check capitalization or pass layer directly."
-        )
-
-    def attach_hooks_to_model(
-        self,
-        model: Module,
-        hook_fn: Callable,
-        model_layer: Optional[Layer] = None,
-    ) -> RemovableHandle:
-        """Attach hook and save it in our hook list"""
-        if model_layer is None:
-            selected_layer = self.get_embedding_layer_auto(model)
-        elif isinstance(model_layer, str):
-            selected_layer = self.get_layer_by_name(model, model_layer)
-        else:
-            selected_layer = model_layer
-        return self.attach_hook(selected_layer, hook_fn)
-
-    def attach_classifier_hook(
-        self,
-        model: Module,
-        classifier_hook: Callable,
-        model_layer: Optional[Layer] = None,
-    ) -> RemovableHandle:
-        """Attach hook and save it in our hook list"""
-        if model_layer is None:
-            try:
-                selected_layer = self.get_layer_by_name(model, "classifier")
-            except GalileoException:
-                selected_layer = self.get_layer_by_name(model, "fc")
-        elif isinstance(model_layer, str):
-            selected_layer = self.get_layer_by_name(model, model_layer)
-        else:
-            selected_layer = model_layer
-
-        return self.attach_hook(selected_layer, classifier_hook)
-
-    def attach_hook(self, selected_layer: Module, hook: Callable) -> RemovableHandle:
-        """Register a hook and save it in our hook list"""
-        self.initialized = True
-        h = selected_layer.register_forward_hook(hook)
-        self.hooks.append(h)
-        return h
-
-    def detach_hooks(self) -> None:
-        """Remove all hooks from the model"""
-        for h in self.hooks:
-            h.remove()
-        self.hooks = []
 
 
 def unpatch(patches: List[Dict[str, Any]] = []) -> None:

@@ -209,7 +209,7 @@ class SemanticTorchLogger(TorchLogger):
 
         """
         # model input comes as a tuple of length 1
-        self.torch_helper_data.model_input = model_input[0].detach().cpu().numpy()
+        self.torch_helper_data.model_input = model_input[0].detach().cpu()
 
     def get_image_ids_and_image_paths(
         self, split: str, logging_data: Dict[str, Any]
@@ -369,10 +369,15 @@ class SemanticTorchLogger(TorchLogger):
                 "Logits are missing in dataquality,"
                 " have connected to the right model layer?"
             )
+        elif not isinstance(preds, Tensor):
+            raise ValueError(
+                f"Logits are not a tensor. Please ensure the logits are a tensor. \
+                Got {type(preds)}"
+            )
         if preds.dtype == torch.float16:
             preds = preds.to(torch.float32)
         input_shape = self.torch_helper_data.model_input.shape[-2:]
-        preds = F.interpolate(preds, size=input_shape, mode="bilinear")
+        preds = Tensor(F.interpolate(preds, size=input_shape, mode="bilinear"))
 
         # checks whether the model is (n, classes, w, h), or (n, w, h, classes)
         # takes the max in case of binary classification
@@ -408,6 +413,11 @@ class SemanticTorchLogger(TorchLogger):
             raise ValueError(
                 "Logits are missing in dataquality,"
                 " have connected to the right model layer?"
+            )
+        elif not isinstance(logits, Tensor):
+            raise ValueError(
+                f"Logits are not a tensor. Please ensure the logits are a tensor. \
+                Got {type(logits)}"
             )
         self.number_classes = max(logits.shape[1], 2)
         if not self.init_lm_labels_flag:

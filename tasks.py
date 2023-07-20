@@ -231,7 +231,7 @@ def update_version_number(ctx: Context, part: Optional[BumpType] = None) -> None
     with open(VERSION_FILE, "w") as f:
         for line in lines:
             if line.startswith("__version__"):
-                f.write(f'__version__ = "v{new_version}"\n')
+                f.write(f'__version__ = "{new_version}"\n')
             else:
                 f.write(line)
     print(f"New version: {new_version}")
