@@ -631,3 +631,5 @@ def set_tokenizer(tokenizer: PreTrainedTokenizerFast) -> None:
     for attr in ["encode", "decode", "encode_plus", "padding_side"]:
         assert hasattr(tokenizer, attr), f"Tokenizer must support `{attr}`"
     seq2seq_logger_config.tokenizer = tokenizer
+    # Seq2Seq doesn't have labels but we need to set this to avoid validation errors
+    seq2seq_logger_config.labels = []
