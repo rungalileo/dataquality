@@ -169,8 +169,12 @@ class SemanticTorchLogger(TorchLogger):
             logits = model_output["out"]
         else:
             logits = model_output
+        if not isinstance(logits, Tensor):
+            raise ValueError(
+                "Logits are not a tensor. Please ensure the logits are a tensor."
+            )
         model_outputs_store = self.torch_helper_data.model_outputs_store
-        model_outputs_store["logits"] = logits
+        model_outputs_store.logits = logits
 
     def _dq_classifier_hook_with_step_end(
         self,
@@ -205,7 +209,7 @@ class SemanticTorchLogger(TorchLogger):
 
         """
         # model input comes as a tuple of length 1
-        self.torch_helper_data.model_input = model_input[0].detach().cpu().numpy()
+        self.torch_helper_data.model_input = model_input[0].detach().cpu()
 
     def get_image_ids_and_image_paths(
         self, split: str, logging_data: Dict[str, Any]
@@ -359,11 +363,21 @@ class SemanticTorchLogger(TorchLogger):
             Tuple[torch.Tensor, torch.Tensor]: argmax and logits tensors
         """
         # resize the logits to the input size based on hooks
-        preds = self.torch_helper_data.model_outputs_store["logits"]
+        preds = self.torch_helper_data.model_outputs_store.logits
+        if preds is None:
+            raise ValueError(
+                "Logits are missing in dataquality,"
+                " have connected to the right model layer?"
+            )
+        elif not isinstance(preds, Tensor):
+            raise ValueError(
+                f"Logits are not a tensor. Please ensure the logits are a tensor. \
+                Got {type(preds)}"
+            )
         if preds.dtype == torch.float16:
             preds = preds.to(torch.float32)
         input_shape = self.torch_helper_data.model_input.shape[-2:]
-        preds = F.interpolate(preds, size=input_shape, mode="bilinear")
+        preds = Tensor(F.interpolate(preds, size=input_shape, mode="bilinear"))
 
         # checks whether the model is (n, classes, w, h), or (n, w, h, classes)
         # takes the max in case of binary classification
@@ -394,9 +408,18 @@ class SemanticTorchLogger(TorchLogger):
         # if we have not inferred the number of classes from the model architecture
 
         # takes the max of the logits shape and 2 in case of binary classification
-        self.number_classes = max(
-            self.torch_helper_data.model_outputs_store["logits"].shape[1], 2
-        )
+        logits = self.torch_helper_data.model_outputs_store.logits
+        if logits is None:
+            raise ValueError(
+                "Logits are missing in dataquality,"
+                " have connected to the right model layer?"
+            )
+        elif not isinstance(logits, Tensor):
+            raise ValueError(
+                f"Logits are not a tensor. Please ensure the logits are a tensor. \
+                Got {type(logits)}"
+            )
+        self.number_classes = max(logits.shape[1], 2)
         if not self.init_lm_labels_flag:
             self._init_lm_labels()
             self.init_lm_labels_flag = True

@@ -1,10 +1,11 @@
 import inspect
-from typing import Any, Callable, Dict, List, Union
+from typing import Any, Callable, List, Union
 
 from torch.nn import Module
 from transformers import Trainer
 
 from dataquality.utils.patcher import Patch
+from dataquality.utils.torch import ModelOutputsStore
 
 
 class RemoveIdCollatePatch(Patch):
@@ -15,7 +16,7 @@ class RemoveIdCollatePatch(Patch):
         self,
         trainer_cls: Trainer,
         keep_cols: List[str],
-        store: Dict[str, List[int]],
+        store: ModelOutputsStore,
         fn_name: str = "data_collator",
     ):
         """Initializes the class with a collate function,
@@ -59,7 +60,7 @@ class RemoveIdCollatePatch(Patch):
                 elif len(self.keep_cols) == 0:
                     clean_row[key] = value
             clean_rows.append(clean_row)
-        self.store["ids"] = ids
+        self.store.ids_queue.append(ids)
         return self._original_collate_fn(clean_rows)
 
 
