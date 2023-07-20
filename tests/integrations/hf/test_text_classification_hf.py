@@ -33,7 +33,10 @@ metric = evaluate.load("accuracy")
 
 def preprocess_function(examples, tokenizer):
     return tokenizer(
-        examples["text"], padding="max_length", max_length=201, truncation=True
+        examples["text"],
+        padding="max_length",
+        max_length=201,
+        truncation=True,
     )
 
 
@@ -67,7 +70,7 @@ encoded_test_dataset_repeat = mock_dataset_with_ids_repeat.map(
 
 # Training arguments and training part
 metric_name = "accuracy"
-batch_size = 4
+batch_size = 3
 
 args_default = TrainingArguments(
     output_dir="tmp",
@@ -77,6 +80,7 @@ args_default = TrainingArguments(
     per_device_train_batch_size=batch_size,
     per_device_eval_batch_size=batch_size,
     num_train_epochs=1,
+    use_mps_device=False,
     weight_decay=0.01,
     load_best_model_at_end=True,
     metric_for_best_model=metric_name,
@@ -96,7 +100,7 @@ def test_end_to_end_without_callback(
     """Base case: Training on a dataset"""
 
     trainer = Trainer(
-        model,
+        model.cpu(),
         args_default,
         train_dataset=encoded_train_dataset,
         eval_dataset=encoded_test_dataset,
@@ -134,7 +138,7 @@ def test_hf_watch_e2e(
     dq.log_dataset(test_dataset, split="test")
 
     trainer = Trainer(
-        model,
+        model.cpu(),
         args_default,
         train_dataset=encoded_train_dataset,
         eval_dataset=encoded_test_dataset,
@@ -186,15 +190,20 @@ def test_remove_unused_columns(
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
         num_train_epochs=1,
+        use_mps_device=False,
         weight_decay=0.01,
         load_best_model_at_end=True,
         metric_for_best_model=metric_name,
         push_to_hub=False,
+        dataloader_drop_last=True,
         remove_unused_columns=False,
+        dataloader_num_workers=0,
+        dataloader_pin_memory=True,
     )
     trainer = Trainer(
-        model,
+        model.cpu(),
         t_args,
+        # dataloader_drop_last=True,
         train_dataset=encoded_train_dataset.with_format(
             "torch", columns=["id", "attention_mask", "input_ids", "label"]
         ),
@@ -223,7 +232,7 @@ def test_training_run(
     """Base case: Tests watch function to pass"""
 
     trainer = Trainer(
-        model,
+        model.cpu(),
         args_default,
         train_dataset=encoded_train_dataset_repeat,
         eval_dataset=encoded_test_dataset_repeat,

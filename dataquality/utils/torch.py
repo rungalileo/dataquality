@@ -27,10 +27,35 @@ from dataquality.utils.patcher import Borg, Patch, PatchManager
 
 
 @dataclass
+class ModelOutputsStore:
+    embs: Optional[Tensor] = None
+    logits: Optional[Any] = None
+    ids_queue: List[List[int]] = field(default_factory=list)
+    ids: Optional[List[int]] = None
+
+    def clear(self) -> None:
+        """Resets the arrays of the class."""
+        self.embs = None
+        self.logits = None
+        self.ids = None
+
+    def clear_all(self) -> None:
+        """Resets the arrays of the class."""
+        self.embs = None
+        self.logits = None
+        self.ids = None
+        self.ids_queue.clear()
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Returns the class as a dictionary."""
+        return {"embs": self.embs, "logits": self.logits, "ids": self.ids}
+
+
+@dataclass
 class TorchHelper:
     model: Optional[Any] = None
     hook_manager: Optional[Any] = None
-    model_outputs_store: Dict[str, Any] = field(default_factory=dict)
+    model_outputs_store: ModelOutputsStore = field(default_factory=ModelOutputsStore)
     dl_next_idx_ids: List[Any] = field(default_factory=list)
     model_input: Any = np.empty(0)
     batch: Dict[str, Any] = field(default_factory=dict)
@@ -140,7 +165,7 @@ class TorchBaseInstance:
             # for NER tasks
             output_detached = output_detached[:, 1:, :]
 
-        self.torch_helper_data.model_outputs_store["embs"] = output_detached
+        self.torch_helper_data.model_outputs_store.embs = output_detached
 
     def _dq_logit_hook(
         self,
@@ -182,7 +207,7 @@ class TorchBaseInstance:
             # through this dimension for NER tasks
             logits = logits[:, 1:, :]
 
-        self.torch_helper_data.model_outputs_store["logits"] = logits
+        self.torch_helper_data.model_outputs_store.logits = logits
 
     def _classifier_hook(
         self,
@@ -497,7 +522,7 @@ class PatchSingleDataloaderIterator(Patch):
     def __init__(
         self,
         dataloader_cls: DataLoader,
-        store: Dict[str, List[int]],
+        store: ModelOutputsStore,
         fn_name: str = "_get_iterator",
     ):
         """Initializes the class with a collate function,
@@ -537,7 +562,7 @@ class PatchSingleDataloaderNextIndex(Patch):
     def __init__(
         self,
         dataloader_cls: DataLoader,
-        store: Dict[str, List[int]],
+        store: ModelOutputsStore,
         fn_name: str = "_get_iterator",
     ):
         """Initializes the class with a collate function,
@@ -566,7 +591,7 @@ class PatchSingleDataloaderNextIndex(Patch):
     def __call__(self, *args: Any, **kwargs: Any) -> List[dict]:
         indices = self._original_fn(*args, **kwargs)
         if indices:
-            self.store["ids"] = indices
+            self.store.ids = indices
         return indices
 
 

@@ -150,21 +150,22 @@ class TorchLogger(TorchBaseInstance):
         extracted in the hooks and we need to log them in the on_step_end
         method.
         """
+
         model_outputs_store = self.torch_helper_data.model_outputs_store
         # Workaround for multiprocessing
-        if model_outputs_store.get("ids") is None and len(
+        if model_outputs_store.ids is None and len(
             self.torch_helper_data.dl_next_idx_ids
         ):
-            model_outputs_store["ids"] = self.torch_helper_data.dl_next_idx_ids.pop(0)
+            model_outputs_store.ids = self.torch_helper_data.dl_next_idx_ids.pop(0)
 
         # Log only if embedding exists
-        assert model_outputs_store.get("embs") is not None, GalileoException(
+        assert model_outputs_store.embs is not None, GalileoException(
             "Embedding passed to the logger can not be logged"
         )
-        assert model_outputs_store.get("logits") is not None, GalileoException(
+        assert model_outputs_store.logits is not None, GalileoException(
             "Logits passed to the logger can not be logged"
         )
-        assert model_outputs_store.get("ids") is not None, GalileoException(
+        assert model_outputs_store.ids is not None, GalileoException(
             "id column missing in dataset (needed to map rows to the indices/ids)"
         )
         # Convert the indices to ids
@@ -173,10 +174,10 @@ class TorchLogger(TorchBaseInstance):
             "Current split must be set before logging"
         )
         cur_split = cur_split.lower()  # type: ignore
-        model_outputs_store["ids"] = map_indices_to_ids(
-            self.logger_config.idx_to_id_map[cur_split], model_outputs_store["ids"]
+        model_outputs_store.ids = map_indices_to_ids(
+            self.logger_config.idx_to_id_map[cur_split], model_outputs_store.ids
         )
-        dq.log_model_outputs(**model_outputs_store)
+        dq.log_model_outputs(**model_outputs_store.to_dict())
         model_outputs_store.clear()
 
 

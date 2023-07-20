@@ -5,6 +5,7 @@ from uuid import UUID
 
 import pytest
 import requests
+import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 from vaex.dataframe import DataFrame
 
@@ -16,6 +17,10 @@ from dataquality.schemas.task_type import TaskType
 from dataquality.utils.dq_logger import DQ_LOG_FILE_HOME
 from tests.test_utils.mock_request import MockResponse
 
+try:
+    torch.set_default_device("cpu")
+except AttributeError:
+    print("Torch default device not set to CPU")
 DEFAULT_API_URL = "http://localhost:8088"
 UUID_STR = "399057bc-b276-4027-a5cf-48893ac45388"
 TEST_STORE_DIR = "TEST_STORE"
@@ -33,12 +38,12 @@ except Exception:
 
 try:
     model = AutoModelForSequenceClassification.from_pretrained(
-        LOCAL_MODEL_PATH, device_map="cpu"
-    )
+        LOCAL_MODEL_PATH  # , device_map="cpu"
+    ).to("cpu")
 except Exception:
-    model = AutoModelForSequenceClassification.from_pretrained(HF_TEST_BERT_PATH).to(
-        "cpu"
-    )
+    model = AutoModelForSequenceClassification.from_pretrained(
+        HF_TEST_BERT_PATH  # , device_map="cpu"
+    ).to("cpu")
 
     model.save_pretrained(LOCAL_MODEL_PATH)
 
