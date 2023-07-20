@@ -39,13 +39,13 @@ except Exception:
     tokenizer.save_pretrained(LOCAL_MODEL_PATH)
 
 try:
-    model = AutoModelForSequenceClassification.from_pretrained(
-        LOCAL_MODEL_PATH  # , device_map="cpu"
-    ).to("cpu")
+    model = AutoModelForSequenceClassification.from_pretrained(LOCAL_MODEL_PATH).to(
+        "cpu"
+    )
 except Exception:
-    model = AutoModelForSequenceClassification.from_pretrained(
-        HF_TEST_BERT_PATH  # , device_map="cpu"
-    ).to("cpu")
+    model = AutoModelForSequenceClassification.from_pretrained(HF_TEST_BERT_PATH).to(
+        "cpu"
+    )
 
     model.save_pretrained(LOCAL_MODEL_PATH)
 
