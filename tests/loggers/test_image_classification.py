@@ -393,8 +393,8 @@ def test_prepare_df_from_ImageFolder_with_remote_imgs() -> None:
     assert len(df) == 5
     assert set(df.label.unique()) == {"labelA", "labelB"}
     assert set(df.id.unique()) == set(range(5))
-    assert df.loc[0, "gal_remote_images_paths"].startswith(imgs_remote_location)
-    assert df.loc[0, "gal_remote_images_paths"].endswith(".png")
+    assert df.loc[0, "text"].startswith(imgs_remote_location)
+    assert df.loc[0, "text"].endswith(".png")
 
 
 def test_prepare_df_from_ImageFolder_inference() -> None:
