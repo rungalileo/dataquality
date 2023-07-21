@@ -147,7 +147,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             batch_token_deps.append(token_dep)
             batch_deps.append(float(np.max(token_dep)))
             batch_gold_probs.append(gold_probs)
-        return pa.array(batch_deps), batch_deps, pa.array(batch_gold_probs)
+        return pa.array(batch_token_deps), batch_deps, pa.array(batch_gold_probs)
 
     def _get_data_dict(self) -> Dict:
         """Returns the data dictionary for writing to disk"""
