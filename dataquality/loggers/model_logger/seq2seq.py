@@ -36,6 +36,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             inference_name=inference_name,
             labels=labels,
         )
+        self.sample_dep: List[float] = []
         self.token_dep = pa.array([])
         self.token_gold_probs = pa.array([])
         self.labels = labels
@@ -63,9 +64,11 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         # TODO: This is incredibly slow. This is what needs to be optimized. Can we
         #  potentially do this on the GPU with torch? And dont convert to a np array
         probs = self.convert_logits_to_probs(self.logits)
-        self.token_dep, self.token_gold_probs = self.get_token_dep_probs(
-            self.ids, probs
-        )
+        (
+            self.token_dep,
+            self.sample_dep,
+            self.token_gold_probs,
+        ) = self.get_token_dep_probs(self.ids, probs)
 
     def get_dep_for_sample(
         self, sample_id: int, sample_probs: np.ndarray
@@ -102,7 +105,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
 
     def get_token_dep_probs(
         self, batch_ids: np.ndarray, batch_probs: np.ndarray
-    ) -> Tuple[pa.array, pa.array]:
+    ) -> Tuple[pa.array, List[float], pa.array]:
         """Extracts DEP per token prediction
 
         First, extract the probabilities of the GT token label
@@ -126,29 +129,33 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         We return a pyarrow array because each batch will have a different shape, which
         can't be represented in numpy
 
-        Returns: (token_dep, gold_probs)
-            token_dep: The DEP per token prediction for the batch
-                len(token_dep) == batch_size
-                token_dep[i].shape is [num_tokens_in_label]
-            gold_probs: The probabilities of the GT token label for the batch
-                len(gold_probs) == batch_size
-                gold_probs[i].shape is [num_tokens_in_label]
+        Returns: (batch_token_dep, batch_dep, batch_gold_probs)
+            batch_token_dep: The DEP per token prediction for the batch
+                len(batch_token_dep) == batch_size
+                batch_token_dep[i].shape is [num_tokens_in_label]
+            batch_dep: The DEP per sample for the batch
+                len(batch_dep) == batch_size
+            batch_gold_probs: The probabilities of the GT token label for the batch
+                len(batch_gold_probs) == batch_size
+                batch_gold_probs[i].shape is [num_tokens_in_label]
         """
+        batch_token_deps = []
         batch_deps = []
         batch_gold_probs = []
         for sample_id, sample_probs in zip(batch_ids, batch_probs):
-            dep, gold_probs = self.get_dep_for_sample(sample_id, sample_probs)
-            batch_deps.append(dep)
+            token_dep, gold_probs = self.get_dep_for_sample(sample_id, sample_probs)
+            batch_token_deps.append(token_dep)
+            batch_deps.append(float(np.max(token_dep)))
             batch_gold_probs.append(gold_probs)
-        return pa.array(batch_deps), pa.array(batch_gold_probs)
+        return pa.array(batch_token_deps), batch_deps, pa.array(batch_gold_probs)
 
     def _get_data_dict(self) -> Dict:
         """Returns the data dictionary for writing to disk"""
-        # TODO: Do we need to include the labels?
         batch_size = len(self.ids)
         data = {
             C.id.value: self.ids,
             C.token_deps.value: self.token_dep,
+            C.dep.value: self.sample_dep,
             C.token_gold_probs.value: self.token_gold_probs,
             C.split_.value: [Split[self.split].value] * batch_size,
             C.epoch.value: [self.epoch] * batch_size,
