@@ -1,10 +1,9 @@
 import warnings
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import vaex
-from imagededup.methods import PHash
 from multiprocess import Pool, cpu_count
 from PIL import Image, ImageFilter, ImageStat
 from vaex.dataframe import DataFrame
@@ -13,6 +12,8 @@ from vaex.expression import Expression
 from dataquality.exceptions import GalileoWarning
 
 Expression_float = Union[Expression, float]
+if TYPE_CHECKING:
+    from imagededup.methods import PHash
 
 """
 CONSTANTS: the constants for all these methods were chosen conservatively with the goal
@@ -404,6 +405,10 @@ def generate_smart_features(images_paths: List[str], n_cores: int = -1) -> DataF
     Can run in parallel if n_cores is specified and different than 1. To use all
     available cores set n_cores = -1.
     """
+    # Importing PHash downloads a small model from torchhub. Putting it here to avoid
+    # downloading the model during the very first import dataquality as dq.
+    from imagededup.methods import PHash
+
     hasher = PHash()
     images_data: List[dict] = []
 
