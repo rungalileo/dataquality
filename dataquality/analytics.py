@@ -1,6 +1,7 @@
 import os
 import sys
 import uuid
+import warnings
 from concurrent.futures import ThreadPoolExecutor
 from types import TracebackType
 from typing import Any, Dict, Optional, Tuple, Type
@@ -9,6 +10,7 @@ from pydantic import BaseModel
 
 from dataquality.clients.api import ApiClient
 from dataquality.core._config import Config
+from dataquality.exceptions import GalileoWarning
 from dataquality.utils.ampli import AmpliMetric
 from dataquality.utils.patcher import Borg
 from dataquality.utils.profiler import (
@@ -40,6 +42,15 @@ class Analytics(Borg):
         :param config: The dq config
         """
         super().__init__()
+
+        # Warn if the user is using an old version of Python.
+        if sys.version_info < (3, 8):
+            warnings.warn(
+                "You are using an old version of Python. Please upgrade to Python 3.8"
+                "or higher. dataquality will stop supporting Python 3.7 in the near "
+                "future.",
+                GalileoWarning,
+            )
 
         try:
             self._telemetrics_disabled = self._is_telemetrics_disabled(config)
