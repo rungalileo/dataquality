@@ -81,23 +81,23 @@ class VaexColumn:
     blur: str = "blur"
     lowcontent: str = "content"
 
-    OutlierSize: str = "outlier_size"
-    OutlierRatio: str = "outlier_ratio"
+    OutlierSize: str = "odd_size"
+    OutlierRatio: str = "odd_ratio"
     OutlierNearDupId: str = "outlier_neardupid"
-    OutlierNearDup: str = "outlier_neardup"
+    OutlierNearDup: str = "near_duplicates"
 
     def __post_init__(self) -> None:
-        self.OutlierChannels: str = f"outlier_{self.channels}"
-        self.OutlierLowContrast: str = f"outlier_{self.contrast}"
-        self.OutlierOverExp: str = f"outlier_{self.overexp}"
-        self.OutlierUnderExp: str = f"outlier_{self.underexp}"
-        self.OutlierLowContent: str = f"outlier_{self.lowcontent}"
-        self.OutlierBlur: str = f"outlier_{self.blur}"
+        self.OutlierChannels: str = f"odd_{self.channels}"
+        self.OutlierLowContrast: str = f"low_{self.contrast}"
+        self.OutlierOverExp: str = "high_exposure"
+        self.OutlierUnderExp: str = "low_exposure"
+        self.OutlierLowContent: str = f"low_{self.lowcontent}"
+        self.OutlierBlur: str = "blurry"
 
     def cols_to_display(self) -> List[str]:
         """Return list of columns to display in the UI as anomalies."""
         cols = [val for key, val in self.__dict__.items() if key.startswith("Outlier")]
-        cols.append(VC.imagepath)
+        cols.remove(VC.OutlierNearDupId)  # Don't show until have UI plan to display it
         return cols
 
 
@@ -285,12 +285,22 @@ def _compute_near_duplicates(
     """
     Compute the Hamming distances pairwise between the encoded hashes.
     """
-    # find_duplicates returns a dict with every path as keys and the values are a list
-    # of images whose Hamming distance on the hash is < thresh (empty list when none).
-    duplicates = hasher.find_duplicates(
-        encoding_map=path_to_encodings,
-        max_distance_threshold=dist_thresh,
-    )
+    # Mute the loggers from imagededup
+    from imagededup.handlers.search.retrieval import logger as imagededup_handler_logger
+    from imagededup.methods.hashing import logger as imagededup_hashing_logger
+
+    imagededup_hashing_logger.disabled = True
+    imagededup_handler_logger.disabled = True
+
+    # Catch and hide warnings from imagededup
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        # find_duplicates returns a dict with paths as keys and the values are a list of
+        # images whose Hamming distance on the hash is < thresh (empty list when none).
+        duplicates = hasher.find_duplicates(
+            encoding_map=path_to_encodings,
+            max_distance_threshold=dist_thresh,
+        )
 
     # converting to a dict containing only the images with a near duplicate as keys,
     # and the values are just one such image (even if it is similar to multiple).
@@ -394,7 +404,6 @@ def generate_smart_features(images_paths: List[str], n_cores: int = -1) -> DataF
     Can run in parallel if n_cores is specified and different than 1. To use all
     available cores set n_cores = -1.
     """
-
     hasher = PHash()
     images_data: List[dict] = []
 
