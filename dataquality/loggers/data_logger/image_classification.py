@@ -405,7 +405,9 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         ).to_numpy()
 
         in_frame = in_frame.join(
-            smart_feats_frame, left_on=GAL_LOCAL_IMAGES_PATHS, right_on=VC.imagepath
-        )[VC.cols_to_display()]
+            smart_feats_frame[VC.cols_to_display() + [VC.imagepath]],
+            left_on=GAL_LOCAL_IMAGES_PATHS,
+            right_on=VC.imagepath,
+        ).drop(VC.imagepath)
 
         return in_frame
