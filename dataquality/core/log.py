@@ -123,30 +123,28 @@ def log_data_sample(*, text: str, id: int, **kwargs: Any) -> None:
 def log_image_dataset(
     dataset: DataSet,
     *,
-    imgs_colname: Optional[str] = None,
-    imgs_location_colname: Optional[str] = None,
-    imgs_remote_location: Optional[str] = None,
+    imgs_local_colname: Optional[str] = None,
+    imgs_remote: Optional[str] = None,
     batch_size: int = ITER_CHUNK_SIZE,
     id: str = "id",
-    label: Union[str, int] = "label",
+    label: str = "label",
     split: Optional[Split] = None,
     inference_name: Optional[str] = None,
-    meta: Union[List[str], List[int], None] = None,
+    meta: Optional[List[str]] = None,
     parallel: bool = False,
     **kwargs: Any,
 ) -> None:
     """
     Log an image dataset of input samples for image classification
 
-    :param dataset: The dataset to log. This can be a Pandas/Vaex dataframe or an
+    :param dataset: The dataset to log. This can be a Pandas/HF dataframe or an
         ImageFolder (from Torchvision).
-    :param imgs_colname: If the images are passed as bytes in the dataframe, this
-        indicates the name of the column containing the images
-    :param imgs_location_colname: If the images are passed via their path in the
-        dataframe, this indicates the name of the column containing the paths.
-        These paths could be remote (skip upload) or local (upload)
-    :param imgs_remote_location: If the dataset is of type ImageFolder and the
-        images are stored remotely, pass the folder name here to avoid upload
+    :param imgs_local_colname: The name of the column containing the local images
+        (typically paths but could also be bytes for HF dataframes). Ignored for
+        ImageFolder where local paths are directly retrieved from the dataset.
+    :param imgs_remote: The name of the column containing paths to the remote images (in
+        the case of a df) or remote directory containing the images (in the case of
+        ImageFolder). Specifying this argument is required to skip uploading the images.
     :param batch_size: Number of samples to log in a batch. Default 10,000
     :param id: The name of the column containing the ids (in the dataframe)
     :param label: The name of the column containing the labels (in the dataframe)
@@ -165,11 +163,13 @@ def log_image_dataset(
         "This method is only supported for image tasks. "
         "Please use dq.log_samples for text tasks."
     )
+
+    # TODO: raise warning if imgs_local is None (and we provide no smart features)
+
     data_logger.log_image_dataset(
         dataset=dataset,
-        imgs_colname=imgs_colname,
-        imgs_location_colname=imgs_location_colname,
-        imgs_remote_location=imgs_remote_location,
+        imgs_local_colname=imgs_local_colname,
+        imgs_remote=imgs_remote,
         batch_size=batch_size,
         id=id,
         label=label,

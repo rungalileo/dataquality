@@ -239,11 +239,25 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
                 self._log_df(chunk_df, meta)
         elif self.is_hf_dataset(dataset):
             self._log_hf_dataset(
-                dataset, batch_size, text, id, meta, label, split, inference_name
+                dataset,
+                batch_size,
+                text,
+                id,
+                meta,
+                label,
+                split,
+                inference_name,
             )
         elif isinstance(dataset, Iterable):
             self._log_iterator(
-                dataset, batch_size, text, id, meta, label, split, inference_name
+                dataset,
+                batch_size,
+                text,
+                id,
+                meta,
+                label,
+                split,
+                inference_name,
             )
         else:
             raise GalileoException(

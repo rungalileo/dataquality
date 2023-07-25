@@ -10,6 +10,7 @@ from typing import Any, Dict, Iterable, List, Optional, TypeVar, Union
 import numpy as np
 import pandas as pd
 import vaex
+from datasets.arrow_dataset import Dataset as HFDataset
 from huggingface_hub.utils import HfHubHTTPError
 from vaex.dataframe import DataFrame
 
@@ -40,7 +41,7 @@ from dataquality.utils.vaex import (
 )
 
 DATA_FOLDERS = ["emb", "prob", "data"]
-DataSet = TypeVar("DataSet", bound=Union[Iterable, pd.DataFrame, DataFrame])
+DataSet = TypeVar("DataSet", bound=Union[Iterable, pd.DataFrame, HFDataset, DataFrame])
 MetasType = TypeVar("MetasType", bound=Dict[str, List[Union[str, float, int]]])
 MetaType = TypeVar("MetaType", bound=Dict[str, Union[str, float, int]])
 ITER_CHUNK_SIZE = 100_000
@@ -218,6 +219,26 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     @property
     def support_data_embs(self) -> bool:
         return True
+
+    def apply_column_map(self, dataset: DataSet, column_map: Dict[str, str]) -> DataSet:
+        """Rename columns in the dataset according to the column_map
+
+        This function works for both pandas and HF datasets
+        """
+        # Remove any columns that are mapped to themselves
+        column_map = {k: v for k, v in column_map.items() if k != v}
+
+        if isinstance(dataset, pd.DataFrame):
+            dataset = dataset.rename(columns=column_map)
+        elif self.is_hf_dataset(dataset):
+            import datasets
+
+            assert isinstance(dataset, datasets.Dataset)
+            for old_col, new_col in column_map.items():
+                if old_col in dataset.column_names:  # HF breaks if col doesn't exist
+                    dataset = dataset.rename_column(old_col, new_col)
+
+        return dataset
 
     def upload(
         self, last_epoch: Optional[int] = None, create_data_embs: bool = False

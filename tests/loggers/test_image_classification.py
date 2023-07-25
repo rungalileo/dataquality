@@ -258,7 +258,7 @@ def _test_hf_image_dataset(name, test_session_vars: TestSessionVariables) -> Non
     dq.log_image_dataset(
         dataset=dataset_info["dataset"],
         label="label",
-        imgs_colname=dataset_info["imgs_colname"],
+        imgs_local_colname=dataset_info["imgs_colname"],
         split="training",
     )
 
@@ -332,7 +332,7 @@ def test_hf_image_dataset_with_paths(
         dq.log_image_dataset(
             dataset=dataset_with_paths,
             label="label",
-            imgs_location_colname="path",
+            imgs_local_colname="path",
             split="training",
         )
 
@@ -357,11 +357,11 @@ def test_prepare_df_from_ImageFolder() -> None:
     df = image_logger._prepare_df_from_ImageFolder(dataset=train_dataset)
 
     # Assert that the dataframe is how we'd expect it to be by looking at the folder
-    assert set(df.columns) == {"id", "text", "label"}
+    assert set(df.columns) == {"id", "label", "gal_local_images_paths"}
     assert len(df) == 4
     assert set(df.label.unique()) == {"labelA", "labelB"}
     assert set(df.id.unique()) == set(range(4))
-    assert df.loc[0, "text"].endswith(".png")
+    assert df.loc[0, "gal_local_images_paths"].endswith(".png")
 
 
 def test_prepare_df_from_ImageFolder_with_remote_imgs() -> None:
@@ -381,7 +381,12 @@ def test_prepare_df_from_ImageFolder_with_remote_imgs() -> None:
     )
 
     # Assert that the dataframe is how we'd expect it to be by looking at the folder
-    assert set(df.columns) == {"id", "text", "label"}
+    assert set(df.columns) == {
+        "id",
+        "text",
+        "label",
+        "gal_local_images_paths",
+    }
     assert len(df) == 4
     assert set(df.label.unique()) == {"labelA", "labelB"}
     assert set(df.id.unique()) == set(range(4))
@@ -406,7 +411,7 @@ def test_prepare_df_from_ImageFolder_inference() -> None:
 
     # Assert that the dataframe is how we'd expect it to be by looking at the folder
     # with no labels
-    assert set(df.columns) == {"id", "text"}
+    assert set(df.columns) == {"id", "gal_local_images_paths"}
     assert len(df) == 4
     assert set(df.id.unique()) == set(range(4))
-    assert df.loc[0, "text"].endswith(".png")
+    assert df.loc[0, "gal_local_images_paths"].endswith(".png")

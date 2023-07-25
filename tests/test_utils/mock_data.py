@@ -1,5 +1,10 @@
+import os
+from pathlib import Path
+
 import pandas as pd
 from torch.utils.data import Dataset
+
+from tests.assets.constants import TEST_IMAGES_FOLDER_ROOT
 
 mock_dict = {
     "text": [
@@ -82,6 +87,46 @@ class MockDataset(Dataset):
     def __getitem__(self, index: int) -> tuple:
         label, text = self.dataframe[["label", "text"]].iloc[index]
         return label_map[label], text
+
+    def __len__(self) -> int:
+        return len(self.dataframe)
+
+
+# Define CV dataset class
+class MockDatasetCV(Dataset):
+    def __init__(self, root_folder: str = TEST_IMAGES_FOLDER_ROOT) -> None:
+        self.local_root_folder = root_folder
+        self.remote_root_folder = (
+            "s3://galileo-s3os-images/ImageClassification/dq_tests/"
+        )
+        self.labels = os.listdir(self.local_root_folder)
+
+        self.dataframe = pd.DataFrame(columns=["image_name", "label"])
+        for label in self.labels:
+            df_label = pd.DataFrame(
+                data=os.listdir(Path(self.local_root_folder) / label),
+                columns=["image_name"],
+            )
+            df_label["label"] = label
+            self.dataframe = pd.concat([self.dataframe, df_label])
+        self.dataframe = self.dataframe.reset_index(drop=True)
+        self.dataframe = self.dataframe.reset_index().rename(columns={"index": "id"})
+        self.dataframe["image_path"] = self.dataframe[["image_name", "label"]].apply(
+            lambda r: str(Path(self.local_root_folder) / r["label"] / r["image_name"]),
+            axis=1,
+        )
+        self.dataframe["remote_image_path"] = self.dataframe[
+            ["image_name", "label"]
+        ].apply(
+            lambda r: str(
+                f'{self.remote_root_folder} / {r["label"]} / {r["image_name"]}'
+            ),
+            axis=1,
+        )
+
+    def __getitem__(self, index: int) -> tuple:
+        label, image_path = self.dataframe[["label", "image_path"]].iloc[index]
+        return label, image_path
 
     def __len__(self) -> int:
         return len(self.dataframe)
