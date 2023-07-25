@@ -141,7 +141,14 @@ def test_log_model_outputs(
     ThreadPoolManager.wait_for_threads()
     logger.check_for_logging_failures()
     output_data = vaex.open(f"{test_session_vars.LOCATION}/training/0/*.arrow")
-    expected_cols = ["id", "token_deps", "token_gold_probs", "split", "epoch"]
+    expected_cols = [
+        "id",
+        "token_deps",
+        "token_gold_probs",
+        "split",
+        "epoch",
+        "data_error_potential",
+    ]
     assert sorted(output_data.get_column_names()) == sorted(expected_cols)
     assert len(output_data) == 4
 
