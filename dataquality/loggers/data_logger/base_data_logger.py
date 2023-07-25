@@ -262,7 +262,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         proj_run = f"{config.current_project_id}/{config.current_run_id}"
         location = f"{self.LOG_FILE_DIR}/{proj_run}"
 
-        if cuml_available() and config.task_type != "semantic_segmentation":
+        if cuml_available() and config.task_type != TaskType.semantic_segmentation:
             apply_umap_to_embs(location, last_epoch)
         else:
             print(
