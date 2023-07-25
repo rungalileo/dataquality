@@ -88,6 +88,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             # In _prepare_df_from_ImageFolder, we set a column GAL_LOCAL_IMAGES_PATHS
             # that maps to the local image path
             imgs_local_colname = GAL_LOCAL_IMAGES_PATHS
+
         if imgs_local_colname is None and imgs_remote is None:
             raise GalileoException(
                 "Must provide imgs_local_colname or imgs_remote when using a df"

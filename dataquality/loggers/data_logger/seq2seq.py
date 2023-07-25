@@ -219,4 +219,6 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
 
         emb = df_copy[emb_cols]
         data_df = df_copy[other_cols]
+        data_df.rename("text", "input")
+        data_df.rename("label", "target_output")
         return BaseLoggerDataFrames(prob=prob, emb=emb, data=data_df)
