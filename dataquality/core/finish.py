@@ -50,7 +50,9 @@ def finish(
     data_logger = dataquality.get_data_logger()
     data_logger.validate_labels()
 
-    _version_check()
+    # NOTE: We remove the DQ version check to allow users to use older versions of DQ
+    # with spacy compatibility
+    # _version_check()
 
     if data_logger.non_inference_logged():
         _reset_run(config.current_project_id, config.current_run_id, config.task_type)
