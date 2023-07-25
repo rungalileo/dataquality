@@ -3,9 +3,8 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from urllib.parse import urljoin
 
 import torch
-import ultralytics
 from torchvision.ops.boxes import box_convert
-from ultralytics import YOLO
+from ultralytics import YOLO, checks
 from ultralytics.yolo.engine.predictor import BasePredictor
 from ultralytics.yolo.engine.trainer import BaseTrainer
 from ultralytics.yolo.engine.validator import BaseValidator
@@ -24,7 +23,7 @@ from dataquality.schemas.task_type import TaskType
 from dataquality.utils.dqyolo import CONF_DEFAULT, IOU_DEFAULT
 from dataquality.utils.ultralytics import non_max_suppression, process_batch_data
 
-ultralytics.checks()
+checks()
 
 Coordinates = Union[Tuple, List]
 
