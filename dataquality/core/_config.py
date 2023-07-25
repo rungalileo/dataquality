@@ -153,15 +153,18 @@ def _check_dq_version() -> None:
 
     dq_version_parsed = version.parse(dq_version)
 
-    min_dq_version = r.json()["minimum_dq_version"]
-    if dq_version_parsed < version.parse(min_dq_version):
-        msg = (
-            f"⚠️ You are running an old version of dataquality. Please upgrade to "
-            f"version {min_dq_version} or higher (you are running {dq_version})."
-            f"  `pip install dataquality --upgrade`"
-        )
-        # The user is running an incompatible DQ version, must upgrade
-        raise GalileoException(msg)
+    # NOTE: We remove the DQ version check to allow users to use older versions of DQ
+    # with spacy compatibility
+
+    # min_dq_version = r.json()["minimum_dq_version"]
+    # if dq_version_parsed < version.parse(min_dq_version):
+    #     msg = (
+    #         f"⚠️ You are running an old version of dataquality. Please upgrade to "
+    #         f"version {min_dq_version} or higher (you are running {dq_version})."
+    #         f"  `pip install dataquality --upgrade`"
+    #     )
+    #     # The user is running an incompatible DQ version, must upgrade
+    #     raise GalileoException(msg)
 
     # If user is running an old API with new incompatible DQ version,
     # prompt them to downgrade
