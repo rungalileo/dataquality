@@ -123,14 +123,14 @@ def test_generate_smart_features():
 
     assert len(df) == len(images_names)
     outlier_cols = {
-        "outlier_size",
-        "outlier_ratio",
-        "outlier_neardupid",
-        "outlier_channels",
-        "outlier_contrast",
-        "outlier_overexp",
-        "outlier_underexp",
-        "outlier_content",
-        "outlier_blur",
+        "odd_size",
+        "odd_ratio",
+        "near_duplicates",
+        "odd_channels",
+        "low_contrast",
+        "high_exposure",
+        "low_exposure",
+        "low_content",
+        "blurry",
     }
     assert outlier_cols.issubset(df.columns)

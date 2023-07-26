@@ -30,7 +30,7 @@ store it, and compute the qualitive value (boolean) by thresholding later at dif
 values (for example if we compute it at different prec/rec in the console).
 """
 
-BLURRY_THREHSOLD = 120
+BLURRY_THREHSOLD = 110
 
 LOW_CONTRAST_RANGE_THRESHOLD = 0.35
 LOW_CONTRAST_MIN_Q = 0.02
