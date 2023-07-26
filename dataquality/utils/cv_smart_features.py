@@ -483,6 +483,9 @@ def generate_smart_features(images_paths: List[str], n_cores: int = -1) -> DataF
     path_to_dup_path = _compute_near_duplicates(hasher, path_to_enc)
     dup_paths = [path_to_dup_path.get(path) for path in df[VC.imagepath].tolist()]
     df[VC.OutlierNearDupId] = np.array(dup_paths)
+    df[VC.OutlierNearDup] = df.func.where(
+        df[VC.OutlierNearDupId].isin([None]), False, True
+    ).to_numpy()
 
     ### Tag images as Blurry / Low contrast / Over/Under exposure and Low content
     # These simple thresholdings are put in a method in case we want to call them later
