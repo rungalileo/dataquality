@@ -635,3 +635,11 @@ def set_tokenizer(tokenizer: PreTrainedTokenizerFast) -> None:
     seq2seq_logger_config.tokenizer = tokenizer
     # Seq2Seq doesn't have labels but we need to set this to avoid validation errors
     seq2seq_logger_config.labels = []
+
+
+@check_noop
+def get_run_link(
+    project_name: Optional[str] = None, run_name: Optional[str] = None
+) -> str:
+    """Gets the link to the run in the UI"""
+    return ApiClient().get_run_link(project_name=project_name, run_name=run_name)

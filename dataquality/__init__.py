@@ -31,7 +31,7 @@ If you want to train without a model, you can use the auto framework:
 """
 
 
-__version__ = "0.10.0"
+__version__ = "0.10.1"
 
 import sys
 from typing import Any, List, Optional
@@ -62,6 +62,7 @@ from dataquality.core.log import (
     get_current_run_labels,
     get_data_logger,
     get_model_logger,
+    get_run_link,
     log_data_sample,
     log_data_samples,
     log_dataset,
@@ -108,6 +109,7 @@ __all__ = [
     "get_current_run_labels",
     "get_data_logger",
     "get_model_logger",
+    "get_run_link",
     "set_tasks_for_run",
     "set_tagging_schema",
     "docs",
