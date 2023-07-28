@@ -396,7 +396,10 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         if GAL_LOCAL_IMAGES_PATHS not in in_frame.get_column_names():
             return in_frame
 
-        print("🔲 Calculating Smart Features")
+        print(
+            "🔲 Calculating Smart Features (can take a few minutes depending on the "
+            "size of your dataset)"
+        )
         images_paths = in_frame[GAL_LOCAL_IMAGES_PATHS].tolist()
         smart_feats_frame = generate_smart_features(images_paths)
 

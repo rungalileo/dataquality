@@ -98,7 +98,6 @@ class VaexColumn:
     def cols_to_display(self) -> List[str]:
         """Return list of columns to display in the UI as anomalies."""
         cols = [val for key, val in self.__dict__.items() if key.startswith("outlier_")]
-        cols.remove(self.near_duplicate_id)  # Hide until have UI plan to display it
         return cols
 
 
