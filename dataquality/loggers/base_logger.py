@@ -16,7 +16,6 @@ from dataquality.loggers.logger_config.base_logger_config import (
 )
 from dataquality.schemas.split import Split, conform_split
 from dataquality.schemas.task_type import TaskType
-from dataquality.utils.cloud import is_galileo_cloud
 from dataquality.utils.dq_logger import upload_dq_log_file
 from dataquality.utils.file import _shutil_rmtree_retry
 from dataquality.utils.imports import hf_available, tf_available, torch_available
@@ -340,18 +339,8 @@ class BaseGalileoLogger:
 
     @classmethod
     def validate_split(cls, split: Union[str, Split]) -> str:
-        """Raises error if split is not a valid Split
-
-        Also raises if a cloud user tries to log inference data
-        """
-        split = conform_split(split).value
-        if is_galileo_cloud() and split == Split.inference:
-            raise GalileoException(
-                "You cannot log inference data from a Galileo Cloud account, only "
-                "enterprise accounts can access this feature. Please email us at "
-                "team@rungalileo.io for more information."
-            )
-        return split
+        """Raises error if split is not a valid Split"""
+        return conform_split(split).value
 
     @classmethod
     def check_for_logging_failures(cls) -> None:
