@@ -464,7 +464,7 @@ def generate_smart_features(images_paths: List[str], n_cores: int = -1) -> DataF
     )
 
     ### Tag images with resolution outside of median *// some coeff as Large/Small
-    df["resolution"] = df.width * df.height
+    df["resolution"] = df[VC.height] * df[VC.width]
     # Vaex has no good method for computing the median (only an approximate or so),
     # we can bring it in memory and use numpy since it's a small df anyways
     median_resolution = np.median(df["resolution"].to_numpy())
