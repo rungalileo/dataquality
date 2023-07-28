@@ -401,9 +401,9 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         smart_feats_frame = generate_smart_features(images_paths)
 
         in_frame = in_frame.join(
-            smart_feats_frame[VC.cols_to_display() + [VC.imagepath]],
+            smart_feats_frame[VC.cols_to_display() + [VC.image_path]],
             left_on=GAL_LOCAL_IMAGES_PATHS,
-            right_on=VC.imagepath,
-        ).drop(VC.imagepath)
+            right_on=VC.image_path,
+        ).drop(VC.image_path)
 
         return in_frame
