@@ -1,5 +1,6 @@
 import json
 import os
+from collections import defaultdict
 from tempfile import NamedTemporaryFile
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
@@ -476,14 +477,18 @@ class SemanticTorchLogger(TorchLogger):
         local_contour_path = f"{project_path}/{config.current_run_id}/{split}/contours"
 
         files = os.listdir(local_contour_path)
-        all_contours = {}
-        for file in files:
-            with open(f"{local_contour_path}/{file}") as f:
-                contours = json.load(f)
+        image_to_contours_map: Dict = defaultdict(dict)
+        for fname in files:
+            with open(f"{local_contour_path}/{fname}") as f:
+                # Dict image_id -> contours for a single polygon in the image
+                image_to_contours_single_polygon = json.load(f)
+                image_id = list(image_to_contours_single_polygon.keys())[0]
+                contours = image_to_contours_single_polygon[image_id]
                 # uuid is the key for each contour from the polygon schema
-                all_contours[file.replace(".json", "")] = contours
+                polygon_uuid = fname.replace(".json", "")
+                image_to_contours_map[image_id][polygon_uuid] = contours
         with NamedTemporaryFile(mode="w+", delete=False) as temp_file:
-            json.dump(all_contours, temp_file)
+            json.dump(image_to_contours_map, temp_file)
 
         obj_name = f"{model_logger.proj_run}/{split}/contours/contours.json"
         object_store.create_object(
