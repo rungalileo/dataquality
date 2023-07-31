@@ -98,7 +98,7 @@ class TorchLogger(TorchBaseInstance):
         except Exception as e:
             if dq.config.task_type != TaskType.semantic_segmentation:
                 warn(
-                    "Could not attach function to model layer. Error:"
+                    "Warning: Could not attach function to model layer."
                     f" {e}. Please check that the classifier layer name:"
                     f" {classifier_layer} exists in the model. Common layers"
                     " to extract logits and the last hidden state are 'classifier'"
