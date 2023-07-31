@@ -491,6 +491,16 @@ class ApiClient:
         job = self.make_request(RequestType.GET, job_url)
         return job or {}
 
+    def get_run_link(
+        self, project_name: Optional[str] = None, run_name: Optional[str] = None
+    ) -> str:
+        pid, rid = self._get_project_run_id(
+            project_name=project_name, run_name=run_name
+        )
+        link_url = f"{config.api_url}/{Route.content_path(pid, rid)}/{Route.link}"
+        link_data = self.make_request(RequestType.GET, link_url)
+        return link_data["link"]
+
     def wait_for_run(
         self, project_name: Optional[str] = None, run_name: Optional[str] = None
     ) -> None:
