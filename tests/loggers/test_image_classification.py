@@ -456,14 +456,15 @@ def test_smart_features(
     in_frame_split = image_classification_logger.add_cv_smart_features(in_frame_split)
 
     outlier_cols = {
-        "odd_size",
-        "odd_ratio",
-        "near_duplicates",
-        "odd_channels",
-        "low_contrast",
-        "high_exposure",
-        "low_exposure",
-        "low_content",
-        "blurry",
+        "is_near_duplicate",
+        "near_duplicate_id",
+        "is_blurry",
+        "is_underexposed",
+        "is_overexposed",
+        "is_low_contrast",
+        "has_low_content",
+        "has_odd_size",
+        "has_odd_ratio",
+        "has_odd_channels",
     }
     assert outlier_cols.issubset(in_frame_split.get_column_names())

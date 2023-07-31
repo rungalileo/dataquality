@@ -83,10 +83,10 @@ class VaexColumn:
     underexp: str = "sf_underexp"
     blur: str = "sf_blur"
     lowcontent: str = "sf_content"
-    near_duplicate_id: str = "sf_near_duplicate_id"
 
     outlier_size: str = "has_odd_size"
     outlier_ratio: str = "has_odd_ratio"
+    outlier_near_duplicate_id: str = "near_duplicate_id"
     outlier_near_dup: str = "is_near_duplicate"
     outlier_channels: str = "has_odd_channels"
     outlier_low_contrast: str = "is_low_contrast"
@@ -277,13 +277,16 @@ def _get_phash_encoding(hasher: PHash, np_gray: np.ndarray) -> str:
     return phash_str
 
 
-def _compute_near_duplicates(
+def _compute_near_duplicate_id(
     hasher: PHash,
     path_to_encodings: Dict[str, str],
     dist_thresh: int = PHASH_NEAR_DUPLICATE_THRESHOLD,
-) -> Dict[str, str]:
+) -> Dict[str, int]:
     """
-    Compute the Hamming distances pairwise between the encoded hashes.
+    Compute the Hamming distances pairwise between the encoded hashes, and group
+    together images with distance < threshold.
+    Returns:
+        - a dictionary with keys=image_path, value=near_duplicate_id
     """
     # Mute the loggers from imagededup
     from imagededup.handlers.search.retrieval import logger as imagededup_handler_logger
@@ -302,11 +305,28 @@ def _compute_near_duplicates(
             max_distance_threshold=dist_thresh,
         )
 
-    # converting to a dict containing only the images with a near duplicate as keys,
-    # and the values are just one such image (even if it is similar to multiple).
-    path_to_dup_path = {d: dups[0] for d, dups in duplicates.items() if dups}
+    # convert to a dict containing only the images with a near duplicate as keys, and a
+    # near_duplicate_id as values. Near duplicate images have the same near_duplicate_id
+    # Reserve the number 0 for images that are not near duplicate from any other image
+    path_to_dup_id = {}
+    group_id = 1
+    for path, dups in duplicates.items():
+        # The path could already have a group id assigned (by being the duplicate of an
+        # earlier image already seen in the for loop)
+        if path in path_to_dup_id:
+            continue
 
-    return path_to_dup_path
+        # Taking care of non duplicates later
+        if not dups:
+            continue
+
+        # Add the path + its duplicates in the dict
+        path_to_dup_id[path] = group_id
+        for path_dup in dups:
+            path_to_dup_id[path_dup] = group_id
+        group_id += 1
+
+    return path_to_dup_id
 
 
 def _open_and_resize(image_path: str) -> Tuple[Image.Image, Image.Image, np.ndarray]:
@@ -480,11 +500,12 @@ def generate_smart_features(images_paths: List[str], n_cores: int = -1) -> DataF
         row[VC.image_path]: row[VC.hash]
         for row in df.to_records(column_names=[VC.image_path, VC.hash])
     }
-    path_to_dup_path = _compute_near_duplicates(hasher, path_to_enc)
-    dup_paths = [path_to_dup_path.get(path) for path in df[VC.image_path].tolist()]
-    df[VC.near_duplicate_id] = np.array(dup_paths)
+    path_to_dup_id = _compute_near_duplicate_id(hasher, path_to_enc)
+    df[VC.outlier_near_duplicate_id] = np.array(
+        [path_to_dup_id.get(image_path, 0) for image_path in images_paths]
+    )
     df[VC.outlier_near_dup] = df.func.where(
-        df[VC.near_duplicate_id].isin([None]), False, True
+        df[VC.outlier_near_duplicate_id] == 0, False, True
     ).to_numpy()
 
     ### Tag images as Blurry / Low contrast / Over/Under exposure and Low content

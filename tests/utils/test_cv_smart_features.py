@@ -3,7 +3,7 @@ from pathlib import Path
 
 from dataquality.utils.cv_smart_features import (
     _blurry_laplace,
-    _compute_near_duplicates,
+    _compute_near_duplicate_id,
     _get_phash_encoding,
     _image_content_entropy,
     _is_blurry_laplace,
@@ -24,6 +24,7 @@ under_exposed_imagename = "underexposed.jpeg"
 blurry_imagename = "blurry.jpeg"
 lowcontent_imagename = "lowcontent.jpeg"
 lowcontent_neardup_imagename = "lowcontent2.jpeg"
+lowcontent_neardup_imagename2 = "lowcontent3.jpeg"
 
 
 def test_low_contrast() -> None:
@@ -79,13 +80,46 @@ def test_near_duplicates() -> None:
         image_name = image_path.split("/")[-1]
         name_to_hash[image_name] = _get_phash_encoding(hasher, np_gray)
 
-    near_dupes = _compute_near_duplicates(hasher, name_to_hash)
+    path_to_dup_id = _compute_near_duplicate_id(hasher, name_to_hash)
 
     # assert that the only duplicates are the two low content images (dup to each other)
-    assert near_dupes == {
-        lowcontent_imagename: lowcontent_neardup_imagename,
-        lowcontent_neardup_imagename: lowcontent_imagename,
+    assert path_to_dup_id == {
+        lowcontent_imagename: 1,
+        lowcontent_neardup_imagename: 1,
+        lowcontent_neardup_imagename2: 1,
     }
+
+
+def test_near_duplicate_id() -> None:
+    """Test the method creating near duplicate group ids on a test set"""
+    images_names = [
+        low_contrast_imagename,
+        over_exposed_imagename,
+        under_exposed_imagename,
+        blurry_imagename,
+        lowcontent_imagename,
+        lowcontent_neardup_imagename,
+        lowcontent_neardup_imagename2,
+    ]
+    images_paths = [
+        f"{TEST_ASSETS_SMART_FEATS_DIR}/{image_name}" for image_name in images_names
+    ]
+    df = generate_smart_features(images_paths)
+
+    assert len(df) == len(images_names)
+    outlier_cols = {
+        "is_near_duplicate",
+        "near_duplicate_id",
+        "is_blurry",
+        "is_underexposed",
+        "is_overexposed",
+        "is_low_contrast",
+        "has_low_content",
+        "has_odd_size",
+        "has_odd_ratio",
+        "has_odd_channels",
+    }
+    assert outlier_cols.issubset(df.columns)
 
 
 def test_analyze_image_smart_features() -> None:
@@ -94,16 +128,16 @@ def test_analyze_image_smart_features() -> None:
     image_path = Path(TEST_ASSETS_SMART_FEATS_DIR) / blurry_imagename
     image_data = analyze_image_smart_features(image_path)
 
-    assert image_data["hash"] == ""  # since we didn't pass a hasher
-    assert str(image_data["image_path"]) == str(image_path)  # check correct image
-    assert image_data["width"] == 678  # Get width from image viewer
-    assert image_data["height"] == 446  # Get height from image viewer
-    assert image_data["channels"] == "Color"  # RGB image
-    assert _is_blurry_laplace(image_data["blur"])
-    assert not _is_low_contrast(image_data["contrast"])
-    assert not _is_under_exposed(image_data["underexp"])
-    assert not _is_over_exposed(image_data["overexp"])
-    assert not _is_low_content_entropy(image_data["content"])
+    assert image_data["sf_hash"] == ""  # since we didn't pass a hasher
+    assert str(image_data["sf_image_path"]) == str(image_path)  # check correct image
+    assert image_data["sf_width"] == 678  # Get width from image viewer
+    assert image_data["sf_height"] == 446  # Get height from image viewer
+    assert image_data["sf_channels"] == "Color"  # RGB image
+    assert _is_blurry_laplace(image_data["sf_blur"])
+    assert not _is_low_contrast(image_data["sf_contrast"])
+    assert not _is_under_exposed(image_data["sf_dark"])
+    assert not _is_over_exposed(image_data["sf_bright"])
+    assert not _is_low_content_entropy(image_data["sf_content"])
 
 
 def test_generate_smart_features():
@@ -115,6 +149,7 @@ def test_generate_smart_features():
         blurry_imagename,
         lowcontent_imagename,
         lowcontent_neardup_imagename,
+        lowcontent_neardup_imagename2,
     ]
     images_paths = [
         f"{TEST_ASSETS_SMART_FEATS_DIR}/{image_name}" for image_name in images_names
@@ -123,14 +158,15 @@ def test_generate_smart_features():
 
     assert len(df) == len(images_names)
     outlier_cols = {
-        "odd_size",
-        "odd_ratio",
-        "near_duplicates",
-        "odd_channels",
-        "low_contrast",
-        "high_exposure",
-        "low_exposure",
-        "low_content",
-        "blurry",
+        "is_near_duplicate",
+        "near_duplicate_id",
+        "is_blurry",
+        "is_underexposed",
+        "is_overexposed",
+        "is_low_contrast",
+        "has_low_content",
+        "has_odd_size",
+        "has_odd_ratio",
+        "has_odd_channels",
     }
     assert outlier_cols.issubset(df.columns)
