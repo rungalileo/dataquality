@@ -38,6 +38,7 @@ dependencies = [
     "tenacity>=8.1.0",
     "evaluate",
     "accelerate",
+    "ipywidgets>=8.1.0",
     "imagededup==0.3.2",
 ]
 [[project.authors]]
@@ -124,6 +125,19 @@ version = {attr = "dataquality.__version__"}
 [tool.pytest.ini_options]
 env = [
     "GALILEO_API_URL=http://localhost:8000"
+]
+addopts = [
+    "-n",
+    "auto",
+    "-o",
+    "console_output_style=progress",
+    "--durations=10",
+    "--disable-warnings",
+    "--cov=dataquality",
+    "--cov=tests",
+    "--cov-report=term-missing",
+    "--cov-report=xml",
+    "--cov-report=html",
 ]
 
 [tool.coverage.run]
