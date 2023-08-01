@@ -96,17 +96,18 @@ class TorchLogger(TorchBaseInstance):
                 model, self._dq_classifier_hook_with_step_end, classifier_layer
             )
         except Exception as e:
-            warn(
-                "Could not attach function to model layer. Error:"
-                f" {e}. Please check that the classifier layer name:"
-                f" {classifier_layer} exists in the model. Common layers"
-                " to extract logits and the last hidden state are 'classifier'"
-                "and 'fc'. To fix this, pass the correct layer name to the "
-                "'classifier_layer' parameter in the 'watch' function. "
-                "For example: 'watch(model, classifier_layer='fc')'."
-                "You can view the model layers by using the 'model.named_children'"
-                "function or by printing the model."
-            )
+            if dq.config.task_type != TaskType.semantic_segmentation:
+                warn(
+                    "Warning: Could not attach function to model layer."
+                    f" {e}. Please check that the classifier layer name:"
+                    f" {classifier_layer} exists in the model. Common layers"
+                    " to extract logits and the last hidden state are 'classifier'"
+                    "and 'fc'. To fix this, pass the correct layer name to the "
+                    "'classifier_layer' parameter in the 'watch' function. "
+                    "For example: 'watch(model, classifier_layer='fc')'."
+                    "You can view the model layers by using the 'model.named_children'"
+                    "function or by printing the model."
+                )
             self.hook_manager.attach_hooks_to_model(
                 model, self._dq_embedding_hook, last_hidden_state_layer
             )
