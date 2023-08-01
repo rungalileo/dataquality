@@ -38,6 +38,7 @@ dependencies = [
     "tenacity>=8.1.0",
     "evaluate",
     "accelerate",
+    "ipywidgets>=8.1.0",
 ]
 [[project.authors]]
 name = "Galileo Technologies, Inc."
