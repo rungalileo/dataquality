@@ -135,8 +135,8 @@ def test_analyze_image_smart_features() -> None:
     assert image_data["sf_channels"] == "Color"  # RGB image
     assert _is_blurry_laplace(image_data["sf_blur"])
     assert not _is_low_contrast(image_data["sf_contrast"])
-    assert not _is_under_exposed(image_data["sf_dark"])
-    assert not _is_over_exposed(image_data["sf_bright"])
+    assert not _is_under_exposed(image_data["sf_overexp"])
+    assert not _is_over_exposed(image_data["sf_underexp"])
     assert not _is_low_content_entropy(image_data["sf_content"])
 
 
