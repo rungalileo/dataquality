@@ -66,6 +66,7 @@ def test_log_dataset(
     df = vaex.open(f"{test_session_vars.LOCATION}/input_data/training/data_0.arrow")
     expected_cols = [
         "id",
+        "split",
         "text",
         "label",
         "tokenized_label",
