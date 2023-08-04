@@ -182,7 +182,9 @@ def add_umap_pca_to_df(df: DataFrame, data_embs: bool = False) -> DataFrame:
     return dfc
 
 
-def create_data_embs_df(df: DataFrame, lazy: bool = True) -> DataFrame:
+def create_data_embs_df(
+    df: DataFrame, lazy: bool = True, text_col: str = "text"
+) -> DataFrame:
     """Runs sentence transformer on raw text to get off the shelf data embeddings
 
     :param df: The dataframe to get data embeddings for. Must have text col
@@ -205,7 +207,7 @@ def create_data_embs_df(df: DataFrame, lazy: bool = True) -> DataFrame:
         )
 
     if lazy:
-        df_copy["emb"] = df_copy["text"].apply_sentence_transformer()
+        df_copy["emb"] = df_copy[text_col].apply_sentence_transformer()
         df_copy = df_copy[["id", "emb"]]
     else:
         import torch
@@ -213,7 +215,7 @@ def create_data_embs_df(df: DataFrame, lazy: bool = True) -> DataFrame:
         # Downcasts to float16 where possible, speeds up processing by 10 it/sec
         with torch.autocast("cuda"):
             df_copy["emb"] = data_model.encode(
-                df_copy["text"].tolist(), show_progress_bar=True
+                df_copy[text_col].tolist(), show_progress_bar=True
             ).astype(np.float32)
 
     return df_copy
