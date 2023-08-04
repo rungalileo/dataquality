@@ -276,8 +276,6 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                 "https://pypi.nvidia.com/`"
             )
 
-        print("Create data embs is ", create_data_embs)
-        print("Support data embs is ", self.support_data_embs)
         if cuml_available() and create_data_embs and self.support_data_embs:
             print("Creating and uploading data embeddings")
             upload_umap_data_embs(
