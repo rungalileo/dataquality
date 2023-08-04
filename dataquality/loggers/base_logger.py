@@ -207,6 +207,9 @@ class BaseGalileoLogger:
         arr: Union[List, np.ndarray], attr: Optional[str] = None
     ) -> np.ndarray:
         """Handles numpy arrays and tensors conversions"""
+        # import pdb
+
+        # pdb.set_trace()
         if torch_available():
             from torch import Tensor
 
@@ -231,14 +234,6 @@ class BaseGalileoLogger:
                     assert (
                         arr.ndim == 2
                     ), f"Probs/logits must have ndim=2, but got shape {arr.shape}"
-                else:
-                    # Because probs in multi label may not have a clear shape (each
-                    # task may have a different number of probabilities
-                    arr = np.array(arr, dtype=object)
-                    assert arr.ndim > 1, (
-                        f"Probs/logits must have at least 2 dimensions, "
-                        f"they have {arr.ndim}"
-                    )
             elif attr == "Labels" and config.task_type == TaskType.text_multi_label:
                 arr = np.array(arr, dtype=object)
         return np.array(arr) if not isinstance(arr, np.ndarray) else arr

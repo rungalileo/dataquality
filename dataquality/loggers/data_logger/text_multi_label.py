@@ -8,10 +8,16 @@ from vaex.dataframe import DataFrame
 
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger.base_data_logger import (
-    BaseGalileoDataLogger, MetasType, MetaType)
+    BaseGalileoDataLogger,
+    MetasType,
+    MetaType,
+)
 from dataquality.loggers.logger_config.text_multi_label import (
-    TextMultiLabelLoggerConfig, text_multi_label_logger_config)
+    TextMultiLabelLoggerConfig,
+    text_multi_label_logger_config,
+)
 from dataquality.schemas import __data_schema_version__
+from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.split import Split
 
 DATA_FOLDERS = ["emb", "prob", "data"]
@@ -215,3 +221,35 @@ class TextMultiLabelDataLogger(BaseGalileoDataLogger):
             "observed_num_labels must be set before calling finish. "
             "See `dataquality.set_labels_for_run`"
         )
+
+    @classmethod
+    def _get_prob_cols(cls) -> List[str]:
+        return ["id", "prob", "gold"]
+
+    @classmethod
+    def separate_dataframe(
+        cls, df: DataFrame, prob_only: bool = True, split: Optional[str] = None
+    ) -> BaseLoggerDataFrames:
+        """Separates the singular dataframe into its 3 components
+
+        Gets the probability df, the embedding df, and the "data" df containing
+        all other columns
+        """
+        df_copy = df.copy()
+        # Separate out embeddings and probabilities into their own files
+        prob_cols = cls._get_prob_cols()
+        prob = df_copy[prob_cols]
+
+        if prob_only:  # In this case, we don't care about the other columns
+            emb_cols = ["id"]
+            other_cols = ["id"]
+        else:
+            emb_cols = ["id", "emb", "x", "y", "emb_pca"]
+            emb_cols = [c for c in emb_cols if c in df_copy.get_column_names()]
+            ignore_cols = ["split_id"] + prob_cols + emb_cols
+            other_cols = [i for i in df_copy.get_column_names() if i not in ignore_cols]
+            other_cols += ["id"]
+
+        emb = df_copy[emb_cols]
+        data_df = df_copy[other_cols]
+        return BaseLoggerDataFrames(prob=prob, emb=emb, data=data_df)
