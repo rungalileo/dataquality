@@ -230,7 +230,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
     @property
     def support_embs(self) -> bool:
         """In Seq2Seq we only support data embeddings
-        
+
         It is uncommon for users to have access to the model embeddings for Seq2Seq
         """
         return False

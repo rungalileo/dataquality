@@ -21,7 +21,6 @@ from dataquality.loggers.base_logger import BaseGalileoLogger, BaseLoggerAttribu
 from dataquality.schemas.dataframe import BaseLoggerDataFrames, DFVar
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
-from dataquality.schemas.task_type import TaskType
 from dataquality.utils import tqdm
 from dataquality.utils.cloud import is_galileo_cloud
 from dataquality.utils.cuda import cuml_available
@@ -277,11 +276,9 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                 "https://pypi.nvidia.com/`"
             )
 
-        create_data_embs = True
         print("Create data embs is ", create_data_embs)
         print("Support data embs is ", self.support_data_embs)
-        # if cuml_available() and create_data_embs and self.support_data_embs:
-        if create_data_embs and self.support_data_embs:
+        if cuml_available() and create_data_embs and self.support_data_embs:
             print("Creating and uploading data embeddings")
             upload_umap_data_embs(
                 config.current_project_id,
