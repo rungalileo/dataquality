@@ -536,10 +536,6 @@ def set_tasks_for_run(tasks: List[str], binary: bool = True) -> None:
     if config.task_type != TaskType.text_multi_label:
         raise GalileoException("You can only set task names for multi-label use cases.")
     get_data_logger().logger_config.tasks = tasks
-    text_multi_label_logger_config.binary = binary
-    if binary:
-        # The labels validator will handle adding the "NOT_" to each label
-        text_multi_label_logger_config.labels = [[task] for task in tasks]
 
 
 @check_noop
