@@ -461,7 +461,7 @@ def test_smart_features(
         "is_blurry",
         "is_underexposed",
         "is_overexposed",
-        "is_low_contrast",
+        "has_low_contrast",
         "has_low_content",
         "has_odd_size",
         "has_odd_ratio",

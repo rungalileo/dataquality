@@ -89,7 +89,7 @@ class VaexColumn:
     outlier_near_duplicate_id: str = "near_duplicate_id"
     outlier_near_dup: str = "is_near_duplicate"
     outlier_channels: str = "has_odd_channels"
-    outlier_low_contrast: str = "is_low_contrast"
+    outlier_low_contrast: str = "has_low_contrast"
     outlier_overexposed: str = "is_overexposed"
     outlier_underexposed: str = "is_underexposed"
     outlier_low_content: str = "has_low_content"
