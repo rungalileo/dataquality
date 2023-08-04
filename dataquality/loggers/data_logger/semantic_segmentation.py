@@ -180,3 +180,12 @@ class SemanticSegmentationDataLogger(BaseGalileoDataLogger):
             object_name=polygon_minio_file,
             bucket_name=config.root_bucket_name,
         )
+
+    @property
+    def support_embs(self) -> bool:
+        """Not yet supported for SemSeg. Coming soon!"""
+        return False
+
+    @property
+    def support_data_embs(self) -> bool:
+        return False

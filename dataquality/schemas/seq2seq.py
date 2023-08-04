@@ -6,6 +6,7 @@ from typing import List, Set, Tuple
 class Seq2SeqInputCols(str, Enum):
     id = "id"
     text = "text"
+    split_ = "split"
     label = "label"
     tokenized_label = "tokenized_label"
     token_label_positions = "token_label_positions"

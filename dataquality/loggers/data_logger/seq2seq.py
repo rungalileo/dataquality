@@ -117,6 +117,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
                 C.id.value: self.ids,
                 C.text.value: self.texts,
                 C.label.value: self.labels,
+                C.split_.value: [self.split] * len(self.ids),
                 # TODO: Do we need to save this to the server?
                 C.tokenized_label.value: pa.array(self.tokenized_labels),
                 C.token_label_positions.value: pa.array(self.token_label_positions),
@@ -219,6 +220,17 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
 
         emb = df_copy[emb_cols]
         data_df = df_copy[other_cols]
-        data_df.rename("text", "input")
-        data_df.rename("label", "target_output")
+        data_cols = data_df.get_column_names()
+        if "text" in data_cols:
+            data_df.rename("text", "input")
+        if "label" in data_cols:
+            data_df.rename("label", "target_output")
         return BaseLoggerDataFrames(prob=prob, emb=emb, data=data_df)
+
+    @property
+    def support_embs(self) -> bool:
+        """In Seq2Seq we only support data embeddings
+
+        It is uncommon for users to have access to the model embeddings for Seq2Seq
+        """
+        return False
