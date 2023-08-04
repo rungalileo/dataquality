@@ -222,3 +222,11 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         data_df.rename("text", "input")
         data_df.rename("label", "target_output")
         return BaseLoggerDataFrames(prob=prob, emb=emb, data=data_df)
+
+    @property
+    def support_embs(self) -> bool:
+        """In Seq2Seq we only support data embeddings
+        
+        It is uncommon for users to have access to the model embeddings for Seq2Seq
+        """
+        return False

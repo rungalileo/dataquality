@@ -302,3 +302,7 @@ class ObjectDetectionDataLogger(BaseGalileoDataLogger):
             emb=emb_df,
             prob=prob_df,
         )
+
+    @property
+    def support_data_embs(self) -> bool:
+        return False

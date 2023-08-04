@@ -218,6 +218,10 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         self.logger_config.input_data_logged[str(self.split)] += 1
 
     @property
+    def support_embs(self) -> bool:
+        return True
+
+    @property
     def support_data_embs(self) -> bool:
         return True
 
@@ -263,7 +267,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         proj_run = f"{config.current_project_id}/{config.current_run_id}"
         location = f"{self.LOG_FILE_DIR}/{proj_run}"
 
-        if cuml_available() and config.task_type != TaskType.semantic_segmentation:
+        if cuml_available() and self.support_embs:
             apply_umap_to_embs(location, last_epoch)
         else:
             print(
