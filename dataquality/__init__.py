@@ -31,7 +31,7 @@ If you want to train without a model, you can use the auto framework:
 """
 
 
-__version__ = "0.10.3"
+__version__ = "0.11.0"
 
 import sys
 from typing import Any, List, Optional
@@ -151,8 +151,7 @@ except (ImportError, ValueError):  # The users limit is higher than our max, whi
 if sys.version_info < (3, 8):
     warn(
         "You are using an old version of Python. Please upgrade to Python 3.8"
-        "or higher. dataquality will stop supporting Python 3.7 in the near "
-        "future.",
+        "or higher. dataquality does not support Python 3.7 ",
         GalileoWarning,
     )
 

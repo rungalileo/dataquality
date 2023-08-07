@@ -619,11 +619,7 @@ def test_finish_last_epoch(
         min(last_logged_epoch, last_epoch + 1) if last_epoch else last_logged_epoch
     )
     for i, call in enumerate(mock_upload_frames.call_args_list):
-        # python 3.7 vs 3.8+ compatibility
-        try:  # python 3.8+
-            assert int(call.args[-1]) == i
-        except TypeError:  # python 3.7
-            assert int(call[0][-1]) == i
+        assert int(call.args[-1]) == i
     assert mock_upload_frames.call_count == max_uploaded
 
 
