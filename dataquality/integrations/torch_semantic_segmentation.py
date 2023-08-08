@@ -1,5 +1,6 @@
 import json
 import os
+import warnings
 from collections import defaultdict
 from tempfile import NamedTemporaryFile
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
@@ -16,7 +17,7 @@ from dataquality import config
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
 from dataquality.clients.objectstore import ObjectStore
-from dataquality.exceptions import GalileoException
+from dataquality.exceptions import GalileoException, GalileoWarning
 from dataquality.integrations.torch import TorchLogger, unwatch
 from dataquality.loggers.model_logger.semantic_segmentation import (
     SemanticSegmentationModelLogger,
@@ -469,6 +470,18 @@ class SemanticTorchLogger(TorchLogger):
     def upload_contours_split(self, split: str) -> None:
         """Uploads all contours for a given split to minio
 
+        Structure of the contours.json file:
+        {
+            image_id: {
+                polygon_uuid: contours
+                polygon_uuid2: contours
+            }
+            image_id2: {
+                polygon_uuid3: contours
+                polygon_uuid4: contours
+            }
+        }
+
         Args:
             split (str): split name
         """
@@ -479,9 +492,22 @@ class SemanticTorchLogger(TorchLogger):
         files = os.listdir(local_contour_path)
         image_to_contours_map: Dict = defaultdict(dict)
         for fname in files:
-            with open(f"{local_contour_path}/{fname}") as f:
+            pth = f"{local_contour_path}/{fname}"
+            with open(pth) as f:
                 # Dict image_id -> contours for a single polygon in the image
                 image_to_contours_single_polygon = json.load(f)
+                if not all(
+                    [
+                        isinstance(image_to_contours_single_polygon, dict),
+                        len(image_to_contours_single_polygon) > 0,
+                    ]
+                ):
+                    warnings.warn(
+                        f"Unable to load contours for {pth}, skipping.",
+                        GalileoWarning,
+                    )
+                    continue
+
                 image_id = list(image_to_contours_single_polygon.keys())[0]
                 contours = image_to_contours_single_polygon[image_id]
                 # uuid is the key for each contour from the polygon schema

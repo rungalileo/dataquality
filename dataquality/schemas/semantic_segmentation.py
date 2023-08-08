@@ -127,7 +127,7 @@ class Polygon(BaseModel):
                     Contour(pixels=[Pixel(x=12, y=9), Pixel(x=11, y=11)])
                 ]
             )
-            polygon.contours_json("123")
+            polygon.contours_json(123)
             >>> {123: [[[0, 0], [0, 1]], [[12, 9], [11, 11]]]}
         """
         contours = []
