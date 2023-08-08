@@ -1,6 +1,6 @@
 import uuid
 from enum import Enum
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import numpy as np
 from pydantic import BaseModel
@@ -95,7 +95,6 @@ class Polygon(BaseModel):
     likely_mislabeled_pct: Optional[float] = None
     polygon_type: PolygonType
 
-    @property
     def contours_opencv(self) -> List[np.ndarray]:
         """Deserialize the contours in a polygon to be OpenCV contour compatible
 
@@ -106,7 +105,7 @@ class Polygon(BaseModel):
             polygon = Polygon(
                 contours=[Contour(pixels=[Pixel(x=0, y=0), Pixel(x=0, y=1)])]
             )
-            polygon.contours_opencv
+            polygon.contours_opencv()
             >>> [np.array([[0, 0], [0, 1]])]
         """
         contours = []
@@ -115,9 +114,11 @@ class Polygon(BaseModel):
             contours.append(np.array(pixels))
         return contours
 
-    @property
-    def contours_json(self) -> List:
+    def contours_json(self, image_id: int) -> Dict[int, List]:
         """Deserialize the contours as a JSON
+
+        In the backend we store polygon contours per image, so we need
+        to keep a reference to which image the polygon belongs to.
 
         Example:
             polygon = Polygon(
@@ -126,14 +127,14 @@ class Polygon(BaseModel):
                     Contour(pixels=[Pixel(x=12, y=9), Pixel(x=11, y=11)])
                 ]
             )
-            polygon.contours_opencv
-            >>> [[[0, 0], [0, 1]], [[12, 9], [11, 11]]]
+            polygon.contours_json(123)
+            >>> {123: [[[0, 0], [0, 1]], [[12, 9], [11, 11]]]}
         """
         contours = []
         for contour in self.contours:
             pixels = [pixel.deserialize_json for pixel in contour.pixels]
             contours.append(pixels)
-        return contours
+        return {image_id: contours}
 
     @staticmethod
     def dummy_polygon() -> "Polygon":
