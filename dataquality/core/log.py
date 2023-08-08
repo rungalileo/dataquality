@@ -2,11 +2,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
+from datasets import Dataset
 import numpy as np
 import pandas as pd
-from transformers import PreTrainedTokenizerFast
+from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizerFast
+
 
 from dataquality.loggers.logger_config.seq2seq import seq2seq_logger_config
+from dataquality.utils.seq2seq import generate_output_for_dataset
 
 if TYPE_CHECKING:
     import xgboost as xgb
@@ -635,6 +638,23 @@ def set_tokenizer(tokenizer: PreTrainedTokenizerFast) -> None:
     seq2seq_logger_config.tokenizer = tokenizer
     # Seq2Seq doesn't have labels but we need to set this to avoid validation errors
     seq2seq_logger_config.labels = []
+
+
+@check_noop
+def log_generation(model: PreTrainedModel, generation_config: GenerationConfig, dataset: Dataset) -> None:
+    """Seq2seq only. Log model generations for your run
+
+    Iterates over a given dataset and logs the generations for each sample.
+    `model` must be an instance of transformers PreTrainedModel and have a `generate`
+      method.
+    """
+    task_type = _get_task_type()
+    assert task_type == TaskType.seq2seq, "This method is only supported for seq2seq"
+    assert isinstance(
+        model, PreTrainedModel
+    ), "model must be an instance of transformers PreTrainedModel"
+    assert model.can_generate(), "model must contain a `generate` method for seq2seq"
+    generate_output_for_dataset(model, generation_config, dataset)
 
 
 @check_noop

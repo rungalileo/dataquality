@@ -1,11 +1,49 @@
 from collections import defaultdict
 from typing import Dict, List, Set, Tuple
 
+from datasets import Dataset
 import numpy as np
 import pyarrow as pa
+import torch
 from tqdm.auto import tqdm
+from transformers import GenerationConfig, PreTrainedModel
 
+from dataquality.loggers.logger_config.seq2seq import seq2seq_logger_config
 from dataquality.schemas.seq2seq import AlignedTokenData
+
+
+def generate_output_for_dataset(
+    model: PreTrainedModel,
+    generation_config: GenerationConfig,
+    dataset: Dataset
+) -> None:
+    tokenizer = seq2seq_logger_config.tokenizer
+    for sample in tqdm(dataset, desc="Generating output"):
+        input_ids = sample['input_ids']
+        # Shape - [1, seq_len]
+        input_ids = torch.as_tensor([input_ids]).to(device)
+
+        generation_respone = model.generate(
+            input_ids=input_ids,
+            generation_config=generation_config,
+            return_dict_in_generate=True,  # Required to get token probs
+            output_scores=True # Required to get token probs
+        )
+
+        # Remove the <pad> token to seed generation
+        generated_tokens = generation_respone.sequences[0, 1:]
+        decoded = tokenizer.decode(generated_tokens)
+        # generated_logits = torch.stack(generation_respone.scores)[:, 0, :]
+
+        # Note that the model may also end with the <eos> token. We should
+        # check for this to get the correct logits!
+        if generated_tokens[-1] == tokenizer.eos_token_id:
+            # Cut off the generated <eos> token if need
+            # And remove the probability associated with its generation
+            generated_tokens = generated_tokens[:-1]
+            # generated_logits = generation_respone.scores[:-1]
+
+        decoded = tokenizer.decode(generated_tokens)
 
 
 def _handle_overlapping_offsets(
