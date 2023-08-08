@@ -35,11 +35,9 @@ __version__ = "0.11.0"
 
 import sys
 from typing import Any, List, Optional
-from warnings import warn
 
 import dataquality.core._config
 import dataquality.integrations
-from dataquality.exceptions import GalileoWarning
 
 # We try/catch this in case the user installed dq inside of jupyter. You need to
 # restart the kernel after the install and we want to make that clear. This is because
@@ -146,14 +144,6 @@ try:
     resource.setrlimit(resource.RLIMIT_NOFILE, (65535, 65535))
 except (ImportError, ValueError):  # The users limit is higher than our max, which is OK
     pass
-
-# Warn if the user is using an old version of Python.
-if sys.version_info < (3, 8):
-    warn(
-        "You are using an old version of Python. Please upgrade to Python 3.8"
-        "or higher. dataquality does not support Python 3.7 ",
-        GalileoWarning,
-    )
 
 
 #  Logging is optional. If enabled, imports, method calls
