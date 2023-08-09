@@ -21,10 +21,8 @@ def generate_output(
 ) -> np.ndarray:
     results = []
     for sample in text:
-        input_ids = tokenizer(sample)["input_ids"]
         # Shape - [1, seq_len]
-        input_ids = torch.as_tensor([input_ids]).to(device)
-
+        input_ids = tokenizer(sample, return_tensors="pt")["input_ids"].to(device)
         generation_respone = model.generate(
             input_ids=input_ids,
             generation_config=generation_config,
