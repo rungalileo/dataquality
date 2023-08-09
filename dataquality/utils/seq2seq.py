@@ -13,7 +13,9 @@ from dataquality.schemas.seq2seq import AlignedTokenData
 
 
 class Seq2SeqLogger:
-    def __init__(self, model: PreTrainedModel, generation_config: GenerationConfig) -> None:
+    def __init__(
+        self, model: PreTrainedModel, generation_config: GenerationConfig
+    ) -> None:
         self.model = model
 
 
@@ -21,6 +23,7 @@ def generate_output_for_dataset(
     model: PreTrainedModel, generation_config: GenerationConfig, dataset: Dataset
 ) -> None:
     tokenizer = seq2seq_logger_config.tokenizer
+    assert tokenizer, "Must set tokenizer via `dq.set_tokenizer`"
     for sample in tqdm(dataset, desc="Generating output"):
         input_ids = sample["input_ids"]
         # Shape - [1, seq_len]
