@@ -178,7 +178,9 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 mislabeled_class_pcts.append(
                     polygon.cls_error_data.mislabeled_class_pct
                 )
-                write_polygon_contours_to_disk(polygon, self.local_contours_path)
+                write_polygon_contours_to_disk(
+                    polygon, self.local_contours_path, image_id
+                )
                 polygon_ids.append(polygon.uuid)
 
         polygon_data = {

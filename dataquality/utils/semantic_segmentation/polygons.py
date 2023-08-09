@@ -145,13 +145,14 @@ def draw_polygon(polygon: Polygon, shape: Tuple[int, ...]) -> np.ndarray:
         np.ndarray: image with single polygon drawn on it
     """
     return cv2.drawContours(
-        np.zeros(shape), polygon.contours_opencv, -1, polygon.label_idx, -1
+        np.zeros(shape), polygon.contours_opencv(), -1, polygon.label_idx, -1
     )
 
 
 def write_polygon_contours_to_disk(
     polygon: Polygon,
     prefix: str,
+    image_id: int,
 ) -> None:
     """Writes polygons to disk in json format
 
@@ -165,5 +166,5 @@ def write_polygon_contours_to_disk(
     local_path = f"{prefix}/{polygon.uuid}.json"
 
     with open(local_path, "w") as f:
-        json.dump(polygon.contours_json, f)
+        json.dump(polygon.contours_json(image_id), f)
     f.close()
