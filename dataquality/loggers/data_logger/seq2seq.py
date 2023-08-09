@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, Any, List, Optional, Set, Tuple, Union, cast
 
 import pandas as pd
 import pyarrow as pa
+import torch
 import vaex
 from vaex.dataframe import DataFrame
 
@@ -12,12 +13,16 @@ from dataquality.loggers.data_logger.base_data_logger import (
     DataSet,
     MetasType,
 )
-from dataquality.loggers.logger_config.seq2seq import seq2seq_logger_config
+from dataquality.loggers.logger_config.seq2seq import (
+    Seq2SeqLoggerConfig,
+    seq2seq_logger_config,
+)
 from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.seq2seq import Seq2SeqInputCols as C
 from dataquality.schemas.split import Split
-from dataquality.utils.seq2seq import (
+from dataquality.utils.seq2seq import (  # noqa needed to register the vaex function
     align_tokens_to_character_spans,
+    generate_output,  # noqa: F401
 )
 from dataquality.utils.vaex import rename_df
 
@@ -67,7 +72,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
     """
 
     __logger_name__ = "seq2seq"
-    logger_config = seq2seq_logger_config
+    logger_config: Seq2SeqLoggerConfig = seq2seq_logger_config
     DATA_FOLDER_EXTENSION = {"emb": "hdf5", "prob": "hdf5", "data": "arrow"}
 
     def __init__(self, meta: Optional[MetasType] = None) -> None:
@@ -193,6 +198,68 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
     @classmethod
     def _get_prob_cols(cls) -> List[str]:
         return ["id"]
+
+    @classmethod
+    def create_in_out_frames(
+        cls,
+        in_frame: DataFrame,
+        dir_name: str,
+        prob_only: bool,
+        split: str,
+        epoch_or_inf: Union[str, int],
+    ) -> BaseLoggerDataFrames:
+        """Formats the input data and model output data
+
+        In this step, we concatenate the many hdf5 files created during model training
+        and logging. We log those in threaded processes, and here we combine them
+        into a single hdf5 file that vaex can read into a dataframe
+
+        :param in_frame: the input dataframe
+        :param dir_name: The directory of all of the output hdf5 files
+        :param prob_only: If we are only uploading probability data. We only upload
+            probability data for all epochs except the last one (we dont use cross-epoch
+            embeddings currently, so we dont log them)
+        :param split: The split we are logging for
+        :param epoch_or_inf: The epoch or inference name we are logging for
+        """
+        in_frame = cls.add_generated_output_to_df(in_frame, split)
+        return super().create_in_out_frames(
+            in_frame, dir_name, prob_only, split, epoch_or_inf
+        )
+
+    @classmethod
+    def add_generated_output_to_df(cls, df: DataFrame, split: str) -> DataFrame:
+        """Adds the generated output to the dataframe
+
+        Adds the generated output to the dataframe, and also adds the
+        `token_label_positions` column
+        """
+        logger_config = cls.logger_config
+        tokenizer = logger_config.tokenizer
+        model = logger_config.model
+        generation_config = logger_config.generation_config
+        if tokenizer is None:
+            raise GalileoException(
+                "You must set your tokenizer before logging. Use `dq.set_tokenizer`"
+            )
+        if model is None:
+            raise GalileoException(
+                "You must set your model before logging. Use `watch`"
+            )
+        if generation_config is None:
+            raise GalileoException(
+                "You must set your generation config before logging. Use `watch`"
+            )
+        if split not in logger_config.generation_splits:
+            print("Skipping generation for split", split)
+            return df
+
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model.eval()
+        df[C.generated_output.value] = df[C.text.value].func.generate_output(
+            tokenizer, model, device, generation_config
+        )
+        return df
 
     @classmethod
     def separate_dataframe(

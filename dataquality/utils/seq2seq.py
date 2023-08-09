@@ -4,11 +4,10 @@ from typing import Dict, List, Set, Tuple
 import numpy as np
 import pyarrow as pa
 import torch
-from datasets import Dataset
+import vaex
 from tqdm.auto import tqdm
-from transformers import GenerationConfig, PreTrainedModel
+from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizerFast
 
-from dataquality.loggers.logger_config.seq2seq import seq2seq_logger_config
 from dataquality.schemas.seq2seq import AlignedTokenData
 
 
@@ -19,15 +18,19 @@ class Seq2SeqLogger:
         self.model = model
 
 
-def generate_output_for_dataset(
-    model: PreTrainedModel, generation_config: GenerationConfig, dataset: Dataset
-) -> None:
-    tokenizer = seq2seq_logger_config.tokenizer
-    assert tokenizer, "Must set tokenizer via `dq.set_tokenizer`"
-    for sample in tqdm(dataset, desc="Generating output"):
-        input_ids = sample["input_ids"]
+@vaex.register_function()
+def generate_output(
+    text: pa.array,
+    tokenizer: PreTrainedTokenizerFast,
+    model: PreTrainedModel,
+    device: torch.device,
+    generation_config: GenerationConfig,
+) -> np.ndarray:
+    results = []
+    for sample in text:
+        input_ids = tokenizer(sample)["input_ids"]
         # Shape - [1, seq_len]
-        input_ids = torch.as_tensor([input_ids])  # .to(device)
+        input_ids = torch.as_tensor([input_ids]).to(device)
 
         generation_respone = model.generate(
             input_ids=input_ids,
@@ -39,6 +42,7 @@ def generate_output_for_dataset(
         # Remove the <pad> token to seed generation
         generated_tokens = generation_respone.sequences[0, 1:]
         tokenizer.decode(generated_tokens)
+        # TODO: Skip logits for now, will update later
         # generated_logits = torch.stack(generation_respone.scores)[:, 0, :]
 
         # Note that the model may also end with the <eos> token. We should
@@ -49,7 +53,9 @@ def generate_output_for_dataset(
             generated_tokens = generated_tokens[:-1]
             # generated_logits = generation_respone.scores[:-1]
 
-        tokenizer.decode(generated_tokens)
+        results.append(tokenizer.decode(generated_tokens))
+
+    return np.array(results)
 
 
 def _handle_overlapping_offsets(
