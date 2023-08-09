@@ -11,13 +11,6 @@ from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizerF
 from dataquality.schemas.seq2seq import AlignedTokenData
 
 
-class Seq2SeqLogger:
-    def __init__(
-        self, model: PreTrainedModel, generation_config: GenerationConfig
-    ) -> None:
-        self.model = model
-
-
 @vaex.register_function()
 def generate_output(
     text: pa.array,

@@ -317,6 +317,9 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             return
         in_frame_split = vaex.open(f"{in_frame_path}/*.{self.INPUT_DATA_FILE_EXT}")
         in_frame_split = self.convert_large_string(in_frame_split)
+        # Already has 'text' column (which is the input data)
+        # TODO: Iterate through all samples in in_frame_split
+        # and run the text through the tokenizer and model
         self.upload_split_from_in_frame(
             object_store,
             in_frame_split,
