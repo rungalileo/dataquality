@@ -12,6 +12,11 @@ from dataquality.loggers.logger_config.seq2seq import seq2seq_logger_config
 from dataquality.schemas.seq2seq import AlignedTokenData
 
 
+class Seq2SeqLogger:
+    def __init__(self, model: PreTrainedModel, generation_config: GenerationConfig) -> None:
+        self.model = model
+
+
 def generate_output_for_dataset(
     model: PreTrainedModel, generation_config: GenerationConfig, dataset: Dataset
 ) -> None:

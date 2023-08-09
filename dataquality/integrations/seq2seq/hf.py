@@ -1,5 +1,6 @@
 from transformers import GenerationConfig, PreTrainedModel
 
+import dataquality as dq
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.helpers import get_task_type
 
