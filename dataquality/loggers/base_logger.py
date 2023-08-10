@@ -66,6 +66,10 @@ class BaseLoggerAttributes(str, Enum):
     id = "id"
     token_gold_probs = "token_gold_probs"
     tokenized_label = "tokenized_label"
+    # Seq2Seq attributes
+    input = "input"
+    target_output = "target_output"
+    generated_output = "generated_output"
 
     @staticmethod
     def get_valid() -> List[str]:
