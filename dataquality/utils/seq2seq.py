@@ -9,44 +9,49 @@ from tqdm.auto import tqdm
 from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizerFast
 
 from dataquality.schemas.seq2seq import AlignedTokenData
+from dataquality.schemas.seq2seq import Seq2SeqInputCols as C
 
 
-@vaex.register_function()
-def generate_output(
-    text: pa.array,
+def add_generated_output_to_df(
+    df: vaex.DataFrame,
     tokenizer: PreTrainedTokenizerFast,
     model: PreTrainedModel,
     device: torch.device,
     generation_config: GenerationConfig,
-) -> np.ndarray:
-    results = []
-    for sample in text:
-        # Shape - [1, seq_len]
-        input_ids = tokenizer(sample, return_tensors="pt")["input_ids"].to(device)
-        generation_respone = model.generate(
-            input_ids=input_ids,
-            generation_config=generation_config,
-            return_dict_in_generate=True,  # Required to get token probs
-            output_scores=True,  # Required to get token probs
-        )
+) -> vaex.DataFrame:
+    @vaex.register_function()
+    def generate_output(text: pa.array) -> np.ndarray:
+        results = []
+        for sample in text:
+            # Shape - [1, seq_len]
+            input_ids = tokenizer(str(sample), return_tensors="pt")["input_ids"].to(
+                device
+            )
+            generation_respone = model.to(device).generate(
+                input_ids=input_ids,
+                generation_config=generation_config,
+                return_dict_in_generate=True,  # Required to get token probs
+                output_scores=True,  # Required to get token probs
+            )
 
-        # Remove the <pad> token to seed generation
-        generated_tokens = generation_respone.sequences[0, 1:]
-        tokenizer.decode(generated_tokens)
-        # TODO: Skip logits for now, will update later
-        # generated_logits = torch.stack(generation_respone.scores)[:, 0, :]
+            # Remove the <pad> token to seed generation
+            generated_tokens = generation_respone.sequences[0, 1:]
+            # TODO: Skip logits for now, will update later
+            # generated_logits = torch.stack(generation_respone.scores)[:, 0, :]
 
-        # Note that the model may also end with the <eos> token. We should
-        # check for this to get the correct logits!
-        if generated_tokens[-1] == tokenizer.eos_token_id:
-            # Cut off the generated <eos> token if need
-            # And remove the probability associated with its generation
-            generated_tokens = generated_tokens[:-1]
-            # generated_logits = generation_respone.scores[:-1]
+            # Note that the model may also end with the <eos> token. We should
+            # check for this to get the correct logits!
+            if generated_tokens[-1] == tokenizer.eos_token_id:
+                # Cut off the generated <eos> token if need
+                # And remove the probability associated with its generation
+                generated_tokens = generated_tokens[:-1]
+                # generated_logits = generation_respone.scores[:-1]
 
-        results.append(tokenizer.decode(generated_tokens))
+            results.append(tokenizer.decode(generated_tokens))
+        return np.array(results)
 
-    return np.array(results)
+    df[C.generated_output.value] = df.func.generate_output(df[C.text.value])
+    return df
 
 
 def _handle_overlapping_offsets(

@@ -20,9 +20,9 @@ from dataquality.loggers.logger_config.seq2seq import (
 from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.seq2seq import Seq2SeqInputCols as C
 from dataquality.schemas.split import Split
-from dataquality.utils.seq2seq import (  # noqa needed to register the vaex function
+from dataquality.utils.seq2seq import (
+    add_generated_output_to_df,
     align_tokens_to_character_spans,
-    generate_output,  # noqa: F401
 )
 from dataquality.utils.vaex import rename_df
 
@@ -255,10 +255,8 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             return df
 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        model.eval()
-        df[C.generated_output.value] = df[C.text.value].func.generate_output(
-            tokenizer, model, device, generation_config
-        )
+        model.eval().to(device)
+        df = add_generated_output_to_df(df, tokenizer, model, device, generation_config)
         return df
 
     @classmethod
