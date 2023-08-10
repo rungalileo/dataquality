@@ -31,7 +31,8 @@ from dataquality.loggers.model_logger.object_detection import ObjectDetectionMod
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
-from dataquality.utils.helpers import check_noop, get_task_type
+from dataquality.utils.helpers import check_noop
+from dataquality.utils.task_helpers import get_task_type
 
 DEFAULT_RANDOM_EMB_DIM = 2
 a = Analytics(ApiClient, config)  # type: ignore
