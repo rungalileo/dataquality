@@ -210,17 +210,8 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
     ) -> BaseLoggerDataFrames:
         """Formats the input data and model output data
 
-        In this step, we concatenate the many hdf5 files created during model training
-        and logging. We log those in threaded processes, and here we combine them
-        into a single hdf5 file that vaex can read into a dataframe
-
-        :param in_frame: the input dataframe
-        :param dir_name: The directory of all of the output hdf5 files
-        :param prob_only: If we are only uploading probability data. We only upload
-            probability data for all epochs except the last one (we dont use cross-epoch
-            embeddings currently, so we dont log them)
-        :param split: The split we are logging for
-        :param epoch_or_inf: The epoch or inference name we are logging for
+        For Seq2Seq we need to add the generated output to the input dataframe,
+        and then call the super method to create the input and output dataframes
         """
         in_frame = cls.add_generated_output_to_df(in_frame, split)
         return super().create_in_out_frames(
