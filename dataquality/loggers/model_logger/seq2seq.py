@@ -3,7 +3,10 @@ from typing import Dict, List, Optional, Tuple, Union
 import numpy as np
 import pyarrow as pa
 
-from dataquality.loggers.logger_config.seq2seq import seq2seq_logger_config
+from dataquality.loggers.logger_config.seq2seq import (
+    Seq2SeqLoggerConfig,
+    seq2seq_logger_config,
+)
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.schemas.seq2seq import Seq2SeqOutputCols as C
 from dataquality.schemas.split import Split
@@ -12,7 +15,7 @@ from dataquality.utils.arrow import save_arrow_file
 
 class Seq2SeqModelLogger(BaseGalileoModelLogger):
     __logger_name__ = "seq2seq"
-    logger_config = seq2seq_logger_config
+    logger_config: Seq2SeqLoggerConfig = seq2seq_logger_config
     log_file_ext = "arrow"
 
     def __init__(

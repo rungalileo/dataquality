@@ -3,7 +3,7 @@ from transformers import GenerationConfig, PreTrainedModel
 from dataquality.loggers.logger_config.seq2seq import seq2seq_logger_config
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
-from dataquality.utils.helpers import get_task_type
+from dataquality.utils.task_helpers import get_task_type
 
 
 def watch(
