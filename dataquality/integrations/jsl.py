@@ -48,6 +48,7 @@ class Project:
         model = find_ner_model(pipeline, text_col)
         model.setIncludeAllConfidenceScores(True)
         model.setIncludeConfidence(True)
+        self.labels = model.getClasses()
         self.emb_col, _, _ = get_relevant_cols()
         self.text_col = text_col
         self.pipeline = pipeline

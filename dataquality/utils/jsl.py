@@ -297,9 +297,11 @@ def find_ner_model(pipeline: PipelineLike) -> Any:
     if matches:
         # Return first match or None if no matches found
         for match in matches:
-            model = stages[cleaned_model_list.index(matches)]
-            if hasattr(model, "setIncludeAllConfidenceScores") and hasattr(
-                model, "setIncludeConfidence"
+            model = stages[cleaned_model_list.index(match)]
+            if (
+                hasattr(model, "setIncludeAllConfidenceScores")
+                and hasattr(model, "setIncludeConfidence")
+                and hasattr(model, "getClasses")
             ):
                 return model
 
