@@ -32,6 +32,7 @@ from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.helpers import check_noop
+from dataquality.utils.task_helpers import get_task_type
 
 DEFAULT_RANDOM_EMB_DIM = 2
 a = Analytics(ApiClient, config)  # type: ignore
@@ -553,25 +554,15 @@ def set_tagging_schema(tagging_schema: TaggingSchema) -> None:
 def get_model_logger(
     task_type: Optional[TaskType] = None, *args: Any, **kwargs: Any
 ) -> BaseGalileoModelLogger:
-    task_type = _get_task_type(task_type)
+    task_type = get_task_type(task_type)
     return BaseGalileoModelLogger.get_logger(task_type)(*args, **kwargs)
 
 
 def get_data_logger(
     task_type: Optional[TaskType] = None, *args: Any, **kwargs: Any
 ) -> BaseGalileoDataLogger:
-    task_type = _get_task_type(task_type)
+    task_type = get_task_type(task_type)
     return BaseGalileoDataLogger.get_logger(task_type)(*args, **kwargs)
-
-
-def _get_task_type(task_type: Optional[TaskType] = None) -> TaskType:
-    task = task_type or config.task_type
-    if not task:
-        raise GalileoException(
-            "You must provide either a task_type or first call "
-            "dataqualtiy.init and provide one"
-        )
-    return task
 
 
 def docs() -> None:
@@ -624,7 +615,7 @@ def set_tokenizer(tokenizer: PreTrainedTokenizerFast) -> None:
 
     Must be a fast tokenizer, and must support `decode`, `encode`, `encode_plus`
     """
-    task_type = _get_task_type()
+    task_type = get_task_type()
     assert task_type == TaskType.seq2seq, "This method is only supported for seq2seq"
     assert isinstance(
         tokenizer, PreTrainedTokenizerFast

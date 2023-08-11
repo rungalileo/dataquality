@@ -12,7 +12,10 @@ from dataquality.loggers.data_logger.base_data_logger import (
     DataSet,
     MetasType,
 )
-from dataquality.loggers.logger_config.seq2seq import seq2seq_logger_config
+from dataquality.loggers.logger_config.seq2seq import (
+    Seq2SeqLoggerConfig,
+    seq2seq_logger_config,
+)
 from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.seq2seq import Seq2SeqInputCols as C
 from dataquality.schemas.split import Split
@@ -67,7 +70,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
     """
 
     __logger_name__ = "seq2seq"
-    logger_config = seq2seq_logger_config
+    logger_config: Seq2SeqLoggerConfig = seq2seq_logger_config
     DATA_FOLDER_EXTENSION = {"emb": "hdf5", "prob": "hdf5", "data": "arrow"}
 
     def __init__(self, meta: Optional[MetasType] = None) -> None:
@@ -219,12 +222,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             other_cols += ["id"]
 
         emb = df_copy[emb_cols]
-        data_df = df_copy[other_cols]
-        data_cols = data_df.get_column_names()
-        if "text" in data_cols:
-            data_df.rename("text", "input")
-        if "label" in data_cols:
-            data_df.rename("label", "target_output")
+        data_df = C.set_cols(df_copy[other_cols])
         return BaseLoggerDataFrames(prob=prob, emb=emb, data=data_df)
 
     @property
