@@ -74,8 +74,15 @@ def extract_ner_gold_spans(ner_list: List[Row]) -> List[dict]:
     return spans
 
 
-def convert_ner_to_list(labels: List[str], ner_list: List[Row]) -> List[List[float]]:
-    return [[float(row.metadata.get(tag, "0")) for tag in labels] for row in ner_list]
+def convert_ner_to_list(labels: List[str]) -> List[List[float]]:
+    labels = labels
+
+    def convert_ner_to_list(ner_list: List[Row]) -> List[List[float]]:
+        return [
+            [float(row.metadata.get(tag, "0")) for tag in labels] for row in ner_list
+        ]
+
+    return convert_ner_to_list
 
 
 def prepare_df_for_dq(
@@ -83,7 +90,7 @@ def prepare_df_for_dq(
 ) -> DataFrame:
     embeddings_udf = udf(extract_embeddings, ArrayType(ArrayType(FloatType())))
     convert_ner_to_list_udf = udf(
-        partial(convert_ner_to_list)(labels), ArrayType(ArrayType(FloatType()))
+        convert_ner_to_list(labels), ArrayType(ArrayType(FloatType()))
     )
 
     df = df.withColumn(
