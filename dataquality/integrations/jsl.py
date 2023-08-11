@@ -43,15 +43,18 @@ class Project:
             run_name=self.run_name,
             task_type=self.task_type,
         )
+        if self.task_type == TaskType.text_ner:
+            dq.set_tagging_schema("BIO")
 
     def watch(self, pipeline: PipelineLike, text_col: str = "text") -> None:
-        model = find_ner_model(pipeline, text_col)
+        model = find_ner_model(pipeline)
         model.setIncludeAllConfidenceScores(True)
         model.setIncludeConfidence(True)
         self.labels = model.getClasses()
-        self.emb_col, _, _ = get_relevant_cols()
+        self.emb_col, _, _ = get_relevant_cols(model, pipeline)
         self.text_col = text_col
         self.pipeline = pipeline
+        dq.set_labels_for_run(self.labels)
 
     def evaluate(
         self,
