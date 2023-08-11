@@ -1,4 +1,5 @@
 import copy
+from functools import partial
 from typing import Any, Dict, List, Tuple, Union
 
 import numpy as np
@@ -15,12 +16,9 @@ from pyspark.sql.types import (
     StructField,
     StructType,
 )
-from sparknlp.pretrained import (
-    LightPipeline,
-    Pipeline,
-    PipelineModel,
-    PretrainedPipeline,
-)
+from sparknlp.pretrained.pretrained_pipeline import PretrainedPipeline
+from sparknlp.base.light_pipeline import LightPipeline
+from pyspark.ml import PipelineModel, Pipeline
 
 
 MAX_TOKEN_LEN = 512
@@ -76,7 +74,7 @@ def extract_ner_gold_spans(ner_list: List[Row]) -> List[dict]:
     return spans
 
 
-def convert_ner_to_list(ner_list: List[Row], labels: List[str]) -> List[List[float]]:
+def convert_ner_to_list(labels: List[str], ner_list: List[Row]) -> List[List[float]]:
     return [[float(row.metadata.get(tag, "0")) for tag in labels] for row in ner_list]
 
 
@@ -85,14 +83,14 @@ def prepare_df_for_dq(
 ) -> DataFrame:
     embeddings_udf = udf(extract_embeddings, ArrayType(ArrayType(FloatType())))
     convert_ner_to_list_udf = udf(
-        convert_ner_to_list, ArrayType(ArrayType(FloatType()))
+        partial(convert_ner_to_list)(labels), ArrayType(ArrayType(FloatType()))
     )
 
     df = df.withColumn(
         embeddings_col, embeddings_udf(col(embeddings_col))
     )  # Do select instead
     df = df.withColumn(
-        "ner_list", convert_ner_to_list_udf(col("ner"), labels)
+        "ner_list", convert_ner_to_list_udf(col("ner"))
     )  # Do select instead
     df = df.drop("document").drop("sentence").drop("entities").drop("token")
     return df
