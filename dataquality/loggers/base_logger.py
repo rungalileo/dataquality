@@ -207,9 +207,6 @@ class BaseGalileoLogger:
         arr: Union[List, np.ndarray], attr: Optional[str] = None
     ) -> np.ndarray:
         """Handles numpy arrays and tensors conversions"""
-        # import pdb
-
-        # pdb.set_trace()
         if torch_available():
             from torch import Tensor
 

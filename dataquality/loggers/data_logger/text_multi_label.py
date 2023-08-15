@@ -27,6 +27,8 @@ class TextMultiLabelDataLogger(BaseGalileoDataLogger):
     __logger_name__ = "text_multi_label"
     logger_config: TextMultiLabelLoggerConfig = text_multi_label_logger_config
 
+    DATA_FOLDER_EXTENSION = {"emb": "hdf5", "prob": "hdf5", "data": "arrow"}
+
     def __init__(
         self,
         split: Optional[str] = None,
@@ -163,14 +165,14 @@ class TextMultiLabelDataLogger(BaseGalileoDataLogger):
         if not isinstance(self.texts, list):
             self.texts = list(self._convert_tensor_ndarray(self.texts))
 
-        clean_labels = self._convert_tensor_ndarray(self.labels, attr="Labels")
+        # clean_labels = self._convert_tensor_ndarray(self.labels, attr="Labels")
         # If the dtype if object, we have a ragged nested sequence, so we need to
         # iterate list by list converting to strings
-        if clean_labels.dtype == object:
-            self.labels = [np.array(i).astype("str").tolist() for i in clean_labels]
-        # Normal nparray, can convert to string elements directly
-        else:
-            self.labels = clean_labels.astype("str").tolist()
+        # if clean_labels.dtype == object:
+        #     self.labels = [np.array(i).astype("str").tolist() for i in clean_labels]
+        # # Normal nparray, can convert to string elements directly
+        # else:
+        #     self.labels = clean_labels.astype("str").tolist()
 
         self.ids = list(self._convert_tensor_ndarray(self.ids))
 
