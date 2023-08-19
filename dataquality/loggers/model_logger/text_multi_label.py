@@ -2,13 +2,13 @@ from collections import defaultdict
 from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
+import pyarrow as pa
 from scipy.special import expit
 
 from dataquality.loggers.logger_config.text_multi_label import (
-    TextMultiLabelLoggerConfig,
-    text_multi_label_logger_config,
-)
-from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
+    TextMultiLabelLoggerConfig, text_multi_label_logger_config)
+from dataquality.loggers.model_logger.base_model_logger import \
+    BaseGalileoModelLogger
 from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.split import Split
 from dataquality.utils.dq_logger import get_dq_logger
@@ -79,6 +79,7 @@ class TextMultiLabelModelLogger(BaseGalileoModelLogger):
         if has_logits:
             self.logits = self._convert_tensor_ndarray(self.logits, "Prob")
             self.probs = self.convert_logits_to_probs(self.logits)
+            self.probs = self.probs.tolist()
             del self.logits
 
         self.embs = self._convert_tensor_ndarray(self.embs, "Embedding")
@@ -127,6 +128,7 @@ class TextMultiLabelModelLogger(BaseGalileoModelLogger):
                 "split": self.split,
                 "emb": emb,
                 "prob": prob,
+                "pred": (np.array(prob) > 0.5).astype(int),
                 "data_schema_version": __data_schema_version__,
             }
             for k in record.keys():

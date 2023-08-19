@@ -8,14 +8,9 @@ from vaex.dataframe import DataFrame
 
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger.base_data_logger import (
-    BaseGalileoDataLogger,
-    MetasType,
-    MetaType,
-)
+    BaseGalileoDataLogger, MetasType, MetaType)
 from dataquality.loggers.logger_config.text_multi_label import (
-    TextMultiLabelLoggerConfig,
-    text_multi_label_logger_config,
-)
+    TextMultiLabelLoggerConfig, text_multi_label_logger_config)
 from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.split import Split
@@ -27,7 +22,7 @@ class TextMultiLabelDataLogger(BaseGalileoDataLogger):
     __logger_name__ = "text_multi_label"
     logger_config: TextMultiLabelLoggerConfig = text_multi_label_logger_config
 
-    DATA_FOLDER_EXTENSION = {"emb": "hdf5", "prob": "hdf5", "data": "arrow"}
+    DATA_FOLDER_EXTENSION = {"emb": "hdf5", "prob": "arrow", "data": "arrow"}
 
     def __init__(
         self,
@@ -165,14 +160,14 @@ class TextMultiLabelDataLogger(BaseGalileoDataLogger):
         if not isinstance(self.texts, list):
             self.texts = list(self._convert_tensor_ndarray(self.texts))
 
-        # clean_labels = self._convert_tensor_ndarray(self.labels, attr="Labels")
+        clean_labels = self._convert_tensor_ndarray(self.labels, attr="Labels")
         # If the dtype if object, we have a ragged nested sequence, so we need to
         # iterate list by list converting to strings
-        # if clean_labels.dtype == object:
-        #     self.labels = [np.array(i).astype("str").tolist() for i in clean_labels]
-        # # Normal nparray, can convert to string elements directly
-        # else:
-        #     self.labels = clean_labels.astype("str").tolist()
+        if clean_labels.dtype == object:
+            self.labels = [np.array(i).astype("str").tolist() for i in clean_labels]
+        # Normal nparray, can convert to string elements directly
+        else:
+            self.labels = clean_labels.astype("str").tolist()
 
         self.ids = list(self._convert_tensor_ndarray(self.ids))
 
@@ -207,7 +202,7 @@ class TextMultiLabelDataLogger(BaseGalileoDataLogger):
     def validate_logged_labels(self) -> None:
         for input_labels in self.labels:
             assert isinstance(
-                input_labels, (list, np.ndarray, pd.Series)
+                input_labels, (list, np.ndarray, pd.Series, pa.lib.StringArray)
             ), f"labels must be a list of lists in multi-label tasks, but got {type(input_labels)}"
 
     @classmethod
@@ -226,7 +221,7 @@ class TextMultiLabelDataLogger(BaseGalileoDataLogger):
 
     @classmethod
     def _get_prob_cols(cls) -> List[str]:
-        return ["id", "prob", "gold"]
+        return ["id", "prob", "active_labels"]
 
     @classmethod
     def separate_dataframe(
@@ -239,8 +234,10 @@ class TextMultiLabelDataLogger(BaseGalileoDataLogger):
         """
         df_copy = df.copy()
         # Separate out embeddings and probabilities into their own files
+
         prob_cols = cls._get_prob_cols()
         prob = df_copy[prob_cols]
+        prob["prob"] = pa.array(prob["prob"].tolist())
 
         if prob_only:  # In this case, we don't care about the other columns
             emb_cols = ["id"]
@@ -254,4 +251,5 @@ class TextMultiLabelDataLogger(BaseGalileoDataLogger):
 
         emb = df_copy[emb_cols]
         data_df = df_copy[other_cols]
+        data_df["pred"] = pa.array(data_df["pred"].tolist())
         return BaseLoggerDataFrames(prob=prob, emb=emb, data=data_df)
