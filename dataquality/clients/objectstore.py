@@ -175,9 +175,9 @@ class ObjectStore:
         """Uploads a Vaex dataframe at the specified object_name location"""
         ext = get_file_extension(object_name)
         with NamedTemporaryFile(suffix=ext) as f:
-            import pdb
+            # import pdb
 
-            pdb.set_trace()
+            # pdb.set_trace()
             df.export(f.name)
             self.create_object(
                 object_name=object_name,
