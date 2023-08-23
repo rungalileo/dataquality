@@ -68,7 +68,7 @@ class BaseLoggerAttributes(str, Enum):
     tokenized_label = "tokenized_label"
     # Seq2Seq attributes
     input = "input"
-    target_output = "target_output"
+    target = "target"
     generated_output = "generated_output"
 
     @staticmethod
