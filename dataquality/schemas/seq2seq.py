@@ -44,6 +44,8 @@ class Seq2SeqOutputCols(str, Enum):
     dep = "data_error_potential"
     token_deps = "token_deps"
     token_gold_probs = "token_gold_probs"
+    token_gold_logprobs = "token_gold_logprobs"
+    token_top_logprobs = "token_top_logprobs"
     # Mypy complained about split as an attribute, so we use `split_`
     split_ = "split"
     epoch = "epoch"
