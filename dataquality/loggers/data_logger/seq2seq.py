@@ -121,8 +121,6 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
                 C.text.value: self.texts,
                 C.label.value: self.labels,
                 C.split_.value: [self.split] * len(self.ids),
-                # TODO: Do we need to save this to the server?
-                C.tokenized_label.value: pa.array(self.tokenized_labels),
                 C.token_label_positions.value: pa.array(self.token_label_positions),
                 C.token_label_offsets.value: pa.array(self.token_label_offsets),
             }
