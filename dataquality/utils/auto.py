@@ -212,7 +212,7 @@ def _apply_column_mapping(dataset: Dataset, column_mapping: Dict[str, str]) -> D
     """
     Applies the provided column mapping to the dataset, renaming columns accordingly.
     """
-    if type(dataset) == dict:
+    if isinstance(dataset, dict):
         dataset = Dataset.from_dict(dataset)
     # Making sure the keys of the column mapping are in the dataset
     # otherwise show a warning message and remove the key from the mapping

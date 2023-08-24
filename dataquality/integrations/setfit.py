@@ -184,7 +184,153 @@ def evaluate(model: "SetFitModel") -> Evaluate:
     return evaluate
 
 
-def auto(
+class _Auto:
+    def __call__(
+        self,
+        setfit_model: Union[
+            "SetFitModel", str
+        ] = "sentence-transformers/paraphrase-mpnet-base-v2",
+        hf_data: Optional[Union[DatasetDict, str]] = None,
+        hf_inference_names: Optional[List[str]] = None,
+        train_data: Optional[Union[pd.DataFrame, Dataset, str]] = None,
+        val_data: Optional[Union[pd.DataFrame, Dataset, str]] = None,
+        test_data: Optional[Union[pd.DataFrame, Dataset, str]] = None,
+        inference_data: Optional[Dict[str, Union[pd.DataFrame, Dataset, str]]] = None,
+        labels: Optional[List[str]] = None,
+        project_name: str = "auto_tc_setfit",
+        run_name: Optional[str] = None,
+        training_args: Optional[Dict[str, Any]] = None,
+        column_mapping: Optional[Dict[str, str]] = None,
+        wait: bool = True,
+        create_data_embs: Optional[bool] = None,
+    ) -> "SetFitModel":
+        """Automatically processes and generates insights on a text classification
+         dataset.
+
+        Given a pandas dataframe, a file path, or a Huggingface dataset path, this
+        function will load the data, train a Huggingface transformer model, and
+        provide insights via a link to the Console.
+
+        At least one of `hf_data`, `train_data` should be provided. If neither of
+        those are, a demo dataset will be used for training.
+
+        Parameters
+        ----------
+        setfit : SetFitModel or Huggingface model name
+            Computes text embeddings for a given text dataset with the model.
+            If a string is provided, it will be used to load a Huggingface model
+            and train it on the data.
+        hf_data : Union[DatasetDict, str], optional
+            Use this parameter if you have Huggingface data in the hub or in memory.
+            Otherwise see `train_data`, `val_data`, and `test_data`. If provided,
+            train_data, val_data, and test_data are ignored.
+        hf_inference_names : list of str, optional
+            A list of key names in `hf_data` to be run as inference
+            runs after training. If set, those keys must exist in `hf_data`.
+        train_data : pandas.DataFrame, Dataset, str, optional
+            Training data to use. Can be a pandas dataframe, a Huggingface dataset,
+            path to a local file, or Huggingface dataset hub path.
+        val_data : pandas.DataFrame, Dataset, str, optional
+            Validation data to use for evaluation and early stopping. If not provided,
+            but test_data is, that will be used as the evaluation set. If neither
+            val_data nor test_data are available, the train data will be split
+            randomly in80/20 ratio.
+        test_data : pandas.DataFrame, Dataset, str, optional
+            Test data to use. If provided with val_data, will be used after training
+            is complete,as the held-out set. If no validation data is provided,
+            this will instead be used as the evaluation set.
+        inference_data : dict, optional
+            Optional inference datasets to run after training. The structure is a
+            dictionary with the key being the inference name and the value being a
+            pandas dataframe, a Huggingface dataset, path to a local file, or
+            Huggingface dataset hub path.
+        labels : list of str, optional
+            List of labels for this dataset. If not provided, they will attempt to
+            be extracted from the data.
+        project_name : str, optional
+            Project name. If not set, a random name will be generated.
+            Default is "auto_tc_setfit".
+        run_name : str, optional
+            Run name for this data. If not set, a random name will be generated.
+        training_args : dict, optional
+            A dictionary of arguments for the SetFitTrainer. It allows you
+            to customize training configuration such as learning rate,
+            batch size, number of epochs, etc.
+        column_mapping : dict, optional
+            A dictionary of column names to use for the provided data.
+            Needs to map to the following keys: "text", "id", "label".
+        wait : bool, optional
+            Whether to wait for the processing of your run to complete. Default is True.
+        create_data_embs : bool, optional
+            Whether to create data embeddings for this run. Default is None.
+
+        Returns
+        -------
+        SetFitModel
+            A SetFitModel instance trained on the provided dataset.
+
+        An example using `auto` with sklearn data as pandas dataframes
+        ```python
+            import pandas as pd
+            from sklearn.datasets import fetch_20newsgroups
+            from dataquality.auto.text_classification import auto
+
+            # Load the newsgroups dataset from sklearn
+            newsgroups_train = fetch_20newsgroups(subset='train')
+            newsgroups_test = fetch_20newsgroups(subset='test')
+            # Convert to pandas dataframes
+            df_train = pd.DataFrame(
+                {"text": newsgroups_train.data, "label": newsgroups_train.target}
+            )
+            df_test = pd.DataFrame(
+                {"text": newsgroups_test.data, "label": newsgroups_test.target}
+            )
+
+            auto(model=model,
+                train_data=df_train,
+                test_data=df_test,
+                labels=newsgroups_train.target_names,
+                project_name="newsgroups_work",
+                run_name="run_1_raw_data"
+            )
+        ```
+
+        An example of using `auto` with a local CSV file with `text` and `label` columns
+        ```python
+        from dataquality.auto.text_classification import auto
+
+        auto(
+            setfit_model="sentence-transformers/paraphrase-mpnet-base-v2",
+            train_data="train.csv",
+            test_data="test.csv",
+            project_name="data_from_local",
+            run_name="run_1_raw_data"
+        )
+        ```
+        """
+        self.model = auto_call(
+            setfit_model,
+            hf_data,
+            hf_inference_names,
+            train_data,
+            val_data,
+            test_data,
+            inference_data,
+            labels,
+            project_name,
+            run_name,
+            training_args,
+            column_mapping,
+            wait,
+            create_data_embs,
+        )
+        return self.model
+
+
+auto = _Auto()
+
+
+def auto_call(
     setfit_model: Union[
         "SetFitModel", str
     ] = "sentence-transformers/paraphrase-mpnet-base-v2",
