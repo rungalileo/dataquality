@@ -77,7 +77,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             self.token_top_logprobs,
             self.token_dep,
             self.sample_dep,
-            self.sample_perplexity
+            self.sample_perplexity,
         ) = self.process_logprobs(self.ids, logprobs)
 
     def compute_token_deps(
@@ -164,7 +164,10 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         return top_logprobs_mapping
 
     def process_logprobs_for_sample(
-        self, sample_id: np.ndarray, sample_logprobs: np.ndarray, sample_top_indices: np.ndarray
+        self,
+        sample_id: np.ndarray,
+        sample_logprobs: np.ndarray,
+        sample_top_indices: np.ndarray,
     ) -> Tuple[np.ndarray, List[Dict[str, float]], np.ndarray]:
         """Extracts gold_logprobs, top_logprobs, and computes token_deps
 
@@ -181,13 +184,13 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
                token_deps.shape = [seq_len]
         """
         assert (
-                self.logger_config.tokenizer is not None
+            self.logger_config.tokenizer is not None
         ), "Must set your tokenizer. Use `dq.set_tokenizer`"
         labels = self.logger_config.id_to_tokens[self.token_map_key][sample_id]
         # Remove padding based on the padding_side of the tokenizer
         if self.logger_config.tokenizer.padding_side == "left":
-            logprobs = sample_logprobs[-len(labels):]
-            top_indices = sample_top_indices[-len(labels):]
+            logprobs = sample_logprobs[-len(labels) :]
+            top_indices = sample_top_indices[-len(labels) :]
         else:
             logprobs = sample_logprobs[: len(labels)]
             top_indices = sample_top_indices[: len(labels)]
@@ -269,12 +272,16 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         batch_deps = []
         batch_perplexities = []
         # Iterate through the samples in the batch
-        for sample_id, sample_logprobs, sample_top_indices in zip(batch_ids, batch_logprobs, top_logprob_indices):
+        for sample_id, sample_logprobs, sample_top_indices in zip(
+            batch_ids, batch_logprobs, top_logprob_indices
+        ):
             (
                 token_gold_logprobs,
                 token_top_logprobs,
                 token_dep,
-            ) = self.process_logprobs_for_sample(sample_id, sample_logprobs, sample_top_indices)
+            ) = self.process_logprobs_for_sample(
+                sample_id, sample_logprobs, sample_top_indices
+            )
             batch_token_gold_logprobs.append(token_gold_logprobs)
             batch_token_top_logprobs.append(token_top_logprobs)
             batch_token_deps.append(batch_token_deps)
@@ -288,7 +295,13 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             perplexity = np.exp(-1 * np.mean(token_gold_logprobs))
             batch_perplexities.append(perplexity)
 
-        return pa.array(batch_token_gold_logprobs), pa.array(batch_token_top_logprobs), pa.array(batch_token_deps), batch_deps, batch_perplexities
+        return (
+            pa.array(batch_token_gold_logprobs),
+            pa.array(batch_token_top_logprobs),
+            pa.array(batch_token_deps),
+            batch_deps,
+            batch_perplexities,
+        )
 
     def _get_data_dict(self) -> Dict:
         """Returns the data dictionary for writing to disk"""
