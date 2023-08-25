@@ -58,3 +58,7 @@ def upload_model_to_dq() -> None:
         tar_path = f"{tmpdirname}/model.tar.gz"
         create_tar_archive(f"{tmpdirname}/model_export", tar_path)
         upload_to_minio_using_presigned_url(signed_url, tar_path)
+    api_client.get_upload_model_info(
+        project_id=config.current_project_id,
+        run_id=config.current_run_id,
+    )
