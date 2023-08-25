@@ -851,3 +851,25 @@ class ApiClient:
             },
         )
         return res
+
+    def get_presigned_url_for_model(
+        self, project_id: UUID4, run_id: UUID4, model_kind: str, model_parameters: Dict
+    ) -> None:
+        """
+        Returns a presigned url for uploading a model to S3
+
+        """
+        return self.make_request(
+            RequestType.POST,
+            url=f"{config.api_url}/{Route.projects}/{str(project_id)}/{Route.runs}/{str(run_id)}/{Route.upload_model}",
+            body={"model_kind": model_kind, "model_parameters": model_parameters},
+        )
+
+    def confirm_model_upload(
+        self, project_id: UUID4, run_id: UUID4, model_kind: str, model_parameters: Dict
+    ) -> None:
+        return self.make_request(
+            RequestType.POST,
+            url=f"{config.api_url}/{Route.projects}/{str(project_id)}/{Route.runs}/{str(run_id)}/{Route.confirm_model_upload}",
+            body={"model_kind": model_kind, "model_parameters": model_parameters},
+        )

@@ -41,6 +41,8 @@ class Route(str, Enum):
     notify = "notify/email"
     token = "get-token"
     upload_file = "upload_file"
+    upload_model = "upload_model"
+    confirm_model_upload = "confirm_model_upload"
     link = "link"
 
     @staticmethod

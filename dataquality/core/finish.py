@@ -14,6 +14,7 @@ from dataquality.schemas.task_type import TaskType
 from dataquality.utils.dq_logger import DQ_LOG_FILE_HOME, upload_dq_log_file
 from dataquality.utils.helpers import check_noop, gpu_available
 from dataquality.utils.thread_pool import ThreadPoolManager
+from dataquality.utils.upload_model import upload_model_to_dq
 
 api_client = ApiClient()
 a = Analytics(ApiClient, config)  # type: ignore
@@ -24,6 +25,7 @@ def finish(
     last_epoch: Optional[int] = None,
     wait: bool = True,
     create_data_embs: Optional[bool] = None,
+    upload_model: bool = False,
 ) -> str:
     """
     Finishes the current run and invokes a job
@@ -38,6 +40,7 @@ def finish(
         `data view` tab of the Galileo console. You can also access these embeddings
         via dq.metrics.get_data_embeddings(). Default True if a GPU is
         available, else default False.
+    :param upload_model: If True, the model will be stored in the galileo project.
     """
     a.log_function("dq/finish")
     if create_data_embs is None:
@@ -78,6 +81,11 @@ def finish(
         f"Job {res['job_name']} successfully submitted. Results will be available "
         f"soon at {res['link']}"
     )
+    if upload_model:
+        try:
+            upload_model_to_dq()
+        except Exception as e:
+            print(f"Error uploading model: {e}")
     if data_logger.logger_config.conditions:
         print(
             "Waiting for run to process before building run report... "
