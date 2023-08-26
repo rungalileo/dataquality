@@ -81,9 +81,10 @@ def finish(
         f"Job {res['job_name']} successfully submitted. Results will be available "
         f"soon at {res['link']}"
     )
-    if upload_model:
+    if upload_model or os.environ.get("DQ_UPLOAD_MODEL"):
         try:
             upload_model_to_dq()
+            print(f"Model uploaded successfully.")
         except Exception as e:
             print(f"Error uploading model: {e}")
     if data_logger.logger_config.conditions:

@@ -46,7 +46,7 @@ def upload_model_to_dq() -> None:
     model = helper_data["model"]
     model_parameters = helper_data["model_parameters"]
     model_kind = helper_data["model_kind"]
-    signed_url = api_client.get_presigned_url_for_model(
+    signed_url_body = api_client.get_presigned_url_for_model(
         project_id=config.current_project_id,
         run_id=config.current_run_id,
         model_kind=model_kind,
@@ -57,7 +57,7 @@ def upload_model_to_dq() -> None:
         model.save_pretrained(f"{tmpdirname}/model_export")
         tar_path = f"{tmpdirname}/model.tar.gz"
         create_tar_archive(f"{tmpdirname}/model_export", tar_path)
-        upload_to_minio_using_presigned_url(signed_url, tar_path)
+        upload_to_minio_using_presigned_url(signed_url_body["upload_url"], tar_path)
     api_client.get_upload_model_info(
         project_id=config.current_project_id,
         run_id=config.current_run_id,
