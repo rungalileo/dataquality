@@ -42,6 +42,7 @@ class Seq2SeqInputCols(str, Enum):
 class Seq2SeqOutputCols(str, Enum):
     id = "id"
     dep = "data_error_potential"
+    perplexity = "perplexity"
     token_deps = "token_deps"
     token_gold_probs = "token_gold_probs"
     token_gold_logprobs = "token_gold_logprobs"

@@ -122,6 +122,7 @@ def test_log_model_outputs(
 
     logits = np.random.rand(batch_size, seq_len, vocab_size)
     # Set the locations of the "padded" tokens to -100 for the logits
+    # TODO how can we make sure we are removing the padding tokens correctly??
     for idx, token_labels in enumerate(tokenized_labels):
         logits[idx, len(token_labels) :] = -100
 
@@ -135,7 +136,8 @@ def test_log_model_outputs(
     logger.logger_config = config
     # Because we have our own instance of the logger, we just replace this function
     # in place so we don't have to deal with the softmax
-    logger.convert_logits_to_probs = lambda logits: logits
+    # TODO: Figure out how to handle the softmax!
+    #logger.convert_logits_to_probs = lambda logits: logits
     with mock.patch("dataquality.core.log.get_model_logger") as mock_method:
         mock_method.return_value = logger
         dq.log_model_outputs(**log_data)
@@ -145,7 +147,9 @@ def test_log_model_outputs(
     expected_cols = [
         "id",
         "token_deps",
-        "token_gold_probs",
+        "token_gold_logprobs",
+        "token_top_logprobs",
+        "perplexity",
         "split",
         "epoch",
         "data_error_potential",
@@ -153,13 +157,14 @@ def test_log_model_outputs(
     assert sorted(output_data.get_column_names()) == sorted(expected_cols)
     assert len(output_data) == 4
 
-    token_gold_probs = output_data["token_gold_probs"].tolist()
+    token_gold_logprobs = output_data["token_gold_logprobs"].tolist()
+    token_top_logprobs = output_data["token_top_logprobs"].tolist()
     token_deps = output_data["token_deps"].tolist()
 
-    for token_labels, token_dep, token_gold_prob in zip(
-        tokenized_labels, token_deps, token_gold_probs
+    for token_labels, token_dep, token_gold_logprob, token_top_logprob in zip(
+        tokenized_labels, token_deps, token_gold_logprobs, token_top_logprobs
     ):
-        assert len(token_labels) == len(token_dep) == len(token_gold_prob)
-        assert -100 not in token_gold_prob
+        assert len(token_labels) == len(token_dep) == len(token_gold_logprob) == len(token_top_logprob)
+        assert -100 not in token_gold_logprob
         for dep in token_dep:
             assert 0 <= dep <= 1

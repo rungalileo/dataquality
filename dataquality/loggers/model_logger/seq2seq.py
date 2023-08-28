@@ -95,16 +95,20 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         the max non label logprobs to optimize compute - this works because log
         is a monotonic function, so exp(max(logprobs)) = max(probs).
 
+        Parameters:
+            sample_logprobs: shape = [seq_len, Vocab size]
+            labels: shape = [seq_len, 1] - note at times we have to squeeze the final dimension
+
         Returns:
             dep: per token DEP - dep.shape = labels.shape
         """
         # TODO: if labels is longer than probs we are in trouble!
         #  this can happen is the user somehow tokenizes their data
         #  differently than the default - e.g. changing max_token_length
-        gold_logprobs = np.take_along_axis(sample_logprobs, labels, axis=-1)
+        gold_logprobs = np.take_along_axis(sample_logprobs, labels, axis=-1).squeeze()
         logprobs_copy = sample_logprobs.copy()
         # Logprobs are always < 0 so we set to -inf
-        logprobs_copy[np.arange(len(labels)), labels] = -float("Inf")
+        logprobs_copy[np.arange(len(labels)), labels.squeeze()] = -float("Inf")
         # Max non-gold logprob
         max_non_gold_logprobs = np.max(logprobs_copy, axis=-1)
 
@@ -186,7 +190,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         assert (
             self.logger_config.tokenizer is not None
         ), "Must set your tokenizer. Use `dq.set_tokenizer`"
-        labels = self.logger_config.id_to_tokens[self.token_map_key][sample_id]
+        labels = np.array(self.logger_config.id_to_tokens[self.token_map_key][sample_id])
         # Remove padding based on the padding_side of the tokenizer
         if self.logger_config.tokenizer.padding_side == "left":
             logprobs = sample_logprobs[-len(labels) :]
@@ -195,8 +199,11 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             logprobs = sample_logprobs[: len(labels)]
             top_indices = sample_top_indices[: len(labels)]
 
+        # Expand final axis - shape = [len(labels), 1]
+        labels = labels[..., None]
+
         # Extract token_gold_logprobs
-        gold_logprobs = np.take_along_axis(logprobs, labels, axis=-1)
+        gold_logprobs = np.take_along_axis(logprobs, labels, axis=-1).squeeze()
 
         # Compute top_logprobs
         top_logprobs = self.get_top_logprobs(logprobs, top_indices)
@@ -310,6 +317,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             C.id.value: self.ids,
             C.token_deps.value: self.token_dep,
             C.dep.value: self.sample_dep,
+            C.perplexity.value: self.sample_perplexity,
             C.token_gold_logprobs.value: self.token_gold_logprobs,
             C.token_top_logprobs.value: self.token_top_logprobs,
             C.split_.value: [Split[self.split].value] * batch_size,
