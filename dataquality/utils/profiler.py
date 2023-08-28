@@ -6,7 +6,6 @@ from types import ModuleType, TracebackType
 from typing import Any, Callable, Dict, Iterable, List, Set, Tuple, Type, Union
 
 from dataquality.exceptions import GalileoException
-from dataquality.utils.ampli import AmpliMetric
 
 OptExcInfo = Tuple[
     Union[Type[BaseException], None],
@@ -116,7 +115,8 @@ def get_device_info() -> Dict:
 
 
 def change_function(
-    func: Callable, handle_request: Callable, scope: Union[AmpliMetric, None] = None
+    func: Callable,
+    handle_request: Callable,
 ) -> Callable:
     """Change function to hook into the exception in python"""
 
@@ -125,7 +125,7 @@ def change_function(
         # extract exception type, value and traceback
         #        etype, evalue, tb = sys.exc_info()
         try:
-            handle_request(*args, scope)
+            handle_request(*args)
         except Exception:
             pass
         return func(*args, **kwargs)

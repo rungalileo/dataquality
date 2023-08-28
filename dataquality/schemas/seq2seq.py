@@ -10,7 +10,7 @@ class Seq2SeqInputCols(str, Enum):
     text = "text"
     input = "input"  # text is renamed to input for S2S
     label = "label"
-    target_output = "target_output"  # label is renamed to target_output for S2S
+    target = "target"  # label is renamed to target for S2S
     generated_output = "generated_output"
     split_ = "split"
     tokenized_label = "tokenized_label"
@@ -19,8 +19,8 @@ class Seq2SeqInputCols(str, Enum):
 
     @classmethod
     def set_cols(cls, df: DataFrame) -> DataFrame:
-        """Sets the input and target_output columns for the dataframe"""
-        return cls.set_target_output(cls.set_input(df))
+        """Sets the input and target columns for the dataframe"""
+        return cls.set_target(cls.set_input(df))
 
     @classmethod
     def set_input(cls, df: DataFrame) -> DataFrame:
@@ -31,7 +31,7 @@ class Seq2SeqInputCols(str, Enum):
         return df
 
     @classmethod
-    def set_target_output(cls, df: DataFrame) -> DataFrame:
+    def set_target(cls, df: DataFrame) -> DataFrame:
         """Sets the target output column for the dataframe"""
         if cls.label.value in df.get_column_names():
             df.rename(cls.label.value, cls.target_output.value)
