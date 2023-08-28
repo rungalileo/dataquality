@@ -50,7 +50,10 @@ def get_dq_logger() -> CustomSplitAdapter:
 
 
 def dq_log_file_path(run_id: Optional[UUID4] = None) -> str:
+    os.makedirs(DQ_LOG_FILE_HOME, exist_ok=True)
     rid = run_id or config.current_run_id
+    if not rid:
+        return f"{DQ_LOG_FILE_HOME}/{DQ_LOG_FILE}"
     return f"{DQ_LOG_FILE_HOME}/{rid}/{DQ_LOG_FILE}"
 
 
