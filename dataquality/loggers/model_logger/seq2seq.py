@@ -44,8 +44,8 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         self.sample_dep: List[float] = []
         self.sample_perplexity: List[float] = []
         self.token_dep = pa.array([])
-        self.token_gold_logprobs = pa.array([])
-        self.token_top_logprobs = pa.array([])
+        self.token_logprobs = pa.array([])
+        self.top_logprobs = pa.array([])
         self.labels = labels
 
     @property
@@ -73,8 +73,8 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         #  experience
         logprobs = self.convert_logits_to_logprobs(self.logits)
         (
-            self.token_gold_logprobs,
-            self.token_top_logprobs,
+            self.token_logprobs,
+            self.top_logprobs,
             self.token_dep,
             self.sample_dep,
             self.sample_perplexity,
@@ -97,7 +97,9 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
 
         Parameters:
             sample_logprobs: shape = [seq_len, Vocab size]
-            labels: shape = [seq_len, 1] - note at times we have to squeeze the final dimension
+            labels: shape = [seq_len, 1]
+                Note - at times we need to squeeze the final dimension when
+                working with labels
 
         Returns:
             dep: per token DEP - dep.shape = labels.shape
@@ -123,8 +125,8 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
 
     def get_top_logprobs(
         self, sample_logprobs: np.ndarray, top_indices: np.ndarray
-    ) -> List[Dict[str, float]]:
-        """Extract per token top_logprobs
+    ) -> List[List[Tuple[str, float]]]:
+        """Extract per token top_logprobs for a sample
 
         For each token, we extract the top-k predicted tokens
         and corresponding logprobs. Then we convert predicted token_ids
@@ -132,47 +134,50 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
 
         Example top_logprobs data format for an example sequence:
         [
-            {
-                "the": -0.2,
-                "a"  : -0.6,
-                ...
-            },
-            {
-                "cat": -0.05,
-                "dog": -0.1,
-                ...
-            },
+            [("the", -0.2), ("a", -0.6), ...],
+            [("cat", -0.05), ("dog", -0.1), ...],
             ...
         ]
 
+        Breaking down this format:
+            - The sample is represented as a List of Lists per token.
+            - For each token, we store a fixed length (k) list of tuples for each of
+            the top-k predicted tokens - (token_string, logprob).
+
+        Parameters:
+            sample_logprobs: shape = [seq_len, Vocab size]
+            top_indices: shape = [seq_len, k]
+
         Return:
-            get_top_logprobs:
-                len(get_top_logprobs) == sample_logprobs.shape[0]
+            top_logprobs:
+                len(top_logprobs) == sample_logprobs.shape[0] == # tokens sample
+                len(top_logprobs[i]) == k
         """
         # Extract top_k logprob indices - shape = [seq_len, k]
-        top_logprobs = np.take_along_axis(sample_logprobs, top_indices, axis=-1)
+        sample_top_logprobs = np.take_along_axis(sample_logprobs, top_indices, axis=-1)
 
         # Generate top_k mapping token by token
-        top_logprobs_mapping: List[Dict[str, float]] = []
-        for token_ids, token_logprobs in zip(top_indices, top_logprobs):
-            token_logprob_mapping = {}
+        top_logprobs: List[List[Tuple[str, float]]] = []
+        for token_top_ids, token_top_logprobs in zip(top_indices, sample_top_logprobs):
+            # List of Tuple[str, int] --> (token string, logprob)
+            token_top_logprobs_mapping = []
             # Loop over the top_k predicted tokens
-            # token_ids/token_logprobs.shape = [k]
-            for token_id, logprob in zip(token_ids, token_logprobs):
+            # token_top_ids/token_top_logprobs.shape == [k]
+            for token_id, logprob in zip(token_top_ids, token_top_logprobs):
                 # TODO: See how slow tokenizer decode is and if we just want to index into the vocab directly
                 str_token = self.logger_config.tokenizer.decode(token_id)
-                token_logprob_mapping[str_token] = logprob
+                token_top_logprobs_mapping.append((str_token, logprob))
 
-            top_logprobs_mapping.append(token_logprob_mapping)
+            top_logprobs.append(token_top_logprobs_mapping)
 
-        return top_logprobs_mapping
+        return top_logprobs
 
     def process_logprobs_for_sample(
         self,
         sample_id: np.ndarray,
         sample_logprobs: np.ndarray,
         sample_top_indices: np.ndarray,
-    ) -> Tuple[np.ndarray, List[Dict[str, float]], np.ndarray]:
+    ) -> Tuple[np.ndarray, List[List[Tuple[str, float]]], np.ndarray]:
         """Extracts gold_logprobs, top_logprobs, and computes token_deps
 
         For each sample we first remove pad token indices using the tokenized labels
@@ -202,7 +207,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         # Expand final axis - shape = [len(labels), 1]
         labels = labels[..., None]
 
-        # Extract token_gold_logprobs
+        # Extract token_logprobs - shape [len(labels)]
         gold_logprobs = np.take_along_axis(logprobs, labels, axis=-1).squeeze()
 
         # Compute top_logprobs
@@ -247,13 +252,13 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             which can't be represented in numpy
 
         Returns:
-            batch_token_gold_logprobs: GT Logprob per token
+            batch_token_logprobs: GT Logprob per token
                 len(batch_token_dep) == batch_size
-                batch_token_gold_logprobs[i].shape is [num_tokens_in_label[i]]
-            batch_token_top_logprobs: Top-k logprob dictionary per token
-                type(batch_token_top_logprobs[i]) = List[Dict[str, float]]
-                len(batch_token_dep) == batch_size
-                len(batch_token_top_logprobs[i]) = num_tokens_in_label[i]
+                batch_token_logprobs[i].shape is [num_tokens_in_label[i]]
+            batch_top_logprobs: Top-k logprob dictionary per token
+                type(batch_top_logprobs[i]) = List[Dict[str, float]]
+                len(batch_top_logprobs) == batch_size
+                len(batch_top_logprobs[i]) = num_tokens_in_label[i]
             batch_token_deps: The DEP per token prediction
                 len(batch_dep) == batch_size
                 batch_token_dep[i].shape is [num_tokens_in_label[i]]
@@ -273,8 +278,8 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         top_logprob_indices = partitioned_logprob_indices[..., :5]
         batch_logprobs *= -1
 
-        batch_token_gold_logprobs = []
-        batch_token_top_logprobs = []
+        batch_token_logprobs = []
+        batch_top_logprobs = []
         batch_token_deps = []
         batch_deps = []
         batch_perplexities = []
@@ -283,28 +288,33 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             batch_ids, batch_logprobs, top_logprob_indices
         ):
             (
-                token_gold_logprobs,
-                token_top_logprobs,
+                token_logprobs,
+                top_logprobs,
                 token_dep,
             ) = self.process_logprobs_for_sample(
                 sample_id, sample_logprobs, sample_top_indices
             )
-            batch_token_gold_logprobs.append(token_gold_logprobs)
-            batch_token_top_logprobs.append(token_top_logprobs)
-            batch_token_deps.append(batch_token_deps)
+
+            batch_token_logprobs.append(token_logprobs)
+            batch_top_logprobs.append(top_logprobs)
+            batch_token_deps.append(token_dep)
 
             # Compute sample DEP as avg(token_DEP)
-            sample_dep = np.mean(batch_token_deps)
+            sample_dep = np.mean(token_dep)
             batch_deps.append(sample_dep)
 
             # Perplexity = exp(-sum(gold_logprobs)
             # TODO: Should this be in runners?
-            perplexity = np.exp(-1 * np.mean(token_gold_logprobs))
+            perplexity = np.exp(-1 * np.mean(token_logprobs))
             batch_perplexities.append(perplexity)
 
+        # Define the format schema for top_logprobs
+        # TODO Put this somewhere else
+        top_logprobs_schema = pa.list_(pa.map_(pa.string(), pa.float64()))
+
         return (
-            pa.array(batch_token_gold_logprobs),
-            pa.array(batch_token_top_logprobs),
+            pa.array(batch_token_logprobs),
+            pa.array(batch_top_logprobs, type=top_logprobs_schema),
             pa.array(batch_token_deps),
             batch_deps,
             batch_perplexities,
@@ -318,8 +328,8 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             C.token_deps.value: self.token_dep,
             C.dep.value: self.sample_dep,
             C.perplexity.value: self.sample_perplexity,
-            C.token_gold_logprobs.value: self.token_gold_logprobs,
-            C.token_top_logprobs.value: self.token_top_logprobs,
+            C.token_logprobs.value: self.token_logprobs,
+            C.top_logprobs.value: self.top_logprobs,
             C.split_.value: [Split[self.split].value] * batch_size,
             C.epoch.value: [self.epoch] * batch_size,
         }

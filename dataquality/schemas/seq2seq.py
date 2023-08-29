@@ -34,7 +34,7 @@ class Seq2SeqInputCols(str, Enum):
     def set_target(cls, df: DataFrame) -> DataFrame:
         """Sets the target output column for the dataframe"""
         if cls.label.value in df.get_column_names():
-            df.rename(cls.label.value, cls.target_output.value)
+            df.rename(cls.label.value, cls.target.value)
 
         return df
 
@@ -45,8 +45,8 @@ class Seq2SeqOutputCols(str, Enum):
     perplexity = "perplexity"
     token_deps = "token_deps"
     token_gold_probs = "token_gold_probs"
-    token_gold_logprobs = "token_gold_logprobs"
-    token_top_logprobs = "token_top_logprobs"
+    token_logprobs = "token_logprobs"
+    top_logprobs = "top_logprobs"
     # Mypy complained about split as an attribute, so we use `split_`
     split_ = "split"
     epoch = "epoch"
