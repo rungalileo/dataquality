@@ -11,7 +11,6 @@ class Seq2SeqInputCols(str, Enum):
     input = "input"  # text is renamed to input for S2S
     label = "label"
     target = "target"  # label is renamed to target for S2S
-    generated_output = "generated_output"
     split_ = "split"
     tokenized_label = "tokenized_label"
     token_label_positions = "token_label_positions"
@@ -47,6 +46,12 @@ class Seq2SeqOutputCols(str, Enum):
     token_gold_probs = "token_gold_probs"
     token_logprobs = "token_logprobs"
     top_logprobs = "top_logprobs"
+    # Columns associated with generated output
+    generated_output = "generated_output"
+    generated_token_label_positions = "generated_token_label_positions"
+    generated_token_label_offsets = "generated_token_label_offsets"
+    generated_token_logprobs = "generated_token_logprobs"
+    generated_top_logprobs = "generated_top_logprobs"
     # Mypy complained about split as an attribute, so we use `split_`
     split_ = "split"
     epoch = "epoch"

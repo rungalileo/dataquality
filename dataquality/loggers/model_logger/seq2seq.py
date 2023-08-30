@@ -310,7 +310,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
 
         # Define the format schema for top_logprobs
         # TODO Put this somewhere else
-        top_logprobs_schema = pa.list_(pa.map_(pa.string(), pa.float64()))
+        top_logprobs_schema = pa.list_(pa.map_(pa.string(), pa.float32()))
 
         return (
             pa.array(batch_token_logprobs),
