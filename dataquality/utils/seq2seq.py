@@ -94,10 +94,13 @@ def add_generated_output_to_df(
     inputs = df[IC.text.value].values
     for sample in inputs:
         # Shape - [1, seq_len]
-        # Need to truncate!
-        input_ids = tokenizer(str(sample), return_tensors="pt")["input_ids"].to(
-            device
-        )
+        tokenizer.encode()
+        input_ids = tokenizer(
+            str(sample),
+            truncation=True,
+            return_tensors="pt"
+        )["input_ids"].to(device)
+
         with torch.no_grad():
             generation_response = model.to(device).generate(
                     input_ids=input_ids,
