@@ -348,17 +348,17 @@ def add_generated_output_to_df(
             names=generated_columns
         )
 
-    df["Combined_Output"] = df.func.generate_batch_outputs(df[IC.text])
+    df[C.generation_data.value] = df.func.generate_batch_outputs(df[IC.text])
 
     # Extract out each independent column
-    df = df.struct.flatten("Combined_Output")
+    df = df.struct.flatten(C.generation_data.value)
     # struct.flatten creates a column per key (created above),
     # where the column name will be `Combined_Output_<key>` so we rename them
     for col in generated_columns:
-        df.rename(f"Combined_Output_{col}", col)
+        df.rename(f"{C.generation_data.value}_{col}", col)
 
-    # Check that this works
-    df = df.drop("____Combined_Output")
+    # After flattening vaex pre-pends 4 `_`s
+    df = df.drop(f"____{C.generation_data.value}")
     return df
 
 
