@@ -11,8 +11,14 @@ from dataquality.loggers.logger_config.seq2seq import (
 )
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.schemas.seq2seq import Seq2SeqOutputCols as C
+from dataquality.schemas.seq2seq import TOP_LOGPROBS_SCHEMA
 from dataquality.schemas.split import Split
 from dataquality.utils.arrow import save_arrow_file
+from dataquality.utils.seq2seq import (
+    extract_top_logprobs,
+    process_sample_logprobs,
+    get_top_logprob_indices,
+)
 
 
 class Seq2SeqModelLogger(BaseGalileoModelLogger):
@@ -41,9 +47,10 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             inference_name=inference_name,
             labels=labels,
         )
+        # TODO Move DEP and Perplexity computation outside of DQ
         self.sample_dep: List[float] = []
         self.sample_perplexity: List[float] = []
-        self.token_dep = pa.array([])
+        self.token_deps = pa.array([])
         self.token_logprobs = pa.array([])
         self.top_logprobs = pa.array([])
         self.labels = labels
@@ -67,6 +74,11 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         if self.labels is not None:
             assert len(self.labels) == len(self.ids), "TODO: Must be same len message"
 
+        # TODO This used to be right when we called the tokenizer.
+        assert (
+            self.logger_config.tokenizer is not None
+        ), "Must set your tokenizer. Use `dq.set_tokenizer`"
+
         # TODO: This is potentially slow. This is what needs to be optimized. Can we
         #  potentially do this on the GPU with torch? And dont convert to a np array
         #  [JON] computing softmax on GPU can lead to speedups of around 5x in my
@@ -75,7 +87,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         (
             self.token_logprobs,
             self.top_logprobs,
-            self.token_dep,
+            self.token_deps,
             self.sample_dep,
             self.sample_perplexity,
         ) = self.process_logprobs(self.ids, logprobs)
@@ -83,7 +95,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
     def compute_token_deps(
         self, sample_logprobs: np.ndarray, labels: np.ndarray
     ) -> np.ndarray:
-        """Compute per token DEPs
+        """Compute per token DEP
 
         Per token DEP is computed exactly as in classification. For
         each token we extract the probability for the ground truth token
@@ -102,14 +114,16 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
                 working with labels
 
         Returns:
-            dep: per token DEP - dep.shape = labels.shape
+            token_deps: per token DEP - dep.shape = labels.shape
         """
         # TODO: if labels is longer than probs we are in trouble!
         #  this can happen is the user somehow tokenizes their data
         #  differently than the default - e.g. changing max_token_length
+        # Re-shape for now to avoid errors
+        labels = labels[..., None]
         gold_logprobs = np.take_along_axis(sample_logprobs, labels, axis=-1).squeeze()
         logprobs_copy = sample_logprobs.copy()
-        # Logprobs are always < 0 so we set to -inf
+        # Logprobs are always < 0 so set to -inf to avoid in max
         logprobs_copy[np.arange(len(labels)), labels.squeeze()] = -float("Inf")
         # Max non-gold logprob
         max_non_gold_logprobs = np.max(logprobs_copy, axis=-1)
@@ -119,115 +133,20 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         max_non_gold_probs = np.exp(max_non_gold_logprobs)
 
         # Compute AUM --> DEP
-        margin = gold_probs - max_non_gold_probs
-        dep = (1 - margin) / 2
-        return dep
-
-    def get_top_logprobs(
-        self, sample_logprobs: np.ndarray, top_indices: np.ndarray
-    ) -> List[List[Tuple[str, float]]]:
-        """Extract per token top_logprobs for a sample
-
-        For each token, we extract the top-k predicted tokens
-        and corresponding logprobs. Then we convert predicted token_ids
-        into strings using the tokenizer.
-
-        Example top_logprobs data format for an example sequence:
-        [
-            [("the", -0.2), ("a", -0.6), ...],
-            [("cat", -0.05), ("dog", -0.1), ...],
-            ...
-        ]
-
-        Breaking down this format:
-            - The sample is represented as a List of Lists per token.
-            - For each token, we store a fixed length (k) list of tuples for each of
-            the top-k predicted tokens - (token_string, logprob).
-
-        Parameters:
-            sample_logprobs: shape = [seq_len, Vocab size]
-            top_indices: shape = [seq_len, k]
-
-        Return:
-            top_logprobs:
-                len(top_logprobs) == sample_logprobs.shape[0] == # tokens sample
-                len(top_logprobs[i]) == k
-        """
-        # Extract top_k logprob indices - shape = [seq_len, k]
-        sample_top_logprobs = np.take_along_axis(sample_logprobs, top_indices, axis=-1)
-
-        # Generate top_k mapping token by token
-        top_logprobs: List[List[Tuple[str, float]]] = []
-        for token_top_ids, token_top_logprobs in zip(top_indices, sample_top_logprobs):
-            # List of Tuple[str, int] --> (token string, logprob)
-            token_top_logprobs_mapping = []
-            # Loop over the top_k predicted tokens
-            # token_top_ids/token_top_logprobs.shape == [k]
-            for token_id, logprob in zip(token_top_ids, token_top_logprobs):
-                # TODO: See how slow tokenizer decode is and if we just want to index into the vocab directly
-                str_token = self.logger_config.tokenizer.decode(token_id)
-                token_top_logprobs_mapping.append((str_token, logprob))
-
-            top_logprobs.append(token_top_logprobs_mapping)
-
-        return top_logprobs
-
-    def process_logprobs_for_sample(
-        self,
-        sample_id: np.ndarray,
-        sample_logprobs: np.ndarray,
-        sample_top_indices: np.ndarray,
-    ) -> Tuple[np.ndarray, List[List[Tuple[str, float]]], np.ndarray]:
-        """Extracts gold_logprobs, top_logprobs, and computes token_deps
-
-        For each sample we first remove pad token indices using the tokenized labels
-        for the given sample_id.
-
-        Returns:
-            gold_logprobs: GT label logprobs
-                gold_logprobs.shape = [seq_len]
-            top_logprobs: List of top-k predictions + logprobs
-                type = List[Dict[str, float]]
-                len(top_logprobs) = seq_len
-            token_deps: Per token DEP
-               token_deps.shape = [seq_len]
-        """
-        assert (
-            self.logger_config.tokenizer is not None
-        ), "Must set your tokenizer. Use `dq.set_tokenizer`"
-        labels = np.array(self.logger_config.id_to_tokens[self.token_map_key][sample_id])
-        # Remove padding based on the padding_side of the tokenizer
-        if self.logger_config.tokenizer.padding_side == "left":
-            logprobs = sample_logprobs[-len(labels) :]
-            top_indices = sample_top_indices[-len(labels) :]
-        else:
-            logprobs = sample_logprobs[: len(labels)]
-            top_indices = sample_top_indices[: len(labels)]
-
-        # Expand final axis - shape = [len(labels), 1]
-        labels = labels[..., None]
-
-        # Extract token_logprobs - shape [len(labels)]
-        gold_logprobs = np.take_along_axis(logprobs, labels, axis=-1).squeeze()
-
-        # Compute top_logprobs
-        top_logprobs = self.get_top_logprobs(logprobs, top_indices)
-
-        # Compute token deps
-        token_deps = self.compute_token_deps(logprobs, labels)
-
-        return gold_logprobs, top_logprobs, token_deps
+        token_margins = gold_probs - max_non_gold_probs
+        token_deps = (1 - token_margins) / 2
+        return token_deps
 
     def process_logprobs(
         self, batch_ids: np.ndarray, batch_logprobs: np.ndarray
     ) -> Tuple[pa.array, pa.array, pa.array, List[float], List[float]]:
-        """Handle all processing of a batch of sample logprobs
+        """Handle processing of a batch of sample logprobs
 
         For each sample in the batch extract / compute the following values:
             - Token level logprobs for the GT label
             - Token level top-k model logprobs: represented as a dictionary
             mapping {predicted_token: logprob}
-            - Token level DEP score
+            - Token level DEP scores
             - Sample level DEP score
             - Sample level model Perplexity
 
@@ -267,16 +186,8 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             batch_perplexities: Per sample Perplexity
                 len(batch_perplexities) == batch_size
         """
-        # Compute the top-k logprob indices per token in the batch.
-        # We use np.argpartition to reduce the overhead of sorting the whole vocab.
-        # For reference see: https://numpy.org/doc/stable/reference/generated/numpy.argpartition.html
-        # Note: We multiply by -1 to reverse the order to help selecting the max
-        # TODO - this can be massively sped up using torch.top_k on the GPU
-        # TODO - use a parameter k not 5!
-        batch_logprobs *= -1
-        partitioned_logprob_indices = np.argpartition(batch_logprobs, 5, axis=-1)
-        top_logprob_indices = partitioned_logprob_indices[..., :5]
-        batch_logprobs *= -1
+        # Compute the top-k logprob indices across the batch.
+        top_logprob_indices = get_top_logprob_indices(batch_logprobs)
 
         batch_token_logprobs = []
         batch_top_logprobs = []
@@ -287,34 +198,40 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         for sample_id, sample_logprobs, sample_top_indices in zip(
             batch_ids, batch_logprobs, top_logprob_indices
         ):
+            sample_labels = self.retrieve_sample_labels(sample_id)
+            (
+                sample_logprobs,
+                sample_top_indices,
+            ) = self.remove_padding(sample_labels, sample_logprobs, sample_top_indices)
             (
                 token_logprobs,
                 top_logprobs,
-                token_dep,
-            ) = self.process_logprobs_for_sample(
-                sample_id, sample_logprobs, sample_top_indices
+            ) = process_sample_logprobs(
+                sample_logprobs=sample_logprobs,
+                sample_labels=sample_labels,
+                sample_top_indices=sample_top_indices,
+                tokenizer=self.logger_config.tokenizer,
             )
 
             batch_token_logprobs.append(token_logprobs)
             batch_top_logprobs.append(top_logprobs)
-            batch_token_deps.append(token_dep)
 
+            # TODO: Likely move to runners - but keep now for backwards compatability
+            #   NOTE if we move to runner we need to save the tokenized labels
+            token_deps = self.compute_token_deps(sample_logprobs, sample_labels)
+            batch_token_deps.append(token_deps)
             # Compute sample DEP as avg(token_DEP)
-            sample_dep = np.mean(token_dep)
+            # TODO: Move this computation into runners
+            sample_dep = np.mean(token_deps)
             batch_deps.append(sample_dep)
-
             # Perplexity = exp(-sum(gold_logprobs)
-            # TODO: Should this be in runners?
+            # TODO: Move this computation into runners
             perplexity = np.exp(-1 * np.mean(token_logprobs))
             batch_perplexities.append(perplexity)
 
-        # Define the format schema for top_logprobs
-        # TODO Put this somewhere else
-        top_logprobs_schema = pa.list_(pa.map_(pa.string(), pa.float32()))
-
         return (
             pa.array(batch_token_logprobs),
-            pa.array(batch_top_logprobs, type=top_logprobs_schema),
+            pa.array(batch_top_logprobs, type=TOP_LOGPROBS_SCHEMA),
             pa.array(batch_token_deps),
             batch_deps,
             batch_perplexities,
@@ -325,7 +242,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         batch_size = len(self.ids)
         data = {
             C.id.value: self.ids,
-            C.token_deps.value: self.token_dep,
+            C.token_deps.value: self.token_deps,
             C.dep.value: self.sample_dep,
             C.perplexity.value: self.sample_perplexity,
             C.token_logprobs.value: self.token_logprobs,
@@ -339,6 +256,37 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
 
     def _write_dict_to_disk(self, path: str, object_name: str, data: Dict) -> None:
         save_arrow_file(path, object_name, data)
+
+    def retrieve_sample_labels(self, sample_id: int) -> np.ndarray:
+        """Retrieve the labels array based on the sample it"""
+        labels = np.array(
+            self.logger_config.id_to_tokens[self.token_map_key][sample_id]
+        )
+        return labels
+
+    def remove_padding(
+        self,
+        labels: np.ndarray,
+        sample_logprobs: np.ndarray,
+        sample_top_indices: np.ndarray,
+    ):
+        """Remove padding from logsprobs and top_indices
+
+        To remove padding we need to retrieve the sample labels. This
+        labels is generally useful later so we return it
+
+        TODO consider allowing for *args as input, where args is a list of token based tensors
+        """
+        # Remove padding based on the padding_side of the tokenizer
+        num_tokens = len(labels)
+        if self.logger_config.tokenizer.padding_side == "left":
+            logprobs = sample_logprobs[-num_tokens:]
+            top_indices = sample_top_indices[-num_tokens:]
+        else:
+            logprobs = sample_logprobs[:num_tokens]
+            top_indices = sample_top_indices[:num_tokens]
+
+        return logprobs, top_indices
 
     def convert_logits_to_logprobs(
         self, sample_logits: Union[List[np.ndarray], np.ndarray]

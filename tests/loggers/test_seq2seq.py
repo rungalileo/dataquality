@@ -136,7 +136,7 @@ def test_log_model_outputs(
     # Because we have our own instance of the logger, we just replace this function
     # in place so we don't have to deal with the softmax
     # TODO: Figure out how to handle the softmax!
-    #logger.convert_logits_to_probs = lambda logits: logits
+    # logger.convert_logits_to_probs = lambda logits: logits
     with mock.patch("dataquality.core.log.get_model_logger") as mock_method:
         mock_method.return_value = logger
         dq.log_model_outputs(**log_data)
@@ -163,7 +163,12 @@ def test_log_model_outputs(
     for token_labels, token_dep, token_gold_logprob, token_top_logprob in zip(
         tokenized_labels, token_deps, token_gold_logprobs, token_top_logprobs
     ):
-        assert len(token_labels) == len(token_dep) == len(token_gold_logprob) == len(token_top_logprob)
+        assert (
+            len(token_labels)
+            == len(token_dep)
+            == len(token_gold_logprob)
+            == len(token_top_logprob)
+        )
         assert -100 not in token_gold_logprob
         for dep in token_dep:
             assert 0 <= dep <= 1

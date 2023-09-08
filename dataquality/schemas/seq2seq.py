@@ -1,8 +1,14 @@
 from dataclasses import dataclass
 from enum import Enum
 from typing import List, Set, Tuple
+import pyarrow as pa
 
 from vaex import DataFrame
+
+
+# Defines the format schema for storing top_logprobs as a
+# pyarrow List of List of Tuples
+TOP_LOGPROBS_SCHEMA = pa.list_(pa.map_(pa.string(), pa.float32()))
 
 
 class Seq2SeqInputCols(str, Enum):
@@ -43,7 +49,7 @@ class Seq2SeqOutputCols(str, Enum):
     dep = "data_error_potential"
     perplexity = "perplexity"
     token_deps = "token_deps"
-    token_gold_probs = "token_gold_probs"
+    # token_gold_probs = "token_gold_probs" # TODO Depricate
     token_logprobs = "token_logprobs"
     top_logprobs = "top_logprobs"
     # Columns associated with generated output
