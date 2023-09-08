@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from enum import Enum
 from typing import List, Set, Tuple
+
+import numpy as np
 import pyarrow as pa
 
 from vaex import DataFrame
@@ -9,6 +11,7 @@ from vaex import DataFrame
 # Defines the format schema for storing top_logprobs as a
 # pyarrow List of List of Tuples
 TOP_LOGPROBS_SCHEMA = pa.list_(pa.map_(pa.string(), pa.float32()))
+TOP_K = 5
 
 
 class Seq2SeqInputCols(str, Enum):
@@ -68,3 +71,10 @@ class Seq2SeqOutputCols(str, Enum):
 class AlignedTokenData:
     token_label_offsets: List[List[Tuple[int, int]]]
     token_label_positions: List[List[Set[int]]]
+
+
+@dataclass
+class ModelGeneration:
+    generated_ids: np.ndarray
+    generated_token_logprobs: np.ndarray
+    generated_top_logprobs: List[List[Tuple[str, float]]]

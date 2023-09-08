@@ -10,14 +10,17 @@ import vaex
 from tqdm.auto import tqdm
 from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizerFast
 
-from dataquality.schemas.seq2seq import AlignedTokenData, TOP_LOGPROBS_SCHEMA
+from dataquality.schemas.seq2seq import (
+    AlignedTokenData,
+    TOP_LOGPROBS_SCHEMA,
+    TOP_K,
+    ModelGeneration,
+)
 from dataquality.schemas.seq2seq import Seq2SeqInputCols as IC
 from dataquality.schemas.seq2seq import Seq2SeqOutputCols as C
 
 
-def get_top_logprob_indices(
-    logprobs:np.ndarray, k: int = 5
-):
+def get_top_logprob_indices(logprobs: np.ndarray):
     """Extract per-token top-k logprobs
 
     logprobs can either be at the sample level or batch level.
@@ -27,28 +30,37 @@ def get_top_logprob_indices(
     sorting along the vocab dimension - O(nlog(n)) -> O(n).
     For reference see: https://numpy.org/doc/stable/reference/generated/numpy.argpartition.html
 
+    Post-conditions:
+    ----------------
+        - logprobs is left unchanged
+
     TODO this can be so so much faster with torch on gpu!
 
     Parameters:
-        logprobs: per-token logprobs for a sample / batch
-            sample level: shape = [seq_len, vocab_size]
-            batch level: shape = [batch_size, seq_len, vocab_size]
+    -----------
+    logprobs: np.ndarray of shape [(optional)batch_size, seq_len, vocab_size]
+        per-token logprobs for a sample or a batch
 
     Return:
-        top_logprob_indices: indices of the top-k per-token logprobs
-            shape = [..., 5] - where we preserve all but the last dimension
+    -------
+    top_logprob_indices: np.ndarray of shape - [..., TOP_K]
+        Indices of the top-k per-token logprobs. Note we preserve
+        all but the last dimension (i.e. not -1) to seemlisly handle
+        samples or batches.
     """
     # Multiply by -1 to reverse the order
     logprobs *= -1
-    partitioned_logprob_indices = np.argpartition(logprobs, 5, axis=-1)
-    top_logprob_indices = partitioned_logprob_indices[..., :5]
+    partitioned_logprob_indices = np.argpartition(logprobs, TOP_K, axis=-1)
+    top_logprob_indices = partitioned_logprob_indices[..., :TOP_K]
     logprobs *= -1
 
     return top_logprob_indices
 
 
 def extract_top_logprobs(
-        sample_logprobs: np.ndarray, top_indices: np.ndarray, tokenizer: PreTrainedTokenizerFast
+    sample_logprobs: np.ndarray,
+    top_indices: np.ndarray,
+    tokenizer: PreTrainedTokenizerFast,
 ) -> List[List[Tuple[str, float]]]:
     """Extract per token top_logprobs for a single sample
 
@@ -69,14 +81,16 @@ def extract_top_logprobs(
         the top-k predicted tokens - (token_string, logprob).
 
     Parameters:
-        sample_logprobs: shape = [seq_len, Vocab size]
-        top_indices: shape = [seq_len, k]
-        tokenizer: model tokenizer, used for decoding
+    -----------
+    sample_logprobs: np.ndarray of shape - [seq_len, Vocab size]
+    top_indices: np.ndarray of shape - [seq_len, k]
+    tokenizer: PreTrainedTokenizerFast
 
     Return:
-        top_logprobs:
-            len(top_logprobs) == sample_logprobs.shape[0] == # tokens sample
-            len(top_logprobs[i]) == k
+    -------
+    top_logprobs: List[List[Tuple[str, float]]
+        len(top_logprobs) == sample_logprobs.shape[0] == num_tokens
+        len(top_logprobs[i]) == TOP_K
     """
     # Extract top_k logprob indices - shape = [seq_len, k]
     sample_top_logprobs = np.take_along_axis(sample_logprobs, top_indices, axis=-1)
@@ -101,7 +115,7 @@ def process_sample_logprobs(
     sample_logprobs: np.ndarray,
     sample_labels: np.ndarray,
     sample_top_indices: np.ndarray,
-    tokenizer: PreTrainedTokenizerFast
+    tokenizer: PreTrainedTokenizerFast,
 ) -> Tuple[np.ndarray, List[List[Tuple[str, float]]]]:
     """Extract label_logprobs and top_logprobs
 
@@ -112,30 +126,38 @@ def process_sample_logprobs(
     Preconditions:
         - We assume that all inputs have been stripped of any padding tokens!
 
-    TODO Add inputs!
+    Parameters:
+    -----------
+    sample_logprobs: np.ndarray of shape - [seq_len, vocab_size]
+        Per-token logprobs for a single sample
+    sample_labels: np.ndarray of shape - [seq_len]
+        Per-token lables for the sample. As a pre-condition
+        we assume that this is a 1D tensor with length seq_len.
+        This is important for extracting logprobs
+    sample_top_indices: np.ndarray of shape - [seq_len, TOP_K]
+        Top_K logprob indices for each token. Note that these
+        are not in order.
+    tokenizer: PreTrainedTokenizerFast
+        Tokenizer used by the model
 
     Returns:
-        gold_logprobs: GT label logprobs
-            gold_logprobs.shape = [seq_len]
-        top_logprobs: List of top-k predictions + logprobs
-            type = List[Dict[str, float]]
-            len(top_logprobs) = seq_len
+    --------
+    label_logprobs: np.ndarray of shape [seq_len]
+        Label logprobs for each token in the sample
+    top_logprobs: List[Dict[str, float]]
+        List of top-k (str) predictions + corresponding logprobs
     """
-    # Ensure shape = [len(labels), 1]
-    # Allows labels to have shape [labels], [1, labels]
-    # TODO ENSURE THAT LABELS IS THE RIGHT SHAPE COMING IN
-    assert len(sample_labels.shape) == 1
+    # Ensure final shape - [len(labels), 1]
+    assert sample_labels.shape == [sample_logprobs.shape[0]]
     sample_labels = sample_labels[..., None]
 
     # Extract token_logprobs - shape [len(labels)]
-    label_logprobs = np.take_along_axis(sample_logprobs, sample_labels, axis=-1).squeeze()
+    label_logprobs = np.take_along_axis(
+        sample_logprobs, sample_labels, axis=-1
+    ).squeeze()
 
     # Compute top_logprobs
-    top_logprobs = extract_top_logprobs(
-        sample_logprobs,
-        sample_top_indices,
-        tokenizer
-    )
+    top_logprobs = extract_top_logprobs(sample_logprobs, sample_top_indices, tokenizer)
 
     return label_logprobs, top_logprobs
 
@@ -145,52 +167,83 @@ def generate_sample_output(
     model: PreTrainedModel,
     device: torch.device,
     generation_config: GenerationConfig,
+    tokenizer: PreTrainedTokenizerFast,
+) -> ModelGeneration:
+    """Generate and extract model logprobs
+
+    Tokenize the input string and then use `hf.generate`
+    to generate just the output tokens.
+
+    We don't rely on the scores returned by hf since these
+    can be altered by hf internally depending on the generation
+    config / can be hard to parse in the case of BEAM Search.
+
+    Instead, we pass the generated output back through the model
+    to extract the token logprobs. We effectively ask the model
+    to evaluate its own generation - which is identical to generation
+    because of causal language modeling.
+
+    Parameters:
+    -----------
+    input_str: str
+        Input string context used to seed the generation
+    model: PreTrainedModel
+    device: torch.device
+    generation_config: GenerationConfig
+        Users generation config specifying the parameters for generation
     tokenizer: PreTrainedTokenizerFast
-) -> Tuple[np.ndarray, np.array, List[List[Tuple[str, float]]]]:
+
+    Return:
+    -------
+    model_generation: ModelGeneration
+        Includes:
+            - generated_ids
+            - generated_token_logprobs
+            - generated_top_logprobs
+    """
     # Shape - [1, seq_len]
     # TODO - we can run into trouble if they tokenize in a different way
-    input_ids = tokenizer(
-        input_str,
-        truncation=True,
-        return_tensors="pt"
-    )["input_ids"].to(device)
+    #   We may want to accept the tokenized output
+    input_ids = tokenizer(input_str, truncation=True, return_tensors="pt")[
+        "input_ids"
+    ].to(device)
 
     with torch.no_grad():
+        # TODO do we need to do model.eval()??
         gen_ids = model.to(device).generate(
             input_ids=input_ids,
             generation_config=generation_config,
         )
 
-    """Does a number of things that we lay out with comments"""
-    # 1) Strip the beginning <pad> token and keep as Tensor
+    # Strip the beginning <pad> token and keep as Tensor
     gen_ids = gen_ids[..., 1:]
 
-    # 2) Get the model logits over the generated output
+    # Pass the generated output through the model to get the logits
     with torch.no_grad():
         model_outputs = model(input_ids=input_ids, labels=gen_ids)
         logits = model_outputs.logits.cpu().numpy()
 
-    # 3) Compute log probs
     # TODO This is much faster on the gpu
-    # First take log_softmax
     logprobs = log_softmax(logits, axis=-1)
 
-    # 4) Do some reshaping and tensor massaging
-    logprobs = logprobs.squeeze()
-    gen_ids = gen_ids.squeeze().cpu().numpy()
+    # Remove singleton dimensions
+    logprobs = logprobs.squeeze()  # [seq_len, vocab_size]
+    gen_ids = gen_ids.squeeze().cpu().numpy()  # [seq_len]
 
-    # 5) Compute the top_logprob_indices
     top_logprobs_indices = get_top_logprob_indices(logprobs)
 
-    # 5) Get the gen_logprobs and top_logprobs
     gen_token_logprobs, gen_top_logprobs = process_sample_logprobs(
         logprobs,
         sample_labels=gen_ids,
         sample_top_indices=top_logprobs_indices,
-        tokenizer=tokenizer
+        tokenizer=tokenizer,
     )
 
-    return gen_ids, gen_token_logprobs, gen_top_logprobs
+    return ModelGeneration(
+        generated_ids=gen_ids,
+        generated_token_logprobs=gen_token_logprobs,
+        generated_top_logprobs=gen_token_logprobs,
+    )
 
 
 def add_generated_output_to_df(
@@ -200,25 +253,45 @@ def add_generated_output_to_df(
     device: torch.device,
     generation_config: GenerationConfig,
 ) -> vaex.DataFrame:
-    """This is hacky for now, but we will highlight each step of the way
+    """Generates model outputs over df and extracts the logprob data
 
-    During generation we want to generate the following columns with
-    given row types. We also note down which columns are pa.arrays:
-        - generate_output: str
-        - generated_token_label_positions: List[List[int]] --> pa
-        - generated_token_label_offsets: List[Tuple[int, int]] --> pa
-        - generated_token_logprobs: np.array() --> pa
-        - generated_top_logprobs: List[List[Tuple[str, int]]] --> pa
+    Using the user's model we generate the output for each
+    sample in the df and the corresponding logprob data. We
+    use a vaex register function to batch the processing across
+    df; however, we generate model outputs one sample at a time.
+
+    We specifically add the following 5 columns to the df based
+    on the generated + processed output:
+        - generated_output: str
+        - generated_token_label_positions: pa.array
+        - generated_token_label_offsets: pa.array
+        - generated_token_logprobs: pa.array
+        - generated_top_logprobs: pa.array
+
+    Note: We use a pa.StructArray to extract multiple columns of info
+    at once through vaex. We then have to seperate the Struct into individual
+    columns.
+
+    TODO consider generating in batches!
     """
-    # See above for element types of each list
+    generated_columns = [
+        C.generated_output.value,
+        C.generated_token_label_positions.value,
+        C.generated_token_label_offsets.value,
+        C.generated_token_logprobs.value,
+        C.generated_top_logprobs.value,
+    ]
 
     @vaex.register_function()
-    def generate_batch_outputs(
-        texts: pa.array
-    ) -> pa.StructArray:
-        """Generate over a batch of text input samples
+    def generate_batch_outputs(texts: pa.array) -> pa.StructArray:
+        """Generated model outputs for a batch of text inputs
 
-        ...
+        For each sample in the batch, extract all of the necessary
+        information to populate the vaex df. We return a somewhat specail
+        StructArray, because you can only return an expression for a single
+        column in vaex, but here we extract the content for 5 columns -
+        (see above). By creating aStructArray (which is just an arrow dictionary)
+        we can then xtract out each one into an independent column after.
         """
         generated_outputs = []
         generated_token_label_positions = []
@@ -231,159 +304,62 @@ def add_generated_output_to_df(
             (
                 generated_ids,
                 sample_generated_token_logprobs,
-                sample_generated_top_logprobs
+                sample_generated_top_logprobs,
             ) = generate_sample_output(
-                    input_str=str(sample),
-                    model=model,
-                    device=device,
-                    generation_config=generation_config,
-                    tokenizer=tokenizer
+                input_str=str(sample),
+                model=model,
+                device=device,
+                generation_config=generation_config,
+                tokenizer=tokenizer,
             )
 
-            # Make sure to strip special tokens - e.g. <eos>
-            generated_outputs.append(tokenizer.decode(generated_ids, skip_special_tokens=True))
+            generated_outputs.append(
+                tokenizer.decode(generated_ids, skip_special_tokens=True)
+            )
             # Re-tokenize the data to get the token position offsets
             encoded_data = tokenizer(
                 [generated_outputs[-1]], return_offsets_mapping=True
             )
-            aligned_data = align_tokens_to_character_spans(encoded_data["offset_mapping"])
+            aligned_data = align_tokens_to_character_spans(
+                encoded_data["offset_mapping"]
+            )
             # aligned_data assumes batches, so for single samples it returns
             # batched list of length == 1.
-            generated_token_label_positions.append(aligned_data.token_label_positions[0])
+            generated_token_label_positions.append(
+                aligned_data.token_label_positions[0]
+            )
             generated_token_label_offsets.append(aligned_data.token_label_offsets[0])
 
             generated_token_logprobs.append(sample_generated_token_logprobs)
             generated_top_logprobs.append(sample_generated_top_logprobs)
 
         # Ensure correct pyarrow format for top_logprobs
-        generated_top_logprobs = pa.array(generated_top_logprobs, type=TOP_LOGPROBS_SCHEMA)
+        generated_top_logprobs = pa.array(
+            generated_top_logprobs, type=TOP_LOGPROBS_SCHEMA
+        )
         return pa.StructArray.from_arrays(
-            arrays=[generated_outputs, generated_token_label_positions, generated_token_label_offsets, generated_token_logprobs, generated_top_logprobs],
-            names=[C.generated_output.value, C.generated_token_label_positions.value, C.generated_token_label_offsets.value, C.generated_token_logprobs.value, C.generated_top_logprobs.value]
+            arrays=[
+                generated_outputs,
+                generated_token_label_positions,
+                generated_token_label_offsets,
+                generated_token_logprobs,
+                generated_top_logprobs,
+            ],
+            names=generated_columns
         )
 
     df["Combined_Output"] = df.func.generate_batch_outputs(df[IC.text])
 
-    # extract out each independent column
+    # Extract out each independent column
     df = df.struct.flatten("Combined_Output")
     # struct.flatten creates a column per key (created above),
     # where the column name will be `Combined_Output_<key>` so we rename them
-    for col in [C.generated_output.value, C.generated_token_label_positions.value, C.generated_token_label_offsets.value, C.generated_token_logprobs.value, C.generated_top_logprobs.value]:
+    for col in generated_columns:
         df.rename(f"Combined_Output_{col}", col)
-
 
     # Check that this works
     df = df.drop("____Combined_Output")
     return df
-
-
-# def add_generated_output_to_df(
-#     df: vaex.DataFrame,
-#     tokenizer: PreTrainedTokenizerFast,
-#     model: PreTrainedModel,
-#     device: torch.device,
-#     generation_config: GenerationConfig,
-# ) -> vaex.DataFrame:
-#     """This is hacky for now, but we will highlight each step of the way
-#
-#     During generation we want to generate the following columns with
-#     given row types. We also note down which columns are pa.arrays:
-#         - generate_output: str
-#         - generated_token_label_positions: List[List[int]] --> pa
-#         - generated_token_label_offsets: List[Tuple[int, int]] --> pa
-#         - generated_token_logprobs: np.array() --> pa
-#         - generated_top_logprobs: List[List[Tuple[str, int]]] --> pa
-#     """
-#     # See above for element types of each list
-#     generated_outputs = []
-#     generated_token_label_positions = []
-#     generated_token_label_offsets = []
-#     generated_token_logprobs = []
-#     generated_top_logprobs = []
-#
-#     # For generation we iterate sample by sample over df['input']
-#     print("here")
-#     inputs = df[IC.text.value].values
-#     for sample in inputs:
-#         # Generate and extract model outputs
-#         (
-#             generated_ids,
-#             sample_generated_token_logprobs,
-#             sample_generated_top_logprobs
-#         ) = generate_sample_output(
-#                 input_str=str(sample),
-#                 model=model,
-#                 device=device,
-#                 generation_config=generation_config,
-#                 tokenizer=tokenizer
-#         )
-#
-#         # Make sure to strip special tokens - e.g. <eos>
-#         generated_outputs.append(tokenizer.decode(generated_ids, skip_special_tokens=True))
-#         # Re-tokenize the data to get the token position offsets
-#         encoded_data = tokenizer(
-#             [generated_outputs[-1]], return_offsets_mapping=True
-#         )
-#         aligned_data = align_tokens_to_character_spans(encoded_data["offset_mapping"])
-#         # aligned_data assumes batches, so for single samples it returns
-#         # batched list of length == 1.
-#         generated_token_label_positions.append(aligned_data.token_label_positions[0])
-#         generated_token_label_offsets.append(aligned_data.token_label_offsets[0])
-#
-#         generated_token_logprobs.append(sample_generated_token_logprobs)
-#         generated_top_logprobs.append(sample_generated_top_logprobs)
-#
-#     # Assign the vaex columns manually for now!
-#     df[C.generated_output.value] = np.array(generated_outputs)
-#     df[C.generated_token_label_positions.value] = pa.array(generated_token_label_positions)
-#     df[C.generated_token_label_offsets.value] = pa.array(generated_token_label_offsets)
-#     df[C.generated_token_logprobs.value] = pa.array(generated_token_logprobs)
-#     # Use schema for top_logprobs
-#     top_logprobs_schema = pa.list_(pa.map_(pa.string(), pa.float32()))
-#     df[C.generated_top_logprobs.value] = pa.array(generated_top_logprobs, type=top_logprobs_schema)
-#
-#     return df
-
-# def add_generated_output_to_df(
-#     df: vaex.DataFrame,
-#     tokenizer: PreTrainedTokenizerFast,
-#     model: PreTrainedModel,
-#     device: torch.device,
-#     generation_config: GenerationConfig,
-# ) -> vaex.DataFrame:
-#     @vaex.register_function()
-#     def generate_output(text: pa.array) -> np.ndarray:
-#         results = []
-#         for sample in text:
-#             # Shape - [1, seq_len]
-#             input_ids = tokenizer(str(sample), return_tensors="pt")["input_ids"].to(
-#                 device
-#             )
-#             generation_respone = model.to(device).generate(
-#                 input_ids=input_ids,
-#                 generation_config=generation_config,
-#                 return_dict_in_generate=True,  # Required to get token probs
-#                 output_scores=True,  # Required to get token probs
-#             )
-#
-#             # Remove the <pad> token to seed generation
-#             generated_tokens = generation_respone.sequences[0, 1:]
-#             # TODO: Skip logits for now, will update later
-#             # generated_logits = torch.stack(generation_respone.scores)[:, 0, :]
-#
-#             # Note that the model may also end with the <eos> token. We should
-#             # check for this to get the correct logits!
-#             if generated_tokens[-1] == tokenizer.eos_token_id:
-#                 # Cut off the generated <eos> token if need
-#                 # And remove the probability associated with its generation
-#                 generated_tokens = generated_tokens[:-1]
-#                 # generated_logits = generation_respone.scores[:-1]
-#
-#             results.append(tokenizer.decode(generated_tokens))
-#         return np.array(results)#, np.array(token_logprobs), np.array(top_logprobs)
-#
-#     df[C.generated_output.value] = df.func.generate_output(df[C.text.value])
-#     return df
 
 
 def _handle_overlapping_offsets(
