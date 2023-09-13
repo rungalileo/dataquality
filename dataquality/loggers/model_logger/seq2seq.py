@@ -15,7 +15,6 @@ from dataquality.schemas.seq2seq import TOP_LOGPROBS_SCHEMA
 from dataquality.schemas.split import Split
 from dataquality.utils.arrow import save_arrow_file
 from dataquality.utils.seq2seq import (
-    extract_top_logprobs,
     process_sample_logprobs,
     get_top_logprob_indices,
 )
@@ -74,7 +73,6 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         if self.labels is not None:
             assert len(self.labels) == len(self.ids), "TODO: Must be same len message"
 
-        # TODO This used to be right when we called the tokenizer.
         assert (
             self.logger_config.tokenizer is not None
         ), "Must set your tokenizer. Use `dq.set_tokenizer`"
@@ -217,15 +215,12 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             batch_top_logprobs.append(top_logprobs)
 
             # TODO: Likely move to runners - but keep now for backwards compatability
-            #   NOTE if we move to runner we need to save the tokenized labels
             token_deps = self.compute_token_deps(sample_logprobs, sample_labels)
             batch_token_deps.append(token_deps)
             # Compute sample DEP as avg(token_DEP)
-            # TODO: Move this computation into runners
             sample_dep = np.mean(token_deps)
             batch_deps.append(sample_dep)
             # Perplexity = exp(-sum(gold_logprobs)
-            # TODO: Move this computation into runners
             perplexity = np.exp(-1 * np.mean(token_logprobs))
             batch_perplexities.append(perplexity)
 
