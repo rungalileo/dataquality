@@ -7,7 +7,7 @@ from tqdm.auto import tqdm
 from transformers import PreTrainedTokenizerFast
 
 from dataquality.exceptions import GalileoException
-from dataquality.schemas.seq2seq import AlignedTokenData, TOP_K
+from dataquality.schemas.seq2seq import TOP_K, AlignedTokenData
 
 
 def get_top_logprob_indices(logprobs: np.ndarray):
