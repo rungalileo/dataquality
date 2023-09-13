@@ -2,7 +2,15 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import List, Set, Tuple
 
+import pyarrow as pa
+
 from vaex import DataFrame
+
+
+# Defines the format schema for storing top_logprobs as a
+# pyarrow List of List of Tuples
+TOP_LOGPROBS_SCHEMA = pa.list_(pa.map_(pa.string(), pa.float32()))
+TOP_K = 5
 
 
 class Seq2SeqInputCols(str, Enum):
@@ -41,9 +49,11 @@ class Seq2SeqInputCols(str, Enum):
 
 class Seq2SeqOutputCols(str, Enum):
     id = "id"
-    dep = "data_error_potential"
-    token_deps = "token_deps"
-    token_gold_probs = "token_gold_probs"
+    dep = "data_error_potential"  # TODO Depricate
+    perplexity = "perplexity"  # TODO Depricate
+    token_deps = "token_deps"  # TODO Depricate
+    token_logprobs = "token_logprobs"
+    top_logprobs = "top_logprobs"
     # Mypy complained about split as an attribute, so we use `split_`
     split_ = "split"
     epoch = "epoch"
