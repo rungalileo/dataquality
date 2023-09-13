@@ -4,16 +4,16 @@ import numpy as np
 import pyarrow as pa
 from scipy.special import log_softmax
 
-from dataquality.loggers.logger_config.seq2seq import (Seq2SeqLoggerConfig,
-                                                       seq2seq_logger_config)
-from dataquality.loggers.model_logger.base_model_logger import \
-    BaseGalileoModelLogger
+from dataquality.loggers.logger_config.seq2seq import (
+    Seq2SeqLoggerConfig,
+    seq2seq_logger_config,
+)
+from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.schemas.seq2seq import TOP_LOGPROBS_SCHEMA
 from dataquality.schemas.seq2seq import Seq2SeqOutputCols as C
 from dataquality.schemas.split import Split
 from dataquality.utils.arrow import save_arrow_file
-from dataquality.utils.seq2seq import (get_top_logprob_indices,
-                                       process_sample_logprobs)
+from dataquality.utils.seq2seq import get_top_logprob_indices, process_sample_logprobs
 
 
 class Seq2SeqModelLogger(BaseGalileoModelLogger):
@@ -156,13 +156,13 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
 
             - Sample level DEP is computed as the average per token DEP.
 
-            - Perplexity is computed as the exponential of the Cross Entropy loss for a
-            sample = -avg(gold_logprob(token_i)). In words, this is the sum of the negative
-            logprob of the GT label for each token.
+            - Perplexity is computed as the exponential of the Cross Entropy loss for
+            a sample = -avg(gold_logprob(token_i)). In words, this is the sum of the
+            negative logprob of the GT label for each token.
             Reference: https://en.wikipedia.org/wiki/Perplexity
 
-            - We return a pyarrow array because each sample may have a different number of token,
-            which can't be represented in numpy
+            - We return a pyarrow array because each sample may have a different number
+            of token, which can't be represented in numpy.
 
         Returns:
             batch_token_logprobs: GT Logprob per token
@@ -260,17 +260,19 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         labels: np.ndarray,
         sample_logprobs: np.ndarray,
         sample_top_indices: np.ndarray,
-    ):
-        """Remove padding from logsprobs and top_indices
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """Remove padding tokens from logprobs and top_indices
 
-        To remove padding we need to retrieve the sample labels. This
-        labels is generally useful later so we return it
+        To remove padding we use the tokenized labels and slice
+        tokens depending on the padding side of the tokenizer.
 
-        TODO ADD PARAM DESCRIPTION
+        Parameters:
+        -----------
+
         """
         # Remove padding based on the padding_side of the tokenizer
         num_tokens = len(labels)
-        if self.logger_config.tokenizer.padding_side == "left":
+        if self.logger_config.tokenizer.padding_side == "left":  # type: ignore
             logprobs = sample_logprobs[-num_tokens:]
             top_indices = sample_top_indices[-num_tokens:]
         else:

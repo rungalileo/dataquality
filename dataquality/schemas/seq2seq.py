@@ -3,9 +3,7 @@ from enum import Enum
 from typing import List, Set, Tuple
 
 import pyarrow as pa
-
 from vaex import DataFrame
-
 
 # Defines the format schema for storing top_logprobs as a
 # pyarrow List of List of Tuples

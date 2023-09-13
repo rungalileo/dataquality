@@ -10,7 +10,7 @@ from dataquality.exceptions import GalileoException
 from dataquality.schemas.seq2seq import TOP_K, AlignedTokenData
 
 
-def get_top_logprob_indices(logprobs: np.ndarray):
+def get_top_logprob_indices(logprobs: np.ndarray) -> np.ndarray:
     """Extract per-token top-k logprobs
 
     logprobs can either be at the sample level or batch level.
@@ -92,7 +92,6 @@ def extract_top_logprobs(
         token_top_logprobs_mapping = []
         # Loop over the top_k predictions for the given token position
         for pred_token_id, logprob in zip(token_top_ids, token_top_logprobs):
-            # TODO: See how slow tokenizer decode is and if we just want to index into the vocab directly
             str_token = tokenizer.decode(pred_token_id)
             token_top_logprobs_mapping.append((str_token, logprob))
 
