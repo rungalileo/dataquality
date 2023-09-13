@@ -198,11 +198,11 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         for sample_id, sample_logprobs, sample_top_indices in zip(
             batch_ids, batch_logprobs, top_logprob_indices
         ):
-            sample_labels = self.retrieve_sample_labels(sample_id)
+            sample_labels = self._retrieve_sample_labels(sample_id)
             (
                 sample_logprobs,
                 sample_top_indices,
-            ) = self.remove_padding(sample_labels, sample_logprobs, sample_top_indices)
+            ) = self._remove_padding(sample_labels, sample_logprobs, sample_top_indices)
             (
                 token_logprobs,
                 top_logprobs,
@@ -257,14 +257,14 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
     def _write_dict_to_disk(self, path: str, object_name: str, data: Dict) -> None:
         save_arrow_file(path, object_name, data)
 
-    def retrieve_sample_labels(self, sample_id: int) -> np.ndarray:
+    def _retrieve_sample_labels(self, sample_id: int) -> np.ndarray:
         """Retrieve the labels array based on the sample it"""
         labels = np.array(
             self.logger_config.id_to_tokens[self.token_map_key][sample_id]
         )
         return labels
 
-    def remove_padding(
+    def _remove_padding(
         self,
         labels: np.ndarray,
         sample_logprobs: np.ndarray,
@@ -275,7 +275,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         To remove padding we need to retrieve the sample labels. This
         labels is generally useful later so we return it
 
-        TODO consider allowing for *args as input, where args is a list of token based tensors
+        TODO ADD PARAM DESCRIPTION
         """
         # Remove padding based on the padding_side of the tokenizer
         num_tokens = len(labels)

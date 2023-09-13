@@ -10,6 +10,7 @@ import vaex
 from tqdm.auto import tqdm
 from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizerFast
 
+from dataquality.exceptions import GalileoException
 from dataquality.schemas.seq2seq import (
     AlignedTokenData,
     TOP_LOGPROBS_SCHEMA,
@@ -148,7 +149,10 @@ def process_sample_logprobs(
         List of top-k (str) predictions + corresponding logprobs
     """
     # Ensure final shape - [len(labels), 1]
-    assert sample_labels.shape == [sample_logprobs.shape[0]]
+    if sample_labels.ndim != 1:
+        raise GalileoException(
+            "Expects sample_labels to be a 1D array"
+        )
     sample_labels = sample_labels[..., None]
 
     # Extract token_logprobs - shape [len(labels)]
