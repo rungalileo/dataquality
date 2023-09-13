@@ -143,10 +143,10 @@ def test_log_model_outputs(
     output_data = vaex.open(f"{test_session_vars.LOCATION}/training/0/*.arrow")
     expected_cols = [
         "id",
-        "token_deps", # TODO Deprecate
+        "token_deps",  # TODO Deprecate
         "token_logprobs",
         "top_logprobs",
-        "perplexity", # TODO Deprecate
+        "perplexity",  # TODO Deprecate
         "split",
         "epoch",
         "data_error_potential",  # TODO Deprecate
@@ -180,7 +180,9 @@ def test_log_model_outputs(
             logprobs = [candidate[1] for candidate in token_top_logprobs]
             assert not np.allclose(logprobs[0], logprobs)
 
-            assert np.alltrue([candidate[0] == "Fake" for candidate in token_top_logprobs])
+            assert np.alltrue(
+                [candidate[0] == "Fake" for candidate in token_top_logprobs]
+            )
 
         # TODO Deprecated
         for dep in token_dep:
@@ -215,7 +217,7 @@ def test_model_logger_remove_padding() -> None:
     logprobs = np.random.rand(batch_size, max_seq_len, vocab_size)
     # Set pad tokens on the right with -1
     for idx, token_labels in enumerate(tokenized_labels):
-        logprobs[idx, len(token_labels):] = -1
+        logprobs[idx, len(token_labels) :] = -1
     # Create the top indices just using logits
     top_indices = logprobs[:, :, 5]
 
@@ -228,15 +230,15 @@ def test_model_logger_remove_padding() -> None:
     )
     logger = Seq2SeqModelLogger(**log_data)
     logger.logger_config = config
-    for sample_id, (sample_logprobs, sample_top_indices) in enumerate(zip(logprobs, top_indices)):
+    for sample_id, (sample_logprobs, sample_top_indices) in enumerate(
+        zip(logprobs, top_indices)
+    ):
         sample_labels = logger._retrieve_sample_labels(sample_id)
         # Test the retrieve samples method
         assert np.allclose(sample_labels, tokenized_labels[sample_id])
 
         no_pad_logprobs, no_pad_top_indices = logger._remove_padding(
-            sample_labels,
-            sample_logprobs,
-            sample_top_indices
+            sample_labels, sample_logprobs, sample_top_indices
         )
         assert len(np.where(no_pad_logprobs == -1)[0]) == 0
         assert len(np.where(no_pad_top_indices == -1)[0]) == 0
@@ -246,16 +248,16 @@ def test_model_logger_remove_padding() -> None:
     logprobs = np.random.rand(batch_size, max_seq_len, vocab_size)
     # Set pad tokens on the left with -1
     for idx, token_labels in enumerate(tokenized_labels):
-        logprobs[idx, :-len(token_labels)] = -1
+        logprobs[idx, : -len(token_labels)] = -1
     # Create the top indices just using logits
     top_indices = logprobs[:, :, 5]
 
-    for sample_id, (sample_logprobs, sample_top_indices) in enumerate(zip(logprobs, top_indices)):
+    for sample_id, (sample_logprobs, sample_top_indices) in enumerate(
+        zip(logprobs, top_indices)
+    ):
         sample_labels = logger._retrieve_sample_labels(sample_id)
         no_pad_logprobs, no_pad_top_indices = logger._remove_padding(
-            sample_labels,
-            sample_logprobs,
-            sample_top_indices
+            sample_labels, sample_logprobs, sample_top_indices
         )
         assert len(np.where(no_pad_logprobs == -1)[0]) == 0
         assert len(np.where(no_pad_top_indices == -1)[0]) == 0
@@ -293,8 +295,9 @@ def test_get_top_logprob_indices() -> None:
     logprobs = np.tile(np.arange(vocab_size), (batch_size, seq_len, 1))
     top_logprob_indices = get_top_logprob_indices(logprobs)
 
-    assert (top_logprob_indices.shape == (batch_size, seq_len, TOP_K))
+    assert top_logprob_indices.shape == (batch_size, seq_len, TOP_K)
     # Manually construct desired output based on how partition works
-    gt_top_logprob_indices = np.tile(np.array([98, 99, 97, 96, 95]), (batch_size, seq_len, 1))
+    gt_top_logprob_indices = np.tile(
+        np.array([98, 99, 97, 96, 95]), (batch_size, seq_len, 1)
+    )
     assert np.allclose(top_logprob_indices, gt_top_logprob_indices)
-

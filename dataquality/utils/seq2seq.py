@@ -139,9 +139,7 @@ def process_sample_logprobs(
     """
     # Ensure final shape - [len(labels), 1]
     if sample_labels.ndim != 1:
-        raise GalileoException(
-            "Expects sample_labels to be a 1D array"
-        )
+        raise GalileoException("Expects sample_labels to be a 1D array")
     sample_labels = sample_labels[..., None]
 
     # Extract token_logprobs - shape [len(labels)]
