@@ -4,16 +4,16 @@ import numpy as np
 import pyarrow as pa
 from scipy.special import log_softmax
 
-from dataquality.loggers.logger_config.seq2seq import (Seq2SeqLoggerConfig,
-                                                       seq2seq_logger_config)
-from dataquality.loggers.model_logger.base_model_logger import \
-    BaseGalileoModelLogger
+from dataquality.loggers.logger_config.seq2seq import (
+    Seq2SeqLoggerConfig,
+    seq2seq_logger_config,
+)
+from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.schemas.seq2seq import TOP_LOGPROBS_SCHEMA
 from dataquality.schemas.seq2seq import Seq2SeqOutputCols as C
 from dataquality.schemas.split import Split
 from dataquality.utils.arrow import save_arrow_file
-from dataquality.utils.seq2seq import (get_top_logprob_indices,
-                                       process_sample_logprobs)
+from dataquality.utils.seq2seq import get_top_logprob_indices, process_sample_logprobs
 
 
 class Seq2SeqModelLogger(BaseGalileoModelLogger):
