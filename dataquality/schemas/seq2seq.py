@@ -47,9 +47,7 @@ class Seq2SeqInputCols(str, Enum):
 
 class Seq2SeqOutputCols(str, Enum):
     id = "id"
-    dep = "data_error_potential"  # TODO Depricate
-    perplexity = "perplexity"  # TODO Depricate
-    token_deps = "token_deps"  # TODO Depricate
+    perplexity = "perplexity"
     token_logprobs = "token_logprobs"
     top_logprobs = "top_logprobs"
     # Mypy complained about split as an attribute, so we use `split_`

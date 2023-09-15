@@ -42,10 +42,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             inference_name=inference_name,
             labels=labels,
         )
-        # TODO Move DEP and Perplexity computation outside of DQ
-        self.sample_dep: List[float] = []
         self.sample_perplexity: List[float] = []
-        self.token_deps = pa.array([])
         self.token_logprobs = pa.array([])
         self.top_logprobs = pa.array([])
         self.labels = labels
@@ -81,68 +78,19 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         (
             self.token_logprobs,
             self.top_logprobs,
-            self.token_deps,
-            self.sample_dep,
             self.sample_perplexity,
         ) = self.process_logprobs(self.ids, logprobs)
 
-    def compute_token_deps(
-        self, sample_logprobs: np.ndarray, labels: np.ndarray
-    ) -> np.ndarray:
-        """Compute per token DEP
-
-        Per token DEP is computed exactly as in classification. For
-        each token we extract the probability for the ground truth token
-        and for the highest non ground truth token. We use these to compute
-        AUM and then DEP.
-
-        Note: we are given logprobs, but AUM/DEP requires probs. Rather than
-        immediately taking exp(logprobs), we first extract the label logprobs and
-        the max non label logprobs to optimize compute - this works because log
-        is a monotonic function, so exp(max(logprobs)) = max(probs).
-
-        Parameters:
-            sample_logprobs: shape = [seq_len, Vocab size]
-            labels: shape = [seq_len, 1]
-                Note - at times we need to squeeze the final dimension when
-                working with labels
-
-        Returns:
-            token_deps: per token DEP - dep.shape = labels.shape
-        """
-        # TODO: if labels is longer than probs we are in trouble!
-        #  this can happen is the user somehow tokenizes their data
-        #  differently than the default - e.g. changing max_token_length
-        # Re-shape for now to avoid errors
-        labels = labels[..., None]
-        gold_logprobs = np.take_along_axis(sample_logprobs, labels, axis=-1).squeeze()
-        logprobs_copy = sample_logprobs.copy()
-        # Logprobs are always < 0 so set to -inf to avoid in max
-        logprobs_copy[np.arange(len(labels)), labels.squeeze()] = -float("Inf")
-        # Max non-gold logprob
-        max_non_gold_logprobs = np.max(logprobs_copy, axis=-1)
-
-        # Convert to probs
-        gold_probs = np.exp(gold_logprobs)
-        max_non_gold_probs = np.exp(max_non_gold_logprobs)
-
-        # Compute AUM --> DEP
-        token_margins = gold_probs - max_non_gold_probs
-        token_deps = (1 - token_margins) / 2
-        return token_deps
 
     def process_logprobs(
         self, batch_ids: np.ndarray, batch_logprobs: np.ndarray
-    ) -> Tuple[pa.array, pa.array, pa.array, List[float], List[float]]:
+    ) -> Tuple[pa.array, pa.array, List[float]]:
         """Handle processing of a batch of sample logprobs
 
         For each sample in the batch extract / compute the following values:
             - Token level logprobs for the GT label
             - Token level top-k model logprobs: represented as a dictionary
             mapping {predicted_token: logprob}
-            - Token level DEP scores
-            - Sample level DEP score
-            - Sample level model Perplexity
 
         batch_logprobs has shape - [batch_size, max_token_length, vocab_size], where
         max_token_length is determined by the longest sample in the batch. Because
@@ -153,13 +101,6 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             - For each sample, top-k logprobs is a list of dictionaries with length
             equal to the number of tokens in that sample. Each dictionary maps the
             models top-k predicted tokens to their corresponding logprobs.
-
-            - Sample level DEP is computed as the average per token DEP.
-
-            - Perplexity is computed as the exponential of the Cross Entropy loss for
-            a sample = -avg(gold_logprob(token_i)). In words, this is the sum of the
-            negative logprob of the GT label for each token.
-            Reference: https://en.wikipedia.org/wiki/Perplexity
 
             - We return a pyarrow array because each sample may have a different number
             of token, which can't be represented in numpy.
@@ -172,21 +113,12 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
                 type(batch_top_logprobs[i]) = List[Dict[str, float]]
                 len(batch_top_logprobs) == batch_size
                 len(batch_top_logprobs[i]) = num_tokens_in_label[i]
-            batch_token_deps: The DEP per token prediction
-                len(batch_dep) == batch_size
-                batch_token_dep[i].shape is [num_tokens_in_label[i]]
-            batch_deps: Per sample DEP
-                len(batch_deps) == batch_size
-            batch_perplexities: Per sample Perplexity
-                len(batch_perplexities) == batch_size
         """
         # Compute the top-k logprob indices across the batch.
         top_logprob_indices = get_top_logprob_indices(batch_logprobs)
 
         batch_token_logprobs = []
         batch_top_logprobs = []
-        batch_token_deps = []
-        batch_deps = []
         batch_perplexities = []
         # Iterate through the samples in the batch
         for sample_id, sample_logprobs, sample_top_indices in zip(
@@ -210,12 +142,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             batch_token_logprobs.append(token_logprobs)
             batch_top_logprobs.append(top_logprobs)
 
-            # TODO: Likely move to runners - but keep now for backwards compatability
-            token_deps = self.compute_token_deps(sample_logprobs, sample_labels)
-            batch_token_deps.append(token_deps)
-            # Compute sample DEP as avg(token_DEP)
-            sample_dep = np.mean(token_deps)
-            batch_deps.append(sample_dep)
+            # TODO eventually deprecate
             # Perplexity = exp(-sum(gold_logprobs)
             perplexity = np.exp(-1 * np.mean(token_logprobs))
             batch_perplexities.append(perplexity)
@@ -223,9 +150,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         return (
             pa.array(batch_token_logprobs),
             pa.array(batch_top_logprobs, type=TOP_LOGPROBS_SCHEMA),
-            pa.array(batch_token_deps),
-            batch_deps,
-            batch_perplexities,
+            batch_perplexities
         )
 
     def _get_data_dict(self) -> Dict:
@@ -233,8 +158,6 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         batch_size = len(self.ids)
         data = {
             C.id.value: self.ids,
-            C.token_deps.value: self.token_deps,
-            C.dep.value: self.sample_dep,
             C.perplexity.value: self.sample_perplexity,
             C.token_logprobs.value: self.token_logprobs,
             C.top_logprobs.value: self.top_logprobs,
@@ -258,28 +181,49 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
     def _remove_padding(
         self,
         labels: np.ndarray,
-        sample_logprobs: np.ndarray,
-        sample_top_indices: np.ndarray,
-    ) -> Tuple[np.ndarray, np.ndarray]:
-        """Remove padding tokens from logprobs and top_indices
+        *args: np.ndarray
+        # sample_logprobs: np.ndarray,
+        # sample_top_indices: np.ndarray,
+    ) -> Tuple[np.ndarray, ...]:
+        """Remove padding tokens from a single sample
 
         To remove padding we use the tokenized labels and slice
         tokens depending on the padding side of the tokenizer.
 
+        This function is generic and allows for an arbitrary number
+        of token sequences that we want to remove padding from.
+        Each argument passed in `*args` is thus expected to
+        be a sequence of tokens with shape [max_seq_len, ...],
+        where  len(labels) = num_tokens <= max_seq_len and `...`
+        indicates 0+ extra dimensions.
+
         Parameters:
         -----------
+        labels: np.ndarray of shape - [num_tokens]
+            Token label ids for the sample. Used to get length of
+            non-padding logits.
+        *args: Tuple[np.ndarray] - each array has shape [max_seq_len, ...]
+            Arbitrary number of token sequences that we want to remove
+            padding from (e.g. sample_logprobs, sample_top_indices). The
+            first dimension must be the token dimension and be >= num_tokens.
+            The following dimensions are unrestricted.
 
+        Returns:
+        -------
+        sliced_sequences: Tuple[np.ndarray, ...] - each array has shape [num_tokens, ...]
+            Returns a tuple with the padding tokens removed for each
+            token sequence in *args - maintaining order and non-token dimensions.
         """
         # Remove padding based on the padding_side of the tokenizer
         num_tokens = len(labels)
-        if self.logger_config.tokenizer.padding_side == "left":  # type: ignore
-            logprobs = sample_logprobs[-num_tokens:]
-            top_indices = sample_top_indices[-num_tokens:]
-        else:
-            logprobs = sample_logprobs[:num_tokens]
-            top_indices = sample_top_indices[:num_tokens]
+        sliced_sequences = ()
+        for token_sequence in args:
+            if self.logger_config.tokenizer.padding_side == "left":  # type: ignore
+                sliced_sequences += (token_sequence[-num_tokens:],)
+            else:
+                sliced_sequences += (token_sequence[:num_tokens],)
 
-        return logprobs, top_indices
+        return sliced_sequences
 
     def convert_logits_to_logprobs(
         self, sample_logits: Union[List[np.ndarray], np.ndarray]

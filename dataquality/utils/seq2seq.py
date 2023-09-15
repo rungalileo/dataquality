@@ -35,7 +35,7 @@ def get_top_logprob_indices(logprobs: np.ndarray) -> np.ndarray:
     -------
     top_logprob_indices: np.ndarray of shape - [..., TOP_K]
         Indices of the top-k per-token logprobs. Note we preserve
-        all but the last dimension (i.e. not -1) to seemlisly handle
+        all but the last dimension (i.e. not -1) to seemlesly handle
         samples or batches.
     """
     # Multiply by -1 to reverse the order
@@ -131,25 +131,28 @@ def process_sample_logprobs(
 
     Returns:
     --------
-    label_logprobs: np.ndarray of shape [seq_len]
+    token_logprobs: np.ndarray of shape [seq_len]
         Label logprobs for each token in the sample
     top_logprobs: List[Dict[str, float]]
         List of top-k (str) predictions + corresponding logprobs
     """
     # Ensure final shape - [len(labels), 1]
     if sample_labels.ndim != 1:
-        raise GalileoException("Expects sample_labels to be a 1D array")
+        raise GalileoException(
+            f"Invalid shape {sample_labels.shape}, process_sample_logprobs"
+            f" expects sample_labels to be a 1D array"
+        )
     sample_labels = sample_labels[..., None]
 
     # Extract token_logprobs - shape [len(labels)]
-    label_logprobs = np.take_along_axis(
+    token_logprobs = np.take_along_axis(
         sample_logprobs, sample_labels, axis=-1
     ).squeeze()
 
     # Compute top_logprobs
     top_logprobs = extract_top_logprobs(sample_logprobs, sample_top_indices, tokenizer)
 
-    return label_logprobs, top_logprobs
+    return token_logprobs, top_logprobs
 
 
 def _handle_overlapping_offsets(
