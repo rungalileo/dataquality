@@ -11,9 +11,11 @@ import dataquality as dq
 from dataquality.loggers.data_logger.base_data_logger import DataSet
 from dataquality.loggers.data_logger.seq2seq import Seq2SeqDataLogger
 from dataquality.loggers.model_logger.seq2seq import Seq2SeqModelLogger
-from dataquality.schemas.seq2seq import TOP_K
+from dataquality.schemas.seq2seq import TOP_K, ModelGeneration, AlignedTokenData
+from dataquality.schemas.seq2seq import Seq2SeqOutputCols as C
 from dataquality.schemas.split import Split
-from dataquality.utils.seq2seq import get_top_logprob_indices
+from dataquality.utils.seq2seq import add_generated_output_to_df
+
 from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.conftest import TestSessionVariables, tokenizer
 
@@ -116,7 +118,7 @@ def test_log_model_outputs(
     mock_tokenizer = mock.MagicMock()
     mock_tokenizer.padding_side = "right"
     config.tokenizer = mock_tokenizer
-    config.tokenizer.decode = lambda x: "Fake"
+    config.tokenizer.decode.return_value = "Fake"
 
     batch_size = 4
     seq_len = 20
@@ -143,10 +145,10 @@ def test_log_model_outputs(
     output_data = vaex.open(f"{test_session_vars.LOCATION}/training/0/*.arrow")
     expected_cols = [
         "id",
-        "token_deps", # TODO Deprecate
+        "token_deps",  # TODO Deprecate
         "token_logprobs",
         "top_logprobs",
-        "perplexity", # TODO Deprecate
+        "perplexity",  # TODO Deprecate
         "split",
         "epoch",
         "data_error_potential",  # TODO Deprecate
@@ -181,121 +183,97 @@ def test_log_model_outputs(
             logprobs = [candidate[1] for candidate in token_top_logprobs]
             assert not np.allclose(logprobs[0], logprobs)
 
-            assert np.alltrue([candidate[0] == "Fake" for candidate in token_top_logprobs])
+            assert np.alltrue(
+                [candidate[0] == "Fake" for candidate in token_top_logprobs]
+            )
 
         # TODO Deprecated
         for dep in token_dep:
             assert 0 <= dep <= 1
 
 
-def test_model_logger_remove_padding() -> None:
-    """Test _remove_padding and _retrieve_sample_labels
+@mock.patch("dataquality.utils.seq2seq.align_tokens_to_character_spans")
+@mock.patch("dataquality.utils.seq2seq.generate_sample_output")
+def test_add_generated_output_to_df(
+    mock_generate_sample_output: mock.Mock,
+    mock_align_tokens_to_character_spans: mock.Mock
+) -> None:
+    """Test the big function we have all been waiting for
 
-    Ensure that _remove_padding removes the correct tokens for each
-    sample based on the `sample_labels` and the tokenzier padding direction.
+    What do we need to start with:
+        - A simple vaex df with a couple of dummy string
+
+    Mocks
+        - generate_sample_output: This can be fairly simple. The
+        one thing that we want to vary would be the length of things returned
+        - tokenizer: decode can be quite simple + encode
+        - align_tokens_to_character_spans: This is already tested so let's just
+        mock the output!
+
+    What to test: Main thing to test is that the vaex format is all as expected.
+        - Test that each column has some curated result
+        - Test that we don't have the extra column
     """
-    tokenized_labels = [
-        np.arange(10).tolist(),
-        np.arange(18).tolist(),
-        np.arange(20).tolist(),
-        np.arange(4).tolist(),
-    ]
-
-    config = mock.MagicMock()
-    config.id_to_tokens = {}
-    config.id_to_tokens["training"] = dict(zip(list(range(4)), tokenized_labels))
+    # Mock the tokenizer
     mock_tokenizer = mock.MagicMock()
-    # First test removing from right padding
-    mock_tokenizer.padding_side = "right"
-    config.tokenizer = mock_tokenizer
+    mock_tokenizer.decode.return_value = "Fake output"
+    mock_tokenizer.return_value = {"offset_mapping": []}
 
-    batch_size = 4
-    max_seq_len = 20
-    vocab_size = 100
+    # Mock the model
+    mock_model = mock.MagicMock() # Don't actually need any functions for this
 
-    logprobs = np.random.rand(batch_size, max_seq_len, vocab_size)
-    # Set pad tokens on the right with -1
-    for idx, token_labels in enumerate(tokenized_labels):
-        logprobs[idx, len(token_labels):] = -1
-    # Create the top indices just using logits
-    top_indices = logprobs[:, :, 5]
+    # Mock device and generation_config
+    mock_device = mock.MagicMock()
+    mock_generation_config = mock.MagicMock()
 
-    # Note we don't differentiate between logits and logprobs for this test
-    log_data = dict(
-        ids=list(range(batch_size)),
-        logits=logprobs,
-        split="training",
-        epoch=0,
+    # Mock the generation process
+    def mock_generate_output() -> ModelGeneration:
+        """Create simple dummy ModelGeneration"""
+        # Generate fake outputs
+        num_fake_tokens = 4 #np.random.randint(3, 10)
+        gen_ids = np.arange(num_fake_tokens)
+        gen_token_logprobs = np.zeros(num_fake_tokens) - 1
+        gen_top_logprobs = [
+            [("A", -1), ("B", -2)] for _ in range(num_fake_tokens)
+        ]
+        return ModelGeneration(gen_ids, gen_token_logprobs, gen_top_logprobs)
+
+    mock_generate_sample_output.return_value = mock_generate_output()
+
+    # Mock aligned output for a single sample
+    fake_token_label_offsets = [[(0, 1), (1, 20), (20, 21), (21, 22), (22, 23)]]
+    fake_token_label_positions = [[{0, 1}, {1}, {0}, {2, 3}, {3}]]
+    mock_align_tokens_to_character_spans.return_value = AlignedTokenData(
+        token_label_offsets=fake_token_label_offsets,
+        token_label_positions=fake_token_label_positions
     )
-    logger = Seq2SeqModelLogger(**log_data)
-    logger.logger_config = config
-    for sample_id, (sample_logprobs, sample_top_indices) in enumerate(zip(logprobs, top_indices)):
-        sample_labels = logger._retrieve_sample_labels(sample_id)
-        # Test the retrieve samples method
-        assert np.allclose(sample_labels, tokenized_labels[sample_id])
 
-        no_pad_logprobs, no_pad_top_indices = logger._remove_padding(
-            sample_labels,
-            sample_logprobs,
-            sample_top_indices
-        )
-        assert len(np.where(no_pad_logprobs == -1)[0]) == 0
-        assert len(np.where(no_pad_top_indices == -1)[0]) == 0
+    # Create fake df with vaex
+    df = vaex.from_dict({
+        "text": ["Fake Input"] * 100
+    })
 
-    # Test padding on the 'left'
-    logger.logger_config.tokenizer.padding_side = "left"
-    logprobs = np.random.rand(batch_size, max_seq_len, vocab_size)
-    # Set pad tokens on the left with -1
-    for idx, token_labels in enumerate(tokenized_labels):
-        logprobs[idx, :-len(token_labels)] = -1
-    # Create the top indices just using logits
-    top_indices = logprobs[:, :, 5]
+    df = add_generated_output_to_df(
+        df,
+        mock_tokenizer,
+        mock_model,
+        mock_device,
+        mock_generation_config
+    )
 
-    for sample_id, (sample_logprobs, sample_top_indices) in enumerate(zip(logprobs, top_indices)):
-        sample_labels = logger._retrieve_sample_labels(sample_id)
-        no_pad_logprobs, no_pad_top_indices = logger._remove_padding(
-            sample_labels,
-            sample_logprobs,
-            sample_top_indices
-        )
-        assert len(np.where(no_pad_logprobs == -1)[0]) == 0
-        assert len(np.where(no_pad_top_indices == -1)[0]) == 0
-
-
-def test_get_top_logprob_indices() -> None:
-    """
-    Test getting the top 5 logprobs with two different tensor shapes!
-        - [seq_len, vc]
-        - [bs, seq_len, vc]
-
-    Use arange so that we can expect the exact result!
-    """
-    batch_size = 4
-    seq_len = 10
-    vocab_size = 100
-
-    # Test logprobs shape - [seq_len, vocab_size]
-    logprobs = np.random.rand(seq_len, vocab_size)
-    copy_logprobs = logprobs.copy()
-    top_logprob_indices = get_top_logprob_indices(logprobs)
-    # Make sure we don't modify the logprobs
-    assert np.allclose(logprobs, copy_logprobs)
-
-    # Manually argsort - i.e. the slower way to do this!
-    manual_top_logprob_indices = np.argsort(logprobs, axis=-1)[:, -TOP_K:]
-    # Note top_logprob_indices is not guaranteed to be sorted
-    for token, gt_token in zip(top_logprob_indices, manual_top_logprob_indices):
-        token = set(list(token))
-        gt_token = set(list(gt_token))
-        assert token == gt_token
-
-    # Test logprobs shape - [batch_size, seq_len, vocab_size]
-    # Use a simple constructed case where each token has the same "logprobs"
-    logprobs = np.tile(np.arange(vocab_size), (batch_size, seq_len, 1))
-    top_logprob_indices = get_top_logprob_indices(logprobs)
-
-    assert (top_logprob_indices.shape == (batch_size, seq_len, TOP_K))
-    # Manually construct desired output based on how partition works
-    gt_top_logprob_indices = np.tile(np.array([98, 99, 97, 96, 95]), (batch_size, seq_len, 1))
-    assert np.allclose(top_logprob_indices, gt_top_logprob_indices)
+    # Make sure everything is in check!
+    assert len(df) == 100
+    assert df[C.generated_output.value].tolist() == ["Fake output"] * 100
+    # Convert to correct type
+    fake_token_label_positions = [[list(val) for val in fake_token_label_positions[0]]]
+    assert df[C.generated_token_label_positions.value].tolist() == fake_token_label_positions * 100
+    fake_token_label_offsets = [[list(val) for val in fake_token_label_offsets[0]]]
+    assert df[C.generated_token_label_offsets.value].tolist() == fake_token_label_offsets * 100
+    generated_token_logprobs = df[C.generated_token_logprobs.value].tolist()
+    generated_top_logprobs = df[C.generated_top_logprobs.value].tolist()
+    for logprobs, top_logprobs in zip(generated_token_logprobs, generated_top_logprobs):
+        num_tokens = len(logprobs)
+        assert num_tokens == len(top_logprobs)
+        assert np.array_equal(logprobs, np.zeros(num_tokens) - 1)
+        assert top_logprobs == [[("A", -1), ("B", -2)] for _ in range(num_tokens)]
 

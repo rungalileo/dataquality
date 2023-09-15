@@ -150,9 +150,7 @@ def process_sample_logprobs(
     """
     # Ensure final shape - [len(labels), 1]
     if sample_labels.ndim != 1:
-        raise GalileoException(
-            "Expects sample_labels to be a 1D array"
-        )
+        raise GalileoException("Expects sample_labels to be a 1D array")
     sample_labels = sample_labels[..., None]
 
     # Extract token_logprobs - shape [len(labels)]
@@ -200,10 +198,9 @@ def generate_sample_output(
     Return:
     -------
     model_generation: ModelGeneration
-        Includes:
-            - generated_ids
-            - generated_token_logprobs
-            - generated_top_logprobs
+        - generated_ids: np.ndarray of shape - [seq_len]
+        - generated_token_logprobs: np.ndarray of shape - [seq_len]
+        - generated_top_logprobs: List[List[Tuple[str, float]]]
     """
     # Shape - [1, seq_len]
     # TODO - we can run into trouble if they tokenize in a different way
@@ -213,8 +210,7 @@ def generate_sample_output(
     ].to(device)
 
     with torch.no_grad():
-        # TODO do we need to do model.eval()??
-        gen_ids = model.to(device).generate(
+        gen_ids = model.generate(
             input_ids=input_ids,
             generation_config=generation_config,
         )
@@ -246,7 +242,7 @@ def generate_sample_output(
     return ModelGeneration(
         generated_ids=gen_ids,
         generated_token_logprobs=gen_token_logprobs,
-        generated_top_logprobs=gen_token_logprobs,
+        generated_top_logprobs=gen_top_logprobs,
     )
 
 
@@ -286,6 +282,10 @@ def add_generated_output_to_df(
         C.generated_top_logprobs.value,
     ]
 
+    # Ensure the model is on the correct device and in eval mode
+    model.to(device)
+    model.eval()
+
     @vaex.register_function()
     def generate_batch_outputs(texts: pa.array) -> pa.StructArray:
         """Generated model outputs for a batch of text inputs
@@ -305,11 +305,7 @@ def add_generated_output_to_df(
 
         for sample in texts:
             # Generate and extract model outputs
-            (
-                generated_ids,
-                sample_generated_token_logprobs,
-                sample_generated_top_logprobs,
-            ) = generate_sample_output(
+            sample_generation = generate_sample_output(
                 input_str=str(sample),
                 model=model,
                 device=device,
@@ -318,7 +314,7 @@ def add_generated_output_to_df(
             )
 
             generated_outputs.append(
-                tokenizer.decode(generated_ids, skip_special_tokens=True)
+                tokenizer.decode(sample_generation.generated_ids, skip_special_tokens=True)
             )
             # Re-tokenize the data to get the token position offsets
             encoded_data = tokenizer(
@@ -334,8 +330,8 @@ def add_generated_output_to_df(
             )
             generated_token_label_offsets.append(aligned_data.token_label_offsets[0])
 
-            generated_token_logprobs.append(sample_generated_token_logprobs)
-            generated_top_logprobs.append(sample_generated_top_logprobs)
+            generated_token_logprobs.append(sample_generation.generated_token_logprobs)
+            generated_top_logprobs.append(sample_generation.generated_top_logprobs)
 
         # Ensure correct pyarrow format for top_logprobs
         generated_top_logprobs = pa.array(
@@ -349,7 +345,7 @@ def add_generated_output_to_df(
                 generated_token_logprobs,
                 generated_top_logprobs,
             ],
-            names=generated_columns
+            names=generated_columns,
         )
 
     df[C.generation_data.value] = df.func.generate_batch_outputs(df[IC.text])
