@@ -160,9 +160,7 @@ def test_log_model_outputs(
         tokenized_labels, token_logprobs, top_logprobs, perplexities
     ):
         assert (
-            len(token_labels)
-            == len(sample_token_logprobs)
-            == len(sample_top_logprobs)
+            len(token_labels) == len(sample_token_logprobs) == len(sample_top_logprobs)
         )
         # Check all logprobs are < 0
         for token_logprob in sample_token_logprobs:

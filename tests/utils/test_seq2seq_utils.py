@@ -6,7 +6,8 @@ import pytest
 
 from dataquality.loggers.model_logger.seq2seq import Seq2SeqModelLogger
 from dataquality.schemas.seq2seq import TOP_K
-from dataquality.utils.seq2seq import rollup_offset_mapping, get_top_logprob_indices
+from dataquality.utils.seq2seq import (get_top_logprob_indices,
+                                       rollup_offset_mapping)
 
 
 def test_model_logger_remove_padding() -> None:

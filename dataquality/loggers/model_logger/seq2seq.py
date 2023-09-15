@@ -4,16 +4,16 @@ import numpy as np
 import pyarrow as pa
 from scipy.special import log_softmax
 
-from dataquality.loggers.logger_config.seq2seq import (
-    Seq2SeqLoggerConfig,
-    seq2seq_logger_config,
-)
-from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
+from dataquality.loggers.logger_config.seq2seq import (Seq2SeqLoggerConfig,
+                                                       seq2seq_logger_config)
+from dataquality.loggers.model_logger.base_model_logger import \
+    BaseGalileoModelLogger
 from dataquality.schemas.seq2seq import TOP_LOGPROBS_SCHEMA
 from dataquality.schemas.seq2seq import Seq2SeqOutputCols as C
 from dataquality.schemas.split import Split
 from dataquality.utils.arrow import save_arrow_file
-from dataquality.utils.seq2seq import get_top_logprob_indices, process_sample_logprobs
+from dataquality.utils.seq2seq import (get_top_logprob_indices,
+                                       process_sample_logprobs)
 
 
 class Seq2SeqModelLogger(BaseGalileoModelLogger):
@@ -80,7 +80,6 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             self.top_logprobs,
             self.sample_perplexity,
         ) = self.process_logprobs(self.ids, logprobs)
-
 
     def process_logprobs(
         self, batch_ids: np.ndarray, batch_logprobs: np.ndarray
@@ -150,7 +149,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         return (
             pa.array(batch_token_logprobs),
             pa.array(batch_top_logprobs, type=TOP_LOGPROBS_SCHEMA),
-            batch_perplexities
+            batch_perplexities,
         )
 
     def _get_data_dict(self) -> Dict:
