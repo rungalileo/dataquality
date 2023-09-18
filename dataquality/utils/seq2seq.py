@@ -7,12 +7,12 @@ from tqdm.auto import tqdm
 from transformers import PreTrainedTokenizerFast
 
 from dataquality.exceptions import GalileoException
-from dataquality.schemas.seq2seq import TOP_K, AlignedTokenData, SampleTopLogprobData
+from dataquality.schemas.seq2seq import TOP_K, AlignedTokenData, LogprobData
 
 
 def remove_padding(
-    labels: np.ndarray, padding_side: str, *args: np.ndarray
-) -> List[np.ndarray]:
+    labels: np.ndarray, padding_side: str, padded_token_seq: np.ndarray
+) -> np.ndarray:
     """Remove padding tokens from a single sample
 
     To remove padding we use the tokenized labels and slice
@@ -44,16 +44,10 @@ def remove_padding(
     """
     # Remove padding based on the padding_side of the tokenizer
     num_tokens = len(labels)
-    pad_right = padding_side == "right"
+    if padding_side == "right":
+        return padded_token_seq[:num_tokens]
 
-    sliced_sequences: List[np.ndarray, ...] = []
-    for token_sequence in args:
-        if pad_right:
-            sliced_sequences.append(token_sequence[:num_tokens])
-        else:
-            sliced_sequences.append(token_sequence[-num_tokens:])
-
-    return sliced_sequences
+    return padded_token_seq[-num_tokens:]
 
 
 def get_top_logprob_indices(logprobs: np.ndarray) -> np.ndarray:
@@ -97,7 +91,7 @@ def extract_top_logprobs(
     sample_logprobs: np.ndarray,
     top_indices: np.ndarray,
     tokenizer: PreTrainedTokenizerFast,
-) -> SampleTopLogprobData:
+) -> List[List[Tuple[str, float]]]:
     """Extract per token top_logprobs for a single sample
 
     For each token, we extract the top-k predicted tokens
@@ -124,8 +118,7 @@ def extract_top_logprobs(
 
     Return:
     -------
-    top_logprobs: SampleTopLogprobData
-        SampleTopLogprobData has type top_logprobs
+    top_logprobs: List[List[Tuple[str, float]]]
         len(top_logprobs) == sample_logprobs.shape[0] == num_tokens
         len(top_logprobs[i]) == TOP_K
     """
@@ -144,7 +137,7 @@ def extract_top_logprobs(
 
         top_logprobs.append(token_top_logprobs_mapping)
 
-    return SampleTopLogprobData(top_logprobs)
+    return top_logprobs
 
 
 def process_sample_logprobs(
@@ -152,7 +145,7 @@ def process_sample_logprobs(
     sample_labels: np.ndarray,
     sample_top_indices: np.ndarray,
     tokenizer: PreTrainedTokenizerFast,
-) -> Tuple[np.ndarray, SampleTopLogprobData]:
+) -> LogprobData:
     """Extract label_logprobs and top_logprobs
 
     Whether the labels are GT target labels or generated labels, the
@@ -198,8 +191,7 @@ def process_sample_logprobs(
 
     # Compute top_logprobs
     top_logprobs = extract_top_logprobs(sample_logprobs, sample_top_indices, tokenizer)
-
-    return token_logprobs, top_logprobs
+    return LogprobData(token_logprobs, top_logprobs)
 
 
 def _handle_overlapping_offsets(

@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import List, Set, Tuple
 
+import numpy as np
 import pyarrow as pa
 from vaex import DataFrame
 
@@ -63,7 +64,8 @@ class AlignedTokenData:
 
 
 @dataclass
-class SampleTopLogprobData:
+class LogprobData:
     """Data type for the top_logprobs for a single sample"""
 
+    token_logprobs: np.ndarray
     top_logprobs: List[List[Tuple[str, float]]]

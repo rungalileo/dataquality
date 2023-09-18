@@ -118,6 +118,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
                 len(batch_top_logprobs[i]) = num_tokens_in_label[i]
         """
         # Compute the top-k logprob indices across the batch.
+        assert self.logger_config.tokenizer is not None  # Needed for linting
         top_logprob_indices = get_top_logprob_indices(batch_logprobs)
 
         batch_token_logprobs = []
@@ -128,31 +129,29 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             batch_ids, batch_logprobs, top_logprob_indices
         ):
             sample_labels = self._retrieve_sample_labels(sample_id)
-            (
-                sample_logprobs,
-                sample_top_indices,
-            ) = remove_padding(
+            padding_side = self.logger_config.tokenizer.padding_side
+            sample_logprobs = remove_padding(
                 sample_labels,
-                self.logger_config.tokenizer.padding_side,
+                padding_side,
                 sample_logprobs,
+            )
+            sample_top_indices = remove_padding(
+                sample_labels,
+                padding_side,
                 sample_top_indices,
             )
-            (
-                token_logprobs,
-                top_logprobs_data,
-            ) = process_sample_logprobs(
+            logprob_data = process_sample_logprobs(
                 sample_logprobs=sample_logprobs,
                 sample_labels=sample_labels,
                 sample_top_indices=sample_top_indices,
                 tokenizer=self.logger_config.tokenizer,
             )
-
-            batch_token_logprobs.append(token_logprobs)
-            batch_top_logprobs.append(top_logprobs_data.top_logprobs)
+            batch_token_logprobs.append(logprob_data.token_logprobs)
+            batch_top_logprobs.append(logprob_data.top_logprobs)
 
             # TODO eventually deprecate
             # Perplexity = exp(-sum(gold_logprobs)
-            perplexity = np.exp(-1 * np.mean(token_logprobs))
+            perplexity = np.exp(-1 * np.mean(logprob_data.token_logprobs))
             batch_perplexities.append(perplexity)
 
         return (
