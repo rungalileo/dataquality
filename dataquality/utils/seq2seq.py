@@ -10,6 +10,54 @@ from dataquality.exceptions import GalileoException
 from dataquality.schemas.seq2seq import TOP_K, AlignedTokenData, SampleTopLogprobData
 
 
+def remove_padding(
+        labels: np.ndarray,
+        padding_side: str,
+        *args: np.ndarray
+) -> List[np.ndarray]:
+    """Remove padding tokens from a single sample
+
+    To remove padding we use the tokenized labels and slice
+    tokens depending on the padding side of the tokenizer.
+
+    This function is generic and allows for an arbitrary number
+    of token sequences that we want to remove padding from.
+    Each argument passed in `*args` is thus expected to
+    be a sequence of tokens with shape [max_seq_len, ...],
+    where  len(labels) = num_tokens <= max_seq_len and `...`
+    indicates 0+ extra dimensions.
+
+    Parameters:
+    -----------
+    labels: np.ndarray of shape - [num_tokens]
+        Token label ids for the sample. Used to get length of
+        non-padding logits.
+    *args: Tuple[np.ndarray] - each array has shape [max_seq_len, ...]
+        Arbitrary number of token sequences that we want to remove
+        padding from (e.g. sample_logprobs, sample_top_indices). The
+        first dimension must be the token dimension and be >= num_tokens.
+        The following dimensions are unrestricted.
+
+    Returns:
+    -------
+    sliced_sequences: List[np.ndarray] - each array has shape [n_tokens, ...]
+        Returns a tuple with the padding tokens removed for each
+        token sequence in *args - maintaining order and non-token dimensions.
+    """
+    # Remove padding based on the padding_side of the tokenizer
+    num_tokens = len(labels)
+    pad_right = padding_side == "right"
+
+    sliced_sequences: List[np.ndarray, ...] = []
+    for token_sequence in args:
+        if pad_right:
+            sliced_sequences.append(token_sequence[:num_tokens])
+        else:
+            sliced_sequences.append(token_sequence[-num_tokens:])
+
+    return sliced_sequences
+
+
 def get_top_logprob_indices(logprobs: np.ndarray) -> np.ndarray:
     """Extract per-token top-k logprobs
 

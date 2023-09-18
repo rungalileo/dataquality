@@ -13,7 +13,7 @@ from dataquality.schemas.seq2seq import TOP_LOGPROBS_SCHEMA
 from dataquality.schemas.seq2seq import Seq2SeqOutputCols as C
 from dataquality.schemas.split import Split
 from dataquality.utils.arrow import save_arrow_file
-from dataquality.utils.seq2seq import get_top_logprob_indices, process_sample_logprobs
+from dataquality.utils.seq2seq import get_top_logprob_indices, process_sample_logprobs, remove_padding
 
 
 class Seq2SeqModelLogger(BaseGalileoModelLogger):
@@ -127,7 +127,11 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             (
                 sample_logprobs,
                 sample_top_indices,
-            ) = self._remove_padding(sample_labels, sample_logprobs, sample_top_indices)
+            ) = remove_padding(
+                sample_labels,
+                self.logger_config.tokenizer.padding_side,
+                sample_logprobs,
+                sample_top_indices)
             (
                 token_logprobs,
                 top_logprobs_data,
@@ -171,58 +175,17 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         save_arrow_file(path, object_name, data)
 
     def _retrieve_sample_labels(self, sample_id: int) -> np.ndarray:
-        """Retrieve the labels array based on the sample it"""
+        """Retrieve the labels array based on the sample id
+
+        Labels gives the ground truth / target sample ids for
+        each token in the sequence:
+
+        e.g. for sample_id = 8 --> labels = [0, 10, 16, ...]
+        """
         labels = np.array(
             self.logger_config.id_to_tokens[self.token_map_key][sample_id]
         )
         return labels
-
-    def _remove_padding(
-        self,
-        labels: np.ndarray,
-        *args: np.ndarray
-        # sample_logprobs: np.ndarray,
-        # sample_top_indices: np.ndarray,
-    ) -> Tuple[np.ndarray, ...]:
-        """Remove padding tokens from a single sample
-
-        To remove padding we use the tokenized labels and slice
-        tokens depending on the padding side of the tokenizer.
-
-        This function is generic and allows for an arbitrary number
-        of token sequences that we want to remove padding from.
-        Each argument passed in `*args` is thus expected to
-        be a sequence of tokens with shape [max_seq_len, ...],
-        where  len(labels) = num_tokens <= max_seq_len and `...`
-        indicates 0+ extra dimensions.
-
-        Parameters:
-        -----------
-        labels: np.ndarray of shape - [num_tokens]
-            Token label ids for the sample. Used to get length of
-            non-padding logits.
-        *args: Tuple[np.ndarray] - each array has shape [max_seq_len, ...]
-            Arbitrary number of token sequences that we want to remove
-            padding from (e.g. sample_logprobs, sample_top_indices). The
-            first dimension must be the token dimension and be >= num_tokens.
-            The following dimensions are unrestricted.
-
-        Returns:
-        -------
-        sliced_sequences: Tuple[np.ndarray, ...] - each array has shape [n_tokens, ...]
-            Returns a tuple with the padding tokens removed for each
-            token sequence in *args - maintaining order and non-token dimensions.
-        """
-        # Remove padding based on the padding_side of the tokenizer
-        num_tokens = len(labels)
-        sliced_sequences: Tuple[np.ndarray, ...] = ()
-        for token_sequence in args:
-            if self.logger_config.tokenizer.padding_side == "left":  # type: ignore
-                sliced_sequences += (token_sequence[-num_tokens:],)
-            else:
-                sliced_sequences += (token_sequence[:num_tokens],)
-
-        return sliced_sequences
 
     def convert_logits_to_logprobs(
         self, sample_logits: Union[List[np.ndarray], np.ndarray]
