@@ -62,9 +62,8 @@ def test_model_logger_remove_padding() -> None:
         # Test the retrieve samples method
         assert np.allclose(sample_labels, tokenized_labels[sample_id])
 
-        no_pad_logprobs, no_pad_top_indices = remove_padding(
-            sample_labels, "right", sample_logprobs, sample_top_indices
-        )
+        no_pad_logprobs = remove_padding(sample_labels, "right", sample_logprobs)
+        no_pad_top_indices = remove_padding(sample_labels, "right", sample_top_indices)
         assert len(np.where(no_pad_logprobs == -1)[0]) == 0
         assert len(np.where(no_pad_top_indices == -1)[0]) == 0
 
@@ -80,9 +79,8 @@ def test_model_logger_remove_padding() -> None:
         zip(logprobs, top_indices)
     ):
         sample_labels = logger._retrieve_sample_labels(sample_id)
-        no_pad_logprobs, no_pad_top_indices = remove_padding(
-            sample_labels, "left", sample_logprobs, sample_top_indices
-        )
+        no_pad_logprobs = remove_padding(sample_labels, "left", sample_logprobs)
+        no_pad_top_indices = remove_padding(sample_labels, "left", sample_top_indices)
         assert len(np.where(no_pad_logprobs == -1)[0]) == 0
         assert len(np.where(no_pad_top_indices == -1)[0]) == 0
 
@@ -103,16 +101,17 @@ def test_process_sample_logprobs():
     fake_labels = np.arange(seq_len)
     fake_top_indices = np.tile(np.arange(TOP_K), (seq_len, 1))
 
-    token_logprobs, top_logprobs_data = process_sample_logprobs(
+    logprob_data = process_sample_logprobs(
         fake_logprobs, fake_labels, fake_top_indices, mock_tokenizer
     )
 
     # Check that the token_logprobs are correct
+    token_logprobs = logprob_data.token_logprobs
     for i in range(len(token_logprobs)):
         assert token_logprobs[i] == fake_logprobs[i, fake_labels[i]]
 
     # Check that the top_logprobs are correct
-    top_loprobs = top_logprobs_data.top_logprobs
+    top_loprobs = logprob_data.top_logprobs
     assert len(top_loprobs) == seq_len
     assert len(top_loprobs[0]) == TOP_K
     for i, token_top_logprobs in enumerate(top_loprobs):

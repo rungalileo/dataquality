@@ -13,34 +13,33 @@ from dataquality.schemas.seq2seq import TOP_K, AlignedTokenData, LogprobData
 def remove_padding(
     labels: np.ndarray, padding_side: str, padded_token_seq: np.ndarray
 ) -> np.ndarray:
-    """Remove padding tokens from a single sample
+    """Remove padding tokens from a single token sequence
 
-    To remove padding we use the tokenized labels and slice
+    To remove padding tokens we use the tokenized labels and slice
     tokens depending on the padding side of the tokenizer.
 
-    This function is generic and allows for an arbitrary number
-    of token sequences that we want to remove padding from.
-    Each argument passed in `*args` is thus expected to
-    be a sequence of tokens with shape [max_seq_len, ...],
-    where  len(labels) = num_tokens <= max_seq_len and `...`
-    indicates 0+ extra dimensions.
+    We assume padded_token_seq is a sequence tokens with shape
+    [max_seq_len, ...], where  len(labels) = num_tokens <= max_seq_len
+    and `...` indicates 0+ extra dimensions.
 
     Parameters:
     -----------
     labels: np.ndarray of shape - [num_tokens]
         Token label ids for the sample. Used to get length of
         non-padding logits.
-    *args: Tuple[np.ndarray] - each array has shape [max_seq_len, ...]
-        Arbitrary number of token sequences that we want to remove
-        padding from (e.g. sample_logprobs, sample_top_indices). The
-        first dimension must be the token dimension and be >= num_tokens.
-        The following dimensions are unrestricted.
+    padding_side: str
+        Comes from the tokenizer used for the model, determines
+        which side padding is applied.
+    padded_token_seq: np.ndarray of shape - [max_seq_len, ...]
+        Padded token sequence. The first dimension must be the token
+        dimension and be >= num_tokens. The following dimensions are
+        unrestricted.
 
     Returns:
     -------
-    sliced_sequences: List[np.ndarray] - each array has shape [n_tokens, ...]
-        Returns a tuple with the padding tokens removed for each
-        token sequence in *args - maintaining order and non-token dimensions.
+    non_padded_token_seq: np.ndarray of shape - [num_tokens, ...]
+        Sequence with padded tokens removed, leaving other dimensions
+        un-altered.
     """
     # Remove padding based on the padding_side of the tokenizer
     num_tokens = len(labels)
@@ -171,10 +170,8 @@ def process_sample_logprobs(
 
     Returns:
     --------
-    token_logprobs: np.ndarray of shape [seq_len]
-        Label logprobs for each token in the sample
-    top_logprobs: SampleTopLogprobData
-        List of top-k (str) predictions + corresponding logprobs
+    logprob_data: LogprobData
+        token_logprobs and top_logprobs for the sample
     """
     # Ensure final shape - [len(labels), 1]
     if sample_labels.ndim != 1:

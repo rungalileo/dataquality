@@ -65,7 +65,15 @@ class AlignedTokenData:
 
 @dataclass
 class LogprobData:
-    """Data type for the top_logprobs for a single sample"""
+    """Data type for the top_logprobs for a single sample
+
+    Parameters:
+    -----------
+    token_logprobs: np.ndarray of shape - [seq_len]
+        Token label logprobs for a single sample
+    top_logprobs: List[List[Tuple[str, float]]]
+        List of top-k (str) predictions + corresponding logprobs
+    """
 
     token_logprobs: np.ndarray
     top_logprobs: List[List[Tuple[str, float]]]
