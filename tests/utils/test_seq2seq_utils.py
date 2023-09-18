@@ -5,10 +5,8 @@ import numpy as np
 import pytest
 
 from dataquality.exceptions import GalileoException
-from dataquality.loggers.model_logger.seq2seq import Seq2SeqModelLogger
 from dataquality.schemas.seq2seq import TOP_K
 from dataquality.utils.seq2seq import get_top_logprob_indices, rollup_offset_mapping, process_sample_logprobs
-
 
 # TODO test process_sample_logprobs
 def test_process_sample_logprobs():
@@ -50,7 +48,7 @@ def test_process_sample_logprobs_incorrect_shape():
     # Add dimension
     incorrect_labels = np.zeros((seq_len, 1))
 
-    with pytest.raises(ValueError) as excinfo:
+    with pytest.raises(GalileoException) as excinfo:
         token_logprobs, top_logprobs = process_sample_logprobs(
             fake_logprobs,
             incorrect_labels,
