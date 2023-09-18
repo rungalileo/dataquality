@@ -11,9 +11,7 @@ from dataquality.schemas.seq2seq import TOP_K, AlignedTokenData, SampleTopLogpro
 
 
 def remove_padding(
-        labels: np.ndarray,
-        padding_side: str,
-        *args: np.ndarray
+    labels: np.ndarray, padding_side: str, *args: np.ndarray
 ) -> List[np.ndarray]:
     """Remove padding tokens from a single sample
 

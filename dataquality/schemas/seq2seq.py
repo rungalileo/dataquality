@@ -65,4 +65,5 @@ class AlignedTokenData:
 @dataclass
 class SampleTopLogprobData:
     """Data type for the top_logprobs for a single sample"""
+
     top_logprobs: List[List[Tuple[str, float]]]

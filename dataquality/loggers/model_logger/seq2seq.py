@@ -13,7 +13,11 @@ from dataquality.schemas.seq2seq import TOP_LOGPROBS_SCHEMA
 from dataquality.schemas.seq2seq import Seq2SeqOutputCols as C
 from dataquality.schemas.split import Split
 from dataquality.utils.arrow import save_arrow_file
-from dataquality.utils.seq2seq import get_top_logprob_indices, process_sample_logprobs, remove_padding
+from dataquality.utils.seq2seq import (
+    get_top_logprob_indices,
+    process_sample_logprobs,
+    remove_padding,
+)
 
 
 class Seq2SeqModelLogger(BaseGalileoModelLogger):
@@ -131,7 +135,8 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
                 sample_labels,
                 self.logger_config.tokenizer.padding_side,
                 sample_logprobs,
-                sample_top_indices)
+                sample_top_indices,
+            )
             (
                 token_logprobs,
                 top_logprobs_data,

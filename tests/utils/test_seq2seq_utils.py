@@ -7,8 +7,12 @@ import pytest
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.model_logger.seq2seq import Seq2SeqModelLogger
 from dataquality.schemas.seq2seq import TOP_K
-from dataquality.utils.seq2seq import get_top_logprob_indices, rollup_offset_mapping, process_sample_logprobs, \
-    remove_padding
+from dataquality.utils.seq2seq import (
+    get_top_logprob_indices,
+    rollup_offset_mapping,
+    process_sample_logprobs,
+    remove_padding,
+)
 
 
 def test_model_logger_remove_padding() -> None:
@@ -59,10 +63,7 @@ def test_model_logger_remove_padding() -> None:
         assert np.allclose(sample_labels, tokenized_labels[sample_id])
 
         no_pad_logprobs, no_pad_top_indices = remove_padding(
-            sample_labels,
-            "right",
-            sample_logprobs,
-            sample_top_indices
+            sample_labels, "right", sample_logprobs, sample_top_indices
         )
         assert len(np.where(no_pad_logprobs == -1)[0]) == 0
         assert len(np.where(no_pad_top_indices == -1)[0]) == 0
@@ -80,20 +81,17 @@ def test_model_logger_remove_padding() -> None:
     ):
         sample_labels = logger._retrieve_sample_labels(sample_id)
         no_pad_logprobs, no_pad_top_indices = remove_padding(
-            sample_labels,
-            "left",
-            sample_logprobs,
-            sample_top_indices
+            sample_labels, "left", sample_logprobs, sample_top_indices
         )
         assert len(np.where(no_pad_logprobs == -1)[0]) == 0
         assert len(np.where(no_pad_top_indices == -1)[0]) == 0
 
 
-# TODO test process_sample_logprobs
 def test_process_sample_logprobs():
     """Test process_sample_logprobs
 
-
+    Ensure that the extracted label logprobs are correct
+    and that the top_logprobs data is as expected.
     """
     mock_tokenizer = mock.MagicMock()
     mock_tokenizer.decode.return_value = "Fake"
@@ -105,40 +103,44 @@ def test_process_sample_logprobs():
     fake_labels = np.arange(seq_len)
     fake_top_indices = np.tile(np.arange(TOP_K), (seq_len, 1))
 
-    token_logprobs, top_logprobs = process_sample_logprobs(
-        fake_logprobs,
-        fake_labels,
-        fake_top_indices,
-        mock_tokenizer
+    token_logprobs, top_logprobs_data = process_sample_logprobs(
+        fake_logprobs, fake_labels, fake_top_indices, mock_tokenizer
     )
-    # Do some testing here!
+
+    # Check that the token_logprobs are correct
+    for i in range(len(token_logprobs)):
+        assert token_logprobs[i] == fake_logprobs[i, fake_labels[i]]
+
+    # Check that the top_logprobs are correct
+    top_loprobs = top_logprobs_data.top_logprobs
+    assert len(top_loprobs) == seq_len
+    assert len(top_loprobs[0]) == TOP_K
+    for i, token_top_logprobs in enumerate(top_loprobs):
+        pred_top_logprobs = [token[1] for token in token_top_logprobs]
+        assert np.allclose(pred_top_logprobs, fake_logprobs[i, :TOP_K])
 
 
-# TODO test process_sample_logprobs
 def test_process_sample_logprobs_incorrect_shape():
-    """Test process_sample_logprobs
-
-
-    """
+    """Test process_sample_logprobs with incorrect label shape"""
     mock_tokenizer = mock.MagicMock()
     seq_len = 10
     vocab_size = 100
     fake_logprobs = np.zeros((seq_len, vocab_size))
     fake_top_indices = np.zeros((seq_len, 5))
 
-    # Add dimension
+    # We expect labels to have shape (seq_len,) when passing
+    # to process_sample_logprobs
     incorrect_labels = np.zeros((seq_len, 1))
 
     with pytest.raises(GalileoException) as excinfo:
-        token_logprobs, top_logprobs = process_sample_logprobs(
-            fake_logprobs,
-            incorrect_labels,
-            fake_top_indices,
-            mock_tokenizer
+        _, _ = process_sample_logprobs(
+            fake_logprobs, incorrect_labels, fake_top_indices, mock_tokenizer
         )
 
-    assert "Invalid shape (10, 1), process_sample_logprobs" \
-           " expects sample_labels to be a 1D array" in str(excinfo.value)
+    assert (
+        "Invalid shape (10, 1), process_sample_logprobs"
+        " expects sample_labels to be a 1D array" == str(excinfo.value)
+    )
 
 
 def test_get_top_logprob_indices() -> None:
