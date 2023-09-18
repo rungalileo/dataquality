@@ -4,12 +4,62 @@ from unittest import mock
 import numpy as np
 import pytest
 
+from dataquality.exceptions import GalileoException
 from dataquality.loggers.model_logger.seq2seq import Seq2SeqModelLogger
 from dataquality.schemas.seq2seq import TOP_K
-from dataquality.utils.seq2seq import get_top_logprob_indices, rollup_offset_mapping
+from dataquality.utils.seq2seq import get_top_logprob_indices, rollup_offset_mapping, process_sample_logprobs
 
 
 # TODO test process_sample_logprobs
+def test_process_sample_logprobs():
+    """Test process_sample_logprobs
+
+
+    """
+    mock_tokenizer = mock.MagicMock()
+    mock_tokenizer.decode.return_value = "Fake"
+
+    seq_len = 10
+    vocab_size = 100
+
+    fake_logprobs = np.random.rand(seq_len, vocab_size)
+    fake_labels = np.arange(seq_len)
+    fake_top_indices = np.tile(np.arange(TOP_K), (seq_len, 1))
+
+    token_logprobs, top_logprobs = process_sample_logprobs(
+        fake_logprobs,
+        fake_labels,
+        fake_top_indices,
+        mock_tokenizer
+    )
+    # Do some testing here!
+
+
+# TODO test process_sample_logprobs
+def test_process_sample_logprobs_incorrect_shape():
+    """Test process_sample_logprobs
+
+
+    """
+    mock_tokenizer = mock.MagicMock()
+    seq_len = 10
+    vocab_size = 100
+    fake_logprobs = np.zeros((seq_len, vocab_size))
+    fake_top_indices = np.zeros((seq_len, 5))
+
+    # Add dimension
+    incorrect_labels = np.zeros((seq_len, 1))
+
+    with pytest.raises(ValueError) as excinfo:
+        token_logprobs, top_logprobs = process_sample_logprobs(
+            fake_logprobs,
+            incorrect_labels,
+            fake_top_indices,
+            mock_tokenizer
+        )
+
+    assert "Invalid shape (10, 1), process_sample_logprobs" \
+           " expects sample_labels to be a 1D array" in str(excinfo.value)
 
 
 def test_get_top_logprob_indices() -> None:
