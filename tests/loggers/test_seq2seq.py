@@ -13,7 +13,6 @@ from dataquality.loggers.data_logger.seq2seq import Seq2SeqDataLogger
 from dataquality.loggers.model_logger.seq2seq import Seq2SeqModelLogger
 from dataquality.schemas.seq2seq import TOP_K
 from dataquality.schemas.split import Split
-from dataquality.utils.seq2seq import get_top_logprob_indices
 from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.conftest import TestSessionVariables, tokenizer
 

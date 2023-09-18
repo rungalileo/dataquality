@@ -209,13 +209,13 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
 
         Returns:
         -------
-        sliced_sequences: Tuple[np.ndarray, ...] - each array has shape [num_tokens, ...]
+        sliced_sequences: Tuple[np.ndarray, ...] - each array has shape [n_tokens, ...]
             Returns a tuple with the padding tokens removed for each
             token sequence in *args - maintaining order and non-token dimensions.
         """
         # Remove padding based on the padding_side of the tokenizer
         num_tokens = len(labels)
-        sliced_sequences = ()
+        sliced_sequences: Tuple[np.ndarray, ...] = ()
         for token_sequence in args:
             if self.logger_config.tokenizer.padding_side == "left":  # type: ignore
                 sliced_sequences += (token_sequence[-num_tokens:],)

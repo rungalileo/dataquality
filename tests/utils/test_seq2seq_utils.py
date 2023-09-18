@@ -1,13 +1,10 @@
 from typing import List, Set, Tuple
-from unittest import mock
 
 import numpy as np
 import pytest
 
-from dataquality.loggers.model_logger.seq2seq import Seq2SeqModelLogger
 from dataquality.schemas.seq2seq import TOP_K
 from dataquality.utils.seq2seq import get_top_logprob_indices, rollup_offset_mapping
-
 
 # TODO test process_sample_logprobs
 
