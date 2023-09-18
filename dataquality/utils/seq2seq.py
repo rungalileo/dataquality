@@ -7,7 +7,7 @@ from tqdm.auto import tqdm
 from transformers import PreTrainedTokenizerFast
 
 from dataquality.exceptions import GalileoException
-from dataquality.schemas.seq2seq import TOP_K, AlignedTokenData
+from dataquality.schemas.seq2seq import TOP_K, AlignedTokenData, SampleTopLogprobData
 
 
 def get_top_logprob_indices(logprobs: np.ndarray) -> np.ndarray:
@@ -51,7 +51,7 @@ def extract_top_logprobs(
     sample_logprobs: np.ndarray,
     top_indices: np.ndarray,
     tokenizer: PreTrainedTokenizerFast,
-) -> List[List[Tuple[str, float]]]:
+) -> SampleTopLogprobData:
     """Extract per token top_logprobs for a single sample
 
     For each token, we extract the top-k predicted tokens
@@ -78,7 +78,8 @@ def extract_top_logprobs(
 
     Return:
     -------
-    top_logprobs: List[List[Tuple[str, float]]
+    top_logprobs: SampleTopLogprobData
+        SampleTopLogprobData has type top_logprobs
         len(top_logprobs) == sample_logprobs.shape[0] == num_tokens
         len(top_logprobs[i]) == TOP_K
     """
@@ -97,7 +98,7 @@ def extract_top_logprobs(
 
         top_logprobs.append(token_top_logprobs_mapping)
 
-    return top_logprobs
+    return SampleTopLogprobData(top_logprobs)
 
 
 def process_sample_logprobs(
@@ -105,7 +106,7 @@ def process_sample_logprobs(
     sample_labels: np.ndarray,
     sample_top_indices: np.ndarray,
     tokenizer: PreTrainedTokenizerFast,
-) -> Tuple[np.ndarray, List[List[Tuple[str, float]]]]:
+) -> Tuple[np.ndarray, SampleTopLogprobData]:
     """Extract label_logprobs and top_logprobs
 
     Whether the labels are GT target labels or generated labels, the
@@ -133,7 +134,7 @@ def process_sample_logprobs(
     --------
     token_logprobs: np.ndarray of shape [seq_len]
         Label logprobs for each token in the sample
-    top_logprobs: List[Dict[str, float]]
+    top_logprobs: SampleTopLogprobData
         List of top-k (str) predictions + corresponding logprobs
     """
     # Ensure final shape - [len(labels), 1]

@@ -130,7 +130,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             ) = self._remove_padding(sample_labels, sample_logprobs, sample_top_indices)
             (
                 token_logprobs,
-                top_logprobs,
+                top_logprobs_data,
             ) = process_sample_logprobs(
                 sample_logprobs=sample_logprobs,
                 sample_labels=sample_labels,
@@ -139,7 +139,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             )
 
             batch_token_logprobs.append(token_logprobs)
-            batch_top_logprobs.append(top_logprobs)
+            batch_top_logprobs.append(top_logprobs_data.top_logprobs)
 
             # TODO eventually deprecate
             # Perplexity = exp(-sum(gold_logprobs)
