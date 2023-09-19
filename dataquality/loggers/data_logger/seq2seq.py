@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, Any, List, Optional, Set, Tuple, Union, cast
 
 import pandas as pd
 import pyarrow as pa
+import torch
 import vaex
 from vaex.dataframe import DataFrame
 
@@ -20,6 +21,7 @@ from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.seq2seq import Seq2SeqInputCols as C
 from dataquality.schemas.split import Split
 from dataquality.utils.seq2seq import (
+    add_generated_output_to_df,
     align_tokens_to_character_spans,
 )
 from dataquality.utils.vaex import rename_df
@@ -194,6 +196,57 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
     @classmethod
     def _get_prob_cols(cls) -> List[str]:
         return ["id"]
+
+    @classmethod
+    def create_in_out_frames(
+        cls,
+        in_frame: DataFrame,
+        dir_name: str,
+        prob_only: bool,
+        split: str,
+        epoch_or_inf: Union[str, int],
+    ) -> BaseLoggerDataFrames:
+        """Formats the input data and model output data
+        For Seq2Seq we need to add the generated output to the input dataframe,
+        and then call the super method to create the input and output dataframes
+        """
+        in_frame = cls.add_generated_output_to_df(in_frame, split)
+        return super().create_in_out_frames(
+            in_frame, dir_name, prob_only, split, epoch_or_inf
+        )
+
+    @classmethod
+    def add_generated_output_to_df(cls, df: DataFrame, split: str) -> DataFrame:
+        """Adds the generated output to the dataframe
+        Adds the generated output to the dataframe, and also adds the
+        `token_label_positions` column
+        """
+        logger_config = cls.logger_config
+        tokenizer = logger_config.tokenizer
+        model = logger_config.model
+        generation_config = logger_config.generation_config
+        if tokenizer is None:
+            raise GalileoException(
+                "You must set your tokenizer before logging. Use `dq.set_tokenizer`"
+            )
+        if model is None:
+            raise GalileoException(
+                "You must set your model before logging. Use `watch`"
+            )
+        if generation_config is None:
+            raise GalileoException(
+                "You must set your generation config before logging. Use `watch`"
+            )
+        if split not in logger_config.generation_splits:
+            print("Skipping generation for split", split)
+            return df
+
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        # Ensure the model is on the correct device and in eval mode
+        model.to(device)
+        model.eval()
+        df = add_generated_output_to_df(df, tokenizer, model, device, generation_config)
+        return df
 
     @classmethod
     def separate_dataframe(

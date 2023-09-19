@@ -310,9 +310,8 @@ def add_generated_output_to_df(
     Note: We use a pa.StructArray to extract multiple columns of info
     at once through vaex. We then have to seperate the Struct into individual
     columns.
-
-    TODO consider generating in batches!
     """
+
     generated_columns = [
         C.generated_output.value,
         C.generated_token_label_positions.value,
@@ -320,10 +319,6 @@ def add_generated_output_to_df(
         C.generated_token_logprobs.value,
         C.generated_top_logprobs.value,
     ]
-
-    # Ensure the model is on the correct device and in eval mode
-    model.to(device)
-    model.eval()
 
     @vaex.register_function()
     def generate_batch_outputs(texts: pa.array) -> pa.StructArray:
