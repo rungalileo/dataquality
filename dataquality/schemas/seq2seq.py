@@ -51,6 +51,13 @@ class Seq2SeqOutputCols(str, Enum):
     perplexity = "perplexity"
     token_logprobs = "token_logprobs"
     top_logprobs = "top_logprobs"
+    # Columns associated with generated output
+    generated_output = "generated_output"
+    generated_token_label_positions = "generated_token_label_positions"
+    generated_token_label_offsets = "generated_token_label_offsets"
+    generated_token_logprobs = "generated_token_logprobs"
+    generated_top_logprobs = "generated_top_logprobs"
+    generation_data = "generation_data"
     # Mypy complained about split as an attribute, so we use `split_`
     split_ = "split"
     epoch = "epoch"
@@ -77,3 +84,12 @@ class LogprobData:
 
     token_logprobs: np.ndarray
     top_logprobs: List[List[Tuple[str, float]]]
+
+
+# TODO Make this work with LogprobData
+@dataclass
+class ModelGeneration:
+    generated_ids: np.ndarray
+    generated_logprob_data: LogprobData
+    # generated_token_logprobs: np.ndarray
+    # generated_top_logprobs: List[List[Tuple[str, float]]]
