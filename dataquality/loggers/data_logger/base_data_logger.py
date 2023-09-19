@@ -270,7 +270,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             if self.support_embs:
                 print("Applying UMAP to embeddings")
                 apply_umap_to_embs(location, last_epoch)
-            
+
             if self.support_data_embs and create_data_embs:
                 print("Creating and uploading data embeddings")
                 upload_umap_data_embs(
