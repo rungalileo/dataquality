@@ -14,7 +14,6 @@ from dataquality.loggers.base_logger import BaseGalileoLogger
 from dataquality.loggers.data_logger import BaseGalileoDataLogger
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
-from dataquality.utils.ampli import AmpliMetric
 from dataquality.utils.dq_logger import get_dq_logger
 from dataquality.utils.hdf5_store import _save_hdf5_file
 from dataquality.utils.thread_pool import ThreadPoolManager
@@ -101,7 +100,7 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
             warnings.warn(err_msg)
             try:
                 analytics.set_config(config)
-                analytics.capture_exception(e, AmpliMetric.dq_validation_error)
+                analytics.capture_exception(e)
             except Exception:
                 pass
             self.logger_config.exception = err_msg

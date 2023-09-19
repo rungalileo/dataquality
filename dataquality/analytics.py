@@ -9,7 +9,6 @@ from pydantic import BaseModel
 
 from dataquality.clients.api import ApiClient
 from dataquality.core._config import Config
-from dataquality.utils.ampli import AmpliMetric
 from dataquality.utils.patcher import Borg
 from dataquality.utils.profiler import (
     _installed_modules,
@@ -97,7 +96,8 @@ class Analytics(Borg):
             ip.set_custom_exc((Exception,), self.ipython_exception_handler)
         except Exception:
             new_hook = change_function(
-                sys.excepthook, self.handle_exception, AmpliMetric.dq_general_exception
+                sys.excepthook,
+                self.handle_exception,
             )
 
             sys.excepthook = new_hook
@@ -131,7 +131,9 @@ class Analytics(Borg):
         try:
             if not self._telemetrics_disabled:
                 self.track_exception_ipython(
-                    etype, evalue, tb, AmpliMetric.dq_general_exception
+                    etype,
+                    evalue,
+                    tb,
                 )
         except Exception:
             # TODO: create internal logging endpoint
@@ -147,21 +149,19 @@ class Analytics(Borg):
         etype: Type[BaseException],
         evalue: BaseException,
         tb: TracebackType,
-        scope: AmpliMetric = AmpliMetric.dq_general_exception,
     ) -> None:
         """We parse the current environment and send the error to the api."""
         if self._telemetrics_disabled:
             return
         data = parse_exception_ipython(etype, evalue, tb)
         self.last_error = data
-        self.log(data, scope)
+        self.log(data)
 
     def handle_exception(
         self,
         etype: Optional[Type[BaseException]],
         evalue: Optional[BaseException],
         tb: Optional[TracebackType],
-        scope: AmpliMetric = AmpliMetric.dq_general_exception,
     ) -> None:
         """This function is used to handle exceptions in python."""
         if self._telemetrics_disabled:
@@ -170,20 +170,12 @@ class Analytics(Borg):
             try:
                 data = parse_exception(etype, evalue, tb)
                 self.last_error = data
-                self.api_client.send_analytics(
-                    str(self.config.current_project_id),
-                    str(self.config.current_run_id),
-                    str(self.config.task_type),
-                    data,
-                    scope,
-                )
             except Exception:
                 pass
 
     def capture_exception(
         self,
         error: Optional[Exception],
-        scope: AmpliMetric = AmpliMetric.dq_galileo_warning,
     ) -> None:
         """This function is used to take an exception that is passed as an argument."""
         if self._telemetrics_disabled:
@@ -192,7 +184,7 @@ class Analytics(Borg):
             exc_info = exception_from_error(error)
         else:
             exc_info = sys.exc_info()
-        self.handle_exception(*exc_info, scope)
+        self.handle_exception(*exc_info)
 
     def log_import(self, module: str) -> None:
         """This function is used to log an import of a module."""
@@ -203,7 +195,9 @@ class Analytics(Borg):
         data["value"] = module
         data["arguments"] = ""
         self.last_log = data
-        self.log(data, AmpliMetric.dq_import)
+        self.log(
+            data,
+        )
 
     def log_function(self, function: str) -> None:
         """This function is used to log an functional call"""
@@ -214,23 +208,15 @@ class Analytics(Borg):
         data["value"] = function
         data["arguments"] = ""
         self.last_log = data
-        self.log(data, AmpliMetric.dq_function_call)
+        self.log(
+            data,
+        )
 
-    def log(self, data: Dict, scope: AmpliMetric) -> None:
+    def log(self, data: Dict) -> None:
         """This function is used to send the error to the api in a thread."""
         if self._telemetrics_disabled:
             return
-        try:
-            self.api_caller.submit(
-                self.api_client.send_analytics,
-                str(self.config.current_project_id),
-                str(self.config.current_run_id),
-                str(self.config.task_type),
-                data,
-                scope,
-            )
-        except Exception as e:
-            self.debug_logging(e)
+        self.debug_logging(data)
 
     def set_config(self, config: Any) -> None:
         """This function is used to set the config post init."""
