@@ -15,6 +15,7 @@ class TaskType(str, Enum):
     semantic_segmentation = "semantic_segmentation"
     prompt_evaluation = "prompt_evaluation"
     seq2seq = "seq2seq"
+    llm_monitor = "llm_monitor"
 
     @staticmethod
     def get_valid_tasks() -> List["TaskType"]:
@@ -22,7 +23,7 @@ class TaskType(str, Enum):
         return [
             task_type
             for task_type in TaskType
-            if task_type not in [TaskType.prompt_evaluation]
+            if task_type not in [TaskType.prompt_evaluation, TaskType.llm_monitor]
         ]
 
     @staticmethod
@@ -38,4 +39,5 @@ class TaskType(str, Enum):
             6: TaskType.semantic_segmentation,
             7: TaskType.prompt_evaluation,
             8: TaskType.seq2seq,
+            9: TaskType.llm_monitor,
         }[task_int]

@@ -11,7 +11,7 @@ name = "dataquality"
 dynamic = ["version"]
 readme = "README.md"
 license = {text = 'See LICENSE'}
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 dependencies = [
     "pydantic>=1.8.2,<2.0.0",
     "requests>=2.25.1",
@@ -107,12 +107,6 @@ cuda = [
 ]
 minio = [
     "minio>=7.1.0,<7.2.0"
-]
-py37 = [
-    "cachetools>=5.2.0",
-    "types-cachetools>=5.3.0.0",
-    "importlib-metadata<5.0.0",
-    "timm<=0.6.13",
 ]
 setfit = [
     "setfit"
