@@ -7,6 +7,11 @@ import pyarrow as pa
 
 from vaex import DataFrame
 
+# Defines the format schema for storing top_logprobs as a
+# pyarrow List of List of Tuples
+TOP_LOGPROBS_SCHEMA = pa.list_(pa.map_(pa.string(), pa.float32()))
+TOP_K = 5
+
 
 # Defines the format schema for storing top_logprobs as a
 # pyarrow List of List of Tuples
@@ -49,10 +54,7 @@ class Seq2SeqInputCols(str, Enum):
 
 class Seq2SeqOutputCols(str, Enum):
     id = "id"
-    dep = "data_error_potential"
     perplexity = "perplexity"
-    token_deps = "token_deps"
-    # token_gold_probs = "token_gold_probs" # TODO Depricate
     token_logprobs = "token_logprobs"
     top_logprobs = "top_logprobs"
     # Columns associated with generated output
@@ -72,6 +74,22 @@ class Seq2SeqOutputCols(str, Enum):
 class AlignedTokenData:
     token_label_offsets: List[List[Tuple[int, int]]]
     token_label_positions: List[List[Set[int]]]
+
+
+@dataclass
+class LogprobData:
+    """Data type for the top_logprobs for a single sample
+
+    Parameters:
+    -----------
+    token_logprobs: np.ndarray of shape - [seq_len]
+        Token label logprobs for a single sample
+    top_logprobs: List[List[Tuple[str, float]]]
+        List of top-k (str) predictions + corresponding logprobs
+    """
+
+    token_logprobs: np.ndarray
+    top_logprobs: List[List[Tuple[str, float]]]
 
 
 @dataclass

@@ -10,7 +10,6 @@ import vaex
 from tqdm.auto import tqdm
 from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizerFast
 
-from dataquality.exceptions import GalileoException
 from dataquality.schemas.seq2seq import (
     AlignedTokenData,
     TOP_LOGPROBS_SCHEMA,
@@ -19,9 +18,50 @@ from dataquality.schemas.seq2seq import (
 )
 from dataquality.schemas.seq2seq import Seq2SeqInputCols as IC
 from dataquality.schemas.seq2seq import Seq2SeqOutputCols as C
+from dataquality.exceptions import GalileoException
+from dataquality.schemas.seq2seq import TOP_K, AlignedTokenData, LogprobData
 
 
-def get_top_logprob_indices(logprobs: np.ndarray):
+def remove_padding(
+    labels: np.ndarray, padding_side: str, padded_token_seq: np.ndarray
+) -> np.ndarray:
+    """Remove padding tokens from a single token sequence
+
+    To remove padding tokens we use the tokenized labels and slice
+    tokens depending on the padding side of the tokenizer.
+
+    We assume padded_token_seq is a sequence tokens with shape
+    [max_seq_len, ...], where  len(labels) = num_tokens <= max_seq_len
+    and `...` indicates 0+ extra dimensions.
+
+    Parameters:
+    -----------
+    labels: np.ndarray of shape - [num_tokens]
+        Token label ids for the sample. Used to get length of
+        non-padding logits.
+    padding_side: str
+        Comes from the tokenizer used for the model, determines
+        which side padding is applied.
+    padded_token_seq: np.ndarray of shape - [max_seq_len, ...]
+        Padded token sequence. The first dimension must be the token
+        dimension and be >= num_tokens. The following dimensions are
+        unrestricted.
+
+    Returns:
+    -------
+    non_padded_token_seq: np.ndarray of shape - [num_tokens, ...]
+        Sequence with padded tokens removed, leaving other dimensions
+        un-altered.
+    """
+    # Remove padding based on the padding_side of the tokenizer
+    num_tokens = len(labels)
+    if padding_side == "right":
+        return padded_token_seq[:num_tokens]
+
+    return padded_token_seq[-num_tokens:]
+
+
+def get_top_logprob_indices(logprobs: np.ndarray) -> np.ndarray:
     """Extract per-token top-k logprobs
 
     logprobs can either be at the sample level or batch level.
@@ -46,7 +86,7 @@ def get_top_logprob_indices(logprobs: np.ndarray):
     -------
     top_logprob_indices: np.ndarray of shape - [..., TOP_K]
         Indices of the top-k per-token logprobs. Note we preserve
-        all but the last dimension (i.e. not -1) to seemlisly handle
+        all but the last dimension (i.e. not -1) to seemlesly handle
         samples or batches.
     """
     # Multiply by -1 to reverse the order
@@ -90,6 +130,7 @@ def extract_top_logprobs(
     Return:
     -------
     top_logprobs: List[List[Tuple[str, float]]
+    top_logprobs: List[List[Tuple[str, float]]]
         len(top_logprobs) == sample_logprobs.shape[0] == num_tokens
         len(top_logprobs[i]) == TOP_K
     """
@@ -103,7 +144,6 @@ def extract_top_logprobs(
         token_top_logprobs_mapping = []
         # Loop over the top_k predictions for the given token position
         for pred_token_id, logprob in zip(token_top_ids, token_top_logprobs):
-            # TODO: See how slow tokenizer decode is and if we just want to index into the vocab directly
             str_token = tokenizer.decode(pred_token_id)
             token_top_logprobs_mapping.append((str_token, logprob))
 
@@ -117,7 +157,7 @@ def process_sample_logprobs(
     sample_labels: np.ndarray,
     sample_top_indices: np.ndarray,
     tokenizer: PreTrainedTokenizerFast,
-) -> Tuple[np.ndarray, List[List[Tuple[str, float]]]]:
+) -> LogprobData:
     """Extract label_logprobs and top_logprobs
 
     Whether the labels are GT target labels or generated labels, the
@@ -143,25 +183,25 @@ def process_sample_logprobs(
 
     Returns:
     --------
-    label_logprobs: np.ndarray of shape [seq_len]
-        Label logprobs for each token in the sample
-    top_logprobs: List[Dict[str, float]]
-        List of top-k (str) predictions + corresponding logprobs
+    logprob_data: LogprobData
+        token_logprobs and top_logprobs for the sample
     """
     # Ensure final shape - [len(labels), 1]
     if sample_labels.ndim != 1:
-        raise GalileoException("Expects sample_labels to be a 1D array")
+        raise GalileoException(
+            f"Invalid shape {sample_labels.shape}, process_sample_logprobs"
+            f" expects sample_labels to be a 1D array"
+        )
     sample_labels = sample_labels[..., None]
 
     # Extract token_logprobs - shape [len(labels)]
-    label_logprobs = np.take_along_axis(
+    token_logprobs = np.take_along_axis(
         sample_logprobs, sample_labels, axis=-1
     ).squeeze()
 
     # Compute top_logprobs
     top_logprobs = extract_top_logprobs(sample_logprobs, sample_top_indices, tokenizer)
-
-    return label_logprobs, top_logprobs
+    return LogprobData(token_logprobs, top_logprobs)
 
 
 def generate_sample_output(

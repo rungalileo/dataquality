@@ -120,6 +120,7 @@ def test_log_model_outputs(
     config.tokenizer = mock_tokenizer
     config.tokenizer.decode.return_value = "Fake"
 
+
     batch_size = 4
     seq_len = 20
     vocab_size = 100
@@ -145,30 +146,24 @@ def test_log_model_outputs(
     output_data = vaex.open(f"{test_session_vars.LOCATION}/training/0/*.arrow")
     expected_cols = [
         "id",
-        "token_deps",  # TODO Deprecate
         "token_logprobs",
         "top_logprobs",
-        "perplexity",  # TODO Deprecate
+        "perplexity",
         "split",
         "epoch",
-        "data_error_potential",  # TODO Deprecate
     ]
     assert sorted(output_data.get_column_names()) == sorted(expected_cols)
     assert len(output_data) == 4
 
     token_logprobs = output_data["token_logprobs"].tolist()
     top_logprobs = output_data["top_logprobs"].tolist()
-    token_deps = output_data["token_deps"].tolist()
+    perplexities = output_data["perplexity"].tolist()
 
-    # TODO Fix the check for avoided pad tokens
-    for token_labels, token_dep, sample_token_logprobs, sample_top_logprobs in zip(
-        tokenized_labels, token_deps, token_logprobs, top_logprobs
+    for token_labels, sample_token_logprobs, sample_top_logprobs, perplexity in zip(
+        tokenized_labels, token_logprobs, top_logprobs, perplexities
     ):
         assert (
-            len(token_labels)
-            == len(token_dep)
-            == len(sample_token_logprobs)
-            == len(sample_top_logprobs)
+            len(token_labels) == len(sample_token_logprobs) == len(sample_top_logprobs)
         )
         # Check all logprobs are < 0
         for token_logprob in sample_token_logprobs:
@@ -187,9 +182,7 @@ def test_log_model_outputs(
                 [candidate[0] == "Fake" for candidate in token_top_logprobs]
             )
 
-        # TODO Deprecated
-        for dep in token_dep:
-            assert 0 <= dep <= 1
+        assert perplexity > 0
 
 
 @mock.patch("dataquality.utils.seq2seq.align_tokens_to_character_spans")
@@ -276,4 +269,3 @@ def test_add_generated_output_to_df(
         assert num_tokens == len(top_logprobs)
         assert np.array_equal(logprobs, np.zeros(num_tokens) - 1)
         assert top_logprobs == [[("A", -1), ("B", -2)] for _ in range(num_tokens)]
-
