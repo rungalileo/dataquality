@@ -266,8 +266,22 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         proj_run = f"{config.current_project_id}/{config.current_run_id}"
         location = f"{self.LOG_FILE_DIR}/{proj_run}"
 
-        if cuml_available() and self.support_embs:
-            apply_umap_to_embs(location, last_epoch)
+        if cuml_available():
+            if self.support_embs:
+                print("Applying UMAP to embeddings")
+                apply_umap_to_embs(location, last_epoch)
+            
+            if self.support_data_embs and create_data_embs:
+                print("Creating and uploading data embeddings")
+                upload_umap_data_embs(
+                    config.current_project_id,
+                    config.current_run_id,
+                    self.input_data_path,
+                    location,
+                    last_epoch,
+                )
+                # We have already created them here, so don't try again later
+                create_data_embs = False
         else:
             print(
                 "CuML libraries not found, running standard process. "
@@ -275,18 +289,6 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                 "`pip install 'dataquality[cuda]' --extra-index-url="
                 "https://pypi.nvidia.com/`"
             )
-
-        if cuml_available() and create_data_embs and self.support_data_embs:
-            print("Creating and uploading data embeddings")
-            upload_umap_data_embs(
-                config.current_project_id,
-                config.current_run_id,
-                self.input_data_path,
-                location,
-                last_epoch,
-            )
-            # We have already created them here, so don't try again later
-            create_data_embs = False
 
         for split in Split.get_valid_attributes():
             self.upload_split(
