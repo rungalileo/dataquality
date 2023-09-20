@@ -27,17 +27,17 @@ def test_generate_sample_output(
 
     Things to mock:
         - Anything model related
-            - Assume the generate works
+            - Assume .generate() works
             - Assume getting logits works
         - Mock the tokenizer
             - Mock the tokenize function
             - Mock the decode function
-        - Mock the get_top_logprob_indices - check inputs
-        - Mock process_sample_logprobs since we test this seperately - check inputs
+        - Mock get_top_logprob_indices - check inputs
+        - Mock process_sample_logprobs since we test this seperately
 
     Things to test:
         - Check that the fake pad token is removed
-        - Check that we have logprobs!
+        - Check that we have logprobs by checking input to process_sample_logprobs
         - Check that logprobs is correct shape to process_sample_logprobs
         - Check that gen_ids is correct shape to process_sample_logprobs
         - Check that we have the correct attributes in ModelGeneration
@@ -63,8 +63,8 @@ def test_generate_sample_output(
     mock_device = torch.device("cpu")
     mock_generation_config = mock.MagicMock()
 
-    # Mock util helper function. Note we don't mock mock_get_top_logprob_indices
-    # since we only care about the return value
+    # Mock util helper function. Note we don't mock the return value of
+    # mock_get_top_logprob_indices since we only care about its input
     fake_token_logprobs = np.array([-0.5, -0.25, -0.11])
     fake_top_logprob_data = [
         [("A", -0.1), ("B", -1)],

@@ -259,10 +259,10 @@ def generate_sample_output(
     # Pass the generated output through the model to get the logits
     with torch.no_grad():
         model_outputs = model(input_ids=input_ids, labels=gen_ids)
-        logits = model_outputs.logits.cpu().numpy()
+        logits = model_outputs.logits
 
-    # TODO This is much faster on the gpu
-    logprobs = log_softmax(logits, axis=-1)
+    # TODO double check this is not adding to computation graph
+    logprobs = torch.nn.functional.log_softmax(logits, dim=-1).cpu().numpy()
 
     # Remove singleton dimensions
     logprobs = logprobs.squeeze()  # [seq_len, vocab_size]
@@ -280,8 +280,6 @@ def generate_sample_output(
     return ModelGeneration(
         generated_ids=gen_ids,
         generated_logprob_data=gen_logprob_data
-        # generated_token_logprobs=gen_logprob_data.token_logprobs,
-        # generated_top_logprobs=gen_logprob_data.top_logprobs,
     )
 
 
