@@ -44,9 +44,9 @@ def remove_padding(
     # Remove padding based on the padding_side of the tokenizer
     num_tokens = len(labels)
     if padding_side == "right":
-        return padded_token_seq[:num_tokens]
+        return padded_token_seq[:num_tokens, ...]
 
-    return padded_token_seq[-num_tokens:]
+    return padded_token_seq[-num_tokens:, ...]
 
 
 def get_top_logprob_indices(logprobs: np.ndarray) -> np.ndarray:

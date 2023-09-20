@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from warnings import warn
 
 import numpy as np
 import pandas as pd
@@ -610,7 +611,10 @@ def set_epoch_and_split(
 
 
 @check_noop
-def set_tokenizer(tokenizer: PreTrainedTokenizerFast) -> None:
+def set_tokenizer(
+    tokenizer: PreTrainedTokenizerFast,
+    model_max_length: Optional[int] = None,
+) -> None:
     """Seq2seq only. Set the tokenizer for your run
 
     Must be a fast tokenizer, and must support `decode`, `encode`, `encode_plus`
@@ -624,6 +628,16 @@ def set_tokenizer(tokenizer: PreTrainedTokenizerFast) -> None:
     for attr in ["encode", "decode", "encode_plus", "padding_side"]:
         assert hasattr(tokenizer, attr), f"Tokenizer must support `{attr}`"
     seq2seq_logger_config.tokenizer = tokenizer
+    seq2seq_logger_config.model_max_length = model_max_length
+    if seq2seq_logger_config.model_max_length is None:
+        seq2seq_logger_config.model_max_length = tokenizer.model_max_length
+        warn(
+            (
+                "The argument model_max_length is not set so we'll use the tokenizer's "
+                "default value. This can cause mismatches if you use a different value."
+            )
+        )
+
     # Seq2Seq doesn't have labels but we need to set this to avoid validation errors
     seq2seq_logger_config.labels = []
 
