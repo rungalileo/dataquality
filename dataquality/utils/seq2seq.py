@@ -250,15 +250,13 @@ def generate_sample_output(
             generation_config=generation_config,
         )
 
-    # Strip the beginning <pad> token and keep as Tensor
-    gen_ids = gen_ids[..., 1:]
+        # Strip the beginning <pad> token and keep as Tensor
+        gen_ids = gen_ids[..., 1:]
 
-    # Pass the generated output through the model to get the logits
-    with torch.no_grad():
+        # Pass the generated output through the model to get the logits
         model_outputs = model(input_ids=input_ids, labels=gen_ids)
-        logits = model_outputs.logits
 
-    # TODO double check this is not adding to computation graph
+    logits = model_outputs.logits
     logprobs = torch.nn.functional.log_softmax(logits, dim=-1).cpu().numpy()
 
     # Remove singleton dimensions
@@ -318,7 +316,6 @@ def add_generated_output_to_df(
     df: vaex.DataFrame
         Updated Dataframe with the generated columns added (see above)
     """
-
     generated_columns = [
         C.generated_output.value,
         C.generated_token_label_positions.value,

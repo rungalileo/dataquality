@@ -194,21 +194,19 @@ def test_add_generated_output_to_df(
     mock_generate_sample_output: mock.Mock,
     mock_align_tokens_to_character_spans: mock.Mock,
 ) -> None:
-    """Test the big function we have all been waiting for
+    """Test the complex vaex batched processing function for generation
 
-    What do we need to start with:
-        - A simple vaex df with a couple of dummy string
-
-    Mocks
+    Tings to Mock
         - generate_sample_output: This can be fairly simple. The
         one thing that we want to vary would be the length of things returned
         - tokenizer: decode can be quite simple + encode
+        - model + generation_config: just to have as input params
         - align_tokens_to_character_spans: This is already tested so let's just
         mock the output!
 
     What to test: Main thing to test is that the vaex format is all as expected.
-        - Test that each column has some curated result
-        - Test that we don't have the extra column
+        - Test that each column has the correctly curated result
+        - Test that we don't have the extra column caused by vaex's flatten
     """
     # Mock the tokenizer
     mock_tokenizer = mock.MagicMock()
@@ -272,3 +270,6 @@ def test_add_generated_output_to_df(
         assert num_tokens == len(top_logprobs)
         assert np.array_equal(logprobs, np.zeros(num_tokens) - 1)
         assert top_logprobs == [[("A", -1), ("B", -2)] for _ in range(num_tokens)]
+
+    # Make sure that we have removed the column left after flattening
+    assert f"____{C.generation_data.value}" not in df.column_names
