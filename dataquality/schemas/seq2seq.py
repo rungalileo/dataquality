@@ -86,10 +86,7 @@ class LogprobData:
     top_logprobs: List[List[Tuple[str, float]]]
 
 
-# TODO Make this work with LogprobData
 @dataclass
 class ModelGeneration:
     generated_ids: np.ndarray
     generated_logprob_data: LogprobData
-    # generated_token_logprobs: np.ndarray
-    # generated_top_logprobs: List[List[Tuple[str, float]]]
