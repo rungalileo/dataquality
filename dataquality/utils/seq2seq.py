@@ -5,7 +5,6 @@ import numpy as np
 import pyarrow as pa
 import torch
 import vaex
-from scipy.special import log_softmax
 from tqdm.auto import tqdm
 from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizerFast
 
@@ -204,10 +203,9 @@ def process_sample_logprobs(
 
 def generate_sample_output(
     input_str: str,
-    model: PreTrainedModel,
-    device: torch.device,
-    generation_config: GenerationConfig,
     tokenizer: PreTrainedTokenizerFast,
+    model: PreTrainedModel,
+    generation_config: GenerationConfig,
 ) -> ModelGeneration:
     """Generate and extract model logprobs
 
@@ -227,11 +225,10 @@ def generate_sample_output(
     -----------
     input_str: str
         Input string context used to seed the generation
+    tokenizer: PreTrainedTokenizerFast
     model: PreTrainedModel
-    device: torch.device
     generation_config: GenerationConfig
         Users generation config specifying the parameters for generation
-    tokenizer: PreTrainedTokenizerFast
 
     Return:
     -------
@@ -245,7 +242,7 @@ def generate_sample_output(
     #   We may want to accept the tokenized output
     input_ids = tokenizer(input_str, truncation=True, return_tensors="pt")[
         "input_ids"
-    ].to(device)
+    ].to(model.device)
 
     with torch.no_grad():
         gen_ids = model.generate(
@@ -278,8 +275,7 @@ def generate_sample_output(
     )
 
     return ModelGeneration(
-        generated_ids=gen_ids,
-        generated_logprob_data=gen_logprob_data
+        generated_ids=gen_ids, generated_logprob_data=gen_logprob_data
     )
 
 
@@ -287,7 +283,6 @@ def add_generated_output_to_df(
     df: vaex.DataFrame,
     tokenizer: PreTrainedTokenizerFast,
     model: PreTrainedModel,
-    device: torch.device,
     generation_config: GenerationConfig,
 ) -> vaex.DataFrame:
     """Generates model outputs over df and extracts the logprob data
@@ -308,6 +303,20 @@ def add_generated_output_to_df(
     Note: We use a pa.StructArray to extract multiple columns of info
     at once through vaex. We then have to seperate the Struct into individual
     columns.
+
+    Parameters:
+    -----------
+    df: vaex.DataFrame
+        Dataframe with the input data that we want to generate based on
+    tokenizer: PreTrainedTokenizerFast
+    model: PreTrainedModel
+    generation_config: GenerationConfig
+        Users generation config specifying the parameters for generation
+
+    Return:
+    -------
+    df: vaex.DataFrame
+        Updated Dataframe with the generated columns added (see above)
     """
 
     generated_columns = [
@@ -339,10 +348,9 @@ def add_generated_output_to_df(
             # Generate and extract model outputs
             sample_generation = generate_sample_output(
                 input_str=str(sample),
-                model=model,
-                device=device,
-                generation_config=generation_config,
                 tokenizer=tokenizer,
+                model=model,
+                generation_config=generation_config,
             )
 
             generated_outputs.append(

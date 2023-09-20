@@ -242,10 +242,9 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             return df
 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        # Ensure the model is on the correct device and in eval mode
-        model.to(device)
+        # Ensure the model is in eval mode
         model.eval()
-        df = add_generated_output_to_df(df, tokenizer, model, device, generation_config)
+        df = add_generated_output_to_df(df, tokenizer, model, generation_config)
         return df
 
     @classmethod
