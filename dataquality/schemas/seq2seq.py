@@ -33,7 +33,7 @@ class Seq2SeqInputCols(str, Enum):
     def set_input(cls, df: DataFrame) -> DataFrame:
         """Sets the input column for the dataframe"""
         if cls.text.value in df.get_column_names():
-            df = df.rename(cls.text.value, cls.input.value)
+            df.rename(cls.text.value, cls.input.value)
 
         return df
 
@@ -41,7 +41,7 @@ class Seq2SeqInputCols(str, Enum):
     def set_target(cls, df: DataFrame) -> DataFrame:
         """Sets the target output column for the dataframe"""
         if cls.label.value in df.get_column_names():
-            df = df.rename(cls.label.value, cls.target.value)
+            df.rename(cls.label.value, cls.target.value)
 
         return df
 

@@ -128,8 +128,9 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         for sample_id, sample_logprobs, sample_top_indices in zip(
             batch_ids, batch_logprobs, top_logprob_indices
         ):
+            sample_n_tokens = sample_logprobs.shape[0]
             sample_labels = self._retrieve_sample_labels(
-                sample_id, max_tokens=self.logger_config.model_max_length
+                sample_id, max_tokens=sample_n_tokens
             )
             padding_side = self.logger_config.tokenizer.padding_side
             sample_logprobs = remove_padding(
