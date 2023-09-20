@@ -241,7 +241,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             print("Skipping generation for split", split)
             return df
 
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # Ensure the model is in eval mode
         model.eval()
         df = add_generated_output_to_df(df, tokenizer, model, generation_config)
