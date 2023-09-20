@@ -57,10 +57,11 @@ def test_generate_sample_output(
     class FakeOutput:
         logits: torch.tensor
 
+    # Mock model output and model device
     mock_model.return_value = FakeOutput(torch.rand((1, 3, 20)))
+    mock_model.device = torch.device("cpu")
 
-    # Mock device and generation_config
-    mock_device = torch.device("cpu")
+    # Mock generation_config
     mock_generation_config = mock.MagicMock()
 
     # Mock util helper function. Note we don't mock the return value of
@@ -78,7 +79,7 @@ def test_generate_sample_output(
 
     with mock.patch("torch.no_grad"):
         model_generation = generate_sample_output(
-            "test str", mock_model, mock_device, mock_generation_config, mock_tokenizer
+            "test str", mock_tokenizer, mock_model, mock_generation_config
         )
 
     # Check logprobs

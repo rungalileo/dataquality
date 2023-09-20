@@ -218,8 +218,7 @@ def test_add_generated_output_to_df(
     # Mock the model
     mock_model = mock.MagicMock()  # Don't actually need any functions for this
 
-    # Mock device and generation_config
-    mock_device = mock.MagicMock()
+    # Mock generation_config
     mock_generation_config = mock.MagicMock()
 
     # Mock the generation process
@@ -249,7 +248,7 @@ def test_add_generated_output_to_df(
     df = vaex.from_dict({"text": ["Fake Input"] * 100})
 
     df = add_generated_output_to_df(
-        df, mock_tokenizer, mock_model, mock_device, mock_generation_config
+        df, mock_tokenizer, mock_model, mock_generation_config
     )
 
     # Make sure everything is in check!
