@@ -24,8 +24,8 @@ from dataquality.utils.seq2seq.offsets import (
 )
 
 
-@mock.patch("dataquality.utils.seq2seq.logprobs.process_sample_logprobs")
-@mock.patch("dataquality.utils.seq2seq.logprobs.get_top_logprob_indices")
+@mock.patch("dataquality.utils.seq2seq.generation.process_sample_logprobs")
+@mock.patch("dataquality.utils.seq2seq.generation.get_top_logprob_indices")
 def test_generate_sample_output(
     mock_get_top_logprob_indices: mock.Mock, mock_process_sample_logprobs: mock.Mock
 ) -> None:
@@ -85,7 +85,7 @@ def test_generate_sample_output(
 
     with mock.patch("torch.no_grad"):
         model_generation = generate_sample_output(
-            "test str", mock_tokenizer, mock_model, mock_generation_config
+            "test str", mock_model, mock_tokenizer, mock_generation_config
         )
 
     # Check logprobs
