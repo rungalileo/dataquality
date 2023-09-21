@@ -62,19 +62,24 @@ def extract_ner_gold_spans(ner_list: List[Row]) -> List[dict]:
     current_span = None
     for row in ner_list:
         # Check if the row is a beginning of a named entity (B-)
-        if "B-" in row.result:
+        if row.result.startswith("B-"):
             # If there is an existing span, we add it to the list
             if current_span:
                 spans.append(current_span)
             # Start a new span
+
+            label = row.result
+            match = re.match(r"^\w?(.*)", label)
+            if match:
+                label = match.group(1)
             current_span = {
                 "start": row.begin,
                 "end": row.end + 1,
-                "label": row.result.split("-")[-1],
+                "label": label,
             }
 
         # Check if the row is inside a named entity (I-) and there's an active span
-        elif "I-" in row.result and current_span:
+        elif row.result.startswith("I-") and current_span:
             # Extend the current span to include the current row
             current_span["end"] = row.end + 1
 
