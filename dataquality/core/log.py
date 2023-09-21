@@ -5,9 +5,6 @@ from warnings import warn
 
 import numpy as np
 import pandas as pd
-from transformers import PreTrainedTokenizerFast
-
-from dataquality.loggers.logger_config.seq2seq import seq2seq_logger_config
 
 if TYPE_CHECKING:
     import xgboost as xgb
