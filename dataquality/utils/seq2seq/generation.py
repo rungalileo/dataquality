@@ -157,15 +157,12 @@ def add_generated_output_to_df(
                 generation_config=generation_config,
             )
 
-            generated_outputs.append(
-                tokenizer.decode(
-                    sample_generation.generated_ids, skip_special_tokens=True
-                )
+            output = tokenizer.decode(
+                sample_generation.generated_ids, skip_special_tokens=True
             )
+            generated_outputs.append(output)
             # Re-tokenize the data to get the token position offsets
-            encoded_data = tokenizer(
-                [generated_outputs[-1]], return_offsets_mapping=True
-            )
+            encoded_data = tokenizer([output], return_offsets_mapping=True)
             aligned_data = align_tokens_to_character_spans(
                 encoded_data["offset_mapping"]
             )

@@ -190,7 +190,7 @@ def test_log_model_outputs(
         assert perplexity > 0
 
 
-@mock.patch("dataquality.utils.seq2seq.offsets.align_tokens_to_character_spans")
+@mock.patch("dataquality.utils.seq2seq.generation.align_tokens_to_character_spans")
 @mock.patch("dataquality.utils.seq2seq.generation.generate_sample_output")
 def test_add_generated_output_to_df(
     mock_generate_sample_output: mock.Mock,
@@ -250,7 +250,6 @@ def test_add_generated_output_to_df(
     df = add_generated_output_to_df(
         df, mock_model, mock_tokenizer, mock_generation_config
     )
-
     # Make sure everything is in check!
     assert len(df) == 100
     assert df[C.generated_output.value].tolist() == ["Fake output"] * 100
@@ -274,4 +273,4 @@ def test_add_generated_output_to_df(
         assert top_logprobs == [[("A", -1), ("B", -2)] for _ in range(num_tokens)]
 
     # Make sure that we have removed the column left after flattening
-    assert f"____{C.generation_data.value}" not in df.column_names
+    assert not any([C.generation_data.value in col for col in df.get_column_names()])
