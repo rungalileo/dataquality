@@ -16,10 +16,11 @@ from dataquality.utils.seq2seq.logprobs import (
 from dataquality.utils.seq2seq.offsets import align_tokens_to_character_spans
 
 
+@torch.no_grad()
 def generate_sample_output(
     input_str: str,
-    tokenizer: PreTrainedTokenizerFast,
     model: PreTrainedModel,
+    tokenizer: PreTrainedTokenizerFast,
     generation_config: GenerationConfig,
 ) -> ModelGeneration:
     """Generate and extract model logprobs
@@ -59,17 +60,16 @@ def generate_sample_output(
         "input_ids"
     ].to(model.device)
 
-    with torch.no_grad():
-        gen_ids = model.generate(
-            input_ids=input_ids,
-            generation_config=generation_config,
-        )
+    gen_ids = model.generate(
+        input_ids=input_ids,
+        generation_config=generation_config,
+    )
 
-        # Strip the beginning <pad> token and keep as Tensor
-        gen_ids = gen_ids[..., 1:]
+    # Strip the beginning <pad> token and keep as Tensor
+    gen_ids = gen_ids[..., 1:]
 
-        # Pass the generated output through the model to get the logits
-        model_outputs = model(input_ids=input_ids, labels=gen_ids)
+    # Pass the generated output through the model to get the logits
+    model_outputs = model(input_ids=input_ids, labels=gen_ids)
 
     logits = model_outputs.logits
     logprobs = torch.nn.functional.log_softmax(logits, dim=-1).cpu().numpy()
@@ -100,20 +100,18 @@ def add_generated_output_to_df(
 ) -> vaex.DataFrame:
     """Generates model outputs over df and extracts the logprob data
 
-    Using the user's model we generate the output for each
-    sample in the df and the corresponding logprob data. We
-    use a vaex register function to batch the processing across
-    df; however, we generate model outputs one sample at a time.
+    Using the user's model we generate the output for each sample in the df and the
+    corresponding logprob data. We use a vaex register function to batch the processing
+    across df; however, we generate model outputs one sample at a time.
 
-    We specifically add the following 5 columns to the df based
-    on the generated + processed output:
+    We specifically add the following 5 columns to the df:
         - generated_output: str
         - generated_token_label_positions: pa.array
         - generated_token_label_offsets: pa.array
         - generated_token_logprobs: pa.array
         - generated_top_logprobs: pa.array
 
-    Note: We use a pa.StructArray to extract multiple columns of info
+    Note: We return a pa.StructArray to extract multiple columns of info
     at once through vaex. We then have to seperate the Struct into individual
     columns.
 
@@ -131,7 +129,6 @@ def add_generated_output_to_df(
     df: vaex.DataFrame
         Updated Dataframe with the generated columns added (see above)
     """
-    # Ensure the model is in eval mode
     model.eval()
 
     @vaex.register_function()
@@ -155,8 +152,8 @@ def add_generated_output_to_df(
             # Generate and extract model outputs
             sample_generation = generate_sample_output(
                 input_str=str(sample),
-                tokenizer=tokenizer,
                 model=model,
+                tokenizer=tokenizer,
                 generation_config=generation_config,
             )
 
@@ -198,15 +195,13 @@ def add_generated_output_to_df(
             names=S2SOC.generated_cols(),
         )
 
-    df[S2SOC.generation_data.value] = df[S2SIC.text].generate_batch_outputs()
+    df[S2SOC.generation_data] = df[S2SIC.text].generate_batch_outputs()
 
-    # Extract out each independent column
-    df = df.struct.flatten(S2SOC.generation_data.value)
-    # struct.flatten creates a column per key (created above),
-    # where the column name will be `Combined_Output_<key>` so we rename them
+    # 'generation_data' is a col of type StructArray
+    # struct.flatten creates a column per key
+    df = df.struct.flatten(S2SOC.generation_data)
+    # the new column name will be `generation_data_<key>` so we rename them
     for col in S2SOC.generated_cols():
-        df.rename(f"{S2SOC.generation_data.value}_{col}", col)
+        df.rename(f"{S2SOC.generation_data}_{col}", col)
 
-    # After flattening vaex pre-pends 4 `_`s
-    df = df.drop(f"____{S2SOC.generation_data.value}")
     return df
