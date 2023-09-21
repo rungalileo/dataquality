@@ -57,12 +57,22 @@ class Seq2SeqOutputCols(str, Enum):
     generated_token_label_offsets = "generated_token_label_offsets"
     generated_token_logprobs = "generated_token_logprobs"
     generated_top_logprobs = "generated_top_logprobs"
-    # Temporary columns that aren't saved to DF
-    generation_data = "generation_data"
     # Mypy complained about split as an attribute, so we use `split_`
     split_ = "split"
     epoch = "epoch"
     inference_name = "inference_name"
+    # Temporary columns that aren't saved to DF
+    generation_data = "_generation_data"
+
+    @staticmethod
+    def generated_cols() -> List[str]:
+        return [
+            Seq2SeqOutputCols.generated_output.value,
+            Seq2SeqOutputCols.generated_token_label_positions.value,
+            Seq2SeqOutputCols.generated_token_label_offsets.value,
+            Seq2SeqOutputCols.generated_token_logprobs.value,
+            Seq2SeqOutputCols.generated_top_logprobs.value,
+        ]
 
 
 @dataclass

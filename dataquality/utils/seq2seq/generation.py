@@ -7,8 +7,8 @@ from dataquality.schemas.seq2seq import (
     TOP_LOGPROBS_SCHEMA,
     ModelGeneration,
 )
-from dataquality.schemas.seq2seq import Seq2SeqInputCols as IC
-from dataquality.schemas.seq2seq import Seq2SeqOutputCols as C
+from dataquality.schemas.seq2seq import Seq2SeqInputCols as S2SIC
+from dataquality.schemas.seq2seq import Seq2SeqOutputCols as S2SOC
 from dataquality.utils.seq2seq.logprobs import (
     get_top_logprob_indices,
     process_sample_logprobs,
@@ -134,14 +134,6 @@ def add_generated_output_to_df(
     # Ensure the model is in eval mode
     model.eval()
 
-    generated_columns = [
-        C.generated_output.value,
-        C.generated_token_label_positions.value,
-        C.generated_token_label_offsets.value,
-        C.generated_token_logprobs.value,
-        C.generated_top_logprobs.value,
-    ]
-
     @vaex.register_function()
     def generate_batch_outputs(texts: pa.array) -> pa.StructArray:
         """Generated model outputs for a batch of text inputs
@@ -203,18 +195,18 @@ def add_generated_output_to_df(
                 generated_token_logprobs,
                 generated_top_logprobs,
             ],
-            names=generated_columns,
+            names=S2SOC.generated_cols(),
         )
 
-    df[C.generation_data.value] = df[IC.text].generate_batch_outputs()
+    df[S2SOC.generation_data.value] = df[S2SIC.text].generate_batch_outputs()
 
     # Extract out each independent column
-    df = df.struct.flatten(C.generation_data.value)
+    df = df.struct.flatten(S2SOC.generation_data.value)
     # struct.flatten creates a column per key (created above),
     # where the column name will be `Combined_Output_<key>` so we rename them
-    for col in generated_columns:
-        df.rename(f"{C.generation_data.value}_{col}", col)
+    for col in S2SOC.generated_cols():
+        df.rename(f"{S2SOC.generation_data.value}_{col}", col)
 
     # After flattening vaex pre-pends 4 `_`s
-    df = df.drop(f"____{C.generation_data.value}")
+    df = df.drop(f"____{S2SOC.generation_data.value}")
     return df
