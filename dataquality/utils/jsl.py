@@ -168,16 +168,19 @@ def add_labels_df(df: DataFrame) -> DataFrame:
 
 
 def pad_df(
-    df: pd.DataFrame, emb_col: str = "embeddings", label_col: str = "ner_list"
+    df: pd.DataFrame,
+    emb_col: str = "embeddings",
+    label_col: str = "ner_list",
+    max_length: int = 512,
 ) -> pd.DataFrame:
     """Pads a dataframe
     :param df: The pandas dataframe to be padded
     :param emb_col: The name of the embeddings column (default: embeddings)
     :param label_col: The name of the labels column (default: ner_list)
+    :param max_length is the MAX_TOKEN_LEN to make sure we don't have very
+        large documents
     :return: The padded dataframe
     """
-    global MAX_TOKEN_LEN
-    max_length = MAX_TOKEN_LEN
     df["embs_padded"] = [
         np.pad(
             row,
