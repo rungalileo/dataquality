@@ -25,7 +25,7 @@ MAX_TOKEN_LEN = 512
 PipelineLike = Union[Pipeline, LightPipeline, PipelineModel, PretrainedPipeline]
 
 
-def extract_begin_end(token_list: list[Row]) -> List[List[int]]:
+def extract_begin_end(token_list: List[Row]) -> List[List[int]]:
     """Extracts the begin and end of each token in a list of tokens
     :param token_list: A list of tokens
     :return: A list of lists of integers, where each sublist contains the begin and
@@ -35,7 +35,7 @@ def extract_begin_end(token_list: list[Row]) -> List[List[int]]:
     return [[row.begin, row.end + 1] for row in token_list]
 
 
-def extract_embeddings(embeddings_list: list[Row]) -> List[List[float]]:
+def extract_embeddings(embeddings_list: List[Row]) -> List[List[float]]:
     """Extracts the embeddings from a list of embeddings
     :param embeddings_list: A list of embeddings
     :return: A list of lists of floats, where each sublist contains the embeddings
