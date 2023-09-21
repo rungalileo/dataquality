@@ -195,11 +195,10 @@ def add_generated_output_to_df(
             names=S2SOC.generated_cols(),
         )
 
-    df[S2SOC.generation_data] = df[S2SIC.text].generate_batch_outputs()
-
+    df[S2SOC.generation_data.value] = df.func.generate_batch_outputs(df[S2SIC.text])
     # 'generation_data' is a col of type StructArray
     # struct.flatten creates a column per key
-    df = df.struct.flatten(S2SOC.generation_data)
+    df = df.struct.flatten(S2SOC.generation_data.value)
     # the new column name will be `generation_data_<key>` so we rename them
     for col in S2SOC.generated_cols():
         df.rename(f"{S2SOC.generation_data}_{col}", col)

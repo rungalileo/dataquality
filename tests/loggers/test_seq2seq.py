@@ -8,6 +8,7 @@ import pytest
 import vaex
 
 import dataquality as dq
+from dataquality.integrations.seq2seq.hf import set_tokenizer
 from dataquality.loggers.data_logger.base_data_logger import DataSet
 from dataquality.loggers.data_logger.seq2seq import Seq2SeqDataLogger
 from dataquality.loggers.model_logger.seq2seq import Seq2SeqModelLogger
@@ -61,7 +62,7 @@ def test_log_dataset(
 
     with mock.patch("dataquality.core.log.get_data_logger") as mock_method:
         mock_method.return_value = logger
-        dq.set_tokenizer(tokenizer)
+        set_tokenizer(tokenizer)
         dq.log_dataset(
             dataset, text="summary", label="title", id="my_id", split="train"
         )
@@ -98,7 +99,8 @@ def test_log_dataset_no_tokenizer(set_test_config: Callable) -> None:
         with pytest.raises(AssertionError) as e:
             dq.log_dataset(df, text="summary", label="title", id="my_id", split="train")
     assert str(e.value) == (
-        "You must set your tokenizer before logging. Use `dq.set_tokenizer`"
+        "You must set your tokenizer before logging. "
+        "Use `dq.integrations.seq2seq.hf.set_tokenizer`"
     )
 
 
@@ -188,8 +190,8 @@ def test_log_model_outputs(
         assert perplexity > 0
 
 
-@mock.patch("dataquality.utils.seq2seq.align_tokens_to_character_spans")
-@mock.patch("dataquality.utils.seq2seq.generate_sample_output")
+@mock.patch("dataquality.utils.seq2seq.offsets.align_tokens_to_character_spans")
+@mock.patch("dataquality.utils.seq2seq.generation.generate_sample_output")
 def test_add_generated_output_to_df(
     mock_generate_sample_output: mock.Mock,
     mock_align_tokens_to_character_spans: mock.Mock,

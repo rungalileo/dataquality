@@ -40,7 +40,8 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         `.is_fast` property that returns True if it's a fast tokenizer.
         This class must implement the `encode`, `decode`, and `encode_plus` methods
 
-        You can set your tokenizer via the `dq.set_tokenizer(tok)` function
+        You can set your tokenizer via the `set_tokenizer(tok)` function imported
+        from `dataquality.integrations.seq2seq.hf`
     2. A dataset (pandas/huggingface etc) with input strings and output labels and ids.
         Ex: Billsum dataset, with `text` input and `summary` as the label
         id  text	                        summary
@@ -55,6 +56,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         `dq.log_dataset(ds, text="text", label="summary", id="id")`
 
     Putting it all together:
+        from dataquality.integrations.seq2seq.hf import set_tokenizer
         from datasets import load_dataset
         from transformers import T5TokenizerFast
 
@@ -63,7 +65,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         # Add `id` column to each dataset split as the idx
         ds = ds.map(lambda x,idx : {"id":idx},with_indices=True)
         dq.init("seq2seq")
-        dq.set_tokenizer(tokenizer)
+        set_tokenizer(tokenizer)
         dq.log_dataset(ds["train"], label="summary", split="train")
 
     NOTE: We assume that the tokenizer you provide is the same tokenizer used for
@@ -103,9 +105,10 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             "IDs, text, and labels must be the same length, got "
             f"({id_len} ids, {text_len} text, {label_len} labels)"
         )
-        assert (
-            self.logger_config.tokenizer
-        ), "You must set your tokenizer before logging. Use `dq.set_tokenizer`"
+        assert self.logger_config.tokenizer, (
+            "You must set your tokenizer before logging. "
+            "Use `dq.integrations.seq2seq.hf.set_tokenizer`"
+        )
         encoded_data = self.logger_config.tokenizer(
             self.labels, return_offsets_mapping=True
         )

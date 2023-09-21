@@ -24,8 +24,8 @@ from dataquality.utils.seq2seq.offsets import (
 )
 
 
-@mock.patch("dataquality.utils.seq2seq.process_sample_logprobs")
-@mock.patch("dataquality.utils.seq2seq.get_top_logprob_indices")
+@mock.patch("dataquality.utils.seq2seq.logprobs.process_sample_logprobs")
+@mock.patch("dataquality.utils.seq2seq.logprobs.get_top_logprob_indices")
 def test_generate_sample_output(
     mock_get_top_logprob_indices: mock.Mock, mock_process_sample_logprobs: mock.Mock
 ) -> None:
