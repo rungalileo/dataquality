@@ -103,8 +103,15 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         assert (
             self.logger_config.tokenizer
         ), "You must set your tokenizer before logging. Use `dq.set_tokenizer`"
+        # We set verbose=False: if max_length was not specified by the user and is None,
+        # the tokenizer will throw a warning that is irrelevant in this case (as it uses
+        # max_length=max_model_length, which is the value for the input, not the output)
         encoded_data = self.logger_config.tokenizer(
-            self.labels, return_offsets_mapping=True
+            self.labels,
+            return_offsets_mapping=True,
+            max_length=self.logger_config.max_target_tokens,
+            truncation=False if self.logger_config.max_target_tokens is None else True,
+            verbose=False,
         )
         self.tokenized_labels = encoded_data["input_ids"]
         aligned_data = align_tokens_to_character_spans(encoded_data["offset_mapping"])

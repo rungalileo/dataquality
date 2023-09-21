@@ -612,7 +612,9 @@ def set_epoch_and_split(
 
 @check_noop
 def set_tokenizer(
-    tokenizer: PreTrainedTokenizerFast, max_input_tokens: Optional[int] = None
+    tokenizer: PreTrainedTokenizerFast,
+    max_input_tokens: Optional[int] = None,
+    max_target_tokens: Optional[int] = None,
 ) -> None:
     """Seq2seq only. Set the tokenizer for your run
 
@@ -634,8 +636,18 @@ def set_tokenizer(
         warn(
             (
                 "The argument max_input_tokens is not set, we will use the value "
-                "set in tokenizer.model_max_length. If this is not the exact value, "
-                "this can lead to confusing insights about this training run."
+                "found in tokenizer.model_max_length. If you tokenized the input with "
+                "another value, this can lead to confusing insights about this "
+                "training run."
+            )
+        )
+
+    seq2seq_logger_config.max_target_tokens = max_target_tokens
+    if seq2seq_logger_config.max_target_tokens is None:
+        warn(
+            (
+                "The argument max_target_tokens is not set. Passing it as an argument "
+                "will speed up logging of the dataset."
             )
         )
 
