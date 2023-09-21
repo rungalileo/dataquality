@@ -10,10 +10,16 @@ from dataquality.exceptions import GalileoException
 from dataquality.loggers.model_logger.seq2seq import Seq2SeqModelLogger
 from dataquality.schemas.seq2seq import TOP_K, LogprobData
 from dataquality.utils.seq2seq import (
+    remove_padding,
+)
+from dataquality.utils.seq2seq.generation import (
     generate_sample_output,
+)
+from dataquality.utils.seq2seq.logprobs import (
     get_top_logprob_indices,
     process_sample_logprobs,
-    remove_padding,
+)
+from dataquality.utils.seq2seq.offsets import (
     rollup_offset_mapping,
 )
 
