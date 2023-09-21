@@ -131,6 +131,9 @@ def add_generated_output_to_df(
     df: vaex.DataFrame
         Updated Dataframe with the generated columns added (see above)
     """
+    # Ensure the model is in eval mode
+    model.eval()
+
     generated_columns = [
         C.generated_output.value,
         C.generated_token_label_positions.value,

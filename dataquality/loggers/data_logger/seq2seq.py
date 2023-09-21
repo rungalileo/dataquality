@@ -245,8 +245,6 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             print("Skipping generation for split", split)
             return df
 
-        # Ensure the model is in eval mode
-        model.eval()
         df = add_generated_output_to_df(df, model, tokenizer, generation_config)
         return df
 

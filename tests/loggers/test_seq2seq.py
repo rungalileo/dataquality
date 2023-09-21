@@ -19,7 +19,7 @@ from dataquality.schemas.seq2seq import (
 )
 from dataquality.schemas.seq2seq import Seq2SeqOutputCols as C
 from dataquality.schemas.split import Split
-from dataquality.utils.seq2seq import add_generated_output_to_df
+from dataquality.utils.seq2seq.generation import add_generated_output_to_df
 from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.conftest import TestSessionVariables, tokenizer
 
@@ -246,7 +246,7 @@ def test_add_generated_output_to_df(
     df = vaex.from_dict({"text": ["Fake Input"] * 100})
 
     df = add_generated_output_to_df(
-        df, mock_tokenizer, mock_model, mock_generation_config
+        df, mock_model, mock_tokenizer, mock_generation_config
     )
 
     # Make sure everything is in check!
