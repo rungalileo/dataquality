@@ -1,6 +1,5 @@
-from dataclasses import dataclass
 from functools import partial
-from typing import Any, Dict, List, Tuple, Optional
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 from datasets import Dataset, DatasetDict
