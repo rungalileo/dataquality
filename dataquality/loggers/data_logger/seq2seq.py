@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING, Any, List, Optional, Set, Tuple, Union, cast
 
 import pandas as pd
 import pyarrow as pa
-import torch
 import vaex
 from vaex.dataframe import DataFrame
 
@@ -20,8 +19,10 @@ from dataquality.loggers.logger_config.seq2seq import (
 from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.seq2seq import Seq2SeqInputCols as C
 from dataquality.schemas.split import Split
-from dataquality.utils.seq2seq import (
+from dataquality.utils.seq2seq.generation import (
     add_generated_output_to_df,
+)
+from dataquality.utils.seq2seq.offsets import (
     align_tokens_to_character_spans,
 )
 from dataquality.utils.vaex import rename_df
@@ -222,29 +223,31 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         `token_label_positions` column
         """
         logger_config = cls.logger_config
-        tokenizer = logger_config.tokenizer
         model = logger_config.model
+        tokenizer = logger_config.tokenizer
         generation_config = logger_config.generation_config
-        if tokenizer is None:
-            raise GalileoException(
-                "You must set your tokenizer before logging. Use `dq.set_tokenizer`"
-            )
         if model is None:
             raise GalileoException(
-                "You must set your model before logging. Use `watch`"
+                "You must set your model before logging. Use "
+                "`dataquality.integrations.seq2seq.hf.watch`"
+            )
+        if tokenizer is None:
+            raise GalileoException(
+                "You must set your tokenizer before logging. Use "
+                "`dataquality.integrations.seq2seq.hf.watch`"
             )
         if generation_config is None:
             raise GalileoException(
-                "You must set your generation config before logging. Use `watch`"
+                "You must set your generation config before logging. Use "
+                "`dataquality.integrations.seq2seq.hf.watch`"
             )
         if split not in logger_config.generation_splits:
             print("Skipping generation for split", split)
             return df
 
-        torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # Ensure the model is in eval mode
         model.eval()
-        df = add_generated_output_to_df(df, tokenizer, model, generation_config)
+        df = add_generated_output_to_df(df, model, tokenizer, generation_config)
         return df
 
     @classmethod
