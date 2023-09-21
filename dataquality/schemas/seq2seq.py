@@ -57,6 +57,7 @@ class Seq2SeqOutputCols(str, Enum):
     generated_token_label_offsets = "generated_token_label_offsets"
     generated_token_logprobs = "generated_token_logprobs"
     generated_top_logprobs = "generated_top_logprobs"
+    # Temporary columns that aren't saved to DF
     generation_data = "generation_data"
     # Mypy complained about split as an attribute, so we use `split_`
     split_ = "split"
