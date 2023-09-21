@@ -61,6 +61,13 @@ dataquality.integrations.setfit
     :show-inheritance:
     :member-order: bysource
 
+dataquality.integrations.jsl
+-----------
+.. automodule:: dataquality.integrations.jsl
+    :members: JSLProject
+    :show-inheritance:
+    :member-order: bysource
+
 dataquality
 -----------
 .. automodule:: dataquality
