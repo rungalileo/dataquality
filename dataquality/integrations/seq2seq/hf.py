@@ -1,3 +1,6 @@
+from typing import Optional
+from warnings import warn
+
 from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizerFast
 
 from dataquality.loggers.logger_config.seq2seq import seq2seq_logger_config
@@ -8,7 +11,11 @@ from dataquality.utils.task_helpers import get_task_type
 
 
 @check_noop
-def set_tokenizer(tokenizer: PreTrainedTokenizerFast) -> None:
+def set_tokenizer(
+    tokenizer: PreTrainedTokenizerFast,
+    max_input_tokens: Optional[int] = None,
+    max_target_tokens: Optional[int] = None,
+) -> None:
     """Seq2seq only. Set the tokenizer for your run
 
     Must be a fast tokenizer, and must support `decode`, `encode`, `encode_plus`
@@ -22,6 +29,28 @@ def set_tokenizer(tokenizer: PreTrainedTokenizerFast) -> None:
     for attr in ["encode", "decode", "encode_plus", "padding_side"]:
         assert hasattr(tokenizer, attr), f"Tokenizer must support `{attr}`"
     seq2seq_logger_config.tokenizer = tokenizer
+
+    seq2seq_logger_config.max_input_tokens = max_input_tokens
+    if seq2seq_logger_config.max_input_tokens is None:
+        seq2seq_logger_config.max_input_tokens = tokenizer.model_max_length
+        warn(
+            (
+                "The argument max_input_tokens is not set, we will use the value "
+                "found in tokenizer.model_max_length. If you tokenized the input with "
+                "another value, this can lead to confusing insights about this "
+                "training run."
+            )
+        )
+
+    seq2seq_logger_config.max_target_tokens = max_target_tokens
+    if seq2seq_logger_config.max_target_tokens is None:
+        warn(
+            (
+                "The argument max_target_tokens is not set. Passing it as an argument "
+                "will speed up logging of the dataset."
+            )
+        )
+
     # Seq2Seq doesn't have labels but we need to set this to avoid validation errors
     seq2seq_logger_config.labels = []
 
