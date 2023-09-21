@@ -11,6 +11,7 @@ import dataquality as dq
 from dataquality.loggers.data_logger.base_data_logger import DataSet
 from dataquality.loggers.data_logger.seq2seq import Seq2SeqDataLogger
 from dataquality.loggers.model_logger.seq2seq import Seq2SeqModelLogger
+from dataquality.schemas.seq2seq import TOP_K
 from dataquality.schemas.split import Split
 from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.conftest import TestSessionVariables, tokenizer
@@ -114,15 +115,16 @@ def test_log_model_outputs(
     mock_tokenizer = mock.MagicMock()
     mock_tokenizer.padding_side = "right"
     config.tokenizer = mock_tokenizer
+    config.tokenizer.decode = lambda x: "Fake"
 
     batch_size = 4
     seq_len = 20
     vocab_size = 100
 
     logits = np.random.rand(batch_size, seq_len, vocab_size)
-    # Set the locations of the "padded" tokens to -100 for the logits
+    # Set the locations of the "padded" tokens to 0 for the logits
     for idx, token_labels in enumerate(tokenized_labels):
-        logits[idx, len(token_labels) :] = -100
+        logits[idx, len(token_labels) :] = 0
 
     log_data = dict(
         ids=list(range(batch_size)),
@@ -132,9 +134,6 @@ def test_log_model_outputs(
     )
     logger = Seq2SeqModelLogger(**log_data)
     logger.logger_config = config
-    # Because we have our own instance of the logger, we just replace this function
-    # in place so we don't have to deal with the softmax
-    logger.convert_logits_to_probs = lambda logits: logits
     with mock.patch("dataquality.core.log.get_model_logger") as mock_method:
         mock_method.return_value = logger
         dq.log_model_outputs(**log_data)
@@ -143,22 +142,40 @@ def test_log_model_outputs(
     output_data = vaex.open(f"{test_session_vars.LOCATION}/training/0/*.arrow")
     expected_cols = [
         "id",
-        "token_deps",
-        "token_gold_probs",
+        "token_logprobs",
+        "top_logprobs",
+        "perplexity",
         "split",
         "epoch",
-        "data_error_potential",
     ]
     assert sorted(output_data.get_column_names()) == sorted(expected_cols)
     assert len(output_data) == 4
 
-    token_gold_probs = output_data["token_gold_probs"].tolist()
-    token_deps = output_data["token_deps"].tolist()
+    token_logprobs = output_data["token_logprobs"].tolist()
+    top_logprobs = output_data["top_logprobs"].tolist()
+    perplexities = output_data["perplexity"].tolist()
 
-    for token_labels, token_dep, token_gold_prob in zip(
-        tokenized_labels, token_deps, token_gold_probs
+    for token_labels, sample_token_logprobs, sample_top_logprobs, perplexity in zip(
+        tokenized_labels, token_logprobs, top_logprobs, perplexities
     ):
-        assert len(token_labels) == len(token_dep) == len(token_gold_prob)
-        assert -100 not in token_gold_prob
-        for dep in token_dep:
-            assert 0 <= dep <= 1
+        assert (
+            len(token_labels) == len(sample_token_logprobs) == len(sample_top_logprobs)
+        )
+        # Check all logprobs are < 0
+        for token_logprob in sample_token_logprobs:
+            assert token_logprob < 0
+
+        # Check that we ignore <pad> token by checking that for each
+        # token in sample_top_logprobs the top logprobs are not all equal.
+        # Additionally check the general structure of top_logprobs
+        for token_top_logprobs in sample_top_logprobs:
+            assert len(token_top_logprobs) == TOP_K
+
+            logprobs = [candidate[1] for candidate in token_top_logprobs]
+            assert not np.allclose(logprobs[0], logprobs)
+
+            assert np.alltrue(
+                [candidate[0] == "Fake" for candidate in token_top_logprobs]
+            )
+
+        assert perplexity > 0
