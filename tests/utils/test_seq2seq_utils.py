@@ -85,7 +85,7 @@ def test_generate_sample_output(
 
     with mock.patch("torch.no_grad"):
         model_generation = generate_sample_output(
-            "test str", mock_model, mock_tokenizer, mock_generation_config
+            "test str", mock_model, mock_tokenizer, 512, mock_generation_config
         )
 
     # Check logprobs
