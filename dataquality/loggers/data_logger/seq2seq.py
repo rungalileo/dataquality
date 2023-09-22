@@ -286,14 +286,16 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         emb = df_copy[emb_cols]
         data_df = C.set_cols(df_copy[other_cols])
         return BaseLoggerDataFrames(prob=prob, emb=emb, data=data_df)
-    
+
     @classmethod
     def calculate_text_cutoffs(cls, df: DataFrame) -> DataFrame:
         """
         TODO
         """
-        df[C.input_text_cutoff] = 0  # TODO
-        df[C.target_text_cutoff] = 0
+        df[C.input_text_cutoff.value] = df.func.get_position_of_last_offset(
+            df[C.token_label_offsets]
+        )
+        # df[C.target_text_cutoff] = 0
         return df
 
     @property

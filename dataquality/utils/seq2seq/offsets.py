@@ -1,6 +1,9 @@
 from collections import defaultdict
 from typing import Dict, List, Set, Tuple
 
+import numpy as np
+import pyarrow as pa
+import vaex
 from tqdm.auto import tqdm
 
 from dataquality.schemas.seq2seq import (
@@ -181,4 +184,15 @@ def align_tokens_to_character_spans(
         all_token_positions.append(token_positions)
     return AlignedTokenData(
         token_label_offsets=all_offsets, token_label_positions=all_token_positions
+    )
+
+
+@vaex.register_function()
+def get_position_of_last_offset(offsets: pa.array) -> np.ndarray:
+    return np.array(
+        [
+            offsets_row[-1][-1].as_py() if len(offsets_row) > 0 else 0
+            for offsets_row in offsets
+        ],
+        dtype="int32",
     )
