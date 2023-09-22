@@ -14,9 +14,11 @@ from dataquality.schemas.seq2seq import Seq2SeqOutputCols as C
 from dataquality.schemas.split import Split
 from dataquality.utils.arrow import save_arrow_file
 from dataquality.utils.seq2seq import (
+    remove_padding,
+)
+from dataquality.utils.seq2seq.logprobs import (
     get_top_logprob_indices,
     process_sample_logprobs,
-    remove_padding,
 )
 
 
@@ -72,7 +74,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
 
         assert (
             self.logger_config.tokenizer is not None
-        ), "Must set your tokenizer. Use `dq.set_tokenizer`"
+        ), "Must set your tokenizer. Use `dq.integrations.seq2seq.hf.set_tokenizer`"
 
         # TODO: This is potentially slow. This is what needs to be optimized. Can we
         #  potentially do this on the GPU with torch? And dont convert to a np array

@@ -8,11 +8,19 @@ import pytest
 import vaex
 
 import dataquality as dq
+from dataquality.integrations.seq2seq.hf import set_tokenizer
 from dataquality.loggers.data_logger.base_data_logger import DataSet
 from dataquality.loggers.data_logger.seq2seq import Seq2SeqDataLogger
 from dataquality.loggers.model_logger.seq2seq import Seq2SeqModelLogger
-from dataquality.schemas.seq2seq import TOP_K
+from dataquality.schemas.seq2seq import (
+    TOP_K,
+    AlignedTokenData,
+    LogprobData,
+    ModelGeneration,
+)
+from dataquality.schemas.seq2seq import Seq2SeqOutputCols as C
 from dataquality.schemas.split import Split
+from dataquality.utils.seq2seq.generation import add_generated_output_to_df
 from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.conftest import TestSessionVariables, tokenizer
 
@@ -54,7 +62,7 @@ def test_log_dataset(
 
     with mock.patch("dataquality.core.log.get_data_logger") as mock_method:
         mock_method.return_value = logger
-        dq.set_tokenizer(tokenizer)
+        set_tokenizer(tokenizer)
         dq.log_dataset(
             dataset, text="summary", label="title", id="my_id", split="train"
         )
@@ -91,7 +99,8 @@ def test_log_dataset_no_tokenizer(set_test_config: Callable) -> None:
         with pytest.raises(AssertionError) as e:
             dq.log_dataset(df, text="summary", label="title", id="my_id", split="train")
     assert str(e.value) == (
-        "You must set your tokenizer before logging. Use `dq.set_tokenizer`"
+        "You must set your tokenizer before logging. "
+        "Use `dq.integrations.seq2seq.hf.set_tokenizer`"
     )
 
 
@@ -179,3 +188,89 @@ def test_log_model_outputs(
             )
 
         assert perplexity > 0
+
+
+@mock.patch("dataquality.utils.seq2seq.generation.align_tokens_to_character_spans")
+@mock.patch("dataquality.utils.seq2seq.generation.generate_sample_output")
+def test_add_generated_output_to_df(
+    mock_generate_sample_output: mock.Mock,
+    mock_align_tokens_to_character_spans: mock.Mock,
+) -> None:
+    """Test the complex vaex batched processing function for generation
+
+    Tings to Mock
+        - generate_sample_output: This can be fairly simple. The
+        one thing that we want to vary would be the length of things returned
+        - tokenizer: decode can be quite simple + encode
+        - model + generation_config: just to have as input params
+        - align_tokens_to_character_spans: This is already tested so let's just
+        mock the output!
+
+    What to test: Main thing to test is that the vaex format is all as expected.
+        - Test that each column has the correctly curated result
+        - Test that we don't have the extra column caused by vaex's flatten
+    """
+    # Mock the tokenizer
+    mock_tokenizer = mock.MagicMock()
+    mock_tokenizer.decode.return_value = "Fake output"
+    mock_tokenizer.return_value = {"offset_mapping": []}
+
+    # Mock the model
+    mock_model = mock.MagicMock()  # Don't actually need any functions for this
+
+    # Mock generation_config
+    mock_generation_config = mock.MagicMock()
+
+    # Mock the generation process
+    def mock_generate_output() -> ModelGeneration:
+        """Create simple dummy ModelGeneration"""
+        # Generate fake outputs
+        num_fake_tokens = 4  # np.random.randint(3, 10)
+        gen_ids = np.arange(num_fake_tokens)
+        gen_token_logprobs = np.zeros(num_fake_tokens) - 1
+        gen_top_logprobs = [[("A", -1), ("B", -2)] for _ in range(num_fake_tokens)]
+        gen_logprob_data = LogprobData(
+            token_logprobs=gen_token_logprobs, top_logprobs=gen_top_logprobs
+        )
+        return ModelGeneration(gen_ids, gen_logprob_data)
+
+    mock_generate_sample_output.return_value = mock_generate_output()
+
+    # Mock aligned output for a single sample
+    fake_token_label_offsets = [[(0, 1), (1, 20), (20, 21), (21, 22), (22, 23)]]
+    fake_token_label_positions = [[{0, 1}, {1}, {0}, {2, 3}, {3}]]
+    mock_align_tokens_to_character_spans.return_value = AlignedTokenData(
+        token_label_offsets=fake_token_label_offsets,
+        token_label_positions=fake_token_label_positions,
+    )
+
+    # Create fake df with vaex
+    df = vaex.from_dict({"text": ["Fake Input"] * 100})
+
+    df = add_generated_output_to_df(
+        df, mock_model, mock_tokenizer, mock_generation_config
+    )
+    # Make sure everything is in check!
+    assert len(df) == 100
+    assert df[C.generated_output.value].tolist() == ["Fake output"] * 100
+    # Convert to correct type
+    fake_token_label_positions = [[list(val) for val in fake_token_label_positions[0]]]
+    assert (
+        df[C.generated_token_label_positions.value].tolist()
+        == fake_token_label_positions * 100
+    )
+    fake_token_label_offsets = [[list(val) for val in fake_token_label_offsets[0]]]
+    assert (
+        df[C.generated_token_label_offsets.value].tolist()
+        == fake_token_label_offsets * 100
+    )
+    generated_token_logprobs = df[C.generated_token_logprobs.value].tolist()
+    generated_top_logprobs = df[C.generated_top_logprobs.value].tolist()
+    for logprobs, top_logprobs in zip(generated_token_logprobs, generated_top_logprobs):
+        num_tokens = len(logprobs)
+        assert num_tokens == len(top_logprobs)
+        assert np.array_equal(logprobs, np.zeros(num_tokens) - 1)
+        assert top_logprobs == [[("A", -1), ("B", -2)] for _ in range(num_tokens)]
+
+    # Make sure that we have removed the column left after flattening
+    assert not any([C.generation_data.value in col for col in df.get_column_names()])

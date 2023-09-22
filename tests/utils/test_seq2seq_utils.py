@@ -1,18 +1,106 @@
+from dataclasses import dataclass
 from typing import List, Set, Tuple
 from unittest import mock
 
 import numpy as np
 import pytest
+import torch
 
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.model_logger.seq2seq import Seq2SeqModelLogger
-from dataquality.schemas.seq2seq import TOP_K
+from dataquality.schemas.seq2seq import TOP_K, LogprobData
 from dataquality.utils.seq2seq import (
+    remove_padding,
+)
+from dataquality.utils.seq2seq.generation import (
+    generate_sample_output,
+)
+from dataquality.utils.seq2seq.logprobs import (
     get_top_logprob_indices,
     process_sample_logprobs,
-    remove_padding,
+)
+from dataquality.utils.seq2seq.offsets import (
     rollup_offset_mapping,
 )
+
+
+@mock.patch("dataquality.utils.seq2seq.generation.process_sample_logprobs")
+@mock.patch("dataquality.utils.seq2seq.generation.get_top_logprob_indices")
+def test_generate_sample_output(
+    mock_get_top_logprob_indices: mock.Mock, mock_process_sample_logprobs: mock.Mock
+) -> None:
+    """Test the logic for generating over a single sample.
+
+    Things to mock:
+        - Anything model related
+            - Assume .generate() works
+            - Assume getting logits works
+        - Mock the tokenizer
+            - Mock the tokenize function
+            - Mock the decode function
+        - Mock get_top_logprob_indices - check inputs
+        - Mock process_sample_logprobs since we test this seperately
+
+    Things to test:
+        - Check that the fake pad token is removed
+        - Check that we have logprobs by checking input to process_sample_logprobs
+        - Check that logprobs is correct shape to process_sample_logprobs
+        - Check that gen_ids is correct shape to process_sample_logprobs
+        - Check that we have the correct attributes in ModelGeneration
+    """
+    # Mock the tokenizer
+    mock_tokenizer = mock.MagicMock()
+    mock_tokenizer.return_value = {"input_ids": torch.tensor([[1, 2, 3, 0]])}
+
+    # Mock the model
+    mock_model = mock.MagicMock()
+    # Add a fake <pad> token to the generated ids
+    mock_model.generate.return_value = torch.tensor([[1, 10, 20, 30]])
+
+    # Mock the model forward function to return random logits
+    # for a single batch element
+    @dataclass
+    class FakeOutput:
+        logits: torch.tensor
+
+    # Mock model output and model device
+    mock_model.return_value = FakeOutput(torch.rand((1, 3, 20)))
+    mock_model.device = torch.device("cpu")
+
+    # Mock generation_config
+    mock_generation_config = mock.MagicMock()
+
+    # Mock util helper function. Note we don't mock the return value of
+    # mock_get_top_logprob_indices since we only care about its input
+    fake_token_logprobs = np.array([-0.5, -0.25, -0.11])
+    fake_top_logprob_data = [
+        [("A", -0.1), ("B", -1)],
+        [("A", -0.1), ("B", -1)],
+        [("A", -0.1), ("B", -1)],
+    ]
+    mock_process_sample_logprobs.return_value = LogprobData(
+        token_logprobs=fake_token_logprobs,
+        top_logprobs=fake_top_logprob_data,
+    )
+
+    with mock.patch("torch.no_grad"):
+        model_generation = generate_sample_output(
+            "test str", mock_model, mock_tokenizer, mock_generation_config
+        )
+
+    # Check logprobs
+    logprobs = mock_get_top_logprob_indices.call_args.args[0]
+    assert logprobs.shape == (3, 20)
+    # Check that we infact have logprobs
+    assert np.allclose(1.0, np.sum(np.exp(logprobs), axis=-1))
+
+    # Check ModelGeneration
+    # Check gen_ids - Make sure the <pad> token is removed!
+    assert np.array_equal(model_generation.generated_ids, np.array([10, 20, 30]))
+    assert np.array_equal(
+        model_generation.generated_logprob_data.token_logprobs, fake_token_logprobs
+    )
+    assert model_generation.generated_logprob_data.top_logprobs == fake_top_logprob_data
 
 
 def test_model_logger_remove_padding() -> None:

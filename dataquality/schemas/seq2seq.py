@@ -33,7 +33,7 @@ class Seq2SeqInputCols(str, Enum):
     def set_input(cls, df: DataFrame) -> DataFrame:
         """Sets the input column for the dataframe"""
         if cls.text.value in df.get_column_names():
-            df = df.rename(cls.text.value, cls.input.value)
+            df.rename(cls.text.value, cls.input.value)
 
         return df
 
@@ -41,7 +41,7 @@ class Seq2SeqInputCols(str, Enum):
     def set_target(cls, df: DataFrame) -> DataFrame:
         """Sets the target output column for the dataframe"""
         if cls.label.value in df.get_column_names():
-            df = df.rename(cls.label.value, cls.target.value)
+            df.rename(cls.label.value, cls.target.value)
 
         return df
 
@@ -51,10 +51,28 @@ class Seq2SeqOutputCols(str, Enum):
     perplexity = "perplexity"
     token_logprobs = "token_logprobs"
     top_logprobs = "top_logprobs"
+    # Columns associated with generated output
+    generated_output = "generated_output"
+    generated_token_label_positions = "generated_token_label_positions"
+    generated_token_label_offsets = "generated_token_label_offsets"
+    generated_token_logprobs = "generated_token_logprobs"
+    generated_top_logprobs = "generated_top_logprobs"
     # Mypy complained about split as an attribute, so we use `split_`
     split_ = "split"
     epoch = "epoch"
     inference_name = "inference_name"
+    # Temporary columns that aren't saved to DF
+    generation_data = "_generation_data"
+
+    @staticmethod
+    def generated_cols() -> List[str]:
+        return [
+            Seq2SeqOutputCols.generated_output.value,
+            Seq2SeqOutputCols.generated_token_label_positions.value,
+            Seq2SeqOutputCols.generated_token_label_offsets.value,
+            Seq2SeqOutputCols.generated_token_logprobs.value,
+            Seq2SeqOutputCols.generated_top_logprobs.value,
+        ]
 
 
 @dataclass
@@ -77,3 +95,9 @@ class LogprobData:
 
     token_logprobs: np.ndarray
     top_logprobs: List[List[Tuple[str, float]]]
+
+
+@dataclass
+class ModelGeneration:
+    generated_ids: np.ndarray
+    generated_logprob_data: LogprobData
