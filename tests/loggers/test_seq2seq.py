@@ -274,3 +274,8 @@ def test_add_generated_output_to_df(
 
     # Make sure that we have removed the column left after flattening
     assert not any([C.generation_data.value in col for col in df.get_column_names()])
+
+
+def test_calculate_text_cutoffs():
+    """Test that calculate_text_cutoffs works correctly for both input/target"""
+    assert False
