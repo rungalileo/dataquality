@@ -19,15 +19,15 @@ dataquality.integrations.transformers_trainer
     :show-inheritance:
     :member-order: bysource
 
-dataquality.integrations.keras
+dataquality.integrations.legacy.keras
 -----------
-.. automodule:: dataquality.integrations.keras
+.. automodule:: dataquality.integrations.legacy.keras
     :members: 
     :show-inheritance:
 
-dataquality.integrations.experimental.keras
+dataquality.integrations.keras
 -----------
-.. automodule:: dataquality.integrations.experimental.keras
+.. automodule:: dataquality.integrations.keras
     :members: watch, unwatch
     :show-inheritance:
     :member-order: bysource
