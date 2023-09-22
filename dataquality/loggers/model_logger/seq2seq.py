@@ -131,6 +131,8 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             batch_ids, batch_logprobs, top_logprob_indices
         ):
             sample_n_tokens = sample_logprobs.shape[0]
+            # Truncating the tokens computed in dq to ensure that there aren't more than
+            # what the model outputed (or we get an indexing error).
             sample_labels = self._retrieve_sample_labels(
                 sample_id, max_tokens=sample_n_tokens
             )
@@ -183,9 +185,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
     def _write_dict_to_disk(self, path: str, object_name: str, data: Dict) -> None:
         save_arrow_file(path, object_name, data)
 
-    def _retrieve_sample_labels(
-        self, sample_id: int, max_tokens: Optional[int] = None
-    ) -> np.ndarray:
+    def _retrieve_sample_labels(self, sample_id: int, max_tokens: int) -> np.ndarray:
         """Retrieve the labels array based on the sample id and truncate at max_tokens
 
         Labels gives the ground truth / target sample ids for

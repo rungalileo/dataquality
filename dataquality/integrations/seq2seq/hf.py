@@ -18,7 +18,11 @@ def set_tokenizer(
 ) -> None:
     """Seq2seq only. Set the tokenizer for your run
 
-    Must be a fast tokenizer, and must support `decode`, `encode`, `encode_plus`
+    Must be a fast tokenizer, and must support `decode`, `encode`, `encode_plus`.
+
+    We will use this tokenizer for both the input and the target. They will both be
+    truncated after a certain length, which is set in the args max_input_tokens and
+    max_target_tokens.
     """
     task_type = get_task_type()
     assert task_type == TaskType.seq2seq, "This method is only supported for seq2seq"
@@ -37,9 +41,9 @@ def set_tokenizer(
         warn(
             (
                 "The argument max_input_tokens is not set, we will use the value "
-                "found in tokenizer.model_max_length. If you tokenized the input with "
-                "another value, this can lead to confusing insights about this "
-                "training run."
+                f"{tokenizer.model_max_length} from tokenizer.model_max_length. If you "
+                "tokenized the input with another value, this can lead to confusing "
+                "insights about this training run."
             )
         )
 
