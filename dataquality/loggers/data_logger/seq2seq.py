@@ -109,8 +109,15 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             "You must set your tokenizer before logging. "
             "Use `dq.integrations.seq2seq.hf.set_tokenizer`"
         )
+        # We set verbose=False: if max_length was not specified by the user and is None,
+        # the tokenizer will throw a warning that is irrelevant in this case (as it uses
+        # max_length=max_model_length, which is the value for the input, not the output)
         encoded_data = self.logger_config.tokenizer(
-            self.labels, return_offsets_mapping=True
+            self.labels,
+            return_offsets_mapping=True,
+            max_length=self.logger_config.max_target_tokens,
+            truncation=False if self.logger_config.max_target_tokens is None else True,
+            verbose=False,
         )
         self.tokenized_labels = encoded_data["input_ids"]
         aligned_data = align_tokens_to_character_spans(encoded_data["offset_mapping"])
@@ -228,6 +235,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         logger_config = cls.logger_config
         model = logger_config.model
         tokenizer = logger_config.tokenizer
+        max_input_tokens = logger_config.max_input_tokens
         generation_config = logger_config.generation_config
         if model is None:
             raise GalileoException(
@@ -239,6 +247,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
                 "You must set your tokenizer before logging. Use "
                 "`dataquality.integrations.seq2seq.hf.watch`"
             )
+        assert isinstance(max_input_tokens, int)
         if generation_config is None:
             raise GalileoException(
                 "You must set your generation config before logging. Use "
@@ -248,7 +257,9 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             print("Skipping generation for split", split)
             return df
 
-        df = add_generated_output_to_df(df, model, tokenizer, generation_config)
+        df = add_generated_output_to_df(
+            df, model, tokenizer, max_input_tokens, generation_config
+        )
         return df
 
     @classmethod

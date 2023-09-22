@@ -198,7 +198,7 @@ def test_add_generated_output_to_df(
 ) -> None:
     """Test the complex vaex batched processing function for generation
 
-    Tings to Mock
+    Things to Mock
         - generate_sample_output: This can be fairly simple. The
         one thing that we want to vary would be the length of things returned
         - tokenizer: decode can be quite simple + encode
@@ -248,7 +248,7 @@ def test_add_generated_output_to_df(
     df = vaex.from_dict({"text": ["Fake Input"] * 100})
 
     df = add_generated_output_to_df(
-        df, mock_model, mock_tokenizer, mock_generation_config
+        df, mock_model, mock_tokenizer, 512, mock_generation_config
     )
     # Make sure everything is in check!
     assert len(df) == 100
