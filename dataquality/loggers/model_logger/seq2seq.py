@@ -74,7 +74,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
 
         assert (
             self.logger_config.tokenizer is not None
-        ), "Must set your tokenizer. Use `dq.set_tokenizer`"
+        ), "Must set your tokenizer. Use `dq.integrations.seq2seq.hf.set_tokenizer`"
 
         # TODO: This is potentially slow. This is what needs to be optimized. Can we
         #  potentially do this on the GPU with torch? And dont convert to a np array

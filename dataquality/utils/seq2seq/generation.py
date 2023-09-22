@@ -157,15 +157,12 @@ def add_generated_output_to_df(
                 generation_config=generation_config,
             )
 
-            generated_outputs.append(
-                tokenizer.decode(
-                    sample_generation.generated_ids, skip_special_tokens=True
-                )
+            output = tokenizer.decode(
+                sample_generation.generated_ids, skip_special_tokens=True
             )
+            generated_outputs.append(output)
             # Re-tokenize the data to get the token position offsets
-            encoded_data = tokenizer(
-                [generated_outputs[-1]], return_offsets_mapping=True
-            )
+            encoded_data = tokenizer([output], return_offsets_mapping=True)
             aligned_data = align_tokens_to_character_spans(
                 encoded_data["offset_mapping"]
             )
@@ -195,11 +192,10 @@ def add_generated_output_to_df(
             names=S2SOC.generated_cols(),
         )
 
-    df[S2SOC.generation_data] = df[S2SIC.text].generate_batch_outputs()
-
+    df[S2SOC.generation_data.value] = df.func.generate_batch_outputs(df[S2SIC.text])
     # 'generation_data' is a col of type StructArray
     # struct.flatten creates a column per key
-    df = df.struct.flatten(S2SOC.generation_data)
+    df = df.struct.flatten(S2SOC.generation_data.value)
     # the new column name will be `generation_data_<key>` so we rename them
     for col in S2SOC.generated_cols():
         df.rename(f"{S2SOC.generation_data}_{col}", col)
