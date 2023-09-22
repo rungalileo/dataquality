@@ -61,6 +61,8 @@ def watch(
     tokenizer: PreTrainedTokenizerFast,
     generation_config: GenerationConfig,
     generate_training_data: bool = False,
+    max_input_tokens: Optional[int] = None,
+    max_target_tokens: Optional[int] = None,
 ) -> None:
     """Seq2seq only. Log model generations for your run
 
@@ -79,7 +81,7 @@ def watch(
     ), "model must be an instance of transformers PreTrainedModel"
     assert model.can_generate(), "model must contain a `generate` method for seq2seq"
 
-    set_tokenizer(tokenizer)
+    set_tokenizer(tokenizer, max_input_tokens, max_target_tokens)
 
     seq2seq_logger_config.model = model
     seq2seq_logger_config.generation_config = generation_config

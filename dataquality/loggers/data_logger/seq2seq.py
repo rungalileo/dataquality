@@ -219,6 +219,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         and then call the super method to create the input and output dataframes
         """
         in_frame = cls.add_generated_output_to_df(in_frame, split)
+        in_frame = cls.calculate_text_cutoffs(in_frame)
         return super().create_in_out_frames(
             in_frame, dir_name, prob_only, split, epoch_or_inf
         )
@@ -282,6 +283,15 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         emb = df_copy[emb_cols]
         data_df = C.set_cols(df_copy[other_cols])
         return BaseLoggerDataFrames(prob=prob, emb=emb, data=data_df)
+    
+    @classmethod
+    def calculate_text_cutoffs(cls, df: DataFrame) -> DataFrame:
+        """
+        TODO
+        """
+        df[C.input_text_cutoff] = 0  # TODO
+        df[C.target_text_cutoff] = 0
+        return df
 
     @property
     def support_embs(self) -> bool:
