@@ -245,6 +245,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         model = logger_config.model
         tokenizer = logger_config.tokenizer
         generation_config = logger_config.generation_config
+        max_input_tokens = logger_config.max_input_tokens
         if model is None:
             raise GalileoException(
                 "You must set your model before calling dq.finish. Use "
@@ -260,11 +261,14 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
                 "You must set your generation config before calling dq.finish. Use "
                 "`dataquality.integrations.seq2seq.hf.watch`"
             )
+        assert isinstance(max_input_tokens, int)
         if split not in logger_config.generation_splits:
             print(f"Skipping generation for split {split}")
             return df
 
-        df = add_generated_output_to_df(df, model, tokenizer, generation_config)
+        df = add_generated_output_to_df(
+            df, model, tokenizer, max_input_tokens, generation_config
+        )
         return df
 
     @classmethod

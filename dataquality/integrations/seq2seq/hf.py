@@ -30,8 +30,9 @@ def set_tokenizer(
         assert hasattr(tokenizer, attr), f"Tokenizer must support `{attr}`"
     seq2seq_logger_config.tokenizer = tokenizer
 
-    seq2seq_logger_config.max_input_tokens = max_input_tokens
-    if seq2seq_logger_config.max_input_tokens is None:
+    if max_input_tokens is not None:
+        seq2seq_logger_config.max_input_tokens = max_input_tokens
+    else:
         seq2seq_logger_config.max_input_tokens = tokenizer.model_max_length
         warn(
             (

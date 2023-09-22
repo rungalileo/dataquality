@@ -21,6 +21,7 @@ def generate_sample_output(
     input_str: str,
     model: PreTrainedModel,
     tokenizer: PreTrainedTokenizerFast,
+    max_input_tokens: int,
     generation_config: GenerationConfig,
 ) -> ModelGeneration:
     """Generate and extract model logprobs
@@ -42,6 +43,7 @@ def generate_sample_output(
     input_str: str
         Input string context used to seed the generation
     tokenizer: PreTrainedTokenizerFast
+    max_input_tokens: the max number of tokens to use for tokenization
     model: PreTrainedModel
     generation_config: GenerationConfig
         Users generation config specifying the parameters for generation
@@ -54,11 +56,14 @@ def generate_sample_output(
         - generated_top_logprobs: List[List[Tuple[str, float]]]
     """
     # Shape - [1, seq_len]
-    # TODO - we can run into trouble if they tokenize in a different way
-    #   We may want to accept the tokenized output
-    input_ids = tokenizer(input_str, truncation=True, return_tensors="pt")[
-        "input_ids"
-    ].to(model.device)
+    # We make sure to tokenize with the same max_length as they did during training
+    input_ids = tokenizer(
+        input_str,
+        truncation=True,
+        max_length=max_input_tokens,
+        verbose=False,
+        return_tensors="pt",
+    )["input_ids"].to(model.device)
 
     gen_ids = model.generate(
         input_ids=input_ids,
@@ -96,6 +101,7 @@ def add_generated_output_to_df(
     df: vaex.DataFrame,
     model: PreTrainedModel,
     tokenizer: PreTrainedTokenizerFast,
+    max_input_tokens: int,
     generation_config: GenerationConfig,
 ) -> vaex.DataFrame:
     """Generates model outputs over df and extracts the logprob data
@@ -120,6 +126,7 @@ def add_generated_output_to_df(
     df: vaex.DataFrame
         Dataframe with the input data that we want to generate based on
     model: PreTrainedModel
+    max_input_tokens: the max number of tokens to use for tokenizing
     tokenizer: PreTrainedTokenizerFast
     generation_config: GenerationConfig
         Users generation config specifying the parameters for generation
@@ -154,6 +161,7 @@ def add_generated_output_to_df(
                 input_str=str(sample),
                 model=model,
                 tokenizer=tokenizer,
+                max_input_tokens=max_input_tokens,
                 generation_config=generation_config,
             )
 

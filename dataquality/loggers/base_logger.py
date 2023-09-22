@@ -70,6 +70,8 @@ class BaseLoggerAttributes(str, Enum):
     input = "input"
     target = "target"
     generated_output = "generated_output"
+    input_text_cutoff = "input_text_cutoff"
+    target_text_cutoff = "target_text_cutoff"
 
     @staticmethod
     def get_valid() -> List[str]:

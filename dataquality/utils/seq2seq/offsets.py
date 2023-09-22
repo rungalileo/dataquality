@@ -227,10 +227,9 @@ def get_position_of_last_offset_input(
         """Tokenize the texts and find the position of the last offset."""
         offset_mapping = tokenizer(
             texts.to_pylist(),
-            truncation=False if max_input_length is None else True,
+            truncation=True,
             max_length=max_input_length,
             return_offsets_mapping=True,
-            verbose=True,  # TODO: change
         )["offset_mapping"]
         # At least for the T5 tokenizer, the last offset is always (0,0).
         input_cut_off = np.array(
