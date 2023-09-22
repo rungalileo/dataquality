@@ -24,6 +24,8 @@ from dataquality.utils.seq2seq.generation import (
 )
 from dataquality.utils.seq2seq.offsets import (
     align_tokens_to_character_spans,
+    get_position_of_last_offset_input,
+    get_position_of_last_offset_target,
 )
 from dataquality.utils.vaex import rename_df
 
@@ -221,6 +223,12 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         For Seq2Seq we need to add the generated output to the input dataframe,
         and then call the super method to create the input and output dataframes
         """
+
+        # Note that we sometimes tokenize the input twice in the below methods, once for
+        # finding the cutoff point of the input string used in the model, and once for
+        # generating (when applicable)
+        # TODO: see if it's worth only tokenizing it once and storing it (can be large)
+
         in_frame = cls.add_generated_output_to_df(in_frame, split)
         in_frame = cls.calculate_text_cutoffs(in_frame)
         return super().create_in_out_frames(
@@ -239,21 +247,21 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         generation_config = logger_config.generation_config
         if model is None:
             raise GalileoException(
-                "You must set your model before logging. Use "
+                "You must set your model before calling dq.finish. Use "
                 "`dataquality.integrations.seq2seq.hf.watch`"
             )
         if tokenizer is None:
             raise GalileoException(
-                "You must set your tokenizer before logging. Use "
+                "You must set your tokenizer before calling dq.finish. Use "
                 "`dataquality.integrations.seq2seq.hf.watch`"
             )
         if generation_config is None:
             raise GalileoException(
-                "You must set your generation config before logging. Use "
+                "You must set your generation config before calling dq.finish. Use "
                 "`dataquality.integrations.seq2seq.hf.watch`"
             )
         if split not in logger_config.generation_splits:
-            print("Skipping generation for split", split)
+            print(f"Skipping generation for split {split}")
             return df
 
         df = add_generated_output_to_df(df, model, tokenizer, generation_config)
@@ -290,12 +298,27 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
     @classmethod
     def calculate_text_cutoffs(cls, df: DataFrame) -> DataFrame:
         """
-        TODO
+        Calculate the portion of the input/output strings that were used by the model.
+
+        The input/output are typically truncated and the model will use the first
+        segment, for example from the beginning until we reach 512 tokens.
+
+        This function adds two columns in vaex indicating the position of the last
+        character in the input/output strings that were used (i.e., truncation point.
         """
-        df[C.input_text_cutoff.value] = df.func.get_position_of_last_offset(
-            df[C.token_label_offsets]
+        tokenizer = cls.logger_config.tokenizer
+        if tokenizer is None:
+            raise GalileoException(
+                "You must set your tokenizer before calling dq.finish. Use "
+                "`dataquality.integrations.seq2seq.hf.watch`"
+            )
+        max_input_length = cls.logger_config.max_input_tokens
+        df[C.input_text_cutoff.value] = get_position_of_last_offset_input(
+            df, tokenizer, max_input_length
         )
-        # df[C.target_text_cutoff] = 0
+
+        df[C.target_text_cutoff.value] = get_position_of_last_offset_target(df)
+
         return df
 
     @property
