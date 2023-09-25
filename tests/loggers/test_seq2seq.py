@@ -399,3 +399,8 @@ def test_tokenize_target_doesnt_provide_maxlength() -> None:
         seq2seq_logger_config.id_to_tokens["training"][0][-1]
         == seq2seq_logger_config.id_to_tokens["training"][1][-1]
     )
+
+
+def test_calculate_text_cutoffs():
+    """Test that calculate_text_cutoffs works correctly for both input/target"""
+    assert False
