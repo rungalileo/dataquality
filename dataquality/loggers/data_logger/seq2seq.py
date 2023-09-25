@@ -80,8 +80,6 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
 
     def __init__(self, meta: Optional[MetasType] = None) -> None:
         super().__init__(meta)
-        # Tokens IDs in a given input string
-        self.tokenized_labels: List[List[int]] = []
         # Character offsets for each token (from tokenized_inputs) in the dataset
         self.token_label_offsets: List[List[Tuple[int, int]]] = []
         # Index (or indices) into the token array for every offset
@@ -109,22 +107,18 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             "You must set your tokenizer before logging. "
             "Use `dq.integrations.seq2seq.hf.set_tokenizer`"
         )
-        # We set verbose=False: if max_length was not specified by the user and is None,
-        # the tokenizer will throw a warning that is irrelevant in this case (as it uses
-        # max_length=max_model_length, which is the value for the input, not the output)
         encoded_data = self.logger_config.tokenizer(
             self.labels,
             return_offsets_mapping=True,
             max_length=self.logger_config.max_target_tokens,
-            truncation=False if self.logger_config.max_target_tokens is None else True,
-            verbose=False,
+            truncation=True,
         )
-        self.tokenized_labels = encoded_data["input_ids"]
+        tokenized_labels = encoded_data["input_ids"]
         aligned_data = align_tokens_to_character_spans(encoded_data["offset_mapping"])
         self.token_label_offsets = aligned_data.token_label_offsets
         self.token_label_positions = aligned_data.token_label_positions
 
-        id_to_tokens = dict(zip(self.ids, self.tokenized_labels))
+        id_to_tokens = dict(zip(self.ids, tokenized_labels))
         self.logger_config.id_to_tokens[self.token_map_key].update(id_to_tokens)
 
     def _get_input_df(self) -> DataFrame:

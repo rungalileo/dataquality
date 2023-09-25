@@ -49,10 +49,13 @@ def set_tokenizer(
 
     seq2seq_logger_config.max_target_tokens = max_target_tokens
     if seq2seq_logger_config.max_target_tokens is None:
+        seq2seq_logger_config.max_target_tokens = tokenizer.model_max_length
         warn(
             (
-                "The argument max_target_tokens is not set. Passing it as an argument "
-                "will speed up logging of the dataset."
+                "The argument max_target_tokens is not set, we will use the value "
+                f"{tokenizer.model_max_length} from tokenizer.model_max_length. If you "
+                "tokenized the target with another value, this can lead to confusing "
+                "insights about this training run."
             )
         )
     # Seq2Seq doesn't have labels but we need to set this to avoid validation errors

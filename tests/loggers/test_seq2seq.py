@@ -1,16 +1,18 @@
 from typing import Callable
-from unittest import mock
+from unittest.mock import MagicMock, Mock, patch
 
 import datasets
 import numpy as np
 import pandas as pd
 import pytest
 import vaex
+from transformers import GenerationConfig, T5ForConditionalGeneration
 
 import dataquality as dq
-from dataquality.integrations.seq2seq.hf import set_tokenizer
+from dataquality.integrations.seq2seq.hf import set_tokenizer, watch
 from dataquality.loggers.data_logger.base_data_logger import DataSet
 from dataquality.loggers.data_logger.seq2seq import Seq2SeqDataLogger
+from dataquality.loggers.logger_config.seq2seq import seq2seq_logger_config
 from dataquality.loggers.model_logger.seq2seq import Seq2SeqModelLogger
 from dataquality.schemas.seq2seq import (
     TOP_K,
@@ -20,9 +22,12 @@ from dataquality.schemas.seq2seq import (
 )
 from dataquality.schemas.seq2seq import Seq2SeqOutputCols as C
 from dataquality.schemas.split import Split
-from dataquality.utils.seq2seq.generation import add_generated_output_to_df
+from dataquality.utils.seq2seq.generation import (
+    add_generated_output_to_df,
+    generate_sample_output,
+)
 from dataquality.utils.thread_pool import ThreadPoolManager
-from tests.conftest import TestSessionVariables, tokenizer
+from tests.conftest import TestSessionVariables, model_T5, tokenizer, tokenizer_T5
 
 
 @pytest.mark.parametrize(
@@ -60,7 +65,7 @@ def test_log_dataset(
     set_test_config(task_type="seq2seq")
     logger = Seq2SeqDataLogger()
 
-    with mock.patch("dataquality.core.log.get_data_logger") as mock_method:
+    with patch("dataquality.core.log.get_data_logger") as mock_method:
         mock_method.return_value = logger
         set_tokenizer(tokenizer)
         dq.log_dataset(
@@ -94,7 +99,7 @@ def test_log_dataset_no_tokenizer(set_test_config: Callable) -> None:
         }
     )
     logger = Seq2SeqDataLogger()
-    with mock.patch("dataquality.core.log.get_data_logger") as mock_method:
+    with patch("dataquality.core.log.get_data_logger") as mock_method:
         mock_method.return_value = logger
         with pytest.raises(AssertionError) as e:
             dq.log_dataset(df, text="summary", label="title", id="my_id", split="train")
@@ -118,10 +123,10 @@ def test_log_model_outputs(
         np.arange(4).tolist(),
     ]
 
-    config = mock.MagicMock()
+    config = MagicMock()
     config.id_to_tokens = {}
     config.id_to_tokens["training"] = dict(zip(list(range(4)), tokenized_labels))
-    mock_tokenizer = mock.MagicMock()
+    mock_tokenizer = MagicMock()
     mock_tokenizer.padding_side = "right"
     config.tokenizer = mock_tokenizer
     config.tokenizer.decode = lambda x: "Fake"
@@ -143,7 +148,7 @@ def test_log_model_outputs(
     )
     logger = Seq2SeqModelLogger(**log_data)
     logger.logger_config = config
-    with mock.patch("dataquality.core.log.get_model_logger") as mock_method:
+    with patch("dataquality.core.log.get_model_logger") as mock_method:
         mock_method.return_value = logger
         dq.log_model_outputs(**log_data)
     ThreadPoolManager.wait_for_threads()
@@ -190,11 +195,11 @@ def test_log_model_outputs(
         assert perplexity > 0
 
 
-@mock.patch("dataquality.utils.seq2seq.generation.align_tokens_to_character_spans")
-@mock.patch("dataquality.utils.seq2seq.generation.generate_sample_output")
+@patch("dataquality.utils.seq2seq.generation.align_tokens_to_character_spans")
+@patch("dataquality.utils.seq2seq.generation.generate_sample_output")
 def test_add_generated_output_to_df(
-    mock_generate_sample_output: mock.Mock,
-    mock_align_tokens_to_character_spans: mock.Mock,
+    mock_generate_sample_output: Mock,
+    mock_align_tokens_to_character_spans: Mock,
 ) -> None:
     """Test the complex vaex batched processing function for generation
 
@@ -211,15 +216,15 @@ def test_add_generated_output_to_df(
         - Test that we don't have the extra column caused by vaex's flatten
     """
     # Mock the tokenizer
-    mock_tokenizer = mock.MagicMock()
+    mock_tokenizer = MagicMock()
     mock_tokenizer.decode.return_value = "Fake output"
     mock_tokenizer.return_value = {"offset_mapping": []}
 
     # Mock the model
-    mock_model = mock.MagicMock()  # Don't actually need any functions for this
+    mock_model = MagicMock()  # Don't actually need any functions for this
 
     # Mock generation_config
-    mock_generation_config = mock.MagicMock()
+    mock_generation_config = MagicMock()
 
     # Mock the generation process
     def mock_generate_output() -> ModelGeneration:
@@ -274,3 +279,122 @@ def test_add_generated_output_to_df(
 
     # Make sure that we have removed the column left after flattening
     assert not any([C.generation_data.value in col for col in df.get_column_names()])
+
+
+def test_tokenize_input_provide_maxlength() -> None:
+    """
+    Test that as we generate output and the user provided the max_input_tokens argument,
+    the input is tokenized correctly to the length set by max_input_tokens.
+    """
+    mock_model = Mock(spec=T5ForConditionalGeneration)
+    mock_model.device = "cpu"
+    mock_generation_config = Mock(spec=GenerationConfig)
+
+    set_tokenizer(tokenizer_T5, max_input_tokens=7)
+    input_text = "a b c d e f g h i j"
+    try:
+        generate_sample_output(
+            input_text,
+            mock_model,
+            tokenizer_T5,
+            seq2seq_logger_config.max_input_tokens,
+            mock_generation_config,
+        )
+    except TypeError as e:
+        # Assert that we exit because model was mocked
+        assert str(e) == "'Mock' object is not subscriptable"
+
+    # Check that the input to generation was of length 7 (i.e, truncated)
+    assert mock_model.generate.call_args[1]["input_ids"].shape == 7
+
+
+def test_tokenize_input_doesnt_provide_maxlength() -> None:
+    """
+    Test that as we generate output and the user did not provide the max_input_tokens
+    argument, the input is tokenized correctly to the length set by default in the
+    tokenizer.
+    """
+    mock_model = Mock(spec=T5ForConditionalGeneration)
+    mock_model.device = "cpu"
+    mock_generation_config = Mock(spec=GenerationConfig)
+
+    set_tokenizer(tokenizer_T5)
+    input_text = "a b c d e f g h i j" * 100
+    try:
+        generate_sample_output(
+            input_text,
+            mock_model,
+            tokenizer_T5,
+            seq2seq_logger_config.max_input_tokens,
+            mock_generation_config,
+        )
+    except TypeError as e:
+        # Assert that we exit because model was mocked
+        assert str(e) == "'Mock' object is not subscriptable"
+
+    # Make sure that the input is large enough to require truncation
+    assert len(input_text) > tokenizer_T5.model_max_length
+    # Check that the input to generation was truncated
+    assert (
+        mock_model.generate.call_args[1]["input_ids"].shape
+        == tokenizer_T5.model_max_length
+    )
+
+
+def test_tokenize_target_provide_maxlength() -> None:
+    """
+    Test that the target is tokenized correctly to the length provided by the user in
+    the max_target_tokens argument.
+    """
+    mock_generation_config = Mock(spec=GenerationConfig)
+    watch(model_T5, tokenizer_T5, mock_generation_config, max_target_tokens=7)
+    ds = datasets.Dataset.from_dict(
+        {
+            "id": [0, 1],
+            "input": ["a b c d e f g h i j", "1"],
+            "target": ["k l m n o p q r s t", "2"],
+        }
+    )
+    dq.log_dataset(ds, text="input", label="target", split="train")
+
+    assert set(seq2seq_logger_config.id_to_tokens["training"]) == {0, 1}
+    assert len(seq2seq_logger_config.id_to_tokens["training"][0]) == 7
+    # Check that it has two tokens: the token "2" + EOS token
+    assert len(seq2seq_logger_config.id_to_tokens["training"][1]) == 2
+    # Check that both sentences end with the same EOS token
+    assert (
+        seq2seq_logger_config.id_to_tokens["training"][0][-1]
+        == seq2seq_logger_config.id_to_tokens["training"][1][-1]
+    )
+
+
+def test_tokenize_target_doesnt_provide_maxlength() -> None:
+    """
+    Test that the target is tokenized correctly when the user does not provide a
+    max_target_tokens argument, i.e., to the length set by default in the tokenizer.
+    """
+    mock_generation_config = Mock(spec=GenerationConfig)
+    watch(model_T5, tokenizer_T5, mock_generation_config)
+    ds = datasets.Dataset.from_dict(
+        {
+            "id": [0, 1],
+            "input": ["a b c d e f g h i j", "1"],
+            "target": ["k l m n o p q r s t" * 100, "2"],
+        }
+    )
+    dq.log_dataset(ds, text="input", label="target", split="train")
+
+    assert set(seq2seq_logger_config.id_to_tokens["training"]) == {0, 1}
+    # Make sure that the target is large enough to require truncation
+    assert len(ds["target"][0]) > tokenizer_T5.model_max_length
+    assert (
+        len(seq2seq_logger_config.id_to_tokens["training"][0])
+        == tokenizer_T5.model_max_length
+    )
+    # Check that it has two tokens: the token "2" + EOS token
+    assert len(seq2seq_logger_config.id_to_tokens["training"][1]) == 2
+    # Check that both sentences end with the same EOS token
+    assert (
+        seq2seq_logger_config.id_to_tokens["training"][0][-1]
+        == seq2seq_logger_config.id_to_tokens["training"][1][-1]
+    )
