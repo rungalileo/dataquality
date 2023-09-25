@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Generator
 from unittest.mock import MagicMock, Mock, patch
 
 import datasets
@@ -305,15 +305,16 @@ def test_tokenize_input_provide_maxlength() -> None:
         assert str(e) == "'Mock' object is not subscriptable"
 
     # Check that the input to generation was of length 7 (i.e, truncated)
-    assert mock_model.generate.call_args[1]["input_ids"].shape == 7
+    assert list(mock_model.generate.call_args[1]["input_ids"].shape) == [1, 7]
 
 
-def test_tokenize_input_doesnt_provide_maxlength() -> None:
+def test_tokenize_input_doesnt_provide_maxlength(cleanup_after_use: Generator) -> None:
     """
     Test that as we generate output and the user did not provide the max_input_tokens
     argument, the input is tokenized correctly to the length set by default in the
     tokenizer.
     """
+    # set_test_config(task_type=TaskType.text_classification)
     mock_model = Mock(spec=T5ForConditionalGeneration)
     mock_model.device = "cpu"
     mock_generation_config = Mock(spec=GenerationConfig)
@@ -334,14 +335,14 @@ def test_tokenize_input_doesnt_provide_maxlength() -> None:
 
     # Make sure that the input is large enough to require truncation
     assert len(input_text) > tokenizer_T5.model_max_length
-    # Check that the input to generation was truncated
-    assert (
-        mock_model.generate.call_args[1]["input_ids"].shape
-        == tokenizer_T5.model_max_length
-    )
+    # Check that the input to generation was truncated (batch_size=1)
+    assert list(mock_model.generate.call_args[1]["input_ids"].shape) == [
+        1,
+        tokenizer_T5.model_max_length,
+    ]
 
 
-def test_tokenize_target_provide_maxlength() -> None:
+def test_tokenize_target_provide_maxlength(cleanup_after_use: Generator) -> None:
     """
     Test that the target is tokenized correctly to the length provided by the user in
     the max_target_tokens argument.
