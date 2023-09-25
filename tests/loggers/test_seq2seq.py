@@ -1,4 +1,4 @@
-from typing import Callable, Generator
+from typing import Callable
 from unittest.mock import MagicMock, Mock, patch
 
 import datasets
@@ -308,7 +308,7 @@ def test_tokenize_input_provide_maxlength() -> None:
     assert list(mock_model.generate.call_args[1]["input_ids"].shape) == [1, 7]
 
 
-def test_tokenize_input_doesnt_provide_maxlength(cleanup_after_use: Generator) -> None:
+def test_tokenize_input_doesnt_provide_maxlength() -> None:
     """
     Test that as we generate output and the user did not provide the max_input_tokens
     argument, the input is tokenized correctly to the length set by default in the
@@ -342,7 +342,7 @@ def test_tokenize_input_doesnt_provide_maxlength(cleanup_after_use: Generator) -
     ]
 
 
-def test_tokenize_target_provide_maxlength(cleanup_after_use: Generator) -> None:
+def test_tokenize_target_provide_maxlength() -> None:
     """
     Test that the target is tokenized correctly to the length provided by the user in
     the max_target_tokens argument.
