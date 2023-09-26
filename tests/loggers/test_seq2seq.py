@@ -288,7 +288,6 @@ def test_add_generated_output_to_df(
 def test_tokenize_input_provide_maxlength(
     mock_get_top_logprob_indices: Mock,
     mock_process_sample_logprobs: Mock,
-    seq2seq_model_outputs: torch.Tensor,
     seq2seq_generated_output: torch.Tensor,
     set_test_config: Callable,
     cleanup_after_use: Generator,
@@ -300,7 +299,7 @@ def test_tokenize_input_provide_maxlength(
     set_test_config(task_type=TaskType.seq2seq)
     mock_model = Mock(spec=T5ForConditionalGeneration)
     mock_model.device = "cpu"
-    mock_model.return_value = seq2seq_model_outputs
+    mock_model.return_value = Mock()
     mock_model.generate.return_value = seq2seq_generated_output
     mock_generation_config = Mock(spec=GenerationConfig)
 
@@ -330,7 +329,6 @@ def test_tokenize_input_provide_maxlength(
 def test_tokenize_input_doesnt_provide_maxlength(
     mock_get_top_logprob_indices: Mock,
     mock_process_sample_logprobs: Mock,
-    seq2seq_model_outputs: torch.Tensor,
     seq2seq_generated_output: torch.Tensor,
     set_test_config: Callable,
     cleanup_after_use: Generator,
@@ -343,7 +341,7 @@ def test_tokenize_input_doesnt_provide_maxlength(
     set_test_config(task_type=TaskType.seq2seq)
     mock_model = Mock(spec=T5ForConditionalGeneration)
     mock_model.device = "cpu"
-    mock_model.return_value = seq2seq_model_outputs
+    mock_model.return_value = Mock()
     mock_model.generate.return_value = seq2seq_generated_output
     mock_generation_config = Mock(spec=GenerationConfig)
 
@@ -370,11 +368,14 @@ def test_tokenize_input_doesnt_provide_maxlength(
     mock_process_sample_logprobs.assert_called_once()
 
 
-def test_tokenize_target_provide_maxlength(cleanup_after_use: Generator) -> None:
+def test_tokenize_target_provide_maxlength(
+    set_test_config: Callable, cleanup_after_use: Generator
+) -> None:
     """
     Test that the target is tokenized correctly to the length provided by the user in
     the max_target_tokens argument.
     """
+    set_test_config(task_type=TaskType.seq2seq)
     mock_generation_config = Mock(spec=GenerationConfig)
     watch(model_T5, tokenizer_T5, mock_generation_config, max_target_tokens=7)
     ds = Dataset.from_dict(
@@ -397,11 +398,14 @@ def test_tokenize_target_provide_maxlength(cleanup_after_use: Generator) -> None
     )
 
 
-def test_tokenize_target_doesnt_provide_maxlength(cleanup_after_use: Generator) -> None:
+def test_tokenize_target_doesnt_provide_maxlength(
+    set_test_config: Callable, cleanup_after_use: Generator
+) -> None:
     """
     Test that the target is tokenized correctly when the user does not provide a
     max_target_tokens argument, i.e., to the length set by default in the tokenizer.
     """
+    set_test_config(task_type=TaskType.seq2seq)
     mock_generation_config = Mock(spec=GenerationConfig)
     watch(model_T5, tokenizer_T5, mock_generation_config)
     ds = Dataset.from_dict(
@@ -428,9 +432,12 @@ def test_tokenize_target_doesnt_provide_maxlength(cleanup_after_use: Generator) 
         == seq2seq_logger_config.id_to_tokens["training"][1][-1]
     )
 
-def test_calculate_text_cutoffs(cleanup_after_use: Generator):
-    """Test that calculate_text_cutoffs works correctly for both input/target"""
 
+def test_calculate_text_cutoffs(
+    set_test_config: Callable, cleanup_after_use: Generator
+):
+    """Test that calculate_text_cutoffs works correctly for both input/target"""
+    set_test_config(task_type=TaskType.seq2seq)
     mock_model = Mock(spec=T5ForConditionalGeneration)
     mock_model.device = "cpu"
     mock_generation_config = Mock(spec=GenerationConfig)
