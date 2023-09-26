@@ -1,4 +1,4 @@
-from typing import Generator, List, Set, Tuple
+from typing import Callable, Generator, List, Set, Tuple
 from unittest.mock import Mock
 
 import pytest
@@ -9,6 +9,7 @@ from transformers import GenerationConfig, T5ForConditionalGeneration
 import dataquality as dq
 from dataquality.integrations.seq2seq.hf import watch
 from dataquality.loggers.data_logger.seq2seq import Seq2SeqDataLogger
+from dataquality.schemas.task_type import TaskType
 from dataquality.utils.seq2seq.offsets import (
     get_position_of_last_offset_input,
     get_position_of_last_offset_target,
@@ -138,11 +139,14 @@ def test_rollup_spans(
     assert rollup_offset_mapping(offsets) == (span_offsets, span_positions)
 
 
-def test_get_position_of_last_offset_input(cleanup_after_use: Generator):
+def test_get_position_of_last_offset_input(
+    set_test_config: Callable, cleanup_after_use: Generator
+):
     """
     Test that get_position_of_last_offset_input returns the correct cut-off point for
     the input text string.
     """
+    set_test_config(task_type=TaskType.seq2seq)
     mock_model = Mock(spec=T5ForConditionalGeneration)
     mock_model.device = "cpu"
     mock_generation_config = Mock(spec=GenerationConfig)
@@ -173,12 +177,17 @@ def test_get_position_of_last_offset_input(cleanup_after_use: Generator):
     # We only have 1 token 'bird' (got to the end of the string)
     assert input_2[: input_offsets[1]] == "bird"
 
+    """Test that calculate_text_cutoffs works correctly for both input/target"""
 
-def test_get_position_of_last_offset_target(cleanup_after_use: Generator):
+
+def test_get_position_of_last_offset_target(
+    set_test_config: Callable, cleanup_after_use: Generator
+):
     """
     Test that get_position_of_last_offset_target returns the correct cut-off point for
     the target text string.
     """
+    set_test_config(task_type=TaskType.seq2seq)
     mock_model = Mock(spec=T5ForConditionalGeneration)
     mock_model.device = "cpu"
     mock_generation_config = Mock(spec=GenerationConfig)
