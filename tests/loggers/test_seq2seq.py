@@ -1,11 +1,11 @@
 from typing import Callable, Generator
 from unittest.mock import MagicMock, Mock, patch
 
-import datasets
 import numpy as np
 import pandas as pd
 import pytest
 import vaex
+from datasets import Dataset
 from transformers import GenerationConfig, T5ForConditionalGeneration
 
 import dataquality as dq
@@ -47,7 +47,7 @@ from tests.conftest import TestSessionVariables, model_T5, tokenizer, tokenizer_
                 "my_id": [1, 2, 3],
             }
         ),
-        datasets.Dataset.from_dict(
+        Dataset.from_dict(
             dict(
                 summary=["summary 1", "summary 2", "summary 3"],
                 title=["title_1", "title_2", "title_3"],
@@ -308,7 +308,7 @@ def test_tokenize_input_provide_maxlength() -> None:
     assert list(mock_model.generate.call_args[1]["input_ids"].shape) == [1, 7]
 
 
-def test_tokenize_input_doesnt_provide_maxlength(cleanup_after_use: Generator) -> None:
+def test_tokenize_input_doesnt_provide_maxlength() -> None:
     """
     Test that as we generate output and the user did not provide the max_input_tokens
     argument, the input is tokenized correctly to the length set by default in the
@@ -342,14 +342,14 @@ def test_tokenize_input_doesnt_provide_maxlength(cleanup_after_use: Generator) -
     ]
 
 
-def test_tokenize_target_provide_maxlength(cleanup_after_use: Generator) -> None:
+def test_tokenize_target_provide_maxlength() -> None:
     """
     Test that the target is tokenized correctly to the length provided by the user in
     the max_target_tokens argument.
     """
     mock_generation_config = Mock(spec=GenerationConfig)
     watch(model_T5, tokenizer_T5, mock_generation_config, max_target_tokens=7)
-    ds = datasets.Dataset.from_dict(
+    ds = Dataset.from_dict(
         {
             "id": [0, 1],
             "input": ["a b c d e f g h i j", "1"],
@@ -376,7 +376,7 @@ def test_tokenize_target_doesnt_provide_maxlength() -> None:
     """
     mock_generation_config = Mock(spec=GenerationConfig)
     watch(model_T5, tokenizer_T5, mock_generation_config)
-    ds = datasets.Dataset.from_dict(
+    ds = Dataset.from_dict(
         {
             "id": [0, 1],
             "input": ["a b c d e f g h i j", "1"],
@@ -401,6 +401,42 @@ def test_tokenize_target_doesnt_provide_maxlength() -> None:
     )
 
 
-def test_calculate_text_cutoffs():
+def test_calculate_text_cutoffs(cleanup_after_use: Generator):
     """Test that calculate_text_cutoffs works correctly for both input/target"""
-    assert False
+
+    mock_model = Mock(spec=T5ForConditionalGeneration)
+    mock_model.device = "cpu"
+    mock_generation_config = Mock(spec=GenerationConfig)
+    watch(
+        mock_model,
+        tokenizer_T5,
+        mock_generation_config,
+        max_input_tokens=3,
+        max_target_tokens=5,
+    )
+
+    input_1, input_2 = "dog dog dog done - tricked you", "bird"
+    target_1, target_2 = "cat cat cat cat cat done", "cat"
+    ds = Dataset.from_dict(
+        {
+            "id": [0, 1],
+            "input": [input_1, input_2],
+            "target": [target_1, target_2],
+        }
+    )
+    dq.log_dataset(ds, text="input", label="target", split="train")
+
+    data_logger = Seq2SeqDataLogger()
+    in_frame_split = vaex.open(
+        f"{data_logger.input_data_path}/training/*.{data_logger.INPUT_DATA_FILE_EXT}"
+    )
+    in_frame_split = data_logger.calculate_text_cutoffs(in_frame_split)
+    input_offsets = in_frame_split["input_text_cutoff"].tolist()
+    target_offsets = in_frame_split["target_text_cutoff"].tolist()
+
+    assert len(input_offsets) == 2 == len(target_offsets)
+    # The EOS token is always the last token, which we don't count for the cutoff point
+    assert input_1[: input_offsets[0]] == "dog dog"
+    assert target_1[: target_offsets[0]] == "cat cat cat cat"
+    assert input_2[: input_offsets[1]] == "bird"
+    assert target_2[: target_offsets[1]] == "cat"

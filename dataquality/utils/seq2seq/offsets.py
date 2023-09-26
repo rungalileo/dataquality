@@ -187,27 +187,6 @@ def align_tokens_to_character_spans(
     )
 
 
-def get_position_of_last_offset_target(df: DataFrame) -> np.ndarray:
-    """
-    Look at the last offset of the tokenized target to find the position of the last
-    character of the target string that was used by the model.
-    Note that typically the model does not use the entire target during teacher forcing
-    and there is a cut-off point (for example 128 tokens, or 512 tokens, etc).
-    """
-
-    @register_function()
-    def get_position_of_last_offset(offsets: pa.array) -> np.ndarray:
-        return np.array(
-            [
-                offsets_row[-1][-1].as_py() if len(offsets_row) > 0 else 0
-                for offsets_row in offsets
-            ],
-            dtype="int32",
-        )
-
-    return df.func.get_position_of_last_offset(df[C.token_label_offsets])
-
-
 def get_position_of_last_offset_input(
     df: DataFrame,
     tokenizer: PreTrainedTokenizerFast,
@@ -221,7 +200,7 @@ def get_position_of_last_offset_input(
     """
 
     @register_function()
-    def get_position_of_last_offset(texts: pa.array) -> np.ndarray:
+    def _get_position_of_last_offset_input(texts: pa.array) -> np.ndarray:
         """Tokenize the texts and find the position of the last offset."""
         offset_mapping = tokenizer(
             texts.to_pylist(),
@@ -236,4 +215,25 @@ def get_position_of_last_offset_input(
         )
         return input_cut_off
 
-    return df.func.get_position_of_last_offset(df[C.text])
+    return df.func._get_position_of_last_offset_input(df[C.text])
+
+
+def get_position_of_last_offset_target(df: DataFrame) -> np.ndarray:
+    """
+    Look at the last offset of the tokenized target to find the position of the last
+    character of the target string that was used by the model.
+    Note that typically the model does not use the entire target during teacher forcing
+    and there is a cut-off point (for example 128 tokens, or 512 tokens, etc).
+    """
+
+    @register_function()
+    def _get_position_of_last_offset_target(offsets: pa.array) -> np.ndarray:
+        return np.array(
+            [
+                offsets_row[-1][-1].as_py() if len(offsets_row) > 0 else 0
+                for offsets_row in offsets
+            ],
+            dtype="int32",
+        )
+
+    return df.func._get_position_of_last_offset_target(df[C.token_label_offsets])

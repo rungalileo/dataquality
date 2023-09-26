@@ -1,12 +1,20 @@
-from typing import List, Set, Tuple
+from typing import Generator, List, Set, Tuple
+from unittest.mock import Mock
 
-import pyarrow as pa
 import pytest
 import vaex
+from datasets import Dataset
+from transformers import GenerationConfig, T5ForConditionalGeneration
 
+import dataquality as dq
+from dataquality.integrations.seq2seq.hf import watch
+from dataquality.loggers.data_logger.seq2seq import Seq2SeqDataLogger
 from dataquality.utils.seq2seq.offsets import (
+    get_position_of_last_offset_input,
+    get_position_of_last_offset_target,
     rollup_offset_mapping,
 )
+from tests.conftest import tokenizer_T5
 
 
 @pytest.mark.parametrize(
@@ -130,19 +138,71 @@ def test_rollup_spans(
     assert rollup_offset_mapping(offsets) == (span_offsets, span_positions)
 
 
-def test_get_position_of_last_offset_target():
-    """
-    Test that get_position_of_last_offset_target returns the correct cut-off point for
-    the target text string.
-    """
-    vaex.from_arrays(token_label_offsets=pa.array([1, 2, 3, 3]))
-
-    assert False
-
-
-def test_get_position_of_last_offset_input():
+def test_get_position_of_last_offset_input(cleanup_after_use: Generator):
     """
     Test that get_position_of_last_offset_input returns the correct cut-off point for
     the input text string.
     """
-    assert False
+    mock_model = Mock(spec=T5ForConditionalGeneration)
+    mock_model.device = "cpu"
+    mock_generation_config = Mock(spec=GenerationConfig)
+    watch(mock_model, tokenizer_T5, mock_generation_config, max_input_tokens=4)
+
+    input_1, input_2 = "dog dog dog done - tricked you", "bird"
+    ds = Dataset.from_dict(
+        {
+            "id": [0, 1],
+            "input": [input_1, input_2],
+            "target": ["a b c d e f g h i j", "1"],
+        }
+    )
+    dq.log_dataset(ds, text="input", label="target", split="train")
+
+    data_logger = Seq2SeqDataLogger()
+    in_frame_split = vaex.open(
+        f"{data_logger.input_data_path}/training/*.{data_logger.INPUT_DATA_FILE_EXT}"
+    )
+    input_offsets = get_position_of_last_offset_input(
+        in_frame_split, tokenizer_T5, data_logger.logger_config.max_input_tokens
+    ).tolist()
+
+    assert len(input_offsets) == 2
+    # The EOS token is always the last token, which we don't count for the cutoff point
+    # The 4 tokens are 3 tokens 'dog' + EOS
+    assert input_1[: input_offsets[0]] == "dog dog dog"
+    # We only have 1 token 'bird' (got to the end of the string)
+    assert input_2[: input_offsets[1]] == "bird"
+
+
+def test_get_position_of_last_offset_target(cleanup_after_use: Generator):
+    """
+    Test that get_position_of_last_offset_target returns the correct cut-off point for
+    the target text string.
+    """
+    mock_model = Mock(spec=T5ForConditionalGeneration)
+    mock_model.device = "cpu"
+    mock_generation_config = Mock(spec=GenerationConfig)
+    watch(mock_model, tokenizer_T5, mock_generation_config, max_target_tokens=6)
+
+    target_1, target_2 = "cat cat cat cat cat done", "cat"
+    ds = Dataset.from_dict(
+        {
+            "id": [0, 1],
+            "input": ["a b c d e f g h i j", "1"],
+            "target": [target_1, target_2],
+        }
+    )
+    dq.log_dataset(ds, text="input", label="target", split="train")
+
+    data_logger = Seq2SeqDataLogger()
+    in_frame_split = vaex.open(
+        f"{data_logger.input_data_path}/training/*.{data_logger.INPUT_DATA_FILE_EXT}"
+    )
+    target_offsets = get_position_of_last_offset_target(in_frame_split).tolist()
+
+    assert len(target_offsets) == 2
+    # The EOS token is always the last token, which we don't count for the cutoff point
+    # The 6 tokens are 5 tokens 'cat' + EOS
+    assert target_1[: target_offsets[0]] == "cat cat cat cat cat"
+    # We only have 1 token 'cat' (got to the end of the string)
+    assert target_2[: target_offsets[1]] == "cat"
