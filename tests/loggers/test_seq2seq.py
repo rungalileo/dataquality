@@ -1,5 +1,4 @@
 from typing import Callable, Generator
-from unittest import mock
 from unittest.mock import MagicMock, Mock, patch
 
 import datasets
@@ -289,9 +288,10 @@ def test_add_generated_output_to_df(
 def test_tokenize_input_provide_maxlength(
     mock_get_top_logprob_indices: Mock,
     mock_process_sample_logprobs: Mock,
-    set_test_config: Callable,
     seq2seq_model_outputs: torch.Tensor,
-    seq2seq_seq2seq_generated_output: torch.Tensor,
+    seq2seq_generated_output: torch.Tensor,
+    set_test_config: Callable,
+    cleanup_after_use: Generator,
 ) -> None:
     """
     Test that as we generate output and the user provided the max_input_tokens argument,
@@ -300,9 +300,9 @@ def test_tokenize_input_provide_maxlength(
     set_test_config(task_type=TaskType.seq2seq)
     mock_model = Mock(spec=T5ForConditionalGeneration)
     mock_model.device = "cpu"
-    mock_generation_config = Mock(spec=GenerationConfig)
-    mock_model.generate.return_value = seq2seq_seq2seq_generated_output
     mock_model.return_value = seq2seq_model_outputs
+    mock_model.generate.return_value = seq2seq_generated_output
+    mock_generation_config = Mock(spec=GenerationConfig)
 
     set_tokenizer(tokenizer_T5, max_input_tokens=7)
     input_text = "a b c d e f g h i j"
@@ -317,49 +317,57 @@ def test_tokenize_input_provide_maxlength(
     # Check that the input to generation was of length 7 (i.e, truncated)
     input_ids = mock_model.generate.call_args[1]["input_ids"]
     assert input_ids.shape == (1, 7)
-
-    mock_get_top_logprob_indices.assert_called_once()
-    mock_process_sample_logprobs.assert_called_once_with(
-        mock.ANY,
-        sample_labels=seq2seq_seq2seq_generated_output,
-        sample_top_indices=mock.ANY,
-        tokenizer=tokenizer_T5
+    # Check that the methods after generation were called correctly
+    mock_model.generate.assert_called_once_with(
+        input_ids=input_ids, generation_config=mock_generation_config
     )
+    mock_get_top_logprob_indices.assert_called_once()
+    mock_process_sample_logprobs.assert_called_once()
 
 
-
-def test_tokenize_input_doesnt_provide_maxlength() -> None:
+@patch("dataquality.utils.seq2seq.generation.process_sample_logprobs")
+@patch("dataquality.utils.seq2seq.generation.get_top_logprob_indices")
+def test_tokenize_input_doesnt_provide_maxlength(
+    mock_get_top_logprob_indices: Mock,
+    mock_process_sample_logprobs: Mock,
+    seq2seq_model_outputs: torch.Tensor,
+    seq2seq_generated_output: torch.Tensor,
+    set_test_config: Callable,
+    cleanup_after_use: Generator,
+) -> None:
     """
     Test that as we generate output and the user did not provide the max_input_tokens
     argument, the input is tokenized correctly to the length set by default in the
     tokenizer.
     """
-    # set_test_config(task_type=TaskType.text_classification)
+    set_test_config(task_type=TaskType.seq2seq)
     mock_model = Mock(spec=T5ForConditionalGeneration)
     mock_model.device = "cpu"
+    mock_model.return_value = seq2seq_model_outputs
+    mock_model.generate.return_value = seq2seq_generated_output
     mock_generation_config = Mock(spec=GenerationConfig)
 
     set_tokenizer(tokenizer_T5)
     input_text = "a b c d e f g h i j" * 100
-    try:
-        generate_sample_output(
-            input_text,
-            mock_model,
-            tokenizer_T5,
-            seq2seq_logger_config.max_input_tokens,
-            mock_generation_config,
-        )
-    except TypeError as e:
-        # Assert that we exit because model was mocked
-        assert str(e) == "'Mock' object is not subscriptable"
+    generate_sample_output(
+        input_text,
+        mock_model,
+        tokenizer_T5,
+        seq2seq_logger_config.max_input_tokens,
+        mock_generation_config,
+    )
 
     # Make sure that the input is large enough to require truncation
     assert len(input_text) > tokenizer_T5.model_max_length
     # Check that the input to generation was truncated (batch_size=1)
-    assert list(mock_model.generate.call_args[1]["input_ids"].shape) == [
-        1,
-        tokenizer_T5.model_max_length,
-    ]
+    input_ids = mock_model.generate.call_args[1]["input_ids"]
+    assert input_ids.shape == (1, tokenizer_T5.model_max_length)
+    # Check that the methods after generation were called correctly
+    mock_model.generate.assert_called_once_with(
+        input_ids=input_ids, generation_config=mock_generation_config
+    )
+    mock_get_top_logprob_indices.assert_called_once()
+    mock_process_sample_logprobs.assert_called_once()
 
 
 def test_tokenize_target_provide_maxlength(cleanup_after_use: Generator) -> None:
