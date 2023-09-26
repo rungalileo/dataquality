@@ -69,7 +69,7 @@ def extract_ner_gold_spans(ner_list: List[Row]) -> List[dict]:
             # Start a new span
 
             label = row.result
-            match = re.match(r"^\w?(.*)", label)
+            match = re.match(r"^\w?-(.*)", label)
             if match:
                 label = match.group(1)
             current_span = {
