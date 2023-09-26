@@ -85,7 +85,7 @@ def test_generate_sample_output(
 
     with mock.patch("torch.no_grad"):
         model_generation = generate_sample_output(
-            "test str", mock_model, mock_tokenizer, mock_generation_config
+            "test str", mock_model, mock_tokenizer, 512, mock_generation_config
         )
 
     # Check logprobs
@@ -146,7 +146,7 @@ def test_model_logger_remove_padding() -> None:
     for sample_id, (sample_logprobs, sample_top_indices) in enumerate(
         zip(logprobs, top_indices)
     ):
-        sample_labels = logger._retrieve_sample_labels(sample_id)
+        sample_labels = logger._retrieve_sample_labels(sample_id, 100)
         # Test the retrieve samples method
         assert np.allclose(sample_labels, tokenized_labels[sample_id])
 
@@ -166,7 +166,7 @@ def test_model_logger_remove_padding() -> None:
     for sample_id, (sample_logprobs, sample_top_indices) in enumerate(
         zip(logprobs, top_indices)
     ):
-        sample_labels = logger._retrieve_sample_labels(sample_id)
+        sample_labels = logger._retrieve_sample_labels(sample_id, 100)
         no_pad_logprobs = remove_padding(sample_labels, "left", sample_logprobs)
         no_pad_top_indices = remove_padding(sample_labels, "left", sample_top_indices)
         assert len(np.where(no_pad_logprobs == -1)[0]) == 0

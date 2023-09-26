@@ -80,8 +80,6 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
 
     def __init__(self, meta: Optional[MetasType] = None) -> None:
         super().__init__(meta)
-        # Tokens IDs in a given input string
-        self.tokenized_labels: List[List[int]] = []
         # Character offsets for each token (from tokenized_inputs) in the dataset
         self.token_label_offsets: List[List[Tuple[int, int]]] = []
         # Index (or indices) into the token array for every offset
@@ -110,14 +108,17 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             "Use `dq.integrations.seq2seq.hf.set_tokenizer`"
         )
         encoded_data = self.logger_config.tokenizer(
-            self.labels, return_offsets_mapping=True
+            self.labels,
+            return_offsets_mapping=True,
+            max_length=self.logger_config.max_target_tokens,
+            truncation=True,
         )
-        self.tokenized_labels = encoded_data["input_ids"]
+        tokenized_labels = encoded_data["input_ids"]
         aligned_data = align_tokens_to_character_spans(encoded_data["offset_mapping"])
         self.token_label_offsets = aligned_data.token_label_offsets
         self.token_label_positions = aligned_data.token_label_positions
 
-        id_to_tokens = dict(zip(self.ids, self.tokenized_labels))
+        id_to_tokens = dict(zip(self.ids, tokenized_labels))
         self.logger_config.id_to_tokens[self.token_map_key].update(id_to_tokens)
 
     def _get_input_df(self) -> DataFrame:
@@ -228,6 +229,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         logger_config = cls.logger_config
         model = logger_config.model
         tokenizer = logger_config.tokenizer
+        max_input_tokens = logger_config.max_input_tokens
         generation_config = logger_config.generation_config
         if model is None:
             raise GalileoException(
@@ -239,6 +241,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
                 "You must set your tokenizer before logging. Use "
                 "`dataquality.integrations.seq2seq.hf.watch`"
             )
+        assert isinstance(max_input_tokens, int)
         if generation_config is None:
             raise GalileoException(
                 "You must set your generation config before logging. Use "
@@ -248,7 +251,9 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             print("Skipping generation for split", split)
             return df
 
-        df = add_generated_output_to_df(df, model, tokenizer, generation_config)
+        df = add_generated_output_to_df(
+            df, model, tokenizer, max_input_tokens, generation_config
+        )
         return df
 
     @classmethod
