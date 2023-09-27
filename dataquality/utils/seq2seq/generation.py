@@ -155,7 +155,7 @@ def add_generated_output_to_df(
         generated_token_logprobs = []
         generated_top_logprobs = []
 
-        for i, sample in enumerate(texts):
+        for sample in texts:
             # Generate and extract model outputs
             sample_generation = generate_sample_output(
                 input_str=str(sample),
