@@ -156,9 +156,6 @@ def add_generated_output_to_df(
         generated_top_logprobs = []
 
         for i, sample in enumerate(texts):
-            print(f"Doing sample {i} out of {len(texts)}")
-            # print (sample)
-            print("=====")
             # Generate and extract model outputs
             sample_generation = generate_sample_output(
                 input_str=str(sample),
