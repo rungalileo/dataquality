@@ -155,7 +155,10 @@ def add_generated_output_to_df(
         generated_token_logprobs = []
         generated_top_logprobs = []
 
-        for sample in texts:
+        for i, sample in enumerate(texts):
+            print (f"Doing sample {i} out of {len(texts)}")
+            #print (sample)
+            print ("=====")
             # Generate and extract model outputs
             sample_generation = generate_sample_output(
                 input_str=str(sample),
@@ -201,6 +204,12 @@ def add_generated_output_to_df(
         )
 
     df[S2SOC.generation_data.value] = df.func.generate_batch_outputs(df[S2SIC.text])
+    # Materialize the model generations in memory. This still avoids bringing the full
+    # text column into memory, but will unfortunately bring all the generation data into
+    # memory. This is important to ensure we don't re-generate every time this virtual
+    # column is realized.
+    df = df.materialize(S2SOC.generation_data.value)
+
     # 'generation_data' is a col of type StructArray
     # struct.flatten creates a column per key
     df = df.struct.flatten(S2SOC.generation_data.value)
