@@ -201,6 +201,12 @@ def add_generated_output_to_df(
         )
 
     df[S2SOC.generation_data.value] = df.func.generate_batch_outputs(df[S2SIC.text])
+    # Materialize the model generations in memory. This still avoids bringing the full
+    # text column into memory, but will bring all the generation data into memory.
+    # This is important to ensure we don't re-generate every time this virtual
+    # column is realized.
+    df = df.materialize(S2SOC.generation_data.value)
+
     # 'generation_data' is a col of type StructArray
     # struct.flatten creates a column per key
     df = df.struct.flatten(S2SOC.generation_data.value)
