@@ -31,15 +31,13 @@ If you want to train without a model, you can use the auto framework:
 """
 
 
-__version__ = "0.10.3"
+__version__ = "1.0.3"
 
 import sys
 from typing import Any, List, Optional
-from warnings import warn
 
 import dataquality.core._config
 import dataquality.integrations
-from dataquality.exceptions import GalileoWarning
 
 # We try/catch this in case the user installed dq inside of jupyter. You need to
 # restart the kernel after the install and we want to make that clear. This is because
@@ -75,7 +73,6 @@ from dataquality.core.log import (
     set_split,
     set_tagging_schema,
     set_tasks_for_run,
-    set_tokenizer,
 )
 from dataquality.core.report import build_run_report, register_run_report
 from dataquality.dq_auto.auto import auto
@@ -137,7 +134,6 @@ __all__ = [
     "auto",
     "DataQuality",
     "auto_notebook",
-    "set_tokenizer",
 ]
 
 try:
@@ -146,15 +142,6 @@ try:
     resource.setrlimit(resource.RLIMIT_NOFILE, (65535, 65535))
 except (ImportError, ValueError):  # The users limit is higher than our max, which is OK
     pass
-
-# Warn if the user is using an old version of Python.
-if sys.version_info < (3, 8):
-    warn(
-        "You are using an old version of Python. Please upgrade to Python 3.8"
-        "or higher. dataquality will stop supporting Python 3.7 in the near "
-        "future.",
-        GalileoWarning,
-    )
 
 
 #  Logging is optional. If enabled, imports, method calls

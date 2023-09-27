@@ -12,11 +12,17 @@ from dataquality.loggers.data_logger.base_data_logger import (
     DataSet,
     MetasType,
 )
-from dataquality.loggers.logger_config.seq2seq import seq2seq_logger_config
+from dataquality.loggers.logger_config.seq2seq import (
+    Seq2SeqLoggerConfig,
+    seq2seq_logger_config,
+)
 from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.seq2seq import Seq2SeqInputCols as C
 from dataquality.schemas.split import Split
-from dataquality.utils.seq2seq import (
+from dataquality.utils.seq2seq.generation import (
+    add_generated_output_to_df,
+)
+from dataquality.utils.seq2seq.offsets import (
     align_tokens_to_character_spans,
 )
 from dataquality.utils.vaex import rename_df
@@ -34,7 +40,8 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         `.is_fast` property that returns True if it's a fast tokenizer.
         This class must implement the `encode`, `decode`, and `encode_plus` methods
 
-        You can set your tokenizer via the `dq.set_tokenizer(tok)` function
+        You can set your tokenizer via the `set_tokenizer(tok)` function imported
+        from `dataquality.integrations.seq2seq.hf`
     2. A dataset (pandas/huggingface etc) with input strings and output labels and ids.
         Ex: Billsum dataset, with `text` input and `summary` as the label
         id  text	                        summary
@@ -49,6 +56,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         `dq.log_dataset(ds, text="text", label="summary", id="id")`
 
     Putting it all together:
+        from dataquality.integrations.seq2seq.hf import set_tokenizer
         from datasets import load_dataset
         from transformers import T5TokenizerFast
 
@@ -57,7 +65,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         # Add `id` column to each dataset split as the idx
         ds = ds.map(lambda x,idx : {"id":idx},with_indices=True)
         dq.init("seq2seq")
-        dq.set_tokenizer(tokenizer)
+        set_tokenizer(tokenizer)
         dq.log_dataset(ds["train"], label="summary", split="train")
 
     NOTE: We assume that the tokenizer you provide is the same tokenizer used for
@@ -67,13 +75,11 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
     """
 
     __logger_name__ = "seq2seq"
-    logger_config = seq2seq_logger_config
+    logger_config: Seq2SeqLoggerConfig = seq2seq_logger_config
     DATA_FOLDER_EXTENSION = {"emb": "hdf5", "prob": "hdf5", "data": "arrow"}
 
     def __init__(self, meta: Optional[MetasType] = None) -> None:
         super().__init__(meta)
-        # Tokens IDs in a given input string
-        self.tokenized_labels: List[List[int]] = []
         # Character offsets for each token (from tokenized_inputs) in the dataset
         self.token_label_offsets: List[List[Tuple[int, int]]] = []
         # Index (or indices) into the token array for every offset
@@ -97,18 +103,22 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             "IDs, text, and labels must be the same length, got "
             f"({id_len} ids, {text_len} text, {label_len} labels)"
         )
-        assert (
-            self.logger_config.tokenizer
-        ), "You must set your tokenizer before logging. Use `dq.set_tokenizer`"
-        encoded_data = self.logger_config.tokenizer(
-            self.labels, return_offsets_mapping=True
+        assert self.logger_config.tokenizer, (
+            "You must set your tokenizer before logging. "
+            "Use `dq.integrations.seq2seq.hf.set_tokenizer`"
         )
-        self.tokenized_labels = encoded_data["input_ids"]
+        encoded_data = self.logger_config.tokenizer(
+            self.labels,
+            return_offsets_mapping=True,
+            max_length=self.logger_config.max_target_tokens,
+            truncation=True,
+        )
+        tokenized_labels = encoded_data["input_ids"]
         aligned_data = align_tokens_to_character_spans(encoded_data["offset_mapping"])
         self.token_label_offsets = aligned_data.token_label_offsets
         self.token_label_positions = aligned_data.token_label_positions
 
-        id_to_tokens = dict(zip(self.ids, self.tokenized_labels))
+        id_to_tokens = dict(zip(self.ids, tokenized_labels))
         self.logger_config.id_to_tokens[self.token_map_key].update(id_to_tokens)
 
     def _get_input_df(self) -> DataFrame:
@@ -117,8 +127,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
                 C.id.value: self.ids,
                 C.text.value: self.texts,
                 C.label.value: self.labels,
-                # TODO: Do we need to save this to the server?
-                C.tokenized_label.value: pa.array(self.tokenized_labels),
+                C.split_.value: [self.split] * len(self.ids),
                 C.token_label_positions.value: pa.array(self.token_label_positions),
                 C.token_label_offsets.value: pa.array(self.token_label_offsets),
             }
@@ -194,6 +203,60 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         return ["id"]
 
     @classmethod
+    def create_in_out_frames(
+        cls,
+        in_frame: DataFrame,
+        dir_name: str,
+        prob_only: bool,
+        split: str,
+        epoch_or_inf: Union[str, int],
+    ) -> BaseLoggerDataFrames:
+        """Formats the input data and model output data
+        For Seq2Seq we need to add the generated output to the input dataframe,
+        and then call the super method to create the input and output dataframes
+        """
+        in_frame = cls.add_generated_output_to_df(in_frame, split)
+        return super().create_in_out_frames(
+            in_frame, dir_name, prob_only, split, epoch_or_inf
+        )
+
+    @classmethod
+    def add_generated_output_to_df(cls, df: DataFrame, split: str) -> DataFrame:
+        """Adds the generated output to the dataframe
+        Adds the generated output to the dataframe, and also adds the
+        `token_label_positions` column
+        """
+        logger_config = cls.logger_config
+        model = logger_config.model
+        tokenizer = logger_config.tokenizer
+        max_input_tokens = logger_config.max_input_tokens
+        generation_config = logger_config.generation_config
+        if model is None:
+            raise GalileoException(
+                "You must set your model before logging. Use "
+                "`dataquality.integrations.seq2seq.hf.watch`"
+            )
+        if tokenizer is None:
+            raise GalileoException(
+                "You must set your tokenizer before logging. Use "
+                "`dataquality.integrations.seq2seq.hf.watch`"
+            )
+        assert isinstance(max_input_tokens, int)
+        if generation_config is None:
+            raise GalileoException(
+                "You must set your generation config before logging. Use "
+                "`dataquality.integrations.seq2seq.hf.watch`"
+            )
+        if split not in logger_config.generation_splits:
+            print("Skipping generation for split", split)
+            return df
+
+        df = add_generated_output_to_df(
+            df, model, tokenizer, max_input_tokens, generation_config
+        )
+        return df
+
+    @classmethod
     def separate_dataframe(
         cls, df: DataFrame, prob_only: bool = True, split: Optional[str] = None
     ) -> BaseLoggerDataFrames:
@@ -218,7 +281,13 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             other_cols += ["id"]
 
         emb = df_copy[emb_cols]
-        data_df = df_copy[other_cols]
-        data_df.rename("text", "input")
-        data_df.rename("label", "target_output")
+        data_df = C.set_cols(df_copy[other_cols])
         return BaseLoggerDataFrames(prob=prob, emb=emb, data=data_df)
+
+    @property
+    def support_embs(self) -> bool:
+        """In Seq2Seq we only support data embeddings
+
+        It is uncommon for users to have access to the model embeddings for Seq2Seq
+        """
+        return False

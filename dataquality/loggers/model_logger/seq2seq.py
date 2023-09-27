@@ -2,17 +2,29 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pyarrow as pa
+from scipy.special import log_softmax
 
-from dataquality.loggers.logger_config.seq2seq import seq2seq_logger_config
+from dataquality.loggers.logger_config.seq2seq import (
+    Seq2SeqLoggerConfig,
+    seq2seq_logger_config,
+)
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
+from dataquality.schemas.seq2seq import TOP_LOGPROBS_SCHEMA
 from dataquality.schemas.seq2seq import Seq2SeqOutputCols as C
 from dataquality.schemas.split import Split
 from dataquality.utils.arrow import save_arrow_file
+from dataquality.utils.seq2seq import (
+    remove_padding,
+)
+from dataquality.utils.seq2seq.logprobs import (
+    get_top_logprob_indices,
+    process_sample_logprobs,
+)
 
 
 class Seq2SeqModelLogger(BaseGalileoModelLogger):
     __logger_name__ = "seq2seq"
-    logger_config = seq2seq_logger_config
+    logger_config: Seq2SeqLoggerConfig = seq2seq_logger_config
     log_file_ext = "arrow"
 
     def __init__(
@@ -36,9 +48,9 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             inference_name=inference_name,
             labels=labels,
         )
-        self.sample_dep: List[float] = []
-        self.token_dep = pa.array([])
-        self.token_gold_probs = pa.array([])
+        self.sample_perplexity: List[float] = []
+        self.token_logprobs = pa.array([])
+        self.top_logprobs = pa.array([])
         self.labels = labels
 
     @property
@@ -60,103 +72,109 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         if self.labels is not None:
             assert len(self.labels) == len(self.ids), "TODO: Must be same len message"
 
-        # Ground truth probs, including the padding for ignored labels
-        # TODO: This is incredibly slow. This is what needs to be optimized. Can we
-        #  potentially do this on the GPU with torch? And dont convert to a np array
-        probs = self.convert_logits_to_probs(self.logits)
-        (
-            self.token_dep,
-            self.sample_dep,
-            self.token_gold_probs,
-        ) = self.get_token_dep_probs(self.ids, probs)
-
-    def get_dep_for_sample(
-        self, sample_id: int, sample_probs: np.ndarray
-    ) -> Tuple[np.ndarray, np.ndarray]:
-        """Extracts DEP per token prediction for a single sample
-
-        Args:
-            sample_id: The sample id
-            sample_probs: The probabilities for each token in the sample
-                sample_probs.shape is [max_token_len, vocab_size]
-
-        Returns:
-            dep: The DEP per token prediction for the sample
-                dep.shape is [num_tokens_in_label]
-            gold_probs: The probabilities of the GT token label for the sample
-                gold_probs.shape is [num_tokens_in_label]
-        """
         assert (
             self.logger_config.tokenizer is not None
-        ), "Must set your tokenizer. Use `dq.set_tokenizer`"
-        labels = self.logger_config.id_to_tokens[self.token_map_key][sample_id]
-        if self.logger_config.tokenizer.padding_side == "left":
-            probs = sample_probs[-len(labels) :]
-        else:
-            probs = sample_probs[: len(labels)]
-        gold_probs = probs[np.arange(len(labels)), labels]
-        probs_copy = probs.copy()
-        probs_copy[np.arange(len(labels)), labels] = 0
-        # Max non-gold probability
-        max_probs = np.max(probs_copy, axis=-1)
-        margin = gold_probs - max_probs
-        dep = (1 - margin) / 2
-        return dep, gold_probs
+        ), "Must set your tokenizer. Use `dq.integrations.seq2seq.hf.set_tokenizer`"
 
-    def get_token_dep_probs(
-        self, batch_ids: np.ndarray, batch_probs: np.ndarray
-    ) -> Tuple[pa.array, List[float], pa.array]:
-        """Extracts DEP per token prediction
+        # TODO: This is potentially slow. This is what needs to be optimized. Can we
+        #  potentially do this on the GPU with torch? And dont convert to a np array
+        #  [JON] computing softmax on GPU can lead to speedups of around 5x in my
+        #  experience
+        logprobs = self.convert_logits_to_logprobs(self.logits)
+        (
+            self.token_logprobs,
+            self.top_logprobs,
+            self.sample_perplexity,
+        ) = self.process_logprobs(self.ids, logprobs)
 
-        First, extract the probabilities of the GT token label
+    def process_logprobs(
+        self, batch_ids: np.ndarray, batch_logprobs: np.ndarray
+    ) -> Tuple[pa.array, pa.array, List[float]]:
+        """Handle processing of a batch of sample logprobs
 
-        Probs is a numpy array of shape [batch_size, max_token_len, vocab_size] where
-        for each sample (text input) in the batch, every token of that sample has a
-        probability vector of size vocab_size (which can be 30k+).
+        For each sample in the batch extract / compute the following values:
+            - Token level logprobs for the GT label
+            - Token level top-k model logprobs: represented as a dictionary
+            mapping {predicted_token: logprob}
 
-        We use advanced indexing to extract out only the probabilities for the token
-        label for each sample, for each batch.
+        batch_logprobs has shape - [batch_size, max_token_length, vocab_size], where
+        max_token_length is determined by the longest sample in the batch. Because
+        other samples in the batch are padded to this max_length, we have to process
+        each sample individually to ignore pad token indices.
 
-        Then, we get the second highest probabilities per token via similar indexing.
+        Special points of consideration:
+            - For each sample, top-k logprobs is a list of dictionaries with length
+            equal to the number of tokens in that sample. Each dictionary maps the
+            models top-k predicted tokens to their corresponding logprobs.
 
-        Finally, compute dep and return.
+            - We return a pyarrow array because each sample may have a different number
+            of token, which can't be represented in numpy.
 
-        token_dep, token_probs, and labels are of shape
-        [batch_size, max_token_length], but for each sample in the batch, the tokens
-        for that sample that are ignored/padded are indexed out by this function.
-        So we use that to get only the ones we care about.
-
-        We return a pyarrow array because each batch will have a different shape, which
-        can't be represented in numpy
-
-        Returns: (batch_token_dep, batch_dep, batch_gold_probs)
-            batch_token_dep: The DEP per token prediction for the batch
+        Returns:
+            batch_token_logprobs: GT Logprob per token
                 len(batch_token_dep) == batch_size
-                batch_token_dep[i].shape is [num_tokens_in_label]
-            batch_dep: The DEP per sample for the batch
-                len(batch_dep) == batch_size
-            batch_gold_probs: The probabilities of the GT token label for the batch
-                len(batch_gold_probs) == batch_size
-                batch_gold_probs[i].shape is [num_tokens_in_label]
+                batch_token_logprobs[i].shape is [num_tokens_in_label[i]]
+            batch_top_logprobs: Top-k logprob dictionary per token
+                type(batch_top_logprobs[i]) = List[Dict[str, float]]
+                len(batch_top_logprobs) == batch_size
+                len(batch_top_logprobs[i]) = num_tokens_in_label[i]
         """
-        batch_token_deps = []
-        batch_deps = []
-        batch_gold_probs = []
-        for sample_id, sample_probs in zip(batch_ids, batch_probs):
-            token_dep, gold_probs = self.get_dep_for_sample(sample_id, sample_probs)
-            batch_token_deps.append(token_dep)
-            batch_deps.append(float(np.max(token_dep)))
-            batch_gold_probs.append(gold_probs)
-        return pa.array(batch_token_deps), batch_deps, pa.array(batch_gold_probs)
+        # Compute the top-k logprob indices across the batch.
+        assert self.logger_config.tokenizer is not None  # Needed for linting
+        top_logprob_indices = get_top_logprob_indices(batch_logprobs)
+
+        batch_token_logprobs = []
+        batch_top_logprobs = []
+        batch_perplexities = []
+        # Iterate through the samples in the batch
+        for sample_id, sample_logprobs, sample_top_indices in zip(
+            batch_ids, batch_logprobs, top_logprob_indices
+        ):
+            sample_n_tokens = sample_logprobs.shape[0]
+            # Truncating the tokens computed in dq to ensure that there aren't more than
+            # what the model outputed (or we get an indexing error).
+            sample_labels = self._retrieve_sample_labels(
+                sample_id, max_tokens=sample_n_tokens
+            )
+            padding_side = self.logger_config.tokenizer.padding_side
+            sample_logprobs = remove_padding(
+                sample_labels,
+                padding_side,
+                sample_logprobs,
+            )
+            sample_top_indices = remove_padding(
+                sample_labels,
+                padding_side,
+                sample_top_indices,
+            )
+            logprob_data = process_sample_logprobs(
+                sample_logprobs=sample_logprobs,
+                sample_labels=sample_labels,
+                sample_top_indices=sample_top_indices,
+                tokenizer=self.logger_config.tokenizer,
+            )
+            batch_token_logprobs.append(logprob_data.token_logprobs)
+            batch_top_logprobs.append(logprob_data.top_logprobs)
+
+            # TODO eventually deprecate
+            # Perplexity = exp(-sum(gold_logprobs)
+            perplexity = np.exp(-1 * np.mean(logprob_data.token_logprobs))
+            batch_perplexities.append(perplexity)
+
+        return (
+            pa.array(batch_token_logprobs),
+            pa.array(batch_top_logprobs, type=TOP_LOGPROBS_SCHEMA),
+            batch_perplexities,
+        )
 
     def _get_data_dict(self) -> Dict:
         """Returns the data dictionary for writing to disk"""
         batch_size = len(self.ids)
         data = {
             C.id.value: self.ids,
-            C.token_deps.value: self.token_dep,
-            C.dep.value: self.sample_dep,
-            C.token_gold_probs.value: self.token_gold_probs,
+            C.perplexity.value: self.sample_perplexity,
+            C.token_logprobs.value: self.token_logprobs,
+            C.top_logprobs.value: self.top_logprobs,
             C.split_.value: [Split[self.split].value] * batch_size,
             C.epoch.value: [self.epoch] * batch_size,
         }
@@ -166,3 +184,33 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
 
     def _write_dict_to_disk(self, path: str, object_name: str, data: Dict) -> None:
         save_arrow_file(path, object_name, data)
+
+    def _retrieve_sample_labels(self, sample_id: int, max_tokens: int) -> np.ndarray:
+        """Retrieve the labels array based on the sample id and truncate at max_tokens
+
+        Labels gives the ground truth / target sample ids for
+        each token in the sequence:
+
+        e.g. for sample_id = 8 --> labels = [0, 10, 16, ...]
+        """
+        labels = self.logger_config.id_to_tokens[self.token_map_key][sample_id]
+        if max_tokens is not None:
+            labels = labels[:max_tokens]
+        return np.array(labels)
+
+    def convert_logits_to_logprobs(
+        self, sample_logits: Union[List[np.ndarray], np.ndarray]
+    ) -> np.ndarray:
+        """Converts logits (unnormalized log probabilities) to logprobs via log_softmax
+
+        This is a special use case for Seq2Seq, people generally
+        work with logprobs. One reason for this is that the logsoftmax
+        function takes advantage of the logsumexp "trick" to compute a
+        numerically stable version of log(softmax(x)).
+        """
+        # axis ensures that in a matrix of probs with dims num_samples x num_classes
+        # we take the softmax for each sample
+        if not isinstance(sample_logits, np.ndarray):
+            sample_logits = self._convert_tensor_ndarray(sample_logits)
+
+        return log_softmax(sample_logits, axis=-1)

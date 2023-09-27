@@ -21,7 +21,6 @@ from dataquality.loggers.base_logger import BaseGalileoLogger, BaseLoggerAttribu
 from dataquality.schemas.dataframe import BaseLoggerDataFrames, DFVar
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
-from dataquality.schemas.task_type import TaskType
 from dataquality.utils import tqdm
 from dataquality.utils.cloud import is_galileo_cloud
 from dataquality.utils.cuda import cuml_available
@@ -218,6 +217,10 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         self.logger_config.input_data_logged[str(self.split)] += 1
 
     @property
+    def support_embs(self) -> bool:
+        return True
+
+    @property
     def support_data_embs(self) -> bool:
         return True
 
@@ -263,8 +266,22 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         proj_run = f"{config.current_project_id}/{config.current_run_id}"
         location = f"{self.LOG_FILE_DIR}/{proj_run}"
 
-        if cuml_available() and config.task_type != TaskType.semantic_segmentation:
-            apply_umap_to_embs(location, last_epoch)
+        if cuml_available():
+            if self.support_embs:
+                print("Applying UMAP to embeddings")
+                apply_umap_to_embs(location, last_epoch)
+
+            if self.support_data_embs and create_data_embs:
+                print("Creating and uploading data embeddings")
+                upload_umap_data_embs(
+                    config.current_project_id,
+                    config.current_run_id,
+                    self.input_data_path,
+                    location,
+                    last_epoch,
+                )
+                # We have already created them here, so don't try again later
+                create_data_embs = False
         else:
             print(
                 "CuML libraries not found, running standard process. "
@@ -272,18 +289,6 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                 "`pip install 'dataquality[cuda]' --extra-index-url="
                 "https://pypi.nvidia.com/`"
             )
-
-        if cuml_available() and create_data_embs and self.support_data_embs:
-            print("Creating and uploading data embeddings")
-            upload_umap_data_embs(
-                config.current_project_id,
-                config.current_run_id,
-                self.input_data_path,
-                location,
-                last_epoch,
-            )
-            # We have already created them here, so don't try again later
-            create_data_embs = False
 
         for split in Split.get_valid_attributes():
             self.upload_split(
