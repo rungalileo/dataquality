@@ -1,11 +1,15 @@
+from typing import Tuple, List, Set
+
+import numpy as np
 import pyarrow as pa
 import torch
 import vaex
+from vaex import DataFrame
 from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizerFast
 
 from dataquality.schemas.seq2seq import (
     TOP_LOGPROBS_SCHEMA,
-    ModelGeneration,
+    ModelGeneration, BatchGenerationData,
 )
 from dataquality.schemas.seq2seq import Seq2SeqInputCols as S2SIC
 from dataquality.schemas.seq2seq import Seq2SeqOutputCols as S2SOC
@@ -97,18 +101,89 @@ def generate_sample_output(
     )
 
 
-def add_generated_output_to_df(
-    df: vaex.DataFrame,
+def generate_on_batch(
+    texts: pa.array,
     model: PreTrainedModel,
     tokenizer: PreTrainedTokenizerFast,
     max_input_tokens: int,
     generation_config: GenerationConfig,
-) -> vaex.DataFrame:
+) -> BatchGenerationData:
+    """Generate over a batch of text inputs
+
+    We use model to generate the output for each text sample *individually* and the
+    corresponding logprob + token alignment data. Returns the processed batch
+    data to be added to the dataframe.
+
+    Parameters:
+    -----------
+    texts: pa.array of strs
+        batch of str input strings that we want to generate on
+
+    Return:
+    -------
+    generated_data: BatchGenerationData
+        BatchGenerationData object with the processed generation data for the batch
+        of text inputs.
+    """
+    generated_outputs = []
+    generated_token_label_positions = []
+    generated_token_label_offsets = []
+    generated_token_logprobs = []
+    generated_top_logprobs = []
+
+    for sample in texts:
+        # Generate and extract model outputs
+        sample_generation = generate_sample_output(
+            input_str=str(sample),
+            model=model,
+            tokenizer=tokenizer,
+            max_input_tokens=max_input_tokens,
+            generation_config=generation_config,
+        )
+
+        output = tokenizer.decode(
+            sample_generation.generated_ids, skip_special_tokens=True
+        )
+        generated_outputs.append(output)
+        # Re-tokenize the data to get the token position offsets
+        encoded_data = tokenizer([output], return_offsets_mapping=True)
+        aligned_data = align_tokens_to_character_spans(
+            encoded_data["offset_mapping"]
+        )
+        # aligned_data assumes batches, so for single samples it returns
+        # batched list of length == 1.
+        generated_token_label_positions.append(
+            aligned_data.token_label_positions[0]
+        )
+        generated_token_label_offsets.append(aligned_data.token_label_offsets[0])
+
+        generated_logprob_data = sample_generation.generated_logprob_data
+        generated_token_logprobs.append(generated_logprob_data.token_logprobs)
+        generated_top_logprobs.append(generated_logprob_data.top_logprobs)
+
+    return BatchGenerationData(
+        generated_outputs=generated_outputs,
+        generated_token_label_positions=generated_token_label_positions,
+        generated_token_label_offsets=generated_token_label_offsets,
+        generated_token_logprobs=generated_token_logprobs,
+        generated_top_logprobs=generated_top_logprobs
+    )
+
+
+def add_generated_output_to_df(
+    df: DataFrame,
+    model: PreTrainedModel,
+    tokenizer: PreTrainedTokenizerFast,
+    max_input_tokens: int,
+    generation_config: GenerationConfig,
+) -> DataFrame:
     """Generates model outputs over df and extracts the logprob data
 
     Using the user's model we generate the output for each sample in the df and the
-    corresponding logprob data. We use a vaex register function to batch the processing
-    across df; however, we generate model outputs one sample at a time.
+    corresponding logprob data. We generate in batches of text Input using vaex's
+    `evaluate_iterator`. This avoids brining the full `S2SIC.text` into memory;
+    however, we do end up materializing the full logprob and token alignemnt data
+    for the generated outputs.
 
     We specifically add the following 5 columns to the df:
         - generated_output: str
@@ -117,9 +192,10 @@ def add_generated_output_to_df(
         - generated_token_logprobs: pa.array
         - generated_top_logprobs: pa.array
 
-    Note: We return a pa.StructArray to extract multiple columns of info
-    at once through vaex. We then have to seperate the Struct into individual
-    columns.
+    NOTE: Although we bring into memory quite a bit of information about the generated
+    outputs, in general users won't be generated over very many samples (on the order of
+    100-1000s because it simply takes too much time to do much more). Nevertheless, we
+    should monitor this for memory issues.
 
     Parameters:
     -----------
@@ -137,81 +213,26 @@ def add_generated_output_to_df(
         Updated Dataframe with the generated columns added (see above)
     """
     model.eval()
+    generated_data = BatchGenerationData.empty_init()
 
-    @vaex.register_function()
-    def generate_batch_outputs(texts: pa.array) -> pa.StructArray:
-        """Generated model outputs for a batch of text inputs
-
-        For each sample in the batch, extract all of the necessary
-        information to populate the vaex df. We return a somewhat specail
-        StructArray, because you can only return an expression for a single
-        column in vaex, but here we extract the content for 5 columns -
-        (see above). By creating aStructArray (which is just an arrow dictionary)
-        we can then xtract out each one into an independent column after.
-        """
-        generated_outputs = []
-        generated_token_label_positions = []
-        generated_token_label_offsets = []
-        generated_token_logprobs = []
-        generated_top_logprobs = []
-
-        for sample in texts:
-            # Generate and extract model outputs
-            sample_generation = generate_sample_output(
-                input_str=str(sample),
-                model=model,
-                tokenizer=tokenizer,
-                max_input_tokens=max_input_tokens,
-                generation_config=generation_config,
-            )
-
-            output = tokenizer.decode(
-                sample_generation.generated_ids, skip_special_tokens=True
-            )
-            generated_outputs.append(output)
-            # Re-tokenize the data to get the token position offsets
-            encoded_data = tokenizer([output], return_offsets_mapping=True)
-            aligned_data = align_tokens_to_character_spans(
-                encoded_data["offset_mapping"]
-            )
-            # aligned_data assumes batches, so for single samples it returns
-            # batched list of length == 1.
-            generated_token_label_positions.append(
-                aligned_data.token_label_positions[0]
-            )
-            generated_token_label_offsets.append(aligned_data.token_label_offsets[0])
-
-            generated_logprob_data = sample_generation.generated_logprob_data
-            generated_token_logprobs.append(generated_logprob_data.token_logprobs)
-            generated_top_logprobs.append(generated_logprob_data.top_logprobs)
-
-        # Ensure correct pyarrow format for top_logprobs
-        generated_top_logprobs = pa.array(
-            generated_top_logprobs, type=TOP_LOGPROBS_SCHEMA
-        )
-        return pa.StructArray.from_arrays(
-            arrays=[
-                generated_outputs,
-                generated_token_label_positions,
-                generated_token_label_offsets,
-                generated_token_logprobs,
-                generated_top_logprobs,
-            ],
-            names=S2SOC.generated_cols(),
+    for _, _, text_chunk in df.evaluate_iterator(
+        S2SIC.text.value, chunk_size=100, parallel=False
+    ):
+        batch_generated_data = generate_on_batch(
+            text_chunk,
+            model,
+            tokenizer,
+            max_input_tokens,
+            generation_config
         )
 
-    df[S2SOC.generation_data.value] = df.func.generate_batch_outputs(df[S2SIC.text])
-    # Materialize the model generations in memory. This still avoids bringing the full
-    # text column into memory, but will bring all the generation data into memory.
-    # This is important to ensure we don't re-generate every time this virtual
-    # column is realized.
-    df = df.materialize(S2SOC.generation_data.value)
+        generated_data.extend_from(batch_generated_data)
 
-    # 'generation_data' is a col of type StructArray
-    # struct.flatten creates a column per key
-    df = df.struct.flatten(S2SOC.generation_data.value)
-    # the new column name will be `generation_data_<key>` so we rename them
-    for col in S2SOC.generated_cols():
-        df.rename(f"{S2SOC.generation_data}_{col}", col)
+    # Assign the vaex columns manually for now!
+    df[S2SOC.generated_output.value] = np.array(generated_data.generated_outputs)
+    df[S2SOC.generated_token_label_positions.value] = pa.array(generated_data.generated_token_label_positions)
+    df[S2SOC.generated_token_label_offsets.value] = pa.array(generated_data.generated_token_label_offsets)
+    df[S2SOC.generated_token_logprobs.value] = pa.array(generated_data.generated_token_logprobs)
+    df[S2SOC.generated_top_logprobs.value] = pa.array(generated_data.generated_top_logprobs, type=TOP_LOGPROBS_SCHEMA)
 
     return df
