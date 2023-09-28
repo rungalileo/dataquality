@@ -12,8 +12,8 @@ from dataquality.loggers.data_logger.seq2seq import Seq2SeqDataLogger
 from dataquality.schemas.seq2seq import Seq2SeqInputCols as C
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.seq2seq.offsets import (
-    get_cutoff_from_truncated_tokenization,
     get_cutoff_from_saved_offsets,
+    get_cutoff_from_truncated_tokenization,
     rollup_offset_mapping,
 )
 from tests.conftest import tokenizer_T5

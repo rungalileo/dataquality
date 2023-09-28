@@ -24,8 +24,8 @@ from dataquality.utils.seq2seq.generation import (
 )
 from dataquality.utils.seq2seq.offsets import (
     align_tokens_to_character_spans,
-    get_cutoff_from_truncated_tokenization,
     get_cutoff_from_saved_offsets,
+    get_cutoff_from_truncated_tokenization,
 )
 from dataquality.utils.vaex import rename_df
 
