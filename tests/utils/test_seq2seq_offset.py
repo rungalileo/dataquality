@@ -13,7 +13,7 @@ from dataquality.schemas.seq2seq import Seq2SeqInputCols as C
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.seq2seq.offsets import (
     get_cutoff_from_truncated_tokenization,
-    get_position_of_last_offset_target,
+    get_cutoff_from_saved_offsets,
     rollup_offset_mapping,
 )
 from tests.conftest import tokenizer_T5
@@ -206,7 +206,7 @@ def test_get_position_of_last_offset_target(
     in_frame_split = vaex.open(
         f"{data_logger.input_data_path}/training/*.{data_logger.INPUT_DATA_FILE_EXT}"
     )
-    target_offsets = get_position_of_last_offset_target(
+    target_offsets = get_cutoff_from_saved_offsets(
         in_frame_split, C.token_label_offsets
     ).tolist()
 

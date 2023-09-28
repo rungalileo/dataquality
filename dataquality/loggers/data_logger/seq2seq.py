@@ -25,7 +25,7 @@ from dataquality.utils.seq2seq.generation import (
 from dataquality.utils.seq2seq.offsets import (
     align_tokens_to_character_spans,
     get_cutoff_from_truncated_tokenization,
-    get_position_of_last_offset_target,
+    get_cutoff_from_saved_offsets,
 )
 from dataquality.utils.vaex import rename_df
 
@@ -314,7 +314,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             df, C.text, tokenizer, max_input_length
         )
 
-        df[C.target_cutoff.value] = get_position_of_last_offset_target(
+        df[C.target_cutoff.value] = get_cutoff_from_saved_offsets(
             df, C.token_label_offsets
         )
 

@@ -221,7 +221,7 @@ def get_cutoff_from_truncated_tokenization(
     return df.func._get_position_of_last_offset_input(df[col_name])
 
 
-def get_position_of_last_offset_target(df: DataFrame, col_name: str) -> np.ndarray:
+def get_cutoff_from_saved_offsets(df: DataFrame, col_name: str) -> np.ndarray:
     """
     Look at the last offset of the tokenized target to find the position of the last
     character of the target string that was used by the model.
