@@ -124,7 +124,7 @@ class JSLProject:
                 (col("id") >= chunk)
                 & (col("id") < (chunk + chunksize))
                 & (col("token_length") < max_token_length)
-            ).persist()
+            )  # .persist()
             try:
                 df_chunk_pred = self.pipeline.transform(df_chunk)
                 df_chunk_dq = prepare_df_for_dq(
@@ -157,7 +157,7 @@ class JSLProject:
                 )
             except Exception as e:
                 print(e)
-            df_chunk.unpersist()
+            del df_chunk  # .unpersist()
 
         if finish:
             return dq.finish()
