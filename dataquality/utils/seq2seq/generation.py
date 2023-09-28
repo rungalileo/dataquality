@@ -1,15 +1,13 @@
-from typing import Tuple, List, Set
-
 import numpy as np
 import pyarrow as pa
 import torch
-import vaex
-from vaex import DataFrame
 from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizerFast
+from vaex import DataFrame
 
 from dataquality.schemas.seq2seq import (
     TOP_LOGPROBS_SCHEMA,
-    ModelGeneration, BatchGenerationData,
+    BatchGenerationData,
+    ModelGeneration,
 )
 from dataquality.schemas.seq2seq import Seq2SeqInputCols as S2SIC
 from dataquality.schemas.seq2seq import Seq2SeqOutputCols as S2SOC
@@ -147,14 +145,10 @@ def generate_on_batch(
         generated_outputs.append(output)
         # Re-tokenize the data to get the token position offsets
         encoded_data = tokenizer([output], return_offsets_mapping=True)
-        aligned_data = align_tokens_to_character_spans(
-            encoded_data["offset_mapping"]
-        )
+        aligned_data = align_tokens_to_character_spans(encoded_data["offset_mapping"])
         # aligned_data assumes batches, so for single samples it returns
         # batched list of length == 1.
-        generated_token_label_positions.append(
-            aligned_data.token_label_positions[0]
-        )
+        generated_token_label_positions.append(aligned_data.token_label_positions[0])
         generated_token_label_offsets.append(aligned_data.token_label_offsets[0])
 
         generated_logprob_data = sample_generation.generated_logprob_data
@@ -166,7 +160,7 @@ def generate_on_batch(
         generated_token_label_positions=generated_token_label_positions,
         generated_token_label_offsets=generated_token_label_offsets,
         generated_token_logprobs=generated_token_logprobs,
-        generated_top_logprobs=generated_top_logprobs
+        generated_top_logprobs=generated_top_logprobs,
     )
 
 
@@ -219,20 +213,24 @@ def add_generated_output_to_df(
         S2SIC.text.value, chunk_size=100, parallel=False
     ):
         batch_generated_data = generate_on_batch(
-            text_chunk,
-            model,
-            tokenizer,
-            max_input_tokens,
-            generation_config
+            text_chunk, model, tokenizer, max_input_tokens, generation_config
         )
 
         generated_data.extend_from(batch_generated_data)
 
     # Assign the vaex columns manually for now!
     df[S2SOC.generated_output.value] = np.array(generated_data.generated_outputs)
-    df[S2SOC.generated_token_label_positions.value] = pa.array(generated_data.generated_token_label_positions)
-    df[S2SOC.generated_token_label_offsets.value] = pa.array(generated_data.generated_token_label_offsets)
-    df[S2SOC.generated_token_logprobs.value] = pa.array(generated_data.generated_token_logprobs)
-    df[S2SOC.generated_top_logprobs.value] = pa.array(generated_data.generated_top_logprobs, type=TOP_LOGPROBS_SCHEMA)
+    df[S2SOC.generated_token_label_positions.value] = pa.array(
+        generated_data.generated_token_label_positions
+    )
+    df[S2SOC.generated_token_label_offsets.value] = pa.array(
+        generated_data.generated_token_label_offsets
+    )
+    df[S2SOC.generated_token_logprobs.value] = pa.array(
+        generated_data.generated_token_logprobs
+    )
+    df[S2SOC.generated_top_logprobs.value] = pa.array(
+        generated_data.generated_top_logprobs, type=TOP_LOGPROBS_SCHEMA
+    )
 
     return df
