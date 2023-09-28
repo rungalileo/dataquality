@@ -9,9 +9,10 @@ from transformers import GenerationConfig, T5ForConditionalGeneration
 import dataquality as dq
 from dataquality.integrations.seq2seq.hf import watch
 from dataquality.loggers.data_logger.seq2seq import Seq2SeqDataLogger
+from dataquality.schemas.seq2seq import Seq2SeqInputCols as C
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.seq2seq.offsets import (
-    get_position_of_last_offset_input,
+    get_cutoff_from_truncated_tokenization,
     get_position_of_last_offset_target,
     rollup_offset_mapping,
 )
@@ -166,8 +167,8 @@ def test_get_position_of_last_offset_input(
     in_frame_split = vaex.open(
         f"{data_logger.input_data_path}/training/*.{data_logger.INPUT_DATA_FILE_EXT}"
     )
-    input_offsets = get_position_of_last_offset_input(
-        in_frame_split, tokenizer_T5, data_logger.logger_config.max_input_tokens
+    input_offsets = get_cutoff_from_truncated_tokenization(
+        in_frame_split, C.text, tokenizer_T5, data_logger.logger_config.max_input_tokens
     ).tolist()
 
     assert len(input_offsets) == 2
@@ -176,8 +177,6 @@ def test_get_position_of_last_offset_input(
     assert input_1[: input_offsets[0]] == "dog dog dog"
     # We only have 1 token 'bird' (got to the end of the string)
     assert input_2[: input_offsets[1]] == "bird"
-
-    """Test that calculate_text_cutoffs works correctly for both input/target"""
 
 
 def test_get_position_of_last_offset_target(
@@ -207,7 +206,9 @@ def test_get_position_of_last_offset_target(
     in_frame_split = vaex.open(
         f"{data_logger.input_data_path}/training/*.{data_logger.INPUT_DATA_FILE_EXT}"
     )
-    target_offsets = get_position_of_last_offset_target(in_frame_split).tolist()
+    target_offsets = get_position_of_last_offset_target(
+        in_frame_split, C.token_label_offsets
+    ).tolist()
 
     assert len(target_offsets) == 2
     # The EOS token is always the last token, which we don't count for the cutoff point

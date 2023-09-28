@@ -24,7 +24,7 @@ from dataquality.utils.seq2seq.generation import (
 )
 from dataquality.utils.seq2seq.offsets import (
     align_tokens_to_character_spans,
-    get_position_of_last_offset_input,
+    get_cutoff_from_truncated_tokenization,
     get_position_of_last_offset_target,
 )
 from dataquality.utils.vaex import rename_df
@@ -224,7 +224,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         # for generating
         # TODO: see if it's worth only tokenizing it once and storing it (can be large)
         in_frame = cls.add_generated_output_to_df(in_frame, split)
-        in_frame = cls.calculate_text_cutoffs(in_frame)
+        in_frame = cls.calculate_cutoffs(in_frame)
 
         return super().create_in_out_frames(
             in_frame, dir_name, prob_only, split, epoch_or_inf
@@ -295,7 +295,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         return BaseLoggerDataFrames(prob=prob, emb=emb, data=data_df)
 
     @classmethod
-    def calculate_text_cutoffs(cls, df: DataFrame) -> DataFrame:
+    def calculate_cutoffs(cls, df: DataFrame) -> DataFrame:
         """
         Calculate the portion of the input/output strings that were used by the model.
         The input/output are typically truncated and the model will use the first
@@ -310,11 +310,13 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
                 "`dataquality.integrations.seq2seq.hf.watch`"
             )
         max_input_length = cls.logger_config.max_input_tokens
-        df[C.input_text_cutoff.value] = get_position_of_last_offset_input(
-            df, tokenizer, max_input_length
+        df[C.input_cutoff.value] = get_cutoff_from_truncated_tokenization(
+            df, C.text, tokenizer, max_input_length
         )
 
-        df[C.target_text_cutoff.value] = get_position_of_last_offset_target(df)
+        df[C.target_cutoff.value] = get_position_of_last_offset_target(
+            df, C.token_label_offsets
+        )
 
         return df
 

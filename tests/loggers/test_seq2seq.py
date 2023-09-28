@@ -433,10 +433,8 @@ def test_tokenize_target_doesnt_provide_maxlength(
     )
 
 
-def test_calculate_text_cutoffs(
-    set_test_config: Callable, cleanup_after_use: Generator
-):
-    """Test that calculate_text_cutoffs works correctly for both input/target"""
+def test_calculate_cutoffs(set_test_config: Callable, cleanup_after_use: Generator):
+    """Test that calculate_cutoffs works correctly for both input/target"""
     set_test_config(task_type=TaskType.seq2seq)
     mock_model = Mock(spec=T5ForConditionalGeneration)
     mock_model.device = "cpu"
@@ -464,9 +462,9 @@ def test_calculate_text_cutoffs(
     in_frame_split = vaex.open(
         f"{data_logger.input_data_path}/training/*.{data_logger.INPUT_DATA_FILE_EXT}"
     )
-    in_frame_split = data_logger.calculate_text_cutoffs(in_frame_split)
-    input_offsets = in_frame_split["input_text_cutoff"].tolist()
-    target_offsets = in_frame_split["target_text_cutoff"].tolist()
+    in_frame_split = data_logger.calculate_cutoffs(in_frame_split)
+    input_offsets = in_frame_split["input_cutoff"].tolist()
+    target_offsets = in_frame_split["target_cutoff"].tolist()
 
     assert len(input_offsets) == 2 == len(target_offsets)
     # The EOS token is always the last token, which we don't count for the cutoff point
