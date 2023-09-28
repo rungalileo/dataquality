@@ -31,7 +31,7 @@ If you want to train without a model, you can use the auto framework:
 """
 
 
-__version__ = "1.0.2"
+__version__ = "1.0.3"
 
 import sys
 from typing import Any, List, Optional

@@ -160,7 +160,7 @@ class ApiClient:
         run = self.make_request(RequestType.PUT, url=url, body=data)
         return run if run else {}
 
-    def create_project(self, project_name: str, is_public: bool = True) -> Dict:
+    def create_project(self, project_name: str, is_public: bool = False) -> Dict:
         """Creates a project given a name and returns the project information"""
         body = {"name": project_name, "is_public": is_public}
         return self.make_request(
