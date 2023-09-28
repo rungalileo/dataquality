@@ -11,6 +11,8 @@ from vaex import DataFrame
 TOP_LOGPROBS_SCHEMA = pa.list_(pa.map_(pa.string(), pa.float32()))
 TOP_K = 5
 
+GENERATION_BATCH_SIZE = 1_000
+
 
 class Seq2SeqInputCols(str, Enum):
     id = "id"

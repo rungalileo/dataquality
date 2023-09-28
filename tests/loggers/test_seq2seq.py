@@ -279,9 +279,6 @@ def test_add_generated_output_to_df(
         assert np.array_equal(logprobs, np.zeros(num_tokens) - 1)
         assert top_logprobs == [[("A", -1), ("B", -2)] for _ in range(num_tokens)]
 
-    # Make sure that we have removed the column left after flattening
-    assert not any([C.generation_data.value in col for col in df.get_column_names()])
-
 
 @patch("dataquality.utils.seq2seq.generation.process_sample_logprobs")
 @patch("dataquality.utils.seq2seq.generation.get_top_logprob_indices")

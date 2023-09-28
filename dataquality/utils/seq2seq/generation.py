@@ -5,6 +5,7 @@ from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizerF
 from vaex import DataFrame
 
 from dataquality.schemas.seq2seq import (
+    GENERATION_BATCH_SIZE,
     TOP_LOGPROBS_SCHEMA,
     BatchGenerationData,
     ModelGeneration,
@@ -210,7 +211,7 @@ def add_generated_output_to_df(
     generated_data = BatchGenerationData.empty_init()
 
     for _, _, text_chunk in df.evaluate_iterator(
-        S2SIC.text.value, chunk_size=100, parallel=False
+        S2SIC.text.value, chunk_size=GENERATION_BATCH_SIZE, parallel=False
     ):
         batch_generated_data = generate_on_batch(
             text_chunk, model, tokenizer, max_input_tokens, generation_config

@@ -1,18 +1,26 @@
 from dataclasses import dataclass
 from typing import List, Set, Tuple
 from unittest import mock
+from unittest.mock import MagicMock
 
 import numpy as np
+import pyarrow as pa
 import pytest
 import torch
 
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.model_logger.seq2seq import Seq2SeqModelLogger
-from dataquality.schemas.seq2seq import TOP_K, LogprobData
+from dataquality.schemas.seq2seq import (
+    TOP_K,
+    AlignedTokenData,
+    LogprobData,
+    ModelGeneration,
+)
 from dataquality.utils.seq2seq import (
     remove_padding,
 )
 from dataquality.utils.seq2seq.generation import (
+    generate_on_batch,
     generate_sample_output,
 )
 from dataquality.utils.seq2seq.logprobs import (
@@ -22,6 +30,92 @@ from dataquality.utils.seq2seq.logprobs import (
 from dataquality.utils.seq2seq.offsets import (
     rollup_offset_mapping,
 )
+
+
+@mock.patch("dataquality.utils.seq2seq.generation.align_tokens_to_character_spans")
+@mock.patch("dataquality.utils.seq2seq.generation.generate_sample_output")
+def test_generate_on_batch(
+    mock_generate_sample_output: mock.Mock,
+    mock_align_tokens_to_character_spans: mock.Mock,
+) -> None:
+    """Test generating over a batch of text Inputs
+
+    In general, we have individually tested the functions used within
+    `generate_on_batch`. So, here we are mainly testing the combined
+    functionality of all of these.
+
+    Things to Test:
+        - Test that we are properly combining the per-sample info
+        - Test the creation of the BatchGenerationData object
+
+    Things to Mock:
+        - generate_sample_output: This can be fairly simple. The
+        one thing that we want to vary would be the length of things returned
+        - tokenizer: decode can be quite simple + encode + max_input_tokens
+        - model + generation_config: just to have as input params
+        - align_tokens_to_character_spans: This is already tested so let's just
+        mock the output!
+    """
+
+    # Mock the tokenizer
+    mock_tokenizer = MagicMock()
+    mock_tokenizer.decode.return_value = "Fake output"
+    mock_tokenizer.return_value = {"offset_mapping": []}
+    mock_max_input_tokens = 512
+
+    # Mock the model
+    mock_model = MagicMock()  # Don't actually need any functions for this
+
+    # Mock generation_config
+    mock_generation_config = MagicMock()
+
+    # Mock the generation process
+    def mock_generate_output() -> ModelGeneration:
+        """Create simple dummy ModelGeneration"""
+        # Generate fake outputs
+        num_fake_tokens = np.random.randint(3, 10)
+        gen_ids = np.arange(num_fake_tokens)
+        gen_token_logprobs = np.zeros(num_fake_tokens) - 1
+        gen_top_logprobs = [[("A", -1), ("B", -2)] for _ in range(num_fake_tokens)]
+        gen_logprob_data = LogprobData(
+            token_logprobs=gen_token_logprobs, top_logprobs=gen_top_logprobs
+        )
+        return ModelGeneration(gen_ids, gen_logprob_data)
+
+    mock_generate_sample_output.return_value = mock_generate_output()
+
+    # Mock aligned output for a single sample
+    fake_token_label_offsets = [[(0, 1), (1, 20), (20, 21), (21, 22), (22, 23)]]
+    fake_token_label_positions = [[{0, 1}, {1}, {0}, {2, 3}, {3}]]
+    mock_align_tokens_to_character_spans.return_value = AlignedTokenData(
+        token_label_offsets=fake_token_label_offsets,
+        token_label_positions=fake_token_label_positions,
+    )
+
+    # Create fake df with vaex
+    texts = pa.array(["Fake Input"] * 100)
+
+    generated_data = generate_on_batch(
+        texts, mock_model, mock_tokenizer, mock_max_input_tokens, mock_generation_config
+    )
+
+    # Make sure everything is in check!
+    assert len(generated_data.generated_outputs) == 100
+    assert generated_data.generated_outputs == ["Fake output"] * 100
+    assert (
+        generated_data.generated_token_label_positions
+        == fake_token_label_positions * 100
+    )
+    assert (
+        generated_data.generated_token_label_offsets == fake_token_label_offsets * 100
+    )
+    for logprobs, top_logprobs in zip(
+        generated_data.generated_token_logprobs, generated_data.generated_top_logprobs
+    ):
+        num_tokens = len(logprobs)
+        assert num_tokens == len(top_logprobs)
+        assert np.array_equal(logprobs, np.zeros(num_tokens) - 1)
+        assert top_logprobs == [[("A", -1), ("B", -2)] for _ in range(num_tokens)]
 
 
 @mock.patch("dataquality.utils.seq2seq.generation.process_sample_logprobs")
