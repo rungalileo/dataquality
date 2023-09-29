@@ -126,15 +126,19 @@ class BatchGenerationData:
         Token label positions for each sample
     generated_token_logprobs: np.ndarray of shape - [seq_len]
         Token label logprobs for each sample
-    top_logprobs: List[List[List[Tuple[str, float]]]]
+    generated_top_logprobs: List[List[List[Tuple[str, float]]]]
         top_logprobs for each sample
     """
 
     generated_outputs: List[str] = field(default_factory=list)
     generated_token_label_positions: List[List[Set[int]]] = field(default_factory=list)
-    generated_token_label_offsets: List[List[Tuple[int, int]]] = field(default_factory=list)
+    generated_token_label_offsets: List[List[Tuple[int, int]]] = field(
+        default_factory=list
+    )
     generated_token_logprobs: List[np.ndarray] = field(default_factory=list)
-    generated_top_logprobs: List[List[List[Tuple[str, float]]]] = field(default_factory=list)
+    generated_top_logprobs: List[List[List[Tuple[str, float]]]] = field(
+        default_factory=list
+    )
 
     def extend_from(self, batch_data: "BatchGenerationData") -> None:
         """Extend generation data from a new Batch
