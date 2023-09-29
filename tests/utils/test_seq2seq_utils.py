@@ -140,7 +140,7 @@ def test_generate_sample_output(
     """
     # Mock the tokenizer
     mock_tokenizer = mock.MagicMock()
-    mock_tokenizer.return_value = {"input_ids": torch.tensor([[1, 2, 3, 0]])}
+    mock_tokenizer.return_value = {"input_ids": torch.tensor([[0, 2, 3, 1]])}
 
     # Mock the model
     mock_model = mock.MagicMock()
