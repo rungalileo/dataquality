@@ -60,7 +60,7 @@ def test_generate_sample_output(
         logits: torch.tensor
 
     # Mock model output and model device
-    mock_model.return_value = FakeOutput(torch.rand((1, 3, 20)))
+    mock_model.return_value = mock.MagicMock(logits=torch.rand((1, 3, 20)))
     mock_model.device = torch.device("cpu")
 
     # Mock generation_config
@@ -130,7 +130,7 @@ def test_generate_sample_output_empty_sample(mock_get_top_logprob_indices: mock.
         logits: torch.tensor
 
     # Mock model output and model device - shape (bs=1, seq_len=1, 20)
-    mock_model.return_value = FakeOutput(torch.rand((1, 1, 20)))
+    mock_model.return_value = mock.MagicMock(logits=torch.rand((1, 1, 20)))
     mock_model.device = torch.device("cpu")
 
     # Mock generation_config
