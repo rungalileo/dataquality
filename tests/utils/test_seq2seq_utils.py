@@ -104,9 +104,7 @@ def test_generate_sample_output(
 
 
 @mock.patch("dataquality.utils.seq2seq.generation.get_top_logprob_indices")
-def test_generate_sample_output_empty_sample(
-    mock_get_top_logprob_indices: mock.Mock
-):
+def test_generate_sample_output_empty_sample(mock_get_top_logprob_indices: mock.Mock):
     # Mock the tokenizer
     mock_tokenizer = mock.MagicMock()
     mock_tokenizer.return_value = {"input_ids": torch.tensor([[1, 2, 3, 0]])}
