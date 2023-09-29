@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import List, Set, Tuple
 
@@ -130,22 +130,11 @@ class BatchGenerationData:
         top_logprobs for each sample
     """
 
-    generated_outputs: List[str]
-    generated_token_label_positions: List[List[Set[int]]]
-    generated_token_label_offsets: List[List[Tuple[int, int]]]
-    generated_token_logprobs: List[np.ndarray]
-    generated_top_logprobs: List[List[List[Tuple[str, float]]]]
-
-    @classmethod
-    def empty_init(cls) -> "BatchGenerationData":
-        """Initialize a BatchGenerationData object with no sample data"""
-        return cls(
-            generated_outputs=[],
-            generated_token_label_positions=[],
-            generated_token_label_offsets=[],
-            generated_token_logprobs=[],
-            generated_top_logprobs=[],
-        )
+    generated_outputs: List[str] = field(default_factory=list)
+    generated_token_label_positions: List[List[Set[int]]] = field(default_factory=list)
+    generated_token_label_offsets: List[List[Tuple[int, int]]] = field(default_factory=list)
+    generated_token_logprobs: List[np.ndarray] = field(default_factory=list)
+    generated_top_logprobs: List[List[List[Tuple[str, float]]]] = field(default_factory=list)
 
     def extend_from(self, batch_data: "BatchGenerationData") -> None:
         """Extend generation data from a new Batch

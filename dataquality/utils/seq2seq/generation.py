@@ -208,7 +208,7 @@ def add_generated_output_to_df(
         Updated Dataframe with the generated columns added (see above)
     """
     model.eval()
-    generated_data = BatchGenerationData.empty_init()
+    generated_data = BatchGenerationData()
 
     for _, _, text_chunk in df.evaluate_iterator(
         S2SIC.text.value, chunk_size=GENERATION_BATCH_SIZE, parallel=False
