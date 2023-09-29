@@ -1,11 +1,13 @@
 from collections import defaultdict
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
+import numpy as np
+import pyarrow as pa
 from tqdm.auto import tqdm
+from transformers import PreTrainedTokenizerFast
+from vaex import DataFrame, register_function
 
-from dataquality.schemas.seq2seq import (
-    AlignedTokenData,
-)
+from dataquality.schemas.seq2seq import AlignedTokenData
 
 
 def _handle_overlapping_offsets(
@@ -182,3 +184,59 @@ def align_tokens_to_character_spans(
     return AlignedTokenData(
         token_label_offsets=all_offsets, token_label_positions=all_token_positions
     )
+
+
+def get_cutoff_from_truncated_tokenization(
+    df: DataFrame,
+    col_name: str,
+    tokenizer: PreTrainedTokenizerFast,
+    max_n_tokens: Optional[int],
+) -> np.ndarray:
+    """
+    Find the cutoff point in string coresponding to the last token.
+
+    We tokenize the text and truncate after max_n_tokens tokens, i.e., we only keep the
+    first max_n_tokens tokens. To find the position in the text corresponding to the
+    last token we use the offset_mapping returned by the tokenizer.
+    """
+
+    @register_function()
+    def _get_position_of_last_offset_input(texts: pa.array) -> np.ndarray:
+        """Tokenize the texts and find the position of the last offset."""
+        offset_mapping = tokenizer(
+            texts.to_pylist(),
+            truncation=True,
+            max_length=max_n_tokens,
+            return_offsets_mapping=True,
+        )["offset_mapping"]
+        # At least for the T5 tokenizer, the offset_mapping contains an extra offset
+        # (0,0) that is added at the end of the list (even when input = "").
+        # We skip it and take the previous to last element with offsets[-2].
+        input_cut_off = np.array(
+            [offsets[-2][-1] if len(offsets) >= 2 else 0 for offsets in offset_mapping],
+            dtype="int32",
+        )
+        return input_cut_off
+
+    return df.func._get_position_of_last_offset_input(df[col_name])
+
+
+def get_cutoff_from_saved_offsets(df: DataFrame, col_name: str) -> np.ndarray:
+    """
+    Look at the last offset of the tokenized target to find the position of the last
+    character of the target string that was used by the model.
+    Note that typically the model does not use the entire target during teacher forcing
+    and there is a cut-off point (for example 128 tokens, or 512 tokens, etc).
+    """
+
+    @register_function()
+    def _get_position_of_last_offset_target(offsets: pa.array) -> np.ndarray:
+        return np.array(
+            [
+                offsets_row[-1][-1].as_py() if len(offsets_row) > 0 else 0
+                for offsets_row in offsets
+            ],
+            dtype="int32",
+        )
+
+    return df.func._get_position_of_last_offset_target(df[col_name])
