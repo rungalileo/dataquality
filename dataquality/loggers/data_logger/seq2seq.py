@@ -216,8 +216,8 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         """Formats the input data and model output data
         For Seq2Seq we need to
         - add the generated output to the input dataframe
-        - calculate the text cutoffs for the input dataframe (input/output)
-        and then only call the super method to create the input and output dataframes
+        - calculate the text cutoffs for the input dataframe
+        - call the super method to create the dataframe
         """
         # Note that we sometimes tokenize the input twice in the below methods, once for
         # finding the cutoff point of the input string used during training, and once
@@ -297,11 +297,13 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
     @classmethod
     def calculate_cutoffs(cls, df: DataFrame) -> DataFrame:
         """
-        Calculate the portion of the input/output strings that were used by the model.
-        The input/output are typically truncated and the model will use the first
-        segment, for example from the beginning until we reach 512 tokens.
-        This function adds two columns in vaex indicating the position of the last
-        character in the input/output strings that were used (i.e., truncation point.
+        Calculate the cutoff index of the input and target strings that were used by
+        the model. The input/target are typically truncated and the model will only look
+        at the first n characters, for example from the beginning until we reach 512
+        tokens.
+        This function adds two columns to the dataframe:
+          - 'input_cutoff': the position of the last character in the input
+          - 'target_cutoff': the position of the last character in the target
         """
         tokenizer = cls.logger_config.tokenizer
         if tokenizer is None:
@@ -314,9 +316,11 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             df, C.text, tokenizer, max_input_length
         )
 
-        df[C.target_cutoff.value] = get_cutoff_from_saved_offsets(
-            df, C.token_label_offsets
-        )
+        target_offsets_colname = C.token_label_offsets
+        if target_offsets_colname in df.get_column_names():
+            df[C.target_cutoff.value] = get_cutoff_from_saved_offsets(
+                df, target_offsets_colname
+            )
 
         return df
 
