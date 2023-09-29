@@ -17,9 +17,7 @@ from dataquality.loggers.logger_config.seq2seq import seq2seq_logger_config
 from dataquality.loggers.model_logger.seq2seq import Seq2SeqModelLogger
 from dataquality.schemas.seq2seq import (
     TOP_K,
-    AlignedTokenData,
-    LogprobData,
-    ModelGeneration, BatchGenerationData,
+    BatchGenerationData,
 )
 from dataquality.schemas.seq2seq import Seq2SeqOutputCols as C
 from dataquality.schemas.split import Split
@@ -226,7 +224,9 @@ def test_add_generated_output_to_df(
 
     num_tokens = 2
     mock_token_logprobs = [[-0.5, -0.1]] * batch_size
-    mock_top_logprobs = [[[("A", -1), ("B", -2)] for _ in range(num_tokens)]] * batch_size
+    mock_top_logprobs = [
+        [[("A", -1), ("B", -2)] for _ in range(num_tokens)]
+    ] * batch_size
 
     mock_generate_on_batch.return_value = BatchGenerationData(
         generated_outputs=mock_generated_outputs,
@@ -241,10 +241,10 @@ def test_add_generated_output_to_df(
     df_size = batch_size * num_batches
     df = vaex.from_dict({"text": ["Fake Input"] * df_size})
 
-    with patch("dataquality.utils.seq2seq.generation.GENERATION_BATCH_SIZE", batch_size):
-        df = add_generated_output_to_df(
-            df, Mock(), Mock(), 512, Mock()
-        )
+    with patch(
+        "dataquality.utils.seq2seq.generation.GENERATION_BATCH_SIZE", batch_size
+    ):
+        df = add_generated_output_to_df(df, Mock(), Mock(), 512, Mock())
 
     # Check the df columns!
     assert len(df) == df_size
