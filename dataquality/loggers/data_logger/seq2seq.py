@@ -24,6 +24,8 @@ from dataquality.utils.seq2seq.generation import (
 )
 from dataquality.utils.seq2seq.offsets import (
     align_tokens_to_character_spans,
+    get_cutoff_from_saved_offsets,
+    get_cutoff_from_truncated_tokenization,
 )
 from dataquality.utils.vaex import rename_df
 
@@ -212,10 +214,18 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         epoch_or_inf: Union[str, int],
     ) -> BaseLoggerDataFrames:
         """Formats the input data and model output data
-        For Seq2Seq we need to add the generated output to the input dataframe,
-        and then call the super method to create the input and output dataframes
+        For Seq2Seq we need to
+        - add the generated output to the input dataframe
+        - calculate the text cutoffs for the input dataframe
+        - call the super method to create the dataframe
         """
+        # Note that we sometimes tokenize the input twice in the below methods, once for
+        # finding the cutoff point of the input string used during training, and once
+        # for generating
+        # TODO: see if it's worth only tokenizing it once and storing it (can be large)
         in_frame = cls.add_generated_output_to_df(in_frame, split)
+        in_frame = cls.calculate_cutoffs(in_frame)
+
         return super().create_in_out_frames(
             in_frame, dir_name, prob_only, split, epoch_or_inf
         )
@@ -283,6 +293,36 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         emb = df_copy[emb_cols]
         data_df = C.set_cols(df_copy[other_cols])
         return BaseLoggerDataFrames(prob=prob, emb=emb, data=data_df)
+
+    @classmethod
+    def calculate_cutoffs(cls, df: DataFrame) -> DataFrame:
+        """
+        Calculate the cutoff index of the input and target strings that were used by
+        the model. The input/target are typically truncated and the model will only look
+        at the first n characters, for example from the beginning until we reach 512
+        tokens.
+        This function adds two columns to the dataframe:
+          - 'input_cutoff': the position of the last character in the input
+          - 'target_cutoff': the position of the last character in the target
+        """
+        tokenizer = cls.logger_config.tokenizer
+        if tokenizer is None:
+            raise GalileoException(
+                "You must set your tokenizer before calling dq.finish. Use "
+                "`dataquality.integrations.seq2seq.hf.watch`"
+            )
+        max_input_length = cls.logger_config.max_input_tokens
+        df[C.input_cutoff.value] = get_cutoff_from_truncated_tokenization(
+            df, C.text, tokenizer, max_input_length
+        )
+
+        target_offsets_colname = C.token_label_offsets
+        if target_offsets_colname in df.get_column_names():
+            df[C.target_cutoff.value] = get_cutoff_from_saved_offsets(
+                df, target_offsets_colname
+            )
+
+        return df
 
     @property
     def support_embs(self) -> bool:
