@@ -60,7 +60,7 @@ def test_generate_sample_output(
         logits: torch.tensor
 
     # Mock model output and model device
-    mock_model.return_value = FakeOutput(torch.rand((1, 3, 20)))
+    mock_model.return_value = mock.MagicMock(logits=torch.rand((1, 3, 20)))
     mock_model.device = torch.device("cpu")
 
     # Mock generation_config
@@ -97,6 +97,55 @@ def test_generate_sample_output(
         model_generation.generated_logprob_data.token_logprobs, fake_token_logprobs
     )
     assert model_generation.generated_logprob_data.top_logprobs == fake_top_logprob_data
+
+
+@mock.patch("dataquality.utils.seq2seq.generation.get_top_logprob_indices")
+def test_generate_sample_output_empty_sample(mock_get_top_logprob_indices: mock.Mock):
+    """Test that we properly handle genearted sequences of length 1 - just [EOS]
+
+    One tricky edge case if if the model immediately generates the EOS token. This is
+    essentially equivalent to the model generating the empty string. Here we test
+    to make sure nothing fails!
+
+    Things to Mock:
+        - Tokenizer `encode` and `decode`
+        - model `generate`, `forward`, and `device`
+        - generation_config
+        - mock_get_top_logprob_indices
+    """
+    # Mock the tokenizer
+    mock_tokenizer = mock.MagicMock()
+    mock_tokenizer.return_value = {"input_ids": torch.tensor([[1, 2, 3, 0]])}
+    mock_tokenizer.decode.return_value = "Fake"
+
+    # Mock the model
+    mock_model = mock.MagicMock()
+    # Add a fake <pad> token to the generated ids
+    mock_model.generate.return_value = torch.tensor([[0, 1]])
+
+    # Mock the model forward function to return random logits
+    # for a single batch element
+    @dataclass
+    class FakeOutput:
+        logits: torch.tensor
+
+    # Mock model output and model device - shape (bs=1, seq_len=1, 20)
+    mock_model.return_value = mock.MagicMock(logits=torch.rand((1, 1, 20)))
+    mock_model.device = torch.device("cpu")
+
+    # Mock generation_config
+    mock_generation_config = mock.MagicMock()
+
+    # Mock top_k indices - shape (seq_len=1, 5)
+    mock_get_top_logprob_indices.return_value = np.array([[1, 2, 3, 4, 5]])
+
+    with mock.patch("torch.no_grad"):
+        model_generation = generate_sample_output(
+            "test str", mock_model, mock_tokenizer, 512, mock_generation_config
+        )
+
+    assert model_generation.generated_ids == np.array([1])
+    assert len(model_generation.generated_logprob_data.token_logprobs) == 1
 
 
 def test_model_logger_remove_padding() -> None:
@@ -201,6 +250,31 @@ def test_process_sample_logprobs():
     for i, token_top_logprobs in enumerate(top_loprobs):
         pred_top_logprobs = [token[1] for token in token_top_logprobs]
         assert np.allclose(pred_top_logprobs, fake_logprobs[i, :TOP_K])
+
+
+def test_process_sample_logprobs_seq_len_one():
+    """Test process_sample_logprobs on a sequence of length one"""
+    mock_tokenizer = mock.MagicMock()
+    mock_tokenizer.decode.return_value = "Fake"
+
+    seq_len = 1
+    vocab_size = 100
+
+    fake_logprobs = np.random.rand(seq_len, vocab_size)
+    fake_labels = np.arange(seq_len)
+    fake_top_indices = np.tile(np.arange(TOP_K), (seq_len, 1))
+
+    logprob_data = process_sample_logprobs(
+        fake_logprobs, fake_labels, fake_top_indices, mock_tokenizer
+    )
+
+    # Check that the token_logprobs are correct
+    assert logprob_data.token_logprobs.shape == (1,)
+
+    # Check that the top_logprobs are correct
+    top_loprobs = logprob_data.top_logprobs
+    assert len(top_loprobs) == seq_len
+    assert len(top_loprobs[0]) == TOP_K
 
 
 def test_process_sample_logprobs_incorrect_shape():

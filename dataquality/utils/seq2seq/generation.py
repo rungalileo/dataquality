@@ -79,9 +79,9 @@ def generate_sample_output(
     logits = model_outputs.logits
     logprobs = torch.nn.functional.log_softmax(logits, dim=-1).cpu().numpy()
 
-    # Remove singleton dimensions
-    logprobs = logprobs.squeeze()  # [seq_len, vocab_size]
-    gen_ids = gen_ids.squeeze().cpu().numpy()  # [seq_len]
+    # Remove singleton batch dimension
+    logprobs = logprobs.squeeze(0)  # [seq_len, vocab_size]
+    gen_ids = gen_ids.squeeze(0).cpu().numpy()  # [seq_len]
 
     top_logprobs_indices = get_top_logprob_indices(logprobs)
 
