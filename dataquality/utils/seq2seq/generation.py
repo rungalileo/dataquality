@@ -149,7 +149,9 @@ def generate_on_batch(
         generated_outputs.append(output)
         # Re-tokenize the data to get the token position offsets
         encoded_data = tokenizer([output], return_offsets_mapping=True)
-        aligned_data = align_tokens_to_character_spans(encoded_data["offset_mapping"])
+        aligned_data = align_tokens_to_character_spans(
+            encoded_data["offset_mapping"], disable_tqdm=True
+        )
         # aligned_data assumes batches, so for single samples it returns
         # batched list of length == 1.
         generated_token_label_positions.append(aligned_data.token_label_positions[0])
