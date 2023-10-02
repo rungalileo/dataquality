@@ -385,7 +385,7 @@ class Callback:
         """
         self.split = Split.training
         self.trainer = trainer
-        model = trainer.model or self.model 
+        model = trainer.model or self.model
         self.register_hooks(model.model)
         self.bl = BatchLogger(trainer.preprocess_batch)
         trainer.preprocess_batch = self.bl
@@ -404,7 +404,7 @@ class Callback:
         :param validator: the validator"""
         self.split = Split.validation
         self.validator = validator
-        model = validator.model or self.model 
+        model = validator.model or self.model
         if not self.hooked:
             self.register_hooks(model.model)
             self.bl = BatchLogger(validator.preprocess)
@@ -421,7 +421,7 @@ class Callback:
         :param predictor: the predictor"""
         self.split = Split.inference
         self.predictor = predictor
-        model = predictor.model or self.model 
+        model = predictor.model or self.model
         if not self.hooked:
             self.register_hooks(model.model)
             # Not implemnted self.bl = BatchLogger(lambda x: x)
