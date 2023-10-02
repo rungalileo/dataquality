@@ -2,7 +2,9 @@
 from typing import Any, Callable, Optional, Union
 from transformers.modeling_outputs import TokenClassifierOutput
 
-from torch import Module, Tensor
+from torch import Tensor
+from torch.nn import Module
+
 from dataquality.exceptions import GalileoException
 from dataquality.utils.helpers import map_indices_to_ids
 from dataquality.utils.patcher import PatchManager
