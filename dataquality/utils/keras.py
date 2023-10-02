@@ -8,7 +8,9 @@ from pkg_resources import parse_version
 try:
     from keras.engine import data_adapter  # type: ignore
 except ImportError:
+    from tensorflow.python.distribute import input_lib
     from tensorflow.python.keras.engine import data_adapter  # type: ignore
+
 from tensorflow import keras
 
 from dataquality.exceptions import GalileoException
@@ -267,9 +269,7 @@ class FixDistributedDatasetPatch(Patch):
             self.orgin_fn = data_adapter._is_distributed_dataset
 
     def __call__(self, ds: tf.data.Dataset) -> bool:
-        return isinstance(
-            ds, data_adapter.input_lib.distribute_types.DistributedDatasetInterface
-        )
+        return isinstance(ds, input_lib.distribute_types.DistributedDatasetInterface)
 
     def _patch(self) -> tf.data.Dataset:
         if not self.patch_needed:
