@@ -318,7 +318,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             )
             return
         in_frame_split = vaex.open(f"{in_frame_path}/*.{self.INPUT_DATA_FILE_EXT}")
-        in_frame_split = self.add_cv_smart_features(in_frame_split)
+        in_frame_split = self.add_cv_smart_features(in_frame_split, split)
         in_frame_split = self.convert_large_string(in_frame_split)
         self.upload_split_from_in_frame(
             object_store,
@@ -719,9 +719,10 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                 GalileoWarning,
             )
 
-    def add_cv_smart_features(self, in_frame_split: DataFrame) -> DataFrame:
+    def add_cv_smart_features(self, in_frame_split: DataFrame, split: str) -> DataFrame:
         """
         Add smart features on images (blurriness, contrast, etc) to the dataframe.
         The CV tasks that want to use the smart features have to overwrite this method.
         """
+
         return in_frame_split

@@ -453,7 +453,9 @@ def test_smart_features(
         f"{in_frame_path}/*.{image_classification_logger.INPUT_DATA_FILE_EXT}"
     )
 
-    in_frame_split = image_classification_logger.add_cv_smart_features(in_frame_split)
+    in_frame_split = image_classification_logger.add_cv_smart_features(
+        in_frame_split, "training"
+    )
 
     outlier_cols = {
         "is_near_duplicate",

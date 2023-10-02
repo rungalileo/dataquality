@@ -387,7 +387,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
 
         return dataframes
 
-    def add_cv_smart_features(self, in_frame: DataFrame) -> DataFrame:
+    def add_cv_smart_features(self, in_frame: DataFrame, split: str) -> DataFrame:
         """
         Calculate and add smart features on images (blurriness, contrast, etc) to the
         dataframe.
@@ -397,8 +397,8 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             return in_frame
 
         print(
-            "🔲 Calculating Smart Features (can take a few minutes depending on the "
-            "size of your dataset)"
+            f"🔲 Calculating Smart Features for split {split} (can take a few minutes "
+            "depending on the size of your dataset)"
         )
         images_paths = in_frame[GAL_LOCAL_IMAGES_PATHS].tolist()
         smart_feats_frame = generate_smart_features(images_paths)
