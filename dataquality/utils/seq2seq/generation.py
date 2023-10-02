@@ -213,12 +213,12 @@ def add_generated_output_to_df(
     model.eval()
     generated_data = BatchGenerationData()
 
-    num_batchs = math.ceil(len(df) / GENERATION_BATCH_SIZE)
+    num_batches = math.ceil(len(df) / GENERATION_BATCH_SIZE)
     for _, _, text_chunk in tqdm(
         df.evaluate_iterator(
             S2SIC.text.value, chunk_size=GENERATION_BATCH_SIZE, parallel=False
         ),
-        total=num_batchs,
+        total=num_batches,
         desc="Batched Model Generation",
     ):
         batch_generated_data = generate_on_batch(
