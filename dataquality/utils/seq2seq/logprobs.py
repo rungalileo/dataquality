@@ -142,10 +142,11 @@ def process_sample_logprobs(
         )
     sample_labels = sample_labels[..., None]
 
-    # Extract token_logprobs - shape [len(labels)]
+    # Extract token_logprobs return shape [len(labels), 1]
+    # Squeeze final dimension to get - shape [len(labels)]
     token_logprobs = np.take_along_axis(
         sample_logprobs, sample_labels, axis=-1
-    ).squeeze()
+    ).squeeze(-1)
 
     # Compute top_logprobs
     top_logprobs = extract_top_logprobs(sample_logprobs, sample_top_indices, tokenizer)
