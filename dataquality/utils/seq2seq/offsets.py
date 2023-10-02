@@ -170,13 +170,23 @@ def rollup_offset_mapping(
 
 
 def align_tokens_to_character_spans(
-    samples_offsets: List[List[Tuple[int, int]]]
+    samples_offsets: List[List[Tuple[int, int]]], disable_tqdm: bool = False
 ) -> AlignedTokenData:
-    """Iterates through each samples offsets and creates character-aligned spans"""
+    """Iterates through each samples offsets and creates character-aligned spans
+
+    Parameters:
+    -----------
+    disable_tqdm: bool
+        Flag for disabling tqdm. Used generally when we are calling
+        align_tokens_to_character_spans over small (e.g. 1 sample) batches
+    """
     all_offsets = []
     all_token_positions = []
     for offset_mapping in tqdm(
-        samples_offsets, leave=False, desc="Aligning characters with tokens"
+        samples_offsets,
+        leave=False,
+        desc="Aligning characters with tokens",
+        disable=disable_tqdm,
     ):
         offsets, token_positions = rollup_offset_mapping(offset_mapping)
         all_offsets.append(offsets)
