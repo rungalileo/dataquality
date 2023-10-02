@@ -4,7 +4,7 @@ import sys
 from typing import Dict
 
 from ultralytics import YOLO
-from ultralytics.yolo.utils import get_settings
+from ultralytics.utils import get_settings
 
 import dataquality as dq
 from dataquality.integrations.ultralytics import watch

@@ -5,11 +5,11 @@ from urllib.parse import urljoin
 import torch
 from torchvision.ops.boxes import box_convert
 from ultralytics import YOLO, checks
-from ultralytics.yolo.engine.predictor import BasePredictor
-from ultralytics.yolo.engine.trainer import BaseTrainer
-from ultralytics.yolo.engine.validator import BaseValidator
-from ultralytics.yolo.utils.ops import scale_boxes
-from ultralytics.yolo.utils.tal import dist2bbox, make_anchors
+from ultralytics.engine.predictor import BasePredictor
+from ultralytics.engine.trainer import BaseTrainer
+from ultralytics.engine.validator import BaseValidator
+from ultralytics.utils.ops import scale_boxes
+from ultralytics.utils.tal import dist2bbox, make_anchors
 
 import dataquality as dq
 from dataquality import get_data_logger
@@ -149,6 +149,7 @@ class Callback:
 
     split: Optional[Split]
     file_map: Dict
+    model: YOLO
 
     def __init__(
         self,
@@ -384,7 +385,8 @@ class Callback:
         """
         self.split = Split.training
         self.trainer = trainer
-        self.register_hooks(trainer.model)
+        model = trainer.model or self.model 
+        self.register_hooks(model.model)
         self.bl = BatchLogger(trainer.preprocess_batch)
         trainer.preprocess_batch = self.bl
 
@@ -402,8 +404,9 @@ class Callback:
         :param validator: the validator"""
         self.split = Split.validation
         self.validator = validator
+        model = validator.model or self.model 
         if not self.hooked:
-            self.register_hooks(validator.model.model)
+            self.register_hooks(model.model)
             self.bl = BatchLogger(validator.preprocess)
             validator.preprocess = self.bl
             self.hooked = True
@@ -418,8 +421,9 @@ class Callback:
         :param predictor: the predictor"""
         self.split = Split.inference
         self.predictor = predictor
+        model = predictor.model or self.model 
         if not self.hooked:
-            self.register_hooks(predictor.model.model)
+            self.register_hooks(model.model)
             # Not implemnted self.bl = BatchLogger(lambda x: x)
 
     def on_predict_batch_end(self, predictor: BasePredictor) -> None:
@@ -465,4 +469,5 @@ def watch(
         iou_thresh=iou_thresh,
         conf_thresh=conf_thresh,
     )
+    cb.model = model
     add_callback(model, cb)
