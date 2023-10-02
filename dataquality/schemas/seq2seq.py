@@ -23,6 +23,8 @@ class Seq2SeqInputCols(str, Enum):
     tokenized_label = "tokenized_label"
     token_label_positions = "token_label_positions"
     token_label_offsets = "token_label_offsets"
+    input_cutoff = "input_cutoff"
+    target_cutoff = "target_cutoff"
 
     @classmethod
     def set_cols(cls, df: DataFrame) -> DataFrame:
