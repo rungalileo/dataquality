@@ -130,7 +130,12 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         for sample_id, sample_logprobs, sample_top_indices in zip(
             batch_ids, batch_logprobs, top_logprob_indices
         ):
-            sample_labels = self._retrieve_sample_labels(sample_id)
+            sample_n_tokens = sample_logprobs.shape[0]
+            # Truncating the tokens computed in dq to ensure that there aren't more than
+            # what the model outputed (or we get an indexing error).
+            sample_labels = self._retrieve_sample_labels(
+                sample_id, max_tokens=sample_n_tokens
+            )
             padding_side = self.logger_config.tokenizer.padding_side
             sample_logprobs = remove_padding(
                 sample_labels,
@@ -180,18 +185,18 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
     def _write_dict_to_disk(self, path: str, object_name: str, data: Dict) -> None:
         save_arrow_file(path, object_name, data)
 
-    def _retrieve_sample_labels(self, sample_id: int) -> np.ndarray:
-        """Retrieve the labels array based on the sample id
+    def _retrieve_sample_labels(self, sample_id: int, max_tokens: int) -> np.ndarray:
+        """Retrieve the labels array based on the sample id and truncate at max_tokens
 
         Labels gives the ground truth / target sample ids for
         each token in the sequence:
 
         e.g. for sample_id = 8 --> labels = [0, 10, 16, ...]
         """
-        labels = np.array(
-            self.logger_config.id_to_tokens[self.token_map_key][sample_id]
-        )
-        return labels
+        labels = self.logger_config.id_to_tokens[self.token_map_key][sample_id]
+        if max_tokens is not None:
+            labels = labels[:max_tokens]
+        return np.array(labels)
 
     def convert_logits_to_logprobs(
         self, sample_logits: Union[List[np.ndarray], np.ndarray]
