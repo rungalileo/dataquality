@@ -1,3 +1,5 @@
+import math
+
 import numpy as np
 import pyarrow as pa
 import torch
@@ -12,6 +14,7 @@ from dataquality.schemas.seq2seq import (
 )
 from dataquality.schemas.seq2seq import Seq2SeqInputCols as S2SIC
 from dataquality.schemas.seq2seq import Seq2SeqOutputCols as S2SOC
+from dataquality.utils import tqdm
 from dataquality.utils.seq2seq.logprobs import (
     get_top_logprob_indices,
     process_sample_logprobs,
@@ -212,8 +215,13 @@ def add_generated_output_to_df(
     model.eval()
     generated_data = BatchGenerationData()
 
-    for _, _, text_chunk in df.evaluate_iterator(
-        S2SIC.text.value, chunk_size=GENERATION_BATCH_SIZE, parallel=False
+    num_batches = math.ceil(len(df) / GENERATION_BATCH_SIZE)
+    for _, _, text_chunk in tqdm(
+        df.evaluate_iterator(
+            S2SIC.text.value, chunk_size=GENERATION_BATCH_SIZE, parallel=False
+        ),
+        total=num_batches,
+        desc="Batched Model Generation",
     ):
         batch_generated_data = generate_on_batch(
             text_chunk, model, tokenizer, max_input_tokens, generation_config
