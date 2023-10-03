@@ -29,7 +29,9 @@ checks()
 
 if parse_version(ultralytics.__version__) < parse_version("8.0.190"):
     raise GalileoException(
-        "This version of dqyolo is only compatible with ultralytics==8.0.190"
+        "This version of dqyolo is not compatible with ultralytics below 8.0.190."
+        "Please upgrade ultralytics with `pip install --upgrade ultralytics==8.0.190` "
+        "or higher."
     )
 
 Coordinates = Union[Tuple, List]
