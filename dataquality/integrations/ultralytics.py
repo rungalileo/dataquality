@@ -3,6 +3,8 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from urllib.parse import urljoin
 
 import torch
+import ultralytics
+from pkg_resources import parse_version
 from torchvision.ops.boxes import box_convert
 from ultralytics import YOLO, checks
 from ultralytics.engine.predictor import BasePredictor
@@ -24,6 +26,11 @@ from dataquality.utils.dqyolo import CONF_DEFAULT, IOU_DEFAULT
 from dataquality.utils.ultralytics import non_max_suppression, process_batch_data
 
 checks()
+
+if parse_version(ultralytics.__version__) >= parse_version("8.0.192"):
+    raise GalileoException(
+        "This version of dqyolo is only compatible with ultralytics==8.0.192"
+    )
 
 Coordinates = Union[Tuple, List]
 
@@ -337,6 +344,7 @@ class Callback:
             "Please use dq.log_dataset for text tasks."
         )
         split = data_logger.logger_config.cur_split
+
         assert split
         data_logger.log_dataset(ds, split=split)
 
@@ -397,7 +405,6 @@ class Callback:
         trainer.preprocess_batch = self.bl.old_function
 
     # -- Validator callbacks --
-
     def on_val_batch_start(self, validator: BaseValidator) -> None:
         """Register hooks and preprocess batch function on validation start
 

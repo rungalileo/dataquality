@@ -5,12 +5,7 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import tensorflow as tf
 import vaex
-
-try:
-    from keras.engine import data_adapter  # type: ignore
-except ImportError:
-    from tensorflow.python.keras.engine import data_adapter  # type: ignore
-
+from keras.engine import data_adapter
 from transformers import (
     AutoTokenizer,
     DataCollatorWithPadding,
