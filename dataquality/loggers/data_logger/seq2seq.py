@@ -19,8 +19,13 @@ from dataquality.loggers.logger_config.seq2seq import (
 from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.seq2seq import Seq2SeqInputCols as C
 from dataquality.schemas.split import Split
-from dataquality.utils.seq2seq import (
+from dataquality.utils.seq2seq.generation import (
+    add_generated_output_to_df,
+)
+from dataquality.utils.seq2seq.offsets import (
     align_tokens_to_character_spans,
+    get_cutoff_from_saved_offsets,
+    get_cutoff_from_truncated_tokenization,
 )
 from dataquality.utils.vaex import rename_df
 
@@ -37,7 +42,8 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         `.is_fast` property that returns True if it's a fast tokenizer.
         This class must implement the `encode`, `decode`, and `encode_plus` methods
 
-        You can set your tokenizer via the `dq.set_tokenizer(tok)` function
+        You can set your tokenizer via the `set_tokenizer(tok)` function imported
+        from `dataquality.integrations.seq2seq.hf`
     2. A dataset (pandas/huggingface etc) with input strings and output labels and ids.
         Ex: Billsum dataset, with `text` input and `summary` as the label
         id  text	                        summary
@@ -52,6 +58,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         `dq.log_dataset(ds, text="text", label="summary", id="id")`
 
     Putting it all together:
+        from dataquality.integrations.seq2seq.hf import set_tokenizer
         from datasets import load_dataset
         from transformers import T5TokenizerFast
 
@@ -60,7 +67,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         # Add `id` column to each dataset split as the idx
         ds = ds.map(lambda x,idx : {"id":idx},with_indices=True)
         dq.init("seq2seq")
-        dq.set_tokenizer(tokenizer)
+        set_tokenizer(tokenizer)
         dq.log_dataset(ds["train"], label="summary", split="train")
 
     NOTE: We assume that the tokenizer you provide is the same tokenizer used for
@@ -75,8 +82,6 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
 
     def __init__(self, meta: Optional[MetasType] = None) -> None:
         super().__init__(meta)
-        # Tokens IDs in a given input string
-        self.tokenized_labels: List[List[int]] = []
         # Character offsets for each token (from tokenized_inputs) in the dataset
         self.token_label_offsets: List[List[Tuple[int, int]]] = []
         # Index (or indices) into the token array for every offset
@@ -100,18 +105,22 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             "IDs, text, and labels must be the same length, got "
             f"({id_len} ids, {text_len} text, {label_len} labels)"
         )
-        assert (
-            self.logger_config.tokenizer
-        ), "You must set your tokenizer before logging. Use `dq.set_tokenizer`"
-        encoded_data = self.logger_config.tokenizer(
-            self.labels, return_offsets_mapping=True
+        assert self.logger_config.tokenizer, (
+            "You must set your tokenizer before logging. "
+            "Use `dq.integrations.seq2seq.hf.set_tokenizer`"
         )
-        self.tokenized_labels = encoded_data["input_ids"]
+        encoded_data = self.logger_config.tokenizer(
+            self.labels,
+            return_offsets_mapping=True,
+            max_length=self.logger_config.max_target_tokens,
+            truncation=True,
+        )
+        tokenized_labels = encoded_data["input_ids"]
         aligned_data = align_tokens_to_character_spans(encoded_data["offset_mapping"])
         self.token_label_offsets = aligned_data.token_label_offsets
         self.token_label_positions = aligned_data.token_label_positions
 
-        id_to_tokens = dict(zip(self.ids, self.tokenized_labels))
+        id_to_tokens = dict(zip(self.ids, tokenized_labels))
         self.logger_config.id_to_tokens[self.token_map_key].update(id_to_tokens)
 
     def _get_input_df(self) -> DataFrame:
@@ -196,6 +205,68 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         return ["id"]
 
     @classmethod
+    def create_in_out_frames(
+        cls,
+        in_frame: DataFrame,
+        dir_name: str,
+        prob_only: bool,
+        split: str,
+        epoch_or_inf: Union[str, int],
+    ) -> BaseLoggerDataFrames:
+        """Formats the input data and model output data
+        For Seq2Seq we need to
+        - add the generated output to the input dataframe
+        - calculate the text cutoffs for the input dataframe
+        - call the super method to create the dataframe
+        """
+        # Note that we sometimes tokenize the input twice in the below methods, once for
+        # finding the cutoff point of the input string used during training, and once
+        # for generating
+        # TODO: see if it's worth only tokenizing it once and storing it (can be large)
+        in_frame = cls.add_generated_output_to_df(in_frame, split)
+        in_frame = cls.calculate_cutoffs(in_frame)
+
+        return super().create_in_out_frames(
+            in_frame, dir_name, prob_only, split, epoch_or_inf
+        )
+
+    @classmethod
+    def add_generated_output_to_df(cls, df: DataFrame, split: str) -> DataFrame:
+        """Adds the generated output to the dataframe
+        Adds the generated output to the dataframe, and also adds the
+        `token_label_positions` column
+        """
+        logger_config = cls.logger_config
+        model = logger_config.model
+        tokenizer = logger_config.tokenizer
+        max_input_tokens = logger_config.max_input_tokens
+        generation_config = logger_config.generation_config
+        if model is None:
+            raise GalileoException(
+                "You must set your model before logging. Use "
+                "`dataquality.integrations.seq2seq.hf.watch`"
+            )
+        if tokenizer is None:
+            raise GalileoException(
+                "You must set your tokenizer before logging. Use "
+                "`dataquality.integrations.seq2seq.hf.watch`"
+            )
+        assert isinstance(max_input_tokens, int)
+        if generation_config is None:
+            raise GalileoException(
+                "You must set your generation config before logging. Use "
+                "`dataquality.integrations.seq2seq.hf.watch`"
+            )
+        if split not in logger_config.generation_splits:
+            print("Skipping generation for split", split)
+            return df
+
+        df = add_generated_output_to_df(
+            df, model, tokenizer, max_input_tokens, generation_config
+        )
+        return df
+
+    @classmethod
     def separate_dataframe(
         cls, df: DataFrame, prob_only: bool = True, split: Optional[str] = None
     ) -> BaseLoggerDataFrames:
@@ -222,6 +293,36 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         emb = df_copy[emb_cols]
         data_df = C.set_cols(df_copy[other_cols])
         return BaseLoggerDataFrames(prob=prob, emb=emb, data=data_df)
+
+    @classmethod
+    def calculate_cutoffs(cls, df: DataFrame) -> DataFrame:
+        """
+        Calculate the cutoff index of the input and target strings that were used by
+        the model. The input/target are typically truncated and the model will only look
+        at the first n characters, for example from the beginning until we reach 512
+        tokens.
+        This function adds two columns to the dataframe:
+          - 'input_cutoff': the position of the last character in the input
+          - 'target_cutoff': the position of the last character in the target
+        """
+        tokenizer = cls.logger_config.tokenizer
+        if tokenizer is None:
+            raise GalileoException(
+                "You must set your tokenizer before calling dq.finish. Use "
+                "`dataquality.integrations.seq2seq.hf.watch`"
+            )
+        max_input_length = cls.logger_config.max_input_tokens
+        df[C.input_cutoff.value] = get_cutoff_from_truncated_tokenization(
+            df, C.text, tokenizer, max_input_length
+        )
+
+        target_offsets_colname = C.token_label_offsets
+        if target_offsets_colname in df.get_column_names():
+            df[C.target_cutoff.value] = get_cutoff_from_saved_offsets(
+                df, target_offsets_colname
+            )
+
+        return df
 
     @property
     def support_embs(self) -> bool:
