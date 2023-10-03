@@ -23,7 +23,8 @@ from dataquality.utils.seq2seq.logprobs import (
 
 
 class Seq2SeqModelLogger(BaseGalileoModelLogger):
-    __logger_name__ = "seq2seq"
+    # TODO Question - since this logger is never actually instantiated, should we leave this empty?
+    __logger_name__ = "" # THis should never be instantiated
     logger_config: Seq2SeqLoggerConfig = seq2seq_logger_config
     log_file_ext = "arrow"
 
@@ -60,7 +61,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         return str(self.split)
 
     def validate_and_format(self) -> None:
-        """Validate the lengths, calculate token level dep, extract GT probs"""
+        """Validate data format but leave processing to sub_classes"""
         if self.labels is not None:
             self.labels = self._convert_tensor_ndarray(self.labels)
         self.logits = self._convert_tensor_ndarray(self.logits)
@@ -75,17 +76,6 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         assert (
             self.logger_config.tokenizer is not None
         ), "Must set your tokenizer. Use `dq.integrations.seq2seq.hf.set_tokenizer`"
-
-        # TODO: This is potentially slow. This is what needs to be optimized. Can we
-        #  potentially do this on the GPU with torch? And dont convert to a np array
-        #  [JON] computing softmax on GPU can lead to speedups of around 5x in my
-        #  experience
-        logprobs = self.convert_logits_to_logprobs(self.logits)
-        (
-            self.token_logprobs,
-            self.top_logprobs,
-            self.sample_perplexity,
-        ) = self.process_logprobs(self.ids, logprobs)
 
     def process_logprobs(
         self, batch_ids: np.ndarray, batch_logprobs: np.ndarray

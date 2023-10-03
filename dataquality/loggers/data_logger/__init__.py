@@ -3,6 +3,7 @@ from dataquality.loggers.data_logger import (
     object_detection,
     semantic_segmentation,
     seq2seq,
+    encoder_decoder, # TODO WHAT IS THIS?
     tabular_classification,
     text_classification,
     text_multi_label,
@@ -20,4 +21,5 @@ __all__ = [
     "object_detection",
     "BaseGalileoDataLogger",
     "seq2seq",
+    "encoder_decoder"
 ]

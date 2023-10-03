@@ -1,20 +1,41 @@
-from typing import Optional
+from typing import Optional, Union
 from warnings import warn
 
 from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizerFast
 
-from dataquality.loggers.logger_config.seq2seq import seq2seq_logger_config
+from dataquality.exceptions import GalileoException
+from dataquality.loggers.logger_config.encoder_decoder import encoder_decoder_logger_config, EncoderDecoderLoggerConfig
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.helpers import check_noop
 from dataquality.utils.task_helpers import get_task_type
 
 
+def _get_seg2seg_logger_config(
+    task_type: TaskType
+) -> Union[EncoderDecoderLoggerConfig]:
+    """Get the correct Seq2Seq logger config based on the model architecture (task_type).
+
+    Choices between:
+        1. EncoderDecoder: task_type.decoder_only
+        2. DecoderOnly: task_type.decoder_only
+
+    Raises an exception if the user has set / is using an incorrect task_type
+    """
+    if task_type == task_type.seq2seq:  # TODO Change to encoder_decoder
+        return encoder_decoder_logger_config
+
+    raise GalileoException(
+        "Galileo's seq2seq watch method is only supported for seq2seq"  # TODO Change to encoder_decoder
+    )
+
+
 @check_noop
 def set_tokenizer(
     tokenizer: PreTrainedTokenizerFast,
+    logger_config: Union[EncoderDecoderLoggerConfig],
     max_input_tokens: Optional[int] = None,
-    max_target_tokens: Optional[int] = None,
+    max_target_tokens: Optional[int] = None
 ) -> None:
     """Seq2seq only. Set the tokenizer for your run
 
@@ -32,11 +53,12 @@ def set_tokenizer(
     assert getattr(tokenizer, "is_fast", False), "Tokenizer must be a fast tokenizer"
     for attr in ["encode", "decode", "encode_plus", "padding_side"]:
         assert hasattr(tokenizer, attr), f"Tokenizer must support `{attr}`"
-    seq2seq_logger_config.tokenizer = tokenizer
+    logger_config.tokenizer = tokenizer
 
-    seq2seq_logger_config.max_input_tokens = max_input_tokens
-    if seq2seq_logger_config.max_input_tokens is None:
-        seq2seq_logger_config.max_input_tokens = tokenizer.model_max_length
+    # This is relevant only for Encoder Decoder Models
+    logger_config.max_input_tokens = max_input_tokens
+    if logger_config.max_input_tokens is None:
+        logger_config.max_input_tokens = tokenizer.model_max_length
         warn(
             (
                 "The argument max_input_tokens is not set, we will use the value "
@@ -46,19 +68,26 @@ def set_tokenizer(
             )
         )
 
-    seq2seq_logger_config.max_target_tokens = max_target_tokens
-    if seq2seq_logger_config.max_target_tokens is None:
-        seq2seq_logger_config.max_target_tokens = tokenizer.model_max_length
-        warn(
-            (
-                "The argument max_target_tokens is not set, we will use the value "
-                f"{tokenizer.model_max_length} from tokenizer.model_max_length. If you "
-                "tokenized the target with another value, this can lead to confusing "
-                "insights about this training run."
+    if type(logger_config) == EncoderDecoderLoggerConfig:
+        logger_config.max_target_tokens = max_target_tokens
+        if logger_config.max_target_tokens is None:
+            logger_config.max_target_tokens = tokenizer.model_max_length
+            warn(
+                (
+                    "The argument max_target_tokens is not set, we will use the value "
+                    f"{tokenizer.model_max_length} from tokenizer.model_max_length. If you "
+                    "tokenized the target with another value, this can lead to confusing "
+                    "insights about this training run."
+                )
             )
+    else:
+        warn(
+            "The argument max_target_tokens is only used when working with EncoderDecoder models. "
+            "This value will be ignored."
         )
+
     # Seq2Seq doesn't have labels but we need to set this to avoid validation errors
-    seq2seq_logger_config.labels = []
+    logger_config.labels = []
 
 
 @check_noop
@@ -70,6 +99,7 @@ def watch(
     max_input_tokens: Optional[int] = None,
     max_target_tokens: Optional[int] = None,
 ) -> None:
+    # TODO Update comment
     """Seq2seq only. Log model generations for your run
 
     Iterates over a given dataset and logs the generations for each sample.
@@ -81,19 +111,20 @@ def watch(
     for consistency.
     """
     task_type = get_task_type()
-    assert task_type == TaskType.seq2seq, "This method is only supported for seq2seq"
+    # Get the corresponding logger config - handling error checking
+    logger_config = _get_seg2seg_logger_config(task_type)
     assert isinstance(
         model, PreTrainedModel
     ), "model must be an instance of transformers PreTrainedModel"
     assert model.can_generate(), "model must contain a `generate` method for seq2seq"
 
-    set_tokenizer(tokenizer, max_input_tokens, max_target_tokens)
+    set_tokenizer(tokenizer, logger_config, max_input_tokens, max_target_tokens)
 
-    seq2seq_logger_config.model = model
-    seq2seq_logger_config.generation_config = generation_config
+    logger_config.model = model
+    logger_config.generation_config = generation_config
 
     generation_splits = {Split.validation, Split.test}
     if generate_training_data:
         generation_splits.add(Split.training)
 
-    seq2seq_logger_config.generation_splits = generation_splits
+    logger_config.generation_splits = generation_splits

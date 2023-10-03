@@ -14,7 +14,8 @@ class TaskType(str, Enum):
     object_detection = "object_detection"
     semantic_segmentation = "semantic_segmentation"
     prompt_evaluation = "prompt_evaluation"
-    seq2seq = "seq2seq"
+    seq2seq = "seq2seq"  # TODO Remove
+    # encoder_decoder = "encoder_decoder" # TODO add on API side
     llm_monitor = "llm_monitor"
 
     @staticmethod
@@ -38,6 +39,7 @@ class TaskType(str, Enum):
             5: TaskType.object_detection,
             6: TaskType.semantic_segmentation,
             7: TaskType.prompt_evaluation,
-            8: TaskType.seq2seq,
+            8: TaskType.seq2seq,  # TODO Remove
+            # 8: TaskType.encoder_decoder,  # TODO add on API side
             9: TaskType.llm_monitor,
         }[task_int]

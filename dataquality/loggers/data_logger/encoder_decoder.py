@@ -1,0 +1,118 @@
+from typing import TYPE_CHECKING, Any, List, Optional, Set, Tuple, Union, cast
+
+from vaex.dataframe import DataFrame
+
+from dataquality.exceptions import GalileoException
+from dataquality.loggers.data_logger.base_data_logger import (
+    MetasType,
+)
+from dataquality.loggers.data_logger.seq2seq import Seq2SeqDataLogger
+from dataquality.loggers.logger_config.encoder_decoder import EncoderDecoderLoggerConfig, encoder_decoder_logger_config
+from dataquality.schemas.seq2seq import Seq2SeqInputCols as C
+from dataquality.utils.seq2seq.offsets import (
+    align_tokens_to_character_spans,
+    get_cutoff_from_saved_offsets,
+    get_cutoff_from_truncated_tokenization,
+)
+
+
+class EncoderDecoderLogger(Seq2SeqDataLogger):
+    # TODO UPDATE COMMENT!!!
+    """Logging input data for Seq2Seq fine-tuning tasks
+
+    Logging input data for Seq2Seq requires 2 pieces of information:
+    1. tokenizer: This must be an instance of PreTrainedTokenizerFast from huggingface
+        (ie T5TokenizerFast or GPT2TokenizerFast, etc). Your tokenizer should have an
+        `.is_fast` property that returns True if it's a fast tokenizer.
+        This class must implement the `encode`, `decode`, and `encode_plus` methods
+
+        You can set your tokenizer via the `set_tokenizer(tok)` function imported
+        from `dataquality.integrations.seq2seq.hf`
+    2. A dataset (pandas/huggingface etc) with input strings and output labels and ids.
+        Ex: Billsum dataset, with `text` input and `summary` as the label
+        id  text	                        summary
+        0	SECTION 1. LIABILITY ...	    Shields a business entity ...
+        1	SECTION 1. SHORT TITLE.\n\n ...	Human Rights Information Act ...
+        2	SECTION 1. SHORT TITLE.\n\n ...	Jackie Robinson Commemorative Coin ...
+        3	SECTION 1. NONRECOGNITION ...	Amends the Internal Revenue Code to ...
+        4	SECTION 1. SHORT TITLE.\n\n ...	Native American Energy Act - (Sec. 3...
+
+        You can log your dataset via the `dq.log_dataset` function, passing in the
+        column mapping as necessary for `text`, `label`, and `id`
+        `dq.log_dataset(ds, text="text", label="summary", id="id")`
+
+    Putting it all together:
+        from dataquality.integrations.seq2seq.hf import set_tokenizer
+        from datasets import load_dataset
+        from transformers import T5TokenizerFast
+
+        tokenizer = T5TokenizerFast.from_pretrained("t5-small")
+        ds = load_dataset("billsum")
+        # Add `id` column to each dataset split as the idx
+        ds = ds.map(lambda x,idx : {"id":idx},with_indices=True)
+        dq.init("seq2seq")
+        set_tokenizer(tokenizer)
+        dq.log_dataset(ds["train"], label="summary", split="train")
+
+    NOTE: We assume that the tokenizer you provide is the same tokenizer used for
+    training. This must be true in order to align inputs and outputs correctly. Ensure
+    all necessary properties (like `add_eos_token`) are set before setting your
+    tokenizer so as to match the tokenization process to your training process.
+    """
+
+    # TODO Change to encoder_decoder after updating API
+    __logger_name__ = "seq2seq"
+    logger_config: EncoderDecoderLoggerConfig = encoder_decoder_logger_config
+    DATA_FOLDER_EXTENSION = {"emb": "hdf5", "prob": "hdf5", "data": "arrow"}
+
+    def __init__(self, meta: Optional[MetasType] = None) -> None:
+        super().__init__(meta)
+
+    def validate_and_format(self) -> None:
+        # TODO Add comment
+        super().validate_and_format()
+        encoded_data = self.logger_config.tokenizer(
+            self.labels,
+            return_offsets_mapping=True,
+            max_length=self.logger_config.max_target_tokens,
+            truncation=True,
+        )
+        tokenized_labels = encoded_data["input_ids"]
+        aligned_data = align_tokens_to_character_spans(encoded_data["offset_mapping"])
+        self.token_label_offsets = aligned_data.token_label_offsets
+        self.token_label_positions = aligned_data.token_label_positions
+
+        id_to_tokens = dict(zip(self.ids, tokenized_labels))
+        self.logger_config.id_to_tokens[self.token_map_key].update(id_to_tokens)
+
+    @classmethod
+    def calculate_cutoffs(cls, df: DataFrame) -> DataFrame:
+        # TODO Update comment
+        """
+        Calculate the cutoff index of the input and target strings that were used by
+        the model. The input/target are typically truncated and the model will only look
+        at the first n characters, for example from the beginning until we reach 512
+        tokens.
+        This function adds two columns to the dataframe:
+          - 'input_cutoff': the position of the last character in the input
+          - 'target_cutoff': the position of the last character in the target
+        """
+        tokenizer = cls.logger_config.tokenizer
+        if tokenizer is None:
+            raise GalileoException(
+                "You must set your tokenizer before calling dq.finish. Use "
+                "`dataquality.integrations.seq2seq.hf.watch`"
+            )
+        max_input_length = cls.logger_config.max_input_tokens
+        df[C.input_cutoff.value] = get_cutoff_from_truncated_tokenization(
+            df, C.text, tokenizer, max_input_length
+        )
+
+        target_offsets_colname = C.token_label_offsets
+        if target_offsets_colname in df.get_column_names():
+            df[C.target_cutoff.value] = get_cutoff_from_saved_offsets(
+                df, target_offsets_colname
+            )
+
+        return df
+

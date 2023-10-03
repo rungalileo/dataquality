@@ -1,6 +1,7 @@
 from dataquality.loggers.model_logger import (
     image_classification,
     seq2seq,
+    encoder_decoder,
     tabular_classification,
     text_classification,
     text_multi_label,
@@ -16,4 +17,5 @@ __all__ = [
     "text_ner",
     "BaseGalileoModelLogger",
     "seq2seq",
+    "encoder_decoder"
 ]

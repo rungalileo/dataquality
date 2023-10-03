@@ -1,3 +1,4 @@
+from abc import abstractmethod
 from typing import TYPE_CHECKING, Any, List, Optional, Set, Tuple, Union, cast
 
 import pandas as pd
@@ -34,6 +35,7 @@ if TYPE_CHECKING:
 
 
 class Seq2SeqDataLogger(BaseGalileoDataLogger):
+    # TODO update comment
     """Logging input data for Seq2Seq fine-tuning tasks
 
     Logging input data for Seq2Seq requires 2 pieces of information:
@@ -75,8 +77,8 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
     all necessary properties (like `add_eos_token`) are set before setting your
     tokenizer so as to match the tokenization process to your training process.
     """
-
-    __logger_name__ = "seq2seq"
+    # TODO Question - since this logger is never actually instantiated, should we leave this empty?
+    __logger_name__ = ""
     logger_config: Seq2SeqLoggerConfig = seq2seq_logger_config
     DATA_FOLDER_EXTENSION = {"emb": "hdf5", "prob": "hdf5", "data": "arrow"}
 
@@ -97,6 +99,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         return str(self.split)
 
     def validate_and_format(self) -> None:
+        # TODO WRITE COMMENT
         super().validate_and_format()
         label_len = len(self.labels)
         text_len = len(self.texts)
@@ -109,19 +112,6 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             "You must set your tokenizer before logging. "
             "Use `dq.integrations.seq2seq.hf.set_tokenizer`"
         )
-        encoded_data = self.logger_config.tokenizer(
-            self.labels,
-            return_offsets_mapping=True,
-            max_length=self.logger_config.max_target_tokens,
-            truncation=True,
-        )
-        tokenized_labels = encoded_data["input_ids"]
-        aligned_data = align_tokens_to_character_spans(encoded_data["offset_mapping"])
-        self.token_label_offsets = aligned_data.token_label_offsets
-        self.token_label_positions = aligned_data.token_label_positions
-
-        id_to_tokens = dict(zip(self.ids, tokenized_labels))
-        self.logger_config.id_to_tokens[self.token_map_key].update(id_to_tokens)
 
     def _get_input_df(self) -> DataFrame:
         return vaex.from_dict(
@@ -231,7 +221,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         )
 
     @classmethod
-    def add_generated_output_to_df(cls, df: DataFrame, split: str) -> DataFrame:
+    def add_generated_output_to_df(cls, df: DataFrame, split: str) -> Optional[DataFrame]:
         """Adds the generated output to the dataframe
         Adds the generated output to the dataframe, and also adds the
         `token_label_positions` column
@@ -295,7 +285,9 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         return BaseLoggerDataFrames(prob=prob, emb=emb, data=data_df)
 
     @classmethod
+    @abstractmethod
     def calculate_cutoffs(cls, df: DataFrame) -> DataFrame:
+        # TODO Update comment
         """
         Calculate the cutoff index of the input and target strings that were used by
         the model. The input/target are typically truncated and the model will only look
@@ -305,24 +297,6 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
           - 'input_cutoff': the position of the last character in the input
           - 'target_cutoff': the position of the last character in the target
         """
-        tokenizer = cls.logger_config.tokenizer
-        if tokenizer is None:
-            raise GalileoException(
-                "You must set your tokenizer before calling dq.finish. Use "
-                "`dataquality.integrations.seq2seq.hf.watch`"
-            )
-        max_input_length = cls.logger_config.max_input_tokens
-        df[C.input_cutoff.value] = get_cutoff_from_truncated_tokenization(
-            df, C.text, tokenizer, max_input_length
-        )
-
-        target_offsets_colname = C.token_label_offsets
-        if target_offsets_colname in df.get_column_names():
-            df[C.target_cutoff.value] = get_cutoff_from_saved_offsets(
-                df, target_offsets_colname
-            )
-
-        return df
 
     @property
     def support_embs(self) -> bool:
