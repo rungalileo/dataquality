@@ -27,9 +27,9 @@ from dataquality.utils.ultralytics import non_max_suppression, process_batch_dat
 
 checks()
 
-if parse_version(ultralytics.__version__) >= parse_version("8.0.190"):
+if parse_version(ultralytics.__version__) < parse_version("8.0.190"):
     raise GalileoException(
-        "This version of dqyolo is only compatible with ultralytics==8.0.192"
+        "This version of dqyolo is only compatible with ultralytics==8.0.190"
     )
 
 Coordinates = Union[Tuple, List]
