@@ -3,7 +3,11 @@ from functools import partial
 from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 import tensorflow as tf
-from keras.engine import data_adapter
+
+try:
+    from keras.engine import data_adapter  # type: ignore
+except ImportError:
+    from tensorflow.python.keras.engine import data_adapter  # type: ignore
 from tensorflow import keras
 
 from dataquality.exceptions import GalileoException
