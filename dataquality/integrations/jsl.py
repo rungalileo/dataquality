@@ -157,7 +157,7 @@ class JSLProject:
                 )
             except Exception as e:
                 print(e)
-            del df_chunk  # .unpersist()
+            del df_chunk
 
         if finish:
             return dq.finish()
