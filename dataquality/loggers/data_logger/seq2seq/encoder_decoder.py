@@ -1,13 +1,15 @@
-from typing import TYPE_CHECKING, Any, List, Optional, Set, Tuple, Union, cast
+from typing import Optional
 
 from vaex.dataframe import DataFrame
 
-from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger.base_data_logger import (
     MetasType,
 )
-from dataquality.loggers.data_logger.seq2seq import Seq2SeqDataLogger
-from dataquality.loggers.logger_config.encoder_decoder import EncoderDecoderLoggerConfig, encoder_decoder_logger_config
+from dataquality.loggers.data_logger.seq2seq.seq2seq import Seq2SeqDataLogger
+from dataquality.loggers.logger_config.seq2seq.encoder_decoder import (
+    EncoderDecoderLoggerConfig,
+    encoder_decoder_logger_config,
+)
 from dataquality.schemas.seq2seq import Seq2SeqInputCols as C
 from dataquality.utils.seq2seq.offsets import (
     align_tokens_to_character_spans,
@@ -61,7 +63,7 @@ class EncoderDecoderLogger(Seq2SeqDataLogger):
     """
 
     # TODO Change to encoder_decoder after updating API
-    __logger_name__ = "seq2seq"
+    __logger_name__ = "seq2seq"  # encoder_decoder
     logger_config: EncoderDecoderLoggerConfig = encoder_decoder_logger_config
     DATA_FOLDER_EXTENSION = {"emb": "hdf5", "prob": "hdf5", "data": "arrow"}
 
@@ -69,9 +71,22 @@ class EncoderDecoderLogger(Seq2SeqDataLogger):
         super().__init__(meta)
 
     def validate_and_format(self) -> None:
-        # TODO Add comment
+        """Format Encoder-Decoder Data Format
+
+        Tokenize self.labels, using the user's `max_taget_tokens`. From
+        the tokenized outputs generate the corresponding token alignments
+        (i.e. label_offsets and lable_positions).
+
+        Save the tokenized labels for each sample as `id_to_tokens`. This
+        is essential during model logging for extracting GT token label
+        information.
+
+        Note: the parent Seq2SeqDataLogger.validate_and_format() handles
+        common data type validation.
+        """
         super().validate_and_format()
-        encoded_data = self.logger_config.tokenizer(
+        # TODO: question type checking does not work in super()
+        encoded_data = self.logger_config.tokenizer(  # type: ignore
             self.labels,
             return_offsets_mapping=True,
             max_length=self.logger_config.max_target_tokens,
@@ -87,22 +102,27 @@ class EncoderDecoderLogger(Seq2SeqDataLogger):
 
     @classmethod
     def calculate_cutoffs(cls, df: DataFrame) -> DataFrame:
-        # TODO Update comment
+        """Calculate the cutoff index for the input and target strings.
+
+
+        When using Encoder-Decoder models, the input AND target tokens are truncated
+        based on the respective Encoder (input) / Decoder (target) max_lengths
+        OR user specified max_lengths (note: these may be different between the
+        Encoder and Decoder).
+
+        The model only "sees"/processes the tokens that remain after truncation,
+        for example if max_length=512 for the Encoder, no matter how long the Input,
+        the model will only process the first 512 tokens and ignore the rest.
+
+        This function adds two columns to the df:
+          - 'input_cutoff': the position of the last character in the input.
+          - 'target_cutoff': the position of the last character in the target.
         """
-        Calculate the cutoff index of the input and target strings that were used by
-        the model. The input/target are typically truncated and the model will only look
-        at the first n characters, for example from the beginning until we reach 512
-        tokens.
-        This function adds two columns to the dataframe:
-          - 'input_cutoff': the position of the last character in the input
-          - 'target_cutoff': the position of the last character in the target
-        """
+        # Error checking
+        super().calculate_cutoffs(df)
+
+        # TODO we may be able to take advantage of shared code with Decoder
         tokenizer = cls.logger_config.tokenizer
-        if tokenizer is None:
-            raise GalileoException(
-                "You must set your tokenizer before calling dq.finish. Use "
-                "`dataquality.integrations.seq2seq.hf.watch`"
-            )
         max_input_length = cls.logger_config.max_input_tokens
         df[C.input_cutoff.value] = get_cutoff_from_truncated_tokenization(
             df, C.text, tokenizer, max_input_length
@@ -115,4 +135,3 @@ class EncoderDecoderLogger(Seq2SeqDataLogger):
             )
 
         return df
-

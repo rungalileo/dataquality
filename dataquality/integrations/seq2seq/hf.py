@@ -4,17 +4,22 @@ from warnings import warn
 from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizerFast
 
 from dataquality.exceptions import GalileoException
-from dataquality.loggers.logger_config.encoder_decoder import encoder_decoder_logger_config, EncoderDecoderLoggerConfig
+from dataquality.loggers.logger_config.seq2seq.encoder_decoder import (
+    EncoderDecoderLoggerConfig,
+    encoder_decoder_logger_config,
+)
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.helpers import check_noop
 from dataquality.utils.task_helpers import get_task_type
 
 
+# TODO Sync with Elliott on how to differentiate between the
+#  encoder_decoder vs. decoder_only logger_configs in `watch`
 def _get_seg2seg_logger_config(
-    task_type: TaskType
+    task_type: TaskType,
 ) -> Union[EncoderDecoderLoggerConfig]:
-    """Get the correct Seq2Seq logger config based on the model architecture (task_type).
+    """Get the correct Seq2Seq logger_config based on the task_type.
 
     Choices between:
         1. EncoderDecoder: task_type.decoder_only
@@ -25,8 +30,9 @@ def _get_seg2seg_logger_config(
     if task_type == task_type.seq2seq:  # TODO Change to encoder_decoder
         return encoder_decoder_logger_config
 
+    # TODO Change to encoder_decoder
     raise GalileoException(
-        "Galileo's seq2seq watch method is only supported for seq2seq"  # TODO Change to encoder_decoder
+        "Galileo's seq2seq watch method is only supported for seq2seq"
     )
 
 
@@ -35,7 +41,7 @@ def set_tokenizer(
     tokenizer: PreTrainedTokenizerFast,
     logger_config: Union[EncoderDecoderLoggerConfig],
     max_input_tokens: Optional[int] = None,
-    max_target_tokens: Optional[int] = None
+    max_target_tokens: Optional[int] = None,
 ) -> None:
     """Seq2seq only. Set the tokenizer for your run
 
@@ -45,8 +51,6 @@ def set_tokenizer(
     truncated after a certain length, which is set in the args max_input_tokens and
     max_target_tokens.
     """
-    task_type = get_task_type()
-    assert task_type == TaskType.seq2seq, "This method is only supported for seq2seq"
     assert isinstance(
         tokenizer, PreTrainedTokenizerFast
     ), "Tokenizer must be an instance of PreTrainedTokenizerFast"
@@ -75,15 +79,15 @@ def set_tokenizer(
             warn(
                 (
                     "The argument max_target_tokens is not set, we will use the value "
-                    f"{tokenizer.model_max_length} from tokenizer.model_max_length. If you "
-                    "tokenized the target with another value, this can lead to confusing "
-                    "insights about this training run."
+                    f"{tokenizer.model_max_length} from tokenizer.model_max_length. "
+                    f"If you tokenized the target with another value, this can lead "
+                    f"to confusing insights about this training run."
                 )
             )
     else:
         warn(
-            "The argument max_target_tokens is only used when working with EncoderDecoder models. "
-            "This value will be ignored."
+            "The argument max_target_tokens is only used when working with "
+            "EncoderDecoder models. This value will be ignored."
         )
 
     # Seq2Seq doesn't have labels but we need to set this to avoid validation errors

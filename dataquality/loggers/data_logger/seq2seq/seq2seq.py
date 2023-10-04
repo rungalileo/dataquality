@@ -13,7 +13,7 @@ from dataquality.loggers.data_logger.base_data_logger import (
     DataSet,
     MetasType,
 )
-from dataquality.loggers.logger_config.seq2seq import (
+from dataquality.loggers.logger_config.seq2seq.seq2seq import (
     Seq2SeqLoggerConfig,
     seq2seq_logger_config,
 )
@@ -22,11 +22,6 @@ from dataquality.schemas.seq2seq import Seq2SeqInputCols as C
 from dataquality.schemas.split import Split
 from dataquality.utils.seq2seq.generation import (
     add_generated_output_to_df,
-)
-from dataquality.utils.seq2seq.offsets import (
-    align_tokens_to_character_spans,
-    get_cutoff_from_saved_offsets,
-    get_cutoff_from_truncated_tokenization,
 )
 from dataquality.utils.vaex import rename_df
 
@@ -77,8 +72,6 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
     all necessary properties (like `add_eos_token`) are set before setting your
     tokenizer so as to match the tokenization process to your training process.
     """
-    # TODO Question - since this logger is never actually instantiated, should we leave this empty?
-    __logger_name__ = ""
     logger_config: Seq2SeqLoggerConfig = seq2seq_logger_config
     DATA_FOLDER_EXTENSION = {"emb": "hdf5", "prob": "hdf5", "data": "arrow"}
 
@@ -99,7 +92,11 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         return str(self.split)
 
     def validate_and_format(self) -> None:
-        # TODO WRITE COMMENT
+        """Validation backbone for Seq2Seq
+
+        Provides basic validation checking across Seq2Seq tasks.
+        See sub_classes for formatting and further validation.
+        """
         super().validate_and_format()
         label_len = len(self.labels)
         text_len = len(self.texts)
@@ -221,7 +218,9 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         )
 
     @classmethod
-    def add_generated_output_to_df(cls, df: DataFrame, split: str) -> Optional[DataFrame]:
+    def add_generated_output_to_df(
+        cls, df: DataFrame, split: str
+    ) -> Optional[DataFrame]:
         """Adds the generated output to the dataframe
         Adds the generated output to the dataframe, and also adds the
         `token_label_positions` column
@@ -287,16 +286,31 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
     @classmethod
     @abstractmethod
     def calculate_cutoffs(cls, df: DataFrame) -> DataFrame:
-        # TODO Update comment
+        """Calculates cuttoff indexes for the input and/or target string.
+
+        Transformer models (or sub-modules) are trained over a maximum number of
+        tokens / sequence length. This max_length controls the maximum number of
+        tokens that the transformer model can process / "see." During training,
+        the tokenizer uses this max_length to truncate additional tokens - so any
+        tokens beyond the max token length are fully ignored.
+
+        `calculate_cutoffs` adds relevant max_length information at the string
+        character level for the `target` and/or `input` columns. This character
+        info communicates to the UI how much of the respective string gets "seen"
+        during processing by the model.
+
+        In this abstract definition, we provide very basic error checking.
+
+        See sub_classes (EncoderDecoder and DecoderOnly) for model specific details.
         """
-        Calculate the cutoff index of the input and target strings that were used by
-        the model. The input/target are typically truncated and the model will only look
-        at the first n characters, for example from the beginning until we reach 512
-        tokens.
-        This function adds two columns to the dataframe:
-          - 'input_cutoff': the position of the last character in the input
-          - 'target_cutoff': the position of the last character in the target
-        """
+        tokenizer = cls.logger_config.tokenizer
+        if tokenizer is None:
+            raise GalileoException(
+                "You must set your tokenizer before calling dq.finish. Use "
+                "`dataquality.integrations.seq2seq.hf.watch`"
+            )
+
+        return df
 
     @property
     def support_embs(self) -> bool:

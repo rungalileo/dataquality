@@ -1,10 +1,11 @@
+from abc import abstractmethod
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pyarrow as pa
 from scipy.special import log_softmax
 
-from dataquality.loggers.logger_config.seq2seq import (
+from dataquality.loggers.logger_config.seq2seq.seq2seq import (
     Seq2SeqLoggerConfig,
     seq2seq_logger_config,
 )
@@ -23,8 +24,6 @@ from dataquality.utils.seq2seq.logprobs import (
 
 
 class Seq2SeqModelLogger(BaseGalileoModelLogger):
-    # TODO Question - since this logger is never actually instantiated, should we leave this empty?
-    __logger_name__ = "" # THis should never be instantiated
     logger_config: Seq2SeqLoggerConfig = seq2seq_logger_config
     log_file_ext = "arrow"
 
@@ -59,8 +58,12 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             return self.inference_name
         return str(self.split)
 
+    @abstractmethod
     def validate_and_format(self) -> None:
-        """Validate data format but leave processing to sub_classes"""
+        """Validate shared data format for seq2seq
+
+        See sub_classes (EncoderDecoder and DecoderOnly) for model specific details.
+        """
         if self.labels is not None:
             self.labels = self._convert_tensor_ndarray(self.labels)
         self.logits = self._convert_tensor_ndarray(self.logits)
@@ -79,7 +82,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
     def process_logprobs(
         self, batch_ids: np.ndarray, batch_logprobs: np.ndarray
     ) -> Tuple[pa.array, pa.array]:
-        """Handle processing of a batch of sample logprobs
+        """Handle processing for a batch of sample logprobs
 
         For each sample in the batch extract / compute the following values:
             - Token level logprobs for the GT label

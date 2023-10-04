@@ -2,14 +2,13 @@ from dataquality.loggers.data_logger import (
     image_classification,
     object_detection,
     semantic_segmentation,
-    seq2seq,
-    encoder_decoder, # TODO WHAT IS THIS?
     tabular_classification,
     text_classification,
     text_multi_label,
     text_ner,
 )
 from dataquality.loggers.data_logger.base_data_logger import BaseGalileoDataLogger
+from dataquality.loggers.data_logger.seq2seq import encoder_decoder, seq2seq
 
 __all__ = [
     "image_classification",
@@ -20,6 +19,6 @@ __all__ = [
     "text_ner",
     "object_detection",
     "BaseGalileoDataLogger",
-    "seq2seq",
-    "encoder_decoder"
+    "seq2seq",  # TODO: Likely remove
+    "encoder_decoder",
 ]

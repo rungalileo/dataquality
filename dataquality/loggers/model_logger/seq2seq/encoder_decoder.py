@@ -2,12 +2,14 @@ from typing import List, Optional, Union
 
 import numpy as np
 
-from dataquality.loggers.logger_config.encoder_decoder import EncoderDecoderLoggerConfig, encoder_decoder_logger_config
-from dataquality.loggers.model_logger.seq2seq import Seq2SeqModelLogger
+from dataquality.loggers.logger_config.seq2seq.encoder_decoder import (
+    EncoderDecoderLoggerConfig,
+    encoder_decoder_logger_config,
+)
+from dataquality.loggers.model_logger.seq2seq.seq2seq import Seq2SeqModelLogger
 
 
 class EncoderDecoderModelLogger(Seq2SeqModelLogger):
-    # TODO Add class level comment
     # TODO Add in API so we can use encoder_decoder
     # __logger_name__ = "encoder_decoder"
     __logger_name__ = "seq2seq"
@@ -37,17 +39,21 @@ class EncoderDecoderModelLogger(Seq2SeqModelLogger):
         )
 
     def validate_and_format(self) -> None:
-        # TODO Update Comment
-        """Validate through super() then calculate token level logprob information"""
+        """Compute token level log-prob info for Encoder-Decoder Models
+
+        Encoder-Decoder models output `logits` just over the target tokens.
+        Therefore, we can very easily extract token log-prob info without
+        any additional data formatting / token splitting.
+        """
         super().validate_and_format()
 
-        # TODO: This is potentially slow. This is what needs to be optimized. Can we
-        #  potentially do this on the GPU with torch? And dont convert to a np array
-        #  [JON] computing softmax on GPU can lead to speedups of around 5x in my
-        #  experience
+        # TODO: [JON] computing softmax on GPU can lead to speedups of ~5x
+        # TODO: Question, the validation done in the parent class does not seem
+        #   to propigate. Here e.g. we convert ids to np.array in super()
         logprobs = self.convert_logits_to_logprobs(self.logits)
         (
             self.token_logprobs,
             self.top_logprobs,
-        ) = self.process_logprobs(self.ids, logprobs)
-
+        ) = self.process_logprobs(
+            self.ids, logprobs  # type: ignore
+        )
