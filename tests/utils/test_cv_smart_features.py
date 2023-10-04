@@ -143,9 +143,10 @@ def test_near_duplicate_id() -> None:
     images_paths = [
         f"{TEST_ASSETS_SMART_FEATS_DIR}/{image_name}" for image_name in images_names
     ]
-    df = generate_smart_features(images_paths)
+    in_frame = vaex.from_arrays(gal_local_images_paths=images_paths)
+    in_frame = generate_smart_features(in_frame)
 
-    assert len(df) == len(images_names)
+    assert len(in_frame) == len(images_names)
     outlier_cols = {
         "is_near_duplicate",
         "near_duplicate_id",
@@ -158,7 +159,7 @@ def test_near_duplicate_id() -> None:
         "has_odd_ratio",
         "has_odd_channels",
     }
-    assert outlier_cols.issubset(df.columns)
+    assert outlier_cols.issubset(in_frame.columns)
 
 
 def test_analyze_image_smart_features() -> None:
@@ -174,8 +175,8 @@ def test_analyze_image_smart_features() -> None:
     assert image_data["sf_channels"] == "Color"  # RGB image
     assert _is_blurry_laplace(image_data["sf_blur"])
     assert not _is_low_contrast(image_data["sf_contrast"])
-    assert not _is_under_exposed(image_data["sf_underexp"])
-    assert not _is_over_exposed(image_data["sf_overexp"])
+    assert not _is_under_exposed(image_data["sf_underexposed"])
+    assert not _is_over_exposed(image_data["sf_overexposed"])
     assert not _is_low_content_entropy(image_data["sf_content"])
 
 
@@ -193,9 +194,10 @@ def test_generate_smart_features():
     images_paths = [
         f"{TEST_ASSETS_SMART_FEATS_DIR}/{image_name}" for image_name in images_names
     ]
-    df = generate_smart_features(images_paths)
+    in_frame = vaex.from_arrays(gal_local_images_paths=images_paths)
+    in_frame = generate_smart_features(in_frame)
 
-    assert len(df) == len(images_names)
+    assert len(in_frame) == len(images_names)
     outlier_cols = {
         "is_near_duplicate",
         "near_duplicate_id",
@@ -207,5 +209,6 @@ def test_generate_smart_features():
         "has_odd_size",
         "has_odd_ratio",
         "has_odd_channels",
+        "gal_local_images_paths",
     }
-    assert outlier_cols.issubset(df.columns)
+    assert outlier_cols == set(in_frame.columns)

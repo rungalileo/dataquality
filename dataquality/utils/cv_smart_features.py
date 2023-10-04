@@ -1,5 +1,5 @@
 import warnings
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 import vaex
@@ -7,13 +7,10 @@ from imagededup.methods import PHash
 from multiprocess import Pool, cpu_count
 from PIL import Image, ImageFilter, ImageStat
 from vaex.dataframe import DataFrame
-from vaex.expression import Expression
 
 from dataquality.exceptions import GalileoWarning
 from dataquality.schemas.cv import GAL_LOCAL_IMAGES_PATHS
 from dataquality.schemas.cv import CVSmartFeatureColumn as CVSF
-
-Expression_float = Union[Expression, float]
 
 """
 CONSTANTS: the constants for all these methods were chosen conservatively with the goal
@@ -66,7 +63,7 @@ CHANNEL_RATIO_OUTLIER_THRESHOLD = 0.01
 PHASH_NEAR_DUPLICATE_THRESHOLD = 7  # reduce based on the food101 dataset
 
 
-def _has_odd_channels(df: DataFrame) -> Expression:
+def _has_odd_channels(df: DataFrame) -> np.ndarray:
     """
     Thresholding method to find outlier images that have odd channels.
     If a channel has less than CHANNEL_RATIO_OUTLIER_THRESHOLD% images, we consider
@@ -78,11 +75,11 @@ def _has_odd_channels(df: DataFrame) -> Expression:
     ][CVSF.channels.value].tolist()
     outliers_channels = df.func.where(
         df[CVSF.channels.value].isin(channel_outliers), True, False
-    )
+    ).to_numpy()
     return outliers_channels
 
 
-def _has_odd_ratio(df: DataFrame) -> Expression:
+def _has_odd_ratio(df: DataFrame) -> np.ndarray:
     """
     Thresholding method to find outlier images that have odd ratio.
 
@@ -128,12 +125,11 @@ def _has_odd_ratio(df: DataFrame) -> Expression:
         | (df["ratio_wh"] > wide_outlier_min_ratio),
         True,
         False,
-    )
-
+    ).to_numpy()
     return outliers_ratio
 
 
-def _has_odd_size(df: DataFrame) -> Expression_float:
+def _has_odd_size(df: DataFrame) -> np.ndarray:
     """
     Thresholding method to find outlier images that have odd size.
 
@@ -153,7 +149,7 @@ def _has_odd_size(df: DataFrame) -> Expression_float:
         (df["resolution"] >= max_resolution) | (df["resolution"] <= min_resolution),
         True,
         False,
-    )
+    ).to_numpy()
     return outliers_size
 
 
@@ -231,9 +227,9 @@ def _hist_keep_quantile(
 
 
 def _is_low_contrast(
-    contrast_exp: Expression_float,
+    contrast_exp: np.ndarray,
     low_contrast_range: float = LOW_CONTRAST_RANGE_THRESHOLD,
-) -> Expression_float:
+) -> np.ndarray:
     """
     Thresholding method associated to low_contrast_ranges for low contrast
     """
@@ -241,9 +237,9 @@ def _is_low_contrast(
 
 
 def _is_over_exposed(
-    q_min_over: Expression_float,
+    q_min_over: np.ndarray,
     over_exposed_min_thresh: float = OVER_EXPOSED_MIN_THRESHOLD,
-) -> Expression_float:
+) -> np.ndarray:
     """
     Thresholding method associated to low_contrast_ranges for over exposure
     """
@@ -251,9 +247,9 @@ def _is_over_exposed(
 
 
 def _is_under_exposed(
-    q_max_over: Expression_float,
+    q_max_over: np.ndarray,
     under_exposed_max_thresh: float = UNDER_EXPOSED_MAX_THRESHOLD,
-) -> Expression_float:
+) -> np.ndarray:
     """
     Thresholding method associated to low_contrast_ranges
     """
@@ -280,8 +276,8 @@ def _blurry_laplace(image_gray: Image.Image) -> float:
 
 
 def _is_blurry_laplace(
-    blurriness: Expression_float, blurry_thresh: int = BLURRY_THREHSOLD
-) -> Expression_float:
+    blurriness: np.ndarray, blurry_thresh: int = BLURRY_THREHSOLD
+) -> np.ndarray:
     """
     Thresholding method associated to blurry_laplace
     """
@@ -304,8 +300,8 @@ def _image_content_entropy(image: Image.Image) -> float:
 
 
 def _is_low_content_entropy(
-    image_entropy: Expression_float, low_entropy_threshold: int = LOW_ENTROPY_THRESHOLD
-) -> Expression_float:
+    image_entropy: np.ndarray, low_entropy_threshold: int = LOW_ENTROPY_THRESHOLD
+) -> np.ndarray:
     """
     Thresholding method associated to image_content_entropy
     """
@@ -378,9 +374,9 @@ def _compute_near_duplicate_id(
 
 def _near_duplicate_id(
     df: DataFrame, hasher: PHash, images_paths: List[str]
-) -> Expression_float:
+) -> np.ndarray:
     """
-    TODO
+    For every image
     """
     path_to_enc = {
         row[CVSF.image_path.value]: row[CVSF.hash.value]
@@ -393,7 +389,7 @@ def _near_duplicate_id(
     return np_near_duplicate_id
 
 
-def _is_near_duplicate(in_frame: DataFrame) -> Expression_float:
+def _is_near_duplicate(in_frame: DataFrame) -> np.ndarray:
     np_is_near_duplicate = in_frame.func.where(
         in_frame[CVSF.outlier_near_duplicate_id.value] == 0, False, True
     ).to_numpy()
@@ -515,20 +511,24 @@ def generate_smart_features(in_frame: DataFrame, n_cores: int = -1) -> DataFrame
     in_frame[CVSF.outlier_channels.value] = _has_odd_channels(df)
     in_frame[CVSF.outlier_ratio.value] = _has_odd_ratio(df)
     in_frame[CVSF.outlier_size.value] = _has_odd_size(df)
-    in_frame[CVSF.outlier_blurry.value] = _is_blurry_laplace(df[CVSF.blur.value])
-    in_frame[CVSF.outlier_low_contrast.value] = _is_low_contrast(
-        df[CVSF.contrast.value]
+    in_frame[CVSF.outlier_blurry.value] = _is_blurry_laplace(
+        df[CVSF.blur.value].to_numpy()
     )
-    in_frame[CVSF.outlier_overexposed.value] = _is_over_exposed(df[CVSF.overexp.value])
+    in_frame[CVSF.outlier_low_contrast.value] = _is_low_contrast(
+        df[CVSF.contrast.value].to_numpy()
+    )
+    in_frame[CVSF.outlier_overexposed.value] = _is_over_exposed(
+        df[CVSF.overexp.value].to_numpy()
+    )
     in_frame[CVSF.outlier_underexposed.value] = _is_under_exposed(
-        df[CVSF.underexp.value]
+        df[CVSF.underexp.value].to_numpy()
     )
     in_frame[CVSF.outlier_low_content.value] = _is_low_content_entropy(
-        df[CVSF.lowcontent.value]
+        df[CVSF.lowcontent.value].to_numpy()
     )
     in_frame[CVSF.outlier_near_duplicate_id.value] = _near_duplicate_id(
         df, hasher, images_paths
     )
     in_frame[CVSF.outlier_near_dup.value] = _is_near_duplicate(in_frame)
 
-    return df.materialize()
+    return in_frame
