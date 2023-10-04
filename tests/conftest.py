@@ -7,7 +7,11 @@ from uuid import UUID
 import pytest
 import requests
 import torch
-from transformers import AutoModelForSequenceClassification, AutoTokenizer
+from transformers import (
+    AutoModelForSequenceClassification,
+    AutoTokenizer,
+    T5ForConditionalGeneration,
+)
 from vaex.dataframe import DataFrame
 
 import dataquality
@@ -32,6 +36,9 @@ SUBDIRS = ["data", "emb", "prob"]
 # Load models locally
 HF_TEST_BERT_PATH = "hf-internal-testing/tiny-random-distilbert"
 LOCAL_MODEL_PATH = f"{os.getcwd()}/tmp/testing-random-distilbert-sq"
+HF_TEST_T5_PATH = "hf-internal-testing/tiny-random-T5ForConditionalGeneration"
+LOCAL_T5_PATH = f"{os.getcwd()}/tmp/tiny-random-T5ForConditionalGeneration"
+
 try:
     tokenizer = AutoTokenizer.from_pretrained(LOCAL_MODEL_PATH, device="cpu")
 except Exception:
@@ -46,8 +53,19 @@ except Exception:
     model = AutoModelForSequenceClassification.from_pretrained(HF_TEST_BERT_PATH).to(
         "cpu"
     )
-
     model.save_pretrained(LOCAL_MODEL_PATH)
+
+try:
+    tokenizer_T5 = AutoTokenizer.from_pretrained(LOCAL_T5_PATH, device="cpu")
+except Exception:
+    tokenizer_T5 = AutoTokenizer.from_pretrained(HF_TEST_T5_PATH, device="cpu")
+    tokenizer_T5.save_pretrained(LOCAL_T5_PATH)
+
+try:
+    model_T5 = T5ForConditionalGeneration.from_pretrained(LOCAL_T5_PATH).to("cpu")
+except Exception:
+    model_T5 = T5ForConditionalGeneration.from_pretrained(HF_TEST_T5_PATH).to("cpu")
+    model_T5.save_pretrained(LOCAL_T5_PATH)
 
 
 class TestSessionVariables:

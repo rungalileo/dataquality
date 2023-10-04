@@ -98,3 +98,16 @@ def rename_run(project_name: str, run_name: str, new_name: str) -> None:
         f"Successfully renamed run {project_name}/{run_name} to "
         f"{project_name}/{new_name}"
     )
+
+
+def rename_project(project_name: str, new_name: str) -> None:
+    """Renames a project
+
+    Useful if a project was named incorrectly, or if a project was created with a
+    temporary name and needs to be renamed to something more permanent
+
+    :param project_name: The name of the project
+    :param new_name: The new name to assign to the project
+    """
+    api_client.update_project_name(project_name, new_name)
+    print(f"Successfully renamed project {project_name} to " f"{new_name}")

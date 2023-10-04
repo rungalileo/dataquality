@@ -15,8 +15,8 @@ from dataquality import config
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
 from dataquality.exceptions import GalileoException
-from dataquality.loggers.data_logger.image_classification import GAL_LOCAL_IMAGES_PATHS
 from dataquality.loggers.logger_config.base_logger_config import BaseLoggerConfig
+from dataquality.schemas.cv import GAL_LOCAL_IMAGES_PATHS
 from dataquality.schemas.split import Split
 from dataquality.utils.helpers import galileo_disabled
 

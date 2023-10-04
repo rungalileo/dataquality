@@ -1,7 +1,8 @@
 import os.path
 from tempfile import TemporaryDirectory
+from typing import Callable, Generator
 from unittest import mock
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import vaex
@@ -13,10 +14,12 @@ import dataquality as dq
 from dataquality.loggers.data_logger.image_classification import (
     ImageClassificationDataLogger,
 )
+from dataquality.schemas.cv import GAL_LOCAL_IMAGES_PATHS
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import validate_unique_ids
 from tests.assets.constants import TEST_IMAGES_FOLDER_ROOT
 from tests.conftest import TestSessionVariables
+from tests.test_utils.mock_data import MockDatasetCV
 
 food_dataset = load_dataset("sasha/dog-food", split="train")
 food_dataset = food_dataset.select(range(20))
@@ -357,10 +360,10 @@ def test_prepare_df_from_ImageFolder() -> None:
     df = image_logger._prepare_df_from_ImageFolder(dataset=train_dataset)
 
     # Assert that the dataframe is how we'd expect it to be by looking at the folder
-    assert set(df.columns) == {"id", "label", "gal_local_images_paths"}
-    assert len(df) == 4
+    assert set(df.columns) == {"id", "label", GAL_LOCAL_IMAGES_PATHS}
+    assert len(df) == 5
     assert set(df.label.unique()) == {"labelA", "labelB"}
-    assert set(df.id.unique()) == set(range(4))
+    assert set(df.id.unique()) == set(range(5))
     assert df.loc[0, "gal_local_images_paths"].endswith(".png")
 
 
@@ -385,11 +388,11 @@ def test_prepare_df_from_ImageFolder_with_remote_imgs() -> None:
         "id",
         "text",
         "label",
-        "gal_local_images_paths",
+        GAL_LOCAL_IMAGES_PATHS,
     }
-    assert len(df) == 4
+    assert len(df) == 5
     assert set(df.label.unique()) == {"labelA", "labelB"}
-    assert set(df.id.unique()) == set(range(4))
+    assert set(df.id.unique()) == set(range(5))
     assert df.loc[0, "text"].startswith(imgs_remote_location)
     assert df.loc[0, "text"].endswith(".png")
 
@@ -411,7 +414,59 @@ def test_prepare_df_from_ImageFolder_inference() -> None:
 
     # Assert that the dataframe is how we'd expect it to be by looking at the folder
     # with no labels
-    assert set(df.columns) == {"id", "gal_local_images_paths"}
-    assert len(df) == 4
-    assert set(df.id.unique()) == set(range(4))
-    assert df.loc[0, "gal_local_images_paths"].endswith(".png")
+    assert set(df.columns) == {"id", GAL_LOCAL_IMAGES_PATHS}
+    assert len(df) == 5
+    assert set(df.id.unique()) == set(range(5))
+    assert df.loc[0, GAL_LOCAL_IMAGES_PATHS].endswith(".png")
+
+
+@patch.object(dq.core.finish, "upload_dq_log_file")
+@patch.object(dq.clients.api.ApiClient, "make_request")
+@patch.object(dq.core.finish, "wait_for_run")
+def test_smart_features(
+    mock_wait_for_run: MagicMock,
+    mock_make_request: MagicMock,
+    mock_upload_log_file: MagicMock,
+    set_test_config: Callable,
+    cleanup_after_use: Generator,
+    test_session_vars: TestSessionVariables,
+) -> None:
+    set_test_config(task_type="image_classification")
+
+    # Create Mock data and Log the input images
+    df_train = MockDatasetCV()
+    dq.set_labels_for_run(df_train.labels)
+    dq.log_image_dataset(
+        dataset=df_train.dataframe,
+        label="label",
+        imgs_local_colname="image_path",
+        split="training",
+    )
+
+    ThreadPoolManager.wait_for_threads()
+
+    # Test the CV Smart features
+    image_classification_logger = dq.get_data_logger()
+
+    in_frame_path = f"{image_classification_logger.input_data_path}/training"
+    in_frame_split = vaex.open(
+        f"{in_frame_path}/*.{image_classification_logger.INPUT_DATA_FILE_EXT}"
+    )
+
+    in_frame_split = image_classification_logger.add_cv_smart_features(
+        in_frame_split, "training"
+    )
+
+    outlier_cols = {
+        "is_near_duplicate",
+        "near_duplicate_id",
+        "is_blurry",
+        "is_underexposed",
+        "is_overexposed",
+        "has_low_contrast",
+        "has_low_content",
+        "has_odd_size",
+        "has_odd_ratio",
+        "has_odd_channels",
+    }
+    assert outlier_cols.issubset(in_frame_split.get_column_names())
