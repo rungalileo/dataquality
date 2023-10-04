@@ -49,6 +49,5 @@ class EncoderDecoderModelLogger(Seq2SeqModelLogger):
         (
             self.token_logprobs,
             self.top_logprobs,
-            self.sample_perplexity,
         ) = self.process_logprobs(self.ids, logprobs)
 

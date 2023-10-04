@@ -76,16 +76,6 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             self.logger_config.tokenizer is not None
         ), "Must set your tokenizer. Use `dq.integrations.seq2seq.hf.set_tokenizer`"
 
-        # TODO: This is potentially slow. This is what needs to be optimized. Can we
-        #  potentially do this on the GPU with torch? And dont convert to a np array
-        #  [JON] computing softmax on GPU can lead to speedups of around 5x in my
-        #  experience
-        logprobs = self.convert_logits_to_logprobs(self.logits)
-        (
-            self.token_logprobs,
-            self.top_logprobs,
-        ) = self.process_logprobs(self.ids, logprobs)
-
     def process_logprobs(
         self, batch_ids: np.ndarray, batch_logprobs: np.ndarray
     ) -> Tuple[pa.array, pa.array]:
