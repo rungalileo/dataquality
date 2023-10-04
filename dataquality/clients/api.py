@@ -160,6 +160,16 @@ class ApiClient:
         run = self.make_request(RequestType.PUT, url=url, body=data)
         return run if run else {}
 
+    def update_project_name(self, project_name: str, new_name: str) -> Dict:
+        proj = self.get_project_by_name(project_name)
+        if not proj:
+            raise GalileoException(f"No project with name {project_name}")
+
+        url = f"{config.api_url}/{Route.projects}/{proj['id']}"
+        data = {"name": new_name}
+        proj_resp = self.make_request(RequestType.PUT, url=url, body=data)
+        return proj_resp if proj_resp else {}
+
     def create_project(self, project_name: str, is_public: bool = False) -> Dict:
         """Creates a project given a name and returns the project information"""
         body = {"name": project_name, "is_public": is_public}
