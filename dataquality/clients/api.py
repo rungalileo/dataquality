@@ -165,6 +165,12 @@ class ApiClient:
         if not proj:
             raise GalileoException(f"No project with name {project_name}")
 
+        new_proj = self.get_project_by_name(new_name)
+        if new_proj:
+            raise GalileoException(
+                f"You cannot rename to an existing project name {new_name}"
+            )
+
         url = f"{config.api_url}/{Route.projects}/{proj['id']}"
         data = {"name": new_name}
         proj_resp = self.make_request(RequestType.PUT, url=url, body=data)
