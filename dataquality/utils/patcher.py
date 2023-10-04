@@ -71,9 +71,9 @@ class PatchManager(Borg):
 
     def unpatch(self) -> None:
         """Unpatch all patches"""
-        if not self.patches or  len(self.patches) == 0:
+        if not self.patches or len(self.patches) == 0:
             return
-        
+
         for patch in self.patches[:]:
             if patch:
                 patch._unpatch()
