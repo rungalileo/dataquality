@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional
 from warnings import warn
 
 from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizerFast
@@ -66,7 +66,7 @@ def watch(
     model: PreTrainedModel,
     tokenizer: PreTrainedTokenizerFast,
     generation_config: GenerationConfig,
-    generate_training_data: bool = False,
+    generate_on: List[str] = [],
     max_input_tokens: Optional[int] = None,
     max_target_tokens: Optional[int] = None,
 ) -> None:
@@ -92,8 +92,12 @@ def watch(
     seq2seq_logger_config.model = model
     seq2seq_logger_config.generation_config = generation_config
 
-    generation_splits = {Split.validation, Split.test}
-    if generate_training_data:
-        generation_splits.add(Split.training)
+    generation_splits = {Split.test}
+    for split in generate_on:
+        if split not in Split.get_valid_keys():
+            warn(f"Ignoring invalid generation split {split}")
+            continue
+
+        generation_splits.add(Split[split])
 
     seq2seq_logger_config.generation_splits = generation_splits
