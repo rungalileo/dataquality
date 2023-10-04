@@ -12,9 +12,12 @@ from transformers import GenerationConfig, T5ForConditionalGeneration
 import dataquality as dq
 from dataquality.integrations.seq2seq.hf import set_tokenizer, watch
 from dataquality.loggers.data_logger.base_data_logger import DataSet
-from dataquality.loggers.data_logger.seq2seq import Seq2SeqDataLogger
-from dataquality.loggers.logger_config.seq2seq import seq2seq_logger_config
-from dataquality.loggers.model_logger.seq2seq import Seq2SeqModelLogger
+from dataquality.loggers.data_logger.seq2seq.encoder_decoder import EncoderDecoderDataLogger
+from dataquality.loggers.data_logger.seq2seq.seq2seq import Seq2SeqDataLogger
+from dataquality.loggers.logger_config.seq2seq.seq2seq import seq2seq_logger_config
+from dataquality.loggers.logger_config.seq2seq.encoder_decoder import encoder_decoder_logger_config
+from dataquality.loggers.model_logger.seq2seq.encoder_decoder import EncoderDecoderModelLogger
+from dataquality.loggers.model_logger.seq2seq.seq2seq import Seq2SeqModelLogger
 from dataquality.schemas.seq2seq import (
     TOP_K,
     BatchGenerationData,
@@ -56,18 +59,19 @@ from tests.conftest import TestSessionVariables, model_T5, tokenizer, tokenizer_
         ),
     ],
 )
-def test_log_dataset(
+def test_log_dataset_encoder_decoder(
     dataset: DataSet,
     set_test_config: Callable,
     cleanup_after_use: Callable,
     test_session_vars: TestSessionVariables,
 ) -> None:
+    # TODO Test with watch
     set_test_config(task_type="seq2seq")
-    logger = Seq2SeqDataLogger()
+    logger = EncoderDecoderDataLogger()
 
     with patch("dataquality.core.log.get_data_logger") as mock_method:
         mock_method.return_value = logger
-        set_tokenizer(tokenizer)
+        set_tokenizer(tokenizer, encoder_decoder_logger_config)
         dq.log_dataset(
             dataset, text="summary", label="title", id="my_id", split="train"
         )
@@ -98,6 +102,7 @@ def test_log_dataset_no_tokenizer(set_test_config: Callable) -> None:
             "my_id": [1, 2, 3],
         }
     )
+    # Note this functionality is tested fully by the Seq2Seq parent class
     logger = Seq2SeqDataLogger()
     with patch("dataquality.core.log.get_data_logger") as mock_method:
         mock_method.return_value = logger
@@ -109,11 +114,12 @@ def test_log_dataset_no_tokenizer(set_test_config: Callable) -> None:
     )
 
 
-def test_log_model_outputs(
+def test_log_model_outputs_encoder_decoder(
     set_test_config: Callable,
     cleanup_after_use: Callable,
     test_session_vars: TestSessionVariables,
 ) -> None:
+    # TODO Add commment
     set_test_config(task_type="seq2seq")
 
     tokenized_labels = [
@@ -146,7 +152,7 @@ def test_log_model_outputs(
         split="training",
         epoch=0,
     )
-    logger = Seq2SeqModelLogger(**log_data)
+    logger = EncoderDecoderModelLogger(**log_data)
     logger.logger_config = config
     with patch("dataquality.core.log.get_model_logger") as mock_method:
         mock_method.return_value = logger
@@ -275,6 +281,7 @@ def test_tokenize_input_provide_maxlength(
     set_test_config: Callable,
     cleanup_after_use: Generator,
 ) -> None:
+    # TODO comment!
     """
     Test that as we generate output and the user provided the max_input_tokens argument,
     the input is tokenized correctly to the length set by max_input_tokens.
@@ -286,13 +293,14 @@ def test_tokenize_input_provide_maxlength(
     mock_model.generate.return_value = seq2seq_generated_output
     mock_generation_config = Mock(spec=GenerationConfig)
 
-    set_tokenizer(tokenizer_T5, max_input_tokens=7)
+    # TODO: for now encoder_decoder covers general case
+    set_tokenizer(tokenizer_T5, encoder_decoder_logger_config, max_input_tokens=7)
     input_text = "a b c d e f g h i j"
     generate_sample_output(
         input_text,
         mock_model,
         tokenizer_T5,
-        seq2seq_logger_config.max_input_tokens,
+        encoder_decoder_logger_config.max_input_tokens,
         mock_generation_config,
     )
 
@@ -328,13 +336,14 @@ def test_tokenize_input_doesnt_provide_maxlength(
     mock_model.generate.return_value = seq2seq_generated_output
     mock_generation_config = Mock(spec=GenerationConfig)
 
-    set_tokenizer(tokenizer_T5)
+    # TODO: for now encoder_decoder covers general case
+    set_tokenizer(tokenizer_T5, encoder_decoder_logger_config)
     input_text = "a b c d e f g h i j" * 100
     generate_sample_output(
         input_text,
         mock_model,
         tokenizer_T5,
-        seq2seq_logger_config.max_input_tokens,
+        encoder_decoder_logger_config.max_input_tokens,
         mock_generation_config,
     )
 
@@ -351,9 +360,10 @@ def test_tokenize_input_doesnt_provide_maxlength(
     mock_process_sample_logprobs.assert_called_once()
 
 
-def test_tokenize_target_provide_maxlength(
+def test_tokenize_target_provide_maxlength_encoder_decoder(
     set_test_config: Callable, cleanup_after_use: Generator
 ) -> None:
+    # TODO Update based on hf support for encoder-decoder vs. decoder-only
     """
     Test that the target is tokenized correctly to the length provided by the user in
     the max_target_tokens argument.
@@ -370,26 +380,29 @@ def test_tokenize_target_provide_maxlength(
     )
     dq.log_dataset(ds, text="input", label="target", split="train")
 
-    assert set(seq2seq_logger_config.id_to_tokens["training"]) == {0, 1}
-    assert len(seq2seq_logger_config.id_to_tokens["training"][0]) == 7
+    assert set(encoder_decoder_logger_config.id_to_tokens["training"]) == {0, 1}
+    assert len(encoder_decoder_logger_config.id_to_tokens["training"][0]) == 7
     # Check that it has two tokens: the token "2" + EOS token
-    assert len(seq2seq_logger_config.id_to_tokens["training"][1]) == 2
+    assert len(encoder_decoder_logger_config.id_to_tokens["training"][1]) == 2
     # Check that both sentences end with the same EOS token
     assert (
-        seq2seq_logger_config.id_to_tokens["training"][0][-1]
-        == seq2seq_logger_config.id_to_tokens["training"][1][-1]
+        encoder_decoder_logger_config.id_to_tokens["training"][0][-1]
+        == encoder_decoder_logger_config.id_to_tokens["training"][1][-1]
     )
 
 
-def test_tokenize_target_doesnt_provide_maxlength(
+def test_tokenize_target_doesnt_provide_maxlength_encoder_decoder(
     set_test_config: Callable, cleanup_after_use: Generator
 ) -> None:
+    # TODO Update based on hf support for encoder-decoder vs. decoder-only
     """
     Test that the target is tokenized correctly when the user does not provide a
     max_target_tokens argument, i.e., to the length set by default in the tokenizer.
     """
     set_test_config(task_type=TaskType.seq2seq)
     mock_generation_config = Mock(spec=GenerationConfig)
+    # TODO Does using a real model here take a lot of time?
+    #   should we just mock the model and add a max length?
     watch(model_T5, tokenizer_T5, mock_generation_config)
     ds = Dataset.from_dict(
         {
@@ -400,23 +413,24 @@ def test_tokenize_target_doesnt_provide_maxlength(
     )
     dq.log_dataset(ds, text="input", label="target", split="train")
 
-    assert set(seq2seq_logger_config.id_to_tokens["training"]) == {0, 1}
+    assert set(encoder_decoder_logger_config.id_to_tokens["training"]) == {0, 1}
     # Make sure that the target is large enough to require truncation
     assert len(ds["target"][0]) > tokenizer_T5.model_max_length
     assert (
-        len(seq2seq_logger_config.id_to_tokens["training"][0])
+        len(encoder_decoder_logger_config.id_to_tokens["training"][0])
         == tokenizer_T5.model_max_length
     )
     # Check that it has two tokens: the token "2" + EOS token
-    assert len(seq2seq_logger_config.id_to_tokens["training"][1]) == 2
+    assert len(encoder_decoder_logger_config.id_to_tokens["training"][1]) == 2
     # Check that both sentences end with the same EOS token
     assert (
-        seq2seq_logger_config.id_to_tokens["training"][0][-1]
-        == seq2seq_logger_config.id_to_tokens["training"][1][-1]
+        encoder_decoder_logger_config.id_to_tokens["training"][0][-1]
+        == encoder_decoder_logger_config.id_to_tokens["training"][1][-1]
     )
 
 
-def test_calculate_cutoffs(set_test_config: Callable, cleanup_after_use: Generator):
+def test_calculate_cutoffs_encoder_decoder(set_test_config: Callable, cleanup_after_use: Generator):
+    # TODO Add comment!
     """Test that calculate_cutoffs works correctly for both input/target"""
     set_test_config(task_type=TaskType.seq2seq)
     mock_model = Mock(spec=T5ForConditionalGeneration)
@@ -441,7 +455,7 @@ def test_calculate_cutoffs(set_test_config: Callable, cleanup_after_use: Generat
     )
     dq.log_dataset(ds, text="input", label="target", split="train")
 
-    data_logger = Seq2SeqDataLogger()
+    data_logger = EncoderDecoderDataLogger()
     in_frame_split = vaex.open(
         f"{data_logger.input_data_path}/training/*.{data_logger.INPUT_DATA_FILE_EXT}"
     )

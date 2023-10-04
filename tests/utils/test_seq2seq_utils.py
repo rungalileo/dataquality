@@ -8,7 +8,7 @@ import pytest
 import torch
 
 from dataquality.exceptions import GalileoException
-from dataquality.loggers.model_logger.seq2seq import Seq2SeqModelLogger
+from dataquality.loggers.model_logger.seq2seq.encoder_decoder import EncoderDecoderModelLogger
 from dataquality.schemas.seq2seq import (
     TOP_K,
     AlignedTokenData,
@@ -280,7 +280,7 @@ def test_model_logger_remove_padding() -> None:
         split="training",
         epoch=0,
     )
-    logger = Seq2SeqModelLogger(**log_data)
+    logger = EncoderDecoderModelLogger(**log_data)
     logger.logger_config = config
     for sample_id, (sample_logprobs, sample_top_indices) in enumerate(
         zip(logprobs, top_indices)

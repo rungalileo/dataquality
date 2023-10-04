@@ -18,7 +18,7 @@ from dataquality.utils.seq2seq.offsets import (
 )
 
 
-class EncoderDecoderLogger(Seq2SeqDataLogger):
+class EncoderDecoderDataLogger(Seq2SeqDataLogger):
     # TODO UPDATE COMMENT!!!
     """Logging input data for Seq2Seq fine-tuning tasks
 
