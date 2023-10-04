@@ -95,7 +95,10 @@ def watch(
     generation_splits = {Split.test}
     for split in generate_on:
         if split not in Split.get_valid_keys():
-            warn(f"Ignoring invalid generation split {split}")
+            warn(
+                f"Ignoring invalid generation split {split}, "
+                f"the valid splits are {Split.get_valid_keys()}"
+            )
             continue
 
         generation_splits.add(Split[split])
