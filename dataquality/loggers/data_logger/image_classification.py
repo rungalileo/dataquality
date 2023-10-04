@@ -12,6 +12,7 @@ import vaex
 from vaex.dataframe import DataFrame
 
 from dataquality import config
+from dataquality.clients.objectstore import ObjectStore
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger.base_data_logger import DataSet, MetasType
 from dataquality.loggers.data_logger.text_classification import (
@@ -387,7 +388,23 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
 
         return dataframes
 
-    def add_cv_smart_features(self, in_frame: DataFrame, split: str) -> DataFrame:
+    @classmethod
+    def upload_split_from_in_frame(
+        cls,
+        object_store: ObjectStore,
+        in_frame: DataFrame,
+        split: str,
+        split_loc: str,
+        last_epoch: Optional[int] = None,
+        create_data_embs: bool = False,
+    ) -> None:
+        in_frame = cls.add_cv_smart_features(in_frame, split)
+        super().upload_split_from_in_frame(
+            object_store, in_frame, split, split_loc, last_epoch, create_data_embs
+        )
+
+    @classmethod
+    def add_cv_smart_features(cls, in_frame: DataFrame, split: str) -> DataFrame:
         """
         Calculate and add smart features on images (blurriness, contrast, etc) to the
         dataframe.
