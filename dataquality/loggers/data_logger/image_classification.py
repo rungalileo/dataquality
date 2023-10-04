@@ -24,7 +24,7 @@ from dataquality.loggers.logger_config.image_classification import (
 )
 from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.split import Split
-from dataquality.utils.cv_smart_features import VC, generate_smart_features
+from dataquality.utils.cv_smart_features import CVSF, generate_smart_features
 from dataquality.utils.upload import chunk_load_then_upload_df
 
 # smaller than ITER_CHUNK_SIZE from base_data_logger because very large chunks
@@ -408,7 +408,9 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         """
         Calculate and add smart features on images (blurriness, contrast, etc) to the
         dataframe.
-        This overwrite the base method (doing nothing) in the base_data_logger.
+
+        The in_frame df only requires the column containing the paths to local images
+        GAL_LOCAL_IMAGES_PATHS for this method to run.
         """
         if GAL_LOCAL_IMAGES_PATHS not in in_frame.get_column_names():
             return in_frame
@@ -418,12 +420,12 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             "depending on the size of your dataset)"
         )
         images_paths = in_frame[GAL_LOCAL_IMAGES_PATHS].tolist()
-        smart_feats_frame = generate_smart_features(images_paths)
+        smart_feats_df = generate_smart_features(images_paths)
 
         in_frame = in_frame.join(
-            smart_feats_frame[VC.cols_to_display() + [VC.image_path]],
+            smart_feats_df[CVSF.cols_to_display() + [CVSF.image_path]],
             left_on=GAL_LOCAL_IMAGES_PATHS,
-            right_on=VC.image_path,
-        ).drop(VC.image_path)
+            right_on=CVSF.image_path,
+        ).drop(CVSF.image_path)
 
         return in_frame

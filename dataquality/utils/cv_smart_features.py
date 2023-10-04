@@ -1,5 +1,4 @@
 import warnings
-from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -11,6 +10,7 @@ from vaex.dataframe import DataFrame
 from vaex.expression import Expression
 
 from dataquality.exceptions import GalileoWarning
+from dataquality.schemas.cv import CVSmartFeatureColumn as CVSF
 
 Expression_float = Union[Expression, float]
 
@@ -65,52 +65,7 @@ CHANNEL_RATIO_OUTLIER_THRESHOLD = 0.01
 PHASH_NEAR_DUPLICATE_THRESHOLD = 7  # reduce based on the food101 dataset
 
 
-@dataclass
-class VaexColumn:
-    """
-    A class holding the column names appearing with the smart feature methods.
-    When updated, also need to update the coresponding schema in rungalileo.
-    """
-
-    image_path: str = "sf_image_path"
-    height: str = "sf_height"
-    width: str = "sf_width"
-
-    channels: str = "sf_channels"
-    hash: str = "sf_hash"
-    contrast: str = "sf_contrast"
-    overexp: str = "sf_overexp"
-    underexp: str = "sf_underexp"
-    blur: str = "sf_blur"
-    lowcontent: str = "sf_content"
-
-    outlier_size: str = "has_odd_size"
-    outlier_ratio: str = "has_odd_ratio"
-    outlier_near_duplicate_id: str = "near_duplicate_id"
-    outlier_near_dup: str = "is_near_duplicate"
-    outlier_channels: str = "has_odd_channels"
-    outlier_low_contrast: str = "has_low_contrast"
-    outlier_overexposed: str = "is_overexposed"
-    outlier_underexposed: str = "is_underexposed"
-    outlier_low_content: str = "has_low_content"
-    outlier_blurry: str = "is_blurry"
-
-    def cols_to_display(self) -> List[str]:
-        """Return list of columns to display in the UI as anomalies."""
-        cols = [val for key, val in self.__dict__.items() if key.startswith("outlier_")]
-        return cols
-
-
-VC = VaexColumn()
-
-
-def _low_contrast_ranges(
-    np_gray: np.ndarray,
-    low_contrast_min: float = LOW_CONTRAST_MIN_Q,
-    low_contrast_max: float = LOW_CONTRAST_MAX_Q,
-    under_exposed_cut_max: float = UNDER_EXPOSED_MAX_Q,
-    over_exposed_cut_min: float = OVER_EXPOSED_MIN_Q,
-) -> Tuple[float, float, float]:
+def _low_contrast_ranges(np_gray: np.ndarray) -> Tuple[float, float, float]:
     """
     Manual method to detect
     - over exposed images (too bright, histogram of intensities right-skewed)
@@ -142,13 +97,13 @@ def _low_contrast_ranges(
     )[0]
 
     q_min, q_max = _hist_keep_quantile(
-        np_hist, q_min=low_contrast_min, q_max=low_contrast_max
+        np_hist, q_min=LOW_CONTRAST_MIN_Q, q_max=LOW_CONTRAST_MAX_Q
     )
     contrast_range = (q_max - q_min) / MAX_VAL
 
-    _, q_max_under = _hist_keep_quantile(np_hist, q_max=under_exposed_cut_max)
+    _, q_max_under = _hist_keep_quantile(np_hist, q_max=UNDER_EXPOSED_MAX_Q)
     q_max_under_f = float(q_max_under) / MAX_VAL
-    q_min_over, _ = _hist_keep_quantile(np_hist, q_min=over_exposed_cut_min)
+    q_min_over, _ = _hist_keep_quantile(np_hist, q_min=OVER_EXPOSED_MIN_Q)
     q_min_over_f = float(q_min_over) / MAX_VAL
 
     return contrast_range, q_max_under_f, q_min_over_f
@@ -373,33 +328,33 @@ def analyze_image_smart_features(
     image, image_gray, np_gray = _open_and_resize(image_path)
 
     # Near Dupliocates: compute hash encoding for every image
-    image_data[VC.hash] = _get_phash_encoding(hasher, np_gray)
+    image_data[CVSF.hash] = _get_phash_encoding(hasher, np_gray)
 
     # Odd Channels / Size / Ratio: gather image stats
     image_data.update(
         {
-            VC.image_path: image_path,
-            VC.width: image.width,
-            VC.height: image.height,
-            VC.channels: CHANNELS_DICT.get(image.mode),
+            CVSF.image_path: image_path,
+            CVSF.width: image.width,
+            CVSF.height: image.height,
+            CVSF.channels: CHANNELS_DICT.get(image.mode),
         }
     )
 
     # Blurriness: compute variance of Laplacian
-    image_data[VC.blur] = _blurry_laplace(image_gray)
+    image_data[CVSF.blur] = _blurry_laplace(image_gray)
 
     # Low contrast: compute range of all / low / high pixel intensities
     contrast_range, q_max_under, q_min_over = _low_contrast_ranges(np_gray)
     image_data.update(
         {
-            VC.contrast: contrast_range,
-            VC.underexp: q_max_under,
-            VC.overexp: q_min_over,
+            CVSF.contrast: contrast_range,
+            CVSF.underexp: q_max_under,
+            CVSF.overexp: q_min_over,
         }
     )
 
     # Low content: compute image entropy
-    image_data[VC.lowcontent] = _image_content_entropy(image)
+    image_data[CVSF.lowcontent] = _image_content_entropy(image)
 
     return image_data
 
@@ -440,20 +395,20 @@ def generate_smart_features(images_paths: List[str], n_cores: int = -1) -> DataF
     df = vaex.from_records(images_data)
 
     ### Tag rare channels as Outliers (less than T%)
-    dfg = df.groupby(VC.channels, agg=vaex.agg.count(VC.channels))
+    dfg = df.groupby(CVSF.channels, agg=vaex.agg.count(CVSF.channels))
     channel_outliers = dfg[
-        dfg[f"{VC.channels}_count"] < len(df) * CHANNEL_RATIO_OUTLIER_THRESHOLD
-    ][VC.channels].tolist()
-    df[VC.outlier_channels] = df.func.where(
-        df[VC.channels].isin(channel_outliers), True, False
+        dfg[f"{CVSF.channels}_count"] < len(df) * CHANNEL_RATIO_OUTLIER_THRESHOLD
+    ][CVSF.channels].tolist()
+    df[CVSF.outlier_channels] = df.func.where(
+        df[CVSF.channels].isin(channel_outliers), True, False
     )
 
     ### Tag images with ratio outside of mean +/- T*std as Wide/Tall
     # If some images have height=0, we add a small epsilon to avoid division by zero
-    if int((df[VC.height] < 1e-5).sum()) > 0:
+    if int((df[CVSF.height] < 1e-5).sum()) > 0:
         warnings.warn("Some images have height=0", GalileoWarning)
-        df[VC.height] = df.func.where(df[VC.height] == 0, 1e-5, df[VC.height])
-    df["ratio_wh"] = df[VC.width] / df[VC.height]
+        df[CVSF.height] = df.func.where(df[CVSF.height] == 0, 1e-5, df[CVSF.height])
+    df["ratio_wh"] = df[CVSF.width] / df[CVSF.height]
 
     df_hor = df[df["ratio_wh"] >= 1]
     # If df_hor is empty that means that no images have bigger width than height, so we
@@ -475,7 +430,7 @@ def generate_smart_features(images_paths: List[str], n_cores: int = -1) -> DataF
             - TALL_OUTLIER_RATIO_STD * df_vert["ratio_wh"].std()
         )
 
-    df[VC.outlier_ratio] = df.func.where(
+    df[CVSF.outlier_ratio] = df.func.where(
         (df["ratio_wh"] < tall_outlier_max_ratio)
         | (df["ratio_wh"] > wide_outlier_min_ratio),
         True,
@@ -483,13 +438,13 @@ def generate_smart_features(images_paths: List[str], n_cores: int = -1) -> DataF
     )
 
     ### Tag images with resolution outside of median *// some coeff as Large/Small
-    df["resolution"] = df[VC.height] * df[VC.width]
+    df["resolution"] = df[CVSF.height] * df[CVSF.width]
     # Vaex has no good method for computing the median (only an approximate or so),
     # we can bring it in memory and use numpy since it's a small df anyways
     median_resolution = np.median(df["resolution"].to_numpy())
     max_resolution = median_resolution * MEDIAN_RES_FACTOR_LARGE
     min_resolution = median_resolution / MEDIAN_RES_FACTOR_LARGE
-    df[VC.outlier_size] = df.func.where(
+    df[CVSF.outlier_size] = df.func.where(
         (df["resolution"] >= max_resolution) | (df["resolution"] <= min_resolution),
         True,
         False,
@@ -497,24 +452,24 @@ def generate_smart_features(images_paths: List[str], n_cores: int = -1) -> DataF
 
     ### Tag images with similar hash (in terms of Hamming distance) as near duplicates
     path_to_enc = {
-        row[VC.image_path]: row[VC.hash]
-        for row in df.to_records(column_names=[VC.image_path, VC.hash])
+        row[CVSF.image_path]: row[CVSF.hash]
+        for row in df.to_records(column_names=[CVSF.image_path, CVSF.hash])
     }
     path_to_dup_id = _compute_near_duplicate_id(hasher, path_to_enc)
-    df[VC.outlier_near_duplicate_id] = np.array(
+    df[CVSF.outlier_near_duplicate_id] = np.array(
         [path_to_dup_id.get(image_path, 0) for image_path in images_paths]
     )
-    df[VC.outlier_near_dup] = df.func.where(
-        df[VC.outlier_near_duplicate_id] == 0, False, True
+    df[CVSF.outlier_near_dup] = df.func.where(
+        df[CVSF.outlier_near_duplicate_id] == 0, False, True
     ).to_numpy()
 
     ### Tag images as Blurry / Low contrast / Over/Under exposure and Low content
     # These simple thresholdings are put in a method in case we want to call them later
     # with different thresholds (tuning precision/recall on these)
-    df[VC.outlier_blurry] = _is_blurry_laplace(df[VC.blur])
-    df[VC.outlier_low_contrast] = _is_low_contrast(df[VC.contrast])
-    df[VC.outlier_overexposed] = _is_over_exposed(df[VC.overexp])
-    df[VC.outlier_underexposed] = _is_under_exposed(df[VC.underexp])
-    df[VC.outlier_low_content] = _is_low_content_entropy(df[VC.lowcontent])
+    df[CVSF.outlier_blurry] = _is_blurry_laplace(df[CVSF.blur])
+    df[CVSF.outlier_low_contrast] = _is_low_contrast(df[CVSF.contrast])
+    df[CVSF.outlier_overexposed] = _is_over_exposed(df[CVSF.overexp])
+    df[CVSF.outlier_underexposed] = _is_under_exposed(df[CVSF.underexp])
+    df[CVSF.outlier_low_content] = _is_low_content_entropy(df[CVSF.lowcontent])
 
     return df.materialize()
