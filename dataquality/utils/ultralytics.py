@@ -9,7 +9,7 @@ import torch
 import torchvision
 import yaml
 from torchvision.ops.boxes import box_convert, box_iou
-from ultralytics.yolo.utils.plotting import Colors
+from ultralytics.utils.plotting import Colors
 
 from dataquality.schemas.split import Split
 
