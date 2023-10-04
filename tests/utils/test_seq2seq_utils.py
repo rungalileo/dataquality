@@ -8,7 +8,9 @@ import pytest
 import torch
 
 from dataquality.exceptions import GalileoException
-from dataquality.loggers.model_logger.seq2seq.encoder_decoder import EncoderDecoderModelLogger
+from dataquality.loggers.model_logger.seq2seq.encoder_decoder import (
+    EncoderDecoderModelLogger,
+)
 from dataquality.schemas.seq2seq import (
     TOP_K,
     AlignedTokenData,

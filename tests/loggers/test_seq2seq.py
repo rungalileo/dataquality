@@ -12,12 +12,16 @@ from transformers import GenerationConfig, T5ForConditionalGeneration
 import dataquality as dq
 from dataquality.integrations.seq2seq.hf import set_tokenizer, watch
 from dataquality.loggers.data_logger.base_data_logger import DataSet
-from dataquality.loggers.data_logger.seq2seq.encoder_decoder import EncoderDecoderDataLogger
+from dataquality.loggers.data_logger.seq2seq.encoder_decoder import (
+    EncoderDecoderDataLogger,
+)
 from dataquality.loggers.data_logger.seq2seq.seq2seq import Seq2SeqDataLogger
-from dataquality.loggers.logger_config.seq2seq.seq2seq import seq2seq_logger_config
-from dataquality.loggers.logger_config.seq2seq.encoder_decoder import encoder_decoder_logger_config
-from dataquality.loggers.model_logger.seq2seq.encoder_decoder import EncoderDecoderModelLogger
-from dataquality.loggers.model_logger.seq2seq.seq2seq import Seq2SeqModelLogger
+from dataquality.loggers.logger_config.seq2seq.encoder_decoder import (
+    encoder_decoder_logger_config,
+)
+from dataquality.loggers.model_logger.seq2seq.encoder_decoder import (
+    EncoderDecoderModelLogger,
+)
 from dataquality.schemas.seq2seq import (
     TOP_K,
     BatchGenerationData,
@@ -429,7 +433,9 @@ def test_tokenize_target_doesnt_provide_maxlength_encoder_decoder(
     )
 
 
-def test_calculate_cutoffs_encoder_decoder(set_test_config: Callable, cleanup_after_use: Generator):
+def test_calculate_cutoffs_encoder_decoder(
+    set_test_config: Callable, cleanup_after_use: Generator
+):
     # TODO Add comment!
     """Test that calculate_cutoffs works correctly for both input/target"""
     set_test_config(task_type=TaskType.seq2seq)
