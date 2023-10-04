@@ -22,9 +22,10 @@ from dataquality.loggers.logger_config.image_classification import (
     ImageClassificationLoggerConfig,
     image_classification_logger_config,
 )
+from dataquality.schemas.cv import GAL_LOCAL_IMAGES_PATHS
 from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.split import Split
-from dataquality.utils.cv_smart_features import CVSF, generate_smart_features
+from dataquality.utils.cv_smart_features import generate_smart_features
 from dataquality.utils.upload import chunk_load_then_upload_df
 
 # smaller than ITER_CHUNK_SIZE from base_data_logger because very large chunks
@@ -32,7 +33,6 @@ from dataquality.utils.upload import chunk_load_then_upload_df
 from dataquality.utils.vaex import validate_unique_ids
 
 ITER_CHUNK_SIZE_IMAGES = 10000
-GAL_LOCAL_IMAGES_PATHS = "gal_local_images_paths"
 
 
 class ImageClassificationDataLogger(TextClassificationDataLogger):
@@ -419,13 +419,5 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             f"🔲 Calculating Smart Features for split {split} (can take a few minutes "
             "depending on the size of your dataset)"
         )
-        images_paths = in_frame[GAL_LOCAL_IMAGES_PATHS].tolist()
-        smart_feats_df = generate_smart_features(images_paths)
-
-        in_frame = in_frame.join(
-            smart_feats_df[CVSF.cols_to_display() + [CVSF.image_path]],
-            left_on=GAL_LOCAL_IMAGES_PATHS,
-            right_on=CVSF.image_path,
-        ).drop(CVSF.image_path)
-
+        in_frame = generate_smart_features(in_frame)
         return in_frame

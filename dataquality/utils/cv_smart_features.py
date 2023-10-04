@@ -10,6 +10,7 @@ from vaex.dataframe import DataFrame
 from vaex.expression import Expression
 
 from dataquality.exceptions import GalileoWarning
+from dataquality.schemas.cv import GAL_LOCAL_IMAGES_PATHS
 from dataquality.schemas.cv import CVSmartFeatureColumn as CVSF
 
 Expression_float = Union[Expression, float]
@@ -63,6 +64,95 @@ TALL_OUTLIER_RATIO_STD = WIDE_OUTLIER_RATIO_STD
 CHANNEL_RATIO_OUTLIER_THRESHOLD = 0.01
 
 PHASH_NEAR_DUPLICATE_THRESHOLD = 7  # reduce based on the food101 dataset
+
+
+def _has_odd_channels(df: DataFrame) -> Expression:
+    """
+    Thresholding method to find outlier images that have odd channels.
+    If a channel has less than CHANNEL_RATIO_OUTLIER_THRESHOLD% images, we consider
+    all the images with that channel to be outliers.
+    """
+    dfg = df.groupby(CVSF.channels, agg=vaex.agg.count(CVSF.channels))
+    channel_outliers = dfg[
+        dfg[f"{CVSF.channels}_count"] < len(df) * CHANNEL_RATIO_OUTLIER_THRESHOLD
+    ][CVSF.channels].tolist()
+    outliers_channels = df.func.where(
+        df[CVSF.channels].isin(channel_outliers), True, False
+    )
+    return outliers_channels
+
+
+def _has_odd_ratio(df: DataFrame) -> Expression:
+    """
+    Thresholding method to find outlier images that have odd ratio.
+
+    To find outliers that are very wide, we look at the images that are in landscape
+    position and compute the mean and std of all width/height ratios. The images with
+    width/height ratio > mean + WIDE_OUTLIER_RATIO_STD * std are considered outliers.
+
+    We then repeat the same process to find very tall outliers.
+
+    Finally we return as outliers all the images that are either wide outliers or tall
+    outliers.
+    """
+    # If some images have height=0, we add a small epsilon to avoid division by zero
+    if int((df[CVSF.height] < 1e-5).sum()) > 0:
+        warnings.warn("Some images have height=0", GalileoWarning)
+        df[CVSF.height] = df.func.where(df[CVSF.height] == 0, 1e-5, df[CVSF.height])
+    df["ratio_wh"] = df[CVSF.width] / df[CVSF.height]
+
+    df_hor = df[df["ratio_wh"] >= 1]
+    # If df_hor is empty that means that no images have bigger width than height, so we
+    # can set this threshold at 1 and no images will have ratio above that
+    wide_outlier_min_ratio = 1
+    if len(df_hor) > 0:
+        wide_outlier_min_ratio = (
+            float(df_hor["ratio_wh"].mean())
+            + WIDE_OUTLIER_RATIO_STD * df_hor["ratio_wh"].std()
+        )
+
+    df_vert = df[df["ratio_wh"] <= 1]
+    # If df_vert is empty that means that no images have bigger height than width, so we
+    # can set this threshold at 1 and no images will have ratio below that
+    tall_outlier_max_ratio = 1
+    if len(df_vert) > 0:
+        tall_outlier_max_ratio = (
+            float(df_vert["ratio_wh"].mean())
+            - TALL_OUTLIER_RATIO_STD * df_vert["ratio_wh"].std()
+        )
+
+    outliers_ratio = df.func.where(
+        (df["ratio_wh"] < tall_outlier_max_ratio)
+        | (df["ratio_wh"] > wide_outlier_min_ratio),
+        True,
+        False,
+    )
+
+    return outliers_ratio
+
+
+def _has_odd_size(df: DataFrame) -> Expression_float:
+    """
+    Thresholding method to find outlier images that have odd size.
+
+    We compute the median resolution of all images, and consider all images with
+        - resolution > mean * MEDIAN_RES_FACTOR_LARGE as a large outlier
+        - resolution < mean * MEDIAN_RES_FACTOR_SMALL as a small outlier
+
+    We return as outliers all images that are either large outliers or small outliers.
+    """
+    df["resolution"] = df[CVSF.height] * df[CVSF.width]
+    # Vaex has no good method for computing the median (only an approximate or so),
+    # we can bring it in memory and use numpy since it's a small df anyways
+    median_resolution = np.median(df["resolution"].to_numpy())
+    max_resolution = median_resolution * MEDIAN_RES_FACTOR_LARGE
+    min_resolution = median_resolution / MEDIAN_RES_FACTOR_SMALL
+    outliers_size = df.func.where(
+        (df["resolution"] >= max_resolution) | (df["resolution"] <= min_resolution),
+        True,
+        False,
+    )
+    return outliers_size
 
 
 def _low_contrast_ranges(np_gray: np.ndarray) -> Tuple[float, float, float]:
@@ -284,6 +374,30 @@ def _compute_near_duplicate_id(
     return path_to_dup_id
 
 
+def _near_duplicate_id(
+    df: DataFrame, hasher: PHash, images_paths: List[str]
+) -> Expression_float:
+    """
+    TODO
+    """
+    path_to_enc = {
+        row[CVSF.image_path]: row[CVSF.hash]
+        for row in df.to_records(column_names=[CVSF.image_path, CVSF.hash])
+    }
+    path_to_dup_id = _compute_near_duplicate_id(hasher, path_to_enc)
+    np_near_duplicate_id = np.array(
+        [path_to_dup_id.get(image_path, 0) for image_path in images_paths]
+    )
+    return np_near_duplicate_id
+
+
+def _is_near_duplicate(in_frame: DataFrame) -> Expression_float:
+    np_is_near_duplicate = in_frame.func.where(
+        in_frame[CVSF.outlier_near_duplicate_id] == 0, False, True
+    ).to_numpy()
+    return np_is_near_duplicate
+
+
 def _open_and_resize(image_path: str) -> Tuple[Image.Image, Image.Image, np.ndarray]:
     """
     Open the image at the given path and return a triple with
@@ -371,7 +485,7 @@ def analyze_image_smart_features_wrapper(hasher: Optional[PHash] = None) -> Call
     return analyze_image_smart_features_only_image_path
 
 
-def generate_smart_features(images_paths: List[str], n_cores: int = -1) -> DataFrame:
+def generate_smart_features(in_frame: DataFrame, n_cores: int = -1) -> DataFrame:
     """
     Create and return a dataframe containing the  smart features on images (blurriness,
     contrast, etc).
@@ -382,7 +496,9 @@ def generate_smart_features(images_paths: List[str], n_cores: int = -1) -> DataF
     hasher = PHash()
     images_data: List[dict] = []
 
-    ### Call the method (serially or in parallel depending on n_cores)
+    # Collect the quantitative features to find anomalies (bluriness, num_channels,
+    # width, etc). Called serially or in parallel depending on n_cores
+    images_paths = in_frame[GAL_LOCAL_IMAGES_PATHS].tolist()
     if n_cores == 1:
         for image_path in images_paths:
             image_data = analyze_image_smart_features(image_path, hasher)
@@ -391,85 +507,20 @@ def generate_smart_features(images_paths: List[str], n_cores: int = -1) -> DataF
         p = Pool(n_cores if n_cores != -1 else cpu_count())
         analyze_image_smart_features_par = analyze_image_smart_features_wrapper(hasher)
         images_data = p.map(analyze_image_smart_features_par, images_paths)
-
     df = vaex.from_records(images_data)
 
-    ### Tag rare channels as Outliers (less than T%)
-    dfg = df.groupby(CVSF.channels, agg=vaex.agg.count(CVSF.channels))
-    channel_outliers = dfg[
-        dfg[f"{CVSF.channels}_count"] < len(df) * CHANNEL_RATIO_OUTLIER_THRESHOLD
-    ][CVSF.channels].tolist()
-    df[CVSF.outlier_channels] = df.func.where(
-        df[CVSF.channels].isin(channel_outliers), True, False
+    # Add smart features to the dataframe
+    in_frame[CVSF.outlier_channels] = _has_odd_channels(df[CVSF.channels])
+    in_frame[CVSF.outlier_ratio] = _has_odd_ratio(df[[CVSF.width, CVSF.height]])
+    in_frame[CVSF.outlier_size] = _has_odd_size(df[[CVSF.width, CVSF.height]])
+    in_frame[CVSF.outlier_blurry] = _is_blurry_laplace(df[CVSF.blur])
+    in_frame[CVSF.outlier_low_contrast] = _is_low_contrast(df[CVSF.contrast])
+    in_frame[CVSF.outlier_overexposed] = _is_over_exposed(df[CVSF.overexp])
+    in_frame[CVSF.outlier_underexposed] = _is_under_exposed(df[CVSF.underexp])
+    in_frame[CVSF.outlier_low_content] = _is_low_content_entropy(df[CVSF.lowcontent])
+    in_frame[CVSF.outlier_near_duplicate_id] = _near_duplicate_id(
+        df, hasher, images_paths
     )
-
-    ### Tag images with ratio outside of mean +/- T*std as Wide/Tall
-    # If some images have height=0, we add a small epsilon to avoid division by zero
-    if int((df[CVSF.height] < 1e-5).sum()) > 0:
-        warnings.warn("Some images have height=0", GalileoWarning)
-        df[CVSF.height] = df.func.where(df[CVSF.height] == 0, 1e-5, df[CVSF.height])
-    df["ratio_wh"] = df[CVSF.width] / df[CVSF.height]
-
-    df_hor = df[df["ratio_wh"] >= 1]
-    # If df_hor is empty that means that no images have bigger width than height, so we
-    # can set this threshold at 1 and no images will have ratio above that
-    wide_outlier_min_ratio = 1
-    if len(df_hor) > 0:
-        wide_outlier_min_ratio = (
-            float(df_hor["ratio_wh"].mean())
-            + WIDE_OUTLIER_RATIO_STD * df_hor["ratio_wh"].std()
-        )
-
-    df_vert = df[df["ratio_wh"] <= 1]
-    # If df_vert is empty that means that no images have bigger height than width, so we
-    # can set this threshold at 1 and no images will have ratio below that
-    tall_outlier_max_ratio = 1
-    if len(df_vert) > 0:
-        tall_outlier_max_ratio = (
-            float(df_vert["ratio_wh"].mean())
-            - TALL_OUTLIER_RATIO_STD * df_vert["ratio_wh"].std()
-        )
-
-    df[CVSF.outlier_ratio] = df.func.where(
-        (df["ratio_wh"] < tall_outlier_max_ratio)
-        | (df["ratio_wh"] > wide_outlier_min_ratio),
-        True,
-        False,
-    )
-
-    ### Tag images with resolution outside of median *// some coeff as Large/Small
-    df["resolution"] = df[CVSF.height] * df[CVSF.width]
-    # Vaex has no good method for computing the median (only an approximate or so),
-    # we can bring it in memory and use numpy since it's a small df anyways
-    median_resolution = np.median(df["resolution"].to_numpy())
-    max_resolution = median_resolution * MEDIAN_RES_FACTOR_LARGE
-    min_resolution = median_resolution / MEDIAN_RES_FACTOR_LARGE
-    df[CVSF.outlier_size] = df.func.where(
-        (df["resolution"] >= max_resolution) | (df["resolution"] <= min_resolution),
-        True,
-        False,
-    )
-
-    ### Tag images with similar hash (in terms of Hamming distance) as near duplicates
-    path_to_enc = {
-        row[CVSF.image_path]: row[CVSF.hash]
-        for row in df.to_records(column_names=[CVSF.image_path, CVSF.hash])
-    }
-    path_to_dup_id = _compute_near_duplicate_id(hasher, path_to_enc)
-    df[CVSF.outlier_near_duplicate_id] = np.array(
-        [path_to_dup_id.get(image_path, 0) for image_path in images_paths]
-    )
-    df[CVSF.outlier_near_dup] = df.func.where(
-        df[CVSF.outlier_near_duplicate_id] == 0, False, True
-    ).to_numpy()
-
-    ### Tag images as Blurry / Low contrast / Over/Under exposure and Low content
-    # These simple thresholdings are put in a method in case we want to call them later
-    # with different thresholds (tuning precision/recall on these)
-    df[CVSF.outlier_blurry] = _is_blurry_laplace(df[CVSF.blur])
-    df[CVSF.outlier_low_contrast] = _is_low_contrast(df[CVSF.contrast])
-    df[CVSF.outlier_overexposed] = _is_over_exposed(df[CVSF.overexp])
-    df[CVSF.outlier_underexposed] = _is_under_exposed(df[CVSF.underexp])
-    df[CVSF.outlier_low_content] = _is_low_content_entropy(df[CVSF.lowcontent])
+    in_frame[CVSF.outlier_near_dup] = _is_near_duplicate(in_frame)
 
     return df.materialize()

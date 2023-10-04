@@ -12,9 +12,9 @@ from torchvision.datasets import ImageFolder
 import dataquality
 import dataquality as dq
 from dataquality.loggers.data_logger.image_classification import (
-    GAL_LOCAL_IMAGES_PATHS,
     ImageClassificationDataLogger,
 )
+from dataquality.schemas.cv import GAL_LOCAL_IMAGES_PATHS
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import validate_unique_ids
 from tests.assets.constants import TEST_IMAGES_FOLDER_ROOT

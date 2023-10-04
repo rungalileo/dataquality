@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import List
 
+GAL_LOCAL_IMAGES_PATHS = "gal_local_images_paths"
+
 
 @dataclass
 class CVSmartFeatureColumn(str, Enum):

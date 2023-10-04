@@ -8,7 +8,7 @@ from datasets import load_dataset
 from torchvision.datasets import ImageFolder
 
 import dataquality as dq
-from dataquality.loggers.data_logger.image_classification import GAL_LOCAL_IMAGES_PATHS
+from dataquality.schemas.cv import GAL_LOCAL_IMAGES_PATHS
 from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.assets.constants import TEST_IMAGES_FOLDER_ROOT
 from tests.conftest import TestSessionVariables
