@@ -446,10 +446,10 @@ class SemanticTorchLogger(TorchLogger):
             if gold_mask.dtype == torch.float16:
                 gold_mask = gold_mask.to(torch.float32)
 
-            mislabeled_pixels = self.calculate_mislabeled_pixels(probs, gold_mask)
-            # do not log if we are not in the final inference loop
             if not self.called_finish:
                 return
+            mislabeled_pixels = self.calculate_mislabeled_pixels(probs, gold_mask)
+            # do not log if we are not in the final inference loop
             logger = SemanticSegmentationModelLogger(
                 imgs_remote_location=self.imgs_remote_location,
                 image_paths=image_paths,
