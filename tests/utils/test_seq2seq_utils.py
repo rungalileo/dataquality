@@ -1,27 +1,117 @@
 from dataclasses import dataclass
-from typing import List, Set, Tuple
 from unittest import mock
+from unittest.mock import MagicMock
 
 import numpy as np
+import pyarrow as pa
 import pytest
 import torch
 
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.model_logger.seq2seq import Seq2SeqModelLogger
-from dataquality.schemas.seq2seq import TOP_K, LogprobData
+from dataquality.schemas.seq2seq import (
+    TOP_K,
+    AlignedTokenData,
+    LogprobData,
+    ModelGeneration,
+)
 from dataquality.utils.seq2seq import (
     remove_padding,
 )
 from dataquality.utils.seq2seq.generation import (
+    generate_on_batch,
     generate_sample_output,
 )
 from dataquality.utils.seq2seq.logprobs import (
     get_top_logprob_indices,
     process_sample_logprobs,
 )
-from dataquality.utils.seq2seq.offsets import (
-    rollup_offset_mapping,
-)
+
+
+@mock.patch("dataquality.utils.seq2seq.generation.align_tokens_to_character_spans")
+@mock.patch("dataquality.utils.seq2seq.generation.generate_sample_output")
+def test_generate_on_batch(
+    mock_generate_sample_output: mock.Mock,
+    mock_align_tokens_to_character_spans: mock.Mock,
+) -> None:
+    """Test generating over a batch of text Inputs
+
+    In general, we have individually tested the functions used within
+    `generate_on_batch`. So, here we are mainly testing the combined
+    functionality of all of these.
+
+    Things to Test:
+        - Test that we are properly combining the per-sample info
+        - Test the creation of the BatchGenerationData object
+
+    Things to Mock:
+        - generate_sample_output: This can be fairly simple. The
+        one thing that we want to vary would be the length of things returned
+        - tokenizer: decode can be quite simple + encode + max_input_tokens
+        - model + generation_config: just to have as input params
+        - align_tokens_to_character_spans: This is already tested so let's just
+        mock the output!
+    """
+
+    # Mock the tokenizer
+    mock_tokenizer = MagicMock()
+    mock_tokenizer.decode.return_value = "Fake output"
+    mock_tokenizer.return_value = {"offset_mapping": []}
+    mock_max_input_tokens = 512
+
+    # Mock the model
+    mock_model = MagicMock()  # Don't actually need any functions for this
+
+    # Mock generation_config
+    mock_generation_config = MagicMock()
+
+    # Mock the generation process
+    def mock_generate_output() -> ModelGeneration:
+        """Create simple dummy ModelGeneration"""
+        # Generate fake outputs
+        num_fake_tokens = np.random.randint(3, 10)
+        gen_ids = np.arange(num_fake_tokens)
+        gen_token_logprobs = np.zeros(num_fake_tokens) - 1
+        gen_top_logprobs = [[("A", -1), ("B", -2)] for _ in range(num_fake_tokens)]
+        gen_logprob_data = LogprobData(
+            token_logprobs=gen_token_logprobs, top_logprobs=gen_top_logprobs
+        )
+        return ModelGeneration(gen_ids, gen_logprob_data)
+
+    mock_generate_sample_output.return_value = mock_generate_output()
+
+    # Mock aligned output for a single sample
+    fake_token_label_offsets = [[(0, 1), (1, 20), (20, 21), (21, 22), (22, 23)]]
+    fake_token_label_positions = [[{0, 1}, {1}, {0}, {2, 3}, {3}]]
+    mock_align_tokens_to_character_spans.return_value = AlignedTokenData(
+        token_label_offsets=fake_token_label_offsets,
+        token_label_positions=fake_token_label_positions,
+    )
+
+    # Create fake df with vaex
+    texts = pa.array(["Fake Input"] * 100)
+
+    generated_data = generate_on_batch(
+        texts, mock_model, mock_tokenizer, mock_max_input_tokens, mock_generation_config
+    )
+
+    # Make sure everything is in check!
+    assert len(generated_data.generated_outputs) == 100
+    assert generated_data.generated_outputs == ["Fake output"] * 100
+    assert (
+        generated_data.generated_token_label_positions
+        == fake_token_label_positions * 100
+    )
+    assert (
+        generated_data.generated_token_label_offsets == fake_token_label_offsets * 100
+    )
+    for logprobs, top_logprobs in zip(
+        generated_data.generated_token_logprobs, generated_data.generated_top_logprobs
+    ):
+        num_tokens = len(logprobs)
+        assert num_tokens == len(top_logprobs)
+        assert np.array_equal(logprobs, np.zeros(num_tokens) - 1)
+        assert top_logprobs == [[("A", -1), ("B", -2)] for _ in range(num_tokens)]
 
 
 @mock.patch("dataquality.utils.seq2seq.generation.process_sample_logprobs")
@@ -50,7 +140,7 @@ def test_generate_sample_output(
     """
     # Mock the tokenizer
     mock_tokenizer = mock.MagicMock()
-    mock_tokenizer.return_value = {"input_ids": torch.tensor([[1, 2, 3, 0]])}
+    mock_tokenizer.return_value = {"input_ids": torch.tensor([[0, 2, 3, 1]])}
 
     # Mock the model
     mock_model = mock.MagicMock()
@@ -64,7 +154,7 @@ def test_generate_sample_output(
         logits: torch.tensor
 
     # Mock model output and model device
-    mock_model.return_value = FakeOutput(torch.rand((1, 3, 20)))
+    mock_model.return_value = mock.MagicMock(logits=torch.rand((1, 3, 20)))
     mock_model.device = torch.device("cpu")
 
     # Mock generation_config
@@ -101,6 +191,55 @@ def test_generate_sample_output(
         model_generation.generated_logprob_data.token_logprobs, fake_token_logprobs
     )
     assert model_generation.generated_logprob_data.top_logprobs == fake_top_logprob_data
+
+
+@mock.patch("dataquality.utils.seq2seq.generation.get_top_logprob_indices")
+def test_generate_sample_output_empty_sample(mock_get_top_logprob_indices: mock.Mock):
+    """Test that we properly handle genearted sequences of length 1 - just [EOS]
+
+    One tricky edge case if if the model immediately generates the EOS token. This is
+    essentially equivalent to the model generating the empty string. Here we test
+    to make sure nothing fails!
+
+    Things to Mock:
+        - Tokenizer `encode` and `decode`
+        - model `generate`, `forward`, and `device`
+        - generation_config
+        - mock_get_top_logprob_indices
+    """
+    # Mock the tokenizer
+    mock_tokenizer = mock.MagicMock()
+    mock_tokenizer.return_value = {"input_ids": torch.tensor([[1, 2, 3, 0]])}
+    mock_tokenizer.decode.return_value = "Fake"
+
+    # Mock the model
+    mock_model = mock.MagicMock()
+    # Add a fake <pad> token to the generated ids
+    mock_model.generate.return_value = torch.tensor([[0, 1]])
+
+    # Mock the model forward function to return random logits
+    # for a single batch element
+    @dataclass
+    class FakeOutput:
+        logits: torch.tensor
+
+    # Mock model output and model device - shape (bs=1, seq_len=1, 20)
+    mock_model.return_value = mock.MagicMock(logits=torch.rand((1, 1, 20)))
+    mock_model.device = torch.device("cpu")
+
+    # Mock generation_config
+    mock_generation_config = mock.MagicMock()
+
+    # Mock top_k indices - shape (seq_len=1, 5)
+    mock_get_top_logprob_indices.return_value = np.array([[1, 2, 3, 4, 5]])
+
+    with mock.patch("torch.no_grad"):
+        model_generation = generate_sample_output(
+            "test str", mock_model, mock_tokenizer, 512, mock_generation_config
+        )
+
+    assert model_generation.generated_ids == np.array([1])
+    assert len(model_generation.generated_logprob_data.token_logprobs) == 1
 
 
 def test_model_logger_remove_padding() -> None:
@@ -207,6 +346,31 @@ def test_process_sample_logprobs():
         assert np.allclose(pred_top_logprobs, fake_logprobs[i, :TOP_K])
 
 
+def test_process_sample_logprobs_seq_len_one():
+    """Test process_sample_logprobs on a sequence of length one"""
+    mock_tokenizer = mock.MagicMock()
+    mock_tokenizer.decode.return_value = "Fake"
+
+    seq_len = 1
+    vocab_size = 100
+
+    fake_logprobs = np.random.rand(seq_len, vocab_size)
+    fake_labels = np.arange(seq_len)
+    fake_top_indices = np.tile(np.arange(TOP_K), (seq_len, 1))
+
+    logprob_data = process_sample_logprobs(
+        fake_logprobs, fake_labels, fake_top_indices, mock_tokenizer
+    )
+
+    # Check that the token_logprobs are correct
+    assert logprob_data.token_logprobs.shape == (1,)
+
+    # Check that the top_logprobs are correct
+    top_loprobs = logprob_data.top_logprobs
+    assert len(top_loprobs) == seq_len
+    assert len(top_loprobs[0]) == TOP_K
+
+
 def test_process_sample_logprobs_incorrect_shape():
     """Test process_sample_logprobs with incorrect label shape"""
     mock_tokenizer = mock.MagicMock()
@@ -268,124 +432,3 @@ def test_get_top_logprob_indices() -> None:
         np.array([98, 99, 97, 96, 95]), (batch_size, seq_len, 1)
     )
     assert np.allclose(top_logprob_indices, gt_top_logprob_indices)
-
-
-@pytest.mark.parametrize(
-    "offsets,span_offsets,span_positions",
-    [
-        [
-            [(0, 1), (0, 20), (21, 22), (21, 23), (0, 0)],
-            [(0, 1), (1, 20), (20, 21), (21, 22), (22, 23)],
-            [{0, 1}, {1}, set(), {2, 3}, {3}],
-        ],
-        [
-            [
-                (0, 1),
-                (0, 1),
-                (1, 2),
-                (1, 2),
-                (2, 3),
-                (2, 3),
-                (3, 4),
-                (3, 4),
-                (4, 5),
-                (4, 5),
-                (5, 6),
-                (5, 6),
-                (6, 7),
-                (7, 8),
-                (8, 9),
-                (8, 9),
-                (9, 10),
-                (9, 10),
-                (10, 11),
-                (10, 11),
-                (11, 12),
-                (11, 12),
-                (11, 12),
-                (12, 13),
-                (13, 14),
-                (13, 14),
-                (14, 15),
-                (14, 15),
-                (15, 16),
-                (15, 16),
-                (16, 17),
-                (16, 17),
-                (16, 17),
-                (17, 18),
-                (17, 18),
-                (18, 19),
-                (18, 19),
-                (19, 20),
-                (19, 20),
-                (20, 22),
-                (21, 22),
-                (21, 22),
-                (22, 23),
-                (22, 23),
-            ],
-            [
-                (0, 1),
-                (1, 2),
-                (2, 3),
-                (3, 4),
-                (4, 5),
-                (5, 6),
-                (6, 7),
-                (7, 8),
-                (8, 9),
-                (9, 10),
-                (10, 11),
-                (11, 12),
-                (12, 13),
-                (13, 14),
-                (14, 15),
-                (15, 16),
-                (16, 17),
-                (17, 18),
-                (18, 19),
-                (19, 20),
-                (20, 21),
-                (21, 22),
-                (22, 23),
-            ],
-            [
-                {0, 1},
-                {2, 3},
-                {4, 5},
-                {6, 7},
-                {8, 9},
-                {10, 11},
-                {12},
-                {13},
-                {14, 15},
-                {16, 17},
-                {18, 19},
-                {20, 21, 22},
-                {23},
-                {24, 25},
-                {26, 27},
-                {28, 29},
-                {30, 31, 32},
-                {33, 34},
-                {35, 36},
-                {37, 38},
-                {39},
-                {39, 40, 41},
-                {42, 43},
-            ],
-        ],
-        [
-            [(3, 6), (6, 7), (7, 9), (9, 18), (18, 25)],
-            [(0, 3), (3, 6), (6, 7), (7, 9), (9, 18), (18, 25)],
-            [set(), {0}, {1}, {2}, {3}, {4}],
-        ],
-    ],
-)
-def test_rollup_spans(
-    offsets: List[Tuple[int, int]],
-    span_offsets: List[Tuple[int, int]],
-    span_positions: List[Set[int]],
-) -> None:
-    assert rollup_offset_mapping(offsets) == (span_offsets, span_positions)

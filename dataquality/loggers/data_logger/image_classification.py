@@ -3,6 +3,7 @@ from __future__ import annotations
 import glob
 import os
 import tempfile
+import warnings
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import numpy as np
@@ -11,6 +12,7 @@ import vaex
 from vaex.dataframe import DataFrame
 
 from dataquality import config
+from dataquality.clients.objectstore import ObjectStore
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger.base_data_logger import DataSet, MetasType
 from dataquality.loggers.data_logger.text_classification import (
@@ -20,8 +22,10 @@ from dataquality.loggers.logger_config.image_classification import (
     ImageClassificationLoggerConfig,
     image_classification_logger_config,
 )
+from dataquality.schemas.cv import GAL_LOCAL_IMAGES_PATHS
 from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.split import Split
+from dataquality.utils.cv_smart_features import generate_smart_features
 from dataquality.utils.upload import chunk_load_then_upload_df
 
 # smaller than ITER_CHUNK_SIZE from base_data_logger because very large chunks
@@ -29,7 +33,6 @@ from dataquality.utils.upload import chunk_load_then_upload_df
 from dataquality.utils.vaex import validate_unique_ids
 
 ITER_CHUNK_SIZE_IMAGES = 10000
-GAL_LOCAL_IMAGES_PATHS = "gal_local_images_paths"
 
 
 class ImageClassificationDataLogger(TextClassificationDataLogger):
@@ -86,11 +89,21 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
             # In _prepare_df_from_ImageFolder, we set a column GAL_LOCAL_IMAGES_PATHS
             # that maps to the local image path
             imgs_local_colname = GAL_LOCAL_IMAGES_PATHS
-        else:
-            if imgs_local_colname is None and imgs_remote is None:
-                raise GalileoException(
-                    "Must provide imgs_local_colname or imgs_remote when using a df"
-                )
+
+        if imgs_local_colname is None and imgs_remote is None:
+            raise GalileoException(
+                "Must provide imgs_local_colname or imgs_remote when using a df"
+            )
+        elif imgs_local_colname is None:
+            warnings.warn(
+                "Smart Features won't be calculated since no local paths to images"
+                "were provided"
+            )
+        elif imgs_remote is None:
+            warnings.warn(
+                "The images will be uploaded to a remote object store (can be"
+                "slow). Provide remote paths to images to avoid this upload"
+            )
 
         # Get the column mapping and rename imgs_local and imgs_remote if required
         column_map = column_map or {id: "id"}
@@ -374,3 +387,37 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         dataframes.prob.set_variable("progress_name", str(epoch_inf_val))
 
         return dataframes
+
+    @classmethod
+    def upload_split_from_in_frame(
+        cls,
+        object_store: ObjectStore,
+        in_frame: DataFrame,
+        split: str,
+        split_loc: str,
+        last_epoch: Optional[int] = None,
+        create_data_embs: bool = False,
+    ) -> None:
+        in_frame = cls.add_cv_smart_features(in_frame, split)
+        super().upload_split_from_in_frame(
+            object_store, in_frame, split, split_loc, last_epoch, create_data_embs
+        )
+
+    @classmethod
+    def add_cv_smart_features(cls, in_frame: DataFrame, split: str) -> DataFrame:
+        """
+        Calculate and add smart features on images (blurriness, contrast, etc) to the
+        dataframe.
+
+        The in_frame df only requires the column containing the paths to local images
+        GAL_LOCAL_IMAGES_PATHS for this method to run.
+        """
+        if GAL_LOCAL_IMAGES_PATHS not in in_frame.get_column_names():
+            return in_frame
+
+        print(
+            f"🔲 Calculating Smart Features for split {split} (can take a few minutes "
+            "depending on the size of your dataset)"
+        )
+        in_frame = generate_smart_features(in_frame)
+        return in_frame

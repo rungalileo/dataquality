@@ -162,8 +162,6 @@ def log_image_dataset(
         "Please use dq.log_samples for text tasks."
     )
 
-    # TODO: raise warning if imgs_local is None (and we provide no smart features)
-
     data_logger.log_image_dataset(
         dataset=dataset,
         imgs_local_colname=imgs_local_colname,

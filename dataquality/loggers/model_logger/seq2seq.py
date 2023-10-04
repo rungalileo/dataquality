@@ -48,7 +48,6 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             inference_name=inference_name,
             labels=labels,
         )
-        self.sample_perplexity: List[float] = []
         self.token_logprobs = pa.array([])
         self.top_logprobs = pa.array([])
         self.labels = labels
@@ -84,12 +83,11 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         (
             self.token_logprobs,
             self.top_logprobs,
-            self.sample_perplexity,
         ) = self.process_logprobs(self.ids, logprobs)
 
     def process_logprobs(
         self, batch_ids: np.ndarray, batch_logprobs: np.ndarray
-    ) -> Tuple[pa.array, pa.array, List[float]]:
+    ) -> Tuple[pa.array, pa.array]:
         """Handle processing of a batch of sample logprobs
 
         For each sample in the batch extract / compute the following values:
@@ -125,7 +123,6 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
 
         batch_token_logprobs = []
         batch_top_logprobs = []
-        batch_perplexities = []
         # Iterate through the samples in the batch
         for sample_id, sample_logprobs, sample_top_indices in zip(
             batch_ids, batch_logprobs, top_logprob_indices
@@ -156,15 +153,9 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             batch_token_logprobs.append(logprob_data.token_logprobs)
             batch_top_logprobs.append(logprob_data.top_logprobs)
 
-            # TODO eventually deprecate
-            # Perplexity = exp(-sum(gold_logprobs)
-            perplexity = np.exp(-1 * np.mean(logprob_data.token_logprobs))
-            batch_perplexities.append(perplexity)
-
         return (
             pa.array(batch_token_logprobs),
             pa.array(batch_top_logprobs, type=TOP_LOGPROBS_SCHEMA),
-            batch_perplexities,
         )
 
     def _get_data_dict(self) -> Dict:
@@ -172,7 +163,6 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         batch_size = len(self.ids)
         data = {
             C.id.value: self.ids,
-            C.perplexity.value: self.sample_perplexity,
             C.token_logprobs.value: self.token_logprobs,
             C.top_logprobs.value: self.top_logprobs,
             C.split_.value: [Split[self.split].value] * batch_size,
