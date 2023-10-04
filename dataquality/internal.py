@@ -110,7 +110,4 @@ def rename_project(project_name: str, new_name: str) -> None:
     :param new_name: The new name to assign to the project
     """
     api_client.update_project_name(project_name, new_name)
-    print(
-        f"Successfully renamed project {project_name} to "
-        f"{new_name}"
-    )
+    print(f"Successfully renamed project {project_name} to " f"{new_name}")
