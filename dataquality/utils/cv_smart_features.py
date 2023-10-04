@@ -72,12 +72,12 @@ def _has_odd_channels(df: DataFrame) -> Expression:
     If a channel has less than CHANNEL_RATIO_OUTLIER_THRESHOLD% images, we consider
     all the images with that channel to be outliers.
     """
-    dfg = df.groupby(CVSF.channels, agg=vaex.agg.count(CVSF.channels))
+    dfg = df.groupby(CVSF.channels.value, agg=vaex.agg.count(CVSF.channels.value))
     channel_outliers = dfg[
         dfg[f"{CVSF.channels}_count"] < len(df) * CHANNEL_RATIO_OUTLIER_THRESHOLD
-    ][CVSF.channels].tolist()
+    ][CVSF.channels.value].tolist()
     outliers_channels = df.func.where(
-        df[CVSF.channels].isin(channel_outliers), True, False
+        df[CVSF.channels.value].isin(channel_outliers), True, False
     )
     return outliers_channels
 
@@ -96,10 +96,12 @@ def _has_odd_ratio(df: DataFrame) -> Expression:
     outliers.
     """
     # If some images have height=0, we add a small epsilon to avoid division by zero
-    if int((df[CVSF.height] < 1e-5).sum()) > 0:
+    if int((df[CVSF.height.value] < 1e-5).sum()) > 0:
         warnings.warn("Some images have height=0", GalileoWarning)
-        df[CVSF.height] = df.func.where(df[CVSF.height] == 0, 1e-5, df[CVSF.height])
-    df["ratio_wh"] = df[CVSF.width] / df[CVSF.height]
+        df[CVSF.height.value] = df.func.where(
+            df[CVSF.height.value] == 0, 1e-5, df[CVSF.height.value]
+        )
+    df["ratio_wh"] = df[CVSF.width.value] / df[CVSF.height.value]
 
     df_hor = df[df["ratio_wh"] >= 1]
     # If df_hor is empty that means that no images have bigger width than height, so we
@@ -141,7 +143,7 @@ def _has_odd_size(df: DataFrame) -> Expression_float:
 
     We return as outliers all images that are either large outliers or small outliers.
     """
-    df["resolution"] = df[CVSF.height] * df[CVSF.width]
+    df["resolution"] = df[CVSF.height.value] * df[CVSF.width.value]
     # Vaex has no good method for computing the median (only an approximate or so),
     # we can bring it in memory and use numpy since it's a small df anyways
     median_resolution = np.median(df["resolution"].to_numpy())
@@ -381,8 +383,8 @@ def _near_duplicate_id(
     TODO
     """
     path_to_enc = {
-        row[CVSF.image_path]: row[CVSF.hash]
-        for row in df.to_records(column_names=[CVSF.image_path, CVSF.hash])
+        row[CVSF.image_path.value]: row[CVSF.hash.value]
+        for row in df.to_records(column_names=[CVSF.image_path.value, CVSF.hash.value])
     }
     path_to_dup_id = _compute_near_duplicate_id(hasher, path_to_enc)
     np_near_duplicate_id = np.array(
@@ -393,7 +395,7 @@ def _near_duplicate_id(
 
 def _is_near_duplicate(in_frame: DataFrame) -> Expression_float:
     np_is_near_duplicate = in_frame.func.where(
-        in_frame[CVSF.outlier_near_duplicate_id] == 0, False, True
+        in_frame[CVSF.outlier_near_duplicate_id.value] == 0, False, True
     ).to_numpy()
     return np_is_near_duplicate
 
@@ -442,33 +444,33 @@ def analyze_image_smart_features(
     image, image_gray, np_gray = _open_and_resize(image_path)
 
     # Near Dupliocates: compute hash encoding for every image
-    image_data[CVSF.hash] = _get_phash_encoding(hasher, np_gray)
+    image_data[CVSF.hash.value] = _get_phash_encoding(hasher, np_gray)
 
     # Odd Channels / Size / Ratio: gather image stats
     image_data.update(
         {
-            CVSF.image_path: image_path,
-            CVSF.width: image.width,
-            CVSF.height: image.height,
-            CVSF.channels: CHANNELS_DICT.get(image.mode),
+            CVSF.image_path.value: image_path,
+            CVSF.width.value: image.width,
+            CVSF.height.value: image.height,
+            CVSF.channels.value: CHANNELS_DICT.get(image.mode),
         }
     )
 
     # Blurriness: compute variance of Laplacian
-    image_data[CVSF.blur] = _blurry_laplace(image_gray)
+    image_data[CVSF.blur.value] = _blurry_laplace(image_gray)
 
     # Low contrast: compute range of all / low / high pixel intensities
     contrast_range, q_max_under, q_min_over = _low_contrast_ranges(np_gray)
     image_data.update(
         {
-            CVSF.contrast: contrast_range,
-            CVSF.underexp: q_max_under,
-            CVSF.overexp: q_min_over,
+            CVSF.contrast.value: contrast_range,
+            CVSF.underexp.value: q_max_under,
+            CVSF.overexp.value: q_min_over,
         }
     )
 
     # Low content: compute image entropy
-    image_data[CVSF.lowcontent] = _image_content_entropy(image)
+    image_data[CVSF.lowcontent.value] = _image_content_entropy(image)
 
     return image_data
 
@@ -510,17 +512,23 @@ def generate_smart_features(in_frame: DataFrame, n_cores: int = -1) -> DataFrame
     df = vaex.from_records(images_data)
 
     # Add smart features to the dataframe
-    in_frame[CVSF.outlier_channels] = _has_odd_channels(df[CVSF.channels])
-    in_frame[CVSF.outlier_ratio] = _has_odd_ratio(df[[CVSF.width, CVSF.height]])
-    in_frame[CVSF.outlier_size] = _has_odd_size(df[[CVSF.width, CVSF.height]])
-    in_frame[CVSF.outlier_blurry] = _is_blurry_laplace(df[CVSF.blur])
-    in_frame[CVSF.outlier_low_contrast] = _is_low_contrast(df[CVSF.contrast])
-    in_frame[CVSF.outlier_overexposed] = _is_over_exposed(df[CVSF.overexp])
-    in_frame[CVSF.outlier_underexposed] = _is_under_exposed(df[CVSF.underexp])
-    in_frame[CVSF.outlier_low_content] = _is_low_content_entropy(df[CVSF.lowcontent])
-    in_frame[CVSF.outlier_near_duplicate_id] = _near_duplicate_id(
+    in_frame[CVSF.outlier_channels.value] = _has_odd_channels(df)
+    in_frame[CVSF.outlier_ratio.value] = _has_odd_ratio(df)
+    in_frame[CVSF.outlier_size.value] = _has_odd_size(df)
+    in_frame[CVSF.outlier_blurry.value] = _is_blurry_laplace(df[CVSF.blur.value])
+    in_frame[CVSF.outlier_low_contrast.value] = _is_low_contrast(
+        df[CVSF.contrast.value]
+    )
+    in_frame[CVSF.outlier_overexposed.value] = _is_over_exposed(df[CVSF.overexp.value])
+    in_frame[CVSF.outlier_underexposed.value] = _is_under_exposed(
+        df[CVSF.underexp.value]
+    )
+    in_frame[CVSF.outlier_low_content.value] = _is_low_content_entropy(
+        df[CVSF.lowcontent.value]
+    )
+    in_frame[CVSF.outlier_near_duplicate_id.value] = _near_duplicate_id(
         df, hasher, images_paths
     )
-    in_frame[CVSF.outlier_near_dup] = _is_near_duplicate(in_frame)
+    in_frame[CVSF.outlier_near_dup.value] = _is_near_duplicate(in_frame)
 
     return df.materialize()

@@ -1,10 +1,15 @@
 from glob import glob
 from pathlib import Path
 
+import vaex
+
 from dataquality.utils.cv_smart_features import (
     _blurry_laplace,
     _compute_near_duplicate_id,
     _get_phash_encoding,
+    _has_odd_channels,
+    _has_odd_ratio,
+    _has_odd_size,
     _image_content_entropy,
     _is_blurry_laplace,
     _is_low_content_entropy,
@@ -66,6 +71,40 @@ def test_low_content() -> None:
     image, _, _ = _open_and_resize(image_path)
     image_entropy = _image_content_entropy(image)
     assert _is_low_content_entropy(image_entropy)
+
+
+def test_odd_channels() -> None:
+    """Test the method detecting images with odd channels on a df with images stats"""
+    df = vaex.from_arrays(
+        images_paths=list(range(101)), sf_channels=["A"] * 100 + ["B"]
+    )
+    odd_channels = _has_odd_channels(df)
+    # The last image has an odd channel
+    assert odd_channels.tolist() == [False] * 100 + [True]
+
+
+def test_odd_ratio() -> None:
+    """Test the method detecting images with odd ratio on a df with images stats"""
+    df = vaex.from_arrays(
+        images_paths=list(range(100)),
+        sf_height=[100] + [1] * 99,
+        sf_width=[1] * 99 + [100],
+    )
+    odd_ratio = _has_odd_ratio(df)
+    # The first image is too tall and the last image is too wide
+    assert odd_ratio.tolist() == [True] + [False] * 98 + [True]
+
+
+def test_odd_size() -> None:
+    """Test the method detecting images with odd size on a df with images stats"""
+    df = vaex.from_arrays(
+        images_paths=list(range(100)),
+        sf_height=[1000] + [50] * 98 + [1],
+        sf_width=[1000] + [50] * 98 + [1],
+    )
+    odd_size = _has_odd_size(df)
+    # The first image is too large and the last image is too small
+    assert odd_size.tolist() == [True] + [False] * 98 + [True]
 
 
 def test_near_duplicates() -> None:

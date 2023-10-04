@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import List
 
 GAL_LOCAL_IMAGES_PATHS = "gal_local_images_paths"
 
@@ -35,9 +34,3 @@ class CVSmartFeatureColumn(str, Enum):
     outlier_underexposed: str = "is_underexposed"
     outlier_low_content: str = "has_low_content"
     outlier_blurry: str = "is_blurry"
-
-    @classmethod
-    def cols_to_display(cls) -> List[str]:
-        """Return list of columns to display in the UI as anomalies."""
-        cols = [val for key, val in cls.__dict__.items() if key.startswith("outlier_")]
-        return cols
