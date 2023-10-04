@@ -327,7 +327,7 @@ def _watch(
     """
     # If we don't set the seed here, the random generator will be different for
     # each process and the indices will be different
-    FixDistributedDatasetPatch()
+    FixDistributedDatasetPatch().patch()
     tf.random.set_seed(seed)
     # We add the callback to the model
     callback = DataQualityCallback(
@@ -406,4 +406,5 @@ def unwatch(model: tf.keras.layers.Layer) -> None:
         del model._dq
 
     pm = PatchManager()
+    print(pm.patches)
     pm.unpatch()

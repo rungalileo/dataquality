@@ -6,6 +6,8 @@ import pandas as pd
 import tensorflow as tf
 import vaex
 
+from dataquality.utils.keras import FixDistributedDatasetPatch
+
 try:
     from keras.engine import data_adapter  # type: ignore
 except ImportError:
@@ -249,6 +251,8 @@ def test_tf_watch_e2e_numbered(
 
 
 def test_create_epoch_data() -> None:
+    p = FixDistributedDatasetPatch()
+    p.patch()
     dh_kwargs = {"x": tf.range(13), "batch_size": 4, "epochs": 2}
     e_model = tf.keras.Sequential([])
     e_model.compile(loss="mse", run_eagerly=True)
@@ -261,6 +265,7 @@ def test_create_epoch_data() -> None:
             assert isinstance(epoch, int)
             assert isinstance(step, int)
             assert len(next(iterator))
+    p.unpatch()
 
 
 def test_model() -> None:
