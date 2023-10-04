@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import List, Optional, Union
 from warnings import warn
 
 from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizerFast
@@ -95,7 +95,7 @@ def watch(
     model: PreTrainedModel,
     tokenizer: PreTrainedTokenizerFast,
     generation_config: GenerationConfig,
-    generate_training_data: bool = False,
+    generatation_splits: Optional[List[str]] = None,
     max_input_tokens: Optional[int] = None,
     max_target_tokens: Optional[int] = None,
 ) -> None:
@@ -123,8 +123,16 @@ def watch(
     logger_config.model = model
     logger_config.generation_config = generation_config
 
-    generation_splits = {Split.validation, Split.test}
-    if generate_training_data:
-        generation_splits.add(Split.training)
+    generatation_splits = generatation_splits or []
+    generation_splits_set = {Split.test}
+    for split in generatation_splits:
+        if split not in Split.get_valid_keys():
+            warn(
+                f"Ignoring invalid generation split {split}, "
+                f"the valid splits are {Split.get_valid_keys()}"
+            )
+            continue
 
-    logger_config.generation_splits = generation_splits
+        generation_splits_set.add(Split[split])
+
+    logger_config.generation_splits = generation_splits_set

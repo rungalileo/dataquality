@@ -158,7 +158,6 @@ def test_log_model_outputs(
         "id",
         "token_logprobs",
         "top_logprobs",
-        "perplexity",
         "split",
         "epoch",
     ]
@@ -167,10 +166,9 @@ def test_log_model_outputs(
 
     token_logprobs = output_data["token_logprobs"].tolist()
     top_logprobs = output_data["top_logprobs"].tolist()
-    perplexities = output_data["perplexity"].tolist()
 
-    for token_labels, sample_token_logprobs, sample_top_logprobs, perplexity in zip(
-        tokenized_labels, token_logprobs, top_logprobs, perplexities
+    for token_labels, sample_token_logprobs, sample_top_logprobs in zip(
+        tokenized_labels, token_logprobs, top_logprobs
     ):
         assert (
             len(token_labels) == len(sample_token_logprobs) == len(sample_top_logprobs)
@@ -191,8 +189,6 @@ def test_log_model_outputs(
             assert np.alltrue(
                 [candidate[0] == "Fake" for candidate in token_top_logprobs]
             )
-
-        assert perplexity > 0
 
 
 @patch("dataquality.utils.seq2seq.generation.generate_on_batch")
