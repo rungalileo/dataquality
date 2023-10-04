@@ -39,6 +39,7 @@ dependencies = [
     "evaluate",
     "accelerate",
     "ipywidgets>=8.1.0",
+    "imagededup==0.3.2",
 ]
 [[project.authors]]
 name = "Galileo Technologies, Inc."
