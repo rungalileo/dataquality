@@ -39,7 +39,7 @@ jobs:
           API_TOKEN_GITHUB: ${{ secrets.GH_TOKEN }}
         with:
           source-directory: "docs/autodocs/_build/markdown"
-          target-directory: "autodocs"
+          target-directory: "api/python-sdk/autodocs"
           destination-github-username: "rungalileo"
           destination-repository-name: "docs"
           user-email: team@rungalileo.io

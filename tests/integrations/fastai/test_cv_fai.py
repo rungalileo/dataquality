@@ -136,7 +136,7 @@ def test_fast_ai_integration_e2e(
         inf_dataset,
         split="inference",
         inference_name=INF_NAME,
-        imgs_remote_location="gs://galileo-public-data/CV_datasets/ImageNet10_animals_train_val/inference",
+        imgs_remote="gs://galileo-public-data/CV_datasets/ImageNet10_animals_train_val/inference",
     )
     dq.set_split("inference", inference_name=INF_NAME)
     model = dqc.model.cpu()

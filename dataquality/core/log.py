@@ -4,9 +4,6 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
-from transformers import PreTrainedTokenizerFast
-
-from dataquality.loggers.logger_config.seq2seq import seq2seq_logger_config
 
 if TYPE_CHECKING:
     import xgboost as xgb
@@ -164,8 +161,6 @@ def log_image_dataset(
         "This method is only supported for image tasks. "
         "Please use dq.log_samples for text tasks."
     )
-
-    # TODO: raise warning if imgs_local is None (and we provide no smart features)
 
     data_logger.log_image_dataset(
         dataset=dataset,
@@ -607,25 +602,6 @@ def set_epoch_and_split(
     """
     set_epoch(epoch)
     set_split(split, inference_name)
-
-
-@check_noop
-def set_tokenizer(tokenizer: PreTrainedTokenizerFast) -> None:
-    """Seq2seq only. Set the tokenizer for your run
-
-    Must be a fast tokenizer, and must support `decode`, `encode`, `encode_plus`
-    """
-    task_type = get_task_type()
-    assert task_type == TaskType.seq2seq, "This method is only supported for seq2seq"
-    assert isinstance(
-        tokenizer, PreTrainedTokenizerFast
-    ), "Tokenizer must be an instance of PreTrainedTokenizerFast"
-    assert getattr(tokenizer, "is_fast", False), "Tokenizer must be a fast tokenizer"
-    for attr in ["encode", "decode", "encode_plus", "padding_side"]:
-        assert hasattr(tokenizer, attr), f"Tokenizer must support `{attr}`"
-    seq2seq_logger_config.tokenizer = tokenizer
-    # Seq2Seq doesn't have labels but we need to set this to avoid validation errors
-    seq2seq_logger_config.labels = []
 
 
 @check_noop

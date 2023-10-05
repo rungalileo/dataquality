@@ -14,9 +14,11 @@ from dataquality.schemas.seq2seq import Seq2SeqOutputCols as C
 from dataquality.schemas.split import Split
 from dataquality.utils.arrow import save_arrow_file
 from dataquality.utils.seq2seq import (
+    remove_padding,
+)
+from dataquality.utils.seq2seq.logprobs import (
     get_top_logprob_indices,
     process_sample_logprobs,
-    remove_padding,
 )
 
 
@@ -46,7 +48,6 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             inference_name=inference_name,
             labels=labels,
         )
-        self.sample_perplexity: List[float] = []
         self.token_logprobs = pa.array([])
         self.top_logprobs = pa.array([])
         self.labels = labels
@@ -72,7 +73,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
 
         assert (
             self.logger_config.tokenizer is not None
-        ), "Must set your tokenizer. Use `dq.set_tokenizer`"
+        ), "Must set your tokenizer. Use `dq.integrations.seq2seq.hf.set_tokenizer`"
 
         # TODO: This is potentially slow. This is what needs to be optimized. Can we
         #  potentially do this on the GPU with torch? And dont convert to a np array
@@ -82,12 +83,11 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         (
             self.token_logprobs,
             self.top_logprobs,
-            self.sample_perplexity,
         ) = self.process_logprobs(self.ids, logprobs)
 
     def process_logprobs(
         self, batch_ids: np.ndarray, batch_logprobs: np.ndarray
-    ) -> Tuple[pa.array, pa.array, List[float]]:
+    ) -> Tuple[pa.array, pa.array]:
         """Handle processing of a batch of sample logprobs
 
         For each sample in the batch extract / compute the following values:
@@ -123,12 +123,16 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
 
         batch_token_logprobs = []
         batch_top_logprobs = []
-        batch_perplexities = []
         # Iterate through the samples in the batch
         for sample_id, sample_logprobs, sample_top_indices in zip(
             batch_ids, batch_logprobs, top_logprob_indices
         ):
-            sample_labels = self._retrieve_sample_labels(sample_id)
+            sample_n_tokens = sample_logprobs.shape[0]
+            # Truncating the tokens computed in dq to ensure that there aren't more than
+            # what the model outputed (or we get an indexing error).
+            sample_labels = self._retrieve_sample_labels(
+                sample_id, max_tokens=sample_n_tokens
+            )
             padding_side = self.logger_config.tokenizer.padding_side
             sample_logprobs = remove_padding(
                 sample_labels,
@@ -149,15 +153,9 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             batch_token_logprobs.append(logprob_data.token_logprobs)
             batch_top_logprobs.append(logprob_data.top_logprobs)
 
-            # TODO eventually deprecate
-            # Perplexity = exp(-sum(gold_logprobs)
-            perplexity = np.exp(-1 * np.mean(logprob_data.token_logprobs))
-            batch_perplexities.append(perplexity)
-
         return (
             pa.array(batch_token_logprobs),
             pa.array(batch_top_logprobs, type=TOP_LOGPROBS_SCHEMA),
-            batch_perplexities,
         )
 
     def _get_data_dict(self) -> Dict:
@@ -165,7 +163,6 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         batch_size = len(self.ids)
         data = {
             C.id.value: self.ids,
-            C.perplexity.value: self.sample_perplexity,
             C.token_logprobs.value: self.token_logprobs,
             C.top_logprobs.value: self.top_logprobs,
             C.split_.value: [Split[self.split].value] * batch_size,
@@ -178,18 +175,18 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
     def _write_dict_to_disk(self, path: str, object_name: str, data: Dict) -> None:
         save_arrow_file(path, object_name, data)
 
-    def _retrieve_sample_labels(self, sample_id: int) -> np.ndarray:
-        """Retrieve the labels array based on the sample id
+    def _retrieve_sample_labels(self, sample_id: int, max_tokens: int) -> np.ndarray:
+        """Retrieve the labels array based on the sample id and truncate at max_tokens
 
         Labels gives the ground truth / target sample ids for
         each token in the sequence:
 
         e.g. for sample_id = 8 --> labels = [0, 10, 16, ...]
         """
-        labels = np.array(
-            self.logger_config.id_to_tokens[self.token_map_key][sample_id]
-        )
-        return labels
+        labels = self.logger_config.id_to_tokens[self.token_map_key][sample_id]
+        if max_tokens is not None:
+            labels = labels[:max_tokens]
+        return np.array(labels)
 
     def convert_logits_to_logprobs(
         self, sample_logits: Union[List[np.ndarray], np.ndarray]
