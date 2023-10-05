@@ -8,7 +8,9 @@ from transformers import GenerationConfig, T5ForConditionalGeneration
 
 import dataquality as dq
 from dataquality.integrations.seq2seq.hf import watch
-from dataquality.loggers.data_logger.seq2seq import Seq2SeqDataLogger
+from dataquality.loggers.data_logger.seq2seq.encoder_decoder import (
+    EncoderDecoderDataLogger,
+)
 from dataquality.schemas.seq2seq import Seq2SeqInputCols as C
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.seq2seq.offsets import (
@@ -143,9 +145,13 @@ def test_rollup_spans(
 def test_get_position_of_last_offset_input(
     set_test_config: Callable, cleanup_after_use: Generator
 ):
+    # TODO Consider if need to have this separate for EncoderDecoder and Decoder-Only
     """
     Test that get_position_of_last_offset_input returns the correct cut-off point for
     the input text string.
+
+    We use the EncoderDecoder model, but this serves as a generic test for both
+    model types.
     """
     set_test_config(task_type=TaskType.seq2seq)
     mock_model = Mock(spec=T5ForConditionalGeneration)
@@ -163,7 +169,7 @@ def test_get_position_of_last_offset_input(
     )
     dq.log_dataset(ds, text="input", label="target", split="train")
 
-    data_logger = Seq2SeqDataLogger()
+    data_logger = EncoderDecoderDataLogger()
     in_frame_split = vaex.open(
         f"{data_logger.input_data_path}/training/*.{data_logger.INPUT_DATA_FILE_EXT}"
     )
@@ -185,6 +191,8 @@ def test_get_position_of_last_offset_target(
     """
     Test that get_position_of_last_offset_target returns the correct cut-off point for
     the target text string.
+
+    Note that this just applies to EncoderDecoder models.
     """
     set_test_config(task_type=TaskType.seq2seq)
     mock_model = Mock(spec=T5ForConditionalGeneration)
@@ -202,7 +210,7 @@ def test_get_position_of_last_offset_target(
     )
     dq.log_dataset(ds, text="input", label="target", split="train")
 
-    data_logger = Seq2SeqDataLogger()
+    data_logger = EncoderDecoderDataLogger()
     in_frame_split = vaex.open(
         f"{data_logger.input_data_path}/training/*.{data_logger.INPUT_DATA_FILE_EXT}"
     )
