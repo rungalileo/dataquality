@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
 import dataquality as dq
-from dataquality.integrations.lightning import DQCallback
+from dataquality.integrations.lightning import LightningDQCallback
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.conftest import (
@@ -98,12 +98,13 @@ def test_lightning_cv_end_to_end(
     dq.log_image_dataset(train_dataset, split="train")
     dq.log_image_dataset(train_dataset, split="validation")
     dq.log_image_dataset(train_dataset, split="test")
-    callback = DQCallback(classifier_layer=model.model[2])
+    callback = LightningDQCallback(classifier_layer=model.model[2])
     trainer = pl.Trainer(limit_train_batches=100, max_epochs=1, callbacks=[callback])
     trainer.fit(
         model=model,
         train_dataloaders=train_dataloader,
         val_dataloaders=train_dataloader,
+        test_dataloaders=train_dataloader,
     )
 
     ThreadPoolManager.wait_for_threads()
@@ -113,6 +114,9 @@ def test_lightning_cv_end_to_end(
         train_dataset
     )
     assert len(vaex.open(f"{test_session_vars.LOCATION}/validation/0/*.hdf5")) == len(
+        train_dataset
+    )
+    assert len(vaex.open(f"{test_session_vars.LOCATION}/test/0/*.hdf5")) == len(
         train_dataset
     )
 
