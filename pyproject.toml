@@ -39,7 +39,7 @@ dependencies = [
     "evaluate",
     "accelerate",
     "ipywidgets>=8.1.0",
-    "imagededup==0.3.2",
+    "imagededup>=0.3.1",
 ]
 [[project.authors]]
 name = "Galileo Technologies, Inc."
@@ -87,6 +87,7 @@ test = [
     "accelerate>=0.19.0",
     "typing-inspect==0.8.0",
     "typing-extensions==4.0.0",
+    "lightning",
 ]
 dev = [
     "mypy>=1.0.0",

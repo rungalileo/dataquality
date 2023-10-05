@@ -19,6 +19,14 @@ dataquality.integrations.transformers_trainer
     :show-inheritance:
     :member-order: bysource
 
+dataquality.integrations.lightning
+-----------
+.. automodule:: dataquality.integrations.lightning
+    :members: LightningDQCallback
+    :show-inheritance:
+    :member-order: bysource
+
+
 dataquality.integrations.legacy.keras
 -----------
 .. automodule:: dataquality.integrations.legacy.keras
