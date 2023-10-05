@@ -42,7 +42,7 @@ class DQCallback(Callback, TorchLogger, PatchManager):
         helper_data = dq.get_model_logger().logger_config.helper_data
         self.torch_helper_data = TorchHelper()
         helper_data["torch_helper"] = self.torch_helper_data
-        self.model = pl_module.model
+        self.model = pl_module.model  # type: ignore
         self._init_helper_data(self.hook_manager, self.model)
         PatchDataloadersGlobally(self.torch_helper_data)
         self.logger_config = dq.get_data_logger().logger_config
