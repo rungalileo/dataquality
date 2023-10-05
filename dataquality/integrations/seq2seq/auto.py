@@ -232,9 +232,9 @@ def auto(
     manager = S2SDatasetManager()
     dd = manager.get_dataset_dict(
         hf_data,
-        train_data,
-        val_data,
-        test_data,
+        train_data=train_data,
+        val_data=val_data,
+        test_data=test_data,
     )
     dq.login()
     a.log_function("auto/tc")
@@ -242,21 +242,22 @@ def auto(
         run_name = run_name_from_hf_dataset(hf_data)
 
     dq.init(TaskType.seq2seq, project_name=project_name, run_name=run_name)
+    input_col = "text"
+    target_col = "label"
+    if isinstance(hf_data, str):
+        input_col = manager.DATASET_COLS.get(hf_data, {}).get("input") or input_col
+        target_col = manager.DATASET_COLS.get(hf_data, {}).get("target") or target_col
 
     # We 'watch' in get_trainer, which must happen before logging datasets
-    model, tokenizer, dataloaders = get_trainer(
+    model, dataloaders = get_trainer(
         dd,
         hf_model,
+        input_col,
+        target_col,
         max_input_tokens,
         max_target_tokens,
         generation_splits,
     )
-    input_col = "text"
-    target_col = "label"
-
-    if isinstance(hf_data, str):
-        input_col = manager.DATASET_COLS.get(hf_data, {}).get("input") or input_col
-        target_col = manager.DATASET_COLS.get(hf_data, {}).get("target") or target_col
 
     _log_dataset_dict(dd, input_col=input_col, target_col=target_col)
     return do_train(model, dataloaders, num_train_epochs, wait, create_data_embs)

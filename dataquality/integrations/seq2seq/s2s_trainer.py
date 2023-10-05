@@ -66,9 +66,9 @@ def tokenize(
         Creates the following columns
 
         Input cols:
+        - id
         - input_ids
         - attention_mask
-        - id
 
         Output cols:
         - labels
@@ -94,7 +94,7 @@ def tokenize(
 
     ds_tokenized = ds.map(
         lambda x: _tokenize(x),
-        remove_columns=ds["train"].column_names,
+        remove_columns=ds.column_names,
         batched=True,
         desc="Running tokenizer on dataset",
     )
@@ -104,10 +104,12 @@ def tokenize(
 def get_trainer(
     dd: DatasetDict,
     model_checkpoint: str,
+    input_col: str = "text",
+    target_col: str = "label",
     max_input_tokens: Optional[int] = None,
     max_target_tokens: Optional[int] = None,
     generation_splits: Optional[List[str]] = None,
-) -> Tuple[PreTrainedModel, PreTrainedTokenizerFast, DatasetDict]:
+) -> Tuple[PreTrainedModel, DatasetDict]:
     """Sets up the model and tokenizer for training
 
     Note that for now this fn is a misnomer since our initial implementation
@@ -125,20 +127,22 @@ def get_trainer(
     )
     model = T5ForConditionalGeneration.from_pretrained(model_checkpoint)
 
-    # encoded_datasets = dd.map(
-    #     lambda x: preprocess_function(x, tokenizer, max_padding_length), batched=True
-    # )
-    dd_tokenized = dd
-
     # Setup the dataloader
     data_collator = DataCollatorForSeq2Seq(tokenizer, return_tensors="pt", padding=True)
 
     dataloaders = {}
-    for key in dd_tokenized.keys():
+    for key in dd.keys():
         shuffle = key in ["train", "training"]
-        ds = dd_tokenized[key]
+        ds_tokenized = tokenize(
+            dd[key],
+            tokenizer,
+            input_col,
+            target_col,
+            max_input_tokens,
+            max_target_tokens,
+        )
         dl = DataLoader(
-            ds,
+            ds_tokenized,
             shuffle=shuffle,
             collate_fn=data_collator,
             batch_size=BATCH_SIZE,
@@ -166,7 +170,7 @@ def get_trainer(
         max_target_tokens=max_target_tokens,
     )
 
-    return model, tokenizer, dataloaders
+    return model, dataloaders
 
 
 def do_train(
@@ -224,7 +228,7 @@ def do_train(
         model.eval()
         dq.set_epoch_and_split(split=Split.validation, epoch=epoch)
         eval_epoch_loss = 0.0
-        # import pdb; pdb.set_trace()
+
         with torch.no_grad():
             for step, batch in enumerate(tqdm(eval_dataloader)):
                 ids = batch["id"]
