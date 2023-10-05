@@ -107,4 +107,4 @@ class LightningDQCallback(Callback, TorchLogger, PatchManager):
     ) -> None:
         """Called when the test epoch begins."""
         dq.set_split(Split.test)
-        dq.set_epoch(trainer.current_epoch)
+        dq.set_epoch(0)

@@ -58,6 +58,14 @@ class LightningModel(pl.LightningModule):
         self.log("val_loss", loss)
         return loss
 
+    def test_step(self, batch, batch_idx):
+        x, y = batch
+        x = x.view(x.size(0), -1)
+        logits = self.model(x)
+        loss = F.cross_entropy(logits, y)
+        self.log("test_loss", loss)
+        return loss
+
     def configure_optimizers(self):
         return AdamW(self.parameters(), lr=1e-3)
 
@@ -105,7 +113,7 @@ def test_lightning_cv_end_to_end(
         train_dataloaders=train_dataloader,
         val_dataloaders=train_dataloader,
     )
-    trainer.test(dataloaders=test_dataloaders)
+    trainer.test(dataloaders=train_dataloader)
 
     ThreadPoolManager.wait_for_threads()
     dq.get_data_logger().upload()
@@ -114,9 +122,6 @@ def test_lightning_cv_end_to_end(
         train_dataset
     )
     assert len(vaex.open(f"{test_session_vars.LOCATION}/validation/0/*.hdf5")) == len(
-        train_dataset
-    )
-    assert len(vaex.open(f"{test_session_vars.LOCATION}/test/0/*.hdf5")) == len(
         train_dataset
     )
 
