@@ -1,24 +1,26 @@
-from functools import partial
-from typing import Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
-import numpy as np
+import torch
 from datasets import Dataset, DatasetDict
+from torch.utils.data import DataLoader
+from tqdm import tqdm
 from transformers import (
+    Adafactor,
     AutoTokenizer,
     BatchEncoding,
-    EvalPrediction,
+    DataCollatorForSeq2Seq,
     GenerationConfig,
+    PreTrainedModel,
     PreTrainedTokenizerBase,
+    PreTrainedTokenizerFast,
     T5ForConditionalGeneration,
     Trainer,
 )
 
 import dataquality as dq
-from dataquality.exceptions import GalileoException
 from dataquality.integrations.seq2seq.hf import watch
 from dataquality.schemas.split import Split
 
-EVAL_METRIC = "f1"
 # Generation params
 # The default values in Generation Config
 # Check more out here: https://huggingface.co/docs/transformers/v4.30.0/en/main_classes/text_generation#transformers.GenerationConfig
@@ -32,15 +34,10 @@ GENERATE_ON_TRAIN = False
 MAX_INPUT_LENGTH = 32
 MAX_TARGET_LENGTH = 16
 
-try:
-    import evaluate
-    from evaluate import EvaluationModule
-except ImportError:
-    raise GalileoException(
-        "⚠️ Huggingface evaluate library not installed "
-        "please run `pip install dataquality[evaluate]` "
-        "to enable metrics computation."
-    )
+# Training params
+LR = 3e-4
+ACCUMULATION_STEPS = 4
+BATCH_SIZE = 4
 
 
 # Taken from the docs of the trainer module:
@@ -55,33 +52,99 @@ def preprocess_function(
     )
 
 
-def compute_metrics(metric: EvaluationModule, eval_pred: EvalPrediction) -> Dict:
-    predictions, labels = np.array(eval_pred.predictions), np.array(eval_pred.label_ids)
-    predictions = predictions.argmax(axis=1)
-    return metric.compute(
-        predictions=predictions, references=labels, average="weighted"
+def tokenize(
+    ds: Dataset,
+    tokenizer: PreTrainedTokenizerFast,
+    input_col: str,
+    target_col: str,
+    max_input_length: int,
+    max_target_length: int,
+) -> Dataset:
+    def _tokenize(row: Dict) -> BatchEncoding:
+        """Tokenize the input and outputs
+
+        Creates the following columns
+
+        Input cols:
+        - input_ids
+        - attention_mask
+        - id
+
+        Output cols:
+        - labels
+        """
+        model_inputs = tokenizer(
+            row[input_col],
+            truncation=True,
+            max_length=max_input_length,
+            padding=False,
+            return_tensors=None,
+        )
+        labels = tokenizer(
+            row[target_col],
+            truncation=True,
+            max_length=max_target_length,
+            padding=False,
+            return_tensors=None,
+        ).input_ids
+
+        model_inputs["labels"] = labels
+        model_inputs["id"] = row["id"]
+        return model_inputs
+
+    ds_tokenized = ds.map(
+        lambda x: _tokenize(x),
+        remove_columns=ds["train"].column_names,
+        batched=True,
+        desc="Running tokenizer on dataset",
     )
+    return ds_tokenized
 
 
 def get_trainer(
     dd: DatasetDict,
     model_checkpoint: str,
-    num_train_epochs: int,
-    model_max_length: int,
-) -> Tuple[Trainer, DatasetDict]:
+    max_input_tokens: Optional[int] = None,
+    max_target_tokens: Optional[int] = None,
+    generation_splits: Optional[List[str]] = None,
+) -> Tuple[PreTrainedModel, PreTrainedTokenizerFast, DatasetDict]:
+    """Sets up the model and tokenizer for training
+
+    Note that for now this fn is a misnomer since our initial implementation
+    is not using the Trainer class from transformers. We will likely refactor
+    this in the future to use the Trainer class.
+
+    For now, this function sets up the model and tokenizer, tokenizes the data,
+    for each split, calls the DQ watch function, and returns the model, tokenizer,
+    and tokenized dataset dict.
+    """
+    max_input_tokens = max_input_tokens or MAX_INPUT_LENGTH
+    max_target_tokens = max_target_tokens or MAX_TARGET_LENGTH
     tokenizer = AutoTokenizer.from_pretrained(
-        model_checkpoint, use_fast=True, model_max_length=model_max_length
+        model_checkpoint, use_fast=True, model_max_length=max_input_tokens
     )
     model = T5ForConditionalGeneration.from_pretrained(model_checkpoint)
 
     # encoded_datasets = dd.map(
     #     lambda x: preprocess_function(x, tokenizer, max_padding_length), batched=True
     # )
+    dd_tokenized = dd
 
-    # Training arguments and training part
-    metric = evaluate.load(EVAL_METRIC)
-    # We use the users chosen evaluation metric by preloading it into the partial
-    partial(compute_metrics, metric)
+    # Setup the dataloader
+    data_collator = DataCollatorForSeq2Seq(tokenizer, return_tensors="pt", padding=True)
+
+    dataloaders = {}
+    for key in dd_tokenized.keys():
+        shuffle = key in ["train", "training"]
+        ds = dd_tokenized[key]
+        dl = DataLoader(
+            ds,
+            shuffle=shuffle,
+            collate_fn=data_collator,
+            batch_size=BATCH_SIZE,
+            pin_memory=True,
+        )
+        dataloaders[key] = dl
 
     generation_config = GenerationConfig(
         max_new_tokens=MAX_NEW_TOKENS,
@@ -98,28 +161,99 @@ def get_trainer(
         model=model,
         tokenizer=tokenizer,
         generation_config=generation_config,
-        generate_training_data=GENERATE_ON_TRAIN,
-        max_input_tokens=MAX_INPUT_LENGTH,
-        max_target_tokens=MAX_TARGET_LENGTH,
+        generation_splits=generation_splits,
+        max_input_tokens=max_input_tokens,
+        max_target_tokens=max_target_tokens,
     )
 
-    return model, dd
+    return model, tokenizer, dataloaders
 
 
 def do_train(
-    trainer: Trainer,
-    encoded_data: DatasetDict,
+    model: PreTrainedModel,
+    dataloaders: Dict[str, torch.utils.data.DataLoader],
+    num_epochs: int,
     wait: bool,
     create_data_embs: Optional[bool] = None,
 ) -> Trainer:
-    trainer.train()
-    if Split.test in encoded_data:
-        # We pass in a huggingface dataset but typing wise they expect a torch dataset
-        trainer.predict(test_dataset=encoded_data[Split.test])  # type: ignore
+    # training and evaluation
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = model.to(device)
 
-    inf_names = [k for k in encoded_data if k not in Split.get_valid_keys()]
-    for inf_name in inf_names:
-        dq.set_split(Split.inference, inference_name=inf_name)
-        trainer.predict(test_dataset=encoded_data[inf_name])
+    train_dataloader = dataloaders.get("train")
+    eval_dataloader = dataloaders.get("validation")
+    test_dataloader = dataloaders.get("test")
+
+    optimizer = Adafactor(
+        model.parameters(), lr=LR, scale_parameter=False, relative_step=False
+    )
+
+    for epoch in range(num_epochs):
+        if train_dataloader:
+            dq.set_epoch_and_split(split=Split.train, epoch=epoch)
+            model.train()
+            train_epoch_loss = 0.0
+            for step, batch in enumerate(tqdm(train_dataloader)):
+                ids = batch["id"]
+                batch = {k: v.to(device) for k, v in batch.items() if k != "id"}
+                outputs = model(**batch)
+                logits = outputs.logits  # Shape - [bs, bs_seq_ln, vocab]
+                dq.log_model_outputs(logits=logits, ids=ids)
+
+                loss = outputs.loss / ACCUMULATION_STEPS
+
+                loss.backward()
+                # Grad Accumulation
+                if ((step + 1) % ACCUMULATION_STEPS == 0) or (
+                    (step + 1) == len(train_dataloader)
+                ):
+                    optimizer.step()
+                    optimizer.zero_grad()
+
+                step_loss = loss.detach().cpu().item()
+                train_epoch_loss += step_loss
+
+            train_epoch_loss = train_epoch_loss / len(train_dataloader)
+            train_ppl = torch.exp(torch.Tensor([train_epoch_loss])).float()
+            print(f"{epoch=}: {train_ppl=} {train_epoch_loss=}")
+
+        if not eval_dataloader:
+            continue
+
+        # Val step
+        model.eval()
+        dq.set_epoch_and_split(split=Split.validation, epoch=epoch)
+        eval_epoch_loss = 0.0
+        with torch.no_grad():
+            for step, batch in enumerate(tqdm(eval_dataloader)):
+                ids = batch["id"]
+                batch = {k: v.to(device) for k, v in batch.items() if k != "id"}
+                outputs = model(**batch)
+                logits = outputs.logits  # Shape - [bs, bs_seq_ln, vocab]
+                dq.log_model_outputs(logits=logits, ids=ids)
+
+                loss = outputs.loss
+                eval_step_loss = loss.cpu().item()
+                eval_epoch_loss += eval_step_loss
+
+            # Look just at the loss in aggregate!
+            eval_epoch_loss = eval_epoch_loss / len(eval_dataloader)
+            eval_ppl = torch.exp(torch.Tensor([eval_epoch_loss])).item()
+
+        print(
+            f"{epoch=}: {train_ppl=} {train_epoch_loss=} {eval_ppl=} {eval_epoch_loss=}"
+        )
+
+    # After training, do test step
+    if test_dataloader:
+        dq.set_epoch_and_split(split=Split.test, epoch=epoch)
+        with torch.no_grad():
+            for step, batch in enumerate(tqdm(test_dataloader)):
+                ids = batch["id"]
+                batch = {k: v.to(device) for k, v in batch.items() if k != "id"}
+                outputs = model(**batch)
+                logits = outputs.logits  # Shape - [bs, bs_seq_ln, vocab]
+                dq.log_model_outputs(logits=logits, ids=ids)
+
     dq.finish(wait=wait, create_data_embs=create_data_embs)
-    return trainer
+    return model

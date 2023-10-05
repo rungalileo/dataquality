@@ -1,25 +1,48 @@
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
-from datasets import ClassLabel, Dataset, DatasetDict
+from datasets import Dataset, DatasetDict
 from transformers import Trainer
 
 import dataquality as dq
 from dataquality import Analytics, ApiClient
 from dataquality.dq_auto.base_data_manager import BaseDatasetManager
-from dataquality.integrations.seq2seq.s2s_trainer import get_trainer
+from dataquality.integrations.seq2seq.s2s_trainer import do_train, get_trainer
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.auto import (
-    add_class_label_to_dataset,
     add_val_data_if_missing,
     run_name_from_hf_dataset,
 )
-from dataquality.utils.auto_trainer import do_train
 
 a = Analytics(ApiClient, dq.config)
 a.log_import("auto_s2s")
+
+
+def format_alpaca(sample: Dict[str, str]) -> Dict[str, str]:
+    """Formats the alpaca dataset for seq2seq
+
+    Example:
+        >>> sample = {
+        ...     "instruction": "Summarize the following paragraph",
+        ...     "input": "The quick brown fox jumped over the lazy dog.",
+        ...     "target": "The quick brown fox jumped over the lazy dog.",
+        ... }
+        >>> format_alpaca(sample)
+        {
+            "formatted_input": (
+                "Human: Summarize the following paragraph "
+                "Context: The quick brown fox jumped over the lazy dog."
+            )
+        }
+    """
+    instruction = f"Human: {sample['instruction']}"
+    # By multiplying by a bool, we only add the context if it exists
+    context = f"Context: {sample['input']}" * bool(sample["input"])
+    return {
+        "formatted_input": f"{instruction} {context}",
+    }
 
 
 class S2SDatasetManager(BaseDatasetManager):
@@ -28,30 +51,16 @@ class S2SDatasetManager(BaseDatasetManager):
         # "billsum",
     ]
 
-    def _convert_pandas_object_dtype(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Converts columns of object type to string type for huggingface
+    DATASET_FORMAT_FNS = {
+        "tatsu-lab/alpaca": format_alpaca,
+    }
 
-        Huggingface DataSets cannot handle mixed-type columns as columns due to Arrow.
-        This casts those columns to strings
-        """
-        for c in df.columns:
-            if df[c].dtype == object:
-                df[c] = df[c].astype("str")
-        return df
-
-    def _convert_df_to_dataset(
-        self, df: pd.DataFrame, labels: Optional[List[str]] = None
-    ) -> Dataset:
-        """Converts a pandas dataframe to a well-formed huggingface dataset
-
-        The main thing happening here is that we are taking the pandas label column and
-        mapping it to a Dataset ClassLabel if possible. If not, it will get parsed later
-        or a validation error will be thrown if not possible in `_validate_dataset_dict`
-        """
-        df_copy = self._convert_pandas_object_dtype(df.copy())
-        ds = Dataset.from_pandas(df_copy)
-        # TODO: maybe some kind of col mapping here?
-        return ds
+    DATASET_COLS = {
+        "tatsu-lab/alpaca": {
+            "input": "formatted_input",
+            "target": "target",
+        }
+    }
 
     def _validate_dataset_dict(
         self,
@@ -74,14 +83,13 @@ class S2SDatasetManager(BaseDatasetManager):
         clean_dd = super()._validate_dataset_dict(dd, inference_names, labels)
         for key in list(clean_dd.keys()):
             ds = clean_dd.pop(key)
-            assert "text" in ds.features, "Dataset must have column `text`"
-            assert "label" in ds.features, "Dataset must have column `label`"
-            if not isinstance(ds.features["label"], ClassLabel):
-                ds = add_class_label_to_dataset(ds, labels)
+            # TODO: temporary, update
+            ds = ds.select(range(100))
+
             if "id" not in ds.features:
                 ds = ds.add_column("id", list(range(ds.num_rows)))
             clean_dd[key] = ds
-        return add_val_data_if_missing(clean_dd)
+        return add_val_data_if_missing(clean_dd, TaskType.seq2seq)
 
 
 def _get_labels(dd: DatasetDict, labels: Optional[List[str]] = None) -> List[str]:
@@ -94,12 +102,13 @@ def _get_labels(dd: DatasetDict, labels: Optional[List[str]] = None) -> List[str
     return sorted(set(dd[Split.train]["label"]))
 
 
-def _log_dataset_dict(dd: DatasetDict) -> None:
+def _log_dataset_dict(
+    dd: DatasetDict, input_col: str = "text", target_col: str = "label"
+) -> None:
     for key in dd:
         ds = dd[key]
         if key in Split.get_valid_keys():
-            # TODO: add text and label col names?
-            dq.log_dataset(ds, split=key)
+            dq.log_dataset(ds, text=input_col, label=target_col, split=key)
 
 
 def auto(
@@ -109,11 +118,13 @@ def auto(
     test_data: Optional[Union[pd.DataFrame, Dataset, str]] = None,
     num_train_epochs: int = 3,
     hf_model: str = "google/flan-t5-base",
-    project_name: str = "auto_tc",
+    project_name: str = "auto_s2s",
     run_name: Optional[str] = None,
     wait: bool = True,
-    model_max_length: int = True,
+    max_input_tokens: Optional[int] = None,
+    max_target_tokens: Optional[int] = None,
     create_data_embs: Optional[bool] = None,
+    generation_splits: Optional[List[str]] = None,
 ) -> Trainer:
     """Automatically gets insights on a text classification dataset
 
@@ -224,12 +235,22 @@ def auto(
     a.log_function("auto/tc")
     if not run_name and isinstance(hf_data, str):
         run_name = run_name_from_hf_dataset(hf_data)
+
     dq.init(TaskType.seq2seq, project_name=project_name, run_name=run_name)
-    _log_dataset_dict(dd)
-    model, encoded_data = get_trainer(
+
+    # We 'watch' in get_trainer, which must happen before logging datasets
+    model, tokenizer, dataloaders = get_trainer(
         dd,
         hf_model,
-        num_train_epochs,
-        model_max_length,
+        max_input_tokens,
+        max_target_tokens,
+        generation_splits,
     )
-    return do_train(model, encoded_data, wait, create_data_embs)
+    input_col = "text"
+    target_col = "label"
+    if not run_name and isinstance(hf_data, str):
+        input_col = manager.DATASET_COLS.get(hf_data, {}).get("input") or input_col
+        target_col = manager.DATASET_COLS.get(hf_data, {}).get("target") or target_col
+
+    _log_dataset_dict(dd, input_col=input_col, target_col=target_col)
+    return do_train(model, dataloaders, num_train_epochs, wait, create_data_embs)

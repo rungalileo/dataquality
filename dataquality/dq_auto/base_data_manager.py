@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Union
+from typing import Callable, Dict, List, Optional, Union
 
 import pandas as pd
 from datasets import Dataset, DatasetDict
@@ -14,6 +14,7 @@ from dataquality.utils.auto import (
 
 class BaseDatasetManager:
     DEMO_DATASETS: List[str] = []
+    DATASET_FORMAT_FNS: Dict[str, Callable] = {}
 
     def _validate_dataset_dict(
         self,
@@ -89,10 +90,11 @@ class BaseDatasetManager:
         """
         hf_inference_names = hf_inference_names or []
         inf_names = []
-        dd = (
-            try_load_dataset_dict(self.DEMO_DATASETS, hf_data, train_data)
-            or DatasetDict()
+        dd = try_load_dataset_dict(
+            self.DEMO_DATASETS, hf_data, train_data, self.DATASET_FORMAT_FNS
         )
+        dd = dd or DatasetDict()
+
         if dd:
             inf_names = [i for i in hf_inference_names if i in dd]
         else:
