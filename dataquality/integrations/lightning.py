@@ -1,5 +1,5 @@
 # Imports for the hook manager
-from typing import Callable, Optional
+from typing import Callable, Optional, Union
 
 import lightning.pytorch as pl
 from lightning.pytorch.callbacks import Callback
@@ -29,8 +29,7 @@ class DQCallback(Callback, TorchLogger, PatchManager):
         logits_fn: Optional[Callable] = None,
     ):
         self.last_hidden_state_layer = last_hidden_state_layer
-        self.embedding_dim = embedding_dim
-        self.logits_dim = logits_dim
+        self._init_dimension(embedding_dim, logits_dim)
         self.classifier_layer = classifier_layer
         self.embedding_fn = embedding_fn
         self.logits_fn = logits_fn
@@ -43,7 +42,6 @@ class DQCallback(Callback, TorchLogger, PatchManager):
         helper_data = dq.get_model_logger().logger_config.helper_data
         self.torch_helper_data = TorchHelper()
         helper_data["torch_helper"] = self.torch_helper_data
-        self._init_dimension(self.embedding_dim, self.logits_dim)
         self.model = pl_module.model
         self._init_helper_data(self.hook_manager, self.model)
         PatchDataloadersGlobally(self.torch_helper_data)
