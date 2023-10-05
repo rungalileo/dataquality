@@ -58,7 +58,7 @@ class S2SDatasetManager(BaseDatasetManager):
     DATASET_COLS = {
         "tatsu-lab/alpaca": {
             "input": "formatted_input",
-            "target": "target",
+            "target": "output",
         }
     }
 
@@ -108,6 +108,11 @@ def _log_dataset_dict(
     for key in dd:
         ds = dd[key]
         if key in Split.get_valid_keys():
+            if input_col != "text" and "text" in ds.column_names:
+                ds = ds.remove_columns("text")
+            if target_col != "label" and "label" in ds.column_names:
+                ds = ds.remove_columns("labels")
+
             dq.log_dataset(ds, text=input_col, label=target_col, split=key)
 
 
@@ -248,7 +253,8 @@ def auto(
     )
     input_col = "text"
     target_col = "label"
-    if not run_name and isinstance(hf_data, str):
+
+    if isinstance(hf_data, str):
         input_col = manager.DATASET_COLS.get(hf_data, {}).get("input") or input_col
         target_col = manager.DATASET_COLS.get(hf_data, {}).get("target") or target_col
 

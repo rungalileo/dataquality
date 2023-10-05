@@ -180,9 +180,9 @@ def do_train(
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = model.to(device)
 
-    train_dataloader = dataloaders.get("train")
-    eval_dataloader = dataloaders.get("validation")
-    test_dataloader = dataloaders.get("test")
+    train_dataloader = dataloaders.get(Split.training) or dataloaders.get(Split.train)
+    eval_dataloader = dataloaders.get(Split.validation) or dataloaders.get(Split.val)
+    test_dataloader = dataloaders.get(Split.test)
 
     optimizer = Adafactor(
         model.parameters(), lr=LR, scale_parameter=False, relative_step=False
@@ -224,6 +224,7 @@ def do_train(
         model.eval()
         dq.set_epoch_and_split(split=Split.validation, epoch=epoch)
         eval_epoch_loss = 0.0
+        # import pdb; pdb.set_trace()
         with torch.no_grad():
             for step, batch in enumerate(tqdm(eval_dataloader)):
                 ids = batch["id"]
