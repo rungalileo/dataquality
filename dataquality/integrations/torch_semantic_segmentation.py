@@ -397,7 +397,6 @@ class SemanticTorchLogger(TorchLogger):
             probs = (torch.nn.Sigmoid()(logits)).cpu()
             # expands the binary classification to a 2 channel tensor
             probs = self.expand_binary_classification(probs)
-
         argmax = (probs.clone().argmax(dim=-1)).cpu()
 
         return argmax, probs
@@ -408,7 +407,6 @@ class SemanticTorchLogger(TorchLogger):
             self.find_mask_category(self.torch_helper_data.batch["data"])
 
         # if we have not inferred the number of classes from the model architecture
-
         # takes the max of the logits shape and 2 in case of binary classification
         logits = self.torch_helper_data.model_outputs_store.logits
         if logits is None:
@@ -559,7 +557,7 @@ class SemanticTorchLogger(TorchLogger):
     def finish(self) -> None:
         # call to eval to make sure we are not in train mode for batch norm
         # in batch norm with 1 example can get an error if we are in train mode
-        self.model.eval()
+        # self.model.eval()
         self.called_finish = True
         # finish function that runs our inference at the end of training
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
