@@ -22,8 +22,8 @@ class DQCallback(Callback, TorchLogger, PatchManager):
     def __init__(
         self,
         last_hidden_state_layer: Optional[Layer] = None,
-        embedding_dim: Optional[DimensionSlice] = None,
-        logits_dim: Optional[DimensionSlice] = None,
+        embedding_dim: Optional[Union[str, DimensionSlice]] = None,
+        logits_dim: Optional[Union[str, DimensionSlice]] = None,
         classifier_layer: Layer = "classifier",
         embedding_fn: Optional[Callable] = None,
         logits_fn: Optional[Callable] = None,
