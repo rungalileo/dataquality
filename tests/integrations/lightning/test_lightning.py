@@ -104,8 +104,8 @@ def test_lightning_cv_end_to_end(
         model=model,
         train_dataloaders=train_dataloader,
         val_dataloaders=train_dataloader,
-        test_dataloaders=train_dataloader,
     )
+    trainer.test(dataloaders=test_dataloaders)
 
     ThreadPoolManager.wait_for_threads()
     dq.get_data_logger().upload()
