@@ -54,12 +54,13 @@ class S2SDatasetManager(BaseDatasetManager):
 def _log_dataset_dict(
     dd: DatasetDict, input_col: str = "text", target_col: str = "label"
 ) -> None:
-    for key, ds in dd.items():
+    for key in dd.keys():
+        ds: Dataset = dd[key]
         if key in Split.get_valid_keys():
             if input_col != "text" and "text" in ds.column_names:
-                ds = ds.remove_columns("text")
+                ds = ds.rename_columns({"text": "_metadata_text"})
             if target_col != "label" and "label" in ds.column_names:
-                ds = ds.remove_columns("labels")
+                ds = ds.rename_columns({"label": "_metadata_label"})
 
             dq.log_dataset(ds, text=input_col, label=target_col, split=key)
 
