@@ -48,9 +48,7 @@ class S2SDatasetManager(BaseDatasetManager):
         return add_val_data_if_missing(clean_dd, TaskType.seq2seq)
 
 
-def _log_dataset_dict(
-    dd: DatasetDict, input_col: str = "text", target_col: str = "label"
-) -> None:
+def _log_dataset_dict(dd: DatasetDict, input_col: str, target_col: str) -> None:
     for key in dd.keys():
         ds: Dataset = dd[key]
         if key in Split.get_valid_keys():
@@ -77,7 +75,7 @@ def auto(
     create_data_embs: Optional[bool] = None,
     generation_splits: Optional[List[str]] = None,
 ) -> Trainer:
-    """Automatically gets insights on a text classification dataset
+    """Automatically gets insights on a Seq2Seq dataset
 
     Given either a pandas dataframe, file_path, or huggingface dataset path, this
     function will load the data, train a huggingface transformer model, and
@@ -112,6 +110,7 @@ def auto(
         * Huggingface dataset
         * Path to a local file
         * Huggingface dataset hub path
+    :param num_train_epochs: Optional num training epochs. If not set, we default to 3
     :param hf_model: The pretrained AutoModel from huggingface that will be used to
         tokenize and train on the provided data. Default distilbert-base-uncased
     :param project_name: Optional project name. If not set, a random name will
@@ -120,56 +119,39 @@ def auto(
         be generated
     :param wait: Whether to wait for Galileo to complete processing your run.
         Default True
+    :param max_input_tokens: Optional max input tokens. If not set, we default to 512
+    :param max_target_tokens: Optional max target tokens. If not set, we default to 128
     :param create_data_embs: Whether to create data embeddings for this run. Default
         False
+    :param generation_splits: Optional list of splits to generate on. If not set, we
+        default to ["test"]
 
     To see auto insights on a random, pre-selected dataset, simply run
     ```python
-        from dataquality.auto.text_classification import auto
+        from dataquality.integrations.seq2seq import auto
 
         auto()
     ```
 
     An example using `auto` with a hosted huggingface dataset
     ```python
-        from dataquality.auto.text_classification import auto
+        from dataquality.integrations.seq2seq import auto
 
-        auto(hf_data="rungalileo/trec6")
+        auto(hf_data="tatsu-lab/alpaca")
     ```
 
     An example using `auto` with sklearn data as pandas dataframes
     ```python
-        import pandas as pd
-        from sklearn.datasets import fetch_20newsgroups
-        from dataquality.auto.text_classification import auto
-
-        # Load the newsgroups dataset from sklearn
-        newsgroups_train = fetch_20newsgroups(subset='train')
-        newsgroups_test = fetch_20newsgroups(subset='test')
-        # Convert to pandas dataframes
-        df_train = pd.DataFrame(
-            {"text": newsgroups_train.data, "label": newsgroups_train.target}
-        )
-        df_test = pd.DataFrame(
-            {"text": newsgroups_test.data, "label": newsgroups_test.target}
-        )
-
-        auto(
-             train_data=df_train,
-             test_data=df_test,
-             labels=newsgroups_train.target_names,
-             project_name="newsgroups_work",
-             run_name="run_1_raw_data"
-        )
+        #  TODO: coming soon
     ```
 
     An example of using `auto` with a local CSV file with `text` and `label` columns
     ```python
-    from dataquality.auto.text_classification import auto
+    from dataquality.integrations.seq2seq import auto
 
     auto(
-         train_data="train.csv",
-         test_data="test.csv",
+         train_data="train.jsonl",
+         test_data="test.jsonl",
          project_name="data_from_local",
          run_name="run_1_raw_data"
     )

@@ -30,8 +30,8 @@ TOP_K = 50
 # Generate params
 GENERATE_ON_TRAIN = False
 # Tokenization params
-MAX_INPUT_LENGTH = 32
-MAX_TARGET_LENGTH = 16
+MAX_INPUT_LENGTH = 512
+MAX_TARGET_LENGTH = 128
 
 # Training params
 LR = 3e-4
