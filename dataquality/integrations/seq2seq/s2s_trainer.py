@@ -11,7 +11,6 @@ from transformers import (
     DataCollatorForSeq2Seq,
     GenerationConfig,
     PreTrainedModel,
-    PreTrainedTokenizerBase,
     PreTrainedTokenizerFast,
     T5ForConditionalGeneration,
     Trainer,
@@ -38,18 +37,6 @@ MAX_TARGET_LENGTH = 16
 LR = 3e-4
 ACCUMULATION_STEPS = 4
 BATCH_SIZE = 4
-
-
-# Taken from the docs of the trainer module:
-# https://github.com/huggingface/transformers/blob/main/examples/pytorch/
-# text-classification/run_glue.py#L434
-def preprocess_function(
-    input_data: Dataset, tokenizer: PreTrainedTokenizerBase, max_length: int
-) -> BatchEncoding:
-    # Delay padding until batching - allowing for dynamic padding
-    return tokenizer(
-        input_data["text"], padding=False, max_length=max_length, truncation=True
-    )
 
 
 def tokenize(
@@ -109,7 +96,7 @@ def get_trainer(
     max_input_tokens: Optional[int] = None,
     max_target_tokens: Optional[int] = None,
     generation_splits: Optional[List[str]] = None,
-) -> Tuple[PreTrainedModel, DatasetDict]:
+) -> Tuple[PreTrainedModel, Dict[str, DataLoader]]:
     """Sets up the model and tokenizer for training
 
     Note that for now this fn is a misnomer since our initial implementation
@@ -117,7 +104,7 @@ def get_trainer(
     this in the future to use the Trainer class.
 
     For now, this function sets up the model and tokenizer, tokenizes the data,
-    for each split, calls the DQ watch function, and returns the model, tokenizer,
+    for each split, calls the DQ watch function, and returns the model and
     and tokenized dataset dict.
     """
     max_input_tokens = max_input_tokens or MAX_INPUT_LENGTH

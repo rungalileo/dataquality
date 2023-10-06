@@ -72,8 +72,7 @@ def try_load_dataset_dict(
             "DatasetDict object. If this is just a Dataset, pass it to `train_data`"
         )
         if demo_format_fns and hf_data in demo_format_fns:
-            for key in dd.keys():
-                dd[key] = dd[key].map(demo_format_fns[hf_data])
+            dd.map(demo_format_fns[hf_data])
         return dd
 
     return None

@@ -1,12 +1,10 @@
 from typing import Dict, List, Optional, Union
 
-import numpy as np
 import pandas as pd
 from datasets import Dataset, DatasetDict
 from transformers import Trainer
 
 import dataquality as dq
-from dataquality import Analytics, ApiClient
 from dataquality.dq_auto.base_data_manager import BaseDatasetManager
 from dataquality.integrations.seq2seq.s2s_trainer import do_train, get_trainer
 from dataquality.schemas.split import Split
@@ -15,9 +13,6 @@ from dataquality.utils.auto import (
     add_val_data_if_missing,
     run_name_from_hf_dataset,
 )
-
-a = Analytics(ApiClient, dq.config)
-a.log_import("auto_s2s")
 
 
 def format_alpaca(sample: Dict[str, str]) -> Dict[str, str]:
@@ -90,16 +85,6 @@ class S2SDatasetManager(BaseDatasetManager):
                 ds = ds.add_column("id", list(range(ds.num_rows)))
             clean_dd[key] = ds
         return add_val_data_if_missing(clean_dd, TaskType.seq2seq)
-
-
-def _get_labels(dd: DatasetDict, labels: Optional[List[str]] = None) -> List[str]:
-    """Gets the labels for this dataset from the dataset if not provided."""
-    if labels is not None and isinstance(labels, (list, np.ndarray)):
-        return list(labels)
-    train_labels = dd[Split.train].features["label"]
-    if hasattr(train_labels, "names"):
-        return train_labels.names
-    return sorted(set(dd[Split.train]["label"]))
 
 
 def _log_dataset_dict(
@@ -237,7 +222,6 @@ def auto(
         test_data=test_data,
     )
     dq.login()
-    a.log_function("auto/tc")
     if not run_name and isinstance(hf_data, str):
         run_name = run_name_from_hf_dataset(hf_data)
 
