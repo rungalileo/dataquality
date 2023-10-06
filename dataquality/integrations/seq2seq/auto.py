@@ -54,8 +54,7 @@ class S2SDatasetManager(BaseDatasetManager):
 def _log_dataset_dict(
     dd: DatasetDict, input_col: str = "text", target_col: str = "label"
 ) -> None:
-    for key in dd:
-        ds = dd[key]
+    for key, ds in dd.items():
         if key in Split.get_valid_keys():
             if input_col != "text" and "text" in ds.column_names:
                 ds = ds.remove_columns("text")
