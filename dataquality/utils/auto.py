@@ -3,8 +3,7 @@ import os
 import re
 import warnings
 from datetime import datetime
-from random import choice
-from typing import Callable, Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 import pandas as pd
 from datasets import ClassLabel, Dataset, DatasetDict, load_dataset
@@ -42,40 +41,6 @@ def load_data_from_str(data: str) -> Union[pd.DataFrame, Dataset]:
                 f"Found {ext} which is not"
             )
         return getattr(pd, func)(data)
-
-
-def try_load_dataset_dict(
-    demo_datasets: List[str],
-    hf_data: Optional[Union[DatasetDict, str]] = None,
-    train_data: Optional[Union[pd.DataFrame, Dataset, str]] = None,
-    demo_format_fns: Optional[Dict[str, Callable]] = None,
-) -> Optional[DatasetDict]:
-    """Tries to load the DatasetDict if available
-
-    If the user provided the hf_data param we load it from huggingface
-    If they provided nothing, we load the demo dataset
-    Otherwise, we return None, because the user provided train/test/val data, and that
-    requires task specific processing
-
-    For HF datasets, we optionally apply a formatting function to the dataset to
-    convert it to the format we expect. This is useful for datasets that have
-    non-standard columns, like the `alpaca` dataset, which has `instruction`, `input`,
-    and `target` columns instead of `text` and `label`
-    """
-    if all([hf_data is None, train_data is None]):
-        hf_data = choice(demo_datasets)
-        print(f"No dataset provided, using {hf_data} for run")
-    if hf_data:
-        dd = load_dataset(hf_data) if isinstance(hf_data, str) else hf_data
-        assert isinstance(dd, DatasetDict), (
-            "hf_data must be a path to a huggingface DatasetDict in the hf hub or a "
-            "DatasetDict object. If this is just a Dataset, pass it to `train_data`"
-        )
-        if demo_format_fns and hf_data in demo_format_fns:
-            dd.map(demo_format_fns[hf_data])
-        return dd
-
-    return None
 
 
 def add_val_data_if_missing(

@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Union
+from typing import List, Optional, Union
 
 import pandas as pd
 from datasets import Dataset, DatasetDict
@@ -15,47 +15,11 @@ from dataquality.utils.auto import (
 )
 
 
-def format_alpaca(sample: Dict[str, str]) -> Dict[str, str]:
-    """Formats the alpaca dataset for seq2seq
-
-    Example:
-        >>> sample = {
-        ...     "instruction": "Summarize the following paragraph",
-        ...     "input": "The quick brown fox jumped over the lazy dog.",
-        ...     "target": "The quick brown fox jumped over the lazy dog.",
-        ... }
-        >>> format_alpaca(sample)
-        {
-            "formatted_input": (
-                "Human: Summarize the following paragraph "
-                "Context: The quick brown fox jumped over the lazy dog."
-            )
-        }
-    """
-    instruction = f"Human: {sample['instruction']}"
-    # By multiplying by a bool, we only add the context if it exists
-    context = f"Context: {sample['input']}" * bool(sample["input"])
-    return {
-        "formatted_input": f"{instruction} {context}",
-    }
-
-
 class S2SDatasetManager(BaseDatasetManager):
     DEMO_DATASETS = [
         "tatsu-lab/alpaca",
         # "billsum",
     ]
-
-    DATASET_FORMAT_FNS = {
-        "tatsu-lab/alpaca": format_alpaca,
-    }
-
-    DATASET_COLS = {
-        "tatsu-lab/alpaca": {
-            "input": "formatted_input",
-            "target": "output",
-        }
-    }
 
     def _validate_dataset_dict(
         self,
@@ -226,11 +190,8 @@ def auto(
         run_name = run_name_from_hf_dataset(hf_data)
 
     dq.init(TaskType.seq2seq, project_name=project_name, run_name=run_name)
-    input_col = "text"
-    target_col = "label"
-    if isinstance(hf_data, str):
-        input_col = manager.DATASET_COLS.get(hf_data, {}).get("input") or input_col
-        target_col = manager.DATASET_COLS.get(hf_data, {}).get("target") or target_col
+    input_col = manager.formatter.input_col
+    target_col = manager.formatter.target_col
 
     # We 'watch' in get_trainer, which must happen before logging datasets
     model, dataloaders = get_trainer(

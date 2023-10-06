@@ -179,34 +179,36 @@ def do_train(
         model.parameters(), lr=LR, scale_parameter=False, relative_step=False
     )
 
+    if not train_dataloader:
+        raise ValueError("Training data must be provided for Seq2Seq `auto`")
+
     for epoch in range(num_epochs):
-        if train_dataloader:
-            dq.set_epoch_and_split(split=Split.train, epoch=epoch)
-            model.train()
-            train_epoch_loss = 0.0
-            for step, batch in enumerate(tqdm(train_dataloader)):
-                ids = batch["id"]
-                batch = {k: v.to(device) for k, v in batch.items() if k != "id"}
-                outputs = model(**batch)
-                logits = outputs.logits  # Shape - [bs, bs_seq_ln, vocab]
-                dq.log_model_outputs(logits=logits, ids=ids)
+        dq.set_epoch_and_split(split=Split.train, epoch=epoch)
+        model.train()
+        train_epoch_loss = 0.0
+        for step, batch in enumerate(tqdm(train_dataloader)):
+            ids = batch["id"]
+            batch = {k: v.to(device) for k, v in batch.items() if k != "id"}
+            outputs = model(**batch)
+            logits = outputs.logits  # Shape - [bs, bs_seq_ln, vocab]
+            dq.log_model_outputs(logits=logits, ids=ids)
 
-                loss = outputs.loss / ACCUMULATION_STEPS
+            loss = outputs.loss / ACCUMULATION_STEPS
 
-                loss.backward()
-                # Grad Accumulation
-                if ((step + 1) % ACCUMULATION_STEPS == 0) or (
-                    (step + 1) == len(train_dataloader)
-                ):
-                    optimizer.step()
-                    optimizer.zero_grad()
+            loss.backward()
+            # Grad Accumulation
+            if ((step + 1) % ACCUMULATION_STEPS == 0) or (
+                (step + 1) == len(train_dataloader)
+            ):
+                optimizer.step()
+                optimizer.zero_grad()
 
-                step_loss = loss.detach().cpu().item()
-                train_epoch_loss += step_loss
+            step_loss = loss.detach().cpu().item()
+            train_epoch_loss += step_loss
 
-            train_epoch_loss = train_epoch_loss / len(train_dataloader)
-            train_ppl = torch.exp(torch.Tensor([train_epoch_loss])).float()
-            print(f"{epoch=}: {train_ppl=} {train_epoch_loss=}")
+        train_epoch_loss = train_epoch_loss / len(train_dataloader)
+        train_ppl = torch.exp(torch.Tensor([train_epoch_loss])).float()
+        print(f"{epoch=}: {train_ppl=} {train_epoch_loss=}")
 
         if not eval_dataloader:
             continue
@@ -238,6 +240,7 @@ def do_train(
 
     # After training, do test step
     if test_dataloader:
+        model.eval()
         dq.set_epoch_and_split(split=Split.test, epoch=epoch)
         with torch.no_grad():
             for step, batch in enumerate(tqdm(test_dataloader)):
