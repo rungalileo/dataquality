@@ -137,7 +137,7 @@ class BaseDatasetManager:
         non-standard columns, like the `alpaca` dataset, which has `instruction`,
         `input`, and `target` columns instead of `text` and `label`
         """
-        demo_datasets = (self.DEMO_DATASETS,)
+        demo_datasets = self.DEMO_DATASETS
         if all([hf_data is None, train_data is None]):
             hf_data = choice(demo_datasets)
             print(f"No dataset provided, using {hf_data} for run")
@@ -153,7 +153,7 @@ class BaseDatasetManager:
                 "If this is just a Dataset, pass it to `train_data`"
             )
             # Apply the datasets custom formatter on load dataset dict
-            dd.map(self.formatter.format_sample)
+            dd = dd.map(self.formatter.format_sample)
             return dd
 
         return None

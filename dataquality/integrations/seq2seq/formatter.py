@@ -13,6 +13,7 @@ class BaseFormatter:
         return sample
 
 
+@dataclass
 class AlpacaFormatter(BaseFormatter):
     name: str = "tatsu-lab/alpaca"
     input_col: str = "formatted_input"

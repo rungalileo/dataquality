@@ -32,9 +32,6 @@ class S2SDatasetManager(BaseDatasetManager):
         The DatasetDict that the user provides or that we create from the provided
         train/test/val data must have the following:
             * all keys must be one of our valid key names
-            * it must have a `text` column
-            * it must have a `label` column
-                * if the `label` column isn't a ClassLabel, we convert it to one
 
         We then also convert the keys of the DatasetDict to our `Split` key enum so
         we can access it easier in the future
