@@ -66,7 +66,7 @@ def watch(
     model: PreTrainedModel,
     tokenizer: PreTrainedTokenizerFast,
     generation_config: GenerationConfig,
-    generatation_splits: Optional[List[str]] = None,
+    generation_splits: Optional[List[str]] = None,
     max_input_tokens: Optional[int] = None,
     max_target_tokens: Optional[int] = None,
 ) -> None:
@@ -92,9 +92,9 @@ def watch(
     seq2seq_logger_config.model = model
     seq2seq_logger_config.generation_config = generation_config
 
-    generatation_splits = generatation_splits or []
+    generation_splits = generation_splits or []
     generation_splits_set = {Split.test}
-    for split in generatation_splits:
+    for split in generation_splits:
         if split not in Split.get_valid_keys():
             warn(
                 f"Ignoring invalid generation split {split}, "

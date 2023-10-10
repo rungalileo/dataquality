@@ -220,7 +220,7 @@ def test_validate_dataset_dict_no_text() -> None:
     assert str(e.value) == "Dataset must have column `text`"
 
 
-@mock.patch("dataquality.utils.auto.load_dataset")
+@mock.patch("dataquality.dq_auto.base_data_manager.load_dataset")
 def test_get_dataset_dict_no_dataset(mock_load_dataset: mock.MagicMock) -> None:
     dd = DatasetDict(
         {
@@ -238,7 +238,7 @@ def test_get_dataset_dict_no_dataset(mock_load_dataset: mock.MagicMock) -> None:
     assert mock_load_dataset.call_args_list[0][0][0] in manager.DEMO_DATASETS
 
 
-@mock.patch("dataquality.utils.auto.load_dataset")
+@mock.patch("dataquality.dq_auto.base_data_manager.load_dataset")
 def test_get_dataset_dict_not_dataset_dict(mock_load_dataset: mock.MagicMock) -> None:
     ds = Dataset.from_dict(
         {"text": ["sample1", "sample2", "sample3"], "label": [1, 0, 1]}
