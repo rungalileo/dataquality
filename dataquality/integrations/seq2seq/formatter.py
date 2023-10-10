@@ -1,10 +1,23 @@
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Dict, Type
 
 
 @dataclass
-class BaseFormatter:
-    name: str = ""
+class BaseFormatter(ABC):
+    name: str
+    input_col: str
+    target_col: str
+
+    @abstractmethod
+    def format_sample(self, sample: Dict[str, str]) -> Dict[str, str]:
+        """Base formatter is identity function"""
+        pass
+
+
+@dataclass
+class DefaultFormatter(BaseFormatter):
+    name: str = "default"
     input_col: str = "text"
     target_col: str = "label"
 
@@ -54,4 +67,4 @@ def get_formatter(name: str) -> BaseFormatter:
 
     If the name isn't found, returns the base formatter
     """
-    return FORMATTER_MAPPING.get(name, BaseFormatter)()
+    return FORMATTER_MAPPING.get(name, DefaultFormatter)()  # type: ignore

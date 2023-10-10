@@ -5,7 +5,11 @@ import pandas as pd
 from datasets import Dataset, DatasetDict, load_dataset
 
 from dataquality.exceptions import GalileoException
-from dataquality.integrations.seq2seq.formatter import BaseFormatter, get_formatter
+from dataquality.integrations.seq2seq.formatter import (
+    BaseFormatter,
+    DefaultFormatter,
+    get_formatter,
+)
 from dataquality.schemas.split import Split
 from dataquality.utils.auto import (
     _apply_column_mapping,
@@ -17,7 +21,7 @@ class BaseDatasetManager:
     DEMO_DATASETS: List[str] = []
 
     def __init__(self) -> None:
-        self.formatter = BaseFormatter()
+        self.formatter: BaseFormatter = DefaultFormatter()
 
     def _validate_dataset_dict(
         self,
