@@ -1,3 +1,4 @@
+import gc
 from typing import Dict, List, Optional, Tuple
 
 import torch
@@ -249,6 +250,14 @@ def do_train(
                 outputs = model(**batch)
                 logits = outputs.logits  # Shape - [bs, bs_seq_ln, vocab]
                 dq.log_model_outputs(logits=logits, ids=ids)
+
+    # Delete unused variables to free CUDA memory to ensure that
+    # dq.finish() does not run into out-of-memory errors.
+    del optimizer  # This is the most important!
+    del batch
+    del outputs
+    torch.cuda.empty_cache()
+    gc.collect()
 
     dq.finish(wait=wait, create_data_embs=create_data_embs)
     return model
