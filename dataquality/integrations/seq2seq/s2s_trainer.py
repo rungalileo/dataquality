@@ -42,7 +42,7 @@ def tokenize(
 
         Input cols:
         - id
-        - input_ids 
+        - input_ids
         - attention_mask
 
         Output cols:
