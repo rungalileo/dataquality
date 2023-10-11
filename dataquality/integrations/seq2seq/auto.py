@@ -87,7 +87,7 @@ def auto(
     split 80/20 for use as evaluation data.
 
     The test data, if provided with val,
-    will be used after training is complete, as the held-out set. If no validation
+    will be used after training is complete, as the hold-out set. If no validation
     data is provided, this will instead be used as the evaluation set.
 
     :param project_name: Optional project name. If not set, a random name will
