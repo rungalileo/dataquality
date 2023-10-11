@@ -1,4 +1,5 @@
-from typing import Dict, List, Optional, Tuple
+from dataclasses import asdict
+from typing import Dict, Tuple
 
 import torch
 from datasets import Dataset, DatasetDict
@@ -18,26 +19,12 @@ from transformers import (
 
 import dataquality as dq
 from dataquality.integrations.seq2seq.hf import watch
+from dataquality.integrations.seq2seq.schema import (
+    AutoGenerationConfig,
+    AutoTrainingConfig,
+)
 from dataquality.schemas.split import Split
 from dataquality.utils.torch import cleanup_cuda
-
-# Generation params
-# The default values in Generation Config
-# Check more out here: https://huggingface.co/docs/transformers/v4.30.0/en/main_classes/text_generation#transformers.GenerationConfig
-MAX_NEW_TOKENS = 16
-TEMPERATURE = 0.2  # Keep this low for now
-TOP_P = 1
-TOP_K = 50
-# Generate params
-GENERATE_ON_TRAIN = False
-# Tokenization params
-MAX_INPUT_LENGTH = 512
-MAX_TARGET_LENGTH = 128
-
-# Training params
-LR = 3e-4
-ACCUMULATION_STEPS = 4
-BATCH_SIZE = 4
 
 
 def tokenize(
@@ -91,12 +78,10 @@ def tokenize(
 
 def get_trainer(
     dd: DatasetDict,
-    model_checkpoint: str,
-    input_col: str = "text",
-    target_col: str = "label",
-    max_input_tokens: Optional[int] = None,
-    max_target_tokens: Optional[int] = None,
-    generation_splits: Optional[List[str]] = None,
+    input_col: str,
+    target_col: str,
+    training_config: AutoTrainingConfig,
+    generation_config: AutoGenerationConfig,
 ) -> Tuple[PreTrainedModel, Dict[str, DataLoader]]:
     """Sets up the model and tokenizer for training
 
@@ -108,12 +93,12 @@ def get_trainer(
     for each split, calls the DQ watch function, and returns the model and
     and tokenized dataset dict.
     """
-    max_input_tokens = max_input_tokens or MAX_INPUT_LENGTH
-    max_target_tokens = max_target_tokens or MAX_TARGET_LENGTH
+    max_input_tokens = training_config.max_input_tokens
+    max_target_tokens = training_config.max_target_tokens
     tokenizer = AutoTokenizer.from_pretrained(
-        model_checkpoint, use_fast=True, model_max_length=max_input_tokens
+        training_config.model, use_fast=True, model_max_length=max_input_tokens
     )
-    model = T5ForConditionalGeneration.from_pretrained(model_checkpoint)
+    model = T5ForConditionalGeneration.from_pretrained(training_config.model)
 
     # Setup the dataloader
     data_collator = DataCollatorForSeq2Seq(tokenizer, return_tensors="pt", padding=True)
@@ -133,18 +118,13 @@ def get_trainer(
             ds_tokenized,
             shuffle=shuffle,
             collate_fn=data_collator,
-            batch_size=BATCH_SIZE,
+            batch_size=training_config.batch_size,
             pin_memory=True,
         )
         dataloaders[key] = dl
 
-    generation_config = GenerationConfig(
-        max_new_tokens=MAX_NEW_TOKENS,
-        # Whether we use multinomial sampling
-        do_sample=TEMPERATURE >= 1e-5,
-        temperature=TEMPERATURE,
-        top_p=TOP_P,
-        top_k=TOP_K,
+    hf_generation_config = GenerationConfig(
+        **asdict(generation_config),
         eos_token_id=tokenizer.eos_token_id,
         pad_token_id=tokenizer.pad_token_id,
     )
@@ -152,8 +132,8 @@ def get_trainer(
     watch(
         model=model,
         tokenizer=tokenizer,
-        generation_config=generation_config,
-        generation_splits=generation_splits,
+        generation_config=hf_generation_config,
+        generation_splits=generation_config.generation_splits,
         max_input_tokens=max_input_tokens,
         max_target_tokens=max_target_tokens,
     )
@@ -164,9 +144,8 @@ def get_trainer(
 def do_train(
     model: PreTrainedModel,
     dataloaders: Dict[str, torch.utils.data.DataLoader],
-    num_epochs: int,
+    training_config: AutoTrainingConfig,
     wait: bool,
-    create_data_embs: Optional[bool] = None,
 ) -> Trainer:
     # training and evaluation
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -177,13 +156,16 @@ def do_train(
     test_dataloader = dataloaders.get(Split.test)
 
     optimizer = Adafactor(
-        model.parameters(), lr=LR, scale_parameter=False, relative_step=False
+        model.parameters(),
+        lr=training_config.learning_rate,
+        scale_parameter=False,
+        relative_step=False,
     )
 
     if not train_dataloader:
         raise ValueError("Training data must be provided for Seq2Seq `auto`")
 
-    for epoch in range(num_epochs):
+    for epoch in range(training_config.epochs):
         dq.set_epoch_and_split(split=Split.train, epoch=epoch)
         model.train()
         train_epoch_loss = 0.0
@@ -194,11 +176,11 @@ def do_train(
             logits = outputs.logits  # Shape - [bs, bs_seq_ln, vocab]
             dq.log_model_outputs(logits=logits, ids=ids)
 
-            loss = outputs.loss / ACCUMULATION_STEPS
+            loss = outputs.loss / training_config.accumulation_steps
 
             loss.backward()
             # Grad Accumulation
-            if ((step + 1) % ACCUMULATION_STEPS == 0) or (
+            if ((step + 1) % training_config.accumulation_steps == 0) or (
                 (step + 1) == len(train_dataloader)
             ):
                 optimizer.step()
@@ -254,5 +236,5 @@ def do_train(
     # Cleanup all unused data on the GPU and any references
     # to that data
     cleanup_cuda(optimizer, [logits, loss, batch, outputs])
-    dq.finish(wait=wait, create_data_embs=create_data_embs)
+    dq.finish(wait=wait, create_data_embs=training_config.create_data_embs)
     return model
