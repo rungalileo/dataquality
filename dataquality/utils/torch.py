@@ -27,6 +27,19 @@ from dataquality.utils.helpers import wrap_fn
 from dataquality.utils.patcher import Borg, Patch, PatchManager
 
 
+def cleanup_cuda(*args: Tuple) -> None:
+    """Cleanup cuda memory
+
+    Delete unused variables to free CUDA memory to ensure that
+    dq.finish() does not run into out-of-memory errors.
+    """
+    for arg in args:
+        del arg
+
+    torch.cuda.empty_cache()
+    gc.collect()
+
+
 class ModelHookManager(Borg):
     """
     Manages hooks for models. Has the ability to find the layer automatically.

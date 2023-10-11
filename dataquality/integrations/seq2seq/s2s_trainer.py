@@ -1,4 +1,3 @@
-import gc
 from typing import Dict, List, Optional, Tuple
 
 import torch
@@ -20,6 +19,7 @@ from transformers import (
 import dataquality as dq
 from dataquality.integrations.seq2seq.hf import watch
 from dataquality.schemas.split import Split
+from dataquality.utils.torch import cleanup_cuda
 
 # Generation params
 # The default values in Generation Config
@@ -251,13 +251,6 @@ def do_train(
                 logits = outputs.logits  # Shape - [bs, bs_seq_ln, vocab]
                 dq.log_model_outputs(logits=logits, ids=ids)
 
-    # Delete unused variables to free CUDA memory to ensure that
-    # dq.finish() does not run into out-of-memory errors.
-    del optimizer  # This is the most important!
-    del batch
-    del outputs
-    torch.cuda.empty_cache()
-    gc.collect()
-
+    cleanup_cuda(optimizer, batch, outputs)
     dq.finish(wait=wait, create_data_embs=create_data_embs)
     return model
