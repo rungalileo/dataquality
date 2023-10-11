@@ -58,11 +58,14 @@ class AutoTrainingConfig:
 
     :param model: The pretrained AutoModel from huggingface that will be used to
         tokenize and train on the provided data. Default google/flan-t5-base
-    :param num_train_epochs: Optional num training epochs. If not set, we default to 3
-    :param max_input_tokens: Optional max input tokens. If not set, we default to 512
-    :param max_target_tokens: Optional max target tokens. If not set, we default to 128
+    :param epochs: Optional num training epochs. If not set, we default to 3
+    :param learning_rate: Optional learning rate. If not set, we default to 3e-4
+    :param accumulation_steps: Optional accumulation steps. If not set, we default to 4
+    :param batch_size: Optional batch size. If not set, we default to 4
     :param create_data_embs: Whether to create data embeddings for this run. Default
         False
+    :param max_input_tokens: Optional max input tokens. If not set, we default to 512
+    :param max_target_tokens: Optional max target tokens. If not set, we default to 128
     """
 
     model: str = "google/flan-t5-base"
@@ -79,16 +82,17 @@ class AutoTrainingConfig:
 class AutoGenerationConfig:
     """Configuration for generating insights from a trained seq2seq model
 
+    We use the default values in HF GenerationConfig
+    See more about the parameters here:
+    https://huggingface.co/docs/transformers/v4.30.0/en/main_classes/text_generation#transformers.GenerationConfig
+
     :param generation_splits: Optional list of splits to generate on. If not set, we
         default to ["test"]
     """
 
-    # The default values in Generation Config
-    # Check more out here: https://huggingface.co/docs/transformers/v4.30.0/en/main_classes/text_generation#transformers.GenerationConfig
     max_new_tokens: int = 16
     temperature: float = 0.2
-    # Whether we use multinomial sampling
-    do_sample: bool = False
+    do_sample: bool = False  # Whether we use multinomial sampling
     top_p: float = 1.0
     top_k: int = 50
     generation_splits: Optional[List[str]] = None

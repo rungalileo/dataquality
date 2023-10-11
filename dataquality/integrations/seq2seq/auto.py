@@ -72,32 +72,34 @@ def auto(
     generation_config: Optional[AutoGenerationConfig] = None,
     wait: bool = True,
 ) -> Trainer:
-    """Automatically gets insights on a Seq2Seq dataset
+    """Automatically get insights on a Seq2Seq dataset
 
     Given either a pandas dataframe, file_path, or huggingface dataset path, this
     function will load the data, train a huggingface transformer model, and
     provide Galileo insights via a link to the Galileo Console
 
-    One of `hf_data`, `train_data` should be provided. If neither of those are, a
-    demo dataset will be loaded by Galileo for training.
+    One of DatasetConfig `hf_data`, `train_path`, or `train_data` should be provided.
+    If none of those is, a demo dataset will be loaded by Galileo for training.
 
-    The validation data is what is
-    used for the evaluation dataset in huggingface, and what is used for early
-    stopping. If not provided, but test_data is, that will be used as the evaluation
+    The validation data is what is used for the evaluation dataset in huggingface.
+    If not provided, but test_data is, that will be used as the evaluation
     set. If neither val nor test are available, the train data will be randomly
     split 80/20 for use as evaluation data.
 
     The test data, if provided with val,
-        will be used after training is complete, as the held-out set. If no validation
-        data is provided, this will instead be used as the evaluation set.
-
-
-
+    will be used after training is complete, as the held-out set. If no validation
+    data is provided, this will instead be used as the evaluation set.
 
     :param project_name: Optional project name. If not set, a random name will
         be generated
     :param run_name: Optional run name for this data. If not set, a random name will
         be generated
+    :param dataset_config: Optional config for loading the dataset.
+        See `AutoDatasetConfig` for more details
+    :param training_config: Optional config for training the model.
+        See `AutoTrainingConfig` for more details
+    :param generation_config: Optional config for generating predictions.
+        See `AutoGenerationConfig` for more details
     :param wait: Whether to wait for Galileo to complete processing your run.
         Default True
 
@@ -110,25 +112,25 @@ def auto(
 
     An example using `auto` with a hosted huggingface dataset
     ```python
+        from dataquality.integrations.seq2seq.schema import AutoDatasetConfig
         from dataquality.integrations.seq2seq import auto
 
-        auto(hf_data="tatsu-lab/alpaca")
+        dataset_config = AutoDatasetConfig(hf_data="tatsu-lab/alpaca")
+        auto(dataset_config=dataset_config)
     ```
 
-    An example using `auto` with sklearn data as pandas dataframes
+    An example of using `auto` with a local file with `text` and `label` columns
     ```python
-        #  TODO: coming soon
-    ```
-
-    An example of using `auto` with a local CSV file with `text` and `label` columns
-    ```python
+    from dataquality.integrations.seq2seq.schema import AutoDatasetConfig
     from dataquality.integrations.seq2seq import auto
 
+    dataset_config = AutoDatasetConfig(
+        train_path="train.jsonl", eval_path="eval.jsonl"
+    )
     auto(
-         train_data="train.jsonl",
-         test_data="test.jsonl",
-         project_name="data_from_local",
-         run_name="run_1_raw_data"
+        project_name="data_from_local",
+        run_name="run_1_raw_data"
+        dataset_config=dataset_config,
     )
     ```
     """
