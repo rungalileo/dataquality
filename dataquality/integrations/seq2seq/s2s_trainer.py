@@ -24,6 +24,7 @@ from dataquality.integrations.seq2seq.schema import (
     AutoTrainingConfig,
 )
 from dataquality.schemas.split import Split
+from dataquality.utils.torch import cleanup_cuda
 
 # Generate params
 GENERATE_ON_TRAIN = False
@@ -238,5 +239,8 @@ def do_train(
                 logits = outputs.logits  # Shape - [bs, bs_seq_ln, vocab]
                 dq.log_model_outputs(logits=logits, ids=ids)
 
+    # Cleanup all unused data on the GPU and any references
+    # to that data
+    cleanup_cuda(optimizer, [logits, loss, batch, outputs])
     dq.finish(wait=wait, create_data_embs=training_config.create_data_embs)
     return model
