@@ -67,9 +67,9 @@ class AutoTrainingConfig:
 
     model: str = "google/flan-t5-base"
     epochs: int = 3
-    learning_rate = 3e-4
-    accumulation_steps = 4
-    batch_size = 4
+    learning_rate: float = 3e-4
+    accumulation_steps: int = 4
+    batch_size: int = 4
     create_data_embs: Optional[bool] = None
     max_input_tokens: int = 512
     max_target_tokens: int = 128
