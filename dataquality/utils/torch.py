@@ -11,6 +11,7 @@ import numpy as np  # noqa: F401
 import torch
 from torch import Tensor
 from torch.nn import Module
+from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 from torch.utils.data.dataloader import (
     _BaseDataLoaderIter,
@@ -27,14 +28,17 @@ from dataquality.utils.helpers import wrap_fn
 from dataquality.utils.patcher import Borg, Patch, PatchManager
 
 
-def cleanup_cuda(*args: Tuple) -> None:
+def cleanup_cuda(
+    optimizer: Optimizer, batch: torch.Tensor, outputs: torch.Tensor
+) -> None:
     """Cleanup cuda memory
 
     Delete unused variables to free CUDA memory to ensure that
     dq.finish() does not run into out-of-memory errors.
     """
-    for arg in args:
-        del arg
+    del optimizer
+    del batch
+    del outputs
 
     torch.cuda.empty_cache()
     gc.collect()
