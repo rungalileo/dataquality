@@ -140,7 +140,8 @@ class S2SDatasetManager(BaseDatasetManager):
         for key in list(clean_dd.keys()):
             ds = clean_dd.pop(key)
             # TODO: temporary, update
-            ds = ds.select(range(100))
+            if ds.num_rows > 100:
+                ds = ds.select(range(100))
 
             if "id" not in ds.features:
                 ds = ds.add_column("id", list(range(ds.num_rows)))

@@ -32,6 +32,9 @@ def load_data_from_str(data: str) -> Union[pd.DataFrame, Dataset]:
             f"DatasetDict, consider passing it to `hf_data` (dq.auto(hf_data=data))"
         )
         return ds
+    elif ext == ".jsonl":
+        # If it's a jsonl file, we load it as a pandas dataframe
+        return pd.read_json(data, lines=True)
     else:
         # .csv -> read_csv, .parquet -> read_parquet
         func = f"read_{ext.lstrip('.')}"
