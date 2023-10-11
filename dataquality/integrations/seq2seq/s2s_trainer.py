@@ -26,12 +26,6 @@ from dataquality.integrations.seq2seq.schema import (
 from dataquality.schemas.split import Split
 from dataquality.utils.torch import cleanup_cuda
 
-# Generate params
-GENERATE_ON_TRAIN = False
-# Tokenization params
-MAX_INPUT_LENGTH = 512
-MAX_TARGET_LENGTH = 128
-
 
 def tokenize(
     ds: Dataset,
