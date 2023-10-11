@@ -18,7 +18,7 @@ from dataquality.utils.auto import (
 class S2SDatasetManager(BaseDatasetManager):
     DEMO_DATASETS = [
         "tatsu-lab/alpaca",
-        # "billsum",
+        # "billsum",  # TODO: add billsum
     ]
 
     def _validate_dataset_dict(
@@ -112,7 +112,7 @@ def auto(
         * Huggingface dataset hub path
     :param num_train_epochs: Optional num training epochs. If not set, we default to 3
     :param hf_model: The pretrained AutoModel from huggingface that will be used to
-        tokenize and train on the provided data. Default distilbert-base-uncased
+        tokenize and train on the provided data. Default google/flan-t5-base
     :param project_name: Optional project name. If not set, a random name will
         be generated
     :param run_name: Optional run name for this data. If not set, a random name will
