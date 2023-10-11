@@ -1,15 +1,17 @@
-from typing import List, Optional
+from random import choice
+from typing import Dict, List, Optional, Tuple
 
-from datasets import Dataset, DatasetDict
+from datasets import Dataset, DatasetDict, load_dataset
 from transformers import Trainer
 
 import dataquality as dq
 from dataquality.dq_auto.base_data_manager import BaseDatasetManager
+from dataquality.integrations.seq2seq.formatter import get_formatter
 from dataquality.integrations.seq2seq.s2s_trainer import do_train, get_trainer
 from dataquality.integrations.seq2seq.schema import (
-    AutoDatasetConfig,
-    AutoGenerationConfig,
-    AutoTrainingConfig,
+    Seq2SeqDatasetConfig,
+    Seq2SeqGenerationConfig,
+    Seq2SeqTrainingConfig,
 )
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
@@ -24,6 +26,100 @@ class S2SDatasetManager(BaseDatasetManager):
         "tatsu-lab/alpaca",
         # "billsum",  # TODO: add billsum
     ]
+
+    def try_load_dataset_dict_from_config(
+        self,
+        dataset_config: Optional[Seq2SeqDatasetConfig],
+    ) -> Tuple[Optional[DatasetDict], Seq2SeqDatasetConfig]:
+        """Tries to load the DatasetDict if available
+
+        If the user provided the hf_data param we load it from huggingface
+        If they provided nothing, we load the demo dataset
+        Otherwise, we return None, because the user provided train/test/val data, and
+        that requires task specific processing
+
+        For HF datasets, we optionally apply a formatting function to the dataset to
+        convert it to the format we expect. This is useful for datasets that have
+        non-standard columns, like the `alpaca` dataset, which has `instruction`,
+        `input`, and `target` columns instead of `text` and `label`
+        """
+        demo_datasets = self.DEMO_DATASETS
+        if not dataset_config:
+            hf_data = choice(demo_datasets)
+            print(f"No dataset provided, using {hf_data} for run")
+            dataset_config = Seq2SeqDatasetConfig(hf_data=hf_data)
+
+        error_msg = (
+            "hf_data must be a path to a huggingface DatasetDict in the hf hub or "
+            "a DatasetDict object. "
+            "If this is just a Dataset, pass it to `train_data`"
+        )
+        if dataset_config.hf_data:
+            if isinstance(hf_data, str):
+                dd = load_dataset(hf_data)
+                self.formatter = get_formatter(hf_data)
+            elif isinstance(hf_data, DatasetDict):
+                dd = hf_data
+            else:
+                raise ValueError(error_msg)
+
+            assert isinstance(dd, DatasetDict), error_msg
+            # Apply the datasets custom formatter on load dataset dict
+            dd = dd.map(self.formatter.format_sample)
+            return dd, dataset_config
+
+        return None, dataset_config
+
+    def get_dataset_dict_from_config(
+        self,
+        dataset_config: Optional[Seq2SeqDatasetConfig],
+    ) -> Tuple[DatasetDict, Seq2SeqDatasetConfig]:
+        """Creates and/or validates the DatasetDict provided by the user.
+
+        If a user provides a DatasetDict, we simply validate it. Otherwise, we
+        parse a combination of the parameters provided, generate a DatasetDict of their
+        training data, and validate that.
+
+        If the user provides hf_data, we load that dataset from huggingface and
+        optionally apply a formatting function to the dataset to convert it to the
+        format we expect. This is useful for datasets that have non-standard columns,
+        like the `alpaca` dataset, which has `instruction`, `input`, and `target`
+        columns instead of `text` and `label`
+
+        If the user provides train_path, val_path, or test_path, we load those files
+        and convert them to a DatasetDict.
+
+        Else if the user provides train_data, val_data, or test_data, we convert those
+        to a DatasetDict.
+        """
+        dd, dataset_config = self.try_load_dataset_dict_from_config(dataset_config)
+        dd = dd or DatasetDict()
+
+        if not dd:
+            col_mapping: Dict[str, str] = {}
+            # dataset_config.input_col: "text",
+            # dataset_config.target_col: "label",
+            # }
+            train_data = dataset_config.train_path or dataset_config.train_data
+            # We don't need to check for train because `try_load_dataset_dict` validates
+            # that it exists already. One of hf_data or train_data must exist
+            dd[Split.train] = self._convert_to_hf_dataset(
+                train_data, column_mapping=col_mapping
+            )
+
+            val_data = dataset_config.val_path or dataset_config.val_data
+            if val_data is not None:
+                dd[Split.validation] = self._convert_to_hf_dataset(
+                    val_data, column_mapping=col_mapping
+                )
+
+            test_data = dataset_config.test_path or dataset_config.test_data
+            if test_data is not None:
+                dd[Split.test] = self._convert_to_hf_dataset(
+                    test_data, column_mapping=col_mapping
+                )
+
+        return self._validate_dataset_dict(dd, []), dataset_config
 
     def _validate_dataset_dict(
         self,
@@ -67,9 +163,9 @@ def _log_dataset_dict(dd: DatasetDict, input_col: str, target_col: str) -> None:
 def auto(
     project_name: str = "auto_s2s",
     run_name: Optional[str] = None,
-    dataset_config: Optional[AutoDatasetConfig] = None,
-    training_config: Optional[AutoTrainingConfig] = None,
-    generation_config: Optional[AutoGenerationConfig] = None,
+    dataset_config: Optional[Seq2SeqDatasetConfig] = None,
+    training_config: Optional[Seq2SeqTrainingConfig] = None,
+    generation_config: Optional[Seq2SeqGenerationConfig] = None,
     wait: bool = True,
 ) -> Trainer:
     """Automatically get insights on a Seq2Seq dataset
@@ -128,30 +224,26 @@ def auto(
         train_path="train.jsonl", eval_path="eval.jsonl"
     )
     auto(
-        project_name="data_from_local",
-        run_name="run_1_raw_data"
+        project_name="s2s_auto",
+        run_name="completion_dataset"
         dataset_config=dataset_config,
     )
     ```
     """
-    dataset_config = dataset_config or AutoDatasetConfig()
-    training_config = training_config or AutoTrainingConfig()
-    generation_config = generation_config or AutoGenerationConfig()
+
+    training_config = training_config or Seq2SeqTrainingConfig()
+    generation_config = generation_config or Seq2SeqGenerationConfig()
 
     manager = S2SDatasetManager()
-    dd = manager.get_dataset_dict(
-        dataset_config.hf_data,
-        train_data=dataset_config.train_data,
-        val_data=dataset_config.val_data,
-        test_data=dataset_config.test_data,
-    )
-    dq.login()
+    dd, dataset_config = manager.get_dataset_dict_from_config(dataset_config)
+
     if not run_name and isinstance(dataset_config.hf_data, str):
         run_name = run_name_from_hf_dataset(dataset_config.hf_data)
 
+    dq.login()
     dq.init(TaskType.seq2seq, project_name=project_name, run_name=run_name)
-    input_col = manager.formatter.input_col
-    target_col = manager.formatter.target_col
+    input_col = dataset_config.input_col
+    target_col = dataset_config.target_col
 
     # We 'watch' in get_trainer, which must happen before logging datasets
     model, dataloaders = get_trainer(

@@ -128,6 +128,7 @@ class BaseDatasetManager:
         self,
         hf_data: Optional[Union[DatasetDict, str]] = None,
         train_data: Optional[Union[pd.DataFrame, Dataset, str]] = None,
+        train_path: Optional[str] = None,
     ) -> Optional[DatasetDict]:
         """Tries to load the DatasetDict if available
 
