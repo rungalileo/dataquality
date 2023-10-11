@@ -16,15 +16,12 @@ class AutoDatasetConfig:
     :param hf_data: Union[DatasetDict, str] Use this param if you have huggingface
         data in the hub or in memory. Otherwise see `train_data`, `val_data`,
         and `test_data`. If provided, train_data, val_data, and test_data are ignored
-    :param train_path: Optional path to training data file to use. Can be one of
+    :param train_path: Optional path to training data file to use. Must be:
         * Path to a local file
-        * Huggingface dataset hub path
-    :param val_path: Optional path to validation data to use. Can be one of
+    :param val_path: Optional path to validation data to use. Must be:
         * Path to a local file
-        * Huggingface dataset hub path
-    :param test_path: Optional test data to use. Can be one of
+    :param test_path: Optional test data to use. Must be:
         * Path to a local file
-        * Huggingface dataset hub path
     :param train_data: Optional training data to use. Can be one of
         * Pandas dataframe
         * Huggingface dataset
