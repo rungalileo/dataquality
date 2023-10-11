@@ -81,7 +81,7 @@ def auto(
     One of DatasetConfig `hf_data`, `train_path`, or `train_data` should be provided.
     If none of those is, a demo dataset will be loaded by Galileo for training.
 
-    The validation data is what is used for the evaluation dataset in huggingface.
+    The validation data is what is used for the evaluation dataset in training.
     If not provided, but test_data is, that will be used as the evaluation
     set. If neither val nor test are available, the train data will be randomly
     split 80/20 for use as evaluation data.
