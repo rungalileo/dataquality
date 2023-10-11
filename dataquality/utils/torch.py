@@ -27,7 +27,7 @@ from dataquality.utils.helpers import wrap_fn
 from dataquality.utils.patcher import Borg, Patch, PatchManager
 
 
-def cleanup_cuda(*args: Tuple) -> None:
+def cleanup_cuda(*args: Any) -> None:
     """Cleanup cuda memory
 
     Delete unused variables to free CUDA memory to ensure that
