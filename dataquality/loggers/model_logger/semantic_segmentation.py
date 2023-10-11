@@ -274,8 +274,8 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         image_data = {
             "image": [f"{self.imgs_remote_location}/{pth}" for pth in self.image_paths],
             "id": self.image_ids,
-            "height": heights,
-            "width": widths,
+            "height": widths,
+            "width": heights,
             "mean_lm_score": [i for i in mean_mislabeled],
             "mean_iou": [iou.value for iou in mean_iou_data],
             "mean_iou_per_class": [iou.value_per_class for iou in mean_iou_data],

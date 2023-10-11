@@ -126,6 +126,7 @@ def calculate_classification_error(
     pointwise_accuracy = (candidate_mask == comparison_mask)[combined_relevant_region]
     area = relevant_region.sum()
     float_accuracy = pointwise_accuracy.sum() / area
+    # find the perplexicyt of the float accuracy
 
     region_pixels = candidate_mask[relevant_region]
     region_boolean = region_pixels != correct_class

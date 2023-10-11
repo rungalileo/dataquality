@@ -6,7 +6,7 @@ from torchvision import transforms
 import os
 import numpy as np
 
-IMG_SIZE = 512
+IMG_SIZE = 1024
 NC = 2  # Number of classes
 
 class dataset_disk(torch.utils.data.Dataset):
