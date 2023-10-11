@@ -59,8 +59,8 @@ class AutoTrainingConfig:
     :param learning_rate: Optional learning rate. If not set, we default to 3e-4
     :param accumulation_steps: Optional accumulation steps. If not set, we default to 4
     :param batch_size: Optional batch size. If not set, we default to 4
-    :param create_data_embs: Whether to create data embeddings for this run. Default
-        False
+    :param create_data_embs: Whether to create data embeddings for this run. If set to
+        None, data embeddings will be created only if a GPU is available
     :param max_input_tokens: Optional max input tokens. If not set, we default to 512
     :param max_target_tokens: Optional max target tokens. If not set, we default to 128
     """
