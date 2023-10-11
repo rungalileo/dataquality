@@ -19,6 +19,7 @@ from transformers import (
 import dataquality as dq
 from dataquality.integrations.seq2seq.hf import watch
 from dataquality.schemas.split import Split
+from dataquality.utils.torch import cleanup_cuda
 
 # Generation params
 # The default values in Generation Config
@@ -250,5 +251,8 @@ def do_train(
                 logits = outputs.logits  # Shape - [bs, bs_seq_ln, vocab]
                 dq.log_model_outputs(logits=logits, ids=ids)
 
+    # Cleanup all unused data on the GPU and any references
+    # to that data
+    cleanup_cuda(optimizer, [logits, loss, batch, outputs])
     dq.finish(wait=wait, create_data_embs=create_data_embs)
     return model
