@@ -28,17 +28,18 @@ from dataquality.utils.helpers import wrap_fn
 from dataquality.utils.patcher import Borg, Patch, PatchManager
 
 
-def cleanup_cuda(
-    optimizer: Optimizer, batch: torch.Tensor, outputs: torch.Tensor
-) -> None:
+def cleanup_cuda(optimizer: Optional[Optimizer], tensors: List[torch.Tensor]) -> None:
     """Cleanup cuda memory
 
     Delete unused variables to free CUDA memory to ensure that
     dq.finish() does not run into out-of-memory errors.
     """
-    del optimizer
-    del batch
-    del outputs
+    if optimizer:
+        del optimizer
+
+    for tensor in tensors:
+        if torch.is_tensor(tensor):
+            del tensor
 
     torch.cuda.empty_cache()
     gc.collect()

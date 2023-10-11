@@ -251,6 +251,6 @@ def do_train(
                 logits = outputs.logits  # Shape - [bs, bs_seq_ln, vocab]
                 dq.log_model_outputs(logits=logits, ids=ids)
 
-    cleanup_cuda(optimizer, batch, outputs)
+    cleanup_cuda(optimizer, [batch, outputs])
     dq.finish(wait=wait, create_data_embs=create_data_embs)
     return model
