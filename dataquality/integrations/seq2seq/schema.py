@@ -33,8 +33,6 @@ class Seq2SeqDatasetConfig(BaseAutoDatasetConfig):
     :param target_col: Column name for target data, defaults to "label"
     """
 
-    pass
-
 
 @dataclass
 class Seq2SeqTrainingConfig(BaseAutoTrainingConfig):

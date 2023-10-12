@@ -63,7 +63,7 @@ class BaseAutoTrainingConfig:
     by parent class for each modality.
 
     :param model: The pretrained AutoModel from huggingface that will be used to
-        tokenize and train on the provided data. Default google/flan-t5-base
+        tokenize and train on the provided data. Default distilbert-base-uncased
     :param epochs: Optional num training epochs. If not set, we default to 15
     :param learning_rate: Optional learning rate. If not set, we default to 3e-4
     :param batch_size: Optional batch size. If not set, we default to 4

@@ -43,17 +43,11 @@ class S2SDatasetManager(BaseDatasetManager):
         non-standard columns, like the `alpaca` dataset, which has `instruction`,
         `input`, and `target` columns instead of `text` and `label`
         """
-        demo_datasets = self.DEMO_DATASETS
         if not dataset_config:
-            hf_data = choice(demo_datasets)
+            hf_data = choice(self.DEMO_DATASETS)
             print(f"No dataset provided, using {hf_data} for run")
             dataset_config = Seq2SeqDatasetConfig(hf_data=hf_data)
 
-        error_msg = (
-            "hf_data must be a path to a huggingface DatasetDict in the hf hub or "
-            "a DatasetDict object. "
-            "If this is just a Dataset, pass it to `train_data`"
-        )
         if dataset_config.hf_data:
             hf_data = dataset_config.hf_data
             if isinstance(hf_data, str):
@@ -62,9 +56,12 @@ class S2SDatasetManager(BaseDatasetManager):
             elif isinstance(hf_data, DatasetDict):
                 dd = hf_data
             else:
-                raise ValueError(error_msg)
+                raise ValueError(
+                    "hf_data must be a path to a huggingface DatasetDict in the hf "
+                    "hub or a DatasetDict object. "
+                    "If this is just a Dataset, pass it to `train_data`"
+                )
 
-            assert isinstance(dd, DatasetDict), error_msg
             # Apply the datasets custom formatter on load dataset dict
             dd = dd.map(self.formatter.format_sample)
             return dd, dataset_config
@@ -130,10 +127,6 @@ class S2SDatasetManager(BaseDatasetManager):
         clean_dd = super()._validate_dataset_dict(dd, inference_names, labels)
         for key in list(clean_dd.keys()):
             ds = clean_dd.pop(key)
-            # TODO: temporary, update
-            if ds.num_rows > 100:
-                ds = ds.select(range(100))
-
             if "id" not in ds.features:
                 ds = ds.add_column("id", list(range(ds.num_rows)))
             clean_dd[key] = ds
