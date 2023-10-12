@@ -22,12 +22,11 @@ jobs:
       - name: set up python
         uses: actions/setup-python@v4
         with:
-          cache: "pip"
-          cache-dependency-path: "pyproject.toml"
+          cache: "poetry"
           python-version: ${{ matrix.python-version }}
 
-      - name: install invoke
-        run: pip install invoke poetry
+      - name: install invoke & poetry
+        run: pipx install invoke poetry
 
       - name: install dependencies
         run: inv install # --no-editable
