@@ -14,7 +14,6 @@ from transformers import (
     PreTrainedModel,
     PreTrainedTokenizerFast,
     T5ForConditionalGeneration,
-    Trainer,
 )
 
 import dataquality as dq
@@ -146,7 +145,7 @@ def do_train(
     dataloaders: Dict[str, torch.utils.data.DataLoader],
     training_config: Seq2SeqTrainingConfig,
     wait: bool,
-) -> Trainer:
+) -> PreTrainedModel:
     # training and evaluation
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = model.to(device)
@@ -217,9 +216,7 @@ def do_train(
             eval_epoch_loss = eval_epoch_loss / len(eval_dataloader)
             eval_ppl = torch.exp(torch.Tensor([eval_epoch_loss])).item()
 
-        print(
-            f"{epoch=}: {train_ppl=} {train_epoch_loss=} {eval_ppl=} {eval_epoch_loss=}"
-        )
+        print(f"{epoch=}: {eval_ppl=} {eval_epoch_loss=}")
 
     # After training, do test step
     if test_dataloader:

@@ -2,7 +2,7 @@ from random import choice
 from typing import List, Optional, Tuple
 
 from datasets import Dataset, DatasetDict, load_dataset
-from transformers import Trainer
+from transformers import PreTrainedModel
 
 import dataquality as dq
 from dataquality.dq_auto.base_data_manager import BaseDatasetManager
@@ -152,7 +152,7 @@ def auto(
     training_config: Optional[Seq2SeqTrainingConfig] = None,
     generation_config: Optional[Seq2SeqGenerationConfig] = None,
     wait: bool = True,
-) -> Trainer:
+) -> Optional[PreTrainedModel]:
     """Automatically get insights on a Seq2Seq dataset
 
     Given either a pandas dataframe, file_path, or huggingface dataset path, this
@@ -176,11 +176,11 @@ def auto(
     :param run_name: Optional run name for this data. If not set, a random name will
         be generated
     :param dataset_config: Optional config for loading the dataset.
-        See `AutoDatasetConfig` for more details
+        See `Seq2SeqDatasetConfig` for more details
     :param training_config: Optional config for training the model.
-        See `AutoTrainingConfig` for more details
+        See `Seq2SeqTrainingConfig` for more details
     :param generation_config: Optional config for generating predictions.
-        See `AutoGenerationConfig` for more details
+        See `Seq2SeqGenerationConfig` for more details
     :param wait: Whether to wait for Galileo to complete processing your run.
         Default True
 
@@ -193,19 +193,19 @@ def auto(
 
     An example using `auto` with a hosted huggingface dataset
     ```python
-        from dataquality.integrations.seq2seq.schema import AutoDatasetConfig
-        from dataquality.integrations.seq2seq import auto
+        from dataquality.integrations.seq2seq.auto import auto
+        from dataquality.integrations.seq2seq.schema import Seq2SeqDatasetConfig
 
-        dataset_config = AutoDatasetConfig(hf_data="tatsu-lab/alpaca")
+        dataset_config = Seq2SeqDatasetConfig(hf_data="tatsu-lab/alpaca")
         auto(dataset_config=dataset_config)
     ```
 
     An example of using `auto` with a local file with `text` and `label` columns
     ```python
+    from dataquality.integrations.seq2seq.auto import auto
     from dataquality.integrations.seq2seq.schema import AutoDatasetConfig
-    from dataquality.integrations.seq2seq import auto
 
-    dataset_config = AutoDatasetConfig(
+    dataset_config = Seq2SeqDatasetConfig(
         train_path="train.jsonl", eval_path="eval.jsonl"
     )
     auto(
@@ -240,4 +240,9 @@ def auto(
     )
 
     _log_dataset_dict(dd, input_col=input_col, target_col=target_col)
-    return do_train(model, dataloaders, training_config, wait)
+    model = do_train(model, dataloaders, training_config, wait)
+    if training_config.return_model:
+        return model
+
+    del model
+    return None
