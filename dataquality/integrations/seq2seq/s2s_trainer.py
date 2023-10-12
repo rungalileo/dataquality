@@ -20,8 +20,8 @@ from transformers import (
 import dataquality as dq
 from dataquality.integrations.seq2seq.hf import watch
 from dataquality.integrations.seq2seq.schema import (
-    AutoGenerationConfig,
-    AutoTrainingConfig,
+    Seq2SeqGenerationConfig,
+    Seq2SeqTrainingConfig,
 )
 from dataquality.schemas.split import Split
 from dataquality.utils.torch import cleanup_cuda
@@ -80,8 +80,8 @@ def get_trainer(
     dd: DatasetDict,
     input_col: str,
     target_col: str,
-    training_config: AutoTrainingConfig,
-    generation_config: AutoGenerationConfig,
+    training_config: Seq2SeqTrainingConfig,
+    generation_config: Seq2SeqGenerationConfig,
 ) -> Tuple[PreTrainedModel, Dict[str, DataLoader]]:
     """Sets up the model and tokenizer for training
 
@@ -144,7 +144,7 @@ def get_trainer(
 def do_train(
     model: PreTrainedModel,
     dataloaders: Dict[str, torch.utils.data.DataLoader],
-    training_config: AutoTrainingConfig,
+    training_config: Seq2SeqTrainingConfig,
     wait: bool,
 ) -> Trainer:
     # training and evaluation
