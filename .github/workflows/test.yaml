@@ -19,14 +19,17 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: install invoke & poetry
-        run: pipx install invoke poetry
+      - name: install poetry
+        run: pipx install poetry
 
       - name: set up python
         uses: actions/setup-python@v4
         with:
           cache: "poetry"
           python-version: ${{ matrix.python-version }}
+
+      - name: install invoke
+        run: pipx install inv
 
       - name: install dependencies
         run: inv install # --no-editable
