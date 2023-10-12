@@ -19,6 +19,7 @@ from dataquality.utils.auto import (
     add_val_data_if_missing,
     run_name_from_hf_dataset,
 )
+from dataquality.utils.torch import cleanup_cuda
 
 
 class S2SDatasetManager(BaseDatasetManager):
@@ -244,5 +245,6 @@ def auto(
     if training_config.return_model:
         return model
 
-    del model
+    # Cleanup and return None if we don't want to return the model
+    cleanup_cuda(model=model)
     return None
