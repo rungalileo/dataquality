@@ -29,7 +29,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: install invoke
-        run: pipx install inv
+        run: pipx install invoke
 
       - name: install dependencies
         run: inv install # --no-editable
