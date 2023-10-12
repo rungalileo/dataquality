@@ -71,7 +71,7 @@ class Seq2SeqGenerationConfig:
         default to ["test"]
     """
 
-    max_new_tokens: int = 16
+    max_new_tokens: int = 64
     temperature: float = 0.2
     do_sample: bool = False  # Whether we use multinomial sampling
     top_p: float = 1.0

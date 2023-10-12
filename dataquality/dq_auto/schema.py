@@ -69,6 +69,8 @@ class BaseAutoTrainingConfig:
     :param batch_size: Optional batch size. If not set, we default to 4
     :param create_data_embs: Whether to create data embeddings for this run. If set to
         None, data embeddings will be created only if a GPU is available
+    :param return_model: Whether to return the trained model at the end of auto.
+        Default False
     """
 
     model: str = "distilbert-base-uncased"
@@ -76,3 +78,4 @@ class BaseAutoTrainingConfig:
     learning_rate: float = 3e-4
     batch_size: int = 4
     create_data_embs: Optional[bool] = None
+    return_model: bool = False
