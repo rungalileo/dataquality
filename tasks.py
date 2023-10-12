@@ -37,7 +37,7 @@ def clean(ctx: Context) -> None:
 
 
 @task
-def install(ctx: Context, extras: str = "default") -> None:
+def install(ctx: Context, extras: str = "dev,test") -> None:
     """install
 
     Install dependencies using Poetry.
@@ -46,9 +46,9 @@ def install(ctx: Context, extras: str = "default") -> None:
         ctx (Context): The invoke context.
         extras (str, optional): The extras to install. Defaults to "default".
     """
-    ctx.run("poetry install", pty=True, echo=True)
-    if extras != "default":
-        ctx.run(f"poetry install -E {extras}", pty=True, echo=True)
+    ctx.run("poetry install --with dev,test", pty=True, echo=True)
+    if extras != "dev,test":
+        ctx.run(f"poetry install --with {extras}", pty=True, echo=True)
 
 
 @task
