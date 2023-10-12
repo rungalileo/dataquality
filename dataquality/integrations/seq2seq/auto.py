@@ -1,5 +1,5 @@
 from random import choice
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 from datasets import Dataset, DatasetDict, load_dataset
 from transformers import Trainer
@@ -97,28 +97,18 @@ class S2SDatasetManager(BaseDatasetManager):
         dd = dd or DatasetDict()
 
         if not dd:
-            col_mapping: Dict[str, str] = {}
-            # dataset_config.input_col: "text",
-            # dataset_config.target_col: "label",
-            # }
             train_data = dataset_config.train_path or dataset_config.train_data
-            # We don't need to check for train because `try_load_dataset_dict` validates
-            # that it exists already. One of hf_data or train_data must exist
-            dd[Split.train] = self._convert_to_hf_dataset(
-                train_data, column_mapping=col_mapping
-            )
+            # We don't need to check for train data in dd because
+            # `try_load_dataset_dict_from_config` validates that it exists already
+            dd[Split.train] = self._convert_to_hf_dataset(train_data)
 
             val_data = dataset_config.val_path or dataset_config.val_data
             if val_data is not None:
-                dd[Split.validation] = self._convert_to_hf_dataset(
-                    val_data, column_mapping=col_mapping
-                )
+                dd[Split.validation] = self._convert_to_hf_dataset(val_data)
 
             test_data = dataset_config.test_path or dataset_config.test_data
             if test_data is not None:
-                dd[Split.test] = self._convert_to_hf_dataset(
-                    test_data, column_mapping=col_mapping
-                )
+                dd[Split.test] = self._convert_to_hf_dataset(test_data)
 
         return self._validate_dataset_dict(dd, []), dataset_config
 
