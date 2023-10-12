@@ -55,6 +55,7 @@ class S2SDatasetManager(BaseDatasetManager):
             "If this is just a Dataset, pass it to `train_data`"
         )
         if dataset_config.hf_data:
+            hf_data = dataset_config.hf_data
             if isinstance(hf_data, str):
                 dd = load_dataset(hf_data)
                 self.formatter = get_formatter(hf_data)
