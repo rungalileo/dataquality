@@ -8,7 +8,6 @@ PACKAGE_NAME = "dataquality"
 SOURCES = " ".join(["dataquality", "tests", "tasks.py"])
 
 
-
 @task
 def clean(ctx: Context) -> None:
     """clean
@@ -96,6 +95,7 @@ def publish(ctx: Context) -> None:
     Publish the package to PyPI using Poetry.
     """
     ctx.run("poetry publish --build", pty=True, echo=True)
+
 
 @task
 def all(ctx: Context) -> None:
