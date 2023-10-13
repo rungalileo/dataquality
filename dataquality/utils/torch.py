@@ -11,6 +11,7 @@ import numpy as np  # noqa: F401
 import torch
 from torch import Tensor
 from torch.nn import Module
+from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 from torch.utils.data.dataloader import (
     _BaseDataLoaderIter,
@@ -18,6 +19,7 @@ from torch.utils.data.dataloader import (
     _SingleProcessDataLoaderIter,
 )
 from torch.utils.hooks import RemovableHandle
+from transformers import PreTrainedModel
 from transformers.modeling_outputs import BaseModelOutput, TokenClassifierOutput
 
 from dataquality.exceptions import GalileoException
@@ -25,6 +27,31 @@ from dataquality.schemas.task_type import TaskType
 from dataquality.schemas.torch import DimensionSlice, HelperData, Layer
 from dataquality.utils.helpers import wrap_fn
 from dataquality.utils.patcher import Borg, Patch, PatchManager
+
+
+def cleanup_cuda(
+    model: Optional[PreTrainedModel] = None,
+    optimizer: Optional[Optimizer] = None,
+    tensors: Optional[List[torch.Tensor]] = None,
+) -> None:
+    """Cleanup cuda memory
+
+    Delete unused variables to free CUDA memory to ensure that
+    dq.finish() does not run into out-of-memory errors.
+    """
+    tensors = tensors or []
+    if model:
+        del model
+
+    if optimizer:
+        del optimizer
+
+    for tensor in tensors:
+        if torch.is_tensor(tensor):
+            del tensor
+
+    torch.cuda.empty_cache()
+    gc.collect()
 
 
 class ModelHookManager(Borg):

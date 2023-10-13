@@ -13,6 +13,7 @@ from dataquality.loggers.logger_config.base_logger_config import BaseLoggerConfi
 from dataquality.schemas.split import Split
 from dataquality.utils.helpers import wrap_fn
 from dataquality.utils.keras import (
+    FixDistributedDatasetPatch,
     combine_with_default_kwargs,
     generate_indices,
     generate_split,
@@ -21,6 +22,7 @@ from dataquality.utils.keras import (
     save_input,
     save_output,
 )
+from dataquality.utils.patcher import PatchManager
 
 a = Analytics(ApiClient, config)
 a.log_import("integrations/experimental/keras")
@@ -325,6 +327,7 @@ def _watch(
     """
     # If we don't set the seed here, the random generator will be different for
     # each process and the indices will be different
+    FixDistributedDatasetPatch().patch()
     tf.random.set_seed(seed)
     # We add the callback to the model
     callback = DataQualityCallback(
@@ -401,3 +404,7 @@ def unwatch(model: tf.keras.layers.Layer) -> None:
             del layer._after_call
     if hasattr(model, "_dq"):
         del model._dq
+
+    pm = PatchManager()
+    print(pm.patches)
+    pm.unpatch()
