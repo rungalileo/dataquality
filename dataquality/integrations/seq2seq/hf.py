@@ -3,6 +3,7 @@ from warnings import warn
 
 from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizerFast
 
+import dataquality
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.logger_config.seq2seq.encoder_decoder import (
     EncoderDecoderLoggerConfig,
@@ -12,28 +13,6 @@ from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.helpers import check_noop
 from dataquality.utils.task_helpers import get_task_type
-
-
-# TODO Sync with Elliott on how to differentiate between the
-#  encoder_decoder vs. decoder_only logger_configs in `watch`
-def _get_seg2seg_logger_config(
-    task_type: TaskType,
-) -> Union[EncoderDecoderLoggerConfig]:
-    """Get the correct Seq2Seq logger_config based on the task_type.
-
-    Choices between:
-        1. EncoderDecoder: task_type.decoder_only
-        2. DecoderOnly: task_type.decoder_only
-
-    Raises an exception if the user has set / is using an incorrect task_type
-    """
-    if task_type == task_type.seq2seq:  # TODO Change to encoder_decoder
-        return encoder_decoder_logger_config
-
-    # TODO Change to encoder_decoder
-    raise GalileoException(
-        "Galileo's seq2seq watch method is only supported for seq2seq"
-    )
 
 
 @check_noop
@@ -114,9 +93,10 @@ def watch(
     and generation config and not attaching any hooks to the model. We call it 'watch'
     for consistency.
     """
-    task_type = get_task_type()
-    # Get the corresponding logger config - handling error checking
-    logger_config = _get_seg2seg_logger_config(task_type)
+    # Get the corresponding logger config
+    logger_config = dataquality.get_data_logger().logger_config
+    assert type(logger_config) == EncoderDecoderLoggerConfig
+
     assert isinstance(
         model, PreTrainedModel
     ), "model must be an instance of transformers PreTrainedModel"

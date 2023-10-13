@@ -5,7 +5,7 @@ from vaex.dataframe import DataFrame
 from dataquality.loggers.data_logger.base_data_logger import (
     MetasType,
 )
-from dataquality.loggers.data_logger.seq2seq.seq2seq import Seq2SeqDataLogger
+from dataquality.loggers.data_logger.seq2seq.seq2seq_base import Seq2SeqDataLogger
 from dataquality.loggers.logger_config.seq2seq.encoder_decoder import (
     EncoderDecoderLoggerConfig,
     encoder_decoder_logger_config,
