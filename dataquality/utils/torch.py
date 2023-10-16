@@ -39,15 +39,21 @@ def cleanup_cuda(
     Delete unused variables to free CUDA memory to ensure that
     dq.finish() does not run into out-of-memory errors.
     """
-    tensors = tensors or []
+    if not torch.cuda.is_available():
+        return  # No CUDA available, nothing to clean up
+
     if model:
+        # Move model to CPU and delete
+        model = model.to("cpu")
         del model
 
     if optimizer:
         del optimizer
 
+    tensors = tensors or []    
     for tensor in tensors:
         if torch.is_tensor(tensor):
+            tensor = tensor.detach().cpu()
             del tensor
 
     torch.cuda.empty_cache()
