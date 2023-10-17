@@ -124,16 +124,17 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         self.logger_config.id_to_tokens[self.token_map_key].update(id_to_tokens)
 
     def _get_input_df(self) -> DataFrame:
-        inp = {
-            C.id.value: self.ids,
-            C.text.value: self.texts,
-            C.label.value: self.labels,
-            C.split_.value: [self.split] * len(self.ids),
-            C.token_label_positions.value: pa.array(self.token_label_positions),
-            C.token_label_offsets.value: pa.array(self.token_label_offsets),
-            **self.meta,
-        }
-        return vaex.from_dict(inp)
+        return vaex.from_dict(
+            {
+                C.id.value: self.ids,
+                C.text.value: self.texts,
+                C.label.value: self.labels,
+                C.split_.value: [self.split] * len(self.ids),
+                C.token_label_positions.value: pa.array(self.token_label_positions),
+                C.token_label_offsets.value: pa.array(self.token_label_offsets),
+                **self.meta,
+            }
+        )
 
     def _log_df(
         self,
