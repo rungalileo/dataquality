@@ -139,12 +139,11 @@ def _log_dataset_dict(dd: DatasetDict, input_col: str, target_col: str) -> None:
     for key in dd.keys():
         ds: Dataset = dd[key]
         if key in Split.get_valid_keys():
-            meta = get_meta_cols(ds.features)
+            meta = get_meta_cols(ds.features, {input_col, target_col})
             if input_col != "text" and "text" in ds.column_names:
                 ds = ds.rename_columns({"text": "_metadata_text"})
             if target_col != "label" and "label" in ds.column_names:
                 ds = ds.rename_columns({"label": "_metadata_label"})
-
             dq.log_dataset(ds, text=input_col, label=target_col, split=key, meta=meta)
 
 
