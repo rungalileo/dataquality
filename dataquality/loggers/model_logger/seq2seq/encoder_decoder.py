@@ -17,9 +17,7 @@ class EncoderDecoderModelLogger(Seq2SeqModelLogger):
     functionality from Seq2SeqModelLogger.
     """
 
-    # TODO Add in API so we can use encoder_decoder
-    # __logger_name__ = "encoder_decoder"
-    __logger_name__ = "seq2seq"
+    __logger_name__ = "encoder_decoder"
     logger_config: EncoderDecoderLoggerConfig = encoder_decoder_logger_config
     log_file_ext = "arrow"
 

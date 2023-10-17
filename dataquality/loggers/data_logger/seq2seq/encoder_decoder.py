@@ -72,8 +72,7 @@ class EncoderDecoderDataLogger(Seq2SeqDataLogger):
     additional information to isolate / extract information on the <Target> data.
     """
 
-    # TODO Change to encoder_decoder after updating API
-    __logger_name__ = "seq2seq"  # encoder_decoder
+    __logger_name__ = "encoder_decoder"
     logger_config: EncoderDecoderLoggerConfig = encoder_decoder_logger_config
     DATA_FOLDER_EXTENSION = {"emb": "hdf5", "prob": "hdf5", "data": "arrow"}
 
@@ -95,7 +94,7 @@ class EncoderDecoderDataLogger(Seq2SeqDataLogger):
         common data type validation.
         """
         super().validate_and_format()
-        # TODO: question type checking does not work in super()
+        # We ensure tokenizer is set in the parent class
         encoded_data = self.logger_config.tokenizer(  # type: ignore
             self.labels,
             return_offsets_mapping=True,

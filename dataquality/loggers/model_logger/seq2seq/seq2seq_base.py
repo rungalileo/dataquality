@@ -1,4 +1,3 @@
-from abc import abstractmethod
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -72,11 +71,12 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             return self.inference_name
         return str(self.split)
 
-    @abstractmethod
     def validate_and_format(self) -> None:
         """Validate shared data format for seq2seq
 
-        See sub_classes (EncoderDecoder and DecoderOnly) for model specific details.
+        Note that this base fn does the validation
+        Sub classes that inherit from this can have modality specific
+         formatting (such as EncoderDecoder and DecoderOnly)
         """
         if self.labels is not None:
             self.labels = self._convert_tensor_ndarray(self.labels)
