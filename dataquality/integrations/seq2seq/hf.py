@@ -1,20 +1,19 @@
-from typing import List, Optional, Union
+from typing import List, Optional
 from warnings import warn
 
 from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizerFast
 
 import dataquality
-from dataquality.loggers.logger_config.seq2seq.encoder_decoder import (
-    EncoderDecoderLoggerConfig,
-)
+from dataquality.loggers.logger_config.seq2seq.seq2seq_base import Seq2SeqLoggerConfig
 from dataquality.schemas.split import Split
+from dataquality.schemas.task_type import TaskType
 from dataquality.utils.helpers import check_noop
+from dataquality.utils.task_helpers import get_task_type
 
 
 @check_noop
 def set_tokenizer(
     tokenizer: PreTrainedTokenizerFast,
-    logger_config: Union[EncoderDecoderLoggerConfig],
     max_input_tokens: Optional[int] = None,
     max_target_tokens: Optional[int] = None,
 ) -> None:
@@ -46,6 +45,9 @@ def set_tokenizer(
     assert getattr(tokenizer, "is_fast", False), "Tokenizer must be a fast tokenizer"
     for attr in ["encode", "decode", "encode_plus", "padding_side"]:
         assert hasattr(tokenizer, attr), f"Tokenizer must support `{attr}`"
+
+    logger_config = dataquality.get_data_logger().logger_config
+    assert isinstance(logger_config, Seq2SeqLoggerConfig)
     logger_config.tokenizer = tokenizer
 
     # This is relevant only for Encoder Decoder Models
@@ -61,7 +63,8 @@ def set_tokenizer(
             )
         )
 
-    if type(logger_config) == EncoderDecoderLoggerConfig:
+    current_task_type = get_task_type()
+    if current_task_type == TaskType.encoder_decoder:
         logger_config.max_target_tokens = max_target_tokens
         if logger_config.max_target_tokens is None:
             logger_config.max_target_tokens = tokenizer.model_max_length
@@ -103,16 +106,15 @@ def watch(
     and generation config and not attaching any hooks to the model. We call it 'watch'
     for consistency.
     """
-    # Get the corresponding logger config
     logger_config = dataquality.get_data_logger().logger_config
-    assert type(logger_config) == EncoderDecoderLoggerConfig
+    assert isinstance(logger_config, Seq2SeqLoggerConfig)
 
     assert isinstance(
         model, PreTrainedModel
     ), "model must be an instance of transformers PreTrainedModel"
     assert model.can_generate(), "model must contain a `generate` method for seq2seq"
 
-    set_tokenizer(tokenizer, logger_config, max_input_tokens, max_target_tokens)
+    set_tokenizer(tokenizer, max_input_tokens, max_target_tokens)
 
     logger_config.model = model
     logger_config.generation_config = generation_config

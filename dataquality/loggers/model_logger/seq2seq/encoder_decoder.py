@@ -10,9 +10,7 @@ from dataquality.loggers.model_logger.seq2seq.seq2seq_base import Seq2SeqModelLo
 
 
 class EncoderDecoderModelLogger(Seq2SeqModelLogger):
-    # TODO Add in API so we can use encoder_decoder
-    # __logger_name__ = "encoder_decoder"
-    __logger_name__ = "seq2seq"
+    __logger_name__ = "encoder_decoder"
     logger_config: EncoderDecoderLoggerConfig = encoder_decoder_logger_config
     log_file_ext = "arrow"
 

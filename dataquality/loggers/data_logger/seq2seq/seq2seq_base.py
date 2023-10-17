@@ -1,4 +1,3 @@
-from abc import abstractmethod
 from typing import TYPE_CHECKING, Any, List, Optional, Set, Tuple, Union, cast
 
 import pandas as pd
@@ -83,7 +82,6 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             return self.inference_name
         return str(self.split)
 
-    @abstractmethod
     def validate_and_format(self) -> None:
         """Validation backbone for Seq2Seq
 
@@ -277,7 +275,6 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         return BaseLoggerDataFrames(prob=prob, emb=emb, data=data_df)
 
     @classmethod
-    @abstractmethod
     def calculate_cutoffs(cls, df: DataFrame) -> DataFrame:
         """Calculates cuttoff indexes for the input and/or target string.
 

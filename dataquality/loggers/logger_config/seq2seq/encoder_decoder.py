@@ -2,9 +2,11 @@ from dataquality.loggers.logger_config.seq2seq.seq2seq_base import Seq2SeqLogger
 
 
 class EncoderDecoderLoggerConfig(Seq2SeqLoggerConfig):
-    # TODO Add comment
-    # This currently is purely a wrapper!
-    pass
+    """Encoder Decoder logger config
+
+    For now, the Encoder Decoder logger config has the same fields
+    as the base Seq2Seq logger config
+    """
 
 
 encoder_decoder_logger_config = EncoderDecoderLoggerConfig()
