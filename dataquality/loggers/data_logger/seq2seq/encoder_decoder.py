@@ -21,7 +21,6 @@ from dataquality.utils.seq2seq.offsets import (
 class EncoderDecoderDataLogger(Seq2SeqDataLogger):
     """Seq2Seq data logger for EncoderDecoder models
 
-    TODO What do I put here @elliott?
     Logging input data for EncoderDecoder models requires:
     1. tokenizer: This must be an instance of PreTrainedTokenizerFast from huggingface
         (ie T5TokenizerFast or GPT2TokenizerFast, etc). Your tokenizer should have an

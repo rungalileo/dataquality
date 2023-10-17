@@ -10,6 +10,13 @@ from dataquality.loggers.model_logger.seq2seq.seq2seq_base import Seq2SeqModelLo
 
 
 class EncoderDecoderModelLogger(Seq2SeqModelLogger):
+    """Seq2Seq model logger for EncoderDecoder models
+
+    Since Encoder-Decoder models output logits just over the target tokens,
+    there is very little additional processing - i.e. we primarily leverage
+    functionality from Seq2SeqModelLogger.
+    """
+
     # TODO Add in API so we can use encoder_decoder
     # __logger_name__ = "encoder_decoder"
     __logger_name__ = "seq2seq"

@@ -24,6 +24,20 @@ from dataquality.utils.seq2seq.logprobs import (
 
 
 class Seq2SeqModelLogger(BaseGalileoModelLogger):
+    """Seq2Seq base model logger
+
+    This class defines the base functionality for logging model outputs in
+    Seq2Seq tasks - shared between EncoderDecoder and DecoderOnly architectures.
+
+    After architecture specific processing of raw model logits, we leverage
+    a shared function for processing and extracting the logprob token data **just**
+    over the Target data.
+
+    During processing, the following key information is extracted:
+        - token_logprobs: log-probs for GT tokens in each sample
+        - top_logprobs: top-K (token_str, log-prob) pairs for each token
+    """
+
     logger_config: Seq2SeqLoggerConfig = seq2seq_logger_config
     log_file_ext = "arrow"
 
