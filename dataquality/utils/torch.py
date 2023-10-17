@@ -50,7 +50,7 @@ def cleanup_cuda(
     if optimizer:
         del optimizer
 
-    tensors = tensors or []    
+    tensors = tensors or []
     for tensor in tensors:
         if torch.is_tensor(tensor):
             tensor = tensor.detach().cpu()
