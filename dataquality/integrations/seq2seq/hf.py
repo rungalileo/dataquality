@@ -18,6 +18,7 @@ def set_tokenizer(
     max_input_tokens: Optional[int] = None,
     max_target_tokens: Optional[int] = None,
 ) -> None:
+    # TODO update
     """Seq2seq only. Set the tokenizer for your run
 
     Must be a fast tokenizer, and must support `decode`, `encode`, `encode_plus`.
@@ -25,6 +26,19 @@ def set_tokenizer(
     We will use this tokenizer for both the input and the target. They will both be
     truncated after a certain length, which is set in the args max_input_tokens and
     max_target_tokens.
+
+    1. tokenizer: This must be an instance of PreTrainedTokenizerFast from huggingface
+        (ie T5TokenizerFast or GPT2TokenizerFast, etc). Your tokenizer should have an
+        `.is_fast` property that returns True if it's a fast tokenizer.
+        This class must implement the `encode`, `decode`, and `encode_plus` methods
+
+        You can set your tokenizer via the `set_tokenizer(tok)` function imported
+        from `dataquality.integrations.seq2seq.hf`
+
+    NOTE: We assume that the tokenizer you provide is the same tokenizer used for
+    training. This must be true in order to align inputs and outputs correctly. Ensure
+    all necessary properties (like `add_eos_token`) are set before setting your
+    tokenizer so as to match the tokenization process to your training process.
     """
     assert isinstance(
         tokenizer, PreTrainedTokenizerFast

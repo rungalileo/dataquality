@@ -30,48 +30,40 @@ if TYPE_CHECKING:
 
 
 class Seq2SeqDataLogger(BaseGalileoDataLogger):
-    # TODO update comment
-    """Logging input data for Seq2Seq fine-tuning tasks
+    """Seq2Seq base data logger
 
-    Logging input data for Seq2Seq requires 2 pieces of information:
-    1. tokenizer: This must be an instance of PreTrainedTokenizerFast from huggingface
-        (ie T5TokenizerFast or GPT2TokenizerFast, etc). Your tokenizer should have an
-        `.is_fast` property that returns True if it's a fast tokenizer.
-        This class must implement the `encode`, `decode`, and `encode_plus` methods
+    This class defines the base functionality for logging input data in Seq2Seq
+    tasks - i.e. shared between EncoderDecoder and DecoderOnly architectures.
 
-        You can set your tokenizer via the `set_tokenizer(tok)` function imported
-        from `dataquality.integrations.seq2seq.hf`
-    2. A dataset (pandas/huggingface etc) with input strings and output labels and ids.
-        Ex: Billsum dataset, with `text` input and `summary` as the label
-        id  text	                        summary
-        0	SECTION 1. LIABILITY ...	    Shields a business entity ...
-        1	SECTION 1. SHORT TITLE.\n\n ...	Human Rights Information Act ...
-        2	SECTION 1. SHORT TITLE.\n\n ...	Jackie Robinson Commemorative Coin ...
-        3	SECTION 1. NONRECOGNITION ...	Amends the Internal Revenue Code to ...
-        4	SECTION 1. SHORT TITLE.\n\n ...	Native American Energy Act - (Sec. 3...
+    At its core, Seq2Seq data logging expects the user's tokenizer (logged through
+    the provided 'watch' integration) and expects the dataset to be formatted
+    as a two column datasets - corresponding to Inputs and Targets.
 
-        You can log your dataset via the `dq.log_dataset` function, passing in the
-        column mapping as necessary for `text`, `label`, and `id`
-        `dq.log_dataset(ds, text="text", label="summary", id="id")`
+    During processing, we use the tokenizer to tokenize the Target data (used later
+    during model output logging) and prepare for the alignment of token-level and
+    string character level information.
 
-    Putting it all together:
-        from dataquality.integrations.seq2seq.hf import set_tokenizer
-        from datasets import load_dataset
-        from transformers import T5TokenizerFast
+    After processing, the following key information is extracted:
+        - ids
+        - texts: corresponding to the <Input> data column
+        - labels: corresponding to the <Target> data column
+        - token_label_offsets + token_label_positions: used for alignment of
+        token level and string character level information within the UI. Note
+        this only applies to the <Target> data.
 
-        tokenizer = T5TokenizerFast.from_pretrained("t5-small")
-        ds = load_dataset("billsum")
-        # Add `id` column to each dataset split as the idx
-        ds = ds.map(lambda x,idx : {"id":idx},with_indices=True)
-        dq.init("seq2seq")
-        set_tokenizer(tokenizer)
-        dq.log_dataset(ds["train"], label="summary", split="train")
+    Additionally, we critically save the tokenized Target data as the ground truth
+    "labels" for model output logging.
 
-    NOTE: We assume that the tokenizer you provide is the same tokenizer used for
-    training. This must be true in order to align inputs and outputs correctly. Ensure
-    all necessary properties (like `add_eos_token`) are set before setting your
-    tokenizer so as to match the tokenization process to your training process.
+    While much of the general Seq2Seq logic can be shared between EncoderDecoder and
+    DecoderOnly models, there are nuances and specific information that differentiate
+    them. Therefore, the following abstract functions must be overridden by subclasses
+        - validate_and_format
+        - calculate_cutoffs
+
+    Note that some shared functionality is implemented here - generally around error
+    handling.
     """
+
     logger_config: Seq2SeqLoggerConfig = seq2seq_logger_config
     DATA_FOLDER_EXTENSION = {"emb": "hdf5", "prob": "hdf5", "data": "arrow"}
 
@@ -91,6 +83,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             return self.inference_name
         return str(self.split)
 
+    @abstractmethod
     def validate_and_format(self) -> None:
         """Validation backbone for Seq2Seq
 

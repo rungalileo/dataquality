@@ -15,6 +15,6 @@ __all__ = [
     "text_multi_label",
     "text_ner",
     "BaseGalileoModelLogger",
-    "seq2seq_base",
+    "seq2seq_base",  # TODO Likely remove
     "encoder_decoder",
 ]

@@ -19,19 +19,21 @@ from dataquality.utils.seq2seq.offsets import (
 
 
 class EncoderDecoderDataLogger(Seq2SeqDataLogger):
-    # TODO UPDATE COMMENT!!!
-    """Logging input data for Seq2Seq fine-tuning tasks
+    """Seq2Seq data logger for EncoderDecoder models
 
-    Logging input data for Seq2Seq requires 2 pieces of information:
+    TODO What do I put here @elliott?
+    Logging input data for EncoderDecoder models requires:
     1. tokenizer: This must be an instance of PreTrainedTokenizerFast from huggingface
         (ie T5TokenizerFast or GPT2TokenizerFast, etc). Your tokenizer should have an
         `.is_fast` property that returns True if it's a fast tokenizer.
         This class must implement the `encode`, `decode`, and `encode_plus` methods
 
-        You can set your tokenizer via the `set_tokenizer(tok)` function imported
-        from `dataquality.integrations.seq2seq.hf`
-    2. A dataset (pandas/huggingface etc) with input strings and output labels and ids.
-        Ex: Billsum dataset, with `text` input and `summary` as the label
+        You can set your tokenizer via the seq2seq `watch(..., tok, ...)` function
+        imported from `dataquality.integrations.seq2seq.hf`
+    2. A two column (i.e. completion) dataset (pandas/huggingface etc) with string
+        'text' (model <Input> / <Instruction> / <Prompt>, ...) and 'label' (model
+        <Target> / (<Completion> / ...) columns + a data sample id column.
+        Ex: Billsum dataset, with `text` <Input> and `summary` as the <Label>
         id  text	                        summary
         0	SECTION 1. LIABILITY ...	    Shields a business entity ...
         1	SECTION 1. SHORT TITLE.\n\n ...	Human Rights Information Act ...
@@ -44,7 +46,7 @@ class EncoderDecoderDataLogger(Seq2SeqDataLogger):
         `dq.log_dataset(ds, text="text", label="summary", id="id")`
 
     Putting it all together:
-        from dataquality.integrations.seq2seq.hf import set_tokenizer
+        from dataquality.integrations.seq2seq.hf import watch
         from datasets import load_dataset
         from transformers import T5TokenizerFast
 
@@ -53,13 +55,22 @@ class EncoderDecoderDataLogger(Seq2SeqDataLogger):
         # Add `id` column to each dataset split as the idx
         ds = ds.map(lambda x,idx : {"id":idx},with_indices=True)
         dq.init("seq2seq")
-        set_tokenizer(tokenizer)
+        # See `watch` for additional input parameters
+        watch(
+            ...,
+            tokenizer,
+            ...
+        )
         dq.log_dataset(ds["train"], label="summary", split="train")
 
     NOTE: We assume that the tokenizer you provide is the same tokenizer used for
     training. This must be true in order to align inputs and outputs correctly. Ensure
     all necessary properties (like `add_eos_token`) are set before setting your
     tokenizer so as to match the tokenization process to your training process.
+
+    NOTE 2: Unlike EncoderOnly models, EncoderDecoder models explicitly separate the
+    processing of the <Input> and <Target> data. Therefore, we do not need any
+    additional information to isolate / extract information on the <Target> data.
     """
 
     # TODO Change to encoder_decoder after updating API
