@@ -27,8 +27,8 @@ class EncoderDecoderDataLogger(Seq2SeqDataLogger):
         `.is_fast` property that returns True if it's a fast tokenizer.
         This class must implement the `encode`, `decode`, and `encode_plus` methods
 
-        You can set your tokenizer via the seq2seq `watch(..., tok, ...)` function
-        imported from `dataquality.integrations.seq2seq.hf`
+        You can set your tokenizer via either the seq2seq `set_tokenizer()` or
+        `watch(..., tokenizer, ...)` functions in `dataquality.integrations.seq2seq.hf`
     2. A two column (i.e. completion) dataset (pandas/huggingface etc) with string
         'text' (model <Input> / <Instruction> / <Prompt>, ...) and 'label' (model
         <Target> / (<Completion> / ...) columns + a data sample id column.
@@ -45,7 +45,7 @@ class EncoderDecoderDataLogger(Seq2SeqDataLogger):
         `dq.log_dataset(ds, text="text", label="summary", id="id")`
 
     Putting it all together:
-        from dataquality.integrations.seq2seq.hf import watch
+        from dataquality.integrations.seq2seq.hf import set_tokenizer
         from datasets import load_dataset
         from transformers import T5TokenizerFast
 
@@ -54,18 +54,18 @@ class EncoderDecoderDataLogger(Seq2SeqDataLogger):
         # Add `id` column to each dataset split as the idx
         ds = ds.map(lambda x,idx : {"id":idx},with_indices=True)
         dq.init("seq2seq")
-        # See `watch` for additional input parameters
-        watch(
-            ...,
+        # You can either use `set_tokenizer()` or `watch()`
+        set_tokenizer(
             tokenizer,
-            ...
+            max_input_tokens=512,
+            max_target_tokens=128
         )
         dq.log_dataset(ds["train"], label="summary", split="train")
 
     NOTE: We assume that the tokenizer you provide is the same tokenizer used for
     training. This must be true in order to align inputs and outputs correctly. Ensure
     all necessary properties (like `add_eos_token`) are set before setting your
-    tokenizer so as to match the tokenization process to your training process.
+    tokenizer as to match the tokenization process to your training process.
 
     NOTE 2: Unlike EncoderOnly models, EncoderDecoder models explicitly separate the
     processing of the <Input> and <Target> data. Therefore, we do not need any

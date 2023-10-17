@@ -95,7 +95,6 @@ def watch(
     max_input_tokens: Optional[int] = None,
     max_target_tokens: Optional[int] = None,
 ) -> None:
-    # TODO Update comment
     """Seq2seq only. Log model generations for your run
 
     Iterates over a given dataset and logs the generations for each sample.
