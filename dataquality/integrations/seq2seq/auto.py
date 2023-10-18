@@ -17,6 +17,7 @@ from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.auto import (
     add_val_data_if_missing,
+    get_meta_cols,
     run_name_from_hf_dataset,
 )
 from dataquality.utils.torch import cleanup_cuda
@@ -138,12 +139,12 @@ def _log_dataset_dict(dd: DatasetDict, input_col: str, target_col: str) -> None:
     for key in dd.keys():
         ds: Dataset = dd[key]
         if key in Split.get_valid_keys():
+            meta = get_meta_cols(ds.features, {input_col, target_col})
             if input_col != "text" and "text" in ds.column_names:
                 ds = ds.rename_columns({"text": "_metadata_text"})
             if target_col != "label" and "label" in ds.column_names:
                 ds = ds.rename_columns({"label": "_metadata_label"})
-
-            dq.log_dataset(ds, text=input_col, label=target_col, split=key)
+            dq.log_dataset(ds, text=input_col, label=target_col, split=key, meta=meta)
 
 
 def auto(

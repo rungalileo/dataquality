@@ -132,6 +132,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
                 C.split_.value: [self.split] * len(self.ids),
                 C.token_label_positions.value: pa.array(self.token_label_positions),
                 C.token_label_offsets.value: pa.array(self.token_label_offsets),
+                **self.meta,
             }
         )
 

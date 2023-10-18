@@ -14,10 +14,10 @@ from dataquality.schemas.task_type import TaskType
 from dataquality.utils.auto import (
     add_class_label_to_dataset,
     add_val_data_if_missing,
+    get_meta_cols,
     run_name_from_hf_dataset,
 )
 from dataquality.utils.auto_trainer import do_train
-from dataquality.utils.setfit import _get_meta_cols
 
 a = Analytics(ApiClient, dq.config)
 a.log_import("auto_tc")
@@ -105,7 +105,7 @@ def _get_labels(dd: DatasetDict, labels: Optional[List[str]] = None) -> List[str
 def _log_dataset_dict(dd: DatasetDict) -> None:
     for key in dd:
         ds = dd[key]
-        meta = _get_meta_cols(ds.features)
+        meta = get_meta_cols(ds.features)
         if key in Split.get_valid_keys():
             dq.log_dataset(ds, meta=meta, split=key)
         else:

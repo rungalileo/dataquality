@@ -3,7 +3,7 @@ import os
 import re
 import warnings
 from datetime import datetime
-from typing import Dict, List, Optional, Union
+from typing import Dict, Iterable, List, Optional, Set, Union
 
 import pandas as pd
 from datasets import ClassLabel, Dataset, DatasetDict, load_dataset
@@ -12,6 +12,17 @@ from dataquality.exceptions import GalileoException, GalileoWarning
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.name import BAD_CHARS_REGEX
+
+
+def get_meta_cols(
+    cols: Iterable, reserved_cols: Optional[Set[str]] = None
+) -> List[str]:
+    """Returns the meta columns of a dataset."""
+    reserved_cols = reserved_cols or set()
+    default_cols = {"text", "label", "id"}
+    default_cols = set(reserved_cols).union(default_cols)
+    meta_columns = [col for col in cols if col not in default_cols]
+    return list(meta_columns)
 
 
 def load_data_from_str(data: str) -> Union[pd.DataFrame, Dataset]:
