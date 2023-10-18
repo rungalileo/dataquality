@@ -86,7 +86,7 @@ test = [
     "setfit",
     "accelerate>=0.19.0",
     "typing-inspect==0.8.0",
-    "typing-extensions==4.1.0",
+    "typing-extensions==4.0.0",
     "lightning",
 ]
 dev = [
