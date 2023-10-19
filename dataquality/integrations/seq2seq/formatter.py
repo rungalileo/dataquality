@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Dict, Type
+from typing import Dict, Optional, Type
 
 
 @dataclass
@@ -8,6 +8,7 @@ class BaseFormatter(ABC):
     name: str
     input_col: str
     target_col: str
+    max_train_size: Optional[int] = None
 
     @abstractmethod
     def format_sample(self, sample: Dict[str, str]) -> Dict[str, str]:
@@ -31,6 +32,7 @@ class AlpacaFormatter(BaseFormatter):
     name: str = "tatsu-lab/alpaca"
     input_col: str = "formatted_input"
     target_col: str = "output"
+    max_train_size: int = 1000
 
     def format_sample(self, sample: Dict[str, str]) -> Dict[str, str]:
         """Formats the alpaca dataset for seq2seq
