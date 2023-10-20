@@ -35,9 +35,9 @@ def sample_dataset_dict(
     max_eval_sz = int(max_train_sz * 0.25)
     for split, dataset in dd.items():
         sampled_size = len(dataset)
-        if split == Split.train:
+        if Split[split] == Split.training:
             sampled_size = min(sampled_size, max_train_sz)
-        elif split == Split.validation:
+        elif Split[split] == Split.validation:
             sampled_size = min(sampled_size, max_eval_sz)
 
         if len(dataset) > sampled_size:
