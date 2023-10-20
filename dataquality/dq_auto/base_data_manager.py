@@ -5,11 +5,6 @@ import pandas as pd
 from datasets import Dataset, DatasetDict, load_dataset
 
 from dataquality.exceptions import GalileoException
-from dataquality.integrations.seq2seq.formatter import (
-    BaseFormatter,
-    DefaultFormatter,
-    get_formatter,
-)
 from dataquality.schemas.split import Split
 from dataquality.utils.auto import (
     _apply_column_mapping,
@@ -19,9 +14,6 @@ from dataquality.utils.auto import (
 
 class BaseDatasetManager:
     DEMO_DATASETS: List[str] = []
-
-    def __init__(self) -> None:
-        self.formatter: BaseFormatter = DefaultFormatter()
 
     def _validate_dataset_dict(
         self,
@@ -148,7 +140,6 @@ class BaseDatasetManager:
         if hf_data:
             if isinstance(hf_data, str):
                 dd = load_dataset(hf_data)
-                self.formatter = get_formatter(hf_data)
             else:
                 dd = hf_data
             assert isinstance(dd, DatasetDict), (
@@ -156,8 +147,6 @@ class BaseDatasetManager:
                 "a DatasetDict object. "
                 "If this is just a Dataset, pass it to `train_data`"
             )
-            # Apply the datasets custom formatter on load dataset dict
-            dd = dd.map(self.formatter.format_sample)
             return dd
 
         return None

@@ -1,8 +1,10 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional, Union
 
 import pandas as pd
 from datasets import Dataset, DatasetDict
+
+from dataquality.integrations.seq2seq.formatter import BaseFormatter, DefaultFormatter
 
 
 @dataclass
@@ -46,6 +48,9 @@ class BaseAutoDatasetConfig:
     # Column names
     input_col: str = "text"
     target_col: str = "label"
+    # Dataset input / output formatter
+    max_train_size: Optional[int] = None
+    formatter: BaseFormatter = field(default_factory=DefaultFormatter)
 
     def __post_init__(self) -> None:
         if not any([self.hf_data, self.train_path, self.train_data]):

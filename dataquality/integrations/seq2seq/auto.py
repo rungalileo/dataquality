@@ -19,6 +19,7 @@ from dataquality.utils.auto import (
     add_val_data_if_missing,
     get_meta_cols,
     run_name_from_hf_dataset,
+    sample_dataset_dict,
 )
 from dataquality.utils.torch import cleanup_cuda
 
@@ -54,7 +55,7 @@ class S2SDatasetManager(BaseDatasetManager):
             hf_data = dataset_config.hf_data
             if isinstance(hf_data, str):
                 dd = load_dataset(hf_data)
-                self.formatter = get_formatter(hf_data)
+                dataset_config.formatter = get_formatter(hf_data)
             elif isinstance(hf_data, DatasetDict):
                 dd = hf_data
             else:
@@ -64,8 +65,8 @@ class S2SDatasetManager(BaseDatasetManager):
                     "If this is just a Dataset, pass it to `train_data`"
                 )
 
-            # Apply the datasets custom formatter on load dataset dict
-            dd = dd.map(self.formatter.format_sample)
+            dataset_config.input_col = dataset_config.formatter.input_col
+            dataset_config.target_col = dataset_config.formatter.target_col
             return dd, dataset_config
 
         return None, dataset_config
@@ -109,6 +110,9 @@ class S2SDatasetManager(BaseDatasetManager):
             if test_data is not None:
                 dd[Split.test] = self._convert_to_hf_dataset(test_data)
 
+        # Apply the datasets custom formatter on load dataset dict
+        dd = dd.map(dataset_config.formatter.format_sample)
+        dd = sample_dataset_dict(dd, dataset_config)
         return self._validate_dataset_dict(dd, []), dataset_config
 
     def _validate_dataset_dict(
@@ -139,11 +143,15 @@ def _log_dataset_dict(dd: DatasetDict, input_col: str, target_col: str) -> None:
     for key in dd.keys():
         ds: Dataset = dd[key]
         if key in Split.get_valid_keys():
-            meta = get_meta_cols(ds.features, {input_col, target_col})
             if input_col != "text" and "text" in ds.column_names:
                 ds = ds.rename_columns({"text": "_metadata_text"})
             if target_col != "label" and "label" in ds.column_names:
                 ds = ds.rename_columns({"label": "_metadata_label"})
+            if input_col != "input" and "input" in ds.column_names:
+                ds = ds.rename_columns({"input": "_metadata_input"})
+            if target_col != "target" and "target" in ds.column_names:
+                ds = ds.rename_columns({"target": "_metadata_target"})
+            meta = get_meta_cols(ds.features, {input_col, target_col})
             dq.log_dataset(ds, text=input_col, label=target_col, split=key, meta=meta)
 
 
@@ -231,7 +239,6 @@ def auto(
     dq.init(TaskType.seq2seq, project_name=project_name, run_name=run_name)
     input_col = dataset_config.input_col
     target_col = dataset_config.target_col
-
     # We 'watch' in get_trainer, which must happen before logging datasets
     model, dataloaders = get_trainer(
         dd,
