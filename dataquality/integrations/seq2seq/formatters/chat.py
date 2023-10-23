@@ -56,7 +56,7 @@ class ChatFormatter(BaseFormatter):
         # # Add metadata and sample level cols to each turn
         metadata: Dict[str, Any] = sample.get(self.metadata_col, {})
         for k, v in sample.items():
-            if k not in [self.metadata_col, self.turns_col]:
+            if k not in [self.metadata_col, self.turns_col, "id"]:
                 metadata[k] = v
 
         turn_data: Dict[str, Any] = {}
