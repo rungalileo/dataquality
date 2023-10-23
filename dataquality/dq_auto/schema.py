@@ -4,7 +4,10 @@ from typing import Optional, Union
 import pandas as pd
 from datasets import Dataset, DatasetDict
 
-from dataquality.integrations.seq2seq.formatter import BaseFormatter, DefaultFormatter
+from dataquality.integrations.seq2seq.formatters.base import (
+    BaseFormatter,
+    DefaultFormatter,
+)
 
 
 @dataclass

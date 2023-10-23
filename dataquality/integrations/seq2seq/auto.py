@@ -6,7 +6,7 @@ from transformers import PreTrainedModel
 
 import dataquality as dq
 from dataquality.dq_auto.base_data_manager import BaseDatasetManager
-from dataquality.integrations.seq2seq.formatter import get_formatter
+from dataquality.integrations.seq2seq.formatters import get_formatter
 from dataquality.integrations.seq2seq.s2s_trainer import do_train, get_trainer
 from dataquality.integrations.seq2seq.schema import (
     Seq2SeqDatasetConfig,
@@ -110,10 +110,24 @@ class S2SDatasetManager(BaseDatasetManager):
             if test_data is not None:
                 dd[Split.test] = self._convert_to_hf_dataset(test_data)
 
-        # Apply the datasets custom formatter on load dataset dict
-        dd = dd.map(dataset_config.formatter.format_sample)
+        # Minimize dataset if user provided a max_train_size
         dd = sample_dataset_dict(dd, dataset_config)
-        return self._validate_dataset_dict(dd, []), dataset_config
+        # Add validation data if missing, add 'id' column
+        dd, dataset_config = self._validate_dataset_dict(dd, []), dataset_config
+        # Apply the datasets custom formatter on load dataset dict
+        col_names = (
+            dd[Split.train].column_names
+            if dataset_config.formatter.remove_columns
+            else []
+        )
+        dd = dd.map(
+            dataset_config.formatter.format_batch,
+            batched=True,
+            remove_columns=col_names,
+            with_indices=True,
+        )
+        dd, dataset_config = self._validate_dataset_dict(dd, []), dataset_config
+        return dd, dataset_config
 
     def _validate_dataset_dict(
         self,

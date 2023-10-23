@@ -612,7 +612,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                 )
                 continue
             # Values must be a point, not an iterable
-            valid_types = (str, int, float, np.floating, np.integer)
+            valid_types = (str, int, float, bool, np.floating, np.integer)
             invalid_values = filter(lambda t: not isinstance(t, valid_types), values)
             bad_val = next(invalid_values, None)
             if bad_val:
