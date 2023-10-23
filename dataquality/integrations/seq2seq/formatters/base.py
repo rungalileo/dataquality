@@ -5,6 +5,18 @@ from typing import Any, Dict, List, Optional
 
 
 @dataclass
+class BatchData:
+    batch: Dict[str, Any]
+
+    def sample_from_idx(self, idx: int) -> Dict[str, Any]:
+        """Gets a subset of the batch"""
+        sample = {}
+        for k, v in self.batch.items():
+            sample[k] = v[idx]
+        return sample
+
+
+@dataclass
 class BaseFormatter(ABC):
     name: str
     input_col: str
@@ -15,11 +27,10 @@ class BaseFormatter(ABC):
     def format_batch(self, batch: Dict, idxs: List[int]) -> Dict[str, List]:
         """Formats a batch of chat data for seq2seq"""
         result: Dict[str, List] = defaultdict(list)
-        sample = {}
+        batch_data = BatchData(batch)
         for idx in idxs:
-            for k, v in batch.items():
-                sample[k] = v[idx]
-            formatted_sample = self.format_sample(sample, idx)
+            formatted_sample = self.format_sample(batch_data.sample_from_idx(idx), idx)
+            # formatted_sample returns one or more samples per idx, we add to result
             for k, v in formatted_sample.items():
                 result[k] += v
 
@@ -39,5 +50,4 @@ class DefaultFormatter(BaseFormatter):
 
     def format_sample(self, sample: Dict[str, Any], idx: int) -> Dict[str, Any]:
         """Base formatter is identity function"""
-        sample["id"] = idx
         return sample

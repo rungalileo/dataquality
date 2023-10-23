@@ -113,20 +113,18 @@ class S2SDatasetManager(BaseDatasetManager):
         # Minimize dataset if user provided a max_train_size
         dd = sample_dataset_dict(dd, dataset_config)
         # Add validation data if missing, add 'id' column
-        dd, dataset_config = self._validate_dataset_dict(dd, []), dataset_config
-        # Apply the datasets custom formatter on load dataset dict
-        col_names = (
-            dd[Split.train].column_names
-            if dataset_config.formatter.remove_columns
-            else []
-        )
+        dd = self._validate_dataset_dict(dd, [])
+        formatter = dataset_config.formatter
+        # Apply the dataset's custom formatter on dataset dict
+        col_names = dd[Split.train].column_names if formatter.remove_columns else []
         dd = dd.map(
-            dataset_config.formatter.format_batch,
+            formatter.format_batch,
             batched=True,
             remove_columns=col_names,
             with_indices=True,
         )
-        dd, dataset_config = self._validate_dataset_dict(dd, []), dataset_config
+        # We must re-add the id column if it's been dropped
+        dd = self._validate_dataset_dict(dd, [])
         return dd, dataset_config
 
     def _validate_dataset_dict(

@@ -12,13 +12,15 @@ class ChatFormatter(BaseFormatter):
     target_col: str = "target"
     max_train_size: Optional[int] = None
     remove_columns: bool = True
-    # Chat specific cols
-    content_col: str = "content"
+    # Sample level chat cols
     turns_col: str = "turns"
+    metadata_col: str = "metadata"
+    # Turn level chat cols
+    content_col: str = "content"
     role_col: str = "role"
-    role_1: str = "User"
-    role_2: str = "Chatbot"
-    metadata_col: str = "metadata_col"
+    # Chat roles
+    user: str = "User"
+    assistant: str = "Chatbot"
 
     def format_sample(self, sample: Dict[str, Any], idx: int) -> Dict[str, Any]:
         """Formats a chat dataset for seq2seq
@@ -28,16 +30,23 @@ class ChatFormatter(BaseFormatter):
 
         Example:
             >>> sample = {
-            ...     "instruction": "Summarize the following paragraph",
-            ...     "input": "The quick brown fox jumped over the lazy dog.",
-            ...     "target": "The quick brown fox jumped over the lazy dog.",
+            ...     "turns": [
+            ...         {"role": "User", "content": "Hello"},
+            ...         {"role": "Chatbot", "content": "Hi"},
+            ...         {"role": "User", "content": "How are you?"},
+            ...         {"role": "Chatbot", "content": "I'm good, how are you?"},
+            ...     ],
+            ...     "metadata": {"unique_id": 1234, "dataset": "test"},
+            ...     "score": 0.5,
             ... }
-            >>> ChatFormatter().format_sample(sample)
+            >>> ChatFormatter().format_sample(sample, 5)
             {
-                "formatted_input": (
-                    "Human: Summarize the following paragraph "
-                    "Context: The quick brown fox jumped over the lazy dog."
-                )
+                "chat_id": [5, 5],
+                "turn_id": [1, 2],
+                "input": ["Hello", "How are you?"],
+                "target": ["Hi", "I'm good, how are you?"],
+                "unique_id": [1234, 1234],
+                "dataset": ["test", "test"],
             }
         """
         unraveled_turns: Dict[str, Any] = defaultdict(list)
@@ -45,15 +54,10 @@ class ChatFormatter(BaseFormatter):
         turns: List[Dict[str, Any]] = sample[self.turns_col]
 
         # # Add metadata and sample level cols to each turn
-        metadata = sample.get(self.metadata_col, {})
-        sample_cols = [
-            col
-            for col in sample.keys()
-            if col not in [self.metadata_col, self.turns_col]
-        ]
-        for col in sample_cols:
-            metadata[col] = sample[col]
-        unraveled_turns = unraveled_turns | metadata
+        metadata: Dict[str, Any] = sample.get(self.metadata_col, {})
+        for k, v in sample.items():
+            if k not in [self.metadata_col, self.turns_col]:
+                metadata[k] = v
 
         turn_data: Dict[str, Any] = {}
         turn_id = 1
@@ -68,15 +72,20 @@ class ChatFormatter(BaseFormatter):
                 if col not in turn_default_cols
                 and isinstance(turn[col], valid_meta_types)
             }
-            turn_data = turn_data | turn_meta
+            # Add turn level metadata to turn
+            # NOTE: When we drop p3.8 we can use 'turn_data |= turn_meta'
+            turn_data.update(turn_meta)
 
-            if role == self.role_1:
+            if role == self.user:
                 turn_data[self.input_col] = content
-            elif role == self.role_2:
+            elif role == self.assistant:
                 turn_data[self.target_col] = content
                 turn_data["turn_id"] = turn_id
                 turn_data["chat_id"] = idx
+                # Add sample level metadata
+                turn_data.update(metadata)
                 for k, v in turn_data.items():
+                    # NOTE: When we drop p3.8 we can use 'turn_data |= turn_meta'
                     unraveled_turns[k].append(v)
                 # Reset turn data
                 turn_data = {}
