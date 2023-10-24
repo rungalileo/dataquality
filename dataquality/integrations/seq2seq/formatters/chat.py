@@ -66,7 +66,7 @@ class ChatFormatter(BaseFormatter):
             if k not in [self.metadata_col, self.turns_col, "id"]:
                 metadata[k] = v
 
-        turn_data: Dict[str, Any] = {"turn_id": None, "chat_id": None}
+        turn_data: Dict[str, Any] = {"chat_id": None, "turn_id": None}
         turn_id = 1
         turn_default_cols = [self.role_col, self.content_col]
         for turn in turns:
