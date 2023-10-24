@@ -6,6 +6,11 @@ from transformers import AutoTokenizer, PreTrainedTokenizerFast
 
 from dataquality.integrations.seq2seq.formatters.base import BaseFormatter
 
+# HF tokenizers don't support newlines, so we use a token to represent them
+# Example of tokenizer without the NEWLINE token:
+# result = tokenizer.decode(tokenizer("Hello\n\n\nWorld"))
+# print(result)
+# >>> HelloWorld
 NEWLINE_CHAR = "\n\n\n"
 NEWLINE_TOKEN = "[NEWLINE]"
 
@@ -110,13 +115,14 @@ class ChatHistoryFormatter(ChatFormatter):
     max_input_tokens: int = 512
 
     def __post_init__(self) -> None:
-        if self.hf_tokenizer:
+        if self.hf_tokenizer and not self.tokenizer:
             self.tokenizer = AutoTokenizer.from_pretrained(
                 self.hf_tokenizer,
                 truncation_side="left",
                 use_fast=True,
                 model_max_length=self.max_input_tokens,
             )
+        if self.tokenizer:
             self.tokenizer.add_tokens([NEWLINE_TOKEN])
 
     def format_sample(
@@ -138,7 +144,7 @@ class ChatHistoryFormatter(ChatFormatter):
             ...     "metadata": {"unique_id": 1234, "dataset": "test"},
             ...     "score": 0.5,
             ... }
-            >>> ChatFormatter().format_sample(sample, 5)
+            >>> ChatHistoryFormatter().format_sample(sample, 5)
             {
                 "chat_id": [5, 5],
                 "turn_id": [1, 2],
@@ -154,26 +160,30 @@ class ChatHistoryFormatter(ChatFormatter):
             )
 
         formatted_sample = super().format_sample(sample, idx)
-        # Add previous turns to input
-        user_col = formatted_sample[self.input_col]
-        assistant_col = formatted_sample[self.target_col]
-        for i in range(len(user_col)):
+        # Next we update formatted_sample in place one turn at a time
+        # We build iteratively from the first turn so that we can add just the previous
+        # turn to the input, and it will contain content from all previous turns
+        user_inputs = formatted_sample[self.input_col]
+        assistant_targets = formatted_sample[self.target_col]
+        for i in range(len(user_inputs)):
+            # We build up the user input with previous turn history
             history_input = ""
             if i > 0:
-                history_input += f"{user_col[i - 1]}{NEWLINE_CHAR}"
+                # We add the previous turn input to the history
+                history_input += f"{user_inputs[i - 1]}{NEWLINE_CHAR}"
+                # We also add the previous turn target (assistant response)
                 history_input += (
-                    f"{self.assistant}: {assistant_col[i - 1]}{NEWLINE_CHAR}"
+                    f"{self.assistant}: {assistant_targets[i - 1]}{NEWLINE_CHAR}"
                 )
 
-            history_input += f"{self.user}: {user_col[i]}"
+            # Finally we add the current turn input
+            history_input += f"{self.user}: {user_inputs[i]}"
             history_input = history_input.replace(NEWLINE_CHAR, NEWLINE_TOKEN)
             # Only take the last max_input_tokens
             history_tokens = self.tokenizer(history_input, truncation=True)["input_ids"]
             parsed_history = self.tokenizer.decode(
                 history_tokens, skip_special_tokens=True
             )
-            formatted_sample[self.input_col][i] = parsed_history.replace(
-                NEWLINE_TOKEN, NEWLINE_CHAR
-            )
+            user_inputs[i] = parsed_history.replace(NEWLINE_TOKEN, NEWLINE_CHAR)
 
         return formatted_sample
