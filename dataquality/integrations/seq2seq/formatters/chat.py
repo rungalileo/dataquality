@@ -96,3 +96,50 @@ class ChatFormatter(BaseFormatter):
                 raise ValueError(f"Role {role} not recognized")
 
         return unraveled_turns
+
+
+@dataclass
+class ChatHistoryFormatter(ChatFormatter):
+    def format_sample(
+        self, sample: Dict[str, Any], idx: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """Formats a chat dataset for seq2seq with previous turn history
+
+        Similair to ChatFormatter, except subsequent turns contain
+        context from previous turns.
+
+        Example:
+            >>> sample = {
+            ...     "turns": [
+            ...         {"role": "User", "content": "Hello"},
+            ...         {"role": "Chatbot", "content": "Hi"},
+            ...         {"role": "User", "content": "How are you?"},
+            ...         {"role": "Chatbot", "content": "I'm good, how are you?"},
+            ...     ],
+            ...     "metadata": {"unique_id": 1234, "dataset": "test"},
+            ...     "score": 0.5,
+            ... }
+            >>> ChatFormatter().format_sample(sample, 5)
+            {
+                "chat_id": [5, 5],
+                "turn_id": [1, 2],
+                "input": ["Hello", "Hello\n\nHi\n\nHow are you?"],
+                "target": ["Hi", "I'm good, how are you?"],
+                "unique_id": [1234, 1234],
+                "dataset": ["test", "test"],
+            }
+        """
+        formatted_sample = super().format_sample(sample, idx)
+        # Add previous turns to input
+        user_col = formatted_sample[self.input_col]
+        assistant_col = formatted_sample[self.target_col]
+        for i in range(len(user_col)):
+            history_input = ""
+            if i > 0:
+                history_input += f"{user_col[i - 1]}\n\n"
+                history_input += f"{self.assistant}: {assistant_col[i - 1]}\n\n"
+
+            history_input += f"{self.user}: {user_col[i]}"
+            formatted_sample[self.input_col][i] = history_input
+
+        return formatted_sample
