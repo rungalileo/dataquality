@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict
+from typing import Dict, List, Optional
 
 from dataquality.integrations.seq2seq.formatters.base import BaseFormatter
 
@@ -11,7 +11,13 @@ class AlpacaFormatter(BaseFormatter):
     target_col: str = "output"
     max_train_size: int = 1000
 
-    def format_sample(self, sample: Dict[str, str], idx: int) -> Dict[str, str]:
+    @property
+    def remove_cols(self) -> List[str]:
+        return ["input", "text"]
+
+    def format_sample(
+        self, sample: Dict[str, str], idx: Optional[int] = None
+    ) -> Dict[str, str]:
         """Formats the alpaca dataset for seq2seq
 
         Example:

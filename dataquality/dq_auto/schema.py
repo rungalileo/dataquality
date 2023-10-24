@@ -52,7 +52,6 @@ class BaseAutoDatasetConfig:
     input_col: str = "text"
     target_col: str = "label"
     # Dataset input / output formatter
-    max_train_size: Optional[int] = None
     formatter: BaseFormatter = field(default_factory=DefaultFormatter)
 
     def __post_init__(self) -> None:

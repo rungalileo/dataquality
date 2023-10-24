@@ -74,6 +74,7 @@ class S2SDatasetManager(BaseDatasetManager):
     def get_dataset_dict_from_config(
         self,
         dataset_config: Optional[Seq2SeqDatasetConfig],
+        max_train_size: Optional[int] = None,
     ) -> Tuple[DatasetDict, Seq2SeqDatasetConfig]:
         """Creates and/or validates the DatasetDict provided by the user.
 
@@ -111,20 +112,23 @@ class S2SDatasetManager(BaseDatasetManager):
                 dd[Split.test] = self._convert_to_hf_dataset(test_data)
 
         # Minimize dataset if user provided a max_train_size
-        dd = sample_dataset_dict(dd, dataset_config)
+        dd = sample_dataset_dict(dd, dataset_config, max_train_size)
         # Add validation data if missing, add 'id' column
         dd = self._validate_dataset_dict(dd, [])
         formatter = dataset_config.formatter
-        # Apply the dataset's custom formatter on dataset dict
-        col_names = dd[Split.train].column_names if formatter.remove_columns else []
-        dd = dd.map(
-            formatter.format_batch,
-            batched=True,
-            remove_columns=col_names,
-            with_indices=True,
-        )
-        # We must re-add the id column if it's been dropped
-        dd = self._validate_dataset_dict(dd, [])
+        if formatter.process_batch:
+            # Apply the dataset's custom formatter on dataset dict
+            dd = dd.map(
+                formatter.format_batch,
+                batched=True,
+                remove_columns=dd[Split.train].column_names,
+                with_indices=True,
+            )
+            # We must re-add the id column if it's been dropped
+            dd = self._validate_dataset_dict(dd, [])
+        else:
+            dd = dd.map(formatter.format_sample, remove_columns=formatter.remove_cols)
+
         return dd, dataset_config
 
     def _validate_dataset_dict(
@@ -173,6 +177,7 @@ def auto(
     dataset_config: Optional[Seq2SeqDatasetConfig] = None,
     training_config: Optional[Seq2SeqTrainingConfig] = None,
     generation_config: Optional[Seq2SeqGenerationConfig] = None,
+    max_train_size: Optional[int] = None,
     wait: bool = True,
 ) -> Optional[PreTrainedModel]:
     """Automatically get insights on a Seq2Seq dataset
@@ -203,6 +208,7 @@ def auto(
         See `Seq2SeqTrainingConfig` for more details
     :param generation_config: Optional config for generating predictions.
         See `Seq2SeqGenerationConfig` for more details
+    :param max_train_size: Optional max number of training examples to use.
     :param wait: Whether to wait for Galileo to complete processing your run.
         Default True
 
@@ -242,7 +248,9 @@ def auto(
     generation_config = generation_config or Seq2SeqGenerationConfig()
 
     manager = S2SDatasetManager()
-    dd, dataset_config = manager.get_dataset_dict_from_config(dataset_config)
+    dd, dataset_config = manager.get_dataset_dict_from_config(
+        dataset_config, max_train_size
+    )
 
     if not run_name and isinstance(dataset_config.hf_data, str):
         run_name = run_name_from_hf_dataset(dataset_config.hf_data)

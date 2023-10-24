@@ -11,7 +11,7 @@ class ChatFormatter(BaseFormatter):
     input_col: str = "input"
     target_col: str = "target"
     max_train_size: Optional[int] = None
-    remove_columns: bool = True
+    process_batch: bool = True
     # Sample level chat cols
     turns_col: str = "turns"
     metadata_col: str = "metadata"
@@ -22,7 +22,9 @@ class ChatFormatter(BaseFormatter):
     user: str = "User"
     assistant: str = "Chatbot"
 
-    def format_sample(self, sample: Dict[str, Any], idx: int) -> Dict[str, Any]:
+    def format_sample(
+        self, sample: Dict[str, Any], idx: Optional[int] = None
+    ) -> Dict[str, Any]:
         """Formats a chat dataset for seq2seq
 
         Takes in a sample with "turns" column and explodes it to have one row
@@ -83,9 +85,9 @@ class ChatFormatter(BaseFormatter):
                 turn_data["turn_id"] = turn_id
                 turn_data["chat_id"] = idx
                 # Add sample level metadata
+                # NOTE: When we drop p3.8 we can use 'turn_data |= turn_meta'
                 turn_data.update(metadata)
                 for k, v in turn_data.items():
-                    # NOTE: When we drop p3.8 we can use 'turn_data |= turn_meta'
                     unraveled_turns[k].append(v)
                 # Reset turn data
                 turn_data = {}

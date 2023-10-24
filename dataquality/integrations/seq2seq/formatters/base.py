@@ -22,7 +22,11 @@ class BaseFormatter(ABC):
     input_col: str
     target_col: str
     max_train_size: Optional[int] = None
-    remove_columns: bool = False
+    process_batch: bool = False
+
+    @property
+    def remove_cols(self) -> List[str]:
+        return []
 
     def format_batch(self, batch: Dict, idxs: List[int]) -> Dict[str, List]:
         """Formats a batch of chat data for seq2seq"""
@@ -37,7 +41,9 @@ class BaseFormatter(ABC):
         return result
 
     @abstractmethod
-    def format_sample(self, sample: Dict[str, Any], idx: int) -> Dict[str, Any]:
+    def format_sample(
+        self, sample: Dict[str, Any], idx: Optional[int] = None
+    ) -> Dict[str, Any]:
         """Base formatter is identity function"""
         pass
 
@@ -48,6 +54,8 @@ class DefaultFormatter(BaseFormatter):
     input_col: str = "text"
     target_col: str = "label"
 
-    def format_sample(self, sample: Dict[str, Any], idx: int) -> Dict[str, Any]:
+    def format_sample(
+        self, sample: Dict[str, Any], idx: Optional[int] = None
+    ) -> Dict[str, Any]:
         """Base formatter is identity function"""
         return sample
