@@ -2,7 +2,12 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
+from transformers import AutoTokenizer, PreTrainedTokenizerFast
+
 from dataquality.integrations.seq2seq.formatters.base import BaseFormatter
+
+NEWLINE_CHAR = "\n\n\n"
+NEWLINE_TOKEN = "[NEWLINE]"
 
 
 @dataclass
@@ -61,7 +66,7 @@ class ChatFormatter(BaseFormatter):
             if k not in [self.metadata_col, self.turns_col, "id"]:
                 metadata[k] = v
 
-        turn_data: Dict[str, Any] = {}
+        turn_data: Dict[str, Any] = {"turn_id": None, "chat_id": None}
         turn_id = 1
         turn_default_cols = [self.role_col, self.content_col]
         for turn in turns:
@@ -100,6 +105,20 @@ class ChatFormatter(BaseFormatter):
 
 @dataclass
 class ChatHistoryFormatter(ChatFormatter):
+    hf_tokenizer: Optional[str] = "google/flan-t5-base"
+    tokenizer: Optional[PreTrainedTokenizerFast] = None
+    max_input_tokens: int = 512
+
+    def __post_init__(self) -> None:
+        if self.hf_tokenizer:
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                self.hf_tokenizer,
+                truncation_side="left",
+                use_fast=True,
+                model_max_length=self.max_input_tokens,
+            )
+            self.tokenizer.add_tokens([NEWLINE_TOKEN])
+
     def format_sample(
         self, sample: Dict[str, Any], idx: Optional[int] = None
     ) -> Dict[str, Any]:
@@ -129,6 +148,11 @@ class ChatHistoryFormatter(ChatFormatter):
                 "dataset": ["test", "test"],
             }
         """
+        if not self.tokenizer:
+            raise ValueError(
+                "ChatHistoryFormatter requires a tokenizer to format the input"
+            )
+
         formatted_sample = super().format_sample(sample, idx)
         # Add previous turns to input
         user_col = formatted_sample[self.input_col]
@@ -136,10 +160,20 @@ class ChatHistoryFormatter(ChatFormatter):
         for i in range(len(user_col)):
             history_input = ""
             if i > 0:
-                history_input += f"{user_col[i - 1]}\n\n"
-                history_input += f"{self.assistant}: {assistant_col[i - 1]}\n\n"
+                history_input += f"{user_col[i - 1]}{NEWLINE_CHAR}"
+                history_input += (
+                    f"{self.assistant}: {assistant_col[i - 1]}{NEWLINE_CHAR}"
+                )
 
             history_input += f"{self.user}: {user_col[i]}"
-            formatted_sample[self.input_col][i] = history_input
+            history_input = history_input.replace(NEWLINE_CHAR, NEWLINE_TOKEN)
+            # Only take the last max_input_tokens
+            history_tokens = self.tokenizer(history_input, truncation=True)["input_ids"]
+            parsed_history = self.tokenizer.decode(
+                history_tokens, skip_special_tokens=True
+            )
+            formatted_sample[self.input_col][i] = parsed_history.replace(
+                NEWLINE_TOKEN, NEWLINE_CHAR
+            )
 
         return formatted_sample
