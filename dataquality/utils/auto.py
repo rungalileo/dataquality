@@ -16,7 +16,9 @@ from dataquality.utils.name import BAD_CHARS_REGEX
 
 
 def sample_dataset_dict(
-    dd: DatasetDict, dataset_config: BaseAutoDatasetConfig
+    dd: DatasetDict,
+    dataset_config: BaseAutoDatasetConfig,
+    max_train_size: Optional[int] = None,
 ) -> DatasetDict:
     """Samples the dataset dict to the max train size
 
@@ -26,9 +28,7 @@ def sample_dataset_dict(
     - We set max eval size to be 25% of max train size
     - Test and inference data are not sampled
     """
-    max_train_sz = (
-        dataset_config.max_train_size or dataset_config.formatter.max_train_size
-    )
+    max_train_sz = max_train_size or dataset_config.formatter.max_train_size
     if not max_train_sz:
         return dd
 

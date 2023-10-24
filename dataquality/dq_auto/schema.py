@@ -4,7 +4,10 @@ from typing import Optional, Union
 import pandas as pd
 from datasets import Dataset, DatasetDict
 
-from dataquality.integrations.seq2seq.formatter import BaseFormatter, DefaultFormatter
+from dataquality.integrations.seq2seq.formatters.base import (
+    BaseFormatter,
+    DefaultFormatter,
+)
 
 
 @dataclass
@@ -49,7 +52,6 @@ class BaseAutoDatasetConfig:
     input_col: str = "text"
     target_col: str = "label"
     # Dataset input / output formatter
-    max_train_size: Optional[int] = None
     formatter: BaseFormatter = field(default_factory=DefaultFormatter)
 
     def __post_init__(self) -> None:
