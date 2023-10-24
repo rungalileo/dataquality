@@ -130,7 +130,7 @@ class ChatHistoryFormatter(ChatFormatter):
     ) -> Dict[str, Any]:
         """Formats a chat dataset for seq2seq with previous turn history
 
-        Similair to ChatFormatter, except subsequent turns contain
+        Similar to ChatFormatter, except subsequent turns contain
         context from previous turns.
 
         Example:
