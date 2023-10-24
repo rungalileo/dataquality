@@ -189,7 +189,12 @@ class ChatHistoryFormatter(ChatFormatter):
             # instance of the user or assistant role and start there
             first_user_index = parsed_history.find(f"{self.user}: ")
             first_assistant_index = parsed_history.find(f"{self.assistant}: ")
-            start_index = min(first_user_index, first_assistant_index)
+            # .find() returns -1 if the substring is not found, we must ignore those
+            non_negative = [
+                val for val in [first_user_index, first_assistant_index] if val >= 0
+            ]
+            # If both are -1, we just take the last max_input_tokens tokens
+            start_index = min(non_negative) if non_negative else -self.max_input_tokens
             user_inputs[i] = parsed_history[start_index:]
 
         return formatted_sample
