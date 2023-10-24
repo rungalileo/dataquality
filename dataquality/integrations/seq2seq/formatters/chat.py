@@ -184,6 +184,12 @@ class ChatHistoryFormatter(ChatFormatter):
             parsed_history = self.tokenizer.decode(
                 history_tokens, skip_special_tokens=True
             )
-            user_inputs[i] = parsed_history.replace(NEWLINE_TOKEN, NEWLINE_CHAR)
+            parsed_history = parsed_history.replace(NEWLINE_TOKEN, NEWLINE_CHAR)
+            # We don't want to have the input start mid turn, so we find the first
+            # instance of the user or assistant role and start there
+            first_user_index = parsed_history.find(f"{self.user}: ")
+            first_assistant_index = parsed_history.find(f"{self.assistant}: ")
+            start_index = min(first_user_index, first_assistant_index)
+            user_inputs[i] = parsed_history[start_index:]
 
         return formatted_sample
