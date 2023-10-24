@@ -2,7 +2,17 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
+from transformers import AutoTokenizer, PreTrainedTokenizerFast
+
 from dataquality.integrations.seq2seq.formatters.base import BaseFormatter
+
+# HF tokenizers don't support newlines, so we use a token to represent them
+# Example of tokenizer without the NEWLINE token:
+# result = tokenizer.decode(tokenizer("Hello\n\n\nWorld"))
+# print(result)
+# >>> HelloWorld
+NEWLINE_CHAR = "\n\n\n"
+NEWLINE_TOKEN = "[NEWLINE]"
 
 
 @dataclass
@@ -61,7 +71,7 @@ class ChatFormatter(BaseFormatter):
             if k not in [self.metadata_col, self.turns_col, "id"]:
                 metadata[k] = v
 
-        turn_data: Dict[str, Any] = {}
+        turn_data: Dict[str, Any] = {"chat_id": None, "turn_id": None}
         turn_id = 1
         turn_default_cols = [self.role_col, self.content_col]
         for turn in turns:
@@ -96,3 +106,90 @@ class ChatFormatter(BaseFormatter):
                 raise ValueError(f"Role {role} not recognized")
 
         return unraveled_turns
+
+
+@dataclass
+class ChatHistoryFormatter(ChatFormatter):
+    hf_tokenizer: Optional[str] = "google/flan-t5-base"
+    tokenizer: Optional[PreTrainedTokenizerFast] = None
+    max_input_tokens: int = 512
+
+    def __post_init__(self) -> None:
+        if self.hf_tokenizer and not self.tokenizer:
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                self.hf_tokenizer,
+                truncation_side="left",
+                use_fast=True,
+                model_max_length=self.max_input_tokens,
+            )
+        if self.tokenizer:
+            self.tokenizer.add_tokens([NEWLINE_TOKEN])
+
+    def format_sample(
+        self, sample: Dict[str, Any], idx: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """Formats a chat dataset for seq2seq with previous turn history
+
+        Similar to ChatFormatter, except subsequent turns contain
+        context from previous turns.
+
+        Example:
+            >>> sample = {
+            ...     "turns": [
+            ...         {"role": "User", "content": "Hello"},
+            ...         {"role": "Chatbot", "content": "Hi"},
+            ...         {"role": "User", "content": "How are you?"},
+            ...         {"role": "Chatbot", "content": "I'm good, how are you?"},
+            ...     ],
+            ...     "metadata": {"unique_id": 1234, "dataset": "test"},
+            ...     "score": 0.5,
+            ... }
+            >>> ChatHistoryFormatter().format_sample(sample, 5)
+            {
+                "chat_id": [5, 5],
+                "turn_id": [1, 2],
+                "input": ["Hello", "Hello\n\nHi\n\nHow are you?"],
+                "target": ["Hi", "I'm good, how are you?"],
+                "unique_id": [1234, 1234],
+                "dataset": ["test", "test"],
+            }
+        """
+        if not self.tokenizer:
+            raise ValueError(
+                "ChatHistoryFormatter requires a tokenizer to format the input"
+            )
+
+        formatted_sample = super().format_sample(sample, idx)
+        # Next we update formatted_sample in place one turn at a time
+        # We build iteratively from the first turn so that we can add just the previous
+        # turn to the input, and it will contain content from all previous turns
+        user_inputs = formatted_sample[self.input_col]
+        assistant_targets = formatted_sample[self.target_col]
+        for i in range(len(user_inputs)):
+            # We build up the user input with previous turn history
+            history_input = ""
+            if i > 0:
+                # We add the previous turn input to the history
+                history_input += f"{user_inputs[i - 1]}{NEWLINE_CHAR}"
+                # We also add the previous turn target (assistant response)
+                history_input += (
+                    f"{self.assistant}: {assistant_targets[i - 1]}{NEWLINE_CHAR}"
+                )
+
+            # Finally we add the current turn input
+            history_input += f"{self.user}: {user_inputs[i]}"
+            history_input = history_input.replace(NEWLINE_CHAR, NEWLINE_TOKEN)
+            # Only take the last max_input_tokens
+            history_tokens = self.tokenizer(history_input, truncation=True)["input_ids"]
+            parsed_history = self.tokenizer.decode(
+                history_tokens, skip_special_tokens=True
+            )
+            parsed_history = parsed_history.replace(NEWLINE_TOKEN, NEWLINE_CHAR)
+            # We don't want to have the input start mid turn, so we find the first
+            # instance of the user or assistant role and start there
+            first_user_index = parsed_history.find(f"{self.user}: ")
+            first_assistant_index = parsed_history.find(f"{self.assistant}: ")
+            start_index = min(first_user_index, first_assistant_index)
+            user_inputs[i] = parsed_history[start_index:]
+
+        return formatted_sample
