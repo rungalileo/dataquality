@@ -55,7 +55,13 @@ class BaseAutoDatasetConfig:
     formatter: BaseFormatter = field(default_factory=DefaultFormatter)
 
     def __post_init__(self) -> None:
-        if not any([self.hf_data, self.train_path, self.train_data]):
+        if not any(
+            [
+                self.hf_data is not None,
+                self.train_path is not None,
+                self.train_data is not None,
+            ]
+        ):
             raise ValueError(
                 "One of hf_data, train_path, or train_data must be provided."
                 "To use a random demo dataset in `auto`, set dataset_config to None."
