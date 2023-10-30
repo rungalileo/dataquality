@@ -35,7 +35,9 @@ class BaseFormatter(ABC):
         batch_sz = len(idxs)
         for idx in idxs:
             batch_idx = idx % batch_sz
-            formatted_sample = self.format_sample(batch_data.sample_from_idx(batch_idx), idx)
+            formatted_sample = self.format_sample(
+                batch_data.sample_from_idx(batch_idx), idx
+            )
             # formatted_sample returns one or more samples per idx, we add to result
             for k, v in formatted_sample.items():
                 result[k] += v
