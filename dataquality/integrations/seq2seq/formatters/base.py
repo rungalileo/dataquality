@@ -8,11 +8,11 @@ from typing import Any, Dict, List, Optional
 class BatchData:
     batch: Dict[str, Any]
 
-    def sample_from_idx(self, idx: int) -> Dict[str, Any]:
+    def sample_from_idx(self, batch_idx: int) -> Dict[str, Any]:
         """Gets a subset of the batch"""
         sample = {}
         for k, v in self.batch.items():
-            sample[k] = v[idx]
+            sample[k] = v[batch_idx]
         return sample
 
 
@@ -32,8 +32,10 @@ class BaseFormatter(ABC):
         """Formats a batch of chat data for seq2seq"""
         result: Dict[str, List] = defaultdict(list)
         batch_data = BatchData(batch)
+        batch_sz = len(idxs)
         for idx in idxs:
-            formatted_sample = self.format_sample(batch_data.sample_from_idx(idx), idx)
+            batch_idx = idx % batch_sz
+            formatted_sample = self.format_sample(batch_data.sample_from_idx(batch_idx), idx)
             # formatted_sample returns one or more samples per idx, we add to result
             for k, v in formatted_sample.items():
                 result[k] += v
@@ -44,7 +46,7 @@ class BaseFormatter(ABC):
     def format_sample(
         self, sample: Dict[str, Any], idx: Optional[int] = None
     ) -> Dict[str, Any]:
-        """Base formatter is identity function"""
+        """Must be implemented by subclass"""
         pass
 
 
