@@ -1,6 +1,6 @@
 from contextlib import nullcontext
 from dataclasses import asdict
-from typing import Dict, Tuple
+from typing import ContextManager, Dict, TextIO, Tuple, Union
 
 import torch
 from datasets import Dataset, DatasetDict
@@ -189,6 +189,9 @@ def do_train(
         raise ValueError("Training data must be provided for Seq2Seq `auto`")
 
     skip_train = training_config.epochs == 0
+    train_context: Union[TextIO, ContextManager[None]] = (
+        torch.no_grad() if skip_train else nullcontext()
+    )  # simply defining the context, setting the type is to make the linter happy
 
     # If skip_train=True, we add 1 epoch so we can do inference and still log the data
     for epoch in range(training_config.epochs + bool(skip_train)):
@@ -199,7 +202,7 @@ def do_train(
             ids = batch["id"]
             batch = {k: v.to(device) for k, v in batch.items() if k != "id"}
 
-            with torch.no_grad() if skip_train else nullcontext():
+            with train_context:
                 outputs = model(**batch)
 
             logits = outputs.logits  # Shape - [bs, bs_seq_ln, vocab]
