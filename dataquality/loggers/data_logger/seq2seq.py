@@ -23,9 +23,9 @@ from dataquality.utils.seq2seq.generation import (
     add_generated_output_to_df,
 )
 from dataquality.utils.seq2seq.offsets import (
+    add_input_cutoff_to_df,
+    add_target_cutoff_to_df,
     align_tokens_to_character_spans,
-    get_cutoff_from_saved_offsets,
-    get_cutoff_from_truncated_tokenization,
 )
 from dataquality.utils.vaex import rename_df
 
@@ -313,15 +313,11 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
                 "`dataquality.integrations.seq2seq.hf.watch`"
             )
         max_input_length = cls.logger_config.max_input_tokens
-        df[C.input_cutoff.value] = get_cutoff_from_truncated_tokenization(
-            df, C.text, tokenizer, max_input_length
-        )
+        df = add_input_cutoff_to_df(df, tokenizer, max_tokens=max_input_length)
 
         target_offsets_colname = C.token_label_offsets
         if target_offsets_colname in df.get_column_names():
-            df[C.target_cutoff.value] = get_cutoff_from_saved_offsets(
-                df, target_offsets_colname
-            )
+            df = add_target_cutoff_to_df(df, target_offsets_colname)
 
         return df
 
