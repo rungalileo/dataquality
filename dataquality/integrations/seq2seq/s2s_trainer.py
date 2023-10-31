@@ -17,6 +17,7 @@ from transformers import (
 )
 
 import dataquality as dq
+from dataquality.exceptions import GalileoException
 from dataquality.integrations.seq2seq.hf import watch
 from dataquality.integrations.seq2seq.schema import (
     Seq2SeqGenerationConfig,
@@ -24,6 +25,26 @@ from dataquality.integrations.seq2seq.schema import (
 )
 from dataquality.schemas.split import Split
 from dataquality.utils.torch import cleanup_cuda
+
+
+def validate_cols(ds: Dataset, input_col: str, target_col: str) -> None:
+    """Validates that the input and target columns are in the dataset"""
+    template = (
+        "{col} column {val} not found in dataset. "
+        "Please check the DatasetConfig to ensure the {col_name} is correct."
+        "If you are using a custom formatter, please ensure that the "
+        "{col_name} is being set correctly.\n\n"
+    )
+    error_msg = ""
+    if input_col not in ds.column_names:
+        error_msg += template.format(col="Input", val=input_col, col_name="input_col")
+    if target_col not in ds.column_names:
+        error_msg += template.format(
+            col="Target", val=target_col, col_name="target_col"
+        )
+
+    if error_msg:
+        raise GalileoException(error_msg)
 
 
 def tokenize(
@@ -34,6 +55,8 @@ def tokenize(
     max_input_length: int,
     max_target_length: int,
 ) -> Dataset:
+    validate_cols(ds, input_col, target_col)
+
     def _tokenize(row: Dict) -> BatchEncoding:
         """Tokenize the input and outputs
 
