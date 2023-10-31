@@ -29,20 +29,22 @@ from dataquality.utils.torch import cleanup_cuda
 
 def validate_cols(ds: Dataset, input_col: str, target_col: str) -> None:
     """Validates that the input and target columns are in the dataset"""
-    msg = (
+    template = (
         "{col} column {val} not found in dataset. "
         "Please check the DatasetConfig to ensure the {col_name} is correct."
         "If you are using a custom formatter, please ensure that the "
-        "{col_name} is being set correctly."
+        "{col_name} is being set correctly.\n\n"
     )
+    error_msg = ""
     if input_col not in ds.column_names:
-        raise GalileoException(
-            msg.format(col="Input", val=input_col, col_name="input_col")
-        )
+        error_msg += template.format(col="Input", val=input_col, col_name="input_col")
     if target_col not in ds.column_names:
-        raise GalileoException(
-            msg.format(col="Target", val=target_col, col_name="target_col")
+        error_msg += template.format(
+            col="Target", val=target_col, col_name="target_col"
         )
+
+    if error_msg:
+        raise GalileoException(error_msg)
 
 
 def tokenize(
