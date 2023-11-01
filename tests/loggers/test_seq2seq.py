@@ -83,6 +83,7 @@ def test_log_dataset(
         "split",
         "text",
         "label",
+        "token_label_ids",
         "token_label_positions",
         "token_label_offsets",
     ]

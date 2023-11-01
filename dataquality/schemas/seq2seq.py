@@ -23,6 +23,7 @@ class Seq2SeqInputCols(str, Enum):
     generated_output = "generated_output"
     split_ = "split"
     tokenized_label = "tokenized_label"
+    token_label_ids = "token_label_ids"
     token_label_positions = "token_label_positions"
     token_label_offsets = "token_label_offsets"
     input_cutoff = "input_cutoff"

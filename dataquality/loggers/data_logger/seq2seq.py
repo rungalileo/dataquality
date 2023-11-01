@@ -82,13 +82,14 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
 
     def __init__(self, meta: Optional[MetasType] = None) -> None:
         super().__init__(meta)
+        self.ids: List[int] = []
+        self.texts: List[str] = []
+        self.labels: List[str] = []
+        self.token_label_ids: List[List[int]] = []
         # Character offsets for each token (from tokenized_inputs) in the dataset
         self.token_label_offsets: List[List[Tuple[int, int]]] = []
         # Index (or indices) into the token array for every offset
         self.token_label_positions: List[List[Set[int]]] = []
-        self.ids: List[int] = []
-        self.texts: List[str] = []
-        self.labels: List[str] = []
 
     @property
     def token_map_key(self) -> str:
@@ -115,12 +116,12 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             max_length=self.logger_config.max_target_tokens,
             truncation=True,
         )
-        tokenized_labels = encoded_data["input_ids"]
+        self.token_label_ids = encoded_data["input_ids"]
         aligned_data = align_tokens_to_character_spans(encoded_data["offset_mapping"])
         self.token_label_offsets = aligned_data.token_label_offsets
         self.token_label_positions = aligned_data.token_label_positions
 
-        id_to_tokens = dict(zip(self.ids, tokenized_labels))
+        id_to_tokens = dict(zip(self.ids, self.token_label_ids))
         self.logger_config.id_to_tokens[self.token_map_key].update(id_to_tokens)
 
     def _get_input_df(self) -> DataFrame:
@@ -130,6 +131,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
                 C.text.value: self.texts,
                 C.label.value: self.labels,
                 C.split_.value: [self.split] * len(self.ids),
+                C.token_label_ids.value: pa.array(self.token_label_ids),
                 C.token_label_positions.value: pa.array(self.token_label_positions),
                 C.token_label_offsets.value: pa.array(self.token_label_offsets),
                 **self.meta,
