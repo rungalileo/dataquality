@@ -309,7 +309,7 @@ def get_dataframe(
         cannot support multi-dimensional columns. Default True
     :param include_data_embs: Whether to include the off the shelf data embeddings
     :param meta_cols: List of metadata columns to return in the dataframe. If "*"
-        is passed, return all metadata columns
+        is included, return all metadata columns
     """
     split = conform_split(split)
     project_id, run_id = api_client._get_project_run_id(project_name, run_name)
