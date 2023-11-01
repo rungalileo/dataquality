@@ -194,7 +194,7 @@ def do_train(
     )  # simply defining the context, setting the type is to make the linter happy
 
     # If skip_train=True, we add 1 epoch so we can do inference and still log the data
-    for epoch in range(training_config.epochs + bool(skip_train)):
+    for epoch in range(training_config.epochs + int(skip_train)):
         dq.set_epoch_and_split(split=Split.train, epoch=epoch)
         model.eval() if skip_train else model.train()
         train_epoch_loss = 0.0
