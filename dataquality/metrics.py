@@ -1,6 +1,7 @@
 import json
 import os
 import warnings
+from dataclasses import field
 from typing import Any, Dict, List, Optional, Tuple, Union
 from uuid import uuid4
 
@@ -234,6 +235,7 @@ def _download_df(
     hf_format: bool,
     tagging_schema: Optional[TaggingSchema],
     filter_params: FilterParams,
+    meta_cols: List[str],
 ) -> DataFrame:
     """Helper function to download the dataframe to take advantage of caching
 
@@ -249,6 +251,7 @@ def _download_df(
         split,
         inference_name=inference_name,
         file_name=file_name,
+        include_cols=meta_cols,
         filter_params=filter_params.dict(),
         hf_format=hf_format,
         tagging_schema=tagging_schema,
@@ -271,6 +274,7 @@ def get_dataframe(
     filter: Optional[Union[FilterParams, Dict]] = None,
     as_pandas: bool = True,
     include_data_embs: bool = False,
+    meta_cols: List[str] = field(default_factory=list),
 ) -> Union[pd.DataFrame, DataFrame]:
     """Gets the dataframe for a run/split
 
@@ -305,6 +309,8 @@ def get_dataframe(
         (embeddings, probabilities etc), vaex will always be returned, because pandas
         cannot support multi-dimensional columns. Default True
     :param include_data_embs: Whether to include the off the shelf data embeddings
+    :param meta_cols: List of metadata columns to return in the dataframe. If "*"
+        is passed, return all metadata columns
     """
     split = conform_split(split)
     project_id, run_id = api_client._get_project_run_id(project_name, run_name)
@@ -320,6 +326,7 @@ def get_dataframe(
         hf_format,
         tagging_schema,
         filter_params,
+        meta_cols,
     )
     return _process_exported_dataframe(
         data_df,
