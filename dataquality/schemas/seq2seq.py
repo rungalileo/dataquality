@@ -22,7 +22,6 @@ class Seq2SeqInputCols(str, Enum):
     target = "target"  # label is renamed to target for S2S
     generated_output = "generated_output"
     split_ = "split"
-    tokenized_label = "tokenized_label"
     token_label_ids = "token_label_ids"
     token_label_positions = "token_label_positions"
     token_label_offsets = "token_label_offsets"
