@@ -75,6 +75,7 @@ class S2SDatasetManager(BaseDatasetManager):
         self,
         dataset_config: Optional[Seq2SeqDatasetConfig],
         max_train_size: Optional[int] = None,
+        create_val_data_if_missing: bool = True,
     ) -> Tuple[DatasetDict, Seq2SeqDatasetConfig]:
         """Creates and/or validates the DatasetDict provided by the user.
 
@@ -114,7 +115,9 @@ class S2SDatasetManager(BaseDatasetManager):
         # Minimize dataset if user provided a max_train_size
         dd = sample_dataset_dict(dd, dataset_config, max_train_size)
         # Add validation data if missing, add 'id' column
-        dd = self._validate_dataset_dict(dd, [])
+        dd = self._validate_dataset_dict(
+            dd, [], create_val_data_if_missing=create_val_data_if_missing
+        )
         formatter = dataset_config.formatter
         if formatter.process_batch:
             # Apply the dataset's custom formatter on dataset dict
@@ -125,7 +128,9 @@ class S2SDatasetManager(BaseDatasetManager):
                 with_indices=True,
             )
             # We must re-add the id column if it's been dropped
-            dd = self._validate_dataset_dict(dd, [])
+            dd = self._validate_dataset_dict(
+                dd, [], create_val_data_if_missing=create_val_data_if_missing
+            )
         else:
             dd = dd.map(formatter.format_sample, remove_columns=formatter.remove_cols)
 
@@ -136,6 +141,7 @@ class S2SDatasetManager(BaseDatasetManager):
         dd: DatasetDict,
         inference_names: List[str],
         labels: Optional[List[str]] = None,
+        create_val_data_if_missing: bool = True,
     ) -> DatasetDict:
         """Validates the core components of the provided (or created) DatasetDict
 
@@ -144,7 +150,12 @@ class S2SDatasetManager(BaseDatasetManager):
             * all keys must be one of our valid key names
 
         We then also convert the keys of the DatasetDict to our `Split` key enum so
-        we can access it easier in the future
+        we can access it easier in the future.
+
+        If create_val_data_if_missing=True, we additionally ensure that we have
+        validation data. If validation data is missing, we use the test split as
+        validation (if available), or else we create a validation split from the
+        training data.
         """
         clean_dd = super()._validate_dataset_dict(dd, inference_names, labels)
         for key in list(clean_dd.keys()):
@@ -152,7 +163,11 @@ class S2SDatasetManager(BaseDatasetManager):
             if "id" not in ds.features:
                 ds = ds.add_column("id", list(range(ds.num_rows)))
             clean_dd[key] = ds
-        return add_val_data_if_missing(clean_dd, TaskType.seq2seq)
+
+        if create_val_data_if_missing:
+            clean_dd = add_val_data_if_missing(clean_dd, TaskType.seq2seq)
+
+        return clean_dd
 
 
 def _log_dataset_dict(dd: DatasetDict, input_col: str, target_col: str) -> None:
@@ -184,19 +199,21 @@ def auto(
 
     Given either a pandas dataframe, file_path, or huggingface dataset path, this
     function will load the data, train a huggingface transformer model, and
-    provide Galileo insights via a link to the Galileo Console
+    provide Galileo insights via a link to the Galileo Console. If the number of epochs
+    in training_config is set to 0, training/fine-tuning will be skipped and we will
+    only do a forward pass (on all the splits).
 
     One of DatasetConfig `hf_data`, `train_path`, or `train_data` should be provided.
     If none of those is, a demo dataset will be loaded by Galileo for training.
 
     The validation data is what is used for the evaluation dataset in training.
     If not provided, but test_data is, that will be used as the evaluation
-    set. If neither val nor test are available, the train data will be randomly
-    split 80/20 for use as evaluation data.
+    set. If neither val nor test are available (and training is not skipped), the train
+    data will be randomly split 80/20 for use as evaluation data.
 
-    The test data, if provided with val,
-    will be used after training is complete, as the hold-out set. If no validation
-    data is provided, this will instead be used as the evaluation set.
+    The test data, if provided with val, will be used after training is complete, as the
+    hold-out set. If no validation data is provided, this will instead be used as the
+    evaluation set.
 
     :param project_name: Optional project name. If not set, a random name will
         be generated
@@ -248,8 +265,10 @@ def auto(
     generation_config = generation_config or Seq2SeqGenerationConfig()
 
     manager = S2SDatasetManager()
+    # Only force the creation of validation data if we actually fine-tune the model
+    create_val_data_if_missing = training_config.epochs > 0
     dd, dataset_config = manager.get_dataset_dict_from_config(
-        dataset_config, max_train_size
+        dataset_config, max_train_size, create_val_data_if_missing
     )
 
     if not run_name and isinstance(dataset_config.hf_data, str):
