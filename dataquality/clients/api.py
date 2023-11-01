@@ -433,15 +433,14 @@ class ApiClient:
         :param slice_name: The optional slice name to export. If selected, this data
         from this slice will be exported only.
         :param include_cols: List of columns to include in the export. If not set,
-        all columns will be exported.
+        all columns will be exported. If "*" is included, return all metadata columns
         :param col_mapping: Dictionary of renamed column names for export.
         :param hf_format: (NER only)
             Whether to export the dataframe in a HuggingFace compatible format
         :param tagging_schema: (NER only)
             If hf_format is True, you must pass a tagging schema
         :param filter_params: Filters to apply to the dataframe before exporting. Only
-        rows with matching filters will be included in the exported data. If a slice
-
+            rows with matching filters will be included in the exported data
         """
         project, run = self._get_project_run_id(project_name, run_name)
         ext = os.path.splitext(file_name)[-1].lstrip(".")
