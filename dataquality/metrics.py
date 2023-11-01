@@ -224,7 +224,11 @@ def display_distribution(
     fig.show()
 
 
-@cached(_get_cache(), key=_cache_key)
+# We remove caching to allow for the user to fetch a dataframe
+# that has been updated or reprocessed
+# We were also running into an issue caching the meta_cols as a list
+# We leave it as a comment in case we want to revisit in the future
+# @cached(_get_cache(), key=_cache_key)
 def _download_df(
     project_name: str,
     run_name: str,
@@ -316,6 +320,7 @@ def get_dataframe(
     task_type = api_client.get_task_type(project_id, run_id)
     filter_params = FilterParams(**_validate_filter(filter))
 
+    meta_cols = meta_cols or []
     data_df = _download_df(
         project_name,
         run_name,
@@ -325,7 +330,7 @@ def get_dataframe(
         hf_format,
         tagging_schema,
         filter_params,
-        meta_cols or [],
+        meta_cols,
     )
     return _process_exported_dataframe(
         data_df,
