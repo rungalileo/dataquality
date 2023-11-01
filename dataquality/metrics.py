@@ -274,7 +274,7 @@ def get_dataframe(
     filter: Optional[Union[FilterParams, Dict]] = None,
     as_pandas: bool = True,
     include_data_embs: bool = False,
-    meta_cols: List[str] = field(default_factory=list),
+    meta_cols: Optional[List[str]] = None,
 ) -> Union[pd.DataFrame, DataFrame]:
     """Gets the dataframe for a run/split
 
@@ -326,7 +326,7 @@ def get_dataframe(
         hf_format,
         tagging_schema,
         filter_params,
-        meta_cols,
+        meta_cols or [],
     )
     return _process_exported_dataframe(
         data_df,
