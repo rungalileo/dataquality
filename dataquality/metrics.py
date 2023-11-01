@@ -224,10 +224,6 @@ def display_distribution(
     fig.show()
 
 
-# We remove caching to allow for the user to fetch a dataframe
-# that has been updated or reprocessed
-# We were also running into an issue caching the meta_cols as a list
-# We leave it as a comment in case we want to revisit in the future
 # @cached(_get_cache(), key=_cache_key)
 def _download_df(
     project_name: str,
