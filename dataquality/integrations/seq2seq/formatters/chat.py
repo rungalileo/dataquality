@@ -80,7 +80,7 @@ class ChatFormatter(BaseFormatter):
             role = turn[self.role_col]
             content = turn[self.content_col]
             if role == self.system:
-                system_prompt = f"{content}{NEWLINE_CHAR}"
+                system_prompt = f"{self.system}: {content}{NEWLINE_CHAR}"
                 continue
 
             # Add metadata to each turn
