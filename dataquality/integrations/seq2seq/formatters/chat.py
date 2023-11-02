@@ -31,6 +31,7 @@ class ChatFormatter(BaseFormatter):
     # Chat roles
     user: str = "User"
     assistant: str = "Chatbot"
+    system: str = "System"
 
     def format_sample(
         self, sample: Dict[str, Any], idx: Optional[int] = None
@@ -74,9 +75,14 @@ class ChatFormatter(BaseFormatter):
         turn_data: Dict[str, Any] = {"chat_id": None, "turn_id": None}
         turn_id = 1
         turn_default_cols = [self.role_col, self.content_col]
+        system_prompt = ""
         for turn in turns:
             role = turn[self.role_col]
             content = turn[self.content_col]
+            if role == self.system:
+                system_prompt = f"{content}{NEWLINE_CHAR}"
+                continue
+
             # Add metadata to each turn
             turn_meta = {
                 f"{role}_{col}": turn[col]
@@ -94,6 +100,7 @@ class ChatFormatter(BaseFormatter):
                 turn_data[self.target_col] = content
                 turn_data["turn_id"] = turn_id
                 turn_data["chat_id"] = idx
+                turn_data[self.system] = system_prompt
                 # Add sample level metadata
                 # NOTE: When we drop p3.8 we can use 'turn_data |= turn_meta'
                 turn_data.update(metadata)
@@ -160,6 +167,8 @@ class ChatHistoryFormatter(ChatFormatter):
             )
 
         formatted_sample = super().format_sample(sample, idx)
+        system_prompt = formatted_sample[self.system]
+
         # Next we update formatted_sample in place one turn at a time
         # We build iteratively from the first turn so that we can add just the previous
         # turn to the input, and it will contain content from all previous turns
@@ -195,6 +204,6 @@ class ChatHistoryFormatter(ChatFormatter):
             ]
             # If both are -1, we just take the last max_input_tokens tokens
             start_index = min(non_negative) if non_negative else -self.max_input_tokens
-            user_inputs[i] = parsed_history[start_index:]
+            user_inputs[i] = f"{system_prompt}{parsed_history[start_index:]}"
 
         return formatted_sample
