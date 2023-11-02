@@ -77,6 +77,7 @@ class ChatFormatter(BaseFormatter):
         for turn in turns:
             role = turn[self.role_col]
             content = turn[self.content_col]
+
             # Add metadata to each turn
             turn_meta = {
                 f"{role}_{col}": turn[col]
@@ -195,6 +196,11 @@ class ChatHistoryFormatter(ChatFormatter):
             ]
             # If both are -1, we just take the last max_input_tokens tokens
             start_index = min(non_negative) if non_negative else -self.max_input_tokens
+<<<<<<< Updated upstream
             user_inputs[i] = parsed_history[start_index:]
+=======
+            import pdb; pdb.set_trace()
+            user_inputs[i] = f"{system_prompt}{parsed_history[start_index:]}"
+>>>>>>> Stashed changes
 
         return formatted_sample

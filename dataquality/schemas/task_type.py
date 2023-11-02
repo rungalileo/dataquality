@@ -16,6 +16,8 @@ class TaskType(str, Enum):
     prompt_evaluation = "prompt_evaluation"
     seq2seq = "seq2seq"
     llm_monitor = "llm_monitor"
+    seq2seq_completion = "seq2seq_completion"
+    seq2seq_chat = "seq2seq_chat"
 
     @staticmethod
     def get_valid_tasks() -> List["TaskType"]:
@@ -40,4 +42,6 @@ class TaskType(str, Enum):
             7: TaskType.prompt_evaluation,
             8: TaskType.seq2seq,
             9: TaskType.llm_monitor,
+            10: TaskType.seq2seq_completion,
+            11: TaskType.seq2seq_chat,
         }[task_int]
