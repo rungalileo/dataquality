@@ -12,9 +12,9 @@ from transformers import GenerationConfig, T5ForConditionalGeneration
 import dataquality as dq
 from dataquality.integrations.seq2seq.hf import set_tokenizer, watch
 from dataquality.loggers.data_logger.base_data_logger import DataSet
-from dataquality.loggers.data_logger.seq2seq import Seq2SeqDataLogger
-from dataquality.loggers.logger_config.seq2seq import seq2seq_logger_config
-from dataquality.loggers.model_logger.seq2seq import Seq2SeqModelLogger
+from dataquality.loggers.data_logger.seq2seq.base import Seq2SeqDataLogger
+from dataquality.loggers.logger_config.seq2seq.base import seq2seq_logger_config
+from dataquality.loggers.model_logger.seq2seq.base import Seq2SeqModelLogger
 from dataquality.schemas.seq2seq import (
     TOP_K,
     BatchGenerationData,
