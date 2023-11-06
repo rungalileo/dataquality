@@ -1,12 +1,16 @@
 from dataquality.loggers.model_logger import (
     image_classification,
-    seq2seq,
     tabular_classification,
     text_classification,
     text_multi_label,
     text_ner,
 )
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
+from dataquality.loggers.model_logger.seq2seq import (
+    base,
+    chat,
+    completion,
+)
 
 __all__ = [
     "image_classification",
@@ -15,5 +19,7 @@ __all__ = [
     "text_multi_label",
     "text_ner",
     "BaseGalileoModelLogger",
-    "seq2seq",
+    "base",
+    "chat",
+    "completion",
 ]
