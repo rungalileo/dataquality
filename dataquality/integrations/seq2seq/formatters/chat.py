@@ -75,7 +75,7 @@ class ChatFormatter(BaseFormatter):
         turn_data: Dict[str, Any] = {"chat_id": None, "turn_id": None}
         turn_id = 1
         turn_default_cols = [self.role_col, self.content_col]
-        system_prompts = {}
+        system_prompts: Dict[str, str] = {}
         for turn in turns:
             role = turn[self.role_col]
             content = turn[self.content_col]
