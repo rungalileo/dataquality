@@ -8,7 +8,7 @@ from transformers import GenerationConfig, T5ForConditionalGeneration
 
 import dataquality as dq
 from dataquality.integrations.seq2seq.hf import watch
-from dataquality.loggers.data_logger.seq2seq import Seq2SeqDataLogger
+from dataquality.loggers.data_logger.seq2seq.base import Seq2SeqDataLogger
 from dataquality.schemas.seq2seq import Seq2SeqInputCols as C
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.seq2seq.offsets import (

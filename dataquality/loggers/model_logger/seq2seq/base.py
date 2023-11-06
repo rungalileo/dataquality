@@ -4,7 +4,7 @@ import numpy as np
 import pyarrow as pa
 from scipy.special import log_softmax
 
-from dataquality.loggers.logger_config.seq2seq import (
+from dataquality.loggers.logger_config.seq2seq.base import (
     Seq2SeqLoggerConfig,
     seq2seq_logger_config,
 )
