@@ -7,9 +7,9 @@ from dataquality.loggers.model_logger import (
 )
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.loggers.model_logger.seq2seq import (
-    base,
     chat,
     completion,
+    seq2seq_base,
 )
 
 __all__ = [
@@ -19,7 +19,7 @@ __all__ = [
     "text_multi_label",
     "text_ner",
     "BaseGalileoModelLogger",
-    "base",
+    "seq2seq_base",
     "chat",
     "completion",
 ]

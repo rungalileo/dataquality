@@ -1,4 +1,4 @@
-from dataquality.loggers.logger_config.seq2seq.base import Seq2SeqLoggerConfig
+from dataquality.loggers.logger_config.seq2seq.seq2seq_base import Seq2SeqLoggerConfig
 
 
 class Seq2SeqChatLoggerConfig(Seq2SeqLoggerConfig):

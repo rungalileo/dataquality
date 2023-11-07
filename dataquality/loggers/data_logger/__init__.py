@@ -9,9 +9,9 @@ from dataquality.loggers.data_logger import (
 )
 from dataquality.loggers.data_logger.base_data_logger import BaseGalileoDataLogger
 from dataquality.loggers.data_logger.seq2seq import (
-    base,
     chat,
     completion,
+    seq2seq_base,
 )
 
 __all__ = [
@@ -23,7 +23,7 @@ __all__ = [
     "text_ner",
     "object_detection",
     "BaseGalileoDataLogger",
-    "base",  # Import needed for seq2seq subclass discovery
+    "seq2seq_base",  # Import needed for seq2seq subclass discovery
     "chat",
     "completion",
 ]

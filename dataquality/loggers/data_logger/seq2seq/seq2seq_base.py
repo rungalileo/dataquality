@@ -12,7 +12,7 @@ from dataquality.loggers.data_logger.base_data_logger import (
     DataSet,
     MetasType,
 )
-from dataquality.loggers.logger_config.seq2seq.base import (
+from dataquality.loggers.logger_config.seq2seq.seq2seq_base import (
     Seq2SeqLoggerConfig,
     seq2seq_logger_config,
 )
