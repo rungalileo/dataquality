@@ -40,31 +40,35 @@ class Edit(BaseModel):
             How many words (forward or back) to shift the end of the span by
     """
 
-    filter: Optional[FilterParams]
+    filter: Optional[FilterParams] = None
 
-    new_label: Optional[StrictStr]
+    new_label: Optional[StrictStr] = None
 
-    search_string: Optional[StrictStr]
-    text_replacement: Optional[StrictStr]
+    search_string: Optional[StrictStr] = None
+    text_replacement: Optional[StrictStr] = None
     use_regex: bool = False
 
-    shift_span_start_num_words: Optional[StrictInt]
-    shift_span_end_num_words: Optional[StrictInt]
+    shift_span_start_num_words: Optional[StrictInt] = None
+    shift_span_end_num_words: Optional[StrictInt] = None
 
-    project_id: Optional[UUID4]
-    run_id: Optional[UUID4]
-    split: Optional[str]
+    project_id: Optional[UUID4] = None
+    run_id: Optional[UUID4] = None
+    split: Optional[str] = None
     task: Optional[str] = None
     inference_name: Optional[str] = None
-    note: Optional[StrictStr]
+    note: Optional[StrictStr] = None
     edit_action: EditAction
 
+    # TODO[pydantic]: We couldn't refactor the `validator`, please replace it by `field_validator` manually.
+    # Check https://docs.pydantic.dev/dev-v2/migration/#changes-to-validators for more information.
     @validator("edit_action", pre=True)
     def new_label_if_relabel(cls, edit_action: EditAction, values: Dict) -> EditAction:
         if edit_action == EditAction.relabel and values.get("new_label") is None:
             raise ValueError("If your edit is relabel, you must set new_label")
         return edit_action
 
+    # TODO[pydantic]: We couldn't refactor the `validator`, please replace it by `field_validator` manually.
+    # Check https://docs.pydantic.dev/dev-v2/migration/#changes-to-validators for more information.
     @validator("edit_action", pre=True)
     def text_replacement_if_update_text(
         cls, edit_action: EditAction, values: Dict
@@ -79,6 +83,8 @@ class Edit(BaseModel):
             )
         return edit_action
 
+    # TODO[pydantic]: We couldn't refactor the `validator`, please replace it by `field_validator` manually.
+    # Check https://docs.pydantic.dev/dev-v2/migration/#changes-to-validators for more information.
     @validator("edit_action", pre=True)
     def shift_span_validator(cls, edit_action: EditAction, values: Dict) -> EditAction:
         err = (
@@ -95,6 +101,8 @@ class Edit(BaseModel):
                 raise ValueError(err)
         return edit_action
 
+    # TODO[pydantic]: We couldn't refactor the `validator`, please replace it by `field_validator` manually.
+    # Check https://docs.pydantic.dev/dev-v2/migration/#changes-to-validators for more information.
     @validator("edit_action", pre=True, always=True)
     def validate_edit_action_for_split(
         cls, edit_action: EditAction, values: Dict[str, Any]

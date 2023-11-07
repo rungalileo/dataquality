@@ -1,7 +1,7 @@
 from collections import defaultdict
 from typing import Any, Callable, DefaultDict, Dict, List, Optional, Set
 
-from pydantic import BaseModel, validator
+from pydantic import ConfigDict, BaseModel, validator
 
 from dataquality.schemas.condition import Condition
 from dataquality.schemas.ner import TaggingSchema
@@ -13,11 +13,11 @@ class BaseLoggerConfig(BaseModel):
     tasks: Any = None
     observed_num_labels: Any = None
     observed_labels: Any = None
-    tagging_schema: Optional[TaggingSchema]
+    tagging_schema: Optional[TaggingSchema] = None
     last_epoch: int = 0
-    cur_epoch: Optional[int]
-    cur_split: Optional[Split]
-    cur_inference_name: Optional[str]
+    cur_epoch: Optional[int] = None
+    cur_split: Optional[Split] = None
+    cur_inference_name: Optional[str] = None
     training_logged: bool = False
     validation_logged: bool = False
     test_logged: bool = False
@@ -36,15 +36,15 @@ class BaseLoggerConfig(BaseModel):
     finish: Callable = lambda: None  # Overwritten in Semantic Segmentation
     # True when calling `init` with a run that already exists
     existing_run: bool = False
-    dataloader_random_sampling = False
-
-    class Config:
-        validate_assignment = True
+    dataloader_random_sampling: bool = False
+    model_config = ConfigDict(validate_assignment=True)
 
     def reset(self, factory: bool = False) -> None:
         """Reset all class vars"""
         self.__init__()  # type: ignore
 
+    # TODO[pydantic]: We couldn't refactor the `validator`, please replace it by `field_validator` manually.
+    # Check https://docs.pydantic.dev/dev-v2/migration/#changes-to-validators for more information.
     @validator("cur_split")
     def inference_sets_inference_name(
         cls, field_value: Split, values: Dict[str, Any]

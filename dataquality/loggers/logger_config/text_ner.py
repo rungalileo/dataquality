@@ -1,7 +1,7 @@
 from typing import Dict, List, Tuple
 
 import numpy as np
-from pydantic import validator
+from pydantic import ConfigDict, validator
 
 from dataquality.loggers.logger_config.base_logger_config import BaseLoggerConfig
 
@@ -9,14 +9,13 @@ from dataquality.loggers.logger_config.base_logger_config import BaseLoggerConfi
 class TextNERLoggerConfig(BaseLoggerConfig):
     gold_spans: Dict[str, List[Tuple[int, int, str]]] = {}
     sample_length: Dict[str, int] = {}
-
-    class Config:
-        validate_assignment = True
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(validate_assignment=True, arbitrary_types_allowed=True)
 
     def get_sample_key(self, split: str, sample_id: int) -> str:
         return f"{split}_{sample_id}"
 
+    # TODO[pydantic]: We couldn't refactor the `validator`, please replace it by `field_validator` manually.
+    # Check https://docs.pydantic.dev/dev-v2/migration/#changes-to-validators for more information.
     @validator("labels", always=True, pre=True, allow_reuse=True)
     def clean_labels(cls, labels: List[str]) -> List[str]:
         if isinstance(labels, np.ndarray):

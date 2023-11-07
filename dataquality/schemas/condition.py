@@ -226,6 +226,8 @@ class Condition(BaseModel):
         """Asserts the condition"""
         assert self.evaluate(df)[0]
 
+    # TODO[pydantic]: We couldn't refactor the `validator`, please replace it by `field_validator` manually.
+    # Check https://docs.pydantic.dev/dev-v2/migration/#changes-to-validators for more information.
     @validator("filters", pre=True, always=True)
     def validate_filters(
         cls, v: Optional[List[ConditionFilter]], values: Dict
@@ -237,6 +239,8 @@ class Condition(BaseModel):
 
         return v
 
+    # TODO[pydantic]: We couldn't refactor the `validator`, please replace it by `field_validator` manually.
+    # Check https://docs.pydantic.dev/dev-v2/migration/#changes-to-validators for more information.
     @validator("metric", pre=True, always=True)
     def validate_metric(cls, v: Optional[str], values: Dict) -> Optional[str]:
         if not v:

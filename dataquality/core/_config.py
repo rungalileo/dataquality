@@ -7,7 +7,7 @@ from typing import Dict, Optional
 
 import requests
 from packaging import version
-from pydantic import BaseModel
+from pydantic import ConfigDict, BaseModel
 from pydantic.class_validators import validator
 from pydantic.types import UUID4
 from requests.exceptions import ConnectionError as ReqConnectionError
@@ -85,11 +85,9 @@ class Config(BaseModel):
     images_bucket_name: str = GALILEO_DEFAULT_IMG_BUCKET_NAME
     minio_fqdn: Optional[str] = None
     is_exoscale_cluster: bool = False
-
-    class Config:
-        validate_assignment = True
-        arbitrary_types_allowed = True
-        underscore_attrs_are_private = True
+    # TODO[pydantic]: The following keys were removed: `underscore_attrs_are_private`.
+    # Check https://docs.pydantic.dev/dev-v2/migration/#changes-to-config for more information.
+    model_config = ConfigDict(validate_assignment=True, arbitrary_types_allowed=True, underscore_attrs_are_private=True)
 
     def update_file_config(self) -> None:
         config_json = self.dict()
@@ -97,6 +95,8 @@ class Config(BaseModel):
         with open(config_data.DEFAULT_GALILEO_CONFIG_FILE, "w+") as f:
             f.write(json.dumps(config_json, default=str))
 
+    # TODO[pydantic]: We couldn't refactor the `validator`, please replace it by `field_validator` manually.
+    # Check https://docs.pydantic.dev/dev-v2/migration/#changes-to-validators for more information.
     @validator("api_url", pre=True, always=True, allow_reuse=True)
     def add_scheme(cls, v: str) -> str:
         if not v.startswith("http"):

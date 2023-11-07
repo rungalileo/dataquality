@@ -1,7 +1,7 @@
 from typing import List, Optional, Set
 
 import numpy as np
-from pydantic import validator
+from pydantic import ConfigDict, validator
 
 from dataquality.loggers.logger_config.base_logger_config import BaseLoggerConfig
 
@@ -10,10 +10,10 @@ class TextClassificationLoggerConfig(BaseLoggerConfig):
     labels: Optional[List[str]] = None
     observed_num_labels: int = 0
     observed_labels: Set[str] = set()
+    model_config = ConfigDict(validate_assignment=True)
 
-    class Config:
-        validate_assignment = True
-
+    # TODO[pydantic]: We couldn't refactor the `validator`, please replace it by `field_validator` manually.
+    # Check https://docs.pydantic.dev/dev-v2/migration/#changes-to-validators for more information.
     @validator("labels", always=True, pre=True, allow_reuse=True)
     def clean_labels(cls, labels: List[str]) -> List[str]:
         if labels is None:

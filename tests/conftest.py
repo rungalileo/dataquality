@@ -12,6 +12,7 @@ from transformers import (
     AutoTokenizer,
     T5ForConditionalGeneration,
 )
+from pydantic_settings import BaseSettings
 from vaex.dataframe import DataFrame
 
 import dataquality

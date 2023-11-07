@@ -23,8 +23,8 @@ from dataquality.utils.profiler import (
 class ProfileModel(BaseModel):
     """User profile"""
 
-    packages: Optional[Dict[str, str]]
-    uuid: Optional[str]
+    packages: Optional[Dict[str, str]] = None
+    uuid: Optional[str] = None
 
 
 class Analytics(Borg):

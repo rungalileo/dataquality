@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional
 
-from pydantic import BaseModel, Field, StrictStr, root_validator
+from pydantic import model_validator, BaseModel, Field, StrictStr
 
 
 class HashableBaseModel(BaseModel):
@@ -50,7 +50,8 @@ class LassoSelection(HashableBaseModel):
     x: List[float]
     y: List[float]
 
-    @root_validator()
+    @model_validator(mode="after")
+    @classmethod
     def validate_xy(cls: BaseModel, values: Dict[str, List]) -> Dict[str, List]:
         if len(values.get("x", [])) != len(values.get("y", [])):
             raise ValueError("x and y must have the same number of points")

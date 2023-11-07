@@ -5,6 +5,7 @@ from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizerF
 
 from dataquality.loggers.logger_config.base_logger_config import BaseLoggerConfig
 from dataquality.schemas.split import Split
+from pydantic import ConfigDict
 
 
 class Seq2SeqLoggerConfig(BaseLoggerConfig):
@@ -17,9 +18,7 @@ class Seq2SeqLoggerConfig(BaseLoggerConfig):
     model: Optional[PreTrainedModel] = None
     generation_config: Optional[GenerationConfig] = None
     generation_splits: Set[Split] = set()
-
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 seq2seq_logger_config = Seq2SeqLoggerConfig()
