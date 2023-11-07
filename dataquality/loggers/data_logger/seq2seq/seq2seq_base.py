@@ -17,7 +17,7 @@ from dataquality.loggers.logger_config.seq2seq.seq2seq_base import (
     seq2seq_logger_config,
 )
 from dataquality.schemas.dataframe import BaseLoggerDataFrames
-from dataquality.schemas.seq2seq import Seq2SeqInputCols as C
+from dataquality.schemas.seq2seq import Seq2SeqInputCols as S2SIC
 from dataquality.schemas.split import Split
 from dataquality.utils.seq2seq.generation import (
     add_generated_output_to_df,
@@ -124,17 +124,21 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         self.logger_config.id_to_tokens[self.token_map_key].update(id_to_tokens)
 
     def _get_input_df(self) -> DataFrame:
-        return vaex.from_dict(
+        data = vaex.from_dict(
             {
-                C.id.value: self.ids,
-                C.text.value: self.texts,
-                C.label.value: self.labels,
-                C.split_.value: [self.split] * len(self.ids),
-                C.token_label_positions.value: pa.array(self.token_label_positions),
-                C.token_label_offsets.value: pa.array(self.token_label_offsets),
+                S2SIC.id.value: self.ids,
+                S2SIC.text.value: self.texts,
+                S2SIC.label.value: self.labels,
+                S2SIC.split_.value: [self.split] * len(self.ids),
+                S2SIC.token_label_positions.value: pa.array(self.token_label_positions),
+                S2SIC.token_label_offsets.value: pa.array(self.token_label_offsets),
                 **self.meta,
             }
         )
+        if S2SIC.system_prompts in self.meta:
+            # We must store nested dicts as pyarrow arrays to support vaex export
+            data[S2SIC.system_prompts.value] = pa.array(self.meta[S2SIC.system_prompts])
+        return data
 
     def _log_df(
         self,
@@ -199,7 +203,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         Returns a list of valid attributes that for this Logger class
         :return: List[str]
         """
-        return list(map(lambda x: x.value, C))
+        return list(map(lambda x: x.value, S2SIC))
 
     @classmethod
     def _get_prob_cols(cls) -> List[str]:
@@ -292,7 +296,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             other_cols += ["id"]
 
         emb = df_copy[emb_cols]
-        data_df = C.set_cols(df_copy[other_cols])
+        data_df = S2SIC.set_cols(df_copy[other_cols])
         return BaseLoggerDataFrames(prob=prob, emb=emb, data=data_df)
 
     @classmethod
@@ -315,7 +319,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         max_input_length = cls.logger_config.max_input_tokens
         df = add_input_cutoff_to_df(df, tokenizer, max_tokens=max_input_length)
 
-        target_offsets_colname = C.token_label_offsets
+        target_offsets_colname = S2SIC.token_label_offsets
         if target_offsets_colname in df.get_column_names():
             df = add_target_cutoff_to_df(df, target_offsets_colname)
 

@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 from transformers import AutoTokenizer, PreTrainedTokenizerFast
 
 from dataquality.integrations.seq2seq.formatters.base import BaseFormatter
+from dataquality.schemas.seq2seq import Seq2SeqInputCols as S2SIC
 
 # HF tokenizers don't support newlines, so we use a token to represent them
 # Example of tokenizer without the NEWLINE token:
@@ -100,7 +101,7 @@ class ChatFormatter(BaseFormatter):
                 turn_data[self.target_col] = content
                 turn_data["turn_id"] = turn_id
                 turn_data["chat_id"] = idx
-                turn_data["system_prompts"] = system_prompts
+                turn_data[S2SIC.system_prompts] = system_prompts
                 # Add sample level metadata
                 # NOTE: When we drop p3.8 we can use 'turn_data |= turn_meta'
                 turn_data.update(metadata)
