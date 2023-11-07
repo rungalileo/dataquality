@@ -48,6 +48,8 @@ class Seq2SeqTrainingConfig(BaseAutoTrainingConfig):
         None, data embeddings will be created only if a GPU is available
     :param max_input_tokens: Optional max input tokens. If not set, we default to 512
     :param max_target_tokens: Optional max target tokens. If not set, we default to 128
+    :param data_embs_col: Optional text col on which to compute data embeddings.
+        If not set, we default to 'input'
     """
 
     # Overwrite base values
@@ -57,6 +59,8 @@ class Seq2SeqTrainingConfig(BaseAutoTrainingConfig):
     accumulation_steps: int = 4
     max_input_tokens: int = 512
     max_target_tokens: int = 128
+    # Data embeddings
+    data_embs_col: str = "input"
 
 
 @dataclass
