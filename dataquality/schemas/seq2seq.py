@@ -23,10 +23,12 @@ class Seq2SeqInputCols(str, Enum):
     generated_output = "generated_output"
     split_ = "split"
     tokenized_label = "tokenized_label"
-    token_label_positions = "token_label_positions"
-    token_label_offsets = "token_label_offsets"
     input_cutoff = "input_cutoff"
     target_cutoff = "target_cutoff"
+    # Columns saved as pyarrow arrays
+    token_label_positions = "token_label_positions"
+    token_label_offsets = "token_label_offsets"
+    system_prompts = "system_prompts"
 
     @classmethod
     def set_cols(cls, df: DataFrame) -> DataFrame:
