@@ -228,7 +228,7 @@ def auto(
     :param generation_config: Optional config for generating predictions.
         See `Seq2SeqGenerationConfig` for more details
     :param max_train_size: Optional max number of training examples to use.
-    :param embs: The embeddings per output sample
+    :param embs: The embeddings per output sample, shape (n_samples, emb_dimension)
     :param wait: Whether to wait for Galileo to complete processing your run.
         Default True
 

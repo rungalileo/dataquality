@@ -162,11 +162,11 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             C.split_.value: [Split[self.split].value] * batch_size,
             C.epoch.value: [self.epoch] * batch_size,
         }
-        if self.embs:
+        if self.embs is not None:
             if isinstance(self.embs, np.ndarray) and self.embs.size > 0:
                 # In seq2seq we have to save embs as a pyarrow array instead of numpy
                 # since the vaex DataFrames are stored as arrow files
-                data[C.emb.value] = pa.ListArray.from_pandas(self.embs.tolist())
+                data[C.emb.value] = pa.array(list(self.embs))
         if self.split == Split.inference:
             data[C.inference_name.value] = [self.inference_name] * batch_size
         return data
