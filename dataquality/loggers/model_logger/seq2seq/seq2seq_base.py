@@ -36,7 +36,6 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         split: str = "",
         epoch: Optional[int] = None,
         inference_name: Optional[str] = None,
-        labels: Optional[np.ndarray] = None,
     ) -> None:
         super().__init__(
             embs=embs,
@@ -46,11 +45,9 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             split=split,
             epoch=epoch,
             inference_name=inference_name,
-            labels=labels,
         )
         self.token_logprobs = pa.array([])
         self.top_logprobs = pa.array([])
-        self.labels = labels
 
     @property
     def token_map_key(self) -> str:
