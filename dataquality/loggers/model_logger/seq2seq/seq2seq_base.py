@@ -60,8 +60,6 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
 
     def validate_and_format(self) -> None:
         """Validate the lengths, calculate token level dep, extract GT probs"""
-        if self.labels is not None:
-            self.labels = self._convert_tensor_ndarray(self.labels)
         self.embs = self._convert_tensor_ndarray(self.embs)
         self.logits = self._convert_tensor_ndarray(self.logits)
         self.ids = self._convert_tensor_ndarray(self.ids)
