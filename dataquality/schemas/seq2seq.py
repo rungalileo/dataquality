@@ -54,6 +54,7 @@ class Seq2SeqInputCols(str, Enum):
 
 class Seq2SeqOutputCols(str, Enum):
     id = "id"
+    emb = "emb"
     token_logprobs = "token_logprobs"
     top_logprobs = "top_logprobs"
     # Columns associated with generated output

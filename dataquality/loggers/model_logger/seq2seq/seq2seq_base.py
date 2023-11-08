@@ -70,7 +70,10 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             f"id: {len(self.ids)},logits: {len(self.logits)}"
         )
         if self.labels is not None:
-            assert len(self.labels) == len(self.ids), "TODO: Must be same len message"
+            print(
+                "Labels should not be set for Seq2Seq tasks."
+                f"Labels are set to {self.labels}"
+            )
 
         assert (
             self.logger_config.tokenizer is not None
@@ -164,6 +167,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         batch_size = len(self.ids)
         data = {
             C.id.value: self.ids,
+            C.emb.value: self.embs,
             C.token_logprobs.value: self.token_logprobs,
             C.top_logprobs.value: self.top_logprobs,
             C.split_.value: [Split[self.split].value] * batch_size,

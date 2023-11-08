@@ -324,11 +324,3 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             df = add_target_cutoff_to_df(df, target_offsets_colname)
 
         return df
-
-    @property
-    def support_embs(self) -> bool:
-        """In Seq2Seq we only support data embeddings
-
-        It is uncommon for users to have access to the model embeddings for Seq2Seq
-        """
-        return False
