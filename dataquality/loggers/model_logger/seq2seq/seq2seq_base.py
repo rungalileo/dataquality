@@ -57,16 +57,12 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
 
     def validate_and_format(self) -> None:
         """Validate the lengths, calculate token level dep, extract GT probs"""
-        if self.labels is not None:
-            self.labels = self._convert_tensor_ndarray(self.labels)
         self.logits = self._convert_tensor_ndarray(self.logits)
         self.ids = self._convert_tensor_ndarray(self.ids)
         assert len(self.ids) == len(self.logits), (
             "Must pass in a valid batch with equal id and logit length, got "
             f"id: {len(self.ids)},logits: {len(self.logits)}"
         )
-        if self.labels is not None:
-            assert len(self.labels) == len(self.ids), "TODO: Must be same len message"
 
         assert (
             self.logger_config.tokenizer is not None
