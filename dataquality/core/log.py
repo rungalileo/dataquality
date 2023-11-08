@@ -364,7 +364,6 @@ def log_model_outputs(
     probs: Optional[Union[List, np.ndarray]] = None,
     inference_name: Optional[str] = None,
     exclude_embs: bool = False,
-    labels: Optional[np.ndarray] = None,
 ) -> None:
     """Logs model outputs for model during training/test/validation.
 
@@ -388,10 +387,6 @@ def log_model_outputs(
     assert (probs is not None) or (
         logits is not None
     ), "You must provide either logits or probs"
-    # No embeddings ever provided by user in seq2seq
-    if config.task_type == TaskType.seq2seq:
-        exclude_embs = True
-        embs = None
     assert (embs is None and exclude_embs) or (
         embs is not None and not exclude_embs
     ), "embs can be omitted if and only if exclude_embs is True"
@@ -407,7 +402,6 @@ def log_model_outputs(
         logits=logits.astype(np.float32) if isinstance(logits, np.ndarray) else logits,
         probs=probs.astype(np.float32) if isinstance(probs, np.ndarray) else probs,
         inference_name=inference_name,
-        labels=labels.astype(np.float32) if isinstance(labels, np.ndarray) else labels,
     )
     model_logger.log()
 

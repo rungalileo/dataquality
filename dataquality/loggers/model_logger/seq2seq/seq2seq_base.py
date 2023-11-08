@@ -36,7 +36,6 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         split: str = "",
         epoch: Optional[int] = None,
         inference_name: Optional[str] = None,
-        labels: Optional[np.ndarray] = None,
     ) -> None:
         super().__init__(
             embs=embs,
@@ -46,11 +45,9 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             split=split,
             epoch=epoch,
             inference_name=inference_name,
-            labels=labels,
         )
         self.token_logprobs = pa.array([])
         self.top_logprobs = pa.array([])
-        self.labels = labels
 
     @property
     def token_map_key(self) -> str:
@@ -67,11 +64,6 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             "Must pass in a valid batch with equal id and logit length, got "
             f"id: {len(self.ids)},logits: {len(self.logits)}"
         )
-        if self.labels is not None:
-            print(
-                "Labels should not be set for Seq2Seq tasks."
-                f"Labels are set to {self.labels}"
-            )
 
         assert (
             self.logger_config.tokenizer is not None
@@ -165,12 +157,16 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         batch_size = len(self.ids)
         data = {
             C.id.value: self.ids,
-            C.emb.value: self.embs,
             C.token_logprobs.value: self.token_logprobs,
             C.top_logprobs.value: self.top_logprobs,
             C.split_.value: [Split[self.split].value] * batch_size,
             C.epoch.value: [self.epoch] * batch_size,
         }
+        if self.embs:
+            if isinstance(self.embs, np.ndarray) and self.embs.size > 0:
+                # In seq2seq we have to save embs as a pyarrow array instead of numpy
+                # since the vaex DataFrames are stored as arrow files
+                data[C.emb.value] = pa.ListArray.from_pandas(self.embs.tolist())
         if self.split == Split.inference:
             data[C.inference_name.value] = [self.inference_name] * batch_size
         return data
