@@ -36,7 +36,6 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         split: str = "",
         epoch: Optional[int] = None,
         inference_name: Optional[str] = None,
-        labels: Optional[np.ndarray] = None,
     ) -> None:
         super().__init__(
             embs=embs,
@@ -46,11 +45,9 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             split=split,
             epoch=epoch,
             inference_name=inference_name,
-            labels=labels,
         )
         self.token_logprobs = pa.array([])
         self.top_logprobs = pa.array([])
-        self.labels = labels
 
     @property
     def token_map_key(self) -> str:
@@ -60,16 +57,12 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
 
     def validate_and_format(self) -> None:
         """Validate the lengths, calculate token level dep, extract GT probs"""
-        if self.labels is not None:
-            self.labels = self._convert_tensor_ndarray(self.labels)
         self.logits = self._convert_tensor_ndarray(self.logits)
         self.ids = self._convert_tensor_ndarray(self.ids)
         assert len(self.ids) == len(self.logits), (
             "Must pass in a valid batch with equal id and logit length, got "
             f"id: {len(self.ids)},logits: {len(self.logits)}"
         )
-        if self.labels is not None:
-            assert len(self.labels) == len(self.ids), "TODO: Must be same len message"
 
         assert (
             self.logger_config.tokenizer is not None

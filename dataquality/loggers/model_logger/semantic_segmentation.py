@@ -58,7 +58,6 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         split: str = "",
         epoch: Optional[int] = None,
         inference_name: Optional[str] = None,
-        labels: Optional[np.ndarray] = None,
     ) -> None:
         """Takes in SemSeg inputs as a list of batches
 

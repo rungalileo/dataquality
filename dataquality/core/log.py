@@ -364,7 +364,6 @@ def log_model_outputs(
     probs: Optional[Union[List, np.ndarray]] = None,
     inference_name: Optional[str] = None,
     exclude_embs: bool = False,
-    labels: Optional[np.ndarray] = None,
 ) -> None:
     """Logs model outputs for model during training/test/validation.
 
@@ -407,7 +406,6 @@ def log_model_outputs(
         logits=logits.astype(np.float32) if isinstance(logits, np.ndarray) else logits,
         probs=probs.astype(np.float32) if isinstance(probs, np.ndarray) else probs,
         inference_name=inference_name,
-        labels=labels.astype(np.float32) if isinstance(labels, np.ndarray) else labels,
     )
     model_logger.log()
 
