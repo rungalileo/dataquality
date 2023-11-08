@@ -1,6 +1,7 @@
 from random import choice
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
+import numpy as np
 from datasets import Dataset, DatasetDict, load_dataset
 from transformers import PreTrainedModel
 
@@ -192,6 +193,7 @@ def auto(
     dataset_config: Optional[Seq2SeqDatasetConfig] = None,
     training_config: Optional[Seq2SeqTrainingConfig] = None,
     generation_config: Optional[Seq2SeqGenerationConfig] = None,
+    embs: Optional[Union[List, np.ndarray]] = None,
     max_train_size: Optional[int] = None,
     wait: bool = True,
 ) -> Optional[PreTrainedModel]:
@@ -226,6 +228,7 @@ def auto(
     :param generation_config: Optional config for generating predictions.
         See `Seq2SeqGenerationConfig` for more details
     :param max_train_size: Optional max number of training examples to use.
+    :param embs: The embeddings per output sample
     :param wait: Whether to wait for Galileo to complete processing your run.
         Default True
 
@@ -288,7 +291,7 @@ def auto(
     )
 
     _log_dataset_dict(dd, input_col=input_col, target_col=target_col)
-    model = do_train(model, dataloaders, training_config, wait)
+    model = do_train(model, dataloaders, training_config, embs, wait)
     if training_config.return_model:
         return model
 
