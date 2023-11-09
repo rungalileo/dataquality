@@ -194,11 +194,6 @@ def create_data_embs_df(
     :param text_col: The column to use for calculating data embeddings
     :param lazy: If true, we lazily apply the model to encode the text
     """
-    if text_col not in df.get_column_names():
-        warnings.warn(
-            f"Text column {text_col} not in DataFrame, skipping data embeddings upload"
-        )
-        return df
     # This import takes up to 25 seconds, so we don't want to eagerly import it
     import transformers
     from sentence_transformers import SentenceTransformer
