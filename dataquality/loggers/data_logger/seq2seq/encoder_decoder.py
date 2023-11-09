@@ -67,12 +67,13 @@ class EncoderDecoderDataLogger(Seq2SeqDataLogger):
     all necessary properties (like `add_eos_token`) are set before setting your
     tokenizer as to match the tokenization process to your training process.
 
-    NOTE 2: Unlike EncoderOnly models, EncoderDecoder models explicitly separate the
+    NOTE 2: Unlike DecoderOnly models, EncoderDecoder models explicitly separate the
     processing of the <Input> and <Target> data. Therefore, we do not need any
     additional information to isolate / extract information on the <Target> data.
     """
 
-    __logger_name__ = "encoder_decoder"
+    # TODO Remove after testing
+    __logger_name__ = "seq2seq" # "encoder_decoder"
     logger_config: EncoderDecoderLoggerConfig = encoder_decoder_logger_config
     DATA_FOLDER_EXTENSION = {"emb": "hdf5", "prob": "hdf5", "data": "arrow"}
 
@@ -106,41 +107,30 @@ class EncoderDecoderDataLogger(Seq2SeqDataLogger):
         self.token_label_offsets = aligned_data.token_label_offsets
         self.token_label_positions = aligned_data.token_label_positions
 
+        # Save the target labels for each sample
         id_to_tokens = dict(zip(self.ids, tokenized_labels))
         self.logger_config.id_to_tokens[self.token_map_key].update(id_to_tokens)
 
     @classmethod
     def calculate_cutoffs(cls, df: DataFrame) -> DataFrame:
-        """Calculate the cutoff index for the input and target strings.
+        """Calculate the cutoff index for the input strings.
 
 
-        When using Encoder-Decoder models, the input AND target tokens are truncated
-        based on the respective Encoder (input) / Decoder (target) max_lengths
-        OR user specified max_lengths (note: these may be different between the
-        Encoder and Decoder).
+        When using Encoder-Decoder models, the input tokens are truncated
+        based on the respective Encoders max_lengths OR the user specified
+        max_length (note: these may be different between Encoder and Decoder
+        - see `max_input_tokens` vs. `max_target_tokens).
 
-        The model only "sees"/processes the tokens that remain after truncation,
-        for example if max_length=512 for the Encoder, no matter how long the Input,
-        the model will only process the first 512 tokens and ignore the rest.
-
-        This function adds two columns to the df:
+        This function adds one column to the df:
           - 'input_cutoff': the position of the last character in the input.
-          - 'target_cutoff': the position of the last character in the target.
         """
-        # Error checking
+        # Error checking + target_cutoff computation
         super().calculate_cutoffs(df)
 
-        # TODO we may be able to take advantage of shared code with Decoder
         tokenizer = cls.logger_config.tokenizer
         max_input_length = cls.logger_config.max_input_tokens
         df[C.input_cutoff.value] = get_cutoff_from_truncated_tokenization(
             df, C.text, tokenizer, max_input_length
         )
-
-        target_offsets_colname = C.token_label_offsets
-        if target_offsets_colname in df.get_column_names():
-            df[C.target_cutoff.value] = get_cutoff_from_saved_offsets(
-                df, target_offsets_colname
-            )
 
         return df

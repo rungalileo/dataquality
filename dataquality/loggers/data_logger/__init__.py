@@ -8,7 +8,7 @@ from dataquality.loggers.data_logger import (
     text_ner,
 )
 from dataquality.loggers.data_logger.base_data_logger import BaseGalileoDataLogger
-from dataquality.loggers.data_logger.seq2seq import encoder_decoder
+from dataquality.loggers.data_logger.seq2seq import encoder_decoder, decoder_only
 
 __all__ = [
     "image_classification",
@@ -20,4 +20,5 @@ __all__ = [
     "object_detection",
     "BaseGalileoDataLogger",
     "encoder_decoder",
+    "decoder_only"
 ]

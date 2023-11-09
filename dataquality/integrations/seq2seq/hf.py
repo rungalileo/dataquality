@@ -1,9 +1,10 @@
-from typing import List, Optional
+from typing import List, Optional, Union
 from warnings import warn
 
 from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizerFast
 
 import dataquality
+from dataquality.loggers.logger_config.seq2seq.decoder_only import DecoderOnlyLoggerConfig
 from dataquality.loggers.logger_config.seq2seq.seq2seq_base import Seq2SeqLoggerConfig
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
@@ -17,7 +18,7 @@ def set_tokenizer(
     max_input_tokens: Optional[int] = None,
     max_target_tokens: Optional[int] = None,
 ) -> None:
-    # TODO update
+    # TODO update comment
     """Seq2seq only. Set the tokenizer for your run
 
     Must be a fast tokenizer, and must support `decode`, `encode`, `encode_plus`.
@@ -50,7 +51,6 @@ def set_tokenizer(
     assert isinstance(logger_config, Seq2SeqLoggerConfig)
     logger_config.tokenizer = tokenizer
 
-    # This is relevant only for Encoder Decoder Models
     logger_config.max_input_tokens = max_input_tokens
     if logger_config.max_input_tokens is None:
         logger_config.max_input_tokens = tokenizer.model_max_length
@@ -63,6 +63,7 @@ def set_tokenizer(
             )
         )
 
+    # This is relevant only for Encoder Decoder Models
     current_task_type = get_task_type()
     if current_task_type == TaskType.encoder_decoder:
         logger_config.max_target_tokens = max_target_tokens
@@ -94,8 +95,11 @@ def watch(
     generation_splits: Optional[List[str]] = None,
     max_input_tokens: Optional[int] = None,
     max_target_tokens: Optional[int] = None,
+    response_template: Optional[Union[str, List[int]]] = None
 ) -> None:
     """Seq2seq only. Log model generations for your run
+
+    TODO Add response template to comment
 
     Iterates over a given dataset and logs the generations for each sample.
     `model` must be an instance of transformers PreTrainedModel and have a `generate`
@@ -114,6 +118,18 @@ def watch(
     assert model.can_generate(), "model must contain a `generate` method for seq2seq"
 
     set_tokenizer(tokenizer, max_input_tokens, max_target_tokens)
+
+    # Set the response template for DecoderOnly models
+    if response_template:
+        current_task_type = get_task_type()
+        # TODO Change to decoder only
+        if current_task_type == TaskType.seq2seq:
+            assert isinstance(logger_config, DecoderOnlyLoggerConfig)
+            logger_config.response_template = response_template
+        else:
+            warn(
+                "The resonse_template is only used for DecoderOnly models"
+            )
 
     logger_config.model = model
     logger_config.generation_config = generation_config

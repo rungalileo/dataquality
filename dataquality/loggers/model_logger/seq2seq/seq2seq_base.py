@@ -1,3 +1,4 @@
+from abc import abstractmethod
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -45,6 +46,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         embs: Optional[Union[List, np.ndarray]] = None,
         probs: Optional[Union[List, np.ndarray]] = None,
         logits: Optional[Union[List, np.ndarray]] = None,
+        logprobs: Optional[Union[List, np.ndarray]] = None,
         ids: Optional[Union[List, np.ndarray]] = None,
         split: str = "",
         epoch: Optional[int] = None,
@@ -61,6 +63,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             inference_name=inference_name,
             labels=labels,
         )
+        self.logprobs = logprobs if logprobs is not None else []
         self.token_logprobs = pa.array([])
         self.top_logprobs = pa.array([])
         self.labels = labels
@@ -81,6 +84,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         if self.labels is not None:
             self.labels = self._convert_tensor_ndarray(self.labels)
         self.logits = self._convert_tensor_ndarray(self.logits)
+        self.logprobs = self._convert_tensor_ndarray(self.logprobs)
         self.ids = self._convert_tensor_ndarray(self.ids)
         assert len(self.ids) == len(self.logits), (
             "Must pass in a valid batch with equal id and logit length, got "
@@ -93,17 +97,42 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             self.logger_config.tokenizer is not None
         ), "Must set your tokenizer. Use `dq.integrations.seq2seq.hf.set_tokenizer`"
 
+    @abstractmethod
+    # TODO Fix
+    def format_sample(
+            self, sample_id: int, sample_logits: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Formats and generates sample_logprobs and sample_top_indices
+
+        First, we remove padding and (for DecoderOnly models) restricts to just
+        response tokens.
+
+        Then we convert to logprobs using `logsoftmax` and compute the top-k
+        per token indices.
+
+        NOTE: These operations are all done at the sample level, due to shape
+        misalignment when removing padding etc. Moreover, we delay the computation
+        of logprobs and top_indices to avoid wasted computation over padding and
+        non-response tokens
+
+        Returns:
+            - formatted_labels: np.ndarray
+            - formatted_sample_logprobs: np.ndarray
+            - formatted_sample_top_indices: np.ndarray
+        """
+        pass
+
     def process_logprobs(
-        self, batch_ids: np.ndarray, batch_logprobs: np.ndarray
+        self, batch_ids: np.ndarray, batch_logits: np.ndarray
     ) -> Tuple[pa.array, pa.array]:
-        """Handle processing for a batch of sample logprobs
+        """Handle processing for a batch of sample logits
 
         For each sample in the batch extract / compute the following values:
             - Token level logprobs for the GT label
             - Token level top-k model logprobs: represented as a dictionary
             mapping {predicted_token: logprob}
 
-        batch_logprobs has shape - [batch_size, max_token_length, vocab_size], where
+        batch_logits has shape - [batch_size, max_token_length, vocab_size], where
         max_token_length is determined by the longest sample in the batch. Because
         other samples in the batch are padded to this max_length, we have to process
         each sample individually to ignore pad token indices.
@@ -125,33 +154,18 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
                 len(batch_top_logprobs) == batch_size
                 len(batch_top_logprobs[i]) = num_tokens_in_label[i]
         """
-        # Compute the top-k logprob indices across the batch.
         assert self.logger_config.tokenizer is not None  # Needed for linting
-        top_logprob_indices = get_top_logprob_indices(batch_logprobs)
 
         batch_token_logprobs = []
         batch_top_logprobs = []
         # Iterate through the samples in the batch
-        for sample_id, sample_logprobs, sample_top_indices in zip(
-            batch_ids, batch_logprobs, top_logprob_indices
+        for sample_id, sample_logprobs in zip(
+                batch_ids, batch_logits
         ):
-            sample_n_tokens = sample_logprobs.shape[0]
-            # Truncating the tokens computed in dq to ensure that there aren't more than
-            # what the model outputed (or we get an indexing error).
-            sample_labels = self._retrieve_sample_labels(
-                sample_id, max_tokens=sample_n_tokens
+            sample_labels, sample_logprobs, sample_top_indices = self.format_sample(
+                sample_id, sample_logprobs
             )
-            padding_side = self.logger_config.tokenizer.padding_side
-            sample_logprobs = remove_padding(
-                sample_labels,
-                padding_side,
-                sample_logprobs,
-            )
-            sample_top_indices = remove_padding(
-                sample_labels,
-                padding_side,
-                sample_top_indices,
-            )
+
             logprob_data = process_sample_logprobs(
                 sample_logprobs=sample_logprobs,
                 sample_labels=sample_labels,
@@ -183,7 +197,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
     def _write_dict_to_disk(self, path: str, object_name: str, data: Dict) -> None:
         save_arrow_file(path, object_name, data)
 
-    def _retrieve_sample_labels(self, sample_id: int, max_tokens: int) -> np.ndarray:
+    def _retrieve_sample_labels(self, sample_id: int, max_tokens: Optional[int]) -> np.ndarray:
         """Retrieve the labels array based on the sample id and truncate at max_tokens
 
         Labels gives the ground truth / target sample ids for

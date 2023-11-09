@@ -398,6 +398,8 @@ def log_model_outputs(
     if embs is None and exclude_embs:
         embs = np.random.rand(len(ids), DEFAULT_RANDOM_EMB_DIM)
 
+    # Note: When `logits` is a very large tensor (e.g. in Seq2Seq)
+    # converting to float32 can take a non-trivial amount of time
     model_logger = get_model_logger(
         task_type=None,
         embs=embs.astype(np.float32) if isinstance(embs, np.ndarray) else embs,

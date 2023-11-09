@@ -1,4 +1,4 @@
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Tuple
 
 import numpy as np
 
@@ -7,6 +7,8 @@ from dataquality.loggers.logger_config.seq2seq.encoder_decoder import (
     encoder_decoder_logger_config,
 )
 from dataquality.loggers.model_logger.seq2seq.seq2seq_base import Seq2SeqModelLogger
+from dataquality.utils.seq2seq import remove_padding
+from dataquality.utils.seq2seq.logprobs import get_top_logprob_indices
 
 
 class EncoderDecoderModelLogger(Seq2SeqModelLogger):
@@ -17,7 +19,7 @@ class EncoderDecoderModelLogger(Seq2SeqModelLogger):
     functionality from Seq2SeqModelLogger.
     """
 
-    __logger_name__ = "encoder_decoder"
+    __logger_name__ = "seq2seq" # "encoder_decoder"
     logger_config: EncoderDecoderLoggerConfig = encoder_decoder_logger_config
     log_file_ext = "arrow"
 
@@ -52,13 +54,41 @@ class EncoderDecoderModelLogger(Seq2SeqModelLogger):
         """
         super().validate_and_format()
 
-        # TODO: [JON] computing softmax on GPU can lead to speedups of ~5x
-        # TODO: Question, the validation done in the parent class does not seem
-        #   to propigate. Here e.g. we convert ids to np.array in super()
-        logprobs = self.convert_logits_to_logprobs(self.logits)
         (
             self.token_logprobs,
             self.top_logprobs,
         ) = self.process_logprobs(
-            self.ids, logprobs  # type: ignore
+            self.ids, self.logits  # type: ignore
         )
+
+    def format_sample(
+            self, sample_id: int, sample_logits: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Formats sample_logprobs and sample_top_indices
+
+        TODO Comment
+
+        Removes padding.
+
+        Returns:
+            - formatted_labels: np.ndarray
+            - formatted_sample_logprobs: np.ndarray
+            - formatted_sample_top_indices: np.ndarray
+        """
+        sample_n_tokens = sample_logits.shape[0]
+        # TODO this could be abstracted away
+        sample_labels = self._retrieve_sample_labels(
+            sample_id, max_tokens=sample_n_tokens
+        )
+        padding_side = self.logger_config.tokenizer.padding_side
+        num_sample_tokens = len(sample_labels)
+        sample_logits = remove_padding(
+            sample_logits,
+            num_sample_tokens,
+            padding_side,
+        )
+
+        sample_logprobs = self.convert_logits_to_logprobs(sample_logits)
+        sample_top_indices = get_top_logprob_indices(sample_logprobs)
+
+        return sample_labels, sample_logprobs, sample_top_indices

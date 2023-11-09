@@ -148,6 +148,11 @@ def rollup_offset_mapping(
         and returned as
         [(0, 1), (1, 20), (20, 22), (22, 23)], [{0, 1}, {1}, {}, {2}]
     """
+    # In rare cases, we can have a completely empty offsets_mapping
+    # when we have a tokenized empty string with no special chars.
+    if len(offset_mapping) == 0:
+        return [], []
+
     # The ordered span offsets for backtracking in case of an overlap
     # Like [(0, 1), (1, 3), (3, 4)]
     # We guarantee that the spans here will be contiguous, non-repeating and
@@ -250,3 +255,26 @@ def get_cutoff_from_saved_offsets(df: DataFrame, col_name: str) -> np.ndarray:
         )
 
     return df.func._get_position_of_last_offset_target(df[col_name])
+
+
+def align_response_tokens_to_character_spans(
+    tokenized_response: List[int], tokenizer: PreTrainedTokenizerFast, max_input_tokens: int
+) -> AlignedTokenData:
+    """Decodes then re-tokenizes the isolated response to get the character alignments
+
+    TODO This can prob be done with just tokenizing the "target" in isolation!!
+        Specifically, we tokenize the Targets, then we figure out the index
+        of the last token from the tokenized_response and find where that is
+        in the offset map and slice the offset map accordingly.
+        This may also avoid strange space issues with tokenizers hanlding words
+        at the start of a document.
+    """
+    decoded_response = tokenizer.decode(tokenized_response)
+    re_tokenized_response = tokenizer(
+        [decoded_response],
+        return_offsets_mapping=True,
+        add_special_tokens=False,
+        truncation=True,
+        max_length=max_input_tokens  # I believe that this should be handled! We can prob set to None
+    )
+    return align_tokens_to_character_spans(re_tokenized_response["offset_mapping"], disable_tqdm=True)

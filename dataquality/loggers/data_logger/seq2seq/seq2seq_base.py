@@ -22,6 +22,7 @@ from dataquality.schemas.split import Split
 from dataquality.utils.seq2seq.generation import (
     add_generated_output_to_df,
 )
+from dataquality.utils.seq2seq.offsets import get_cutoff_from_saved_offsets
 from dataquality.utils.vaex import rename_df
 
 if TYPE_CHECKING:
@@ -289,15 +290,29 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         info communicates to the UI how much of the respective string gets "seen"
         during processing by the model.
 
-        In this abstract definition, we provide very basic error checking.
+        In this abstract definition, we include basic error checking and compute
+        the cutoffs for the target column. This logic is shared by EncoderDecoder
+        and DecoderOnly models - it relies on the saved offset mapping.
 
-        See sub_classes (EncoderDecoder and DecoderOnly) for model specific details.
+        Therefore, this function adds the following column to df:
+          - 'target_cutoff': the position of the last character in the target
+
+        See sub_classes (EncoderDecoder and DecoderOnly) for model specific details
+        when computing `input_cutoff`.
         """
         tokenizer = cls.logger_config.tokenizer
         if tokenizer is None:
             raise GalileoException(
                 "You must set your tokenizer before calling dq.finish. Use "
                 "`dataquality.integrations.seq2seq.hf.watch`"
+            )
+
+        # The target column cutoff logic is shared between EncoderDecoder
+        # DecoderOnly models.
+        target_offsets_colname = C.token_label_offsets
+        if target_offsets_colname in df.get_column_names():
+            df[C.target_cutoff.value] = get_cutoff_from_saved_offsets(
+                df, target_offsets_colname
             )
 
         return df
