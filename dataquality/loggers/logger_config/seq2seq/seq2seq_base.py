@@ -1,7 +1,7 @@
 from collections import defaultdict
+from pydantic import validator
 from typing import Any, Dict, List, Optional, Set, Union
 
-from pydantic import validator
 from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizerFast
 
 from dataquality.loggers.logger_config.base_logger_config import BaseLoggerConfig
@@ -10,15 +10,6 @@ from dataquality.schemas.split import Split
 
 
 class Seq2SeqLoggerConfig(BaseLoggerConfig):
-    """Configuration for the Seq2SeqLogger.
-
-    Decoder only fields:
-        # For each split/inference-name, store sample id -> int as the
-        # length of full tokenized prompt
-
-        # Template indicating the start of the target output (i.e. assistant response)
-    """
-
     sample_length: Dict[str, int] = {}
     tokenizer: Optional[PreTrainedTokenizerFast] = None
     max_input_tokens: Optional[int] = None

@@ -69,12 +69,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         self.formatter = get_model_formatter(model_type, self.logger_config, split_key)
 
     def validate_and_format(self) -> None:
-        """Validate the lengths, calculate token level dep, extract GT probs
-
-        Encoder-Decoder models output `logits` just over the target tokens.
-        Therefore, we can very easily extract token log-prob info without
-        any additional data formatting / token splitting.
-        """
+        """Validate the lengths, calculate token level dep, extract GT probs"""
         self.logits = self._convert_tensor_ndarray(self.logits)
         self.logprobs = self._convert_tensor_ndarray(self.logprobs)
         self.ids = self._convert_tensor_ndarray(self.ids)

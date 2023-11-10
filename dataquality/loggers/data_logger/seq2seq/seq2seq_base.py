@@ -12,11 +12,11 @@ from dataquality.loggers.data_logger.base_data_logger import (
     DataSet,
     MetasType,
 )
+from dataquality.loggers.data_logger.seq2seq.formatters import get_data_formatter
 from dataquality.loggers.logger_config.seq2seq.seq2seq_base import (
     Seq2SeqLoggerConfig,
     seq2seq_logger_config,
 )
-from dataquality.loggers.data_logger.seq2seq.formatters import get_data_formatter
 from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.seq2seq import Seq2SeqInputCols as S2SIC
 from dataquality.schemas.split import Split
@@ -323,8 +323,6 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
                 "`dataquality.integrations.seq2seq.hf.watch`"
             )
 
-        # The target column cutoff logic is shared between EncoderDecoder
-        # DecoderOnly models.
         max_input_length = cls.logger_config.max_input_tokens
         df = add_input_cutoff_to_df(df, tokenizer, max_tokens=max_input_length)
         target_offsets_colname = S2SIC.token_label_offsets
