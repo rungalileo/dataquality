@@ -8,9 +8,7 @@ import pytest
 import torch
 
 from dataquality.exceptions import GalileoException
-from dataquality.loggers.model_logger.seq2seq.encoder_decoder import (
-    EncoderDecoderModelLogger,
-)
+from dataquality.loggers.model_logger.seq2seq.seq2seq_base import Seq2SeqModelLogger
 from dataquality.schemas.seq2seq import (
     TOP_K,
     AlignedTokenData,
@@ -282,7 +280,7 @@ def test_model_logger_remove_padding() -> None:
         split="training",
         epoch=0,
     )
-    logger = EncoderDecoderModelLogger(**log_data)
+    logger = Seq2SeqModelLogger(**log_data)
     logger.logger_config = config
     for sample_id, (sample_logprobs, sample_top_indices) in enumerate(
         zip(logprobs, top_indices)
@@ -292,7 +290,9 @@ def test_model_logger_remove_padding() -> None:
         assert np.allclose(sample_labels, tokenized_labels[sample_id])
 
         no_pad_logprobs = remove_padding(sample_logprobs, len(sample_labels), "right")
-        no_pad_top_indices = remove_padding(sample_top_indices, len(sample_labels), "right")
+        no_pad_top_indices = remove_padding(
+            sample_top_indices, len(sample_labels), "right"
+        )
         assert len(np.where(no_pad_logprobs == -1)[0]) == 0
         assert len(np.where(no_pad_top_indices == -1)[0]) == 0
 
@@ -309,7 +309,9 @@ def test_model_logger_remove_padding() -> None:
     ):
         sample_labels = logger._retrieve_sample_labels(sample_id, 100)
         no_pad_logprobs = remove_padding(sample_logprobs, len(sample_labels), "left")
-        no_pad_top_indices = remove_padding(sample_top_indices, len(sample_labels), "left")
+        no_pad_top_indices = remove_padding(
+            sample_top_indices, len(sample_labels), "left"
+        )
         assert len(np.where(no_pad_logprobs == -1)[0]) == 0
         assert len(np.where(no_pad_top_indices == -1)[0]) == 0
 

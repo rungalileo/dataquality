@@ -14,6 +14,11 @@ TOP_K = 5
 GENERATION_BATCH_SIZE = 100
 
 
+class Seq2SeqModelTypes(str, Enum):
+    encoder_decoder = "encoder_decoder"
+    decoder_only = "decoder_only"
+
+
 class Seq2SeqInputCols(str, Enum):
     id = "id"
     text = "text"
@@ -23,10 +28,12 @@ class Seq2SeqInputCols(str, Enum):
     generated_output = "generated_output"
     split_ = "split"
     tokenized_label = "tokenized_label"
-    token_label_positions = "token_label_positions"
-    token_label_offsets = "token_label_offsets"
     input_cutoff = "input_cutoff"
     target_cutoff = "target_cutoff"
+    # Columns saved as pyarrow arrays
+    token_label_positions = "token_label_positions"
+    token_label_offsets = "token_label_offsets"
+    system_prompts = "system_prompts"
 
     @classmethod
     def set_cols(cls, df: DataFrame) -> DataFrame:

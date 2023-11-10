@@ -17,11 +17,14 @@ from dataquality.dq_auto.text_classification import (
 )
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
-from dataquality.utils.auto import _apply_column_mapping, run_name_from_hf_dataset
+from dataquality.utils.auto import (
+    _apply_column_mapping,
+    get_meta_cols,
+    run_name_from_hf_dataset,
+)
 from dataquality.utils.patcher import PatchManager
 from dataquality.utils.setfit import (
     SetFitModelHook,
-    _get_meta_cols,
     _prepare_config,
     _setup_patches,
     get_trainer,
@@ -346,7 +349,7 @@ def do_model_eval(
     for split in [Split.train, Split.test, Split.val]:
         if split in encoded_data:
             ds = encoded_data[split]
-            meta_columns = _get_meta_cols(ds.column_names)
+            meta_columns = get_meta_cols(ds.column_names)
             dq_evaluate(
                 encoded_data[split],
                 split=split,
@@ -358,7 +361,7 @@ def do_model_eval(
     inf_names = [k for k in encoded_data if k not in Split.get_valid_keys()]
     for inf_name in inf_names:
         ds = encoded_data[inf_name]
-        meta_columns = _get_meta_cols(ds.column_names)
+        meta_columns = get_meta_cols(ds.column_names)
         dq_evaluate(
             ds,
             split=Split.inference,  # type: ignore

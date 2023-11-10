@@ -1,13 +1,24 @@
 from collections import defaultdict
-from typing import Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Union
 
+from pydantic import validator
 from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizerFast
 
 from dataquality.loggers.logger_config.base_logger_config import BaseLoggerConfig
+from dataquality.schemas.seq2seq import Seq2SeqModelTypes
 from dataquality.schemas.split import Split
 
 
 class Seq2SeqLoggerConfig(BaseLoggerConfig):
+    """Configuration for the Seq2SeqLogger.
+
+    Decoder only fields:
+        # For each split/inference-name, store sample id -> int as the
+        # length of full tokenized prompt
+
+        # Template indicating the start of the target output (i.e. assistant response)
+    """
+
     sample_length: Dict[str, int] = {}
     tokenizer: Optional[PreTrainedTokenizerFast] = None
     max_input_tokens: Optional[int] = None
@@ -17,6 +28,24 @@ class Seq2SeqLoggerConfig(BaseLoggerConfig):
     model: Optional[PreTrainedModel] = None
     generation_config: Optional[GenerationConfig] = None
     generation_splits: Set[Split] = set()
+    model_type: Seq2SeqModelTypes = Seq2SeqModelTypes.encoder_decoder
+    # Decoder only below
+    id_to_formatted_prompt_length: Dict[str, Dict[int, int]] = defaultdict(dict)
+    response_template: Optional[Union[str, List[int]]] = None
+
+    @validator("response_template")
+    def ensure_tokenized_response_template(
+        cls, response_template: Optional[Union[str, List[int]]], values: Dict[str, Any]
+    ) -> List[int]:
+        if response_template and isinstance(response_template, str):
+            tokenizer = values.get("tokenizer")
+            if tokenizer:
+                response: List[int] = tokenizer.encode(
+                    response_template, padding=False, add_special_tokens=False
+                )
+                return response
+
+        return response_template or []
 
     class Config:
         arbitrary_types_allowed = True

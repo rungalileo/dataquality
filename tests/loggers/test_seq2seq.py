@@ -12,16 +12,9 @@ from transformers import GenerationConfig, T5ForConditionalGeneration
 import dataquality as dq
 from dataquality.integrations.seq2seq.hf import set_tokenizer, watch
 from dataquality.loggers.data_logger.base_data_logger import DataSet
-from dataquality.loggers.data_logger.seq2seq.encoder_decoder import (
-    EncoderDecoderDataLogger,
-)
 from dataquality.loggers.data_logger.seq2seq.seq2seq_base import Seq2SeqDataLogger
-from dataquality.loggers.logger_config.seq2seq.encoder_decoder import (
-    encoder_decoder_logger_config,
-)
-from dataquality.loggers.model_logger.seq2seq.encoder_decoder import (
-    EncoderDecoderModelLogger,
-)
+from dataquality.loggers.logger_config.seq2seq.seq2seq_base import seq2seq_logger_config
+from dataquality.loggers.model_logger.seq2seq.seq2seq_base import Seq2SeqModelLogger
 from dataquality.schemas.seq2seq import (
     TOP_K,
     BatchGenerationData,
@@ -71,11 +64,11 @@ def test_log_dataset_encoder_decoder(
 ) -> None:
     # TODO Test with watch
     set_test_config(task_type="seq2seq")
-    logger = EncoderDecoderDataLogger()
+    logger = Seq2SeqDataLogger()
 
     with patch("dataquality.core.log.get_data_logger") as mock_method:
         mock_method.return_value = logger
-        set_tokenizer(tokenizer, encoder_decoder_logger_config)
+        set_tokenizer(tokenizer, seq2seq_logger_config)
         dq.log_dataset(
             dataset, text="summary", label="title", id="my_id", split="train"
         )
@@ -156,7 +149,7 @@ def test_log_model_outputs_encoder_decoder(
         split="training",
         epoch=0,
     )
-    logger = EncoderDecoderModelLogger(**log_data)
+    logger = Seq2SeqModelLogger(**log_data)
     logger.logger_config = config
     with patch("dataquality.core.log.get_model_logger") as mock_method:
         mock_method.return_value = logger
@@ -298,13 +291,13 @@ def test_tokenize_input_provide_maxlength(
     mock_generation_config = Mock(spec=GenerationConfig)
 
     # TODO: for now encoder_decoder covers general case
-    set_tokenizer(tokenizer_T5, encoder_decoder_logger_config, max_input_tokens=7)
+    set_tokenizer(tokenizer_T5, seq2seq_logger_config, max_input_tokens=7)
     input_text = "a b c d e f g h i j"
     generate_sample_output(
         input_text,
         mock_model,
         tokenizer_T5,
-        encoder_decoder_logger_config.max_input_tokens,
+        seq2seq_logger_config.max_input_tokens,
         mock_generation_config,
     )
 
@@ -341,13 +334,13 @@ def test_tokenize_input_doesnt_provide_maxlength(
     mock_generation_config = Mock(spec=GenerationConfig)
 
     # TODO: for now encoder_decoder covers general case
-    set_tokenizer(tokenizer_T5, encoder_decoder_logger_config)
+    set_tokenizer(tokenizer_T5, seq2seq_logger_config)
     input_text = "a b c d e f g h i j" * 100
     generate_sample_output(
         input_text,
         mock_model,
         tokenizer_T5,
-        encoder_decoder_logger_config.max_input_tokens,
+        seq2seq_logger_config.max_input_tokens,
         mock_generation_config,
     )
 
@@ -384,14 +377,14 @@ def test_tokenize_target_provide_maxlength_encoder_decoder(
     )
     dq.log_dataset(ds, text="input", label="target", split="train")
 
-    assert set(encoder_decoder_logger_config.id_to_tokens["training"]) == {0, 1}
-    assert len(encoder_decoder_logger_config.id_to_tokens["training"][0]) == 7
+    assert set(seq2seq_logger_config.id_to_tokens["training"]) == {0, 1}
+    assert len(seq2seq_logger_config.id_to_tokens["training"][0]) == 7
     # Check that it has two tokens: the token "2" + EOS token
-    assert len(encoder_decoder_logger_config.id_to_tokens["training"][1]) == 2
+    assert len(seq2seq_logger_config.id_to_tokens["training"][1]) == 2
     # Check that both sentences end with the same EOS token
     assert (
-        encoder_decoder_logger_config.id_to_tokens["training"][0][-1]
-        == encoder_decoder_logger_config.id_to_tokens["training"][1][-1]
+        seq2seq_logger_config.id_to_tokens["training"][0][-1]
+        == seq2seq_logger_config.id_to_tokens["training"][1][-1]
     )
 
 
@@ -417,19 +410,19 @@ def test_tokenize_target_doesnt_provide_maxlength_encoder_decoder(
     )
     dq.log_dataset(ds, text="input", label="target", split="train")
 
-    assert set(encoder_decoder_logger_config.id_to_tokens["training"]) == {0, 1}
+    assert set(seq2seq_logger_config.id_to_tokens["training"]) == {0, 1}
     # Make sure that the target is large enough to require truncation
     assert len(ds["target"][0]) > tokenizer_T5.model_max_length
     assert (
-        len(encoder_decoder_logger_config.id_to_tokens["training"][0])
+        len(seq2seq_logger_config.id_to_tokens["training"][0])
         == tokenizer_T5.model_max_length
     )
     # Check that it has two tokens: the token "2" + EOS token
-    assert len(encoder_decoder_logger_config.id_to_tokens["training"][1]) == 2
+    assert len(seq2seq_logger_config.id_to_tokens["training"][1]) == 2
     # Check that both sentences end with the same EOS token
     assert (
-        encoder_decoder_logger_config.id_to_tokens["training"][0][-1]
-        == encoder_decoder_logger_config.id_to_tokens["training"][1][-1]
+        seq2seq_logger_config.id_to_tokens["training"][0][-1]
+        == seq2seq_logger_config.id_to_tokens["training"][1][-1]
     )
 
 
@@ -461,7 +454,7 @@ def test_calculate_cutoffs_encoder_decoder(
     )
     dq.log_dataset(ds, text="input", label="target", split="train")
 
-    data_logger = EncoderDecoderDataLogger()
+    data_logger = Seq2SeqDataLogger()
     in_frame_split = vaex.open(
         f"{data_logger.input_data_path}/training/*.{data_logger.INPUT_DATA_FILE_EXT}"
     )

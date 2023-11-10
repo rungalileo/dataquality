@@ -2,7 +2,9 @@ import numpy as np
 
 
 def remove_padding(
-    padded_token_seq: np.ndarray, num_tokens: int, padding_side: str,
+    padded_token_seq: np.ndarray,
+    num_tokens: int,
+    padding_side: str,
 ) -> np.ndarray:
     """Remove padding tokens from a single token sequence
 

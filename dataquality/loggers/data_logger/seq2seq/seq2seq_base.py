@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any, List, Optional, Set, Tuple, Union, cast
 import pandas as pd
 import pyarrow as pa
 import vaex
-from vaex.dataframe import DataFrame
+from vaex import DataFrame
 
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger.base_data_logger import (
@@ -16,13 +16,17 @@ from dataquality.loggers.logger_config.seq2seq.seq2seq_base import (
     Seq2SeqLoggerConfig,
     seq2seq_logger_config,
 )
+from dataquality.loggers.data_logger.seq2seq.formatters import get_data_formatter
 from dataquality.schemas.dataframe import BaseLoggerDataFrames
-from dataquality.schemas.seq2seq import Seq2SeqInputCols as C
+from dataquality.schemas.seq2seq import Seq2SeqInputCols as S2SIC
 from dataquality.schemas.split import Split
 from dataquality.utils.seq2seq.generation import (
     add_generated_output_to_df,
 )
-from dataquality.utils.seq2seq.offsets import get_cutoff_from_saved_offsets
+from dataquality.utils.seq2seq.offsets import (
+    add_input_cutoff_to_df,
+    add_target_cutoff_to_df,
+)
 from dataquality.utils.vaex import rename_df
 
 if TYPE_CHECKING:
@@ -77,6 +81,13 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         self.texts: List[str] = []
         self.labels: List[str] = []
 
+        # Formatter distinguishes behavior between EncoderDecoder and DecoderOnly
+        model_type = self.logger_config.model_type
+        if model_type == "decoder_only":
+            # Only requied for Decoder-Only models
+            self.formatted_prompts: List[str] = []
+        self.formatter = get_data_formatter(model_type, self.logger_config)
+
     @property
     def token_map_key(self) -> str:
         if self.split == Split.inference and self.inference_name is not None:
@@ -103,16 +114,21 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         )
 
     def _get_input_df(self) -> DataFrame:
-        return vaex.from_dict(
+        data = vaex.from_dict(
             {
-                C.id.value: self.ids,
-                C.text.value: self.texts,
-                C.label.value: self.labels,
-                C.split_.value: [self.split] * len(self.ids),
-                C.token_label_positions.value: pa.array(self.token_label_positions),
-                C.token_label_offsets.value: pa.array(self.token_label_offsets),
+                S2SIC.id.value: self.ids,
+                S2SIC.text.value: self.texts,
+                S2SIC.label.value: self.labels,
+                S2SIC.split_.value: [self.split] * len(self.ids),
+                S2SIC.token_label_positions.value: pa.array(self.token_label_positions),
+                S2SIC.token_label_offsets.value: pa.array(self.token_label_offsets),
+                **self.meta,
             }
         )
+        if S2SIC.system_prompts in self.meta:
+            # We must store nested dicts as pyarrow arrays to support vaex export
+            data[S2SIC.system_prompts.value] = pa.array(self.meta[S2SIC.system_prompts])
+        return data
 
     def _log_df(
         self,
@@ -177,7 +193,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         Returns a list of valid attributes that for this Logger class
         :return: List[str]
         """
-        return list(map(lambda x: x.value, C))
+        return list(map(lambda x: x.value, S2SIC))
 
     @classmethod
     def _get_prob_cols(cls) -> List[str]:
@@ -272,7 +288,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             other_cols += ["id"]
 
         emb = df_copy[emb_cols]
-        data_df = C.set_cols(df_copy[other_cols])
+        data_df = S2SIC.set_cols(df_copy[other_cols])
         return BaseLoggerDataFrames(prob=prob, emb=emb, data=data_df)
 
     @classmethod
@@ -309,11 +325,11 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
 
         # The target column cutoff logic is shared between EncoderDecoder
         # DecoderOnly models.
-        target_offsets_colname = C.token_label_offsets
+        max_input_length = cls.logger_config.max_input_tokens
+        df = add_input_cutoff_to_df(df, tokenizer, max_tokens=max_input_length)
+        target_offsets_colname = S2SIC.token_label_offsets
         if target_offsets_colname in df.get_column_names():
-            df[C.target_cutoff.value] = get_cutoff_from_saved_offsets(
-                df, target_offsets_colname
-            )
+            df = add_target_cutoff_to_df(df, target_offsets_colname)
 
         return df
 

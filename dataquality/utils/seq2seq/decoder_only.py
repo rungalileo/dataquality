@@ -38,7 +38,10 @@ def extract_tokenized_responses(
         for i in range(len(matched_indices)):
             match_idx = matched_indices[-(i + 1)]
             # Check for exact match of the response template token ids
-            if t_prompt[match_idx: match_idx + len(response_template)] == response_template:
+            if (
+                t_prompt[match_idx : match_idx + len(response_template)]
+                == response_template
+            ):
                 response_token_ids_start_idx = match_idx
 
         tokenized_response = []
@@ -46,12 +49,14 @@ def extract_tokenized_responses(
         if response_token_ids_start_idx is None:
             warn(
                 f"Could not find response key `{response_template}` in the "
-                f'following instance: `{t_prompt}`. '
+                f"following instance: `{t_prompt}`. "
                 f"This instance will have an <Empty> Target Output. "
-                f"Note, if this happens often, consider increasing the `max_seq_length`."
+                f"Note, if this happens often, consider increasing `max_seq_length`."
             )
         else:
-            response_token_ids_end_idx = response_token_ids_start_idx + len(response_template)
+            response_token_ids_end_idx = response_token_ids_start_idx + len(
+                response_template
+            )
             tokenized_response = t_prompt[response_token_ids_end_idx:]
 
         tokenized_responses.append(tokenized_response)

@@ -8,14 +8,12 @@ from transformers import GenerationConfig, T5ForConditionalGeneration
 
 import dataquality as dq
 from dataquality.integrations.seq2seq.hf import watch
-from dataquality.loggers.data_logger.seq2seq.encoder_decoder import (
-    EncoderDecoderDataLogger,
-)
+from dataquality.loggers.data_logger.seq2seq.seq2seq_base import Seq2SeqDataLogger
 from dataquality.schemas.seq2seq import Seq2SeqInputCols as C
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.seq2seq.offsets import (
-    get_cutoff_from_saved_offsets,
-    get_cutoff_from_truncated_tokenization,
+    add_input_cutoff_to_df,
+    add_target_cutoff_to_df,
     rollup_offset_mapping,
 )
 from tests.conftest import tokenizer_T5
@@ -142,12 +140,12 @@ def test_rollup_spans(
     assert rollup_offset_mapping(offsets) == (span_offsets, span_positions)
 
 
-def test_get_position_of_last_offset_input(
+def test_add_input_cutoff_to_df(
     set_test_config: Callable, cleanup_after_use: Generator
 ):
     # TODO Consider if need to have this separate for EncoderDecoder and Decoder-Only
     """
-    Test that get_position_of_last_offset_input returns the correct cut-off point for
+    Test that add_input_cutoff_to_df returns the correct cut-off point for
     the input text string.
 
     We use the EncoderDecoder model, but this serves as a generic test for both
@@ -169,14 +167,15 @@ def test_get_position_of_last_offset_input(
     )
     dq.log_dataset(ds, text="input", label="target", split="train")
 
-    data_logger = EncoderDecoderDataLogger()
+    data_logger = Seq2SeqDataLogger()
     in_frame_split = vaex.open(
         f"{data_logger.input_data_path}/training/*.{data_logger.INPUT_DATA_FILE_EXT}"
     )
-    input_offsets = get_cutoff_from_truncated_tokenization(
-        in_frame_split, C.text, tokenizer_T5, data_logger.logger_config.max_input_tokens
-    ).tolist()
+    df = add_input_cutoff_to_df(
+        in_frame_split, tokenizer_T5, C.text, data_logger.logger_config.max_input_tokens
+    )
 
+    input_offsets = df["input_cutoff"].tolist()
     assert len(input_offsets) == 2
     # The EOS token is always the last token, which we don't count for the cutoff point
     # The 4 tokens are 3 tokens 'dog' + EOS
@@ -185,11 +184,11 @@ def test_get_position_of_last_offset_input(
     assert input_2[: input_offsets[1]] == "bird"
 
 
-def test_get_position_of_last_offset_target(
+def test_add_target_cutoff_to_df(
     set_test_config: Callable, cleanup_after_use: Generator
 ):
     """
-    Test that get_position_of_last_offset_target returns the correct cut-off point for
+    Test that add_target_cutoff_to_df returns the correct cut-off point for
     the target text string.
 
     Note that this just applies to EncoderDecoder models.
@@ -210,13 +209,12 @@ def test_get_position_of_last_offset_target(
     )
     dq.log_dataset(ds, text="input", label="target", split="train")
 
-    data_logger = EncoderDecoderDataLogger()
+    data_logger = Seq2SeqDataLogger()
     in_frame_split = vaex.open(
         f"{data_logger.input_data_path}/training/*.{data_logger.INPUT_DATA_FILE_EXT}"
     )
-    target_offsets = get_cutoff_from_saved_offsets(
-        in_frame_split, C.token_label_offsets
-    ).tolist()
+    df = add_target_cutoff_to_df(in_frame_split, C.token_label_offsets)
+    target_offsets = df["target_cutoff"].tolist()
 
     assert len(target_offsets) == 2
     # The EOS token is always the last token, which we don't count for the cutoff point

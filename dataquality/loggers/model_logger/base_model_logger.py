@@ -16,7 +16,6 @@ from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.dq_logger import get_dq_logger
 from dataquality.utils.hdf5_store import _save_hdf5_file
-from dataquality.utils.thread_pool import ThreadPoolManager
 
 analytics = Analytics(ApiClient, config)  # type: ignore
 
@@ -33,7 +32,6 @@ class BaseGalileoModelLogger(BaseGalileoLogger):
         split: str = "",
         epoch: Optional[int] = None,
         inference_name: Optional[str] = None,
-        labels: Optional[np.ndarray] = None,
     ) -> None:
         super().__init__()
         # Need to compare to None because they may be np arrays which cannot be

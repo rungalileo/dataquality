@@ -1,8 +1,13 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional, Union
 
 import pandas as pd
 from datasets import Dataset, DatasetDict
+
+from dataquality.integrations.seq2seq.formatters.base import (
+    BaseFormatter,
+    DefaultFormatter,
+)
 
 
 @dataclass
@@ -46,9 +51,17 @@ class BaseAutoDatasetConfig:
     # Column names
     input_col: str = "text"
     target_col: str = "label"
+    # Dataset input / output formatter
+    formatter: BaseFormatter = field(default_factory=DefaultFormatter)
 
     def __post_init__(self) -> None:
-        if not any([self.hf_data, self.train_path, self.train_data]):
+        if not any(
+            [
+                self.hf_data is not None,
+                self.train_path is not None,
+                self.train_data is not None,
+            ]
+        ):
             raise ValueError(
                 "One of hf_data, train_path, or train_data must be provided."
                 "To use a random demo dataset in `auto`, set dataset_config to None."
@@ -71,6 +84,8 @@ class BaseAutoTrainingConfig:
         None, data embeddings will be created only if a GPU is available
     :param return_model: Whether to return the trained model at the end of auto.
         Default False
+    :param data_embs_col: Optional text col on which to compute data embeddings.
+        If not set, we default to 'text'
     """
 
     model: str = "distilbert-base-uncased"
@@ -78,4 +93,5 @@ class BaseAutoTrainingConfig:
     learning_rate: float = 3e-4
     batch_size: int = 4
     create_data_embs: Optional[bool] = None
+    data_embs_col: str = "text"
     return_model: bool = False

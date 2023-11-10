@@ -3,9 +3,8 @@ from warnings import warn
 
 from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizerFast
 
-import dataquality
-from dataquality.loggers.logger_config.seq2seq.decoder_only import DecoderOnlyLoggerConfig
-from dataquality.loggers.logger_config.seq2seq.seq2seq_base import Seq2SeqLoggerConfig
+from dataquality.loggers.logger_config.seq2seq.seq2seq_base import seq2seq_logger_config
+from dataquality.schemas.seq2seq import Seq2SeqModelTypes
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.helpers import check_noop
@@ -40,20 +39,19 @@ def set_tokenizer(
     all necessary properties (like `add_eos_token`) are set before setting your
     tokenizer so as to match the tokenization process to your training process.
     """
+    task_type = get_task_type()
+    assert task_type == TaskType.seq2seq, "This method is only supported for seq2seq"
     assert isinstance(
         tokenizer, PreTrainedTokenizerFast
     ), "Tokenizer must be an instance of PreTrainedTokenizerFast"
     assert getattr(tokenizer, "is_fast", False), "Tokenizer must be a fast tokenizer"
     for attr in ["encode", "decode", "encode_plus", "padding_side"]:
         assert hasattr(tokenizer, attr), f"Tokenizer must support `{attr}`"
+    seq2seq_logger_config.tokenizer = tokenizer
 
-    logger_config = dataquality.get_data_logger().logger_config
-    assert isinstance(logger_config, Seq2SeqLoggerConfig)
-    logger_config.tokenizer = tokenizer
-
-    logger_config.max_input_tokens = max_input_tokens
-    if logger_config.max_input_tokens is None:
-        logger_config.max_input_tokens = tokenizer.model_max_length
+    seq2seq_logger_config.max_input_tokens = max_input_tokens
+    if seq2seq_logger_config.max_input_tokens is None:
+        seq2seq_logger_config.max_input_tokens = tokenizer.model_max_length
         warn(
             (
                 "The argument max_input_tokens is not set, we will use the value "
@@ -64,11 +62,10 @@ def set_tokenizer(
         )
 
     # This is relevant only for Encoder Decoder Models
-    current_task_type = get_task_type()
-    if current_task_type == TaskType.encoder_decoder:
-        logger_config.max_target_tokens = max_target_tokens
-        if logger_config.max_target_tokens is None:
-            logger_config.max_target_tokens = tokenizer.model_max_length
+    if seq2seq_logger_config.model_type == Seq2SeqModelTypes.encoder_decoder:
+        seq2seq_logger_config.max_target_tokens = max_target_tokens
+        if seq2seq_logger_config.max_target_tokens is None:
+            seq2seq_logger_config.max_target_tokens = tokenizer.model_max_length
             warn(
                 (
                     "The argument max_target_tokens is not set, we will use the value "
@@ -84,7 +81,7 @@ def set_tokenizer(
         )
 
     # Seq2Seq doesn't have labels but we need to set this to avoid validation errors
-    logger_config.labels = []
+    seq2seq_logger_config.labels = []
 
 
 @check_noop
@@ -95,7 +92,7 @@ def watch(
     generation_splits: Optional[List[str]] = None,
     max_input_tokens: Optional[int] = None,
     max_target_tokens: Optional[int] = None,
-    response_template: Optional[Union[str, List[int]]] = None
+    response_template: Optional[Union[str, List[int]]] = None,
 ) -> None:
     """Seq2seq only. Log model generations for your run
 
@@ -109,9 +106,8 @@ def watch(
     and generation config and not attaching any hooks to the model. We call it 'watch'
     for consistency.
     """
-    logger_config = dataquality.get_data_logger().logger_config
-    assert isinstance(logger_config, Seq2SeqLoggerConfig)
-
+    task_type = get_task_type()
+    assert task_type == TaskType.seq2seq, "This method is only supported for seq2seq"
     assert isinstance(
         model, PreTrainedModel
     ), "model must be an instance of transformers PreTrainedModel"
@@ -121,18 +117,16 @@ def watch(
 
     # Set the response template for DecoderOnly models
     if response_template:
-        current_task_type = get_task_type()
-        # TODO Change to decoder only
-        if current_task_type == TaskType.seq2seq:
-            assert isinstance(logger_config, DecoderOnlyLoggerConfig)
-            logger_config.response_template = response_template
-        else:
+        if seq2seq_logger_config.model_type == Seq2SeqModelTypes.encoder_decoder:
             warn(
-                "The resonse_template is only used for DecoderOnly models"
+                "The argument response_template is only used when working with "
+                "DecoderOnly models. This value will be ignored."
             )
+        else:
+            seq2seq_logger_config.response_template = response_template
 
-    logger_config.model = model
-    logger_config.generation_config = generation_config
+    seq2seq_logger_config.model = model
+    seq2seq_logger_config.generation_config = generation_config
 
     generation_splits = generation_splits or []
     generation_splits_set = {Split.test}
@@ -146,4 +140,4 @@ def watch(
 
         generation_splits_set.add(Split[split])
 
-    logger_config.generation_splits = generation_splits_set
+    seq2seq_logger_config.generation_splits = generation_splits_set

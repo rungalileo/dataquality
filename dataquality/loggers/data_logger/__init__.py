@@ -8,7 +8,11 @@ from dataquality.loggers.data_logger import (
     text_ner,
 )
 from dataquality.loggers.data_logger.base_data_logger import BaseGalileoDataLogger
-from dataquality.loggers.data_logger.seq2seq import encoder_decoder, decoder_only
+from dataquality.loggers.data_logger.seq2seq import (
+    chat,
+    completion,
+    seq2seq_base,
+)
 
 __all__ = [
     "image_classification",
@@ -19,6 +23,7 @@ __all__ = [
     "text_ner",
     "object_detection",
     "BaseGalileoDataLogger",
-    "encoder_decoder",
-    "decoder_only"
+    "seq2seq_base",  # Import needed for seq2seq subclass discovery
+    "chat",
+    "completion",
 ]

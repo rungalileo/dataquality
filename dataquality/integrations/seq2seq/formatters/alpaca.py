@@ -1,29 +1,7 @@
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Dict, Type
+from typing import Dict, List, Optional
 
-
-@dataclass
-class BaseFormatter(ABC):
-    name: str
-    input_col: str
-    target_col: str
-
-    @abstractmethod
-    def format_sample(self, sample: Dict[str, str]) -> Dict[str, str]:
-        """Base formatter is identity function"""
-        pass
-
-
-@dataclass
-class DefaultFormatter(BaseFormatter):
-    name: str = "default"
-    input_col: str = "text"
-    target_col: str = "label"
-
-    def format_sample(self, sample: Dict[str, str]) -> Dict[str, str]:
-        """Base formatter is identity function"""
-        return sample
+from dataquality.integrations.seq2seq.formatters.base import BaseFormatter
 
 
 @dataclass
@@ -31,8 +9,15 @@ class AlpacaFormatter(BaseFormatter):
     name: str = "tatsu-lab/alpaca"
     input_col: str = "formatted_input"
     target_col: str = "output"
+    max_train_size: int = 1000
 
-    def format_sample(self, sample: Dict[str, str]) -> Dict[str, str]:
+    @property
+    def remove_cols(self) -> List[str]:
+        return ["input", "text"]
+
+    def format_sample(
+        self, sample: Dict[str, str], idx: Optional[int] = None
+    ) -> Dict[str, str]:
         """Formats the alpaca dataset for seq2seq
 
         Example:
@@ -41,7 +26,7 @@ class AlpacaFormatter(BaseFormatter):
             ...     "input": "The quick brown fox jumped over the lazy dog.",
             ...     "target": "The quick brown fox jumped over the lazy dog.",
             ... }
-            >>> format_alpaca(sample)
+            >>> AlpacaFormatter().format_sample(sample)
             {
                 "formatted_input": (
                     "Human: Summarize the following paragraph "
@@ -55,16 +40,3 @@ class AlpacaFormatter(BaseFormatter):
         return {
             "formatted_input": f"{instruction} {context}",
         }
-
-
-FORMATTER_MAPPING: Dict[str, Type[BaseFormatter]] = {
-    AlpacaFormatter.name: AlpacaFormatter,
-}
-
-
-def get_formatter(name: str) -> BaseFormatter:
-    """Returns the formatter for the given name
-
-    If the name isn't found, returns the base formatter
-    """
-    return FORMATTER_MAPPING.get(name, DefaultFormatter)()  # type: ignore

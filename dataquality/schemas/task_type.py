@@ -16,8 +16,8 @@ class TaskType(str, Enum):
     prompt_evaluation = "prompt_evaluation"
     seq2seq = "seq2seq"  # deprecated, use encoder_decoder or decoder_only
     llm_monitor = "llm_monitor"
-    encoder_decoder = "encoder_decoder"
-    decoder_only = "decoder_only"
+    seq2seq_completion = "seq2seq_completion"
+    seq2seq_chat = "seq2seq_chat"
 
     @staticmethod
     def get_valid_tasks() -> List["TaskType"]:
@@ -42,6 +42,6 @@ class TaskType(str, Enum):
             7: TaskType.prompt_evaluation,
             8: TaskType.seq2seq,  # deprecated
             9: TaskType.llm_monitor,
-            10: TaskType.encoder_decoder,
-            11: TaskType.decoder_only
+            10: TaskType.seq2seq_completion,
+            11: TaskType.seq2seq_chat,
         }[task_int]

@@ -1,24 +1,19 @@
-from abc import abstractmethod
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pyarrow as pa
-from scipy.special import log_softmax
 
 from dataquality.loggers.logger_config.seq2seq.seq2seq_base import (
     Seq2SeqLoggerConfig,
     seq2seq_logger_config,
 )
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
+from dataquality.loggers.model_logger.seq2seq.formatters import get_model_formatter
 from dataquality.schemas.seq2seq import TOP_LOGPROBS_SCHEMA
 from dataquality.schemas.seq2seq import Seq2SeqOutputCols as C
 from dataquality.schemas.split import Split
 from dataquality.utils.arrow import save_arrow_file
-from dataquality.utils.seq2seq import (
-    remove_padding,
-)
 from dataquality.utils.seq2seq.logprobs import (
-    get_top_logprob_indices,
     process_sample_logprobs,
 )
 
@@ -51,7 +46,6 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         split: str = "",
         epoch: Optional[int] = None,
         inference_name: Optional[str] = None,
-        labels: Optional[np.ndarray] = None,
     ) -> None:
         super().__init__(
             embs=embs,
@@ -61,28 +55,26 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             split=split,
             epoch=epoch,
             inference_name=inference_name,
-            labels=labels,
         )
         self.logprobs = logprobs if logprobs is not None else []
         self.token_logprobs = pa.array([])
         self.top_logprobs = pa.array([])
-        self.labels = labels
-
-    @property
-    def token_map_key(self) -> str:
-        if self.split == Split.inference and self.inference_name is not None:
-            return self.inference_name
-        return str(self.split)
+        # Formatter distinguishes behavior between EncoderDecoder and DecoderOnly
+        model_type = self.logger_config.model_type
+        split_key = (
+            str(self.split)
+            if (self.split != Split.inference and self.inference_name is not None)
+            else str(self.inference_name)
+        )
+        self.formatter = get_model_formatter(model_type, self.logger_config, split_key)
 
     def validate_and_format(self) -> None:
-        """Validate shared data format for seq2seq
+        """Validate the lengths, calculate token level dep, extract GT probs
 
-        Note that this base fn does the validation
-        Sub classes that inherit from this can have modality specific
-         formatting (such as EncoderDecoder and DecoderOnly)
+        Encoder-Decoder models output `logits` just over the target tokens.
+        Therefore, we can very easily extract token log-prob info without
+        any additional data formatting / token splitting.
         """
-        if self.labels is not None:
-            self.labels = self._convert_tensor_ndarray(self.labels)
         self.logits = self._convert_tensor_ndarray(self.logits)
         self.logprobs = self._convert_tensor_ndarray(self.logprobs)
         self.ids = self._convert_tensor_ndarray(self.ids)
@@ -90,37 +82,16 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             "Must pass in a valid batch with equal id and logit length, got "
             f"id: {len(self.ids)},logits: {len(self.logits)}"
         )
-        if self.labels is not None:
-            assert len(self.labels) == len(self.ids), "TODO: Must be same len message"
 
         assert (
             self.logger_config.tokenizer is not None
         ), "Must set your tokenizer. Use `dq.integrations.seq2seq.hf.set_tokenizer`"
-
-    @abstractmethod
-    # TODO Fix
-    def format_sample(
-            self, sample_id: int, sample_logits: np.ndarray
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """Formats and generates sample_logprobs and sample_top_indices
-
-        First, we remove padding and (for DecoderOnly models) restricts to just
-        response tokens.
-
-        Then we convert to logprobs using `logsoftmax` and compute the top-k
-        per token indices.
-
-        NOTE: These operations are all done at the sample level, due to shape
-        misalignment when removing padding etc. Moreover, we delay the computation
-        of logprobs and top_indices to avoid wasted computation over padding and
-        non-response tokens
-
-        Returns:
-            - formatted_labels: np.ndarray
-            - formatted_sample_logprobs: np.ndarray
-            - formatted_sample_top_indices: np.ndarray
-        """
-        pass
+        (
+            self.token_logprobs,
+            self.top_logprobs,
+        ) = self.process_logprobs(
+            self.ids, self.logits  # type: ignore
+        )
 
     def process_logprobs(
         self, batch_ids: np.ndarray, batch_logits: np.ndarray
@@ -159,12 +130,12 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         batch_token_logprobs = []
         batch_top_logprobs = []
         # Iterate through the samples in the batch
-        for sample_id, sample_logprobs in zip(
-                batch_ids, batch_logits
-        ):
-            sample_labels, sample_logprobs, sample_top_indices = self.format_sample(
-                sample_id, sample_logprobs
-            )
+        for sample_id, sample_logprobs in zip(batch_ids, batch_logits):
+            (
+                sample_labels,
+                sample_logprobs,
+                sample_top_indices,
+            ) = self.formatter.format_sample(sample_id, sample_logprobs)
 
             logprob_data = process_sample_logprobs(
                 sample_logprobs=sample_logprobs,
@@ -196,33 +167,3 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
 
     def _write_dict_to_disk(self, path: str, object_name: str, data: Dict) -> None:
         save_arrow_file(path, object_name, data)
-
-    def _retrieve_sample_labels(self, sample_id: int, max_tokens: Optional[int]) -> np.ndarray:
-        """Retrieve the labels array based on the sample id and truncate at max_tokens
-
-        Labels gives the ground truth / target sample ids for
-        each token in the sequence:
-
-        e.g. for sample_id = 8 --> labels = [0, 10, 16, ...]
-        """
-        labels = self.logger_config.id_to_tokens[self.token_map_key][sample_id]
-        if max_tokens is not None:
-            labels = labels[:max_tokens]
-        return np.array(labels)
-
-    def convert_logits_to_logprobs(
-        self, sample_logits: Union[List[np.ndarray], np.ndarray]
-    ) -> np.ndarray:
-        """Converts logits (unnormalized log probabilities) to logprobs via log_softmax
-
-        This is a special use case for Seq2Seq, people generally
-        work with logprobs. One reason for this is that the logsoftmax
-        function takes advantage of the logsumexp "trick" to compute a
-        numerically stable version of log(softmax(x)).
-        """
-        # axis ensures that in a matrix of probs with dims num_samples x num_classes
-        # we take the softmax for each sample
-        if not isinstance(sample_logits, np.ndarray):
-            sample_logits = self._convert_tensor_ndarray(sample_logits)
-
-        return log_softmax(sample_logits, axis=-1)
