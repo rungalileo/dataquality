@@ -18,7 +18,6 @@ def set_tokenizer(
     max_input_tokens: Optional[int] = None,
     max_target_tokens: Optional[int] = None,
 ) -> None:
-    # TODO update comment
     """Seq2seq only. Set the tokenizer for your run
 
     Must be a fast tokenizer, and must support `decode`, `encode`, `encode_plus`.
@@ -96,8 +95,6 @@ def watch(
     response_template: Optional[List[int]] = None,
 ) -> None:
     """Seq2seq only. Log model generations for your run
-
-    TODO Add response template to comment
 
     Iterates over a given dataset and logs the generations for each sample.
     `model` must be an instance of transformers PreTrainedModel and have a `generate`

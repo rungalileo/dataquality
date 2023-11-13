@@ -77,7 +77,6 @@ class EncoderDecoderModelFormatter(BaseSeq2SeqModelFormatter):
             - formatted_sample_top_indices: np.ndarray
         """
         sample_n_tokens = sample_logits.shape[0]
-        # TODO this could be abstracted away
         sample_labels = self.retrieve_sample_labels(
             sample_id, max_tokens=sample_n_tokens, split_key=split_key
         )

@@ -152,7 +152,6 @@ class EncoderDecoderDataFormatter(BaseSeq2SeqDataFormatter):
 class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
     """Seq2Seq data logger for DecoderOnly models
 
-    TODO Update
     Logging input data for DecoderOnly models requires:
     1. tokenizer: This must be an instance of PreTrainedTokenizerFast from huggingface
         (ie T5TokenizerFast or GPT2TokenizerFast, etc). Your tokenizer should have an
@@ -211,14 +210,11 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
         max_tokens: Optional[int],
         data_logger: Seq2SeqDataLogger,
     ) -> None:
-        """Further validation for Decoder-Only
+        """Further formatting for Decoder-Only
 
-        Formatted prompt is combined input/target
+        Text is the formatted prompt of combined input/target
 
-        Tokenize full prompt to identify where the response tokens are
-            ()
-
-        Tokenize self.labels, using the user's `max_taget_tokens`. From
+        Tokenize text using the user's `max_input_tokens`. From
         the tokenized outputs generate the corresponding token alignments
         (i.e. label_offsets and lable_positions).
 
@@ -226,10 +222,8 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
         is essential during model logging for extracting GT token label
         information.
 
-
-        Returns:
-        - tokenized_labels: List of tokenized labels
-        - formatted_prompt_lengths: List of formatted prompt lengths
+        We also save a `formatted_prompt_lengths` map used later to remove
+        padding tokens.
         """
         # For decoder-only the text is the formatted prompt (input/target combined)
         formatted_prompts = text
@@ -260,14 +254,14 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
                 aligned_data.token_label_positions[0]
             )
 
-        # Save the length of the formatted prompt - used later to remove padding
-        formatted_prompt_lengths = [
-            len(prompt) for prompt in tokenized_formatted_prompts
-        ]
         # Save the tokenized response labels for each samples
         id_to_tokens = dict(zip(data_logger.ids, tokenized_labels))
         self.logger_config.id_to_tokens[data_logger.split_key].update(id_to_tokens)
 
+        # Save the length of the formatted prompt - used later to remove padding
+        formatted_prompt_lengths = [
+            len(prompt) for prompt in tokenized_formatted_prompts
+        ]
         id_to_formatted_prompt_length = dict(
             zip(data_logger.ids, formatted_prompt_lengths)
         )
@@ -276,12 +270,9 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
         )
 
     def set_input_cutoff(self, df: DataFrame) -> DataFrame:
-        """Calculate the cutoff index for the input and target strings.
+        """Calculate the cutoff index for the input texts
 
-        For now, we do the following:
-            - Compute the cutoff for the Target based on the processed
-            self.token_label_positions + offsets.
-            - Set the cutoff for the Input to just be the entire sample
+        Set the cutoff for the Input to just be the entire sample
             i.e. the length of `text`
         """
         # Assign input_cutoff always to be the full strings
