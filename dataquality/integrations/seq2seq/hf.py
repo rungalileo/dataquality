@@ -3,6 +3,7 @@ from warnings import warn
 
 from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizerFast
 
+from dataquality.exceptions import GalileoException
 from dataquality.loggers.logger_config.seq2seq.seq2seq_base import seq2seq_logger_config
 from dataquality.schemas.seq2seq import Seq2SeqModelTypes
 from dataquality.schemas.split import Split
@@ -124,6 +125,11 @@ def watch(
             )
         else:
             seq2seq_logger_config.response_template = response_template
+    elif seq2seq_logger_config.model_type == Seq2SeqModelTypes.decoder_only:
+        raise GalileoException(
+            "You must specify a `response_template` when using Decoder-Only models."
+            " This is necessary to internally isolate the target response tokens."
+        )
 
     seq2seq_logger_config.model = model
     seq2seq_logger_config.generation_config = generation_config

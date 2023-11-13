@@ -126,12 +126,12 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         batch_token_logprobs = []
         batch_top_logprobs = []
         # Iterate through the samples in the batch
-        for sample_id, sample_logprobs in zip(batch_ids, batch_logits):
+        for sample_id, sample_logits in zip(batch_ids, batch_logits):
             (
                 sample_labels,
                 sample_logprobs,
                 sample_top_indices,
-            ) = self.formatter.format_sample(sample_id, sample_logprobs)
+            ) = self.formatter.format_sample(sample_id, sample_logits)
 
             logprob_data = process_sample_logprobs(
                 sample_logprobs=sample_logprobs,
