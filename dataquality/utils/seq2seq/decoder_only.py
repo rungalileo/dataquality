@@ -25,15 +25,16 @@ def extract_tokenized_responses(
     If a sample does not contain the response_template we represent the
     tokenized_response for that sample as [] - i.e. the <Empty String>.
     """
+    if not response_template:
+        return [[]] * len(tokenized_formatted_prompts)
+
     tokenized_responses: List[List[int]] = []
     for t_prompt in tokenized_formatted_prompts:
-        if not response_template:
-            tokenized_responses.append([])
-            continue
+        response_token_ids_start_idx = None
+        tokenized_response = []
 
         # Reverse search over matches of the first token in the response template
         matched_indices = np.where(np.array(t_prompt) == response_template[0])[0]
-        response_token_ids_start_idx = None
         for i in range(len(matched_indices)):
             match_idx = matched_indices[-(i + 1)]
             # Check for exact match of the response template token ids
@@ -42,9 +43,14 @@ def extract_tokenized_responses(
                 == response_template
             ):
                 response_token_ids_start_idx = match_idx
+                tokenized_response = t_prompt[
+                    response_token_ids_start_idx + len(response_template) :
+                ]
+                break
 
-        tokenized_response = []
-        # Warn that the response template was not found!
+        tokenized_responses.append(tokenized_response)
+
+        # Warn if the response template was not found!
         if response_token_ids_start_idx is None:
             warn(
                 f"Could not find response key `{response_template}` in the "
@@ -52,12 +58,5 @@ def extract_tokenized_responses(
                 f"This instance will have an <Empty> Target Output. "
                 f"Note, if this happens often, consider increasing `max_seq_length`."
             )
-        else:
-            response_token_ids_end_idx = response_token_ids_start_idx + len(
-                response_template
-            )
-            tokenized_response = t_prompt[response_token_ids_end_idx:]
-
-        tokenized_responses.append(tokenized_response)
 
     return tokenized_responses
