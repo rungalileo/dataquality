@@ -65,9 +65,6 @@ class EncoderDecoderModelFormatter(BaseSeq2SeqModelFormatter):
     functionality from Seq2SeqModelLogger.
     """
 
-    def __init__(self, logger_config: Seq2SeqLoggerConfig) -> None:
-        self.logger_config = logger_config
-
     def format_sample(
         self, sample_id: int, sample_logits: np.ndarray
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
