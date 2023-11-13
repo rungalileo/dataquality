@@ -23,20 +23,6 @@ class Seq2SeqLoggerConfig(BaseLoggerConfig):
     id_to_formatted_prompt_length: Dict[str, Dict[int, int]] = defaultdict(dict)
     response_template: Optional[List[int]] = None
 
-    # @validator("response_template")
-    # def ensure_tokenized_response_template(
-    #     cls, response_template: Optional[Union[str, List[int]]], values: Dict[str, Any]  # noqa
-    # ) -> List[int]:
-    #     if response_template and isinstance(response_template, str):
-    #         tokenizer = values.get("tokenizer")
-    #         if tokenizer:
-    #             response: List[int] = tokenizer.encode(
-    #                 response_template, padding=False, add_special_tokens=False
-    #             )
-    #             return response
-
-    #     return response_template or []
-
     class Config:
         arbitrary_types_allowed = True
 

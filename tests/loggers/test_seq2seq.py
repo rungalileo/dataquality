@@ -68,7 +68,7 @@ def test_log_dataset_encoder_decoder(
 
     with patch("dataquality.core.log.get_data_logger") as mock_method:
         mock_method.return_value = logger
-        set_tokenizer(tokenizer, seq2seq_logger_config)
+        set_tokenizer(tokenizer)
         dq.log_dataset(
             dataset, text="summary", label="title", id="my_id", split="train"
         )
@@ -290,8 +290,7 @@ def test_tokenize_input_provide_maxlength(
     mock_model.generate.return_value = seq2seq_generated_output
     mock_generation_config = Mock(spec=GenerationConfig)
 
-    # TODO: for now encoder_decoder covers general case
-    set_tokenizer(tokenizer_T5, seq2seq_logger_config, max_input_tokens=7)
+    set_tokenizer(tokenizer_T5, max_input_tokens=7)
     input_text = "a b c d e f g h i j"
     generate_sample_output(
         input_text,
@@ -333,8 +332,7 @@ def test_tokenize_input_doesnt_provide_maxlength(
     mock_model.generate.return_value = seq2seq_generated_output
     mock_generation_config = Mock(spec=GenerationConfig)
 
-    # TODO: for now encoder_decoder covers general case
-    set_tokenizer(tokenizer_T5, seq2seq_logger_config)
+    set_tokenizer(tokenizer_T5)
     input_text = "a b c d e f g h i j" * 100
     generate_sample_output(
         input_text,
@@ -429,7 +427,6 @@ def test_tokenize_target_doesnt_provide_maxlength_encoder_decoder(
 def test_calculate_cutoffs_encoder_decoder(
     set_test_config: Callable, cleanup_after_use: Generator
 ):
-    # TODO Add comment!
     """Test that calculate_cutoffs works correctly for both input/target"""
     set_test_config(task_type=TaskType.seq2seq)
     mock_model = Mock(spec=T5ForConditionalGeneration)

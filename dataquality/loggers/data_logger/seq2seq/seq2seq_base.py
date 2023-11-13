@@ -228,9 +228,8 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
     def _get_prob_cols(cls) -> List[str]:
         return ["id"]
 
-    @classmethod
     def create_in_out_frames(
-        cls,
+        self,
         in_frame: DataFrame,
         dir_name: str,
         prob_only: bool,
@@ -247,8 +246,8 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         # finding the cutoff point of the input string used during training, and once
         # for generating
         # TODO: see if it's worth only tokenizing it once and storing it (can be large)
-        in_frame = cls.add_generated_output_to_df(in_frame, split)
-        in_frame = cls.calculate_cutoffs(in_frame)
+        in_frame = self.add_generated_output_to_df(in_frame, split)
+        in_frame = self.calculate_cutoffs(in_frame)
 
         return super().create_in_out_frames(
             in_frame, dir_name, prob_only, split, epoch_or_inf
@@ -320,8 +319,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         data_df = S2SIC.set_cols(df_copy[other_cols])
         return BaseLoggerDataFrames(prob=prob, emb=emb, data=data_df)
 
-    @classmethod
-    def calculate_cutoffs(cls, df: DataFrame) -> DataFrame:
+    def calculate_cutoffs(self, df: DataFrame) -> DataFrame:
         """Calculates cuttoff indexes for the input and/or target string.
 
         Transformer models (or sub-modules) are trained over a maximum number of
@@ -345,7 +343,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         See formatters (EncoderDecoder and DecoderOnly) for model specific details
         when computing `input_cutoff`.
         """
-        tokenizer = cls.logger_config.tokenizer
+        tokenizer = self.logger_config.tokenizer
         if tokenizer is None:
             raise GalileoException(
                 "You must set your tokenizer before calling dq.finish. Use "
@@ -357,7 +355,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         if target_offsets_colname in df.get_column_names():
             df = add_target_cutoff_to_df(df, target_offsets_colname)
 
-        df = cls.formatter.set_input_cutoff(df)
+        df = self.formatter.set_input_cutoff(df)
         return df
 
     @property
