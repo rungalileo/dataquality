@@ -14,18 +14,17 @@ from dataquality.utils.seq2seq.logprobs import (
 
 
 class BaseSeq2SeqModelFormatter(ABC):
-    def __init__(self, logger_config: Seq2SeqLoggerConfig, split_key: str) -> None:
+    def __init__(self, logger_config: Seq2SeqLoggerConfig) -> None:
         self.logger_config = logger_config
-        self.split_key = split_key
 
     @abstractmethod
     def format_sample(
-        self, sample_id: int, sample_logits: np.ndarray
+        self, sample_id: int, sample_logits: np.ndarray, split_key: str
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         pass
 
     def retrieve_sample_labels(
-        self, sample_id: int, max_tokens: Optional[int]
+        self, sample_id: int, max_tokens: Optional[int], split_key: str
     ) -> np.ndarray:
         """Retrieve the labels array based on the sample id and truncate at max_tokens
 
@@ -34,7 +33,7 @@ class BaseSeq2SeqModelFormatter(ABC):
 
         e.g. for sample_id = 8 --> labels = [0, 10, 16, ...]
         """
-        labels = self.logger_config.id_to_tokens[self.split_key][sample_id]
+        labels = self.logger_config.id_to_tokens[split_key][sample_id]
         if max_tokens is not None:
             labels = labels[:max_tokens]
         return np.array(labels)
@@ -66,7 +65,7 @@ class EncoderDecoderModelFormatter(BaseSeq2SeqModelFormatter):
     """
 
     def format_sample(
-        self, sample_id: int, sample_logits: np.ndarray
+        self, sample_id: int, sample_logits: np.ndarray, split_key: str
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Formats sample_logprobs and sample_top_indices
 
@@ -80,7 +79,7 @@ class EncoderDecoderModelFormatter(BaseSeq2SeqModelFormatter):
         sample_n_tokens = sample_logits.shape[0]
         # TODO this could be abstracted away
         sample_labels = self.retrieve_sample_labels(
-            sample_id, max_tokens=sample_n_tokens
+            sample_id, max_tokens=sample_n_tokens, split_key=split_key
         )
         padding_side = getattr(self.logger_config.tokenizer, "padding_side", "right")
         num_sample_tokens = len(sample_labels)
@@ -105,7 +104,7 @@ class DecoderOnlyModelFormatter(BaseSeq2SeqModelFormatter):
     """
 
     def _retrieve_num_sample_tokens(
-        self, sample_id: int, max_tokens: int
+        self, sample_id: int, max_tokens: int, split_key: str
     ) -> Tuple[int, Optional[int]]:
         """Retrieves the number of tokens in the formatted_prompt
 
@@ -125,9 +124,9 @@ class DecoderOnlyModelFormatter(BaseSeq2SeqModelFormatter):
         So to handle this, we should return num_sample_tokens and the difference
         if we have max_tokens!
         """
-        num_sample_tokens = self.logger_config.id_to_formatted_prompt_length[
-            self.split_key
-        ][sample_id]
+        num_sample_tokens = self.logger_config.id_to_formatted_prompt_length[split_key][
+            sample_id
+        ]
 
         if num_sample_tokens > max_tokens:
             return max_tokens, num_sample_tokens - max_tokens
@@ -135,7 +134,7 @@ class DecoderOnlyModelFormatter(BaseSeq2SeqModelFormatter):
         return num_sample_tokens, None
 
     def format_sample(
-        self, sample_id: int, sample_logits: np.ndarray
+        self, sample_id: int, sample_logits: np.ndarray, split_key: str
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Formats sample_logprobs and sample_top_indices
 
@@ -149,10 +148,12 @@ class DecoderOnlyModelFormatter(BaseSeq2SeqModelFormatter):
         """
         sample_n_tokens = sample_logits.shape[0]
         num_sample_labels, num_extra_tokens = self._retrieve_num_sample_tokens(
-            sample_id, sample_n_tokens
+            sample_id, sample_n_tokens, split_key
         )
 
-        response_labels = self.retrieve_sample_labels(sample_id, max_tokens=None)
+        response_labels = self.retrieve_sample_labels(
+            sample_id, max_tokens=None, split_key=split_key
+        )
         # TODO Check this logic - especially around getting the correct
         #   sample size!
         if num_extra_tokens:
@@ -182,7 +183,7 @@ FORMATTER_MAP: Dict[Seq2SeqModelTypes, Type[BaseSeq2SeqModelFormatter]] = {
 
 
 def get_model_formatter(
-    model_type: Seq2SeqModelTypes, logger_config: Seq2SeqLoggerConfig, split_key: str
+    model_type: Seq2SeqModelTypes, logger_config: Seq2SeqLoggerConfig
 ) -> BaseSeq2SeqModelFormatter:
     """Returns the model formatter for the given model_type"""
-    return FORMATTER_MAP[model_type](logger_config, split_key)
+    return FORMATTER_MAP[model_type](logger_config)

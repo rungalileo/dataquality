@@ -97,7 +97,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         )
 
     @property
-    def token_map_key(self) -> str:
+    def split_key(self) -> str:
         if self.split == Split.inference and self.inference_name is not None:
             return self.inference_name
         return str(self.split)

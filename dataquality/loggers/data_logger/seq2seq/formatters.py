@@ -129,7 +129,7 @@ class EncoderDecoderDataFormatter(BaseSeq2SeqDataFormatter):
 
         # Save the tokenized response labels for each samples
         id_to_tokens = dict(zip(data_logger.ids, tokenized_labels))
-        self.logger_config.id_to_tokens[data_logger.token_map_key].update(id_to_tokens)
+        self.logger_config.id_to_tokens[data_logger.split_key].update(id_to_tokens)
 
     def set_input_cutoff(self, df: DataFrame) -> DataFrame:
         """Calculate the cutoff index for the input strings.
@@ -266,14 +266,14 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
         ]
         # Save the tokenized response labels for each samples
         id_to_tokens = dict(zip(data_logger.ids, tokenized_labels))
-        self.logger_config.id_to_tokens[data_logger.token_map_key].update(id_to_tokens)
+        self.logger_config.id_to_tokens[data_logger.split_key].update(id_to_tokens)
 
         id_to_formatted_prompt_length = dict(
             zip(data_logger.ids, formatted_prompt_lengths)
         )
-        self.logger_config.id_to_formatted_prompt_length[
-            data_logger.token_map_key
-        ].update(id_to_formatted_prompt_length)
+        self.logger_config.id_to_formatted_prompt_length[data_logger.split_key].update(
+            id_to_formatted_prompt_length
+        )
 
     def set_input_cutoff(self, df: DataFrame) -> DataFrame:
         """Calculate the cutoff index for the input and target strings.

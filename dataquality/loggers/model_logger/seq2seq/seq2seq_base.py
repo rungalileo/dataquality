@@ -62,12 +62,13 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         self.top_logprobs = pa.array([])
         # Formatter distinguishes behavior between EncoderDecoder and DecoderOnly
         model_type = self.logger_config.model_type
-        split_key = (
-            str(self.split)
-            if (self.split != Split.inference and self.inference_name is not None)
-            else str(self.inference_name)
-        )
-        self.formatter = get_model_formatter(model_type, self.logger_config, split_key)
+        self.formatter = get_model_formatter(model_type, self.logger_config)
+
+    @property
+    def split_key(self) -> str:
+        if self.split == Split.inference and self.inference_name is not None:
+            return self.inference_name
+        return str(self.split)
 
     def validate_and_format(self) -> None:
         """Validate the lengths, calculate token level dep, extract GT probs"""
@@ -131,7 +132,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
                 sample_labels,
                 sample_logprobs,
                 sample_top_indices,
-            ) = self.formatter.format_sample(sample_id, sample_logits)
+            ) = self.formatter.format_sample(sample_id, sample_logits, self.split_key)
 
             logprob_data = process_sample_logprobs(
                 sample_logprobs=sample_logprobs,
