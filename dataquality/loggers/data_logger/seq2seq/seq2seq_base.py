@@ -192,18 +192,22 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         label = None if split == Split.inference else label
         if label:
             column_map[label] = "label"
-        if formatted_prompt:
-            column_map[formatted_prompt] = "galileo_formatted_prompt"
         if isinstance(dataset, pd.DataFrame):
+            if formatted_prompt and formatted_prompt in dataset.columns:
+                column_map[formatted_prompt] = "galileo_formatted_prompt"
             dataset = dataset.rename(columns=column_map)
             self._log_df(dataset, meta)
         elif isinstance(dataset, DataFrame):
+            if formatted_prompt and formatted_prompt in dataset.get_column_names():
+                column_map[formatted_prompt] = "galileo_formatted_prompt"
             for chunk in range(0, len(dataset), batch_size):
                 chunk_df = dataset[chunk : chunk + batch_size]
                 chunk_df = rename_df(chunk_df, column_map)
                 self._log_df(chunk_df, meta)
         elif self.is_hf_dataset(dataset):
             ds = cast("Dataset", dataset)  # For typing
+            if formatted_prompt and formatted_prompt in ds.column_names:
+                column_map[formatted_prompt] = "galileo_formatted_prompt"
             for chunk in range(0, len(ds), batch_size):
                 chunk = ds[chunk : chunk + batch_size]
                 chunk_df = pd.DataFrame(chunk)

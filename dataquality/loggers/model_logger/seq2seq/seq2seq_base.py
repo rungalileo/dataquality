@@ -63,9 +63,9 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         # Formatter distinguishes behavior between EncoderDecoder and DecoderOnly
         model_type = self.logger_config.model_type
         split_key = (
-            str(self.split)
-            if (self.split != Split.inference and self.inference_name is not None)
-            else str(self.inference_name)
+            str(self.inference_name)
+            if (self.split == Split.inference and self.inference_name is not None)
+            else str(self.split)
         )
         self.formatter = get_model_formatter(model_type, self.logger_config, split_key)
 
