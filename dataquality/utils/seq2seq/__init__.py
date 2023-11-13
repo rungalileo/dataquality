@@ -22,7 +22,7 @@ def remove_padding(
         dimension and be >= num_tokens. The following dimensions are
         unrestricted.
     num_tokens: int
-        Length of the non-padding logits.
+        Length of the non-padded logits.
     padding_side: str
         Comes from the tokenizer used for the model, determines
         which side padding is applied.
