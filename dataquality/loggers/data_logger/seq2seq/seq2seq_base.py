@@ -67,6 +67,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
     handling.
     """
 
+    __logger_name__ = "seq2seq"
     logger_config: Seq2SeqLoggerConfig = seq2seq_logger_config
     DATA_FOLDER_EXTENSION = {"emb": "hdf5", "prob": "hdf5", "data": "arrow"}
 

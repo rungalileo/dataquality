@@ -33,6 +33,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         - top_logprobs: top-K (token_str, log-prob) pairs for each token
     """
 
+    __logger_name__ = "seq2seq"
     logger_config: Seq2SeqLoggerConfig = seq2seq_logger_config
     log_file_ext = "arrow"
 
