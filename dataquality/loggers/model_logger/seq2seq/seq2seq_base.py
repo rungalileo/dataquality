@@ -10,7 +10,7 @@ from dataquality.loggers.logger_config.seq2seq.seq2seq_base import (
     seq2seq_logger_config,
 )
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
-from dataquality.schemas.seq2seq import TOP_LOGPROBS_SCHEMA
+from dataquality.schemas.seq2seq import TOP_LOGPROBS_SCHEMA, TOP_K
 from dataquality.schemas.seq2seq import Seq2SeqOutputCols as C
 from dataquality.schemas.split import Split
 from dataquality.utils.arrow import save_arrow_file
@@ -46,7 +46,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         embs: Optional[Union[List, np.ndarray]] = None,
         probs: Optional[Union[List, np.ndarray]] = None,
         logits: Optional[Union[List, np.ndarray]] = None,
-        logprobs: Optional[Union[List, np.ndarray]] = None,
+        #logprobs: Optional[Union[List, np.ndarray]] = None,
         ids: Optional[Union[List, np.ndarray]] = None,
         split: str = "",
         epoch: Optional[int] = None,
@@ -63,7 +63,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             inference_name=inference_name,
             labels=labels,
         )
-        self.logprobs = logprobs if logprobs is not None else []
+        #self.logprobs = logprobs if logprobs is not None else []
         self.token_logprobs = pa.array([])
         self.top_logprobs = pa.array([])
         self.labels = labels
@@ -84,12 +84,14 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         if self.labels is not None:
             self.labels = self._convert_tensor_ndarray(self.labels)
         self.logits = self._convert_tensor_ndarray(self.logits)
-        self.logprobs = self._convert_tensor_ndarray(self.logprobs)
+        # self.logprobs = self._convert_tensor_ndarray(self.logprobs)
+        self.probs = self._convert_tensor_ndarray(self.probs)
         self.ids = self._convert_tensor_ndarray(self.ids)
-        assert len(self.ids) == len(self.logits), (
-            "Must pass in a valid batch with equal id and logit length, got "
-            f"id: {len(self.ids)},logits: {len(self.logits)}"
-        )
+        # TODO Figure out what to do here
+        # assert len(self.ids) == len(self.logits), (
+        #     "Must pass in a valid batch with equal id and logit length, got "
+        #     f"id: {len(self.ids)},logits: {len(self.logits)}"
+        # )
         if self.labels is not None:
             assert len(self.labels) == len(self.ids), "TODO: Must be same len message"
 
@@ -97,12 +99,59 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             self.logger_config.tokenizer is not None
         ), "Must set your tokenizer. Use `dq.integrations.seq2seq.hf.set_tokenizer`"
 
+        if self.probs is not None:
+            # TODO Fow now create a fake here!!
+            (
+                self.token_logprobs,
+                self.top_logprobs
+            ) = self.process_logprobs(self.ids, self.probs)
+        else:
+            (
+                self.token_logprobs,
+                self.top_logprobs,
+            ) = self.process_logits(
+                self.ids, self.logits  # type: ignore
+            )
+
+    def process_logprobs(
+        self, batch_ids: np.ndarray, batch_logprobs: np.ndarray
+    ) -> pa.array:
+        """Format logprobs primarily by removing padding / restricting to responses"""
+        batch_token_logprobs = []
+        batch_top_logprobs = []
+        for sample_id, sample_logprobs in zip(
+                batch_ids, batch_logprobs
+        ):
+            # Note that with API based models the logprob data is
+            # already shifted / aligned.
+            response_labels, sample_response_logprobs = self.format_sample(
+                sample_id,
+                sample_logprobs
+            )
+
+            # Add fake top loprobs
+            sample_top_logprobs: List[List[Tuple[str, float]]] = []
+            for response_token_id, response_token_logprob in zip(response_labels, sample_response_logprobs):  # Loop over the tokens
+                response_token_str = self.logger_config.tokenizer.decode(response_token_id)
+                token_top_logprobs_mapping = [(response_token_str, response_token_logprob)] + [("---", -10)] * (TOP_K - 1)
+                sample_top_logprobs.append(token_top_logprobs_mapping)
+
+            batch_token_logprobs.append(sample_response_logprobs)
+            batch_top_logprobs.append(sample_top_logprobs)
+
+        return (
+            pa.array(batch_token_logprobs),
+            pa.array(batch_top_logprobs, type=TOP_LOGPROBS_SCHEMA),
+        )
+
     @abstractmethod
-    # TODO Fix
     def format_sample(
-            self, sample_id: int, sample_logits: np.ndarray
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+            self, sample_id: int, sample_tokens: np.ndarray, shift_labels: bool = False
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """Formats and generates sample_logprobs and sample_top_indices
+
+        TODO Fix comment!
+            Note that sample_tokens can be logits OR logprobs
 
         First, we remove padding and (for DecoderOnly models) restricts to just
         response tokens.
@@ -117,12 +166,11 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
 
         Returns:
             - formatted_labels: np.ndarray
-            - formatted_sample_logprobs: np.ndarray
-            - formatted_sample_top_indices: np.ndarray
+            - formatted_logits: np.ndarray
         """
         pass
 
-    def process_logprobs(
+    def process_logits(
         self, batch_ids: np.ndarray, batch_logits: np.ndarray
     ) -> Tuple[pa.array, pa.array]:
         """Handle processing for a batch of sample logits
@@ -159,12 +207,15 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         batch_token_logprobs = []
         batch_top_logprobs = []
         # Iterate through the samples in the batch
-        for sample_id, sample_logprobs in zip(
+        for sample_id, sample_logits in zip(
                 batch_ids, batch_logits
         ):
-            sample_labels, sample_logprobs, sample_top_indices = self.format_sample(
-                sample_id, sample_logprobs
+            sample_labels, sample_logits = self.format_sample(
+                sample_id, sample_logits, shift_labels=True
             )
+
+            sample_logprobs = self.convert_logits_to_logprobs(sample_logits)
+            sample_top_indices = get_top_logprob_indices(sample_logprobs)
 
             logprob_data = process_sample_logprobs(
                 sample_logprobs=sample_logprobs,
@@ -186,10 +237,14 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         data = {
             C.id.value: self.ids,
             C.token_logprobs.value: self.token_logprobs,
-            C.top_logprobs.value: self.top_logprobs,
             C.split_.value: [Split[self.split].value] * batch_size,
             C.epoch.value: [self.epoch] * batch_size,
         }
+        # If the user logged straight logprobs, we don't have access
+        # to top_logprobs
+        if len(self.top_logprobs) != 0:
+            data[C.top_logprobs.value] = self.top_logprobs
+
         if self.split == Split.inference:
             data[C.inference_name.value] = [self.inference_name] * batch_size
         return data

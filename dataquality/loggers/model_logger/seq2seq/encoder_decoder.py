@@ -19,7 +19,7 @@ class EncoderDecoderModelLogger(Seq2SeqModelLogger):
     functionality from Seq2SeqModelLogger.
     """
 
-    __logger_name__ = "seq2seq" # "encoder_decoder"
+    __logger_name__ = "encoder_decoder"
     logger_config: EncoderDecoderLoggerConfig = encoder_decoder_logger_config
     log_file_ext = "arrow"
 
@@ -45,25 +45,9 @@ class EncoderDecoderModelLogger(Seq2SeqModelLogger):
             labels=labels,
         )
 
-    def validate_and_format(self) -> None:
-        """Compute token level log-prob info for Encoder-Decoder Models
-
-        Encoder-Decoder models output `logits` just over the target tokens.
-        Therefore, we can very easily extract token log-prob info without
-        any additional data formatting / token splitting.
-        """
-        super().validate_and_format()
-
-        (
-            self.token_logprobs,
-            self.top_logprobs,
-        ) = self.process_logprobs(
-            self.ids, self.logits  # type: ignore
-        )
-
     def format_sample(
-            self, sample_id: int, sample_logits: np.ndarray
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+            self, sample_id: int, sample_tokens: np.ndarray, shifted_labels: bool = False
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """Formats sample_logprobs and sample_top_indices
 
         TODO Comment
@@ -72,23 +56,19 @@ class EncoderDecoderModelLogger(Seq2SeqModelLogger):
 
         Returns:
             - formatted_labels: np.ndarray
-            - formatted_sample_logprobs: np.ndarray
-            - formatted_sample_top_indices: np.ndarray
+            - formatted_sample_logits: np.ndarray
         """
-        sample_n_tokens = sample_logits.shape[0]
+        sample_n_tokens = sample_tokens.shape[0]
         # TODO this could be abstracted away
         sample_labels = self._retrieve_sample_labels(
             sample_id, max_tokens=sample_n_tokens
         )
         padding_side = self.logger_config.tokenizer.padding_side
         num_sample_tokens = len(sample_labels)
-        sample_logits = remove_padding(
-            sample_logits,
+        sample_tokens = remove_padding(
+            sample_tokens,
             num_sample_tokens,
             padding_side,
         )
 
-        sample_logprobs = self.convert_logits_to_logprobs(sample_logits)
-        sample_top_indices = get_top_logprob_indices(sample_logprobs)
-
-        return sample_labels, sample_logprobs, sample_top_indices
+        return sample_labels, sample_tokens

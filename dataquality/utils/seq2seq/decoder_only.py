@@ -17,11 +17,11 @@ def extract_tokenized_responses(
     the remaining tokens, representing the tokenized response.
 
     Example:
-          >> formatted_response = [7, 1, 2, 3, 8, 5, 9, 1, 2, 3, 9, 10, 6]
+          >> formatted_prompt = [7, 1, 2, 3, 8, 5, 9, 1, 2, 3, 9, 10, 6]
           >> response_template = [1, 2, 3]
           >> extract_tokenized_responses(formatted_response, response_template)
             ...
-            [9, 10, 6]
+            tokenized_response = [9, 10, 6]
             ...
 
     If a sample does not contain the response_template we represent the
@@ -43,6 +43,7 @@ def extract_tokenized_responses(
 
         tokenized_response = []
         # Warn that the response template was not found!
+        # TODO Warn if found multiple
         if response_token_ids_start_idx is None:
             warn(
                 f"Could not find response key `{response_template}` in the "

@@ -73,7 +73,7 @@ class EncoderDecoderDataLogger(Seq2SeqDataLogger):
     """
 
     # TODO Remove after testing
-    __logger_name__ = "seq2seq" # "encoder_decoder"
+    __logger_name__ = "encoder_decoder"
     logger_config: EncoderDecoderLoggerConfig = encoder_decoder_logger_config
     DATA_FOLDER_EXTENSION = {"emb": "hdf5", "prob": "hdf5", "data": "arrow"}
 

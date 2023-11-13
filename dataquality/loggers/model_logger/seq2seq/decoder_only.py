@@ -22,7 +22,7 @@ class EncoderDecoderModelLogger(Seq2SeqModelLogger):
     functionality from Seq2SeqModelLogger.
     """
 
-    __logger_name__ = "decoder_only"  # "seq2seq"
+    __logger_name__ = "seq2seq"
     logger_config: DecoderOnlyLoggerConfig = decoder_only_logger_config
     log_file_ext = "arrow"
 
@@ -31,7 +31,7 @@ class EncoderDecoderModelLogger(Seq2SeqModelLogger):
         embs: Optional[Union[List, np.ndarray]] = None,
         probs: Optional[Union[List, np.ndarray]] = None,
         logits: Optional[Union[List, np.ndarray]] = None,
-        logprobs: Optional[Union[List, np.ndarray]] = None,  # TODO Add this for people to directly log liklihoods
+        #logprobs: Optional[Union[List, np.ndarray]] = None,  # TODO Add this for people to directly log liklihoods
         ids: Optional[Union[List, np.ndarray]] = None,
         split: str = "",
         epoch: Optional[int] = None,
@@ -42,28 +42,12 @@ class EncoderDecoderModelLogger(Seq2SeqModelLogger):
             embs=embs,
             probs=probs,
             logits=logits,
-            logprobs=logprobs,
+            #logprobs=logprobs,
             ids=ids,
             split=split,
             epoch=epoch,
             inference_name=inference_name,
             labels=labels,
-        )
-
-    def validate_and_format(self) -> None:
-        """Compute token level log-prob info for Encoder-Decoder Models
-
-        Encoder-Decoder models output `logits` just over the target tokens.
-        Therefore, we can very easily extract token log-prob info without
-        any additional data formatting / token splitting.
-        """
-        super().validate_and_format()
-
-        (
-            self.token_logprobs,
-            self.top_logprobs,
-        ) = self.process_logprobs(
-            self.ids, self.logits  # type: ignore
         )
 
     def _retrieve_num_sample_tokens(self, sample_id: int, max_tokens: int) -> Tuple[int, Optional[int]]:
@@ -93,21 +77,21 @@ class EncoderDecoderModelLogger(Seq2SeqModelLogger):
         return num_sample_tokens, None
 
     def format_sample(
-        self, sample_id: int, sample_logits: np.ndarray
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        self, sample_id: int, sample_tokens: np.ndarray, shift_labels: bool = False
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """Formats sample_logprobs and sample_top_indices
 
         TODO comment!
+            Note that sample_tokens can be logits OR logprobs
 
         Removes padding and (for DecoderOnly models) restricts to just
         response tokens.
 
         Returns:
             - formatted_labels: np.ndarray
-            - formatted_sample_logprobs: np.ndarray
-            - formatted_sample_top_indices: np.ndarray
+            - formatted_logits: np.ndarray
         """
-        sample_n_tokens = sample_logits.shape[0]
+        sample_n_tokens = sample_tokens.shape[0]
         num_sample_labels, num_extra_tokens = self._retrieve_num_sample_tokens(sample_id, sample_n_tokens)
 
         response_labels = self._retrieve_sample_labels(
@@ -120,22 +104,24 @@ class EncoderDecoderModelLogger(Seq2SeqModelLogger):
 
         padding_side = self.logger_config.tokenizer.padding_side
 
-        sample_logits = remove_padding(
-            sample_logits,
+        sample_wo_padding = remove_padding(
+            sample_tokens,
             num_sample_labels,
             padding_side
         )
 
+        # Add a flag to shift or not!
         # Restrict to just the response tokens
         num_response_tokens = len(response_labels)
         # TODO check - Shift the logits such that tokens < n predict token n.
         #   notice here that we ignore the final token logprob since there is
         #   no n+1 token. For DecoderOnly the logits and labels are implicitly
         #   shifted within the model.
-        sample_logits = sample_logits[-(num_response_tokens + 1): -1]
+        # WHEN LOGGING LOGPROBS DIRECTLY THIS MAY MESS  THINGS UP!
+        if shift_labels:
+            sample_response = sample_wo_padding[-(num_response_tokens + 1): -1]
+        else:
+            sample_response = sample_wo_padding[-num_response_tokens:]
 
-        sample_logprobs = self.convert_logits_to_logprobs(sample_logits)
-        sample_top_indices = get_top_logprob_indices(sample_logprobs)
-
-        return response_labels, sample_logprobs, sample_top_indices
+        return response_labels, sample_response
 

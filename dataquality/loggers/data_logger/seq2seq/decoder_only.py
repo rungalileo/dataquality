@@ -82,7 +82,7 @@ class DecoderOnlyDataLogger(Seq2SeqDataLogger):
     additional information to isolate / extract information on the <Target> data.
     """
 
-    __logger_name__ = "decoder_only" #"seq2seq"
+    __logger_name__ = "seq2seq"
     logger_config: DecoderOnlyLoggerConfig = decoder_only_logger_config
     DATA_FOLDER_EXTENSION = {"emb": "hdf5", "prob": "hdf5", "data": "arrow"}
 
@@ -158,7 +158,7 @@ class DecoderOnlyDataLogger(Seq2SeqDataLogger):
         text: Union[str, int] = "text",
         id: Union[str, int] = "id",
         label: Optional[Union[str, int]] = "label",
-        formatted_prompt: Union[str, int] = "formatted_label",
+        formatted_prompt: Union[str, int] = "formatted_prompt",
         split: Optional[Split] = None,
         inference_name: Optional[str] = None,
         meta: Union[List[str], List[int], None] = None,

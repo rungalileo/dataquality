@@ -88,7 +88,7 @@ def extract_top_logprobs(
     # Generate top_k (string, logprob) token by token
     top_logprobs: List[List[Tuple[str, float]]] = []
     for token_top_ids, token_top_logprobs in zip(top_indices, sample_top_logprobs):
-        # List of Tuple[str, int] --> (token string, logprob)
+        # List of Tuple[str, float] - (token string, logprob)
         token_top_logprobs_mapping = []
         # Loop over the top_k predictions for the given token position
         for pred_token_id, logprob in zip(token_top_ids, token_top_logprobs):
