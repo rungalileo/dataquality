@@ -126,8 +126,8 @@ def watch(
         else:
             seq2seq_logger_config.response_template = response_template
     elif seq2seq_logger_config.model_type == Seq2SeqModelTypes.decoder_only:
-        raise GalileoException (
-            "You must specify a Response_Template when using Decoder-Only models."
+        raise GalileoException(
+            "You must specify a `response_template` when using Decoder-Only models."
             " This is necessary to internally isolate the target response tokens."
         )
 
