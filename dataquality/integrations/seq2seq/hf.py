@@ -1,4 +1,4 @@
-from typing import List, Optional, Union
+from typing import List, Optional
 from warnings import warn
 
 from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizerFast
@@ -92,7 +92,7 @@ def watch(
     generation_splits: Optional[List[str]] = None,
     max_input_tokens: Optional[int] = None,
     max_target_tokens: Optional[int] = None,
-    response_template: Optional[Union[str, List[int]]] = None,
+    response_template: Optional[List[int]] = None,
 ) -> None:
     """Seq2seq only. Log model generations for your run
 

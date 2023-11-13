@@ -271,9 +271,9 @@ def add_target_cutoff_to_df(df: DataFrame, target_offsets_col: str) -> DataFrame
 
 
 def align_response_tokens_to_character_spans(
-    tokenized_response: List[int],
     tokenizer: PreTrainedTokenizerFast,
-    max_input_tokens: int,
+    tokenized_response: List[int],
+    max_input_tokens: Optional[int],
 ) -> AlignedTokenData:
     """Decodes then re-tokenizes the isolated response to get the character alignments
 

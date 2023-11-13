@@ -1,11 +1,11 @@
-from typing import List
+from typing import List, Optional
 from warnings import warn
 
 import numpy as np
 
 
 def extract_tokenized_responses(
-    tokenized_formatted_prompts: List[List[int]], response_template: List[int]
+    tokenized_formatted_prompts: List[List[int]], response_template: Optional[List[int]]
 ) -> List[List[int]]:
     """Extracts the tokenized responses from the formatted prompts
 
@@ -17,21 +17,20 @@ def extract_tokenized_responses(
     the remaining tokens, representing the tokenized response.
 
     Example:
-          >> formatted_response = [7, 1, 2, 3, 8, 5, 9, 1, 2, 3, 9, 10, 6]
+          >> tokenized_formatted_prompt = [[7, 1, 2, 3, 8, 5, 9, 1, 2, 3, 9, 10, 6]]
           >> response_template = [1, 2, 3]
-          >> extract_tokenized_responses(formatted_response, response_template)
-            ...
-            [9, 10, 6]
-            ...
+          >> extract_tokenized_responses(tokenized_formatted_prompt, response_template)
+            [[9, 10, 6]]
 
     If a sample does not contain the response_template we represent the
     tokenized_response for that sample as [] - i.e. the <Empty String>.
-
-    Parameters:
-        TODO
     """
     tokenized_responses: List[List[int]] = []
     for t_prompt in tokenized_formatted_prompts:
+        if not response_template:
+            tokenized_responses.append([])
+            continue
+
         # Reverse search over matches of the first token in the response template
         matched_indices = np.where(np.array(t_prompt) == response_template[0])[0]
         response_token_ids_start_idx = None

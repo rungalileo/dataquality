@@ -1,19 +1,13 @@
-from abc import ABC
-from typing import Any, Dict, List, Optional, Type, Union, cast
+from abc import ABC, abstractmethod
+from typing import Dict, List, Optional, Type
 
-import pandas as pd
-from datasets import Dataset
+from transformers import PreTrainedTokenizerFast
 from vaex import DataFrame
 
-from dataquality.exceptions import GalileoException
-from dataquality.loggers.data_logger.base_data_logger import (
-    ITER_CHUNK_SIZE,
-    DataSet,
-)
+from dataquality.loggers.data_logger.seq2seq.seq2seq_base import Seq2SeqDataLogger
 from dataquality.loggers.logger_config.seq2seq.seq2seq_base import Seq2SeqLoggerConfig
 from dataquality.schemas.seq2seq import Seq2SeqInputCols as S2SIC
 from dataquality.schemas.seq2seq import Seq2SeqModelTypes
-from dataquality.schemas.split import Split
 from dataquality.utils.seq2seq.decoder_only import extract_tokenized_responses
 from dataquality.utils.seq2seq.offsets import (
     add_input_cutoff_to_df,
@@ -21,12 +15,25 @@ from dataquality.utils.seq2seq.offsets import (
     align_response_tokens_to_character_spans,
     align_tokens_to_character_spans,
 )
-from dataquality.utils.vaex import rename_df
 
 
 class BaseSeq2SeqDataFormatter(ABC):
     def __init__(self, logger_config: Seq2SeqLoggerConfig) -> None:
         self.logger_config = logger_config
+
+    @abstractmethod
+    def set_input_cutoff(self, df: DataFrame) -> DataFrame:
+        pass
+
+    @abstractmethod
+    def format_text(
+        self,
+        tokenizer: PreTrainedTokenizerFast,
+        text: List[str],
+        max_tokens: Optional[int],
+        data_logger: Seq2SeqDataLogger,
+    ) -> None:
+        pass
 
 
 class EncoderDecoderDataFormatter(BaseSeq2SeqDataFormatter):
@@ -83,41 +90,49 @@ class EncoderDecoderDataFormatter(BaseSeq2SeqDataFormatter):
     additional information to isolate / extract information on the <Target> data.
     """
 
-    def validate_and_format(self) -> None:
-        """Format Encoder-Decoder Data Format
+    def format_text(
+        self,
+        tokenizer: PreTrainedTokenizerFast,
+        text: List[str],
+        max_tokens: Optional[int],
+        data_logger: Seq2SeqDataLogger,
+    ) -> None:
+        """Further validation for Encoder-Decoder
 
-        Tokenize self.labels, using the user's `max_taget_tokens`. From
-        the tokenized outputs generate the corresponding token alignments
-        (i.e. label_offsets and lable_positions).
+        For Encoder-Decoder we need to:
+            - Save the offsets and positions of the tokenized labels
+                Allows us to extract token level information from the full
+                sample text
+            - Save the target token id
+                Equivalent to the "ground truth", allows us to get logprob per
+                token later on
 
-        Save the tokenized labels for each sample as `id_to_tokens`. This
-        is essential during model logging for extracting GT token label
-        information.
-
-        Note: the parent Seq2SeqDataLogger.validate_and_format() handles
-        common data type validation.
+        We achieve this by:
+            - Tokenize the target texts using `max_target_tokens`
+            - From the tokenized outputs generate the corresponding token alignments
+                (i.e. label_offsets and lable_positions).
+            - Save ground-truth token id in `id_to_tokens` map, mapping
+                sample id to tokenized label (sample_id -> List[token_id])
         """
-        super().validate_and_format()
-        # We ensure tokenizer is set in the parent class
-        encoded_data = self.logger_config.tokenizer(  # type: ignore
-            self.labels,
+        targets = text
+        max_target_tokens = max_tokens
+        encoded_data = tokenizer(
+            targets,
             return_offsets_mapping=True,
-            max_length=self.logger_config.max_target_tokens,
+            max_length=max_target_tokens,
             truncation=True,
         )
         tokenized_labels = encoded_data["input_ids"]
         aligned_data = align_tokens_to_character_spans(encoded_data["offset_mapping"])
-        self.token_label_offsets = aligned_data.token_label_offsets
-        self.token_label_positions = aligned_data.token_label_positions
+        data_logger.token_label_offsets = aligned_data.token_label_offsets
+        data_logger.token_label_positions = aligned_data.token_label_positions
 
-        # Save the target labels for each sample
-        id_to_tokens = dict(zip(self.ids, tokenized_labels))
-        self.logger_config.id_to_tokens[self.token_map_key].update(id_to_tokens)
+        # Save the tokenized response labels for each samples
+        id_to_tokens = dict(zip(data_logger.ids, tokenized_labels))
+        self.logger_config.id_to_tokens[data_logger.token_map_key].update(id_to_tokens)
 
-    @classmethod
-    def calculate_cutoffs(cls, df: DataFrame) -> DataFrame:
+    def set_input_cutoff(self, df: DataFrame) -> DataFrame:
         """Calculate the cutoff index for the input strings.
-
 
         When using Encoder-Decoder models, the input tokens are truncated
         based on the respective Encoders max_lengths OR the user specified
@@ -127,11 +142,8 @@ class EncoderDecoderDataFormatter(BaseSeq2SeqDataFormatter):
         This function adds one column to the df:
           - 'input_cutoff': the position of the last character in the input.
         """
-        # Error checking + target_cutoff computation
-        super().calculate_cutoffs(df)
-
-        tokenizer = cls.logger_config.tokenizer
-        max_input_length = cls.logger_config.max_input_tokens
+        tokenizer = self.logger_config.tokenizer
+        max_input_length = self.logger_config.max_input_tokens
         df = add_input_cutoff_to_df(df, tokenizer, S2SIC.text, max_input_length)
 
         return df
@@ -192,11 +204,19 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
     additional information to isolate / extract information on the <Target> data.
     """
 
-    def validate_and_format(self) -> None:
-        """Format Decoder-Only Data Format
+    def format_text(
+        self,
+        tokenizer: PreTrainedTokenizerFast,
+        text: List[str],
+        max_tokens: Optional[int],
+        data_logger: Seq2SeqDataLogger,
+    ) -> None:
+        """Further validation for Decoder-Only
 
-        # TODO update comment!
-        Format Encoder-Decoder Data Format
+        Formatted prompt is combined input/target
+
+        Tokenize full prompt to identify where the response tokens are
+            ()
 
         Tokenize self.labels, using the user's `max_taget_tokens`. From
         the tokenized outputs generate the corresponding token alignments
@@ -206,106 +226,56 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
         is essential during model logging for extracting GT token label
         information.
 
-        Note: the parent Seq2SeqDataLogger.validate_and_format() handles
-        common data type validation.
+
+        Returns:
+        - tokenized_labels: List of tokenized labels
+        - formatted_prompt_lengths: List of formatted prompt lengths
         """
-        super().validate_and_format()
-        encoded_data = self.logger_config.tokenizer(  # type: ignore
-            self.formatted_prompts,
-            max_length=self.logger_config.max_input_tokens,
+        # For decoder-only the text is the formatted prompt (input/target combined)
+        formatted_prompts = text
+        max_input_tokens = max_tokens
+        encoded_data = tokenizer(
+            formatted_prompts,
+            max_length=max_input_tokens,
             truncation=True,
         )
+        # Tokenized input/target combination
         tokenized_formatted_prompts = encoded_data["input_ids"]
 
         # Split each sample based on the location of the response template
-        tokenized_responses = extract_tokenized_responses(
+        # This is equivalent to `tokenized_labels` in encoder-decoder
+        tokenized_labels = extract_tokenized_responses(
             tokenized_formatted_prompts, self.logger_config.response_template
         )
 
         # Decode then re-tokenize just the response labels to get correct offsets
-        for tokenized_response in tokenized_responses:
+        for tokenized_response in tokenized_labels:
             aligned_data = align_response_tokens_to_character_spans(
+                tokenizer,
                 tokenized_response,
-                self.logger_config.tokenizer,
-                self.logger_config.max_input_tokens,
+                max_input_tokens,
             )
-
-            self.token_label_offsets.append(aligned_data.token_label_offsets[0])
-            self.token_label_positions.append(aligned_data.token_label_positions[0])
-
-        # Save the tokenized response labels for each samples
-        id_to_tokens = dict(zip(self.ids, tokenized_responses))
-        self.logger_config.id_to_tokens[self.token_map_key].update(id_to_tokens)
+            data_logger.token_label_offsets.append(aligned_data.token_label_offsets[0])
+            data_logger.token_label_positions.append(
+                aligned_data.token_label_positions[0]
+            )
 
         # Save the length of the formatted prompt - used later to remove padding
         formatted_prompt_lengths = [
             len(prompt) for prompt in tokenized_formatted_prompts
         ]
-        id_to_formatted_prompt_length = dict(zip(self.ids, formatted_prompt_lengths))
-        self.logger_config.id_to_formatted_prompt_length[self.token_map_key].update(
-            id_to_formatted_prompt_length
+        # Save the tokenized response labels for each samples
+        id_to_tokens = dict(zip(data_logger.ids, tokenized_labels))
+        self.logger_config.id_to_tokens[data_logger.token_map_key].update(id_to_tokens)
+
+        id_to_formatted_prompt_length = dict(
+            zip(data_logger.ids, formatted_prompt_lengths)
         )
+        self.logger_config.id_to_formatted_prompt_length[
+            data_logger.token_map_key
+        ].update(id_to_formatted_prompt_length)
 
-    def _log_df(
-        self,
-        df: Union[pd.DataFrame, DataFrame],
-        meta: Union[List[str], List[int], None] = None,
-    ) -> None:
-        """Assigns `formatted_prompt`"""
-        self.formatted_prompts = df["galileo_formatted_prompt"].tolist()
-        super()._log_df(df, meta=meta)
-
-    def log_dataset(
-        self,
-        dataset: DataSet,
-        *,
-        batch_size: int = ITER_CHUNK_SIZE,
-        text: Union[str, int] = "text",
-        id: Union[str, int] = "id",
-        label: Optional[Union[str, int]] = "label",
-        formatted_prompt: Union[str, int] = "formatted_label",
-        split: Optional[Split] = None,
-        inference_name: Optional[str] = None,
-        meta: Union[List[str], List[int], None] = None,
-        **kwargs: Any,
-    ) -> None:
-        """Overrides Seq2Seq base `log_dataset`
-
-        Capture the user's `formatted_prompt` data column,
-        representing the full input for Decoder-Only models.
-        """
-        self.validate_kwargs(kwargs)
-        self.split = split
-        self.inference_name = inference_name
-        column_map = {
-            text: "text",
-            label: "label",
-            formatted_prompt: "galileo_formatted_prompt",
-            id: "id",
-        }
-        if isinstance(dataset, pd.DataFrame):
-            dataset = dataset.rename(columns=column_map)
-            self._log_df(dataset, meta)
-        elif isinstance(dataset, DataFrame):
-            for chunk in range(0, len(dataset), batch_size):
-                chunk_df = dataset[chunk : chunk + batch_size]
-                chunk_df = rename_df(chunk_df, column_map)
-                self._log_df(chunk_df, meta)
-        elif self.is_hf_dataset(dataset):
-            ds = cast("Dataset", dataset)  # For typing
-            for chunk in range(0, len(ds), batch_size):
-                chunk = ds[chunk : chunk + batch_size]
-                chunk_df = pd.DataFrame(chunk)
-                chunk_df = chunk_df.rename(columns=column_map)
-                self._log_df(chunk_df, meta)
-        else:
-            raise GalileoException(
-                f"Dataset must be one of pandas, vaex, or 🤗 dataset "
-                f"but got {type(dataset)}"
-            )
-
-    @classmethod
-    def calculate_cutoffs(cls, df: DataFrame) -> DataFrame:
+    def set_input_cutoff(self, df: DataFrame) -> DataFrame:
         """Calculate the cutoff index for the input and target strings.
 
         For now, we do the following:
@@ -314,13 +284,9 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
             - Set the cutoff for the Input to just be the entire sample
             i.e. the length of `text`
         """
-        # Error checking
-        super().calculate_cutoffs(df)
-
         # Assign input_cutoff always to be the full strings
         df[S2SIC.input_cutoff.value] = df[S2SIC.text].str.len()
 
-        # Use the computed offsets from `validate_and_format`
         target_offsets_colname = S2SIC.token_label_offsets
         if target_offsets_colname in df.get_column_names():
             df = add_target_cutoff_to_df(df, target_offsets_colname)
