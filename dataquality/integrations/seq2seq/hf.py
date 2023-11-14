@@ -19,7 +19,6 @@ def set_tokenizer(
     max_input_tokens: Optional[int] = None,
     max_target_tokens: Optional[int] = None,
 ) -> None:
-    # TODO update comment
     """Seq2seq only. Set the tokenizer for your run
     Must be either a Tokenizer or a fast pretrained tokenizer, and must support
     `decode`, `encode`, `encode_plus`.
