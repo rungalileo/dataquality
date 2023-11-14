@@ -1,8 +1,7 @@
 from contextlib import nullcontext
 from dataclasses import asdict
-from typing import ContextManager, Dict, List, Optional, TextIO, Tuple, Union
+from typing import ContextManager, Dict, TextIO, Tuple, Union
 
-import numpy as np
 import torch
 from datasets import Dataset, DatasetDict
 from torch.utils.data import DataLoader
@@ -169,7 +168,6 @@ def do_train(
     model: PreTrainedModel,
     dataloaders: Dict[str, torch.utils.data.DataLoader],
     training_config: Seq2SeqTrainingConfig,
-    embs: Optional[Union[List, np.ndarray]],
     wait: bool,
 ) -> PreTrainedModel:
     # training and evaluation
@@ -208,7 +206,7 @@ def do_train(
                 outputs = model(**batch)
 
             logits = outputs.logits  # Shape - [bs, bs_seq_ln, vocab]
-            dq.log_model_outputs(logits=logits, embs=embs, ids=ids)
+            dq.log_model_outputs(logits=logits, ids=ids)
 
             loss = outputs.loss / training_config.accumulation_steps
 
