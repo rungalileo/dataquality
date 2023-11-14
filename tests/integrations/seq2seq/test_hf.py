@@ -53,7 +53,7 @@ def test_set_tokenizer_other(
         isinstance(tokenizer, PreTrainedTokenizerFast)
         or isinstance(tokenizer, Tokenizer)
     )
-    with raises(AssertionError) as context:
+    with raises(ValueError) as context:
         set_tokenizer(tokenizer_T5_not_auto)
         assert str(context.value) == (
             "The tokenizer must be an instance of PreTrainedTokenizerFast "
