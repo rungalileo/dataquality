@@ -25,13 +25,21 @@ def set_tokenizer(
     We will use this tokenizer for both the input and the target. They will both be
     truncated after a certain length, which is set in the args max_input_tokens and
     max_target_tokens.
-    1. tokenizer: This must be either an instance of Tokenizer from tokenizers or a
-        PreTrainedTokenizerFast from huggingface (ie T5TokenizerFast, GPT2TokenizerFast,
-        etc). Your tokenizer should have an `.is_fast` property that returns True if
-        it's a fast tokenizer. This class must implement the `encode`, `decode`, and
-        `encode_plus` methods
-        You can set your tokenizer via the `set_tokenizer(tok)` function imported
-        from `dataquality.integrations.seq2seq.hf`
+    Args:
+        - tokenizer: This must be either an instance of Tokenizer from tokenizers or a
+            PreTrainedTokenizerFast from huggingface (ie T5TokenizerFast,
+            GPT2TokenizerFast, etc). Your tokenizer should have an `.is_fast` property
+            that returns True if it's a fast tokenizer. This class must implement the
+            `encode`, `decode`, and encode_plus` methods.
+        - max_input_tokens: max number of tokens used in the input. We will tokenize
+            the input and truncate at this number. If not specified, we will use
+        - max_target_tokens: max number of tokens used in the target. We will tokenize
+            the target and truncate at this number. If not specified, we will use
+            tokenizer.model_max_length
+
+    You can set your tokenizer via the `set_tokenizer(tok)` function imported from
+    `dataquality.integrations.seq2seq.hf`
+
     NOTE: We assume that the tokenizer you provide is the same tokenizer used for
     training. This must be true in order to align inputs and outputs correctly. Ensure
     all necessary properties (like `add_eos_token`) are set before setting your
