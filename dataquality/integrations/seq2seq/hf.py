@@ -1,6 +1,7 @@
-from typing import List, Optional
+from typing import List, Optional, Union
 from warnings import warn
 
+from tokenizers import Tokenizer
 from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizerFast
 
 from dataquality.exceptions import GalileoException
@@ -14,26 +15,24 @@ from dataquality.utils.task_helpers import get_task_type
 
 @check_noop
 def set_tokenizer(
-    tokenizer: PreTrainedTokenizerFast,
+    tokenizer: Union[PreTrainedTokenizerFast, Tokenizer],
     max_input_tokens: Optional[int] = None,
     max_target_tokens: Optional[int] = None,
 ) -> None:
+    # TODO update comment
     """Seq2seq only. Set the tokenizer for your run
-
-    Must be a fast tokenizer, and must support `decode`, `encode`, `encode_plus`.
-
+    Must be either a Tokenizer or a fast pretrained tokenizer, and must support
+    `decode`, `encode`, `encode_plus`.
     We will use this tokenizer for both the input and the target. They will both be
     truncated after a certain length, which is set in the args max_input_tokens and
     max_target_tokens.
-
-    1. tokenizer: This must be an instance of PreTrainedTokenizerFast from huggingface
-        (ie T5TokenizerFast or GPT2TokenizerFast, etc). Your tokenizer should have an
-        `.is_fast` property that returns True if it's a fast tokenizer.
-        This class must implement the `encode`, `decode`, and `encode_plus` methods
-
+    1. tokenizer: This must be either an instance of Tokenizer from tokenizers or a
+        PreTrainedTokenizerFast from huggingface (ie T5TokenizerFast, GPT2TokenizerFast,
+        etc). Your tokenizer should have an `.is_fast` property that returns True if
+        it's a fast tokenizer. This class must implement the `encode`, `decode`, and
+        `encode_plus` methods
         You can set your tokenizer via the `set_tokenizer(tok)` function imported
         from `dataquality.integrations.seq2seq.hf`
-
     NOTE: We assume that the tokenizer you provide is the same tokenizer used for
     training. This must be true in order to align inputs and outputs correctly. Ensure
     all necessary properties (like `add_eos_token`) are set before setting your
@@ -41,6 +40,9 @@ def set_tokenizer(
     """
     task_type = get_task_type()
     assert task_type == TaskType.seq2seq, "This method is only supported for seq2seq"
+
+    if isinstance(tokenizer, Tokenizer):
+        tokenizer = PreTrainedTokenizerFast(tokenizer_object=tokenizer)
     assert isinstance(
         tokenizer, PreTrainedTokenizerFast
     ), "Tokenizer must be an instance of PreTrainedTokenizerFast"

@@ -11,6 +11,7 @@ from transformers import (
     AutoModelForSequenceClassification,
     AutoTokenizer,
     T5ForConditionalGeneration,
+    T5Tokenizer,
 )
 from vaex.dataframe import DataFrame
 
@@ -60,6 +61,16 @@ try:
 except Exception:
     tokenizer_T5 = AutoTokenizer.from_pretrained(HF_TEST_T5_PATH, device="cpu")
     tokenizer_T5.save_pretrained(LOCAL_T5_PATH)
+
+try:
+    tokenizer_T5_not_auto = T5Tokenizer.from_pretrained(
+        LOCAL_T5_PATH, use_fast=True, device="cpu"
+    )
+except Exception:
+    tokenizer_T5_not_auto = T5Tokenizer.from_pretrained(
+        HF_TEST_T5_PATH, use_fast=True, device="cpu"
+    )
+    tokenizer_T5_not_auto.save_pretrained(LOCAL_T5_PATH)
 
 try:
     model_T5 = T5ForConditionalGeneration.from_pretrained(LOCAL_T5_PATH).to("cpu")
