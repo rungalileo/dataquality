@@ -1,4 +1,5 @@
 import math
+from typing import List
 
 import numpy as np
 import pyarrow as pa
@@ -6,6 +7,7 @@ import torch
 from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizerFast
 from vaex import DataFrame
 
+from dataquality.loggers.logger_config.seq2seq.decoder_only import DecoderOnlyLoggerConfig
 from dataquality.schemas.seq2seq import (
     GENERATION_BATCH_SIZE,
     TOP_LOGPROBS_SCHEMA,
@@ -105,7 +107,8 @@ def generate_sample_output(
 
 @torch.no_grad()
 def generate_sample_output_decoder_only(
-    input_str: str,
+    formatted_str: str,
+    response_labels: List[int],
     model: PreTrainedModel,
     tokenizer: PreTrainedTokenizerFast,
     max_input_tokens: int,
@@ -142,33 +145,30 @@ def generate_sample_output_decoder_only(
         - generated_token_logprobs: np.ndarray of shape - [seq_len]
         - generated_top_logprobs: List[List[Tuple[str, float]]]
     """
-    # Shape - [1, seq_len]
-    # We make sure to tokenize with the same max_length as they did during training
-    input_ids = tokenizer(
-        input_str,
+    formatted_prompt_ids = tokenizer(
+        formatted_str,
         truncation=True,
         max_length=max_input_tokens,
         verbose=False,
-        return_tensors="pt",
-    )["input_ids"].to(model.device)
+    )['input_ids']
 
-    gen_ids = model.generate(
-        input_ids=input_ids,
+    input_prompt_ids = formatted_prompt_ids[:-len(response_labels)]
+    input_prompt_ids = torch.Tensor([input_prompt_ids], device=model.device)
+
+    full_gen_ids = model.generate(
+        input_ids=input_prompt_ids,
         generation_config=generation_config,
     )
+    gen_ids = full_gen_ids[0, input_prompt_ids.shape[1]:]
 
-    # Strip the beginning <pad> token and keep as Tensor
-    gen_ids = gen_ids[..., 1:]
-
-    # Pass the generated output through the model to get the logits
-    model_outputs = model(input_ids=input_ids, labels=gen_ids)
+    model_outputs = model(input_ids=full_gen_ids, labels=full_gen_ids.clone())
 
     logits = model_outputs.logits
     logprobs = torch.nn.functional.log_softmax(logits, dim=-1).cpu().numpy()
 
     # Remove singleton batch dimension
     logprobs = logprobs.squeeze(0)  # [seq_len, vocab_size]
-    gen_ids = gen_ids.squeeze(0).cpu().numpy()  # [seq_len]
+    gen_ids = gen_ids.cpu().numpy()  # [seq_len]
 
     top_logprobs_indices = get_top_logprob_indices(logprobs)
 

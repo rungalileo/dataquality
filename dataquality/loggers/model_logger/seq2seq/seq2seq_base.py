@@ -133,7 +133,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             sample_top_logprobs: List[List[Tuple[str, float]]] = []
             for response_token_id, response_token_logprob in zip(response_labels, sample_response_logprobs):  # Loop over the tokens
                 response_token_str = self.logger_config.tokenizer.decode(response_token_id)
-                token_top_logprobs_mapping = [(response_token_str, response_token_logprob)] + [("---", -10)] * (TOP_K - 1)
+                token_top_logprobs_mapping = [(response_token_str, response_token_logprob)] + [("---", -1e10)] * (TOP_K - 1)
                 sample_top_logprobs.append(token_top_logprobs_mapping)
 
             batch_token_logprobs.append(sample_response_logprobs)
