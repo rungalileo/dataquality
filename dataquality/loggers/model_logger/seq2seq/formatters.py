@@ -19,8 +19,22 @@ class BaseSeq2SeqModelFormatter(ABC):
 
     @abstractmethod
     def format_sample(
-        self, sample_id: int, sample_logits: np.ndarray, split_key: str
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        self, sample_id: int, sample_output_tokens: np.ndarray, split_key: str, shift_labels: bool = True
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """Formats sample_output_tokens before extracting token information
+
+        Depending on the model architecture this function:
+            - Removes padding tokens from model outputs
+            - Restricts to just the response / target tokens
+
+        Note: `shift_labels` is only used for DecoderOnly models. See further details
+        in the DecoderOnly definition.
+
+        Returns:
+            - formatted_labels: np.ndarray
+                Used for extracting token logprob data
+            - formatted_sample_output_tokens: np.ndarray
+        """
         pass
 
     def retrieve_sample_labels(
@@ -38,23 +52,6 @@ class BaseSeq2SeqModelFormatter(ABC):
             labels = labels[:max_tokens]
         return np.array(labels)
 
-    def convert_logits_to_logprobs(
-        self, sample_logits: Union[List[np.ndarray], np.ndarray]
-    ) -> np.ndarray:
-        """Converts logits (unnormalized log probabilities) to logprobs via log_softmax
-
-        This is a special use case for Seq2Seq, people generally
-        work with logprobs. One reason for this is that the logsoftmax
-        function takes advantage of the logsumexp "trick" to compute a
-        numerically stable version of log(softmax(x)).
-        """
-        # axis ensures that in a matrix of probs with dims num_samples x num_classes
-        # we take the softmax for each sample
-        if not isinstance(sample_logits, np.ndarray):
-            sample_logits = BaseGalileoLogger._convert_tensor_ndarray(sample_logits)
-
-        return log_softmax(sample_logits, axis=-1)
-
 
 class EncoderDecoderModelFormatter(BaseSeq2SeqModelFormatter):
     """Seq2Seq model logger for EncoderDecoder models
@@ -65,33 +62,22 @@ class EncoderDecoderModelFormatter(BaseSeq2SeqModelFormatter):
     """
 
     def format_sample(
-        self, sample_id: int, sample_logits: np.ndarray, split_key: str
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """Formats sample_logprobs and sample_top_indices
-
-        Removes padding.
-
-        Returns:
-            - formatted_labels: np.ndarray
-            - formatted_sample_logprobs: np.ndarray
-            - formatted_sample_top_indices: np.ndarray
-        """
-        sample_n_tokens = sample_logits.shape[0]
+        self, sample_id: int, sample_output_tokens: np.ndarray, split_key: str, shift_labels: bool = True
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """Formats sample_output_tokens by removing padding tokens"""
+        sample_n_tokens = sample_output_tokens.shape[0]
         sample_labels = self.retrieve_sample_labels(
             sample_id, max_tokens=sample_n_tokens, split_key=split_key
         )
         padding_side = getattr(self.logger_config.tokenizer, "padding_side", "right")
         num_sample_tokens = len(sample_labels)
-        sample_logits = remove_padding(
-            sample_logits,
+        sample_tokens = remove_padding(
+            sample_output_tokens,
             num_sample_tokens,
             padding_side,
         )
 
-        sample_logprobs = self.convert_logits_to_logprobs(sample_logits)
-        sample_top_indices = get_top_logprob_indices(sample_logprobs)
-
-        return sample_labels, sample_logprobs, sample_top_indices
+        return sample_labels, sample_tokens
 
 
 class DecoderOnlyModelFormatter(BaseSeq2SeqModelFormatter):
@@ -133,19 +119,35 @@ class DecoderOnlyModelFormatter(BaseSeq2SeqModelFormatter):
         return num_sample_tokens, None
 
     def format_sample(
-        self, sample_id: int, sample_logits: np.ndarray, split_key: str
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """Formats sample_logprobs and sample_top_indices
+        self, sample_id: int, sample_output_tokens: np.ndarray, split_key: str, shift_labels: bool = True
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """Formats sample_output_tokens
 
-        Removes padding and (for DecoderOnly models) restricts to just
-        response tokens.
+        Actions taken:
+            - Removes padding tokens based off of the length of the tokenized
+            formatted prompt
+            - Restricts to just response tokens using the saved response_labels
 
-        Returns:
-            - formatted_labels: np.ndarray
-            - formatted_sample_logprobs: np.ndarray
-            - formatted_sample_top_indices: np.ndarray
+        The shift_labels flag is used to align the 'logits' / 'logprobs' with the
+        Response Token Labels. As a general rule:
+            - When logging directly from non-api models (e.g. hf), the response_labels
+            are "shifted" right by one from the logits. Thus, to align them - i.e.
+            get the correct logits for each token label - we need to account for this
+            shift.
+                e.g.
+                formatted_sample_ids = [1, 2, 3, 4, 5, 6, 7, 8]
+                response_tokens_ids = [6, 7, 8]
+                logits = shape[8, vocab]
+
+                # Output corresponsing to model input tokens [5, 6, 7]
+                response_logits = logits[-4: -1]
+                # NOT
+                response_logits = logits[-3:]
+
+            - When logging from an api, the logits or logprobs are generally aligned for
+            us. Therefore, we don't need to account for this right shift.
         """
-        sample_n_tokens = sample_logits.shape[0]
+        sample_n_tokens = sample_output_tokens.shape[0]
         num_sample_labels, num_extra_tokens = self._retrieve_num_sample_tokens(
             sample_id, sample_n_tokens, split_key
         )
@@ -159,20 +161,17 @@ class DecoderOnlyModelFormatter(BaseSeq2SeqModelFormatter):
             response_labels = response_labels[:-num_extra_tokens]
 
         padding_side = getattr(self.logger_config.tokenizer, "padding_side", "right")
-        sample_logits = remove_padding(sample_logits, num_sample_labels, padding_side)
+        sample_wo_padding = remove_padding(sample_output_tokens, num_sample_labels, padding_side)
 
         # Restrict to just the response tokens
         num_response_tokens = len(response_labels)
-        # TODO check - Shift the logits such that tokens < n predict token n.
-        #   notice here that we ignore the final token logprob since there is
-        #   no n+1 token. For DecoderOnly the logits and labels are implicitly
-        #   shifted within the model.
-        sample_logits = sample_logits[-(num_response_tokens + 1) : -1]
+        # Shift sample tokens if necessary such that tokens < n predict token n.
+        if shift_labels:
+            sample_response = sample_wo_padding[-(num_response_tokens + 1): -1]
+        else:
+            sample_response = sample_wo_padding[-num_response_tokens:]
 
-        sample_logprobs = self.convert_logits_to_logprobs(sample_logits)
-        sample_top_indices = get_top_logprob_indices(sample_logprobs)
-
-        return response_labels, sample_logprobs, sample_top_indices
+        return response_labels, sample_response
 
 
 FORMATTER_MAP: Dict[Seq2SeqModelTypes, Type[BaseSeq2SeqModelFormatter]] = {

@@ -2,6 +2,7 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pyarrow as pa
+from scipy.special import log_softmax
 
 from dataquality.loggers.logger_config.seq2seq.seq2seq_base import (
     Seq2SeqLoggerConfig,
@@ -9,13 +10,13 @@ from dataquality.loggers.logger_config.seq2seq.seq2seq_base import (
 )
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.loggers.model_logger.seq2seq.formatters import get_model_formatter
-from dataquality.schemas.seq2seq import TOP_LOGPROBS_SCHEMA
+from dataquality.schemas.seq2seq import TOP_LOGPROBS_SCHEMA, TOP_K
 from dataquality.schemas.seq2seq import Seq2SeqOutputCols as C
 from dataquality.schemas.split import Split
 from dataquality.utils.arrow import save_arrow_file
 from dataquality.utils.emb import np_to_pa
 from dataquality.utils.seq2seq.logprobs import (
-    process_sample_logprobs,
+    process_sample_logprobs, get_top_logprob_indices,
 )
 
 
@@ -58,7 +59,6 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             epoch=epoch,
             inference_name=inference_name,
         )
-        self.logprobs = logprobs if logprobs is not None else []
         self.token_logprobs = pa.array([])
         self.top_logprobs = pa.array([])
         # Formatter distinguishes behavior between EncoderDecoder and DecoderOnly
@@ -75,27 +75,35 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         """Validate the lengths, calculate token level dep, extract GT probs"""
         self.embs = self._convert_tensor_ndarray(self.embs)
         self.logits = self._convert_tensor_ndarray(self.logits)
-        self.logprobs = self._convert_tensor_ndarray(self.logprobs)
+        # TODO THIS SHOULD BE LOGPROBS
+        self.probs = self._convert_tensor_ndarray(self.probs)
         self.ids = self._convert_tensor_ndarray(self.ids)
-        assert len(self.ids) == len(self.logits), (
+        # TODO CHECK
+        assert (len(self.ids) == len(self.logits)) or (len(self.ids) == len(self.probs)), (
             "Must pass in a valid batch with equal id and logit length, got "
             f"id: {len(self.ids)},logits: {len(self.logits)}"
         )
-
         assert (
             self.logger_config.tokenizer is not None
         ), "Must set your tokenizer. Use `dq.integrations.seq2seq.hf.set_tokenizer`"
-        (
-            self.token_logprobs,
-            self.top_logprobs,
-        ) = self.process_logprobs(
-            self.ids, self.logits  # type: ignore
-        )
 
-    def process_logprobs(
+        if self.probs is not None:
+            (
+                self.token_logprobs,
+                self.top_logprobs
+            ) = self.process_logprobs(self.ids, self.probs)
+        else:
+            (
+                self.token_logprobs,
+                self.top_logprobs,
+            ) = self.process_logits(
+                self.ids, self.logits  # type: ignore
+            )
+
+    def process_logits(
         self, batch_ids: np.ndarray, batch_logits: np.ndarray
     ) -> Tuple[pa.array, pa.array]:
-        """Handle processing for a batch of sample logits
+        """"Process a batch of sample logit data
 
         For each sample in the batch extract / compute the following values:
             - Token level logprobs for the GT label
@@ -132,9 +140,11 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         for sample_id, sample_logits in zip(batch_ids, batch_logits):
             (
                 sample_labels,
-                sample_logprobs,
-                sample_top_indices,
+                sample_logits,
             ) = self.formatter.format_sample(sample_id, sample_logits, self.split_key)
+
+            sample_logprobs = self.convert_logits_to_logprobs(sample_logits)
+            sample_top_indices = get_top_logprob_indices(sample_logprobs)
 
             logprob_data = process_sample_logprobs(
                 sample_logprobs=sample_logprobs,
@@ -144,6 +154,66 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             )
             batch_token_logprobs.append(logprob_data.token_logprobs)
             batch_top_logprobs.append(logprob_data.top_logprobs)
+
+        return (
+            pa.array(batch_token_logprobs),
+            pa.array(batch_top_logprobs, type=TOP_LOGPROBS_SCHEMA),
+        )
+
+    def process_logprobs(
+            self, batch_ids: np.ndarray, batch_logprobs: np.ndarray
+    ) -> Tuple[pa.array, pa.array]:
+        """Process a batch of sample logprob data
+
+        This is a special case where the use only logs a single logprobs
+        for each token - i.e. the label token's logprob.
+
+            batch_logprobs.shape = [bs, max_token_length]
+
+        In this case, we do not have any `top_k` logprob data; therefore,
+        we fill the top_logprob data with "filler" data. Each token's
+        top 5 logprob data is:
+
+            [("---", -1e10)] * TOP_K
+
+        Similar to `process_logits` we process the logprob data to remove
+        1) remove padding and 2) apply any other formatting to just restrict
+        to token level information for the "Target" tokens.
+
+
+        Special points of consideration:
+            - We return a pyarrow array because each sample may have a different number
+            of token, which can't be represented in numpy.
+
+        Returns:
+            batch_token_logprobs: GT Logprob per token
+                len(batch_token_dep) == batch_size
+                batch_token_logprobs[i].shape is [num_tokens_in_label[i]]
+            batch_top_logprobs: Top-k logprob dictionary per token
+                type(batch_top_logprobs[i]) = List[Dict[str, float]]
+                len(batch_top_logprobs) == batch_size
+                len(batch_top_logprobs[i]) = num_tokens_in_label[i]
+                batch_top_logprobs[i][0] = ("---", -1e10)
+        """
+        batch_token_logprobs = []
+        batch_top_logprobs = []
+        for sample_id, sample_logprobs in zip(
+                batch_ids, batch_logprobs
+        ):
+            # Note that with API based models the logprob data is
+            # already shifted / aligned.
+            response_labels, sample_response_logprobs = self.formatter.format_sample(
+                sample_id,
+                sample_logprobs,
+                self.split_key,
+                shift_labels=False
+            )
+
+            # Add fake top loprobs
+            sample_top_logprobs: List[List[Tuple[str, float]]] = [[("---", -20)] * TOP_K] * len(response_labels)
+
+            batch_token_logprobs.append(sample_response_logprobs)
+            batch_top_logprobs.append(sample_top_logprobs)
 
         return (
             pa.array(batch_token_logprobs),
@@ -174,3 +244,20 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
 
     def _write_dict_to_disk(self, path: str, object_name: str, data: Dict) -> None:
         save_arrow_file(path, object_name, data)
+
+    def convert_logits_to_logprobs(
+            self, sample_logits: Union[List[np.ndarray], np.ndarray]
+    ) -> np.ndarray:
+        """Converts logits (unnormalized log probabilities) to logprobs via log_softmax
+
+        This is a special use case for Seq2Seq, people generally
+        work with logprobs. One reason for this is that the logsoftmax
+        function takes advantage of the logsumexp "trick" to compute a
+        numerically stable version of log(softmax(x)).
+        """
+        # axis ensures that in a matrix of probs with dims num_samples x num_classes
+        # we take the softmax for each sample
+        if not isinstance(sample_logits, np.ndarray):
+            sample_logits = self._convert_tensor_ndarray(sample_logits)
+
+        return log_softmax(sample_logits, axis=-1)
