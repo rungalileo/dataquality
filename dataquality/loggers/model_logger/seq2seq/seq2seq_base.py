@@ -13,6 +13,7 @@ from dataquality.schemas.seq2seq import TOP_LOGPROBS_SCHEMA
 from dataquality.schemas.seq2seq import Seq2SeqOutputCols as C
 from dataquality.schemas.split import Split
 from dataquality.utils.arrow import save_arrow_file
+from dataquality.utils.emb import np_to_pa
 from dataquality.utils.seq2seq.logprobs import (
     process_sample_logprobs,
 )
@@ -160,10 +161,12 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             C.epoch.value: [self.epoch] * batch_size,
         }
         if self.embs is not None:
-            if isinstance(self.embs, np.ndarray) and self.embs.size > 0:
-                # In seq2seq we have to save embs as a pyarrow array instead of numpy
-                # since the vaex DataFrames are stored as arrow files
-                data[C.emb.value] = pa.array(list(self.embs))
+            # In seq2seq we have to save embs as a pyarrow array instead of numpy
+            # since the vaex DataFrames are stored as arrow files
+            if not isinstance(self.embs, np.ndarray):
+                self.embs = self._convert_tensor_ndarray(self.embs)
+            data[C.emb.value] = np_to_pa(self.embs)
+
         if self.split == Split.inference:
             data[C.inference_name.value] = [self.inference_name] * batch_size
         return data
