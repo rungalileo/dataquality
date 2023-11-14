@@ -14,6 +14,11 @@ TOP_K = 5
 GENERATION_BATCH_SIZE = 100
 
 
+class Seq2SeqModelTypes(str, Enum):
+    encoder_decoder = "encoder_decoder"
+    decoder_only = "decoder_only"
+
+
 class Seq2SeqInputCols(str, Enum):
     id = "id"
     text = "text"

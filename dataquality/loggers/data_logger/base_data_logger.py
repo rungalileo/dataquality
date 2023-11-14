@@ -368,9 +368,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             df_copy["text"] = df_copy['astype(text, "large_string")']
         return df_copy
 
-    @classmethod
     def upload_split_from_in_frame(
-        cls,
+        self,
         object_store: ObjectStore,
         in_frame: DataFrame,
         split: str,
@@ -399,7 +398,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             file=sys.stdout,
         ):
             input_batch = in_frame.copy()
-            prob_only = cls.prob_only(epochs_or_infs, split, epoch_or_inf, last_epoch)
+            prob_only = self.prob_only(epochs_or_infs, split, epoch_or_inf, last_epoch)
             if split == Split.inference:
                 input_batch = filter_df(input_batch, "inference_name", epoch_or_inf)
                 if not len(input_batch):
@@ -415,17 +414,16 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             ):
                 name = f"{split}/{epoch_or_inf}" if split == Split.inference else split
                 print(f"Creating and uploading data embeddings for {name}")
-                cls.create_and_upload_data_embs(input_batch, split, epoch_or_inf)
+                self.create_and_upload_data_embs(input_batch, split, epoch_or_inf)
 
             dir_name = f"{split_loc}/{epoch_or_inf}"
-            in_out_frames = cls.create_in_out_frames(
+            in_out_frames = self.create_in_out_frames(
                 input_batch, dir_name, prob_only, split, epoch_or_inf
             )
-            cls.upload_in_out_frames(object_store, in_out_frames, split, epoch_or_inf)
+            self.upload_in_out_frames(object_store, in_out_frames, split, epoch_or_inf)
 
-    @classmethod
     def create_in_out_frames(
-        cls,
+        self,
         in_frame: DataFrame,
         dir_name: str,
         prob_only: bool,
@@ -448,7 +446,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         """
         out_frame = get_output_df(dir_name, prob_only, split, epoch_or_inf)
         epoch_or_inf_name = "inference_name" if split == Split.inference else "epoch"
-        return cls.process_in_out_frames(
+        return self.process_in_out_frames(
             in_frame, out_frame, prob_only, epoch_or_inf_name, split
         )
 
@@ -534,9 +532,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             elif dt == "int" and dt != "int32":
                 df[col] = df[col].astype("int32")
 
-    @classmethod
     def prob_only(
-        cls,
+        self,
         epochs: List[str],
         split: str,
         epoch_or_inf_name: Union[int, str],
