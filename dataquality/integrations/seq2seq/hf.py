@@ -48,12 +48,14 @@ def set_tokenizer(
     task_type = get_task_type()
     assert task_type == TaskType.seq2seq, "This method is only supported for seq2seq"
 
-    tokenizer_dq = tokenizer
-    if isinstance(tokenizer, Tokenizer):
+    if isinstance(tokenizer, PreTrainedTokenizerFast):
+        tokenizer_dq = tokenizer
+    elif isinstance(tokenizer, Tokenizer):
         tokenizer_dq = PreTrainedTokenizerFast(tokenizer_object=tokenizer)
-    assert isinstance(
-        tokenizer_dq, PreTrainedTokenizerFast
-    ), "Tokenizer must be an instance of PreTrainedTokenizerFast"
+    else:
+        raise ValueError(
+            "The tokenizer must be an instance of PreTrainedTokenizerFast or Tokenizer"
+        )
     assert getattr(tokenizer_dq, "is_fast", False), "Tokenizer must be a fast tokenizer"
     for attr in ["encode", "decode", "encode_plus", "padding_side"]:
         assert hasattr(tokenizer_dq, attr), f"Tokenizer must support `{attr}`"
@@ -84,7 +86,7 @@ def set_tokenizer(
                     "to confusing insights about this training run."
                 )
             )
-    else:
+    elif max_target_tokens is not None:
         warn(
             "The argument max_target_tokens is only used when working with "
             "EncoderDecoder models. This value will be ignored."
