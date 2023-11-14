@@ -48,25 +48,26 @@ def set_tokenizer(
     task_type = get_task_type()
     assert task_type == TaskType.seq2seq, "This method is only supported for seq2seq"
 
+    tokenizer_dq = tokenizer
     if isinstance(tokenizer, Tokenizer):
-        tokenizer = PreTrainedTokenizerFast(tokenizer_object=tokenizer)
+        tokenizer_dq = PreTrainedTokenizerFast(tokenizer_object=tokenizer)
     assert isinstance(
-        tokenizer, PreTrainedTokenizerFast
+        tokenizer_dq, PreTrainedTokenizerFast
     ), "Tokenizer must be an instance of PreTrainedTokenizerFast"
-    assert getattr(tokenizer, "is_fast", False), "Tokenizer must be a fast tokenizer"
+    assert getattr(tokenizer_dq, "is_fast", False), "Tokenizer must be a fast tokenizer"
     for attr in ["encode", "decode", "encode_plus", "padding_side"]:
-        assert hasattr(tokenizer, attr), f"Tokenizer must support `{attr}`"
-    seq2seq_logger_config.tokenizer = tokenizer
+        assert hasattr(tokenizer_dq, attr), f"Tokenizer must support `{attr}`"
+    seq2seq_logger_config.tokenizer = tokenizer_dq
 
     seq2seq_logger_config.max_input_tokens = max_input_tokens
     if seq2seq_logger_config.max_input_tokens is None:
-        seq2seq_logger_config.max_input_tokens = tokenizer.model_max_length
+        seq2seq_logger_config.max_input_tokens = tokenizer_dq.model_max_length
         warn(
             (
                 "The argument max_input_tokens is not set, we will use the value "
-                f"{tokenizer.model_max_length} from tokenizer.model_max_length. If you "
-                "tokenized the input with another value, this can lead to confusing "
-                "insights about this training run."
+                f"{tokenizer_dq.model_max_length} from tokenizer.model_max_length. "
+                "If you tokenized the input with another value, this can lead to "
+                "confusing insights about this training run."
             )
         )
 
@@ -74,13 +75,13 @@ def set_tokenizer(
     if seq2seq_logger_config.model_type == Seq2SeqModelTypes.encoder_decoder:
         seq2seq_logger_config.max_target_tokens = max_target_tokens
         if seq2seq_logger_config.max_target_tokens is None:
-            seq2seq_logger_config.max_target_tokens = tokenizer.model_max_length
+            seq2seq_logger_config.max_target_tokens = tokenizer_dq.model_max_length
             warn(
                 (
                     "The argument max_target_tokens is not set, we will use the value "
-                    f"{tokenizer.model_max_length} from tokenizer.model_max_length. "
-                    f"If you tokenized the target with another value, this can lead "
-                    f"to confusing insights about this training run."
+                    f"{tokenizer_dq.model_max_length} from tokenizer.model_max_length. "
+                    "If you tokenized the target with another value, this can lead "
+                    "to confusing insights about this training run."
                 )
             )
     else:
