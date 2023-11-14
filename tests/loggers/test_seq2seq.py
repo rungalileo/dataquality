@@ -237,6 +237,7 @@ def test_log_model_outputs_with_embs(
     )
     logger = Seq2SeqModelLogger(**log_data)
     logger.logger_config = config
+    logger.formatter.logger_config = config
     with patch("dataquality.core.log.get_model_logger") as mock_method:
         mock_method.return_value = logger
         dq.log_model_outputs(**log_data)
