@@ -117,7 +117,6 @@ def test_log_model_outputs_encoder_decoder(
     cleanup_after_use: Callable,
     test_session_vars: TestSessionVariables,
 ) -> None:
-    # TODO Add commment
     set_test_config(task_type="seq2seq")
 
     tokenized_labels = [

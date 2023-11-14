@@ -165,7 +165,8 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             # since the vaex DataFrames are stored as arrow files
             if not isinstance(self.embs, np.ndarray):
                 self.embs = self._convert_tensor_ndarray(self.embs)
-            data[C.emb.value] = np_to_pa(self.embs)
+            if self.embs.shape[0] > 0:
+                data[C.emb.value] = np_to_pa(self.embs)
 
         if self.split == Split.inference:
             data[C.inference_name.value] = [self.inference_name] * batch_size
