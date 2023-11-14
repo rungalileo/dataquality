@@ -1,16 +1,11 @@
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Tuple, Type, Union
+from typing import Dict, Optional, Tuple, Type
 
 import numpy as np
-from scipy.special import log_softmax
 
-from dataquality.loggers.base_logger import BaseGalileoLogger
 from dataquality.loggers.logger_config.seq2seq.seq2seq_base import Seq2SeqLoggerConfig
 from dataquality.schemas.seq2seq import Seq2SeqModelTypes
 from dataquality.utils.seq2seq import remove_padding
-from dataquality.utils.seq2seq.logprobs import (
-    get_top_logprob_indices,
-)
 
 
 class BaseSeq2SeqModelFormatter(ABC):
@@ -19,7 +14,11 @@ class BaseSeq2SeqModelFormatter(ABC):
 
     @abstractmethod
     def format_sample(
-        self, sample_id: int, sample_output_tokens: np.ndarray, split_key: str, shift_labels: bool = True
+        self,
+        sample_id: int,
+        sample_output_tokens: np.ndarray,
+        split_key: str,
+        shift_labels: bool = True,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """Formats sample_output_tokens before extracting token information
 
@@ -62,7 +61,11 @@ class EncoderDecoderModelFormatter(BaseSeq2SeqModelFormatter):
     """
 
     def format_sample(
-        self, sample_id: int, sample_output_tokens: np.ndarray, split_key: str, shift_labels: bool = True
+        self,
+        sample_id: int,
+        sample_output_tokens: np.ndarray,
+        split_key: str,
+        shift_labels: bool = True,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """Formats sample_output_tokens by removing padding tokens"""
         sample_n_tokens = sample_output_tokens.shape[0]
@@ -119,7 +122,11 @@ class DecoderOnlyModelFormatter(BaseSeq2SeqModelFormatter):
         return num_sample_tokens, None
 
     def format_sample(
-        self, sample_id: int, sample_output_tokens: np.ndarray, split_key: str, shift_labels: bool = True
+        self,
+        sample_id: int,
+        sample_output_tokens: np.ndarray,
+        split_key: str,
+        shift_labels: bool = True,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """Formats sample_output_tokens
 
@@ -161,13 +168,15 @@ class DecoderOnlyModelFormatter(BaseSeq2SeqModelFormatter):
             response_labels = response_labels[:-num_extra_tokens]
 
         padding_side = getattr(self.logger_config.tokenizer, "padding_side", "right")
-        sample_wo_padding = remove_padding(sample_output_tokens, num_sample_labels, padding_side)
+        sample_wo_padding = remove_padding(
+            sample_output_tokens, num_sample_labels, padding_side
+        )
 
         # Restrict to just the response tokens
         num_response_tokens = len(response_labels)
         # Shift sample tokens if necessary such that tokens < n predict token n.
         if shift_labels:
-            sample_response = sample_wo_padding[-(num_response_tokens + 1): -1]
+            sample_response = sample_wo_padding[-(num_response_tokens + 1) : -1]
         else:
             sample_response = sample_wo_padding[-num_response_tokens:]
 

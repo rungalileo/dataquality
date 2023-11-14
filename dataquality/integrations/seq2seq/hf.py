@@ -99,9 +99,9 @@ def set_tokenizer(
 @check_noop
 def watch(
     model: PreTrainedModel,
-    model_type: str,
     tokenizer: PreTrainedTokenizerFast,
     generation_config: GenerationConfig,
+    model_type: Optional[str] = Seq2SeqModelTypes.encoder_decoder.value,
     generation_splits: Optional[List[str]] = None,
     max_input_tokens: Optional[int] = None,
     max_target_tokens: Optional[int] = None,
@@ -124,8 +124,10 @@ def watch(
     ), "model must be an instance of transformers PreTrainedModel"
     assert model.can_generate(), "model must contain a `generate` method for seq2seq"
 
-    assert model_type in [Seq2SeqModelTypes.encoder_decoder, Seq2SeqModelTypes.decoder_only], \
-        "model_type must be one of `encoder_decoder` or `decoder_only`"
+    assert model_type in [
+        Seq2SeqModelTypes.encoder_decoder,
+        Seq2SeqModelTypes.decoder_only,
+    ], "model_type must be one of `encoder_decoder` or `decoder_only`"
     if model_type == Seq2SeqModelTypes.decoder_only:
         seq2seq_logger_config.model_type = Seq2SeqModelTypes.decoder_only
 

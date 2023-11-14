@@ -18,7 +18,9 @@ class Seq2SeqLoggerConfig(BaseLoggerConfig):
     model: Optional[PreTrainedModel] = None
     generation_config: Optional[GenerationConfig] = None
     generation_splits: Set[Split] = set()
-    model_type: Seq2SeqModelTypes = Seq2SeqModelTypes.decoder_only #Seq2SeqModelTypes.encoder_decoder
+    model_type: Seq2SeqModelTypes = (
+        Seq2SeqModelTypes.decoder_only
+    )  # Seq2SeqModelTypes.encoder_decoder
     # Decoder only below
     id_to_formatted_prompt_length: Dict[str, Dict[int, int]] = defaultdict(dict)
     response_template: Optional[List[int]] = None

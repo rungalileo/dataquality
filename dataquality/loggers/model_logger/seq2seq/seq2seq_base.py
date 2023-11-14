@@ -10,13 +10,14 @@ from dataquality.loggers.logger_config.seq2seq.seq2seq_base import (
 )
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
 from dataquality.loggers.model_logger.seq2seq.formatters import get_model_formatter
-from dataquality.schemas.seq2seq import TOP_LOGPROBS_SCHEMA, TOP_K
+from dataquality.schemas.seq2seq import TOP_K, TOP_LOGPROBS_SCHEMA
 from dataquality.schemas.seq2seq import Seq2SeqOutputCols as C
 from dataquality.schemas.split import Split
 from dataquality.utils.arrow import save_arrow_file
 from dataquality.utils.emb import np_to_pa
 from dataquality.utils.seq2seq.logprobs import (
-    process_sample_logprobs, get_top_logprob_indices,
+    get_top_logprob_indices,
+    process_sample_logprobs,
 )
 
 
@@ -79,7 +80,9 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         self.probs = self._convert_tensor_ndarray(self.probs)
         self.ids = self._convert_tensor_ndarray(self.ids)
         # TODO CHECK
-        assert (len(self.ids) == len(self.logits)) or (len(self.ids) == len(self.probs)), (
+        assert (len(self.ids) == len(self.logits)) or (
+            len(self.ids) == len(self.probs)
+        ), (
             "Must pass in a valid batch with equal id and logit length, got "
             f"id: {len(self.ids)},logits: {len(self.logits)}"
         )
@@ -88,10 +91,9 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         ), "Must set your tokenizer. Use `dq.integrations.seq2seq.hf.set_tokenizer`"
 
         if self.probs is not None:
-            (
-                self.token_logprobs,
-                self.top_logprobs
-            ) = self.process_logprobs(self.ids, self.probs)
+            (self.token_logprobs, self.top_logprobs) = self.process_logprobs(
+                self.ids, self.probs
+            )
         else:
             (
                 self.token_logprobs,
@@ -103,7 +105,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
     def process_logits(
         self, batch_ids: np.ndarray, batch_logits: np.ndarray
     ) -> Tuple[pa.array, pa.array]:
-        """"Process a batch of sample logit data
+        """ "Process a batch of sample logit data
 
         For each sample in the batch extract / compute the following values:
             - Token level logprobs for the GT label
@@ -161,7 +163,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         )
 
     def process_logprobs(
-            self, batch_ids: np.ndarray, batch_logprobs: np.ndarray
+        self, batch_ids: np.ndarray, batch_logprobs: np.ndarray
     ) -> Tuple[pa.array, pa.array]:
         """Process a batch of sample logprob data
 
@@ -197,20 +199,17 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         """
         batch_token_logprobs = []
         batch_top_logprobs = []
-        for sample_id, sample_logprobs in zip(
-                batch_ids, batch_logprobs
-        ):
+        for sample_id, sample_logprobs in zip(batch_ids, batch_logprobs):
             # Note that with API based models the logprob data is
             # already shifted / aligned.
             response_labels, sample_response_logprobs = self.formatter.format_sample(
-                sample_id,
-                sample_logprobs,
-                self.split_key,
-                shift_labels=False
+                sample_id, sample_logprobs, self.split_key, shift_labels=False
             )
 
             # Add fake top loprobs
-            sample_top_logprobs: List[List[Tuple[str, float]]] = [[("---", -20)] * TOP_K] * len(response_labels)
+            sample_top_logprobs: List[List[Tuple[str, float]]] = [
+                [("---", -20)] * TOP_K
+            ] * len(response_labels)
 
             batch_token_logprobs.append(sample_response_logprobs)
             batch_top_logprobs.append(sample_top_logprobs)
@@ -246,7 +245,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         save_arrow_file(path, object_name, data)
 
     def convert_logits_to_logprobs(
-            self, sample_logits: Union[List[np.ndarray], np.ndarray]
+        self, sample_logits: Union[List[np.ndarray], np.ndarray]
     ) -> np.ndarray:
         """Converts logits (unnormalized log probabilities) to logprobs via log_softmax
 
