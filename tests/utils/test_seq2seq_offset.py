@@ -143,9 +143,13 @@ def test_rollup_spans(
 def test_add_input_cutoff_to_df(
     set_test_config: Callable, cleanup_after_use: Generator
 ):
+    # TODO Consider if need to have this separate for EncoderDecoder and Decoder-Only
     """
     Test that add_input_cutoff_to_df returns the correct cut-off point for
     the input text string.
+
+    We use the EncoderDecoder model, but this serves as a generic test for both
+    model types.
     """
     set_test_config(task_type=TaskType.seq2seq)
     mock_model = Mock(spec=T5ForConditionalGeneration)
@@ -186,6 +190,8 @@ def test_add_target_cutoff_to_df(
     """
     Test that add_target_cutoff_to_df returns the correct cut-off point for
     the target text string.
+
+    Note that this just applies to EncoderDecoder models.
     """
     set_test_config(task_type=TaskType.seq2seq)
     mock_model = Mock(spec=T5ForConditionalGeneration)

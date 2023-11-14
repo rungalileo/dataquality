@@ -243,9 +243,9 @@ def test_generate_sample_output_empty_sample(mock_get_top_logprob_indices: mock.
 
 
 def test_model_logger_remove_padding() -> None:
-    """Test _remove_padding and _retrieve_sample_labels
+    """Test remove_padding and retrieve_sample_labels
 
-    Ensure that _remove_padding removes the correct tokens for each
+    Ensure that remove_padding removes the correct tokens for each
     sample based on the `sample_labels` and the tokenzier padding direction.
     """
     tokenized_labels = [
@@ -282,15 +282,20 @@ def test_model_logger_remove_padding() -> None:
     )
     logger = Seq2SeqModelLogger(**log_data)
     logger.logger_config = config
+    logger.formatter.logger_config = config
     for sample_id, (sample_logprobs, sample_top_indices) in enumerate(
         zip(logprobs, top_indices)
     ):
-        sample_labels = logger._retrieve_sample_labels(sample_id, 100)
+        sample_labels = logger.formatter.retrieve_sample_labels(
+            sample_id, 100, "training"
+        )
         # Test the retrieve samples method
         assert np.allclose(sample_labels, tokenized_labels[sample_id])
 
-        no_pad_logprobs = remove_padding(sample_labels, "right", sample_logprobs)
-        no_pad_top_indices = remove_padding(sample_labels, "right", sample_top_indices)
+        no_pad_logprobs = remove_padding(sample_logprobs, len(sample_labels), "right")
+        no_pad_top_indices = remove_padding(
+            sample_top_indices, len(sample_labels), "right"
+        )
         assert len(np.where(no_pad_logprobs == -1)[0]) == 0
         assert len(np.where(no_pad_top_indices == -1)[0]) == 0
 
@@ -305,9 +310,13 @@ def test_model_logger_remove_padding() -> None:
     for sample_id, (sample_logprobs, sample_top_indices) in enumerate(
         zip(logprobs, top_indices)
     ):
-        sample_labels = logger._retrieve_sample_labels(sample_id, 100)
-        no_pad_logprobs = remove_padding(sample_labels, "left", sample_logprobs)
-        no_pad_top_indices = remove_padding(sample_labels, "left", sample_top_indices)
+        sample_labels = logger.formatter.retrieve_sample_labels(
+            sample_id, 100, "training"
+        )
+        no_pad_logprobs = remove_padding(sample_logprobs, len(sample_labels), "left")
+        no_pad_top_indices = remove_padding(
+            sample_top_indices, len(sample_labels), "left"
+        )
         assert len(np.where(no_pad_logprobs == -1)[0]) == 0
         assert len(np.where(no_pad_top_indices == -1)[0]) == 0
 

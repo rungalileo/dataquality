@@ -56,12 +56,13 @@ from tests.conftest import TestSessionVariables, model_T5, tokenizer, tokenizer_
         ),
     ],
 )
-def test_log_dataset(
+def test_log_dataset_encoder_decoder(
     dataset: DataSet,
     set_test_config: Callable,
     cleanup_after_use: Callable,
     test_session_vars: TestSessionVariables,
 ) -> None:
+    # TODO Test with watch
     set_test_config(task_type="seq2seq")
     logger = Seq2SeqDataLogger()
 
@@ -98,6 +99,7 @@ def test_log_dataset_no_tokenizer(set_test_config: Callable) -> None:
             "my_id": [1, 2, 3],
         }
     )
+    # Note this functionality is tested fully by the Seq2Seq parent class
     logger = Seq2SeqDataLogger()
     with patch("dataquality.core.log.get_data_logger") as mock_method:
         mock_method.return_value = logger
@@ -109,11 +111,12 @@ def test_log_dataset_no_tokenizer(set_test_config: Callable) -> None:
     )
 
 
-def test_log_model_outputs(
+def test_log_model_outputs_encoder_decoder(
     set_test_config: Callable,
     cleanup_after_use: Callable,
     test_session_vars: TestSessionVariables,
 ) -> None:
+    # TODO Add commment
     set_test_config(task_type="seq2seq")
 
     tokenized_labels = [
@@ -148,6 +151,7 @@ def test_log_model_outputs(
     )
     logger = Seq2SeqModelLogger(**log_data)
     logger.logger_config = config
+    logger.formatter.logger_config = config
     with patch("dataquality.core.log.get_model_logger") as mock_method:
         mock_method.return_value = logger
         dq.log_model_outputs(**log_data)
@@ -275,6 +279,7 @@ def test_tokenize_input_provide_maxlength(
     set_test_config: Callable,
     cleanup_after_use: Generator,
 ) -> None:
+    # TODO comment!
     """
     Test that as we generate output and the user provided the max_input_tokens argument,
     the input is tokenized correctly to the length set by max_input_tokens.
@@ -351,9 +356,10 @@ def test_tokenize_input_doesnt_provide_maxlength(
     mock_process_sample_logprobs.assert_called_once()
 
 
-def test_tokenize_target_provide_maxlength(
+def test_tokenize_target_provide_maxlength_encoder_decoder(
     set_test_config: Callable, cleanup_after_use: Generator
 ) -> None:
+    # TODO Update based on hf support for encoder-decoder vs. decoder-only
     """
     Test that the target is tokenized correctly to the length provided by the user in
     the max_target_tokens argument.
@@ -381,15 +387,18 @@ def test_tokenize_target_provide_maxlength(
     )
 
 
-def test_tokenize_target_doesnt_provide_maxlength(
+def test_tokenize_target_doesnt_provide_maxlength_encoder_decoder(
     set_test_config: Callable, cleanup_after_use: Generator
 ) -> None:
+    # TODO Update based on hf support for encoder-decoder vs. decoder-only
     """
     Test that the target is tokenized correctly when the user does not provide a
     max_target_tokens argument, i.e., to the length set by default in the tokenizer.
     """
     set_test_config(task_type=TaskType.seq2seq)
     mock_generation_config = Mock(spec=GenerationConfig)
+    # TODO Does using a real model here take a lot of time?
+    #   should we just mock the model and add a max length?
     watch(model_T5, tokenizer_T5, mock_generation_config)
     ds = Dataset.from_dict(
         {
@@ -416,7 +425,9 @@ def test_tokenize_target_doesnt_provide_maxlength(
     )
 
 
-def test_calculate_cutoffs(set_test_config: Callable, cleanup_after_use: Generator):
+def test_calculate_cutoffs_encoder_decoder(
+    set_test_config: Callable, cleanup_after_use: Generator
+):
     """Test that calculate_cutoffs works correctly for both input/target"""
     set_test_config(task_type=TaskType.seq2seq)
     mock_model = Mock(spec=T5ForConditionalGeneration)

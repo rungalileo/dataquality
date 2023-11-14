@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any, List, Optional, Set, Tuple, Union, cast
 import pandas as pd
 import pyarrow as pa
 import vaex
-from vaex.dataframe import DataFrame
+from vaex import DataFrame
 
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger.base_data_logger import (
@@ -18,14 +18,13 @@ from dataquality.loggers.logger_config.seq2seq.seq2seq_base import (
 )
 from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.seq2seq import Seq2SeqInputCols as S2SIC
+from dataquality.schemas.seq2seq import Seq2SeqModelTypes
 from dataquality.schemas.split import Split
 from dataquality.utils.seq2seq.generation import (
     add_generated_output_to_df,
 )
 from dataquality.utils.seq2seq.offsets import (
-    add_input_cutoff_to_df,
     add_target_cutoff_to_df,
-    align_tokens_to_character_spans,
 )
 from dataquality.utils.vaex import rename_df
 
@@ -34,46 +33,38 @@ if TYPE_CHECKING:
 
 
 class Seq2SeqDataLogger(BaseGalileoDataLogger):
-    """Logging input data for Seq2Seq fine-tuning tasks
+    """Seq2Seq base data logger
 
-    Logging input data for Seq2Seq requires 2 pieces of information:
-    1. tokenizer: This must be an instance of PreTrainedTokenizerFast from huggingface
-        (ie T5TokenizerFast or GPT2TokenizerFast, etc). Your tokenizer should have an
-        `.is_fast` property that returns True if it's a fast tokenizer.
-        This class must implement the `encode`, `decode`, and `encode_plus` methods
+    This class defines the base functionality for logging input data in Seq2Seq
+    tasks - i.e. shared between EncoderDecoder and DecoderOnly architectures.
 
-        You can set your tokenizer via the `set_tokenizer(tok)` function imported
-        from `dataquality.integrations.seq2seq.hf`
-    2. A dataset (pandas/huggingface etc) with input strings and output labels and ids.
-        Ex: Billsum dataset, with `text` input and `summary` as the label
-        id  text	                        summary
-        0	SECTION 1. LIABILITY ...	    Shields a business entity ...
-        1	SECTION 1. SHORT TITLE.\n\n ...	Human Rights Information Act ...
-        2	SECTION 1. SHORT TITLE.\n\n ...	Jackie Robinson Commemorative Coin ...
-        3	SECTION 1. NONRECOGNITION ...	Amends the Internal Revenue Code to ...
-        4	SECTION 1. SHORT TITLE.\n\n ...	Native American Energy Act - (Sec. 3...
+    At its core, Seq2Seq data logging expects the user's tokenizer (logged through
+    the provided 'watch' integration) and expects the dataset to be formatted
+    as a two column datasets - corresponding to Inputs and Targets.
 
-        You can log your dataset via the `dq.log_dataset` function, passing in the
-        column mapping as necessary for `text`, `label`, and `id`
-        `dq.log_dataset(ds, text="text", label="summary", id="id")`
+    During processing, we use the tokenizer to tokenize the Target data (used later
+    during model output logging) and prepare for the alignment of token-level and
+    string character level information.
 
-    Putting it all together:
-        from dataquality.integrations.seq2seq.hf import set_tokenizer
-        from datasets import load_dataset
-        from transformers import T5TokenizerFast
+    After processing, the following key information is extracted:
+        - ids
+        - texts: corresponding to the <Input> data column
+        - labels: corresponding to the <Target> data column
+        - token_label_offsets + token_label_positions: used for alignment of
+        token level and string character level information within the UI. Note
+        this only applies to the <Target> data.
 
-        tokenizer = T5TokenizerFast.from_pretrained("t5-small")
-        ds = load_dataset("billsum")
-        # Add `id` column to each dataset split as the idx
-        ds = ds.map(lambda x,idx : {"id":idx},with_indices=True)
-        dq.init("seq2seq")
-        set_tokenizer(tokenizer)
-        dq.log_dataset(ds["train"], label="summary", split="train")
+    Additionally, we critically save the tokenized Target data as the ground truth
+    "labels" for model output logging.
 
-    NOTE: We assume that the tokenizer you provide is the same tokenizer used for
-    training. This must be true in order to align inputs and outputs correctly. Ensure
-    all necessary properties (like `add_eos_token`) are set before setting your
-    tokenizer so as to match the tokenization process to your training process.
+    While much of the general Seq2Seq logic can be shared between EncoderDecoder and
+    DecoderOnly models, there are nuances and specific information that differentiate
+    them. Therefore, the following abstract functions must be overridden by subclasses
+        - validate_and_format
+        - calculate_cutoffs
+
+    Note that some shared functionality is implemented here - generally around error
+    handling.
     """
 
     __logger_name__ = "seq2seq"
@@ -90,13 +81,35 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         self.texts: List[str] = []
         self.labels: List[str] = []
 
+        # Formatter distinguishes behavior between EncoderDecoder and DecoderOnly
+        model_type = self.logger_config.model_type
+        if model_type == "decoder_only":
+            # Only requied for Decoder-Only models
+            self.formatted_prompts: List[str] = []
+
+        from dataquality.loggers.data_logger.seq2seq.formatters import (
+            BaseSeq2SeqDataFormatter,
+            get_data_formatter,
+        )
+
+        self.formatter: BaseSeq2SeqDataFormatter = get_data_formatter(
+            model_type, self.logger_config
+        )
+
     @property
-    def token_map_key(self) -> str:
+    def split_key(self) -> str:
         if self.split == Split.inference and self.inference_name is not None:
             return self.inference_name
         return str(self.split)
 
     def validate_and_format(self) -> None:
+        """Seq2Seq validation
+
+        Validates input lengths and existence of a tokenizer
+
+        Further validation is done in the `formatter` for model specific
+        validation (Encoder-Decoder vs Decoder-Only)
+        """
         super().validate_and_format()
         label_len = len(self.labels)
         text_len = len(self.texts)
@@ -109,19 +122,20 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             "You must set your tokenizer before logging. "
             "Use `dq.integrations.seq2seq.hf.set_tokenizer`"
         )
-        encoded_data = self.logger_config.tokenizer(
-            self.labels,
-            return_offsets_mapping=True,
-            max_length=self.logger_config.max_target_tokens,
-            truncation=True,
-        )
-        tokenized_labels = encoded_data["input_ids"]
-        aligned_data = align_tokens_to_character_spans(encoded_data["offset_mapping"])
-        self.token_label_offsets = aligned_data.token_label_offsets
-        self.token_label_positions = aligned_data.token_label_positions
 
-        id_to_tokens = dict(zip(self.ids, tokenized_labels))
-        self.logger_config.id_to_tokens[self.token_map_key].update(id_to_tokens)
+        if self.logger_config.model_type == Seq2SeqModelTypes.decoder_only:
+            texts = self.formatted_prompts
+            max_tokens = self.logger_config.max_input_tokens
+        else:
+            texts = self.labels
+            max_tokens = self.logger_config.max_target_tokens
+
+        self.formatter.format_text(
+            self.logger_config.tokenizer,
+            texts,
+            max_tokens,
+            self,
+        )
 
     def _get_input_df(self) -> DataFrame:
         data = vaex.from_dict(
@@ -151,6 +165,8 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         # Inference case
         if "label" in df:
             self.labels = df["label"].tolist()
+        if "galileo_formatted_prompt" in df:
+            self.formatted_prompts = df["galileo_formatted_prompt"].tolist()
         for meta_col in meta or []:
             self.meta[str(meta_col)] = df[meta_col].tolist()
         self.log()
@@ -163,6 +179,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         text: Union[str, int] = "text",
         id: Union[str, int] = "id",
         label: Optional[Union[str, int]] = "label",
+        formatted_prompt: Union[str, int] = "formatted_label",
         split: Optional[Split] = None,
         inference_name: Optional[str] = None,
         meta: Union[List[str], List[int], None] = None,
@@ -176,15 +193,21 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         if label:
             column_map[label] = "label"
         if isinstance(dataset, pd.DataFrame):
+            if formatted_prompt and formatted_prompt in dataset.columns:
+                column_map[formatted_prompt] = "galileo_formatted_prompt"
             dataset = dataset.rename(columns=column_map)
             self._log_df(dataset, meta)
         elif isinstance(dataset, DataFrame):
+            if formatted_prompt and formatted_prompt in dataset.get_column_names():
+                column_map[formatted_prompt] = "galileo_formatted_prompt"
             for chunk in range(0, len(dataset), batch_size):
                 chunk_df = dataset[chunk : chunk + batch_size]
                 chunk_df = rename_df(chunk_df, column_map)
                 self._log_df(chunk_df, meta)
         elif self.is_hf_dataset(dataset):
             ds = cast("Dataset", dataset)  # For typing
+            if formatted_prompt and formatted_prompt in ds.column_names:
+                column_map[formatted_prompt] = "galileo_formatted_prompt"
             for chunk in range(0, len(ds), batch_size):
                 chunk = ds[chunk : chunk + batch_size]
                 chunk_df = pd.DataFrame(chunk)
@@ -209,9 +232,8 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
     def _get_prob_cols(cls) -> List[str]:
         return ["id"]
 
-    @classmethod
     def create_in_out_frames(
-        cls,
+        self,
         in_frame: DataFrame,
         dir_name: str,
         prob_only: bool,
@@ -228,15 +250,17 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         # finding the cutoff point of the input string used during training, and once
         # for generating
         # TODO: see if it's worth only tokenizing it once and storing it (can be large)
-        in_frame = cls.add_generated_output_to_df(in_frame, split)
-        in_frame = cls.calculate_cutoffs(in_frame)
+        in_frame = self.add_generated_output_to_df(in_frame, split)
+        in_frame = self.calculate_cutoffs(in_frame)
 
         return super().create_in_out_frames(
             in_frame, dir_name, prob_only, split, epoch_or_inf
         )
 
     @classmethod
-    def add_generated_output_to_df(cls, df: DataFrame, split: str) -> DataFrame:
+    def add_generated_output_to_df(
+        cls, df: DataFrame, split: str
+    ) -> Optional[DataFrame]:
         """Adds the generated output to the dataframe
         Adds the generated output to the dataframe, and also adds the
         `token_label_positions` column
@@ -299,30 +323,43 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         data_df = S2SIC.set_cols(df_copy[other_cols])
         return BaseLoggerDataFrames(prob=prob, emb=emb, data=data_df)
 
-    @classmethod
-    def calculate_cutoffs(cls, df: DataFrame) -> DataFrame:
-        """
-        Calculate the cutoff index of the input and target strings that were used by
-        the model. The input/target are typically truncated and the model will only look
-        at the first n characters, for example from the beginning until we reach 512
-        tokens.
-        This function adds two columns to the dataframe:
-          - 'input_cutoff': the position of the last character in the input
+    def calculate_cutoffs(self, df: DataFrame) -> DataFrame:
+        """Calculates cuttoff indexes for the input and/or target string.
+
+        Transformer models (or sub-modules) are trained over a maximum number of
+        tokens / sequence length. This max_length controls the maximum number of
+        tokens that the transformer model can process / "see." During training,
+        the tokenizer uses this max_length to truncate additional tokens - so any
+        tokens beyond the max token length are fully ignored.
+
+        `calculate_cutoffs` adds relevant max_length information at the string
+        character level for the `target` and/or `input` columns. This character
+        info communicates to the UI how much of the respective string gets "seen"
+        during processing by the model.
+
+        In this abstract definition, we include basic error checking and compute
+        the cutoffs for the target column. This logic is shared by EncoderDecoder
+        and DecoderOnly models - it relies on the saved offset mapping.
+
+        Therefore, this function adds the following columns to df:
           - 'target_cutoff': the position of the last character in the target
+
+        See formatters (EncoderDecoder and DecoderOnly) for model specific details
+        when computing `input_cutoff`.
         """
-        tokenizer = cls.logger_config.tokenizer
+        tokenizer = self.logger_config.tokenizer
         if tokenizer is None:
             raise GalileoException(
                 "You must set your tokenizer before calling dq.finish. Use "
                 "`dataquality.integrations.seq2seq.hf.watch`"
             )
-        max_input_length = cls.logger_config.max_input_tokens
-        df = add_input_cutoff_to_df(df, tokenizer, max_tokens=max_input_length)
 
+        # Use the computed offsets from `validate_and_format`
         target_offsets_colname = S2SIC.token_label_offsets
         if target_offsets_colname in df.get_column_names():
             df = add_target_cutoff_to_df(df, target_offsets_colname)
 
+        df = self.formatter.set_input_cutoff(df)
         return df
 
     @property

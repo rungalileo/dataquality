@@ -237,9 +237,8 @@ class ObjectDetectionDataLogger(BaseGalileoDataLogger):
         """We skip this step because there is no 'text' field"""
         return df
 
-    @classmethod
     def prob_only(
-        cls,
+        self,
         epochs: List[str],
         split: str,
         epoch_or_inf_name: Union[int, str],
