@@ -174,7 +174,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         we fill the top_logprob data with "filler" data. Each token's
         top 5 logprob data is:
 
-            [("---", -1e10)] * TOP_K
+            [("---", -20)] * TOP_K
 
         Similar to `process_logits` we process the logprob data to remove
         1) remove padding and 2) apply any other formatting to just restrict
@@ -193,7 +193,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
                 type(batch_top_logprobs[i]) = List[Dict[str, float]]
                 len(batch_top_logprobs) == batch_size
                 len(batch_top_logprobs[i]) = num_tokens_in_label[i]
-                batch_top_logprobs[i][0] = ("---", -1e10)
+                batch_top_logprobs[i][0] = ("---", -20)
         """
         batch_token_logprobs = []
         batch_top_logprobs = []
