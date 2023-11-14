@@ -1,6 +1,7 @@
-from typing import List, Optional
+from typing import List, Optional, Union
 from warnings import warn
 
+from tokenizers import Tokenizer
 from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizerFast
 
 from dataquality.exceptions import GalileoException
@@ -14,25 +15,30 @@ from dataquality.utils.task_helpers import get_task_type
 
 @check_noop
 def set_tokenizer(
-    tokenizer: PreTrainedTokenizerFast,
+    tokenizer: Union[PreTrainedTokenizerFast, Tokenizer],
     max_input_tokens: Optional[int] = None,
     max_target_tokens: Optional[int] = None,
 ) -> None:
     """Seq2seq only. Set the tokenizer for your run
-
-    Must be a fast tokenizer, and must support `decode`, `encode`, `encode_plus`.
-
+    Must be either a Tokenizer or a fast pretrained tokenizer, and must support
+    `decode`, `encode`, `encode_plus`.
     We will use this tokenizer for both the input and the target. They will both be
     truncated after a certain length, which is set in the args max_input_tokens and
     max_target_tokens.
+    Args:
+        - tokenizer: This must be either an instance of Tokenizer from tokenizers or a
+            PreTrainedTokenizerFast from huggingface (ie T5TokenizerFast,
+            GPT2TokenizerFast, etc). Your tokenizer should have an `.is_fast` property
+            that returns True if it's a fast tokenizer. This class must implement the
+            `encode`, `decode`, and encode_plus` methods.
+        - max_input_tokens: max number of tokens used in the input. We will tokenize
+            the input and truncate at this number. If not specified, we will use
+        - max_target_tokens: max number of tokens used in the target. We will tokenize
+            the target and truncate at this number. If not specified, we will use
+            tokenizer.model_max_length
 
-    1. tokenizer: This must be an instance of PreTrainedTokenizerFast from huggingface
-        (ie T5TokenizerFast or GPT2TokenizerFast, etc). Your tokenizer should have an
-        `.is_fast` property that returns True if it's a fast tokenizer.
-        This class must implement the `encode`, `decode`, and `encode_plus` methods
-
-        You can set your tokenizer via the `set_tokenizer(tok)` function imported
-        from `dataquality.integrations.seq2seq.hf`
+    You can set your tokenizer via the `set_tokenizer(tok)` function imported from
+    `dataquality.integrations.seq2seq.hf`
 
     NOTE: We assume that the tokenizer you provide is the same tokenizer used for
     training. This must be true in order to align inputs and outputs correctly. Ensure
@@ -41,23 +47,29 @@ def set_tokenizer(
     """
     task_type = get_task_type()
     assert task_type == TaskType.seq2seq, "This method is only supported for seq2seq"
-    assert isinstance(
-        tokenizer, PreTrainedTokenizerFast
-    ), "Tokenizer must be an instance of PreTrainedTokenizerFast"
-    assert getattr(tokenizer, "is_fast", False), "Tokenizer must be a fast tokenizer"
+
+    if isinstance(tokenizer, PreTrainedTokenizerFast):
+        tokenizer_dq = tokenizer
+    elif isinstance(tokenizer, Tokenizer):
+        tokenizer_dq = PreTrainedTokenizerFast(tokenizer_object=tokenizer)
+    else:
+        raise ValueError(
+            "The tokenizer must be an instance of PreTrainedTokenizerFast or Tokenizer"
+        )
+    assert getattr(tokenizer_dq, "is_fast", False), "Tokenizer must be a fast tokenizer"
     for attr in ["encode", "decode", "encode_plus", "padding_side"]:
-        assert hasattr(tokenizer, attr), f"Tokenizer must support `{attr}`"
-    seq2seq_logger_config.tokenizer = tokenizer
+        assert hasattr(tokenizer_dq, attr), f"Tokenizer must support `{attr}`"
+    seq2seq_logger_config.tokenizer = tokenizer_dq
 
     seq2seq_logger_config.max_input_tokens = max_input_tokens
     if seq2seq_logger_config.max_input_tokens is None:
-        seq2seq_logger_config.max_input_tokens = tokenizer.model_max_length
+        seq2seq_logger_config.max_input_tokens = tokenizer_dq.model_max_length
         warn(
             (
                 "The argument max_input_tokens is not set, we will use the value "
-                f"{tokenizer.model_max_length} from tokenizer.model_max_length. If you "
-                "tokenized the input with another value, this can lead to confusing "
-                "insights about this training run."
+                f"{tokenizer_dq.model_max_length} from tokenizer.model_max_length. "
+                "If you tokenized the input with another value, this can lead to "
+                "confusing insights about this training run."
             )
         )
 
@@ -65,16 +77,16 @@ def set_tokenizer(
     if seq2seq_logger_config.model_type == Seq2SeqModelTypes.encoder_decoder:
         seq2seq_logger_config.max_target_tokens = max_target_tokens
         if seq2seq_logger_config.max_target_tokens is None:
-            seq2seq_logger_config.max_target_tokens = tokenizer.model_max_length
+            seq2seq_logger_config.max_target_tokens = tokenizer_dq.model_max_length
             warn(
                 (
                     "The argument max_target_tokens is not set, we will use the value "
-                    f"{tokenizer.model_max_length} from tokenizer.model_max_length. "
-                    f"If you tokenized the target with another value, this can lead "
-                    f"to confusing insights about this training run."
+                    f"{tokenizer_dq.model_max_length} from tokenizer.model_max_length. "
+                    "If you tokenized the target with another value, this can lead "
+                    "to confusing insights about this training run."
                 )
             )
-    else:
+    elif max_target_tokens is not None:
         warn(
             "The argument max_target_tokens is only used when working with "
             "EncoderDecoder models. This value will be ignored."
