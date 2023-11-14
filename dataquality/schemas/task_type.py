@@ -29,6 +29,15 @@ class TaskType(str, Enum):
         ]
 
     @staticmethod
+    def get_seq2seq_tasks() -> List["TaskType"]:
+        """Sequence to Sequence tasks types."""
+        return [
+            TaskType.seq2seq,
+            TaskType.seq2seq_completion,
+            TaskType.seq2seq_chat,
+        ]
+
+    @staticmethod
     def get_mapping(task_int: int) -> "TaskType":
         """Converts the servers task type enum to client names"""
         return {

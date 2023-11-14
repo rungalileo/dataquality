@@ -13,6 +13,7 @@ from dataquality.schemas.seq2seq import TOP_LOGPROBS_SCHEMA
 from dataquality.schemas.seq2seq import Seq2SeqOutputCols as C
 from dataquality.schemas.split import Split
 from dataquality.utils.arrow import save_arrow_file
+from dataquality.utils.emb import np_to_pa
 from dataquality.utils.seq2seq.logprobs import (
     process_sample_logprobs,
 )
@@ -72,6 +73,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
 
     def validate_and_format(self) -> None:
         """Validate the lengths, calculate token level dep, extract GT probs"""
+        self.embs = self._convert_tensor_ndarray(self.embs)
         self.logits = self._convert_tensor_ndarray(self.logits)
         self.logprobs = self._convert_tensor_ndarray(self.logprobs)
         self.ids = self._convert_tensor_ndarray(self.ids)
@@ -158,6 +160,14 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             C.split_.value: [Split[self.split].value] * batch_size,
             C.epoch.value: [self.epoch] * batch_size,
         }
+        if self.embs is not None:
+            # In seq2seq we have to save embs as a pyarrow array instead of numpy
+            # since the vaex DataFrames are stored as arrow files
+            if not isinstance(self.embs, np.ndarray):
+                self.embs = self._convert_tensor_ndarray(self.embs)
+            if self.embs.shape[0] > 0:
+                data[C.emb.value] = np_to_pa(self.embs)
+
         if self.split == Split.inference:
             data[C.inference_name.value] = [self.inference_name] * batch_size
         return data

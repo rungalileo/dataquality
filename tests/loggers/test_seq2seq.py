@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import numpy as np
 import pandas as pd
+import pyarrow as pa
 import pytest
 import torch
 import vaex
@@ -116,7 +117,6 @@ def test_log_model_outputs_encoder_decoder(
     cleanup_after_use: Callable,
     test_session_vars: TestSessionVariables,
 ) -> None:
-    # TODO Add commment
     set_test_config(task_type="seq2seq")
 
     tokenized_labels = [
@@ -193,6 +193,67 @@ def test_log_model_outputs_encoder_decoder(
             assert np.alltrue(
                 [candidate[0] == "Fake" for candidate in token_top_logprobs]
             )
+
+
+def test_log_model_outputs_with_embs(
+    set_test_config: Callable,
+    cleanup_after_use: Callable,
+    test_session_vars: TestSessionVariables,
+) -> None:
+    set_test_config(task_type="seq2seq")
+
+    tokenized_labels = [
+        np.arange(10).tolist(),
+        np.arange(18).tolist(),
+        np.arange(20).tolist(),
+        np.arange(4).tolist(),
+    ]
+
+    config = MagicMock()
+    config.id_to_tokens = {}
+    config.id_to_tokens["training"] = dict(zip(list(range(4)), tokenized_labels))
+    mock_tokenizer = MagicMock()
+    mock_tokenizer.padding_side = "right"
+    config.tokenizer = mock_tokenizer
+    config.tokenizer.decode = lambda x: "Fake"
+
+    batch_size = 4
+    seq_len = 20
+    vocab_size = 100
+
+    logits = np.random.rand(batch_size, seq_len, vocab_size)
+    # Set the locations of the "padded" tokens to 0 for the logits
+    for idx, token_labels in enumerate(tokenized_labels):
+        logits[idx, len(token_labels) :] = 0
+
+    embs = np.random.rand(batch_size, 100)
+    log_data = dict(
+        ids=list(range(batch_size)),
+        embs=embs,
+        logits=logits,
+        split="training",
+        epoch=0,
+    )
+    logger = Seq2SeqModelLogger(**log_data)
+    logger.logger_config = config
+    logger.formatter.logger_config = config
+    with patch("dataquality.core.log.get_model_logger") as mock_method:
+        mock_method.return_value = logger
+        dq.log_model_outputs(**log_data)
+    ThreadPoolManager.wait_for_threads()
+    logger.check_for_logging_failures()
+    output_data = vaex.open(f"{test_session_vars.LOCATION}/training/0/*.arrow")
+    expected_cols = [
+        "id",
+        "emb",
+        "token_logprobs",
+        "top_logprobs",
+        "split",
+        "epoch",
+    ]
+    assert sorted(output_data.get_column_names()) == sorted(expected_cols)
+    assert len(output_data) == 4
+    assert isinstance(output_data.emb.values, pa.ChunkedArray)
 
 
 @patch("dataquality.utils.seq2seq.generation.generate_on_batch")

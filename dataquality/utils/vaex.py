@@ -182,10 +182,15 @@ def add_umap_pca_to_df(df: DataFrame, data_embs: bool = False) -> DataFrame:
     return dfc
 
 
-def create_data_embs_df(df: DataFrame, lazy: bool = True) -> DataFrame:
+def create_data_embs_df(
+    df: DataFrame, text_col: str = "text", lazy: bool = True
+) -> DataFrame:
     """Runs sentence transformer on raw text to get off the shelf data embeddings
 
-    :param df: The dataframe to get data embeddings for. Must have text col
+    text_col can be passed in as "input" or "target" for Seq2Seq tasks
+
+    :param df: The dataframe to get data embeddings for. Must have the text_col
+    :param text_col: The column to use for calculating data embeddings
     :param lazy: If true, we lazily apply the model to encode the text
     """
     # This import takes up to 25 seconds, so we don't want to eagerly import it
@@ -205,7 +210,7 @@ def create_data_embs_df(df: DataFrame, lazy: bool = True) -> DataFrame:
         )
 
     if lazy:
-        df_copy["emb"] = df_copy["text"].apply_sentence_transformer()
+        df_copy["emb"] = df_copy[text_col].apply_sentence_transformer()
         df_copy = df_copy[["id", "emb"]]
     else:
         import torch
@@ -213,7 +218,7 @@ def create_data_embs_df(df: DataFrame, lazy: bool = True) -> DataFrame:
         # Downcasts to float16 where possible, speeds up processing by 10 it/sec
         with torch.autocast("cuda"):
             df_copy["emb"] = data_model.encode(
-                df_copy["text"].tolist(), show_progress_bar=True
+                df_copy[text_col].tolist(), show_progress_bar=True
             ).astype(np.float32)
 
     return df_copy

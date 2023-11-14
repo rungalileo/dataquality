@@ -798,6 +798,6 @@ class TextNERDataLogger(BaseGalileoDataLogger):
     ) -> None:
         """Not yet supported for NER. Coming soon!"""
         warnings.warn(
-            "Data embeddings are not yet supported for NER. Coming soon!",
+            "Data embeddings are not yet supported for NER.",
             GalileoWarning,
         )

@@ -20,6 +20,7 @@ from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.seq2seq import Seq2SeqInputCols as S2SIC
 from dataquality.schemas.seq2seq import Seq2SeqModelTypes
 from dataquality.schemas.split import Split
+from dataquality.utils.emb import convert_pa_to_np
 from dataquality.utils.seq2seq.generation import (
     add_generated_output_to_df,
 )
@@ -320,6 +321,10 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             other_cols += ["id"]
 
         emb = df_copy[emb_cols]
+        if "emb" in emb.get_column_names():
+            # Convert emb to numpy array
+            emb = convert_pa_to_np(emb, "emb")
+
         data_df = S2SIC.set_cols(df_copy[other_cols])
         return BaseLoggerDataFrames(prob=prob, emb=emb, data=data_df)
 
@@ -361,11 +366,3 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
 
         df = self.formatter.set_input_cutoff(df)
         return df
-
-    @property
-    def support_embs(self) -> bool:
-        """In Seq2Seq we only support data embeddings
-
-        It is uncommon for users to have access to the model embeddings for Seq2Seq
-        """
-        return False

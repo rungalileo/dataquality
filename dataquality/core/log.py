@@ -387,10 +387,9 @@ def log_model_outputs(
     assert (probs is not None) or (
         logits is not None
     ), "You must provide either logits or probs"
-    # No embeddings ever provided by user in seq2seq
-    if config.task_type == TaskType.seq2seq:
+    # Custom embeddings are optional in seq2seq
+    if embs is None and config.task_type in TaskType.get_seq2seq_tasks():
         exclude_embs = True
-        embs = None
     assert (embs is None and exclude_embs) or (
         embs is not None and not exclude_embs
     ), "embs can be omitted if and only if exclude_embs is True"
