@@ -5,7 +5,7 @@ from tokenizers import Tokenizer
 from tokenizers.models import BPE
 from transformers import PreTrainedTokenizerFast
 
-from dataquality.integrations.seq2seq.hf import set_tokenizer
+from dataquality.integrations.seq2seq.core import set_tokenizer
 from tests.conftest import TestSessionVariables, tokenizer_T5, tokenizer_T5_not_auto
 
 

@@ -6,7 +6,7 @@ from scipy.special import log_softmax
 
 from dataquality.loggers.base_logger import BaseGalileoLogger
 from dataquality.loggers.logger_config.seq2seq.seq2seq_base import Seq2SeqLoggerConfig
-from dataquality.schemas.seq2seq import Seq2SeqModelTypes
+from dataquality.schemas.seq2seq import Seq2SeqModelType
 from dataquality.utils.seq2seq import remove_padding
 from dataquality.utils.seq2seq.logprobs import (
     get_top_logprob_indices,
@@ -175,14 +175,14 @@ class DecoderOnlyModelFormatter(BaseSeq2SeqModelFormatter):
         return response_labels, sample_logprobs, sample_top_indices
 
 
-FORMATTER_MAP: Dict[Seq2SeqModelTypes, Type[BaseSeq2SeqModelFormatter]] = {
-    Seq2SeqModelTypes.encoder_decoder: EncoderDecoderModelFormatter,
-    Seq2SeqModelTypes.decoder_only: DecoderOnlyModelFormatter,
+FORMATTER_MAP: Dict[Seq2SeqModelType, Type[BaseSeq2SeqModelFormatter]] = {
+    Seq2SeqModelType.encoder_decoder: EncoderDecoderModelFormatter,
+    Seq2SeqModelType.decoder_only: DecoderOnlyModelFormatter,
 }
 
 
 def get_model_formatter(
-    model_type: Seq2SeqModelTypes, logger_config: Seq2SeqLoggerConfig
+    model_type: Seq2SeqModelType, logger_config: Seq2SeqLoggerConfig
 ) -> BaseSeq2SeqModelFormatter:
     """Returns the model formatter for the given model_type"""
     return FORMATTER_MAP[model_type](logger_config)

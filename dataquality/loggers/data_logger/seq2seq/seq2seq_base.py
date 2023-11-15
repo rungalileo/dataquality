@@ -18,7 +18,7 @@ from dataquality.loggers.logger_config.seq2seq.seq2seq_base import (
 )
 from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.seq2seq import Seq2SeqInputCols as S2SIC
-from dataquality.schemas.seq2seq import Seq2SeqModelTypes
+from dataquality.schemas.seq2seq import Seq2SeqModelType
 from dataquality.schemas.split import Split
 from dataquality.utils.emb import convert_pa_to_np
 from dataquality.utils.seq2seq.generation import (
@@ -84,6 +84,9 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
 
         # Formatter distinguishes behavior between EncoderDecoder and DecoderOnly
         model_type = self.logger_config.model_type
+        assert (
+            model_type is not None
+        ), "model_type must be set in `watch` before logging"
         if model_type == "decoder_only":
             # Only requied for Decoder-Only models
             self.formatted_prompts: List[str] = []
@@ -124,7 +127,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             "Use `dq.integrations.seq2seq.hf.set_tokenizer`"
         )
 
-        if self.logger_config.model_type == Seq2SeqModelTypes.decoder_only:
+        if self.logger_config.model_type == Seq2SeqModelType.decoder_only:
             texts = self.formatted_prompts
             max_tokens = self.logger_config.max_input_tokens
         else:

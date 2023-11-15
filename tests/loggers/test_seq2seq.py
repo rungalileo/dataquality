@@ -11,7 +11,7 @@ from datasets import Dataset
 from transformers import GenerationConfig, T5ForConditionalGeneration
 
 import dataquality as dq
-from dataquality.integrations.seq2seq.hf import set_tokenizer, watch
+from dataquality.integrations.seq2seq.core import set_tokenizer, watch
 from dataquality.loggers.data_logger.base_data_logger import DataSet
 from dataquality.loggers.data_logger.seq2seq.seq2seq_base import Seq2SeqDataLogger
 from dataquality.loggers.logger_config.seq2seq.seq2seq_base import seq2seq_logger_config
@@ -63,7 +63,6 @@ def test_log_dataset_encoder_decoder(
     cleanup_after_use: Callable,
     test_session_vars: TestSessionVariables,
 ) -> None:
-    # TODO Test with watch
     set_test_config(task_type="seq2seq")
     logger = Seq2SeqDataLogger()
 
@@ -427,7 +426,13 @@ def test_tokenize_target_provide_maxlength_encoder_decoder(
     """
     set_test_config(task_type=TaskType.seq2seq)
     mock_generation_config = Mock(spec=GenerationConfig)
-    watch(model_T5, tokenizer_T5, mock_generation_config, max_target_tokens=7)
+    watch(
+        tokenizer_T5,
+        "encoder_decoder",
+        model_T5,
+        mock_generation_config,
+        max_target_tokens=7,
+    )
     ds = Dataset.from_dict(
         {
             "id": [0, 1],
@@ -460,7 +465,7 @@ def test_tokenize_target_doesnt_provide_maxlength_encoder_decoder(
     mock_generation_config = Mock(spec=GenerationConfig)
     # TODO Does using a real model here take a lot of time?
     #   should we just mock the model and add a max length?
-    watch(model_T5, tokenizer_T5, mock_generation_config)
+    watch(tokenizer_T5, "encoder_decoder", model_T5, mock_generation_config)
     ds = Dataset.from_dict(
         {
             "id": [0, 1],
@@ -495,8 +500,9 @@ def test_calculate_cutoffs_encoder_decoder(
     mock_model.device = "cpu"
     mock_generation_config = Mock(spec=GenerationConfig)
     watch(
-        mock_model,
         tokenizer_T5,
+        "encoder_decoder",
+        mock_model,
         mock_generation_config,
         max_input_tokens=3,
         max_target_tokens=5,

@@ -63,6 +63,9 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         self.top_logprobs = pa.array([])
         # Formatter distinguishes behavior between EncoderDecoder and DecoderOnly
         model_type = self.logger_config.model_type
+        assert (
+            model_type is not None
+        ), "model_type must be set in `watch` before logging"
         self.formatter = get_model_formatter(model_type, self.logger_config)
 
     @property

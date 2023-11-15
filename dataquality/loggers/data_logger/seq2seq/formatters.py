@@ -7,7 +7,7 @@ from vaex import DataFrame
 from dataquality.loggers.data_logger.seq2seq.seq2seq_base import Seq2SeqDataLogger
 from dataquality.loggers.logger_config.seq2seq.seq2seq_base import Seq2SeqLoggerConfig
 from dataquality.schemas.seq2seq import Seq2SeqInputCols as S2SIC
-from dataquality.schemas.seq2seq import Seq2SeqModelTypes
+from dataquality.schemas.seq2seq import Seq2SeqModelType
 from dataquality.utils.seq2seq.decoder_only import extract_tokenized_responses
 from dataquality.utils.seq2seq.offsets import (
     add_input_cutoff_to_df,
@@ -285,14 +285,14 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
         return df
 
 
-FORMATTER_MAP: Dict[Seq2SeqModelTypes, Type[BaseSeq2SeqDataFormatter]] = {
-    Seq2SeqModelTypes.encoder_decoder: EncoderDecoderDataFormatter,
-    Seq2SeqModelTypes.decoder_only: DecoderOnlyDataFormatter,
+FORMATTER_MAP: Dict[Seq2SeqModelType, Type[BaseSeq2SeqDataFormatter]] = {
+    Seq2SeqModelType.encoder_decoder: EncoderDecoderDataFormatter,
+    Seq2SeqModelType.decoder_only: DecoderOnlyDataFormatter,
 }
 
 
 def get_data_formatter(
-    model_type: Seq2SeqModelTypes, logger_config: Seq2SeqLoggerConfig
+    model_type: Seq2SeqModelType, logger_config: Seq2SeqLoggerConfig
 ) -> BaseSeq2SeqDataFormatter:
     """Returns the data formatter for the given model_type"""
     return FORMATTER_MAP[model_type](logger_config)
