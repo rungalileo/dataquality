@@ -45,7 +45,6 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         embs: Optional[Union[List, np.ndarray]] = None,
         probs: Optional[Union[List, np.ndarray]] = None,
         logits: Optional[Union[List, np.ndarray]] = None,
-        logprobs: Optional[Union[List, np.ndarray]] = None,
         ids: Optional[Union[List, np.ndarray]] = None,
         split: str = "",
         epoch: Optional[int] = None,
@@ -79,18 +78,17 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         # TODO THIS SHOULD BE LOGPROBS
         self.probs = self._convert_tensor_ndarray(self.probs)
         self.ids = self._convert_tensor_ndarray(self.ids)
-        # TODO CHECK
         assert (len(self.ids) == len(self.logits)) or (
             len(self.ids) == len(self.probs)
         ), (
-            "Must pass in a valid batch with equal id and logit length, got "
-            f"id: {len(self.ids)},logits: {len(self.logits)}"
+            "Must pass in a valid batch with equal id and logit/probs length, got "
+            f"id: {len(self.ids)},logits: {len(self.logits)},probs: {len(self.probs)}"
         )
         assert (
             self.logger_config.tokenizer is not None
         ), "Must set your tokenizer. Use `dq.integrations.seq2seq.hf.set_tokenizer`"
 
-        if self.probs is not None:
+        if len(self.probs) != 0:
             (self.token_logprobs, self.top_logprobs) = self.process_logprobs(
                 self.ids, self.probs
             )
