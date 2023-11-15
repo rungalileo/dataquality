@@ -14,9 +14,13 @@ TOP_K = 5
 GENERATION_BATCH_SIZE = 100
 
 
-class Seq2SeqModelTypes(str, Enum):
+class Seq2SeqModelType(str, Enum):
     encoder_decoder = "encoder_decoder"
     decoder_only = "decoder_only"
+
+    @staticmethod
+    def members() -> List[str]:
+        return list(map(lambda i: i.value, list(Seq2SeqModelType)))
 
 
 class Seq2SeqInputCols(str, Enum):

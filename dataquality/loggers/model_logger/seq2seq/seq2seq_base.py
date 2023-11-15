@@ -4,12 +4,16 @@ import numpy as np
 import pyarrow as pa
 from scipy.special import log_softmax
 
+from dataquality.exceptions import GalileoException
 from dataquality.loggers.logger_config.seq2seq.seq2seq_base import (
     Seq2SeqLoggerConfig,
     seq2seq_logger_config,
 )
 from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelLogger
-from dataquality.loggers.model_logger.seq2seq.formatters import get_model_formatter
+from dataquality.loggers.model_logger.seq2seq.formatters import (
+    BaseSeq2SeqModelFormatter,
+    get_model_formatter,
+)
 from dataquality.schemas.seq2seq import TOP_K, TOP_LOGPROBS_SCHEMA
 from dataquality.schemas.seq2seq import Seq2SeqOutputCols as C
 from dataquality.schemas.split import Split
@@ -62,8 +66,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         self.token_logprobs = pa.array([])
         self.top_logprobs = pa.array([])
         # Formatter distinguishes behavior between EncoderDecoder and DecoderOnly
-        model_type = self.logger_config.model_type
-        self.formatter = get_model_formatter(model_type, self.logger_config)
+        self.formatter: Optional[BaseSeq2SeqModelFormatter] = None
 
     @property
     def split_key(self) -> str:
@@ -84,9 +87,21 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
             "Must pass in a valid batch with equal id and logit/probs length, got "
             f"id: {len(self.ids)},logits: {len(self.logits)},probs: {len(self.probs)}"
         )
-        assert (
-            self.logger_config.tokenizer is not None
-        ), "Must set your tokenizer. Use `dq.integrations.seq2seq.hf.set_tokenizer`"
+
+        assert self.logger_config.tokenizer is not None, (
+            "Must set your tokenizer. Use `dq.integrations.seq2seq.core.watch` or "
+            "`dq.integrations.seq2seq.core.watch`"
+        )
+
+        model_type = self.logger_config.model_type
+        if model_type is None:
+            raise GalileoException(
+                "You must set your model type before logging. Use "
+                "`dataquality.integrations.seq2seq.core.watch`"
+            )
+
+        # Now that model_type has been set with `watch` we set formatter
+        self.formatter = get_model_formatter(model_type, self.logger_config)
 
         if len(self.probs) != 0:
             (self.token_logprobs, self.top_logprobs) = self.process_logprobs(
@@ -132,7 +147,10 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
                 len(batch_top_logprobs) == batch_size
                 len(batch_top_logprobs[i]) = num_tokens_in_label[i]
         """
-        assert self.logger_config.tokenizer is not None  # Needed for linting
+        # Formatter and tokenizer will have already been set in `validate_and_format`
+        # These are needed for linting
+        assert self.logger_config.tokenizer is not None
+        assert self.formatter is not None
 
         batch_token_logprobs = []
         batch_top_logprobs = []

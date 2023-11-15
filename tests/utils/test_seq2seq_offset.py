@@ -7,7 +7,7 @@ from datasets import Dataset
 from transformers import GenerationConfig, T5ForConditionalGeneration
 
 import dataquality as dq
-from dataquality.integrations.seq2seq.hf import watch
+from dataquality.integrations.seq2seq.core import watch
 from dataquality.loggers.data_logger.seq2seq.seq2seq_base import Seq2SeqDataLogger
 from dataquality.schemas.seq2seq import Seq2SeqInputCols as C
 from dataquality.schemas.task_type import TaskType
@@ -155,7 +155,13 @@ def test_add_input_cutoff_to_df(
     mock_model = Mock(spec=T5ForConditionalGeneration)
     mock_model.device = "cpu"
     mock_generation_config = Mock(spec=GenerationConfig)
-    watch(mock_model, tokenizer_T5, mock_generation_config, max_input_tokens=4)
+    watch(
+        tokenizer_T5,
+        "encoder_decoder",
+        mock_model,
+        mock_generation_config,
+        max_input_tokens=4,
+    )
 
     input_1, input_2 = "dog dog dog done - tricked you", "bird"
     ds = Dataset.from_dict(
@@ -197,7 +203,13 @@ def test_add_target_cutoff_to_df(
     mock_model = Mock(spec=T5ForConditionalGeneration)
     mock_model.device = "cpu"
     mock_generation_config = Mock(spec=GenerationConfig)
-    watch(mock_model, tokenizer_T5, mock_generation_config, max_target_tokens=6)
+    watch(
+        tokenizer_T5,
+        "encoder_decoder",
+        mock_model,
+        mock_generation_config,
+        max_target_tokens=6,
+    )
 
     target_1, target_2 = "cat cat cat cat cat done", "cat"
     ds = Dataset.from_dict(

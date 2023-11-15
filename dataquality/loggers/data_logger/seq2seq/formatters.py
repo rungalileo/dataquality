@@ -7,7 +7,7 @@ from vaex import DataFrame
 from dataquality.loggers.data_logger.seq2seq.seq2seq_base import Seq2SeqDataLogger
 from dataquality.loggers.logger_config.seq2seq.seq2seq_base import Seq2SeqLoggerConfig
 from dataquality.schemas.seq2seq import Seq2SeqInputCols as S2SIC
-from dataquality.schemas.seq2seq import Seq2SeqModelTypes
+from dataquality.schemas.seq2seq import Seq2SeqModelType
 from dataquality.utils.seq2seq.decoder_only import extract_tokenized_responses
 from dataquality.utils.seq2seq.offsets import (
     add_input_cutoff_to_df,
@@ -46,7 +46,7 @@ class EncoderDecoderDataFormatter(BaseSeq2SeqDataFormatter):
         This class must implement the `encode`, `decode`, and `encode_plus` methods
 
         You can set your tokenizer via either the seq2seq `set_tokenizer()` or
-        `watch(..., tokenizer, ...)` functions in `dataquality.integrations.seq2seq.hf`
+        `watch(tokenizer, ...)` functions in `dataquality.integrations.seq2seq.core`
     2. A two column (i.e. completion) dataset (pandas/huggingface etc) with string
         'text' (model <Input> / <Instruction> / <Prompt>, ...) and 'label' (model
         <Target> / (<Completion> / ...) columns + a data sample id column.
@@ -63,7 +63,7 @@ class EncoderDecoderDataFormatter(BaseSeq2SeqDataFormatter):
         `dq.log_dataset(ds, text="text", label="summary", id="id")`
 
     Putting it all together:
-        from dataquality.integrations.seq2seq.hf import set_tokenizer
+        from dataquality.integrations.seq2seq.core import set_tokenizer
         from datasets import load_dataset
         from transformers import T5TokenizerFast
 
@@ -75,6 +75,7 @@ class EncoderDecoderDataFormatter(BaseSeq2SeqDataFormatter):
         # You can either use `set_tokenizer()` or `watch()`
         set_tokenizer(
             tokenizer,
+            "encoder_decoder",
             max_input_tokens=512,
             max_target_tokens=128
         )
@@ -159,7 +160,7 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
         This class must implement the `encode`, `decode`, and `encode_plus` methods
 
         You can set your tokenizer via either the seq2seq `set_tokenizer()` or
-        `watch(..., tokenizer, ...)` functions in `dataquality.integrations.seq2seq.hf`
+        `watch(tokenizer, ...)` functions in `dataquality.integrations.seq2seq.core`
     2. A two column (i.e. completion) dataset (pandas/huggingface etc) with string
         'text' (model <Input> / <Instruction> / <Prompt>, ...) and 'label' (model
         <Target> / (<Completion> / ...) columns + a data sample id column.
@@ -176,7 +177,7 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
         `dq.log_dataset(ds, text="text", label="summary", id="id")`
 
     Putting it all together:
-        from dataquality.integrations.seq2seq.hf import set_tokenizer
+        from dataquality.integrations.seq2seq.core import set_tokenizer
         from datasets import load_dataset
         from transformers import T5TokenizerFast
 
@@ -188,6 +189,7 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
         # You can either use `set_tokenizer()` or `watch()`
         set_tokenizer(
             tokenizer,
+            "encoder_decoder",
             max_input_tokens=512,
             max_target_tokens=128
         )
@@ -285,14 +287,14 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
         return df
 
 
-FORMATTER_MAP: Dict[Seq2SeqModelTypes, Type[BaseSeq2SeqDataFormatter]] = {
-    Seq2SeqModelTypes.encoder_decoder: EncoderDecoderDataFormatter,
-    Seq2SeqModelTypes.decoder_only: DecoderOnlyDataFormatter,
+FORMATTER_MAP: Dict[Seq2SeqModelType, Type[BaseSeq2SeqDataFormatter]] = {
+    Seq2SeqModelType.encoder_decoder: EncoderDecoderDataFormatter,
+    Seq2SeqModelType.decoder_only: DecoderOnlyDataFormatter,
 }
 
 
 def get_data_formatter(
-    model_type: Seq2SeqModelTypes, logger_config: Seq2SeqLoggerConfig
+    model_type: Seq2SeqModelType, logger_config: Seq2SeqLoggerConfig
 ) -> BaseSeq2SeqDataFormatter:
     """Returns the data formatter for the given model_type"""
     return FORMATTER_MAP[model_type](logger_config)

@@ -18,7 +18,7 @@ from dataquality.loggers.logger_config.seq2seq.seq2seq_base import (
 )
 from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.seq2seq import Seq2SeqInputCols as S2SIC
-from dataquality.schemas.seq2seq import Seq2SeqModelTypes
+from dataquality.schemas.seq2seq import Seq2SeqModelType
 from dataquality.schemas.split import Split
 from dataquality.utils.emb import convert_pa_to_np
 from dataquality.utils.seq2seq.generation import (
@@ -81,21 +81,14 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         self.ids: List[int] = []
         self.texts: List[str] = []
         self.labels: List[str] = []
-
+        # Only requied for Decoder-Only models
+        self.formatted_prompts: List[str] = []
         # Formatter distinguishes behavior between EncoderDecoder and DecoderOnly
-        model_type = self.logger_config.model_type
-        if model_type == "decoder_only":
-            # Only requied for Decoder-Only models
-            self.formatted_prompts: List[str] = []
-
         from dataquality.loggers.data_logger.seq2seq.formatters import (
             BaseSeq2SeqDataFormatter,
-            get_data_formatter,
         )
 
-        self.formatter: BaseSeq2SeqDataFormatter = get_data_formatter(
-            model_type, self.logger_config
-        )
+        self.formatter: Optional[BaseSeq2SeqDataFormatter] = None
 
     @property
     def split_key(self) -> str:
@@ -121,10 +114,23 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         )
         assert self.logger_config.tokenizer, (
             "You must set your tokenizer before logging. "
-            "Use `dq.integrations.seq2seq.hf.set_tokenizer`"
+            "Use `dq.integrations.seq2seq.core.set_tokenizer`"
+        )
+        model_type = self.logger_config.model_type
+        if model_type is None:
+            raise GalileoException(
+                "You must set your model type before logging. Use "
+                "`dataquality.integrations.seq2seq.core.watch`"
+            )
+
+        # Now that model_type has been set with `watch` we set formatter
+        from dataquality.loggers.data_logger.seq2seq.formatters import (
+            get_data_formatter,
         )
 
-        if self.logger_config.model_type == Seq2SeqModelTypes.decoder_only:
+        self.formatter = get_data_formatter(model_type, self.logger_config)
+
+        if self.logger_config.model_type == Seq2SeqModelType.decoder_only:
             texts = self.formatted_prompts
             max_tokens = self.logger_config.max_input_tokens
         else:
@@ -274,18 +280,18 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         if model is None:
             raise GalileoException(
                 "You must set your model before logging. Use "
-                "`dataquality.integrations.seq2seq.hf.watch`"
+                "`dataquality.integrations.seq2seq.core.watch`"
             )
         if tokenizer is None:
             raise GalileoException(
                 "You must set your tokenizer before logging. Use "
-                "`dataquality.integrations.seq2seq.hf.watch`"
+                "`dataquality.integrations.seq2seq.core.watch`"
             )
         assert isinstance(max_input_tokens, int)
         if generation_config is None:
             raise GalileoException(
                 "You must set your generation config before logging. Use "
-                "`dataquality.integrations.seq2seq.hf.watch`"
+                "`dataquality.integrations.seq2seq.core.watch`"
             )
         if split not in logger_config.generation_splits:
             print("Skipping generation for split", split)
@@ -356,7 +362,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         if tokenizer is None:
             raise GalileoException(
                 "You must set your tokenizer before calling dq.finish. Use "
-                "`dataquality.integrations.seq2seq.hf.watch`"
+                "`dataquality.integrations.seq2seq.core.watch`"
             )
 
         # Use the computed offsets from `validate_and_format`
@@ -364,5 +370,8 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         if target_offsets_colname in df.get_column_names():
             df = add_target_cutoff_to_df(df, target_offsets_colname)
 
+        # Formatter will have already been set in `validate_and_format`
+        assert self.formatter is not None
         df = self.formatter.set_input_cutoff(df)
+
         return df

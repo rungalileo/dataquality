@@ -19,11 +19,12 @@ from transformers import (
 
 import dataquality as dq
 from dataquality.exceptions import GalileoException
-from dataquality.integrations.seq2seq.hf import watch
+from dataquality.integrations.seq2seq.core import watch
 from dataquality.integrations.seq2seq.schema import (
     Seq2SeqGenerationConfig,
     Seq2SeqTrainingConfig,
 )
+from dataquality.schemas.seq2seq import Seq2SeqModelType
 from dataquality.schemas.split import Split
 from dataquality.utils.torch import cleanup_cuda
 
@@ -153,14 +154,14 @@ def get_trainer(
     )
 
     watch(
-        model=model,
         tokenizer=tokenizer,
+        model_type=Seq2SeqModelType.encoder_decoder,
+        model=model,
         generation_config=hf_generation_config,
         generation_splits=generation_config.generation_splits,
         max_input_tokens=max_input_tokens,
         max_target_tokens=max_target_tokens,
     )
-
     return model, dataloaders
 
 
