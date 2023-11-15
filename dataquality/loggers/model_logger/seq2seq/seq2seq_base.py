@@ -19,6 +19,7 @@ from dataquality.schemas.seq2seq import Seq2SeqOutputCols as C
 from dataquality.schemas.split import Split
 from dataquality.utils.arrow import save_arrow_file
 from dataquality.utils.emb import np_to_pa
+from dataquality.utils.helpers import has_len
 from dataquality.utils.seq2seq.logprobs import (
     get_top_logprob_indices,
     process_sample_logprobs,
@@ -54,6 +55,10 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         epoch: Optional[int] = None,
         inference_name: Optional[str] = None,
     ) -> None:
+        """Initialize the Seq2SeqModelLogger
+
+        In Seq2Seq if probs is passed in it is actually logprobs
+        """
         super().__init__(
             embs=embs,
             probs=probs,
@@ -78,7 +83,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         """Validate the lengths, calculate token level dep, extract GT probs"""
         self.embs = self._convert_tensor_ndarray(self.embs)
         self.logits = self._convert_tensor_ndarray(self.logits)
-        # TODO THIS SHOULD BE LOGPROBS
+        # Note that for seq2seq if probs is set they are actually logprobs
         self.probs = self._convert_tensor_ndarray(self.probs)
         self.ids = self._convert_tensor_ndarray(self.ids)
         assert (len(self.ids) == len(self.logits)) or (
@@ -103,8 +108,8 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         # Now that model_type has been set with `watch` we set formatter
         self.formatter = get_model_formatter(model_type, self.logger_config)
 
-        if len(self.probs) != 0:
-            (self.token_logprobs, self.top_logprobs) = self.process_logprobs(
+        if has_len(self.probs):
+            self.token_logprobs, self.top_logprobs = self.process_logprobs(
                 self.ids, self.probs
             )
         else:
@@ -118,7 +123,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
     def process_logits(
         self, batch_ids: np.ndarray, batch_logits: np.ndarray
     ) -> Tuple[pa.array, pa.array]:
-        """ "Process a batch of sample logit data
+        """Process a batch of sample logit data
 
         For each sample in the batch extract / compute the following values:
             - Token level logprobs for the GT label
@@ -213,19 +218,22 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
                 len(batch_top_logprobs[i]) = num_tokens_in_label[i]
                 batch_top_logprobs[i][0] = ("---", -20)
         """
+        # Formatter will have already been set in `validate_and_format`
+        # These are needed for linting
+        assert self.formatter is not None
+
         batch_token_logprobs = []
         batch_top_logprobs = []
         for sample_id, sample_logprobs in zip(batch_ids, batch_logprobs):
-            # Note that with API based models the logprob data is
-            # already shifted / aligned.
-            response_labels, sample_response_logprobs = self.formatter.format_sample(
+            # API based models will have already shifted the logprobs
+            sample_labels, sample_response_logprobs = self.formatter.format_sample(
                 sample_id, sample_logprobs, self.split_key, shift_labels=False
             )
 
             # Add fake top loprobs
             sample_top_logprobs: List[List[Tuple[str, float]]] = [
                 [("---", -20)] * TOP_K
-            ] * len(response_labels)
+            ] * len(sample_labels)
 
             batch_token_logprobs.append(sample_response_logprobs)
             batch_top_logprobs.append(sample_top_logprobs)

@@ -362,6 +362,7 @@ def log_model_outputs(
     epoch: Optional[int] = None,
     logits: Optional[Union[List, np.ndarray]] = None,
     probs: Optional[Union[List, np.ndarray]] = None,
+    log_probs: Optional[np.ndarray] = None,
     inference_name: Optional[str] = None,
     exclude_embs: bool = False,
 ) -> None:
@@ -384,12 +385,17 @@ def log_model_outputs(
     assert all(
         [config.task_type, config.current_project_id, config.current_run_id]
     ), "You must call dataquality.init before logging data"
+    if config.task_type in TaskType.get_seq2seq_tasks():
+        # Custom embeddings are optional in seq2seq
+        if embs is None:
+            exclude_embs = True
+        if log_probs is not None:
+            probs = log_probs
+
     assert (probs is not None) or (
         logits is not None
     ), "You must provide either logits or probs"
-    # Custom embeddings are optional in seq2seq
-    if embs is None and config.task_type in TaskType.get_seq2seq_tasks():
-        exclude_embs = True
+
     assert (embs is None and exclude_embs) or (
         embs is not None and not exclude_embs
     ), "embs can be omitted if and only if exclude_embs is True"
