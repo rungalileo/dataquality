@@ -68,7 +68,7 @@ def test_log_dataset_encoder_decoder(
 
     with patch("dataquality.core.log.get_data_logger") as mock_method:
         mock_method.return_value = logger
-        set_tokenizer(tokenizer)
+        watch(tokenizer, "encoder_decoder")
         dq.log_dataset(
             dataset, text="summary", label="title", id="my_id", split="train"
         )
@@ -107,7 +107,7 @@ def test_log_dataset_no_tokenizer(set_test_config: Callable) -> None:
             dq.log_dataset(df, text="summary", label="title", id="my_id", split="train")
     assert str(e.value) == (
         "You must set your tokenizer before logging. "
-        "Use `dq.integrations.seq2seq.hf.set_tokenizer`"
+        "Use `dq.integrations.seq2seq.core.set_tokenizer`"
     )
 
 
@@ -132,6 +132,7 @@ def test_log_model_outputs_encoder_decoder(
     mock_tokenizer.padding_side = "right"
     config.tokenizer = mock_tokenizer
     config.tokenizer.decode = lambda x: "Fake"
+    config.model_type = "encoder_decoder"
 
     batch_size = 4
     seq_len = 20
@@ -150,7 +151,6 @@ def test_log_model_outputs_encoder_decoder(
     )
     logger = Seq2SeqModelLogger(**log_data)
     logger.logger_config = config
-    logger.formatter.logger_config = config
     with patch("dataquality.core.log.get_model_logger") as mock_method:
         mock_method.return_value = logger
         dq.log_model_outputs(**log_data)
@@ -215,6 +215,7 @@ def test_log_model_outputs_with_embs(
     mock_tokenizer.padding_side = "right"
     config.tokenizer = mock_tokenizer
     config.tokenizer.decode = lambda x: "Fake"
+    config.model_type = "encoder_decoder"
 
     batch_size = 4
     seq_len = 20
@@ -235,7 +236,6 @@ def test_log_model_outputs_with_embs(
     )
     logger = Seq2SeqModelLogger(**log_data)
     logger.logger_config = config
-    logger.formatter.logger_config = config
     with patch("dataquality.core.log.get_model_logger") as mock_method:
         mock_method.return_value = logger
         dq.log_model_outputs(**log_data)
@@ -351,7 +351,7 @@ def test_tokenize_input_provide_maxlength(
     mock_model.generate.return_value = seq2seq_generated_output
     mock_generation_config = Mock(spec=GenerationConfig)
 
-    set_tokenizer(tokenizer_T5, max_input_tokens=7)
+    set_tokenizer(tokenizer_T5, "encoder_decoder", max_input_tokens=7)
     input_text = "a b c d e f g h i j"
     generate_sample_output(
         input_text,
@@ -393,7 +393,7 @@ def test_tokenize_input_doesnt_provide_maxlength(
     mock_model.generate.return_value = seq2seq_generated_output
     mock_generation_config = Mock(spec=GenerationConfig)
 
-    set_tokenizer(tokenizer_T5)
+    set_tokenizer(tokenizer_T5, "encoder_decoder")
     input_text = "a b c d e f g h i j" * 100
     generate_sample_output(
         input_text,
@@ -517,9 +517,8 @@ def test_calculate_cutoffs_encoder_decoder(
             "target": [target_1, target_2],
         }
     )
-    dq.log_dataset(ds, text="input", label="target", split="train")
-
     data_logger = Seq2SeqDataLogger()
+    data_logger.log_dataset(ds, text="input", label="target", split="training")
     in_frame_split = vaex.open(
         f"{data_logger.input_data_path}/training/*.{data_logger.INPUT_DATA_FILE_EXT}"
     )

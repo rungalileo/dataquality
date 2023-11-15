@@ -94,7 +94,7 @@ class Seq2SeqModelLogger(BaseGalileoModelLogger):
         if model_type is None:
             raise GalileoException(
                 "You must set your model type before logging. Use "
-                "`dataquality.integrations.seq2seq.hf.watch`"
+                "`dataquality.integrations.seq2seq.core.watch`"
             )
 
         # Now that model_type has been set with `watch` we set formatter

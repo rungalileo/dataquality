@@ -114,13 +114,13 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         )
         assert self.logger_config.tokenizer, (
             "You must set your tokenizer before logging. "
-            "Use `dq.integrations.seq2seq.hf.set_tokenizer`"
+            "Use `dq.integrations.seq2seq.core.set_tokenizer`"
         )
         model_type = self.logger_config.model_type
         if model_type is None:
             raise GalileoException(
                 "You must set your model type before logging. Use "
-                "`dataquality.integrations.seq2seq.hf.watch`"
+                "`dataquality.integrations.seq2seq.core.watch`"
             )
 
         # Now that model_type has been set with `watch` we set formatter
@@ -280,18 +280,18 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         if model is None:
             raise GalileoException(
                 "You must set your model before logging. Use "
-                "`dataquality.integrations.seq2seq.hf.watch`"
+                "`dataquality.integrations.seq2seq.core.watch`"
             )
         if tokenizer is None:
             raise GalileoException(
                 "You must set your tokenizer before logging. Use "
-                "`dataquality.integrations.seq2seq.hf.watch`"
+                "`dataquality.integrations.seq2seq.core.watch`"
             )
         assert isinstance(max_input_tokens, int)
         if generation_config is None:
             raise GalileoException(
                 "You must set your generation config before logging. Use "
-                "`dataquality.integrations.seq2seq.hf.watch`"
+                "`dataquality.integrations.seq2seq.core.watch`"
             )
         if split not in logger_config.generation_splits:
             print("Skipping generation for split", split)
@@ -362,7 +362,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         if tokenizer is None:
             raise GalileoException(
                 "You must set your tokenizer before calling dq.finish. Use "
-                "`dataquality.integrations.seq2seq.hf.watch`"
+                "`dataquality.integrations.seq2seq.core.watch`"
             )
 
         # Use the computed offsets from `validate_and_format`

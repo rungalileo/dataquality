@@ -46,7 +46,7 @@ class EncoderDecoderDataFormatter(BaseSeq2SeqDataFormatter):
         This class must implement the `encode`, `decode`, and `encode_plus` methods
 
         You can set your tokenizer via either the seq2seq `set_tokenizer()` or
-        `watch(..., tokenizer, ...)` functions in `dataquality.integrations.seq2seq.hf`
+        `watch(tokenizer, ...)` functions in `dataquality.integrations.seq2seq.core`
     2. A two column (i.e. completion) dataset (pandas/huggingface etc) with string
         'text' (model <Input> / <Instruction> / <Prompt>, ...) and 'label' (model
         <Target> / (<Completion> / ...) columns + a data sample id column.
@@ -63,7 +63,7 @@ class EncoderDecoderDataFormatter(BaseSeq2SeqDataFormatter):
         `dq.log_dataset(ds, text="text", label="summary", id="id")`
 
     Putting it all together:
-        from dataquality.integrations.seq2seq.hf import set_tokenizer
+        from dataquality.integrations.seq2seq.core import set_tokenizer
         from datasets import load_dataset
         from transformers import T5TokenizerFast
 
@@ -75,6 +75,7 @@ class EncoderDecoderDataFormatter(BaseSeq2SeqDataFormatter):
         # You can either use `set_tokenizer()` or `watch()`
         set_tokenizer(
             tokenizer,
+            "encoder_decoder",
             max_input_tokens=512,
             max_target_tokens=128
         )
@@ -159,7 +160,7 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
         This class must implement the `encode`, `decode`, and `encode_plus` methods
 
         You can set your tokenizer via either the seq2seq `set_tokenizer()` or
-        `watch(..., tokenizer, ...)` functions in `dataquality.integrations.seq2seq.hf`
+        `watch(tokenizer, ...)` functions in `dataquality.integrations.seq2seq.core`
     2. A two column (i.e. completion) dataset (pandas/huggingface etc) with string
         'text' (model <Input> / <Instruction> / <Prompt>, ...) and 'label' (model
         <Target> / (<Completion> / ...) columns + a data sample id column.
@@ -176,7 +177,7 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
         `dq.log_dataset(ds, text="text", label="summary", id="id")`
 
     Putting it all together:
-        from dataquality.integrations.seq2seq.hf import set_tokenizer
+        from dataquality.integrations.seq2seq.core import set_tokenizer
         from datasets import load_dataset
         from transformers import T5TokenizerFast
 
@@ -188,6 +189,7 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
         # You can either use `set_tokenizer()` or `watch()`
         set_tokenizer(
             tokenizer,
+            "encoder_decoder",
             max_input_tokens=512,
             max_target_tokens=128
         )
