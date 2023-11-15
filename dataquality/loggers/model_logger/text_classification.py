@@ -10,6 +10,7 @@ from dataquality.loggers.model_logger.base_model_logger import BaseGalileoModelL
 from dataquality.schemas import __data_schema_version__
 from dataquality.schemas.split import Split
 from dataquality.utils.dq_logger import get_dq_logger
+from dataquality.utils.helpers import has_len
 
 
 @unique
@@ -100,28 +101,14 @@ class TextClassificationModelLogger(BaseGalileoModelLogger):
         """
         return GalileoModelLoggerAttributes.get_valid()
 
-    def _has_len(self, arr: Any) -> bool:
-        """Checks if an array has length
-
-        Array can be list, numpy array, or tensorflow tensor. Tensorflow tensors don't
-        let you call len(), they throw a TypeError so we catch that here and check
-        shape https://github.com/tensorflow/tensorflow/blob/master/tensorflow/...
-        python/framework/ops.py#L929
-        """
-        try:
-            has_len = len(arr) != 0
-        except TypeError:
-            has_len = bool(arr.shape[0])
-        return has_len
-
     def validate_and_format(self) -> None:
         """
         Validates that the current config is correct.
         * embs, probs, and ids must exist and be the same length
         :return:
         """
-        has_logits = self._has_len(self.logits)
-        has_probs = self._has_len(self.probs)
+        has_logits = has_len(self.logits)
+        has_probs = has_len(self.probs)
         if has_logits:
             self.logits = self._convert_tensor_ndarray(self.logits, "Prob")
             self.probs = self.convert_logits_to_probs(self.logits)
