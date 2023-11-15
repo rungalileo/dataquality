@@ -8,6 +8,7 @@ import pytest
 import torch
 
 from dataquality.exceptions import GalileoException
+from dataquality.loggers.model_logger.seq2seq.formatters import get_model_formatter
 from dataquality.loggers.model_logger.seq2seq.seq2seq_base import Seq2SeqModelLogger
 from dataquality.schemas.seq2seq import (
     TOP_K,
@@ -258,6 +259,7 @@ def test_model_logger_remove_padding() -> None:
     config = mock.MagicMock()
     config.id_to_tokens = {}
     config.id_to_tokens["training"] = dict(zip(list(range(4)), tokenized_labels))
+    config.model_type = "encoder_decoder"
     mock_tokenizer = mock.MagicMock()
     # First test removing from right padding
     config.tokenizer = mock_tokenizer
@@ -281,8 +283,7 @@ def test_model_logger_remove_padding() -> None:
         epoch=0,
     )
     logger = Seq2SeqModelLogger(**log_data)
-    logger.logger_config = config
-    logger.formatter.logger_config = config
+    logger.formatter = get_model_formatter("encoder_decoder", config)
     for sample_id, (sample_logprobs, sample_top_indices) in enumerate(
         zip(logprobs, top_indices)
     ):
