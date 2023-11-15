@@ -81,24 +81,14 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         self.ids: List[int] = []
         self.texts: List[str] = []
         self.labels: List[str] = []
-
+        # Only requied for Decoder-Only models
+        self.formatted_prompts: List[str] = []
         # Formatter distinguishes behavior between EncoderDecoder and DecoderOnly
-        model_type = self.logger_config.model_type
-        assert (
-            model_type is not None
-        ), "model_type must be set in `watch` before logging"
-        if model_type == "decoder_only":
-            # Only requied for Decoder-Only models
-            self.formatted_prompts: List[str] = []
-
         from dataquality.loggers.data_logger.seq2seq.formatters import (
             BaseSeq2SeqDataFormatter,
-            get_data_formatter,
         )
 
-        self.formatter: BaseSeq2SeqDataFormatter = get_data_formatter(
-            model_type, self.logger_config
-        )
+        self.formatter: Optional[BaseSeq2SeqDataFormatter] = None
 
     @property
     def split_key(self) -> str:
@@ -126,6 +116,19 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             "You must set your tokenizer before logging. "
             "Use `dq.integrations.seq2seq.hf.set_tokenizer`"
         )
+        model_type = self.logger_config.model_type
+        if model_type is None:
+            raise GalileoException(
+                "You must set your model type before logging. Use "
+                "`dataquality.integrations.seq2seq.hf.watch`"
+            )
+
+        # Now that model_type has been set with `watch` we set formatter
+        from dataquality.loggers.data_logger.seq2seq.formatters import (
+            get_data_formatter,
+        )
+
+        self.formatter = get_data_formatter(model_type, self.logger_config)
 
         if self.logger_config.model_type == Seq2SeqModelType.decoder_only:
             texts = self.formatted_prompts
@@ -367,5 +370,8 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         if target_offsets_colname in df.get_column_names():
             df = add_target_cutoff_to_df(df, target_offsets_colname)
 
+        # Formatter will have already been set in `validate_and_format`
+        assert self.formatter is not None
         df = self.formatter.set_input_cutoff(df)
+
         return df
