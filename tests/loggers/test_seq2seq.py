@@ -21,7 +21,6 @@ from dataquality.schemas.seq2seq import (
     BatchGenerationData,
 )
 from dataquality.schemas.seq2seq import Seq2SeqOutputCols as C
-from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.seq2seq.generation import (
     add_generated_output_to_df,
@@ -64,19 +63,8 @@ def test_log_dataset_encoder_decoder(
     test_session_vars: TestSessionVariables,
 ) -> None:
     set_test_config(task_type="seq2seq")
-    logger = Seq2SeqDataLogger()
-
-    with patch("dataquality.core.log.get_data_logger") as mock_method:
-        mock_method.return_value = logger
-        watch(tokenizer, "encoder_decoder")
-        dq.log_dataset(
-            dataset, text="summary", label="title", id="my_id", split="train"
-        )
-
-        assert logger.texts == ["summary 1", "summary 2", "summary 3"]
-        assert logger.labels == ["title_1", "title_2", "title_3"]
-        assert logger.ids == [1, 2, 3]
-        assert logger.split == Split.training
+    watch(tokenizer, "encoder_decoder")
+    dq.log_dataset(dataset, text="summary", label="title", id="my_id", split="train")
 
     df = vaex.open(f"{test_session_vars.LOCATION}/input_data/training/data_0.arrow")
     expected_cols = [
@@ -88,6 +76,10 @@ def test_log_dataset_encoder_decoder(
         "token_label_offsets",
     ]
     assert sorted(df.get_column_names()) == sorted(expected_cols)
+    assert df["text"].tolist() == ["summary 1", "summary 2", "summary 3"]
+    assert df["label"].tolist() == ["title_1", "title_2", "title_3"]
+    assert df["id"].tolist() == [1, 2, 3]
+    assert df["split"].tolist() == ["training"] * 3
 
 
 def test_log_dataset_no_tokenizer(set_test_config: Callable) -> None:
