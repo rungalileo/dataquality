@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Type
 
+from tqdm.auto import tqdm
 from transformers import PreTrainedTokenizerFast
 from vaex import DataFrame
-from tqdm.auto import tqdm
 
 from dataquality.loggers.data_logger.seq2seq.seq2seq_base import Seq2SeqDataLogger
 from dataquality.loggers.logger_config.seq2seq.seq2seq_base import Seq2SeqLoggerConfig
@@ -241,6 +241,7 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
 
         # Split each sample based on the location of the response template
         # This is equivalent to `tokenized_labels` in encoder-decoder
+        assert self.logger_config.response_template  # Necessary for linting
         tokenized_labels = extract_tokenized_responses(
             tokenized_formatted_prompts, self.logger_config.response_template
         )

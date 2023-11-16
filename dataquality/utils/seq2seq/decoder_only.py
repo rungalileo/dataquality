@@ -1,12 +1,12 @@
-from typing import List, Optional
+from typing import List
 from warnings import warn
-from tqdm.auto import tqdm
 
 import numpy as np
+from tqdm.auto import tqdm
 
 
 def extract_tokenized_responses(
-    tokenized_formatted_prompts: List[List[int]], response_template: Optional[List[int]]
+    tokenized_formatted_prompts: List[List[int]], response_template: List[int]
 ) -> List[List[int]]:
     """Extracts the tokenized responses from the formatted prompts
 
@@ -32,7 +32,6 @@ def extract_tokenized_responses(
         leave=False,
         desc="Identifying `response_template` to isolate response token.",
     ):
-
         # Reverse search over matches of the first token in the response template
         matched_indices = np.where(np.array(t_prompt) == response_template[0])[0]
         response_token_ids_start_idx = None
