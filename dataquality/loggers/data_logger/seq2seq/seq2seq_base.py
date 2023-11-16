@@ -273,14 +273,17 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         `token_label_positions` column
         """
         logger_config = cls.logger_config
+        if split not in logger_config.generation_splits:
+            return df
+
         model = logger_config.model
         tokenizer = logger_config.tokenizer
         max_input_tokens = logger_config.max_input_tokens
         generation_config = logger_config.generation_config
-        if model is None:
+        if model is None and generation_config is not None:
             raise GalileoException(
-                "You must set your model before logging. Use "
-                "`dataquality.integrations.seq2seq.core.watch`"
+                "To perform generation you must set your model before logging. "
+                "Use `dataquality.integrations.seq2seq.core.watch`"
             )
         if tokenizer is None:
             raise GalileoException(
@@ -288,15 +291,8 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
                 "`dataquality.integrations.seq2seq.core.watch`"
             )
         assert isinstance(max_input_tokens, int)
-        if generation_config is None:
-            raise GalileoException(
-                "You must set your generation config before logging. Use "
-                "`dataquality.integrations.seq2seq.core.watch`"
-            )
-        if split not in logger_config.generation_splits:
-            print("Skipping generation for split", split)
-            return df
 
+        print(f"Generating {len(df)} samples for split {split}")
         df = add_generated_output_to_df(
             df, model, tokenizer, max_input_tokens, generation_config
         )
