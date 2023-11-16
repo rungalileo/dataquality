@@ -272,10 +272,10 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         Adds the generated output to the dataframe, and also adds the
         `token_label_positions` column
         """
+        logger_config = cls.logger_config
         if split not in logger_config.generation_splits:
             return df
 
-        logger_config = cls.logger_config
         model = logger_config.model
         tokenizer = logger_config.tokenizer
         max_input_tokens = logger_config.max_input_tokens
