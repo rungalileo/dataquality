@@ -1,11 +1,12 @@
-from typing import List, Optional
+from typing import List
 from warnings import warn
 
 import numpy as np
+from tqdm.auto import tqdm
 
 
 def extract_tokenized_responses(
-    tokenized_formatted_prompts: List[List[int]], response_template: Optional[List[int]]
+    tokenized_formatted_prompts: List[List[int]], response_template: List[int]
 ) -> List[List[int]]:
     """Extracts the tokenized responses from the formatted prompts
 
@@ -26,22 +27,25 @@ def extract_tokenized_responses(
     tokenized_response for that sample as [] - i.e. the <Empty String>.
     """
     tokenized_responses: List[List[int]] = []
-    for t_prompt in tokenized_formatted_prompts:
-        if not response_template:
-            tokenized_responses.append([])
-            continue
-
+    for t_prompt in tqdm(
+        tokenized_formatted_prompts,
+        leave=False,
+        desc="Identifying `response_template` to isolate response token.",
+    ):
         # Reverse search over matches of the first token in the response template
         matched_indices = np.where(np.array(t_prompt) == response_template[0])[0]
         response_token_ids_start_idx = None
         for i in range(len(matched_indices)):
             match_idx = matched_indices[-(i + 1)]
-            # Check for exact match of the response template token ids
+            # Check for exact match of the response template token ids.
+            # Once found break to avoid finding further matches + short-circuit
+            # search.
             if (
                 t_prompt[match_idx : match_idx + len(response_template)]
                 == response_template
             ):
                 response_token_ids_start_idx = match_idx
+                break
 
         tokenized_response = []
         # Warn that the response template was not found!

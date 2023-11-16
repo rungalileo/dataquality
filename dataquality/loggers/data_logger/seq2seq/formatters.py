@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Type
 
+from tqdm.auto import tqdm
 from transformers import PreTrainedTokenizerFast
 from vaex import DataFrame
 
@@ -240,12 +241,17 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
 
         # Split each sample based on the location of the response template
         # This is equivalent to `tokenized_labels` in encoder-decoder
+        assert self.logger_config.response_template  # Necessary for linting
         tokenized_labels = extract_tokenized_responses(
             tokenized_formatted_prompts, self.logger_config.response_template
         )
 
         # Decode then re-tokenize just the response labels to get correct offsets
-        for tokenized_response in tokenized_labels:
+        for tokenized_response in tqdm(
+            tokenized_labels,
+            leave=False,
+            desc="Aligning string characters with tokenizer representation",
+        ):
             aligned_data = align_response_tokens_to_character_spans(
                 tokenizer,
                 tokenized_response,
