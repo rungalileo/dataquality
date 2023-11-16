@@ -159,7 +159,7 @@ def watch(
     seq2seq_logger_config.generation_config = generation_config
 
     generation_splits = generation_splits or []
-    generation_splits_set = {Split.test}
+    generation_splits_set = set()
     for split in generation_splits:
         if split not in Split.get_valid_keys():
             warn(
