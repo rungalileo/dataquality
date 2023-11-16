@@ -37,7 +37,9 @@ def extract_tokenized_responses(
         response_token_ids_start_idx = None
         for i in range(len(matched_indices)):
             match_idx = matched_indices[-(i + 1)]
-            # Check for exact match of the response template token ids
+            # Check for exact match of the response template token ids.
+            # Once found break to avoid finding further matches + short-circuit
+            # search.
             if (
                 t_prompt[match_idx : match_idx + len(response_template)]
                 == response_template
