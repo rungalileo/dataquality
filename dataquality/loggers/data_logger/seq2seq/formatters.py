@@ -3,6 +3,7 @@ from typing import Dict, List, Optional, Type
 
 from transformers import PreTrainedTokenizerFast
 from vaex import DataFrame
+from tqdm.auto import tqdm
 
 from dataquality.loggers.data_logger.seq2seq.seq2seq_base import Seq2SeqDataLogger
 from dataquality.loggers.logger_config.seq2seq.seq2seq_base import Seq2SeqLoggerConfig
@@ -245,7 +246,11 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
         )
 
         # Decode then re-tokenize just the response labels to get correct offsets
-        for tokenized_response in tokenized_labels:
+        for tokenized_response in tqdm(
+            tokenized_labels,
+            leave=False,
+            desc="Aligning string characters with tokenizer representation",
+        ):
             aligned_data = align_response_tokens_to_character_spans(
                 tokenizer,
                 tokenized_response,
