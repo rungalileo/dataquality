@@ -88,7 +88,15 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             BaseSeq2SeqDataFormatter,
         )
 
-        self.formatter: Optional[BaseSeq2SeqDataFormatter] = None
+        self.formatter: Optional["BaseSeq2SeqDataFormatter"] = None
+        if self.logger_config.model_type is not None:
+            from dataquality.loggers.data_logger.seq2seq.formatters import (
+                get_data_formatter,
+            )
+
+            self.formatter = get_data_formatter(
+                self.logger_config.model_type, self.logger_config
+            )
 
     @property
     def split_key(self) -> str:
@@ -117,18 +125,11 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             "Use `dq.integrations.seq2seq.core.set_tokenizer`"
         )
         model_type = self.logger_config.model_type
-        if model_type is None:
+        if self.formatter is None or model_type is None:
             raise GalileoException(
                 "You must set your model type before logging. Use "
                 "`dataquality.integrations.seq2seq.core.watch`"
             )
-
-        # Now that model_type has been set with `watch` we set formatter
-        from dataquality.loggers.data_logger.seq2seq.formatters import (
-            get_data_formatter,
-        )
-
-        self.formatter = get_data_formatter(model_type, self.logger_config)
 
         if self.logger_config.model_type == Seq2SeqModelType.decoder_only:
             texts = self.formatted_prompts
@@ -360,6 +361,11 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
                 "You must set your tokenizer before calling dq.finish. Use "
                 "`dataquality.integrations.seq2seq.core.watch`"
             )
+        if self.formatter is None:
+            raise GalileoException(
+                "You must set your model type before logging. Use "
+                "`dataquality.integrations.seq2seq.core.watch`"
+            )
 
         # Use the computed offsets from `validate_and_format`
         target_offsets_colname = S2SIC.token_label_offsets
@@ -367,7 +373,6 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             df = add_target_cutoff_to_df(df, target_offsets_colname)
 
         # Formatter will have already been set in `validate_and_format`
-        assert self.formatter is not None
         df = self.formatter.set_input_cutoff(df)
 
         return df
