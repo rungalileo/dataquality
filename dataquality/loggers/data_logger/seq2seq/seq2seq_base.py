@@ -273,7 +273,6 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         `token_label_positions` column
         """
         if split not in logger_config.generation_splits:
-            print("Skipping generation for split", split)
             return df
 
         logger_config = cls.logger_config
@@ -292,6 +291,8 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
                 "`dataquality.integrations.seq2seq.core.watch`"
             )
         assert isinstance(max_input_tokens, int)
+
+        print(f"Generating {len(df)} samples for split {split}")
         df = add_generated_output_to_df(
             df, model, tokenizer, max_input_tokens, generation_config
         )
