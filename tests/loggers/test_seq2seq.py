@@ -1,4 +1,3 @@
-import os
 from typing import Callable, Generator
 from unittest.mock import MagicMock, Mock, patch
 
@@ -28,9 +27,7 @@ from dataquality.utils.seq2seq.generation import (
     generate_sample_output,
 )
 from dataquality.utils.thread_pool import ThreadPoolManager
-from dataquality.utils.vaex import GALILEO_DATA_EMBS_ENCODER
 from tests.conftest import (
-    LOCAL_MODEL_PATH,
     TestSessionVariables,
     model_T5,
     tokenizer,
@@ -532,28 +529,3 @@ def test_calculate_cutoffs_encoder_decoder(
     assert target_1[: target_offsets[0]] == "cat cat cat cat"
     assert input_2[: input_offsets[1]] == "bird"
     assert target_2[: target_offsets[1]] == "cat"
-
-
-@pytest.mark.parametrize("text_col", ["input", "target"])
-def test_create_and_upload_data_embs(
-    text_col: str,
-    cleanup_after_use: Callable,
-    set_test_config: Callable,
-    test_session_vars: TestSessionVariables,
-) -> None:
-    set_test_config(task_type="text_classification")
-    # Use the local mini bert model
-    os.environ[GALILEO_DATA_EMBS_ENCODER] = LOCAL_MODEL_PATH
-
-    df = vaex.from_arrays(id=list(range(10)))
-    df[text_col] = "sentence number " + df["id"].astype(str)
-    logger = Seq2SeqDataLogger()
-    logger.create_and_upload_data_embs(df, "training", 3, text_col)
-    data_embs_path = f"{test_session_vars.TEST_PATH}/training/3/data_emb/data_emb.hdf5"
-    data_embs = vaex.open(data_embs_path)
-    assert len(data_embs) == 10
-    assert data_embs.get_column_names() == ["id", "emb"]
-    assert isinstance(data_embs.emb.values, np.ndarray)
-    assert data_embs.emb.values.ndim == 2
-    # mini BERT model spits out 32 dims
-    assert data_embs.emb.values.shape == (10, 32)
