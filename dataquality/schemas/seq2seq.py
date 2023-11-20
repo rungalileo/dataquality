@@ -4,7 +4,6 @@ from typing import List, Set, Tuple
 
 import numpy as np
 import pyarrow as pa
-from vaex import DataFrame
 
 # Defines the format schema for storing top_logprobs as a
 # pyarrow List of List of Tuples
@@ -25,9 +24,7 @@ class Seq2SeqModelType(str, Enum):
 
 class Seq2SeqInputCols(str, Enum):
     id = "id"
-    text = "text"
     input = "input"  # text is renamed to input for S2S
-    label = "label"
     target = "target"  # label is renamed to target for S2S
     generated_output = "generated_output"
     split_ = "split"
@@ -38,27 +35,6 @@ class Seq2SeqInputCols(str, Enum):
     token_label_positions = "token_label_positions"
     token_label_offsets = "token_label_offsets"
     system_prompts = "system_prompts"
-
-    @classmethod
-    def set_cols(cls, df: DataFrame) -> DataFrame:
-        """Sets the input and target columns for the dataframe"""
-        return cls.set_target(cls.set_input(df))
-
-    @classmethod
-    def set_input(cls, df: DataFrame) -> DataFrame:
-        """Sets the input column for the dataframe"""
-        if cls.text.value in df.get_column_names():
-            df.rename(cls.text.value, cls.input.value)
-
-        return df
-
-    @classmethod
-    def set_target(cls, df: DataFrame) -> DataFrame:
-        """Sets the target output column for the dataframe"""
-        if cls.label.value in df.get_column_names():
-            df.rename(cls.label.value, cls.target.value)
-
-        return df
 
 
 class Seq2SeqOutputCols(str, Enum):

@@ -268,5 +268,8 @@ def do_train(
     # Cleanup all unused data on the GPU and any references
     # to that data
     cleanup_cuda(optimizer=optimizer, tensors=[logits, loss, batch, outputs])
-    dq.finish(wait=wait, create_data_embs=training_config.create_data_embs)
+    dq.finish(
+        wait=wait,
+        create_data_embs=training_config.create_data_embs,
+    )
     return model

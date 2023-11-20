@@ -55,8 +55,8 @@ class BaseFormatter(ABC):
 @dataclass
 class DefaultFormatter(BaseFormatter):
     name: str = "default"
-    input_col: str = "text"
-    target_col: str = "label"
+    input_col: str = "input"
+    target_col: str = "target"
 
     def format_sample(
         self, sample: Dict[str, Any], idx: Optional[int] = None

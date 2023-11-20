@@ -117,8 +117,8 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         text_len = len(self.texts)
         id_len = len(self.ids)
         assert id_len == text_len == label_len, (
-            "IDs, text, and labels must be the same length, got "
-            f"({id_len} ids, {text_len} text, {label_len} labels)"
+            "IDs, texts, and labels must be the same length, got "
+            f"({id_len} ids, {text_len} texts, {label_len} labels)"
         )
         assert self.logger_config.tokenizer, (
             "You must set your tokenizer before logging. "
@@ -149,8 +149,8 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         data = vaex.from_dict(
             {
                 S2SIC.id.value: self.ids,
-                S2SIC.text.value: self.texts,
-                S2SIC.label.value: self.labels,
+                S2SIC.input.value: self.texts,
+                S2SIC.target.value: self.labels,
                 S2SIC.split_.value: [self.split] * len(self.ids),
                 S2SIC.token_label_positions.value: pa.array(self.token_label_positions),
                 S2SIC.token_label_offsets.value: pa.array(self.token_label_offsets),
@@ -168,11 +168,11 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         meta: Union[List[str], List[int], None] = None,
     ) -> None:
         """Helper to log a pandas or vaex df"""
-        self.texts = df["text"].tolist()
+        self.texts = df["input"].tolist()
         self.ids = df["id"].tolist()
         # Inference case
-        if "label" in df:
-            self.labels = df["label"].tolist()
+        if "target" in df:
+            self.labels = df["target"].tolist()
         if "galileo_formatted_prompt" in df:
             self.formatted_prompts = df["galileo_formatted_prompt"].tolist()
         for meta_col in meta or []:
@@ -184,9 +184,9 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         dataset: DataSet,
         *,
         batch_size: int = ITER_CHUNK_SIZE,
-        text: Union[str, int] = "text",
+        text: Union[str, int] = "input",
         id: Union[str, int] = "id",
-        label: Optional[Union[str, int]] = "label",
+        label: Optional[Union[str, int]] = "target",
         formatted_prompt: Union[str, int] = "formatted_label",
         split: Optional[Split] = None,
         inference_name: Optional[str] = None,
@@ -196,10 +196,10 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         self.validate_kwargs(kwargs)
         self.split = split
         self.inference_name = inference_name
-        column_map = {text: "text", id: "id"}
+        column_map = {text: "input", id: "id"}
         label = None if split == Split.inference else label
         if label:
-            column_map[label] = "label"
+            column_map[label] = "target"
         if isinstance(dataset, pd.DataFrame):
             if formatted_prompt and formatted_prompt in dataset.columns:
                 column_map[formatted_prompt] = "galileo_formatted_prompt"
@@ -265,6 +265,23 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             in_frame, dir_name, prob_only, split, epoch_or_inf
         )
 
+    def convert_large_string(self, df: DataFrame) -> DataFrame:
+        """Cast regular string to large_string for the text columns
+
+        In Seq2Seq the text columns are the input and target columns.
+        See BaseDataLogger.convert_large_string for more details
+        """
+        df_copy = df.copy()
+        for text_col in [S2SIC.input.value, S2SIC.target.value]:
+            if text_col in df_copy.get_column_names():
+                # Characters are each 1 byte. If more bytes > max,
+                # it needs to be large_string
+                text_bytes = df_copy[text_col].str.len().sum()
+                if text_bytes > self.STRING_MAX_SIZE_B:
+                    df_copy[text_col] = df_copy[f'astype({text_col}, "large_string")']
+
+            return df_copy
+
     @classmethod
     def add_generated_output_to_df(
         cls, df: DataFrame, split: str
@@ -328,8 +345,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             # Convert emb to numpy array
             emb = convert_pa_to_np(emb, "emb")
 
-        data_df = S2SIC.set_cols(df_copy[other_cols])
-        return BaseLoggerDataFrames(prob=prob, emb=emb, data=data_df)
+        return BaseLoggerDataFrames(prob=prob, emb=emb, data=df_copy)
 
     def calculate_cutoffs(self, df: DataFrame) -> DataFrame:
         """Calculates cuttoff indexes for the input and/or target string.
