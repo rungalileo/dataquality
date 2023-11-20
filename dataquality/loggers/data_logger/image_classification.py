@@ -394,19 +394,12 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         in_frame: DataFrame,
         split: str,
         split_loc: str,
-        last_epoch: Optional[int],
-        create_data_embs: bool,
-        data_embs_col: str,
+        last_epoch: Optional[int] = None,
+        create_data_embs: bool = False,
     ) -> None:
         in_frame = self.add_cv_smart_features(in_frame, split)
         super().upload_split_from_in_frame(
-            object_store=object_store,
-            in_frame=in_frame,
-            split=split,
-            split_loc=split_loc,
-            last_epoch=last_epoch,
-            create_data_embs=create_data_embs,
-            data_embs_col=data_embs_col,
+            object_store, in_frame, split, split_loc, last_epoch, create_data_embs
         )
 
     @classmethod

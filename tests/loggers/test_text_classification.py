@@ -363,7 +363,7 @@ def test_create_and_upload_data_embs(
     df = vaex.from_arrays(id=list(range(10)))
     df["text"] = "sentence number " + df["id"].astype(str)
     logger = TextClassificationDataLogger()
-    logger.create_and_upload_data_embs(df, "training", 3, "text")
+    logger.create_and_upload_data_embs(df, "training", 3)
     data_embs_path = f"{test_session_vars.TEST_PATH}/training/3/data_emb/data_emb.hdf5"
     data_embs = vaex.open(data_embs_path)
     assert len(data_embs) == 10

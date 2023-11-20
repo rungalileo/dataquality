@@ -145,9 +145,8 @@ class SemanticSegmentationDataLogger(BaseGalileoDataLogger):
         in_frame: vaex.DataFrame,
         split: str,
         split_loc: str,
-        last_epoch: Optional[int],
-        create_data_embs: bool,
-        data_embs_col: str,
+        last_epoch: Optional[int] = None,
+        create_data_embs: bool = False,
     ) -> None:
         """Upload image df and polygon df to Minio root bucket
 
