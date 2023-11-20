@@ -245,7 +245,10 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         return dataset
 
     def upload(
-        self, last_epoch: Optional[int] = None, create_data_embs: bool = False
+        self,
+        last_epoch: Optional[int] = None,
+        create_data_embs: bool = False,
+        data_embs_col: str = "text",
     ) -> None:
         """
         Iterates through all of each splits children folders [data/emb/prob] for each
@@ -274,11 +277,12 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             if self.support_data_embs and create_data_embs:
                 print("Creating and uploading data embeddings")
                 upload_umap_data_embs(
-                    config.current_project_id,
-                    config.current_run_id,
-                    self.input_data_path,
-                    location,
-                    last_epoch,
+                    project_id=config.current_project_id,
+                    run_id=config.current_run_id,
+                    input_data_dir=self.input_data_path,
+                    run_dir=location,
+                    last_epoch=last_epoch,
+                    data_embs_col=data_embs_col,
                 )
                 # We have already created them here, so don't try again later
                 create_data_embs = False
@@ -292,7 +296,12 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
         for split in Split.get_valid_attributes():
             self.upload_split(
-                location, split, object_store, last_epoch, create_data_embs
+                location=location,
+                split=split,
+                object_store=object_store,
+                last_epoch=last_epoch,
+                create_data_embs=create_data_embs,
+                data_embs_col=data_embs_col,
             )
 
     def upload_split(
@@ -302,6 +311,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         object_store: ObjectStore,
         last_epoch: Optional[int],
         create_data_embs: bool,
+        data_embs_col: str,
     ) -> None:
         split_loc = f"{location}/{split}"
         in_frame_path = f"{self.input_data_path}/{split}"
@@ -320,12 +330,13 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         in_frame_split = vaex.open(f"{in_frame_path}/*.{self.INPUT_DATA_FILE_EXT}")
         in_frame_split = self.convert_large_string(in_frame_split)
         self.upload_split_from_in_frame(
-            object_store,
-            in_frame_split,
-            split,
-            split_loc,
-            last_epoch,
-            create_data_embs,
+            object_store=object_store,
+            in_frame=in_frame_split,
+            split=split,
+            split_loc=split_loc,
+            last_epoch=last_epoch,
+            create_data_embs=create_data_embs,
+            data_embs_col=data_embs_col,
         )
         in_frame_split.close()
         _shutil_rmtree_retry(in_frame_path)
@@ -333,13 +344,13 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
     @classmethod
     def create_and_upload_data_embs(
-        cls, df: DataFrame, split: str, epoch_or_inf: str
+        cls, df: DataFrame, split: str, epoch_or_inf: str, data_embs_col: str
     ) -> None:
         """Uploads off the shelf data embeddings for a split"""
         object_store = ObjectStore()
         df_copy = df.copy()
         try:
-            data_embs = create_data_embs_df(df_copy)
+            data_embs = create_data_embs_df(df_copy, text_col=data_embs_col)
         except HfHubHTTPError as e:
             warnings.warn(
                 "Unable to download transformer from huggingface. Data embeddings "
@@ -374,8 +385,9 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         in_frame: DataFrame,
         split: str,
         split_loc: str,
-        last_epoch: Optional[int] = None,
-        create_data_embs: bool = False,
+        last_epoch: Optional[int],
+        create_data_embs: bool,
+        data_embs_col: str,
     ) -> None:
         epochs_or_infs = os.listdir(split_loc)
         epochs_or_infs = sorted(
@@ -414,7 +426,12 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             ):
                 name = f"{split}/{epoch_or_inf}" if split == Split.inference else split
                 print(f"Creating and uploading data embeddings for {name}")
-                self.create_and_upload_data_embs(input_batch, split, epoch_or_inf)
+                self.create_and_upload_data_embs(
+                    df=input_batch,
+                    split=split,
+                    epoch_or_inf=epoch_or_inf,
+                    data_embs_col=data_embs_col,
+                )
 
             dir_name = f"{split_loc}/{epoch_or_inf}"
             in_out_frames = self.create_in_out_frames(
