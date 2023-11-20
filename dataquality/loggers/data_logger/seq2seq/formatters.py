@@ -146,7 +146,7 @@ class EncoderDecoderDataFormatter(BaseSeq2SeqDataFormatter):
         """
         tokenizer = self.logger_config.tokenizer
         max_input_length = self.logger_config.max_input_tokens
-        df = add_input_cutoff_to_df(df, tokenizer, S2SIC.text, max_input_length)
+        df = add_input_cutoff_to_df(df, tokenizer, S2SIC.input, max_input_length)
 
         return df
 
@@ -278,13 +278,13 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
         )
 
     def set_input_cutoff(self, df: DataFrame) -> DataFrame:
-        """Calculate the cutoff index for the input texts
+        """Calculate the cutoff index for the inputs
 
         Set the cutoff for the Input to just be the entire sample
-            i.e. the length of `text`
+            i.e. the length of `input`
         """
         # Assign input_cutoff always to be the full strings
-        df[S2SIC.input_cutoff.value] = df[S2SIC.text].str.len()
+        df[S2SIC.input_cutoff.value] = df[S2SIC.input].str.len()
 
         target_offsets_colname = S2SIC.token_label_offsets
         if target_offsets_colname in df.get_column_names():

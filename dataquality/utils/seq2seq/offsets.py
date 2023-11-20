@@ -206,7 +206,7 @@ def align_tokens_to_character_spans(
 def add_input_cutoff_to_df(
     df: DataFrame,
     tokenizer: PreTrainedTokenizerFast,
-    text_col: str = S2SIC.text,
+    text_col: str,
     max_tokens: Optional[int] = None,
 ) -> DataFrame:
     """

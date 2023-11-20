@@ -29,9 +29,12 @@ class Seq2SeqDatasetConfig(BaseAutoDatasetConfig):
     :param test_data: Optional test data to use. Can be one of
         * Pandas dataframe
         * Huggingface dataset
-    :param input_col: Column name for input data, defaults to "text"
-    :param target_col: Column name for target data, defaults to "label"
+    :param input_col: Column name for input data, defaults to "input" for S2S
+    :param target_col: Column name for target data, defaults to "target" for S2s
     """
+
+    input_col: str = "input"
+    target_col: str = "target"
 
 
 @dataclass
@@ -49,8 +52,8 @@ class Seq2SeqTrainingConfig(BaseAutoTrainingConfig):
     :param max_input_tokens: Optional max input tokens. If not set, we default to 512
     :param max_target_tokens: Optional max target tokens. If not set, we default to 128
     :param data_embs_col: Optional text col on which to compute data embeddings.
-        If not set, we default to 'text' which corresponds to the input text
-        Can also be set to `target` or `generated_output`
+        If not set, we default to 'input', can also be set to `target` or
+        `generated_output`
     """
 
     # Overwrite base values
@@ -61,7 +64,7 @@ class Seq2SeqTrainingConfig(BaseAutoTrainingConfig):
     max_input_tokens: int = 512
     max_target_tokens: int = 128
     # Data embeddings. Can also be set to `target` or `generated_output`
-    data_embs_col: str = "text"
+    data_embs_col: str = "input"
 
 
 @dataclass
