@@ -182,7 +182,7 @@ def add_umap_pca_to_df(df: DataFrame, data_embs: bool = False) -> DataFrame:
     return dfc
 
 
-def create_data_embs_df(df: DataFrame, text_col: str, lazy: bool = True) -> DataFrame:
+def create_data_embs_df(df: DataFrame, text_col: str = "text", lazy: bool = True) -> DataFrame:
     """Runs sentence transformer on raw text to get off the shelf data embeddings
 
     text_col can be passed in as "input" or "target" for Seq2Seq tasks
