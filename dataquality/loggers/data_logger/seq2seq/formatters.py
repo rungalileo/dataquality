@@ -102,12 +102,11 @@ class EncoderDecoderDataFormatter(BaseSeq2SeqDataFormatter):
         """Further validation for Encoder-Decoder
 
         For Encoder-Decoder we need to:
-            - Save the offsets and positions of the tokenized labels
-                Allows us to extract token level information from the full
-                sample text
-            - Save the target token id
-                Equivalent to the "ground truth", allows us to get logprob per
-                token later on
+            - Save the target token ids: Equivalent to ground truth, it allows us to
+                compare with the predictions and get perplexity and DEP scores
+            - Save the target tokens: Decoding of the ids, to identify the tokens
+            - Save the offsets and positions of the target tokens: allows us to extract
+                token level information and align the tokens with the full sample text
 
         We achieve this by:
             - Tokenize the target texts using `max_target_tokens`
@@ -124,13 +123,15 @@ class EncoderDecoderDataFormatter(BaseSeq2SeqDataFormatter):
             max_length=max_target_tokens,
             truncation=True,
         )
-        tokenized_labels = encoded_data["input_ids"]
+        token_label_ids = encoded_data["input_ids"]
+        data_logger.token_label_str = tokenizer.batch_decode(token_label_ids)
+
         aligned_data = align_tokens_to_character_spans(encoded_data["offset_mapping"])
         data_logger.token_label_offsets = aligned_data.token_label_offsets
         data_logger.token_label_positions = aligned_data.token_label_positions
 
-        # Save the tokenized response labels for each samples
-        id_to_tokens = dict(zip(data_logger.ids, tokenized_labels))
+        # Save the token_ids in the config (to share with the model logger)
+        id_to_tokens = dict(zip(data_logger.ids, token_label_ids))
         self.logger_config.id_to_tokens[data_logger.split_key].update(id_to_tokens)
 
     def set_input_cutoff(self, df: DataFrame) -> DataFrame:

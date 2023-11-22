@@ -74,10 +74,14 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
 
     def __init__(self, meta: Optional[MetasType] = None) -> None:
         super().__init__(meta)
-        # Character offsets for each token (from tokenized_inputs) in the dataset
+        # The target tokens (as strings) coming out of the tokenizer
+        self.token_label_str: List[List[str]] = []
+        # Character offsets for each token in the target indicating at each character
+        # position each token starts and ends
         self.token_label_offsets: List[List[Tuple[int, int]]] = []
-        # Index (or indices) into the token array for every offset
+        # Index indicating the target tokens' position in the text (for every offset)
         self.token_label_positions: List[List[Set[int]]] = []
+
         self.ids: List[int] = []
         self.texts: List[str] = []
         self.labels: List[str] = []
@@ -152,6 +156,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
                 S2SIC.input.value: self.texts,
                 S2SIC.target.value: self.labels,
                 S2SIC.split_.value: [self.split] * len(self.ids),
+                S2SIC.token_label_str.value: pa.array(self.token_label_str),
                 S2SIC.token_label_positions.value: pa.array(self.token_label_positions),
                 S2SIC.token_label_offsets.value: pa.array(self.token_label_offsets),
                 **self.meta,
