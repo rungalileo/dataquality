@@ -234,7 +234,10 @@ class TabularClassificationDataLogger(BaseGalileoDataLogger):
         return df, prob_df
 
     def upload(
-        self, last_epoch: Optional[int] = None, create_data_embs: bool = False
+        self,
+        last_epoch: Optional[int] = None,
+        create_data_embs: bool = False,
+        data_embs_col: str = "text",
     ) -> None:
         """Uploads the data and prob files for a given split to Minio
 

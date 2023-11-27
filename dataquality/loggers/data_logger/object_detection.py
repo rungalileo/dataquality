@@ -250,7 +250,7 @@ class ObjectDetectionDataLogger(BaseGalileoDataLogger):
 
     @classmethod
     def create_and_upload_data_embs(
-        cls, df: DataFrame, split: str, epoch_or_inf: str
+        cls, df: DataFrame, split: str, epoch_or_inf: str, data_embs_col: str
     ) -> None:
         """Data embeddings not yet supported for any CV task"""
         warnings.warn(
