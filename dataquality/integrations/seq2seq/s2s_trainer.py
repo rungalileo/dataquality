@@ -271,5 +271,6 @@ def do_train(
     dq.finish(
         wait=wait,
         create_data_embs=training_config.create_data_embs,
+        data_embs_col=training_config.data_embs_col,
     )
     return model

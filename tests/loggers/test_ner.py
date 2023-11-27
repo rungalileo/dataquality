@@ -734,5 +734,5 @@ def test_create_and_upload_data_embs_skipped_ner(
     df["text"] = "sentence number " + df["id"].astype(str)
     logger = TextNERDataLogger()
     with pytest.warns(GalileoWarning):
-        logger.create_and_upload_data_embs(df, "training", 3)
+        logger.create_and_upload_data_embs(df, "training", 3, "text")
     mock_create_embs.assert_not_called()
