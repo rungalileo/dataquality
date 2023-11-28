@@ -81,7 +81,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         self.ids: List[int] = []
         self.texts: List[str] = []
         self.labels: List[str] = []
-        # Only requied for Decoder-Only models
+        # Only required for Decoder-Only models
         self.formatted_prompts: List[str] = []
         # Formatter distinguishes behavior between EncoderDecoder and DecoderOnly
         from dataquality.loggers.data_logger.seq2seq.formatters import (
@@ -120,6 +120,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             "IDs, text, and labels must be the same length, got "
             f"({id_len} ids, {text_len} text, {label_len} labels)"
         )
+        # TODO Does this do anything?
         assert self.logger_config.tokenizer, (
             "You must set your tokenizer before logging. "
             "Use `dq.integrations.seq2seq.core.set_tokenizer`"
@@ -137,26 +138,29 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         else:
             texts = self.labels
             max_tokens = self.logger_config.max_target_tokens
+        assert max_tokens
 
         self.formatter.format_text(
-            self.logger_config.tokenizer,
             texts,
-            max_tokens,
-            self,
+            tokenizer=self.logger_config.tokenizer,
+            max_tokens=max_tokens,
+            data_logger=self,
         )
 
     def _get_input_df(self) -> DataFrame:
-        data = vaex.from_dict(
-            {
-                S2SIC.id.value: self.ids,
-                S2SIC.text.value: self.texts,
-                S2SIC.label.value: self.labels,
-                S2SIC.split_.value: [self.split] * len(self.ids),
-                S2SIC.token_label_positions.value: pa.array(self.token_label_positions),
-                S2SIC.token_label_offsets.value: pa.array(self.token_label_offsets),
-                **self.meta,
-            }
-        )
+        df_dict = {
+            S2SIC.id.value: self.ids,
+            S2SIC.text.value: self.texts,
+            S2SIC.label.value: self.labels,
+            S2SIC.split_.value: [self.split] * len(self.ids),
+            S2SIC.token_label_positions.value: pa.array(self.token_label_positions),
+            S2SIC.token_label_offsets.value: pa.array(self.token_label_offsets),
+            **self.meta,
+        }
+        if len(self.formatted_prompts) != 0:
+            df_dict[S2SIC.formatted_prompts.value] = self.formatted_prompts
+
+        data = vaex.from_dict(df_dict)
         if S2SIC.system_prompts in self.meta:
             # We must store nested dicts as pyarrow arrays to support vaex export
             data[S2SIC.system_prompts.value] = pa.array(self.meta[S2SIC.system_prompts])
@@ -265,22 +269,24 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             in_frame, dir_name, prob_only, split, epoch_or_inf
         )
 
-    @classmethod
+    # TODO Why is this a class method??
     def add_generated_output_to_df(
-        cls, df: DataFrame, split: str
+        self, df: DataFrame, split: str
     ) -> Optional[DataFrame]:
         """Adds the generated output to the dataframe
         Adds the generated output to the dataframe, and also adds the
         `token_label_positions` column
         """
-        logger_config = cls.logger_config
-        if split not in logger_config.generation_splits:
+        # logger_config = cls.logger_config
+        if split not in self.logger_config.generation_splits:
             return df
 
-        model = logger_config.model
-        tokenizer = logger_config.tokenizer
-        max_input_tokens = logger_config.max_input_tokens
-        generation_config = logger_config.generation_config
+        # TODO the logger config of the formatter has these, but maybe
+        #  we want to explicitly pass them in?
+        model = self.logger_config.model
+        tokenizer = self.logger_config.tokenizer
+        max_input_tokens = self.logger_config.max_input_tokens
+        generation_config = self.logger_config.generation_config
         if model is None and generation_config is not None:
             raise GalileoException(
                 "To perform generation you must set your model before logging. "
@@ -293,10 +299,25 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             )
         assert isinstance(max_input_tokens, int)
 
+        assert generation_config is not None
         print(f"Generating {len(df)} samples for split {split}")
+        # Need to specify the column to generate over!
+        generation_column = S2SIC.text.value
+        if self.logger_config.model_type == Seq2SeqModelType.decoder_only:
+            generation_column = S2SIC.formatted_prompts.value
+
         df = add_generated_output_to_df(
-            df, model, tokenizer, max_input_tokens, generation_config
+            df,
+            generation_column=generation_column,
+            formatter=self.formatter,
+            tokenizer=tokenizer,
+            model=model,
+            max_input_tokens=max_input_tokens,
+            generation_config=generation_config,
+            split_key=split,
         )
+        # TODO CAN REMOVE THE `Formatted Prompt column`
+
         return df
 
     @classmethod

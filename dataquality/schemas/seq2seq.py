@@ -38,6 +38,7 @@ class Seq2SeqInputCols(str, Enum):
     token_label_positions = "token_label_positions"
     token_label_offsets = "token_label_offsets"
     system_prompts = "system_prompts"
+    formatted_prompts = "galileo_formatted_prompts"
 
     @classmethod
     def set_cols(cls, df: DataFrame) -> DataFrame:
