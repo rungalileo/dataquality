@@ -126,7 +126,7 @@ class EncoderDecoderDataFormatter(BaseSeq2SeqDataFormatter):
             add_special_tokens=use_special_tokens,
         )
         token_label_ids = encoded_data["input_ids"]
-        # Need to decode row by row otherwise each row is joined into a single string
+        # Need to decode row by row otherwise each row is joined into one string
         data_logger.token_label_str = [
             tokenizer.batch_decode(
                 row,
@@ -242,10 +242,12 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
         # For decoder-only the text is the formatted prompt (input/target combined)
         formatted_prompts = text
         max_input_tokens = max_tokens
+        use_special_tokens = True  # use this var to align encoding and decoding
         encoded_data = tokenizer(
             formatted_prompts,
             max_length=max_input_tokens,
             truncation=True,
+            add_special_tokens=use_special_tokens,
         )
         # Tokenized input/target combination
         tokenized_formatted_prompts = encoded_data["input_ids"]
@@ -258,14 +260,25 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
         )
 
         # Decode then re-tokenize just the response labels to get correct offsets
-        for tokenized_response in tqdm(
+        for token_label_ids in tqdm(
             tokenized_labels,
             leave=False,
             desc="Aligning string characters with tokenizer representation",
         ):
+            # Detokenize to save the token_str in the df (for ex for high DEP tokens)
+            # Need to decode row by row otherwise each row is joined into one string
+            data_logger.token_label_str = [
+                tokenizer.batch_decode(
+                    row,
+                    skip_special_tokens=not use_special_tokens,
+                    clean_up_tokenization_spaces=True,
+                )
+                for row in token_label_ids
+            ]
+
             aligned_data = align_response_tokens_to_character_spans(
                 tokenizer,
-                tokenized_response,
+                token_label_ids,
                 max_input_tokens,
             )
             data_logger.token_label_offsets.append(aligned_data.token_label_offsets[0])
