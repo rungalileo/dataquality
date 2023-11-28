@@ -117,14 +117,24 @@ class EncoderDecoderDataFormatter(BaseSeq2SeqDataFormatter):
         """
         targets = text
         max_target_tokens = max_tokens
+        use_special_tokens = True  # use this var to align encoding and decoding
         encoded_data = tokenizer(
             targets,
             return_offsets_mapping=True,
             max_length=max_target_tokens,
             truncation=True,
+            add_special_tokens=use_special_tokens,
         )
         token_label_ids = encoded_data["input_ids"]
-        data_logger.token_label_str = tokenizer.batch_decode(token_label_ids)
+        # Need to decode row by row otherwise each row is joined into a single string
+        data_logger.token_label_str = [
+            tokenizer.batch_decode(
+                row,
+                skip_special_tokens=not use_special_tokens,
+                clean_up_tokenization_spaces=True,
+            )
+            for row in token_label_ids
+        ]
 
         aligned_data = align_tokens_to_character_spans(encoded_data["offset_mapping"])
         data_logger.token_label_offsets = aligned_data.token_label_offsets
