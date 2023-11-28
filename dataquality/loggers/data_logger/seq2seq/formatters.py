@@ -5,10 +5,9 @@ from tqdm.auto import tqdm
 from transformers import PreTrainedTokenizerFast
 from vaex import DataFrame
 
-from dataquality.loggers.data_logger.seq2seq.seq2seq_base import Seq2SeqDataLogger
 from dataquality.loggers.logger_config.seq2seq.seq2seq_base import Seq2SeqLoggerConfig
+from dataquality.schemas.seq2seq import AlignedTokenData, Seq2SeqModelType
 from dataquality.schemas.seq2seq import Seq2SeqInputCols as S2SIC
-from dataquality.schemas.seq2seq import Seq2SeqModelType
 from dataquality.utils.seq2seq.decoder_only import extract_tokenized_responses
 from dataquality.utils.seq2seq.offsets import (
     add_input_cutoff_to_df,
@@ -29,11 +28,12 @@ class BaseSeq2SeqDataFormatter(ABC):
     @abstractmethod
     def format_text(
         self,
-        tokenizer: PreTrainedTokenizerFast,
         text: List[str],
+        ids: List[int],
+        tokenizer: PreTrainedTokenizerFast,
         max_tokens: Optional[int],
-        data_logger: Seq2SeqDataLogger,
-    ) -> None:
+        split_key: str,
+    ) -> AlignedTokenData:
         pass
 
 
@@ -94,11 +94,12 @@ class EncoderDecoderDataFormatter(BaseSeq2SeqDataFormatter):
 
     def format_text(
         self,
-        tokenizer: PreTrainedTokenizerFast,
         text: List[str],
+        ids: List[int],
+        tokenizer: PreTrainedTokenizerFast,
         max_tokens: Optional[int],
-        data_logger: Seq2SeqDataLogger,
-    ) -> None:
+        split_key: str,
+    ) -> AlignedTokenData:
         """Further validation for Encoder-Decoder
 
         For Encoder-Decoder we need to:
@@ -126,12 +127,12 @@ class EncoderDecoderDataFormatter(BaseSeq2SeqDataFormatter):
         )
         tokenized_labels = encoded_data["input_ids"]
         aligned_data = align_tokens_to_character_spans(encoded_data["offset_mapping"])
-        data_logger.token_label_offsets = aligned_data.token_label_offsets
-        data_logger.token_label_positions = aligned_data.token_label_positions
 
         # Save the tokenized response labels for each samples
-        id_to_tokens = dict(zip(data_logger.ids, tokenized_labels))
-        self.logger_config.id_to_tokens[data_logger.split_key].update(id_to_tokens)
+        id_to_tokens = dict(zip(ids, tokenized_labels))
+        self.logger_config.id_to_tokens[split_key].update(id_to_tokens)
+
+        return aligned_data
 
     def set_input_cutoff(self, df: DataFrame) -> DataFrame:
         """Calculate the cutoff index for the input strings.
@@ -208,11 +209,12 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
 
     def format_text(
         self,
-        tokenizer: PreTrainedTokenizerFast,
         text: List[str],
+        ids: List[int],
+        tokenizer: PreTrainedTokenizerFast,
         max_tokens: Optional[int],
-        data_logger: Seq2SeqDataLogger,
-    ) -> None:
+        split_key: str,
+    ) -> AlignedTokenData:
         """Further formatting for Decoder-Only
 
         Text is the formatted prompt of combined input/target
@@ -246,36 +248,35 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
             tokenized_formatted_prompts, self.logger_config.response_template
         )
 
+        # Empty initialization
+        aligned_data = AlignedTokenData([], [])
         # Decode then re-tokenize just the response labels to get correct offsets
         for tokenized_response in tqdm(
             tokenized_labels,
             leave=False,
             desc="Aligning string characters with tokenizer representation",
         ):
-            aligned_data = align_response_tokens_to_character_spans(
+            sample_aligned_data = align_response_tokens_to_character_spans(
                 tokenizer,
                 tokenized_response,
                 max_input_tokens,
             )
-            data_logger.token_label_offsets.append(aligned_data.token_label_offsets[0])
-            data_logger.token_label_positions.append(
-                aligned_data.token_label_positions[0]
-            )
+            aligned_data.append(sample_aligned_data)
 
         # Save the tokenized response labels for each samples
-        id_to_tokens = dict(zip(data_logger.ids, tokenized_labels))
-        self.logger_config.id_to_tokens[data_logger.split_key].update(id_to_tokens)
+        id_to_tokens = dict(zip(ids, tokenized_labels))
+        self.logger_config.id_to_tokens[split_key].update(id_to_tokens)
 
         # Save the length of the formatted prompt - used later to remove padding
         formatted_prompt_lengths = [
             len(prompt) for prompt in tokenized_formatted_prompts
         ]
-        id_to_formatted_prompt_length = dict(
-            zip(data_logger.ids, formatted_prompt_lengths)
-        )
-        self.logger_config.id_to_formatted_prompt_length[data_logger.split_key].update(
+        id_to_formatted_prompt_length = dict(zip(ids, formatted_prompt_lengths))
+        self.logger_config.id_to_formatted_prompt_length[split_key].update(
             id_to_formatted_prompt_length
         )
+
+        return aligned_data
 
     def set_input_cutoff(self, df: DataFrame) -> DataFrame:
         """Calculate the cutoff index for the inputs
