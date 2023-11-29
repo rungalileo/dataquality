@@ -12,6 +12,7 @@ from datasets import Dataset
 from transformers import GenerationConfig, T5ForConditionalGeneration
 
 import dataquality as dq
+from dataquality.exceptions import GalileoException
 from dataquality.integrations.seq2seq.core import set_tokenizer, watch
 from dataquality.loggers.data_logger.base_data_logger import DataSet
 from dataquality.loggers.data_logger.seq2seq.seq2seq_base import Seq2SeqDataLogger
@@ -340,7 +341,6 @@ def test_tokenize_input_provide_maxlength(
     set_test_config: Callable,
     cleanup_after_use: Generator,
 ) -> None:
-    # TODO comment!
     """
     Test that as we generate output and the user provided the max_input_tokens argument,
     the input is tokenized correctly to the length set by max_input_tokens.
@@ -558,3 +558,35 @@ def test_create_and_upload_data_embs(
     assert data_embs.emb.values.ndim == 2
     # mini BERT model spits out 32 dims
     assert data_embs.emb.values.shape == (10, 32)
+
+
+def test_upload_wrong_data_emb_column(
+    cleanup_after_use: Callable,
+    set_test_config: Callable,
+    test_session_vars: TestSessionVariables,
+) -> None:
+    """
+    Test that we are prevented from uploading if the specified column name for data
+    embeddings does not exist in the df.
+    """
+    set_test_config(task_type=TaskType.seq2seq)
+    watch(tokenizer_T5, "encoder_decoder", generation_splits=[])
+
+    input_1, input_2 = "dog dog dog done - tricked you", "bird"
+    target_1, target_2 = "cat cat cat cat cat done", "cat"
+    ds = Dataset.from_dict(
+        {
+            "id": [0, 1],
+            "input": [input_1, input_2],
+            "target": [target_1, target_2],
+        }
+    )
+    data_logger = Seq2SeqDataLogger()
+    data_logger.log_dataset(ds, text="input", label="target", split="training")
+
+    with pytest.raises(GalileoException) as e:
+        data_logger.upload(data_embs_col="not_input")
+    assert str(e.value) == (
+        "The specified column not_input for creating embeddings does not"
+        " exist in the provided dataframe"
+    )
