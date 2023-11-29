@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Type, Tuple
+from typing import Dict, List, Optional, Tuple, Type
 
 from tqdm.auto import tqdm
 from transformers import PreTrainedTokenizerFast
@@ -137,13 +137,15 @@ class EncoderDecoderDataFormatter(BaseSeq2SeqDataFormatter):
             for row in token_label_ids
         ]
 
-        aligned_data = align_tokens_to_character_spans(encoded_data["offset_mapping"])
+        batch_aligned_data = align_tokens_to_character_spans(
+            encoded_data["offset_mapping"]
+        )
 
         # Save the token_ids in the config (to share with the model logger)
         id_to_tokens = dict(zip(ids, token_label_ids))
         self.logger_config.id_to_tokens[split_key].update(id_to_tokens)
 
-        return aligned_data, token_label_str
+        return batch_aligned_data, token_label_str
 
     def set_input_cutoff(self, df: DataFrame) -> DataFrame:
         """Calculate the cutoff index for the input strings.
@@ -262,7 +264,7 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
         )
 
         # Empty initialization
-        aligned_data = AlignedTokenData([], [])
+        batch_aligned_data = AlignedTokenData([], [])
         token_label_str = []
         # Decode then re-tokenize just the response labels to get correct offsets
         for token_label_ids in tqdm(
@@ -279,12 +281,12 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
                 )
             )
 
-            sample_aligned_data = align_response_tokens_to_character_spans(
+            response_aligned_data = align_response_tokens_to_character_spans(
                 tokenizer,
                 token_label_ids,
                 max_input_tokens,
             )
-            aligned_data.append(sample_aligned_data)
+            batch_aligned_data.append(response_aligned_data)
 
         # Save the tokenized response labels for each samples
         id_to_tokens = dict(zip(ids, tokenized_labels))
@@ -299,7 +301,7 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
             id_to_formatted_prompt_length
         )
 
-        return aligned_data, token_label_str
+        return batch_aligned_data, token_label_str
 
     def set_input_cutoff(self, df: DataFrame) -> DataFrame:
         """Calculate the cutoff index for the inputs

@@ -141,15 +141,16 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             texts = self.labels
             max_tokens = self.logger_config.max_target_tokens
 
-        aligned_token_data = self.formatter.format_text(
+        batch_aligned_token_data, token_label_str = self.formatter.format_text(
             text=texts,
             ids=self.ids,
             tokenizer=self.logger_config.tokenizer,
             max_tokens=max_tokens,
             split_key=self.split_key,
         )
-        self.token_label_offsets = aligned_token_data.token_label_offsets
-        self.token_label_positions = aligned_token_data.token_label_positions
+        self.token_label_offsets = batch_aligned_token_data.token_label_offsets
+        self.token_label_positions = batch_aligned_token_data.token_label_positions
+        self.token_label_str = token_label_str
 
     def _get_input_df(self) -> DataFrame:
         data = vaex.from_dict(
