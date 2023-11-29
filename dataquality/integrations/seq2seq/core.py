@@ -121,8 +121,8 @@ def watch(
     """Seq2seq only. Log model generations for your run
 
     Iterates over a given dataset and logs the generations for each sample.
-    `model` must be an instance of transformers PreTrainedModel and have a `generate`
-    method.
+    To generate outputs, a model of instance of transformers PreTrainedModel must be
+    given and it must have a `generate` method.
 
     Unlike other watch functions, in this one we are just registering the model
     and generation config and not attaching any hooks to the model. We call it 'watch'
@@ -135,25 +135,24 @@ def watch(
         max_target_tokens=max_target_tokens,
     )
 
-    if model:
-        assert isinstance(
-            model, PreTrainedModel
-        ), "model must be an instance of transformers PreTrainedModel"
-        assert (
-            model.can_generate()
-        ), "model must contain a `generate` method for seq2seq"
-
-    if model_type == Seq2SeqModelType.decoder_only and not response_template:
-        raise GalileoException(
-            "You must specify a `response_template` when using Decoder-Only models."
-            " This is necessary to internally isolate the target response tokens."
-        )
-
-    if model_type == Seq2SeqModelType.encoder_decoder and response_template:
+    if model_type == Seq2SeqModelType.decoder_only:
+        if response_template is None:
+            raise GalileoException(
+                "You must specify a `response_template` when using Decoder-Only models."
+                " This is necessary to internally isolate the target response tokens."
+            )
+        elif not isinstance(response_template, list) or not all(
+            isinstance(token, int) for token in response_template
+        ):
+            raise GalileoException(
+                "The response template must already be tokenized and be a list of ints."
+            )
+    elif model_type == Seq2SeqModelType.encoder_decoder and response_template:
         warn(
             "The argument response_template is only used when working with "
             "DecoderOnly models. This value will be ignored."
         )
+
     seq2seq_logger_config.response_template = response_template
     seq2seq_logger_config.model = model
     seq2seq_logger_config.generation_config = generation_config
@@ -169,5 +168,14 @@ def watch(
             continue
 
         generation_splits_set.add(Split[split])
+
+    # A model of the correct type is required if we need to generate
+    if generation_splits:
+        assert isinstance(
+            model, PreTrainedModel
+        ), "model must be an instance of transformers PreTrainedModel"
+        assert (
+            model.can_generate()
+        ), "model must contain a `generate` method for seq2seq"
 
     seq2seq_logger_config.generation_splits = generation_splits_set
