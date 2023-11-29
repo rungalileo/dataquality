@@ -260,7 +260,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         """
         # Check that data_embs_col is in the df and raise an error right here otherwise
         df = vaex.open(f"{self.input_data_path}/**/data*.arrow")
-        if data_embs_col not in df.get_column_names():
+        if create_data_embs and data_embs_col not in df.get_column_names():
             raise GalileoException(
                 f"The specified column {data_embs_col} for creating embeddings does not"
                 " exist in the provided dataframe"
