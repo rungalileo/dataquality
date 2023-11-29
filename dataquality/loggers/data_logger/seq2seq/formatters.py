@@ -34,6 +34,41 @@ class BaseSeq2SeqDataFormatter(ABC):
         max_tokens: Optional[int],
         split_key: str,
     ) -> Tuple[AlignedTokenData, List[List[str]]]:
+        """Tokenize and align the `text` samples
+
+        `format_text` tokenizes and computes token alignments for
+        each samples in `text`. Different logic is applied depending on the
+        model architecture (EncoderDecoder vs. DecoderOnly).
+
+        In the end, we return AlignedTokenData and the target token strings
+        (corresponding to `token_label_str` in `Seq2SeqDataLogger`). For both
+        EncoderDecoder and DecoderOnly models the output is expected
+        to be token alignment and string data over just the <Target> tokens
+        in the Seq2Seq task. Note though that the input `text` samples are
+        different between the two model architectures. See their respective
+        implementations for further details.
+
+        Additionally, we assign the necessary `self.logger_config`.
+
+        Parameters:
+        -----------
+        texts: List[str]
+            batch of str samples. For EncoderDecoder model's these are exactly
+            the targets vs. for DecoderOnly model's each sample is the full
+            formatted_prompt
+        ids: List[int]
+            sample ids - used for logger_config assignment
+        tokenizer: PreTrainedTokenizerFast
+        max_tokens: Optional[int]
+        split_key: str
+
+        Return:
+        -------
+        batch_aligned_data: AlignedTokenData
+            Aligned token data for *just* target tokens, based on `text`
+        token_label_str: List[List[str]]
+            The target tokens (as strings) - see `Seq2SeqDataLogger.token_label_str`
+        """
         pass
 
 
