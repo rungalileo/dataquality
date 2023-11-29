@@ -82,6 +82,7 @@ def test_log_dataset_encoder_decoder(
         "target",
         "token_label_positions",
         "token_label_offsets",
+        "token_label_str",
     ]
     assert sorted(df.get_column_names()) == sorted(expected_cols)
     assert df["input"].tolist() == ["summary 1", "summary 2", "summary 3"]

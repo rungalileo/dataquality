@@ -102,12 +102,11 @@ class EncoderDecoderDataFormatter(BaseSeq2SeqDataFormatter):
         """Further validation for Encoder-Decoder
 
         For Encoder-Decoder we need to:
-            - Save the offsets and positions of the tokenized labels
-                Allows us to extract token level information from the full
-                sample text
-            - Save the target token id
-                Equivalent to the "ground truth", allows us to get logprob per
-                token later on
+            - Save the target token ids: Equivalent to ground truth, it allows us to
+                compare with the predictions and get perplexity and DEP scores
+            - Save the target tokens: Decoding of the ids, to identify the tokens
+            - Save the offsets and positions of the target tokens: allows us to extract
+                token level information and align the tokens with the full sample text
 
         We achieve this by:
             - Tokenize the target texts using `max_target_tokens`
@@ -118,19 +117,31 @@ class EncoderDecoderDataFormatter(BaseSeq2SeqDataFormatter):
         """
         targets = text
         max_target_tokens = max_tokens
+        use_special_tokens = True  # use this var to align encoding and decoding
         encoded_data = tokenizer(
             targets,
             return_offsets_mapping=True,
             max_length=max_target_tokens,
             truncation=True,
+            add_special_tokens=use_special_tokens,
         )
-        tokenized_labels = encoded_data["input_ids"]
+        token_label_ids = encoded_data["input_ids"]
+        # Need to decode row by row otherwise each row is joined into one string
+        data_logger.token_label_str = [
+            tokenizer.batch_decode(
+                row,
+                skip_special_tokens=not use_special_tokens,
+                clean_up_tokenization_spaces=True,
+            )
+            for row in token_label_ids
+        ]
+
         aligned_data = align_tokens_to_character_spans(encoded_data["offset_mapping"])
         data_logger.token_label_offsets = aligned_data.token_label_offsets
         data_logger.token_label_positions = aligned_data.token_label_positions
 
-        # Save the tokenized response labels for each samples
-        id_to_tokens = dict(zip(data_logger.ids, tokenized_labels))
+        # Save the token_ids in the config (to share with the model logger)
+        id_to_tokens = dict(zip(data_logger.ids, token_label_ids))
         self.logger_config.id_to_tokens[data_logger.split_key].update(id_to_tokens)
 
     def set_input_cutoff(self, df: DataFrame) -> DataFrame:
@@ -231,10 +242,12 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
         # For decoder-only the text is the formatted prompt (input/target combined)
         formatted_prompts = text
         max_input_tokens = max_tokens
+        use_special_tokens = True  # use this var to align encoding and decoding
         encoded_data = tokenizer(
             formatted_prompts,
             max_length=max_input_tokens,
             truncation=True,
+            add_special_tokens=use_special_tokens,
         )
         # Tokenized input/target combination
         tokenized_formatted_prompts = encoded_data["input_ids"]
@@ -247,14 +260,23 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
         )
 
         # Decode then re-tokenize just the response labels to get correct offsets
-        for tokenized_response in tqdm(
+        for token_label_ids in tqdm(
             tokenized_labels,
             leave=False,
             desc="Aligning string characters with tokenizer representation",
         ):
+            # Detokenize to save the token_str in the df (for ex for high DEP tokens)
+            data_logger.token_label_str.append(
+                tokenizer.batch_decode(
+                    token_label_ids,
+                    skip_special_tokens=not use_special_tokens,
+                    clean_up_tokenization_spaces=True,
+                )
+            )
+
             aligned_data = align_response_tokens_to_character_spans(
                 tokenizer,
-                tokenized_response,
+                token_label_ids,
                 max_input_tokens,
             )
             data_logger.token_label_offsets.append(aligned_data.token_label_offsets[0])
