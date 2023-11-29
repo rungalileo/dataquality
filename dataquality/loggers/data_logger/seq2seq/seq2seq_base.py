@@ -12,6 +12,9 @@ from dataquality.loggers.data_logger.base_data_logger import (
     DataSet,
     MetasType,
 )
+from dataquality.loggers.data_logger.seq2seq.formatters import (
+    get_data_formatter,
+)
 from dataquality.loggers.logger_config.seq2seq.seq2seq_base import (
     Seq2SeqLoggerConfig,
     seq2seq_logger_config,
@@ -90,10 +93,6 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
 
         self.formatter: Optional["BaseSeq2SeqDataFormatter"] = None
         if self.logger_config.model_type is not None:
-            from dataquality.loggers.data_logger.seq2seq.formatters import (
-                get_data_formatter,
-            )
-
             self.formatter = get_data_formatter(
                 self.logger_config.model_type, self.logger_config
             )
