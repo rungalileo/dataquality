@@ -266,15 +266,13 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
             desc="Aligning string characters with tokenizer representation",
         ):
             # Detokenize to save the token_str in the df (for ex for high DEP tokens)
-            # Need to decode row by row otherwise each row is joined into one string
-            data_logger.token_label_str = [
+            data_logger.token_label_str.append(
                 tokenizer.batch_decode(
-                    row,
+                    token_label_ids,
                     skip_special_tokens=not use_special_tokens,
                     clean_up_tokenization_spaces=True,
                 )
-                for row in token_label_ids
-            ]
+            )
 
             aligned_data = align_response_tokens_to_character_spans(
                 tokenizer,
