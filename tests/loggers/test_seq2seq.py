@@ -594,3 +594,43 @@ def test_data_emb_with_wrong_col_name(
     assert data_embs.emb.values.ndim == 2
     # SentenceTransformer 384 dims
     assert data_embs.emb.values.shape == (2, 384)
+
+
+def test_data_emb_with_specified_col(
+    cleanup_after_use: Callable,
+    set_test_config: Callable,
+    test_session_vars: TestSessionVariables,
+) -> None:
+    """Test that data embeddings work with the column specified by the user"""
+    set_test_config(task_type=TaskType.seq2seq)
+    watch(tokenizer_T5, "encoder_decoder", generation_splits=[])
+
+    input_1, input_2 = "dog dog dog done - tricked you", "bird"
+    target_1, target_2 = "cat cat cat cat cat done", "cat"
+    other = "just some text"
+    ds = Dataset.from_dict(
+        {
+            "id": [0, 1],
+            "inpinp": [input_1, input_2],
+            "tartar": [target_1, target_2],
+            "other": [other, other],
+        }
+    )
+    data_logger = Seq2SeqDataLogger()
+    data_logger.log_dataset(
+        ds, text="inpinp", label="tartar", split="training", meta=["other"]
+    )
+
+    df = vaex.open(f"{data_logger.input_data_path}/**/data*.arrow")
+
+    # Check that no exception is thrown and that data embs are created
+    assert "text" not in df.get_column_names()
+    data_embs = create_data_embs_df(df, text_col="other")
+    assert len(data_embs) == 2
+    assert data_embs.get_column_names() == ["id", "emb"]
+    np_emb = data_embs.emb.values
+    assert isinstance(np_emb, np.ndarray)
+    # SentenceTransformer 384 dims
+    assert np_emb.shape == (2, 384)
+    # Check that the two embeddings are the same, i.e., we used the column "other"
+    assert np.isclose(np_emb[0], np_emb[1]).all()
