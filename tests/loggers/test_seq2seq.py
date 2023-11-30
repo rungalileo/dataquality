@@ -29,7 +29,7 @@ from dataquality.utils.seq2seq.generation import (
     generate_sample_output,
 )
 from dataquality.utils.thread_pool import ThreadPoolManager
-from dataquality.utils.vaex import GALILEO_DATA_EMBS_ENCODER
+from dataquality.utils.vaex import GALILEO_DATA_EMBS_ENCODER, create_data_embs_df
 from tests.conftest import (
     LOCAL_MODEL_PATH,
     TestSessionVariables,
@@ -584,8 +584,10 @@ def test_upload_wrong_data_emb_column(
     data_logger = Seq2SeqDataLogger()
     data_logger.log_dataset(ds, text="input", label="target", split="training")
 
+    df = vaex.open(f"{data_logger.input_data_path}/**/data*.arrow")
+
     with pytest.raises(GalileoException) as e:
-        data_logger.upload(create_data_embs=True, data_embs_col="not_input")
+        create_data_embs_df(df, text_col="not_input")
     assert str(e.value) == (
         "The specified column not_input for creating embeddings does not"
         " exist in the provided dataframe"
