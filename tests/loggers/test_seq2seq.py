@@ -12,7 +12,6 @@ from datasets import Dataset
 from transformers import GenerationConfig, T5ForConditionalGeneration
 
 import dataquality as dq
-from dataquality.exceptions import GalileoException
 from dataquality.integrations.seq2seq.core import set_tokenizer, watch
 from dataquality.loggers.data_logger.base_data_logger import DataSet
 from dataquality.loggers.data_logger.seq2seq.seq2seq_base import Seq2SeqDataLogger
@@ -560,14 +559,14 @@ def test_create_and_upload_data_embs(
     assert data_embs.emb.values.shape == (10, 32)
 
 
-def test_upload_wrong_data_emb_column(
+def test_data_emb_with_wrong_col_name(
     cleanup_after_use: Callable,
     set_test_config: Callable,
     test_session_vars: TestSessionVariables,
 ) -> None:
     """
-    Test that we are prevented from uploading if the specified column name for data
-    embeddings does not exist in the df.
+    Test that data embeddings work, even when we use the default col name "text", as
+    opposed to the
     """
     set_test_config(task_type=TaskType.seq2seq)
     watch(tokenizer_T5, "encoder_decoder", generation_splits=[])
@@ -577,18 +576,21 @@ def test_upload_wrong_data_emb_column(
     ds = Dataset.from_dict(
         {
             "id": [0, 1],
-            "input": [input_1, input_2],
-            "target": [target_1, target_2],
+            "inpinp": [input_1, input_2],
+            "tongtong": [target_1, target_2],
         }
     )
     data_logger = Seq2SeqDataLogger()
-    data_logger.log_dataset(ds, text="input", label="target", split="training")
+    data_logger.log_dataset(ds, text="inpinp", label="tongtong", split="training")
 
     df = vaex.open(f"{data_logger.input_data_path}/**/data*.arrow")
 
-    with pytest.raises(GalileoException) as e:
-        create_data_embs_df(df, text_col="text")
-    assert str(e.value) == (
-        "The specified column create_data_embs=text for data embeddings "
-        "does not exist in the dataframe. Re-run dq.finish with an existing column"
-    )
+    # Check that no exception is thrown and that data embs are created
+    assert "text" not in df.get_column_names()
+    data_embs = create_data_embs_df(df, text_col="text")
+    assert len(data_embs) == 10
+    assert data_embs.get_column_names() == ["id", "emb"]
+    assert isinstance(data_embs.emb.values, np.ndarray)
+    assert data_embs.emb.values.ndim == 2
+    # mini BERT model spits out 32 dims
+    assert data_embs.emb.values.shape == (10, 32)

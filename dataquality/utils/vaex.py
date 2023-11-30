@@ -191,11 +191,18 @@ def create_data_embs_df(df: DataFrame, text_col: str, lazy: bool = True) -> Data
     :param text_col: The column to use for calculating data embeddings
     :param lazy: If true, we lazily apply the model to encode the text
     """
+    # We first try to find the user specified column text_col. If not found fall back
+    # to default columns "text" (for TC, IC, etc) and "input" (for seq2seq)
+    found_emb_col = False
+    for col in [text_col, "text", "input"]:
+        if col in df.get_column_names():
+            found_emb_col = True
+            break
     # Raising an explicit exception if the user specified a column that is not in the df
-    if text_col not in df.get_column_names():
+    if not found_emb_col:
         raise GalileoException(
-            f"The specified column create_data_embs={text_col} for data embeddings "
-            "does not exist in the dataframe. Re-run dq.finish with an existing column"
+            f"The specified column create_data_embs={text_col} in dq.finish does not "
+            "exist in the dataframe. Re-run dq.finish with an existing column name."
         )
 
     # This import takes up to 25 seconds, so we don't want to eagerly import it
@@ -215,7 +222,7 @@ def create_data_embs_df(df: DataFrame, text_col: str, lazy: bool = True) -> Data
         )
 
     if lazy:
-        df_copy["emb"] = df_copy[text_col].apply_sentence_transformer()
+        df_copy["emb"] = df_copy[col].apply_sentence_transformer()
         df_copy = df_copy[["id", "emb"]]
     else:
         import torch
@@ -223,7 +230,7 @@ def create_data_embs_df(df: DataFrame, text_col: str, lazy: bool = True) -> Data
         # Downcasts to float16 where possible, speeds up processing by 10 it/sec
         with torch.autocast("cuda"):
             df_copy["emb"] = data_model.encode(
-                df_copy[text_col].tolist(), show_progress_bar=True
+                df_copy[col].tolist(), show_progress_bar=True
             ).astype(np.float32)
 
     return df_copy
