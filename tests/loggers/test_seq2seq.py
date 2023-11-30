@@ -585,7 +585,7 @@ def test_upload_wrong_data_emb_column(
     data_logger.log_dataset(ds, text="input", label="target", split="training")
 
     with pytest.raises(GalileoException) as e:
-        data_logger.upload(data_embs_col="not_input")
+        data_logger.upload(create_data_embs=True, data_embs_col="not_input")
     assert str(e.value) == (
         "The specified column not_input for creating embeddings does not"
         " exist in the provided dataframe"

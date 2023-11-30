@@ -258,14 +258,6 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         If create_data_embs is True, this will also run an off the shelf transformer
         and upload those text embeddings alongside the models finetuned embeddings
         """
-        # Check that data_embs_col is in the df. If not raise an error before continuing
-        df = self._get_input_df()
-        if create_data_embs and data_embs_col not in df.get_column_names():
-            raise GalileoException(
-                f"The specified column {data_embs_col} for creating embeddings does not"
-                " exist in the provided dataframe"
-            )
-
         # For linting
         assert (
             config.current_project_id and config.current_run_id

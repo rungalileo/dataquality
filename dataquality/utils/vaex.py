@@ -191,6 +191,13 @@ def create_data_embs_df(df: DataFrame, text_col: str, lazy: bool = True) -> Data
     :param text_col: The column to use for calculating data embeddings
     :param lazy: If true, we lazily apply the model to encode the text
     """
+    # Raising an explicit exception if the user specified a column that is not in the df
+    if text_col not in df.get_column_names():
+        raise GalileoException(
+            f"The specified column {text_col} for creating embeddings does not"
+            " exist in the provided dataframe"
+        )
+
     # This import takes up to 25 seconds, so we don't want to eagerly import it
     import transformers
     from sentence_transformers import SentenceTransformer
