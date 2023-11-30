@@ -12,6 +12,9 @@ from dataquality.loggers.data_logger.base_data_logger import (
     DataSet,
     MetasType,
 )
+from dataquality.loggers.data_logger.seq2seq.formatters import (
+    get_data_formatter,
+)
 from dataquality.loggers.logger_config.seq2seq.seq2seq_base import (
     Seq2SeqLoggerConfig,
     seq2seq_logger_config,
@@ -94,10 +97,6 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
 
         self.formatter: Optional["BaseSeq2SeqDataFormatter"] = None
         if self.logger_config.model_type is not None:
-            from dataquality.loggers.data_logger.seq2seq.formatters import (
-                get_data_formatter,
-            )
-
             self.formatter = get_data_formatter(
                 self.logger_config.model_type, self.logger_config
             )
@@ -142,12 +141,16 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             texts = self.labels
             max_tokens = self.logger_config.max_target_tokens
 
-        self.formatter.format_text(
-            self.logger_config.tokenizer,
-            texts,
-            max_tokens,
-            self,
+        batch_aligned_token_data, token_label_str = self.formatter.format_text(
+            text=texts,
+            ids=self.ids,
+            tokenizer=self.logger_config.tokenizer,
+            max_tokens=max_tokens,
+            split_key=self.split_key,
         )
+        self.token_label_offsets = batch_aligned_token_data.token_label_offsets
+        self.token_label_positions = batch_aligned_token_data.token_label_positions
+        self.token_label_str = token_label_str
 
     def _get_input_df(self) -> DataFrame:
         data = vaex.from_dict(
