@@ -588,9 +588,9 @@ def test_data_emb_with_wrong_col_name(
     # Check that no exception is thrown and that data embs are created
     assert "text" not in df.get_column_names()
     data_embs = create_data_embs_df(df, text_col="text")
-    assert len(data_embs) == 10
+    assert len(data_embs) == 2
     assert data_embs.get_column_names() == ["id", "emb"]
     assert isinstance(data_embs.emb.values, np.ndarray)
     assert data_embs.emb.values.ndim == 2
-    # mini BERT model spits out 32 dims
-    assert data_embs.emb.values.shape == (10, 32)
+    # SentenceTransformer 384 dims
+    assert data_embs.emb.values.shape == (2, 384)
