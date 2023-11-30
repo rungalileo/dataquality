@@ -569,6 +569,9 @@ def test_data_emb_with_wrong_col_name(
     opposed to the
     """
     set_test_config(task_type=TaskType.seq2seq)
+    # Use the local mini bert model
+    os.environ[GALILEO_DATA_EMBS_ENCODER] = LOCAL_MODEL_PATH
+
     watch(tokenizer_T5, "encoder_decoder", generation_splits=[])
 
     input_1, input_2 = "dog dog dog done - tricked you", "bird"
@@ -592,8 +595,8 @@ def test_data_emb_with_wrong_col_name(
     assert data_embs.get_column_names() == ["id", "emb"]
     assert isinstance(data_embs.emb.values, np.ndarray)
     assert data_embs.emb.values.ndim == 2
-    # SentenceTransformer 384 dims
-    assert data_embs.emb.values.shape == (2, 384)
+    # mini BERT model spits out 32 dims
+    assert data_embs.emb.values.shape == (2, 32)
 
 
 def test_data_emb_with_specified_col(
@@ -603,6 +606,9 @@ def test_data_emb_with_specified_col(
 ) -> None:
     """Test that data embeddings work with the column specified by the user"""
     set_test_config(task_type=TaskType.seq2seq)
+    # Use the local mini bert model
+    os.environ[GALILEO_DATA_EMBS_ENCODER] = LOCAL_MODEL_PATH
+
     watch(tokenizer_T5, "encoder_decoder", generation_splits=[])
 
     input_1, input_2 = "dog dog dog done - tricked you", "bird"
@@ -630,7 +636,7 @@ def test_data_emb_with_specified_col(
     assert data_embs.get_column_names() == ["id", "emb"]
     np_emb = data_embs.emb.values
     assert isinstance(np_emb, np.ndarray)
-    # SentenceTransformer 384 dims
-    assert np_emb.shape == (2, 384)
+    # mini BERT model spits out 32 dims
+    assert np_emb.shape == (2, 32)
     # Check that the two embeddings are the same, i.e., we used the column "other"
     assert np.isclose(np_emb[0], np_emb[1]).all()
