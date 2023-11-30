@@ -12,6 +12,9 @@ from dataquality.loggers.data_logger.base_data_logger import (
     DataSet,
     MetasType,
 )
+from dataquality.loggers.data_logger.seq2seq.formatters import (
+    get_data_formatter,
+)
 from dataquality.loggers.logger_config.seq2seq.seq2seq_base import (
     Seq2SeqLoggerConfig,
     seq2seq_logger_config,
@@ -74,10 +77,14 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
 
     def __init__(self, meta: Optional[MetasType] = None) -> None:
         super().__init__(meta)
-        # Character offsets for each token (from tokenized_inputs) in the dataset
+        # The target tokens (as strings) coming out of the tokenizer
+        self.token_label_str: List[List[str]] = []
+        # Character offsets for each token in the target indicating at each character
+        # position each token starts and ends
         self.token_label_offsets: List[List[Tuple[int, int]]] = []
-        # Index (or indices) into the token array for every offset
+        # Index indicating the target tokens' position in the text (for every offset)
         self.token_label_positions: List[List[Set[int]]] = []
+
         self.ids: List[int] = []
         self.texts: List[str] = []
         self.labels: List[str] = []
@@ -90,10 +97,6 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
 
         self.formatter: Optional["BaseSeq2SeqDataFormatter"] = None
         if self.logger_config.model_type is not None:
-            from dataquality.loggers.data_logger.seq2seq.formatters import (
-                get_data_formatter,
-            )
-
             self.formatter = get_data_formatter(
                 self.logger_config.model_type, self.logger_config
             )
@@ -117,8 +120,8 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         text_len = len(self.texts)
         id_len = len(self.ids)
         assert id_len == text_len == label_len, (
-            "IDs, text, and labels must be the same length, got "
-            f"({id_len} ids, {text_len} text, {label_len} labels)"
+            "IDs, texts, and labels must be the same length, got "
+            f"({id_len} ids, {text_len} texts, {label_len} labels)"
         )
         # TODO Does this do anything?
         assert self.logger_config.tokenizer, (
@@ -140,12 +143,16 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             max_tokens = self.logger_config.max_target_tokens
         assert max_tokens
 
-        self.formatter.format_text(
-            texts,
+        batch_aligned_token_data, token_label_str = self.formatter.format_text(
+            text=texts,
+            ids=self.ids,
             tokenizer=self.logger_config.tokenizer,
             max_tokens=max_tokens,
-            data_logger=self,
+            split_key=self.split_key,
         )
+        self.token_label_offsets = batch_aligned_token_data.token_label_offsets
+        self.token_label_positions = batch_aligned_token_data.token_label_positions
+        self.token_label_str = token_label_str
 
     def _get_input_df(self) -> DataFrame:
         df_dict = {
@@ -161,6 +168,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             df_dict[S2SIC.formatted_prompts.value] = self.formatted_prompts
 
         data = vaex.from_dict(df_dict)
+
         if S2SIC.system_prompts in self.meta:
             # We must store nested dicts as pyarrow arrays to support vaex export
             data[S2SIC.system_prompts.value] = pa.array(self.meta[S2SIC.system_prompts])
@@ -172,11 +180,11 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         meta: Union[List[str], List[int], None] = None,
     ) -> None:
         """Helper to log a pandas or vaex df"""
-        self.texts = df["text"].tolist()
+        self.texts = df["input"].tolist()
         self.ids = df["id"].tolist()
         # Inference case
-        if "label" in df:
-            self.labels = df["label"].tolist()
+        if "target" in df:
+            self.labels = df["target"].tolist()
         if "galileo_formatted_prompt" in df:
             self.formatted_prompts = df["galileo_formatted_prompt"].tolist()
         for meta_col in meta or []:
@@ -188,9 +196,9 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         dataset: DataSet,
         *,
         batch_size: int = ITER_CHUNK_SIZE,
-        text: Union[str, int] = "text",
+        text: Union[str, int] = "input",
         id: Union[str, int] = "id",
-        label: Optional[Union[str, int]] = "label",
+        label: Optional[Union[str, int]] = "target",
         formatted_prompt: Union[str, int] = "formatted_label",
         split: Optional[Split] = None,
         inference_name: Optional[str] = None,
@@ -200,10 +208,10 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         self.validate_kwargs(kwargs)
         self.split = split
         self.inference_name = inference_name
-        column_map = {text: "text", id: "id"}
+        column_map = {text: "input", id: "id"}
         label = None if split == Split.inference else label
         if label:
-            column_map[label] = "label"
+            column_map[label] = "target"
         if isinstance(dataset, pd.DataFrame):
             if formatted_prompt and formatted_prompt in dataset.columns:
                 column_map[formatted_prompt] = "galileo_formatted_prompt"
@@ -269,7 +277,24 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             in_frame, dir_name, prob_only, split, epoch_or_inf
         )
 
-    # TODO Why is this a class method??
+    def convert_large_string(self, df: DataFrame) -> DataFrame:
+        """Cast regular string to large_string for the text columns
+
+        In Seq2Seq the text columns are the input and target columns.
+        See BaseDataLogger.convert_large_string for more details
+        """
+        df_copy = df.copy()
+        # TODO Include formatted prompt??
+        for text_col in [S2SIC.input.value, S2SIC.target.value, S2SIC.formatted_prompts.value]:
+            if text_col in df_copy.get_column_names():
+                # Characters are each 1 byte. If more bytes > max,
+                # it needs to be large_string
+                text_bytes = df_copy[text_col].str.len().sum()
+                if text_bytes > self.STRING_MAX_SIZE_B:
+                    df_copy[text_col] = df_copy[f'astype({text_col}, "large_string")']
+
+            return df_copy
+
     def add_generated_output_to_df(
         self, df: DataFrame, split: str
     ) -> Optional[DataFrame]:
@@ -349,8 +374,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             # Convert emb to numpy array
             emb = convert_pa_to_np(emb, "emb")
 
-        data_df = S2SIC.set_cols(df_copy[other_cols])
-        return BaseLoggerDataFrames(prob=prob, emb=emb, data=data_df)
+        return BaseLoggerDataFrames(prob=prob, emb=emb, data=df_copy)
 
     def calculate_cutoffs(self, df: DataFrame) -> DataFrame:
         """Calculates cuttoff indexes for the input and/or target string.

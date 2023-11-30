@@ -131,8 +131,8 @@ def add_generated_output_to_df(
     """Generates model outputs over df and extracts the logprob data
 
     Using the user's model we generate the output for each sample in the df and the
-    corresponding logprob data. We generate in batches of text Input using vaex's
-    `evaluate_iterator`. This avoids brining the full `S2SIC.text` into memory;
+    corresponding logprob data. We generate in batches of Input text using vaex's
+    `evaluate_iterator`. This avoids brining the full `S2SIC.input` into memory;
     however, we do end up materializing the full logprob and token alignemnt data
     for the generated outputs.
 

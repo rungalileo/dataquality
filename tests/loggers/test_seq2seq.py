@@ -1,3 +1,4 @@
+import os
 from typing import Callable, Generator
 from unittest.mock import MagicMock, Mock, patch
 
@@ -27,7 +28,14 @@ from dataquality.utils.seq2seq.generation import (
     generate_sample_output,
 )
 from dataquality.utils.thread_pool import ThreadPoolManager
-from tests.conftest import TestSessionVariables, model_T5, tokenizer, tokenizer_T5
+from dataquality.utils.vaex import GALILEO_DATA_EMBS_ENCODER
+from tests.conftest import (
+    LOCAL_MODEL_PATH,
+    TestSessionVariables,
+    model_T5,
+    tokenizer,
+    tokenizer_T5,
+)
 
 
 @pytest.mark.parametrize(
@@ -70,14 +78,15 @@ def test_log_dataset_encoder_decoder(
     expected_cols = [
         "id",
         "split",
-        "text",
-        "label",
+        "input",
+        "target",
         "token_label_positions",
         "token_label_offsets",
+        "token_label_str",
     ]
     assert sorted(df.get_column_names()) == sorted(expected_cols)
-    assert df["text"].tolist() == ["summary 1", "summary 2", "summary 3"]
-    assert df["label"].tolist() == ["title_1", "title_2", "title_3"]
+    assert df["input"].tolist() == ["summary 1", "summary 2", "summary 3"]
+    assert df["target"].tolist() == ["title_1", "title_2", "title_3"]
     assert df["id"].tolist() == [1, 2, 3]
     assert df["split"].tolist() == ["training"] * 3
 
@@ -291,7 +300,7 @@ def test_add_generated_output_to_df(
     # Create fake df with vaex
     num_batches = 10
     df_size = batch_size * num_batches
-    df = vaex.from_dict({"text": ["Fake Input"] * df_size})
+    df = vaex.from_dict({"input": ["Fake Input"] * df_size})
 
     with patch(
         "dataquality.utils.seq2seq.generation.GENERATION_BATCH_SIZE", batch_size
@@ -524,3 +533,28 @@ def test_calculate_cutoffs_encoder_decoder(
     assert target_1[: target_offsets[0]] == "cat cat cat cat"
     assert input_2[: input_offsets[1]] == "bird"
     assert target_2[: target_offsets[1]] == "cat"
+
+
+@pytest.mark.parametrize("text_col", ["input", "target"])
+def test_create_and_upload_data_embs(
+    text_col: str,
+    cleanup_after_use: Callable,
+    set_test_config: Callable,
+    test_session_vars: TestSessionVariables,
+) -> None:
+    set_test_config(task_type="text_classification")
+    # Use the local mini bert model
+    os.environ[GALILEO_DATA_EMBS_ENCODER] = LOCAL_MODEL_PATH
+
+    df = vaex.from_arrays(id=list(range(10)))
+    df[text_col] = "sentence number " + df["id"].astype(str)
+    logger = Seq2SeqDataLogger()
+    logger.create_and_upload_data_embs(df, "training", 3, text_col)
+    data_embs_path = f"{test_session_vars.TEST_PATH}/training/3/data_emb/data_emb.hdf5"
+    data_embs = vaex.open(data_embs_path)
+    assert len(data_embs) == 10
+    assert data_embs.get_column_names() == ["id", "emb"]
+    assert isinstance(data_embs.emb.values, np.ndarray)
+    assert data_embs.emb.values.ndim == 2
+    # mini BERT model spits out 32 dims
+    assert data_embs.emb.values.shape == (10, 32)

@@ -9,7 +9,7 @@ from transformers import GenerationConfig, T5ForConditionalGeneration
 import dataquality as dq
 from dataquality.integrations.seq2seq.core import watch
 from dataquality.loggers.data_logger.seq2seq.seq2seq_base import Seq2SeqDataLogger
-from dataquality.schemas.seq2seq import Seq2SeqInputCols as C
+from dataquality.schemas.seq2seq import Seq2SeqInputCols as S2SIC
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.seq2seq.offsets import (
     add_input_cutoff_to_df,
@@ -178,7 +178,10 @@ def test_add_input_cutoff_to_df(
         f"{data_logger.input_data_path}/training/*.{data_logger.INPUT_DATA_FILE_EXT}"
     )
     df = add_input_cutoff_to_df(
-        in_frame_split, tokenizer_T5, C.text, data_logger.logger_config.max_input_tokens
+        in_frame_split,
+        tokenizer_T5,
+        S2SIC.input,
+        data_logger.logger_config.max_input_tokens,
     )
 
     input_offsets = df["input_cutoff"].tolist()
@@ -225,7 +228,7 @@ def test_add_target_cutoff_to_df(
     in_frame_split = vaex.open(
         f"{data_logger.input_data_path}/training/*.{data_logger.INPUT_DATA_FILE_EXT}"
     )
-    df = add_target_cutoff_to_df(in_frame_split, C.token_label_offsets)
+    df = add_target_cutoff_to_df(in_frame_split, S2SIC.token_label_offsets)
     target_offsets = df["target_cutoff"].tolist()
 
     assert len(target_offsets) == 2

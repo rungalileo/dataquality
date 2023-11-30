@@ -24,6 +24,7 @@ def finish(
     last_epoch: Optional[int] = None,
     wait: bool = True,
     create_data_embs: Optional[bool] = None,
+    data_embs_col: str = "text",
 ) -> str:
     """
     Finishes the current run and invokes a job
@@ -38,6 +39,9 @@ def finish(
         `data view` tab of the Galileo console. You can also access these embeddings
         via dq.metrics.get_data_embeddings(). Default True if a GPU is
         available, else default False.
+    :param data_embs_col: Optional text col on which to compute data embeddings.
+        If not set, we default to 'text' which corresponds to the input text
+        Can also be set to `target` or `generated_output`
     """
     a.log_function("dq/finish")
     if create_data_embs is None:
@@ -55,7 +59,9 @@ def finish(
     # Certain tasks require extra finish logic
     data_logger.logger_config.finish()
 
-    data_logger.upload(last_epoch, create_data_embs=create_data_embs)
+    data_logger.upload(
+        last_epoch, create_data_embs=create_data_embs, data_embs_col=data_embs_col
+    )
     upload_dq_log_file()
     body = dict(
         project_id=str(config.current_project_id),

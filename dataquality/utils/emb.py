@@ -87,6 +87,7 @@ def upload_umap_data_embs(
     input_data_dir: str,
     run_dir: str,
     last_epoch: Optional[int],
+    data_embs_col: str,
 ) -> None:
     """Given the location to _all_ input text, create and upload the data embs
 
@@ -101,7 +102,7 @@ def upload_umap_data_embs(
     """
     df = vaex.open(f"{input_data_dir}/**/data*.arrow")
     try:
-        df_emb = create_data_embs_df(df, lazy=False)
+        df_emb = create_data_embs_df(df, text_col=data_embs_col, lazy=False)
     except HfHubHTTPError as e:
         warnings.warn(
             "Unable to download transformer from huggingface. Data embeddings "
