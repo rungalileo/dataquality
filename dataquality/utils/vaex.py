@@ -194,8 +194,8 @@ def create_data_embs_df(df: DataFrame, text_col: str, lazy: bool = True) -> Data
     # Raising an explicit exception if the user specified a column that is not in the df
     if text_col not in df.get_column_names():
         raise GalileoException(
-            f"The specified column {text_col} for creating embeddings does not"
-            " exist in the provided dataframe"
+            f"The specified column create_data_embs={text_col} for data embeddings "
+            "does not exist in the dataframe. Re-run dq.finish with an existing column"
         )
 
     # This import takes up to 25 seconds, so we don't want to eagerly import it

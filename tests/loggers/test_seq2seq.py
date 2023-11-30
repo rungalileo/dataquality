@@ -587,8 +587,8 @@ def test_upload_wrong_data_emb_column(
     df = vaex.open(f"{data_logger.input_data_path}/**/data*.arrow")
 
     with pytest.raises(GalileoException) as e:
-        create_data_embs_df(df, text_col="not_input")
+        create_data_embs_df(df, text_col="text")
     assert str(e.value) == (
-        "The specified column not_input for creating embeddings does not"
-        " exist in the provided dataframe"
+        "The specified column create_data_embs=text for data embeddings "
+        "does not exist in the dataframe. Re-run dq.finish with an existing column"
     )
