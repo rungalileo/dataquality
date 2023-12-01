@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Tuple, Type
 
+import numpy as np
 import torch
 from tqdm.auto import tqdm
 from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizerFast
@@ -10,7 +11,7 @@ from dataquality.loggers.logger_config.seq2seq.seq2seq_base import Seq2SeqLogger
 from dataquality.schemas.seq2seq import AlignedTokenData, ModelGeneration, Seq2SeqModelType
 from dataquality.schemas.seq2seq import Seq2SeqInputCols as S2SIC
 from dataquality.utils.seq2seq.decoder_only import extract_tokenized_responses
-from dataquality.utils.seq2seq.generation import process_generated_logits
+from dataquality.utils.seq2seq.logprobs import get_top_logprob_indices, process_sample_logprobs
 from dataquality.utils.seq2seq.offsets import (
     add_input_cutoff_to_df,
     add_target_cutoff_to_df,
@@ -117,6 +118,27 @@ class BaseSeq2SeqDataFormatter(ABC):
             - generated_top_logprobs: List[List[Tuple[str, float]]]
         """
         pass
+
+    @staticmethod
+    def process_generated_logits(
+            generated_logits: torch.Tensor,
+            generated_ids: np.ndarray,
+            tokenizer: PreTrainedTokenizerFast,
+    ) -> ModelGeneration:
+        # import pdb; pdb.set_trace()
+        logprobs = torch.nn.functional.log_softmax(generated_logits, dim=-1).cpu().numpy()
+        top_logprobs_indices = get_top_logprob_indices(logprobs)
+
+        gen_logprob_data = process_sample_logprobs(
+            logprobs,
+            sample_labels=generated_ids,
+            sample_top_indices=top_logprobs_indices,
+            tokenizer=tokenizer,
+        )
+
+        return ModelGeneration(
+            generated_ids=generated_ids, generated_logprob_data=gen_logprob_data
+        )
 
 
 class EncoderDecoderDataFormatter(BaseSeq2SeqDataFormatter):
@@ -268,7 +290,7 @@ class EncoderDecoderDataFormatter(BaseSeq2SeqDataFormatter):
         logits = logits.squeeze(0)  # [seq_len, vocab_size]
         gen_ids = gen_ids.squeeze(0).cpu().numpy()  # [seq_len]
 
-        return process_generated_logits(
+        return self.process_generated_logits(
             logits, generated_ids=gen_ids, tokenizer=tokenizer
         )
 
@@ -443,7 +465,7 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
 
         # Retrieve the length of the response tokens
         assert split_key, "Decoder-Only models require a valid `split_key`"
-        assert input_id, (
+        assert input_id is not None, (
             "Decoder-Only models require the `sample_id` "
             "that is being used for generation"
         )
@@ -459,6 +481,7 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
             verbose=False,
             return_tensors="pt",
         )["input_ids"]
+        # TODO Watch for empty targets!
         just_prompt_ids = formatted_prompt_ids[:, :-num_response_labels].to(
             model.device
         )
@@ -470,16 +493,17 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
         )
 
         # Remove batch dimension
-        full_gen_ids_copy = full_gen_ids.cpu().numpy()[0]
-        gen_ids = full_gen_ids_copy[len(just_prompt_ids[0]) :]
+        full_gen_ids_cpu = full_gen_ids.cpu().numpy()
+        gen_ids = full_gen_ids_cpu[0, len(just_prompt_ids[0]) :]
 
-        # Pass the generated output through the model to get the logits
+        # Pass generated output through the model to get the logits
         model_outputs = model(input_ids=full_gen_ids, labels=full_gen_ids.clone())
 
         logits = model_outputs.logits
-        response_logits = logits[0, -len(gen_ids) :]  # Remove batch dim
+        # Shift sample tokens such that tokens < n predict token n.
+        response_logits = logits[0, -(len(gen_ids) + 1) : -1]
 
-        return process_generated_logits(
+        return self.process_generated_logits(
             response_logits, generated_ids=gen_ids, tokenizer=tokenizer
         )
 

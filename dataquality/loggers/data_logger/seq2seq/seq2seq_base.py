@@ -13,8 +13,9 @@ from dataquality.loggers.data_logger.base_data_logger import (
     MetasType,
 )
 from dataquality.loggers.data_logger.seq2seq.formatters import (
-    get_data_formatter,
+    BaseSeq2SeqDataFormatter, get_data_formatter,
 )
+
 from dataquality.loggers.logger_config.seq2seq.seq2seq_base import (
     Seq2SeqLoggerConfig,
     seq2seq_logger_config,
@@ -91,11 +92,8 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         # Only required for Decoder-Only models
         self.formatted_prompts: List[str] = []
         # Formatter distinguishes behavior between EncoderDecoder and DecoderOnly
-        from dataquality.loggers.data_logger.seq2seq.formatters import (
-            BaseSeq2SeqDataFormatter,
-        )
 
-        self.formatter: Optional["BaseSeq2SeqDataFormatter"] = None
+        self.formatter: Optional[BaseSeq2SeqDataFormatter] = None
         if self.logger_config.model_type is not None:
             self.formatter = get_data_formatter(
                 self.logger_config.model_type, self.logger_config
@@ -157,8 +155,8 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
     def _get_input_df(self) -> DataFrame:
         df_dict = {
             S2SIC.id.value: self.ids,
-            S2SIC.text.value: self.texts,
-            S2SIC.label.value: self.labels,
+            S2SIC.input.value: self.texts,
+            S2SIC.target.value: self.labels,
             S2SIC.split_.value: [self.split] * len(self.ids),
             S2SIC.token_label_positions.value: pa.array(self.token_label_positions),
             S2SIC.token_label_offsets.value: pa.array(self.token_label_offsets),
@@ -327,7 +325,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         assert generation_config is not None
         print(f"Generating {len(df)} samples for split {split}")
         # Need to specify the column to generate over!
-        generation_column = S2SIC.text.value
+        generation_column = S2SIC.target.value
         if self.logger_config.model_type == Seq2SeqModelType.decoder_only:
             generation_column = S2SIC.formatted_prompts.value
 

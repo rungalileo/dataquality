@@ -7,7 +7,7 @@ import torch
 from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizerFast
 from vaex import DataFrame
 
-# TODO formatter import is circular
+from dataquality.loggers.data_logger.seq2seq.formatters import BaseSeq2SeqDataFormatter
 from dataquality.schemas.seq2seq import (
     GENERATION_BATCH_SIZE,
     TOP_LOGPROBS_SCHEMA,
@@ -24,30 +24,10 @@ from dataquality.utils.seq2seq.logprobs import (
 from dataquality.utils.seq2seq.offsets import align_tokens_to_character_spans
 
 
-def process_generated_logits(
-    generated_logits: torch.Tensor,
-    generated_ids: np.ndarray,
-    tokenizer: PreTrainedTokenizerFast,
-) -> ModelGeneration:
-    logprobs = torch.nn.functional.log_softmax(generated_logits, dim=-1).cpu().numpy()
-    top_logprobs_indices = get_top_logprob_indices(logprobs)
-
-    gen_logprob_data = process_sample_logprobs(
-        logprobs,
-        sample_labels=generated_ids,
-        sample_top_indices=top_logprobs_indices,
-        tokenizer=tokenizer,
-    )
-
-    return ModelGeneration(
-        generated_ids=generated_ids, generated_logprob_data=gen_logprob_data
-    )
-
-
 def generate_on_batch(
     texts: pa.array,
     ids: pa.array,
-    formatter,  #: BaseSeq2SeqDataFormatter,
+    formatter: BaseSeq2SeqDataFormatter,
     tokenizer: PreTrainedTokenizerFast,
     model: PreTrainedModel,
     max_input_tokens: int,
@@ -91,12 +71,16 @@ def generate_on_batch(
             split_key=split_key,
         )
 
+        # Tokenize *exactly* the ids generated. This means
+        # we will display special characters such as <eos>
         output = tokenizer.decode(
-            sample_generation.generated_ids, skip_special_tokens=True
+            sample_generation.generated_ids, skip_special_tokens=False
         )
         generated_outputs.append(output)
         # Re-tokenize the data to get the token position offsets
-        encoded_data = tokenizer([output], return_offsets_mapping=True)
+        # TODO adding <bos> tokens can mess with alignment in the UI. So we
+        #   avoid adding special_tokens. This may apply to not just generation!
+        encoded_data = tokenizer([output], return_offsets_mapping=True, add_special_tokens=False)
         aligned_data = align_tokens_to_character_spans(
             encoded_data["offset_mapping"], disable_tqdm=True
         )
@@ -121,7 +105,7 @@ def generate_on_batch(
 def add_generated_output_to_df(
     df: DataFrame,
     generation_column: str,
-    formatter,  # : BaseSeq2SeqDataFormatter,
+    formatter: BaseSeq2SeqDataFormatter,
     tokenizer: PreTrainedTokenizerFast,
     model: PreTrainedModel,
     max_input_tokens: int,
@@ -192,9 +176,6 @@ def add_generated_output_to_df(
 
         generated_data.extend_from(batch_generated_data)
 
-    import pdb
-
-    pdb.set_trace()
     # Assign the vaex columns manually for now!
     df[S2SOC.generated_output.value] = np.array(generated_data.generated_outputs)
     df[S2SOC.generated_token_label_positions.value] = pa.array(
