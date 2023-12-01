@@ -8,10 +8,17 @@ from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizerF
 from vaex import DataFrame
 
 from dataquality.loggers.logger_config.seq2seq.seq2seq_base import Seq2SeqLoggerConfig
-from dataquality.schemas.seq2seq import AlignedTokenData, ModelGeneration, Seq2SeqModelType
+from dataquality.schemas.seq2seq import (
+    AlignedTokenData,
+    ModelGeneration,
+    Seq2SeqModelType,
+)
 from dataquality.schemas.seq2seq import Seq2SeqInputCols as S2SIC
 from dataquality.utils.seq2seq.decoder_only import extract_tokenized_responses
-from dataquality.utils.seq2seq.logprobs import get_top_logprob_indices, process_sample_logprobs
+from dataquality.utils.seq2seq.logprobs import (
+    get_top_logprob_indices,
+    process_sample_logprobs,
+)
 from dataquality.utils.seq2seq.offsets import (
     add_input_cutoff_to_df,
     add_target_cutoff_to_df,
@@ -121,12 +128,14 @@ class BaseSeq2SeqDataFormatter(ABC):
 
     @staticmethod
     def process_generated_logits(
-            generated_logits: torch.Tensor,
-            generated_ids: np.ndarray,
-            tokenizer: PreTrainedTokenizerFast,
+        generated_logits: torch.Tensor,
+        generated_ids: np.ndarray,
+        tokenizer: PreTrainedTokenizerFast,
     ) -> ModelGeneration:
         # import pdb; pdb.set_trace()
-        logprobs = torch.nn.functional.log_softmax(generated_logits, dim=-1).cpu().numpy()
+        logprobs = (
+            torch.nn.functional.log_softmax(generated_logits, dim=-1).cpu().numpy()
+        )
         top_logprobs_indices = get_top_logprob_indices(logprobs)
 
         gen_logprob_data = process_sample_logprobs(
@@ -221,7 +230,6 @@ class EncoderDecoderDataFormatter(BaseSeq2SeqDataFormatter):
                 sample id to tokenized label (sample_id -> List[token_id])
         """
         targets = text
-        max_target_tokens = max_tokens
         use_special_tokens = True  # use this var to align encoding and decoding
         encoded_data = tokenizer(
             targets,

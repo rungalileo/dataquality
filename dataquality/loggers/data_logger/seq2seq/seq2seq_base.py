@@ -13,9 +13,9 @@ from dataquality.loggers.data_logger.base_data_logger import (
     MetasType,
 )
 from dataquality.loggers.data_logger.seq2seq.formatters import (
-    BaseSeq2SeqDataFormatter, get_data_formatter,
+    BaseSeq2SeqDataFormatter,
+    get_data_formatter,
 )
-
 from dataquality.loggers.logger_config.seq2seq.seq2seq_base import (
     Seq2SeqLoggerConfig,
     seq2seq_logger_config,
@@ -121,7 +121,6 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             "IDs, texts, and labels must be the same length, got "
             f"({id_len} ids, {text_len} texts, {label_len} labels)"
         )
-        # TODO Does this do anything?
         assert self.logger_config.tokenizer, (
             "You must set your tokenizer before logging. "
             "Use `dq.integrations.seq2seq.core.set_tokenizer`"
@@ -282,8 +281,12 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         See BaseDataLogger.convert_large_string for more details
         """
         df_copy = df.copy()
-        # TODO Include formatted prompt??
-        for text_col in [S2SIC.input.value, S2SIC.target.value, S2SIC.formatted_prompts.value]:
+        # TODO Include formatted prompt?
+        for text_col in [
+            S2SIC.input.value,
+            S2SIC.target.value,
+            S2SIC.formatted_prompts.value,
+        ]:
             if text_col in df_copy.get_column_names():
                 # Characters are each 1 byte. If more bytes > max,
                 # it needs to be large_string
@@ -304,8 +307,6 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         if split not in self.logger_config.generation_splits:
             return df
 
-        # TODO the logger config of the formatter has these, but maybe
-        #  we want to explicitly pass them in?
         model = self.logger_config.model
         tokenizer = self.logger_config.tokenizer
         max_input_tokens = self.logger_config.max_input_tokens
@@ -323,6 +324,9 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         assert isinstance(max_input_tokens, int)
 
         assert generation_config is not None
+        # TODO When would this be None?
+        assert self.formatter is not None
+
         print(f"Generating {len(df)} samples for split {split}")
         # Need to specify the column to generate over!
         generation_column = S2SIC.target.value
@@ -339,7 +343,8 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             generation_config=generation_config,
             split_key=split,
         )
-        # TODO CAN REMOVE THE `Formatted Prompt column`
+        # The formatted_prompts column is no longer needed
+        df = df.drop([S2SIC.formatted_prompts])
 
         return df
 

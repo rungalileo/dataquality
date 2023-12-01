@@ -3,7 +3,6 @@ from typing import Optional
 
 import numpy as np
 import pyarrow as pa
-import torch
 from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizerFast
 from vaex import DataFrame
 
@@ -12,15 +11,10 @@ from dataquality.schemas.seq2seq import (
     GENERATION_BATCH_SIZE,
     TOP_LOGPROBS_SCHEMA,
     BatchGenerationData,
-    ModelGeneration,
 )
 from dataquality.schemas.seq2seq import Seq2SeqInputCols as S2SIC
 from dataquality.schemas.seq2seq import Seq2SeqOutputCols as S2SOC
 from dataquality.utils import tqdm
-from dataquality.utils.seq2seq.logprobs import (
-    get_top_logprob_indices,
-    process_sample_logprobs,
-)
 from dataquality.utils.seq2seq.offsets import align_tokens_to_character_spans
 
 
@@ -57,8 +51,6 @@ def generate_on_batch(
     generated_token_logprobs = []
     generated_top_logprobs = []
 
-    # TODO Add tqdm!
-    # We need sample ids to get the response labels
     for sample, sample_id in zip(texts, ids):
         # Generate and extract model outputs
         sample_generation = formatter.generate_sample(
@@ -80,7 +72,9 @@ def generate_on_batch(
         # Re-tokenize the data to get the token position offsets
         # TODO adding <bos> tokens can mess with alignment in the UI. So we
         #   avoid adding special_tokens. This may apply to not just generation!
-        encoded_data = tokenizer([output], return_offsets_mapping=True, add_special_tokens=False)
+        encoded_data = tokenizer(
+            [output], return_offsets_mapping=True, add_special_tokens=False
+        )
         aligned_data = align_tokens_to_character_spans(
             encoded_data["offset_mapping"], disable_tqdm=True
         )
@@ -147,11 +141,9 @@ def add_generated_output_to_df(
     df: vaex.DataFrame
         Updated Dataframe with the generated columns added (see above)
     """
-    formatter.logger_config.model.eval()
-    generated_data = BatchGenerationData()  # TODO Update this!
+    model.eval()
+    generated_data = BatchGenerationData()
 
-    # TODO Ask elliott if it is better to explicitly pass in
-    #   params such as `model` or `tokenizer`
     num_batches = math.ceil(len(df) / GENERATION_BATCH_SIZE)
     for _, _, chunk in tqdm(
         df.evaluate_iterator(
