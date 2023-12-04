@@ -121,8 +121,8 @@ def watch(
     """Seq2seq only. Log model generations for your run
 
     Iterates over a given dataset and logs the generations for each sample.
-    To generate outputs, a model of instance of transformers PreTrainedModel must be
-    given and it must have a `generate` method.
+    To generate outputs, a model that is an instance of transformers PreTrainedModel
+     must be given and it must have a `generate` method.
 
     Unlike other watch functions, in this one we are just registering the model
     and generation config and not attaching any hooks to the model. We call it 'watch'
