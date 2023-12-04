@@ -123,10 +123,6 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             "IDs, texts, and labels must be the same length, got "
             f"({id_len} ids, {text_len} texts, {label_len} labels)"
         )
-        assert self.logger_config.tokenizer, (
-            "You must set your tokenizer before logging. "
-            "Use `dq.integrations.seq2seq.core.set_tokenizer`"
-        )
         model_type = self.logger_config.model_type
         if self.formatter is None or model_type is None:
             raise GalileoException(
@@ -144,7 +140,6 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         batch_aligned_token_data, token_label_str = self.formatter.format_text(
             text=texts,
             ids=self.ids,
-            tokenizer=self.logger_config.tokenizer,
             max_tokens=max_tokens,
             split_key=self.split_key,
         )
