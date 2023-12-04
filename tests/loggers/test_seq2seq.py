@@ -638,7 +638,8 @@ def test_create_data_embs_df_custom_column(
 
     # Check that no exception is thrown and that data embs are created
     assert "text" not in df.get_column_names()
-    data_embs = create_data_embs_df(df, text_col="other")
+    with pytest.warns(None):
+        data_embs = create_data_embs_df(df, text_col="other")
 
     assert len(data_embs) == 2
     assert data_embs.get_column_names() == ["id", "emb"]

@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Tuple, Type
 
 from tqdm.auto import tqdm
+from transformers import PreTrainedTokenizerFast
 from vaex import DataFrame
 
 from dataquality.loggers.logger_config.seq2seq.seq2seq_base import Seq2SeqLoggerConfig
@@ -19,11 +20,6 @@ from dataquality.utils.seq2seq.offsets import (
 class BaseSeq2SeqDataFormatter(ABC):
     def __init__(self, logger_config: Seq2SeqLoggerConfig) -> None:
         self.logger_config = logger_config
-        assert self.logger_config.tokenizer, (
-            "You must set your tokenizer before logging. Use "
-            "`dataquality.integrations.seq2seq.core.watch`"
-        )
-        self.tokenizer = self.logger_config.tokenizer
 
     @abstractmethod
     def set_input_cutoff(self, df: DataFrame) -> DataFrame:
@@ -34,6 +30,7 @@ class BaseSeq2SeqDataFormatter(ABC):
         self,
         text: List[str],
         ids: List[int],
+        tokenizer: PreTrainedTokenizerFast,
         max_tokens: Optional[int],
         split_key: str,
     ) -> Tuple[AlignedTokenData, List[List[str]]]:
@@ -134,6 +131,7 @@ class EncoderDecoderDataFormatter(BaseSeq2SeqDataFormatter):
         self,
         text: List[str],
         ids: List[int],
+        tokenizer: PreTrainedTokenizerFast,
         max_tokens: Optional[int],
         split_key: str,
     ) -> Tuple[AlignedTokenData, List[List[str]]]:
@@ -156,7 +154,7 @@ class EncoderDecoderDataFormatter(BaseSeq2SeqDataFormatter):
         targets = text
         max_target_tokens = max_tokens
         use_special_tokens = True  # use this var to align encoding and decoding
-        encoded_data = self.tokenizer(
+        encoded_data = tokenizer(
             targets,
             return_offsets_mapping=True,
             max_length=max_target_tokens,
@@ -166,7 +164,7 @@ class EncoderDecoderDataFormatter(BaseSeq2SeqDataFormatter):
         token_label_ids = encoded_data["input_ids"]
         # Need to decode row by row otherwise each row is joined into one string
         token_label_str = [
-            self.tokenizer.batch_decode(
+            tokenizer.batch_decode(
                 row,
                 skip_special_tokens=not use_special_tokens,
                 clean_up_tokenization_spaces=True,
@@ -261,6 +259,7 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
         self,
         text: List[str],
         ids: List[int],
+        tokenizer: PreTrainedTokenizerFast,
         max_tokens: Optional[int],
         split_key: str,
     ) -> Tuple[AlignedTokenData, List[List[str]]]:
@@ -283,7 +282,7 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
         formatted_prompts = text
         max_input_tokens = max_tokens
         use_special_tokens = True  # use this var to align encoding and decoding
-        encoded_data = self.tokenizer(
+        encoded_data = tokenizer(
             formatted_prompts,
             max_length=max_input_tokens,
             truncation=True,
@@ -310,7 +309,7 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
         ):
             # Detokenize to save the token_str in the df (for ex for high DEP tokens)
             token_label_str.append(
-                self.tokenizer.batch_decode(
+                tokenizer.batch_decode(
                     token_label_ids,
                     skip_special_tokens=not use_special_tokens,
                     clean_up_tokenization_spaces=True,
@@ -318,7 +317,7 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
             )
 
             response_aligned_data = align_response_tokens_to_character_spans(
-                self.tokenizer,
+                tokenizer,
                 token_label_ids,
                 max_input_tokens,
             )
