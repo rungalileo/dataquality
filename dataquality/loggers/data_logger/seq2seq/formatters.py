@@ -1,14 +1,13 @@
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Type
+from typing import Dict, List, Optional, Tuple, Type
 
 from tqdm.auto import tqdm
 from transformers import PreTrainedTokenizerFast
 from vaex import DataFrame
 
-from dataquality.loggers.data_logger.seq2seq.seq2seq_base import Seq2SeqDataLogger
 from dataquality.loggers.logger_config.seq2seq.seq2seq_base import Seq2SeqLoggerConfig
+from dataquality.schemas.seq2seq import AlignedTokenData, Seq2SeqModelType
 from dataquality.schemas.seq2seq import Seq2SeqInputCols as S2SIC
-from dataquality.schemas.seq2seq import Seq2SeqModelType
 from dataquality.utils.seq2seq.decoder_only import extract_tokenized_responses
 from dataquality.utils.seq2seq.offsets import (
     add_input_cutoff_to_df,
@@ -29,11 +28,47 @@ class BaseSeq2SeqDataFormatter(ABC):
     @abstractmethod
     def format_text(
         self,
-        tokenizer: PreTrainedTokenizerFast,
         text: List[str],
+        ids: List[int],
+        tokenizer: PreTrainedTokenizerFast,
         max_tokens: Optional[int],
-        data_logger: Seq2SeqDataLogger,
-    ) -> None:
+        split_key: str,
+    ) -> Tuple[AlignedTokenData, List[List[str]]]:
+        """Tokenize and align the `text` samples
+
+        `format_text` tokenizes and computes token alignments for
+        each samples in `text`. Different logic is applied depending on the
+        model architecture (EncoderDecoder vs. DecoderOnly).
+
+        In the end, we return AlignedTokenData and the target token strings
+        (corresponding to `token_label_str` in `Seq2SeqDataLogger`). For both
+        EncoderDecoder and DecoderOnly models the output is expected
+        to be token alignment and string data over just the <Target> tokens
+        in the Seq2Seq task. Note though that the input `text` samples are
+        different between the two model architectures. See their respective
+        implementations for further details.
+
+        Additionally, we assign the necessary `self.logger_config`.
+
+        Parameters:
+        -----------
+        texts: List[str]
+            batch of str samples. For EncoderDecoder model's these are exactly
+            the targets vs. for DecoderOnly model's each sample is the full
+            formatted_prompt
+        ids: List[int]
+            sample ids - used for logger_config assignment
+        tokenizer: PreTrainedTokenizerFast
+        max_tokens: Optional[int]
+        split_key: str
+
+        Return:
+        -------
+        batch_aligned_data: AlignedTokenData
+            Aligned token data for *just* target tokens, based on `text`
+        token_label_str: List[List[str]]
+            The target tokens (as strings) - see `Seq2SeqDataLogger.token_label_str`
+        """
         pass
 
 
@@ -94,20 +129,20 @@ class EncoderDecoderDataFormatter(BaseSeq2SeqDataFormatter):
 
     def format_text(
         self,
-        tokenizer: PreTrainedTokenizerFast,
         text: List[str],
+        ids: List[int],
+        tokenizer: PreTrainedTokenizerFast,
         max_tokens: Optional[int],
-        data_logger: Seq2SeqDataLogger,
-    ) -> None:
+        split_key: str,
+    ) -> Tuple[AlignedTokenData, List[List[str]]]:
         """Further validation for Encoder-Decoder
 
         For Encoder-Decoder we need to:
-            - Save the offsets and positions of the tokenized labels
-                Allows us to extract token level information from the full
-                sample text
-            - Save the target token id
-                Equivalent to the "ground truth", allows us to get logprob per
-                token later on
+            - Save the target token ids: Equivalent to ground truth, it allows us to
+                compare with the predictions and get perplexity and DEP scores
+            - Save the target tokens: Decoding of the ids, to identify the tokens
+            - Save the offsets and positions of the target tokens: allows us to extract
+                token level information and align the tokens with the full sample text
 
         We achieve this by:
             - Tokenize the target texts using `max_target_tokens`
@@ -118,20 +153,34 @@ class EncoderDecoderDataFormatter(BaseSeq2SeqDataFormatter):
         """
         targets = text
         max_target_tokens = max_tokens
+        use_special_tokens = True  # use this var to align encoding and decoding
         encoded_data = tokenizer(
             targets,
             return_offsets_mapping=True,
             max_length=max_target_tokens,
             truncation=True,
+            add_special_tokens=use_special_tokens,
         )
-        tokenized_labels = encoded_data["input_ids"]
-        aligned_data = align_tokens_to_character_spans(encoded_data["offset_mapping"])
-        data_logger.token_label_offsets = aligned_data.token_label_offsets
-        data_logger.token_label_positions = aligned_data.token_label_positions
+        token_label_ids = encoded_data["input_ids"]
+        # Need to decode row by row otherwise each row is joined into one string
+        token_label_str = [
+            tokenizer.batch_decode(
+                row,
+                skip_special_tokens=not use_special_tokens,
+                clean_up_tokenization_spaces=True,
+            )
+            for row in token_label_ids
+        ]
 
-        # Save the tokenized response labels for each samples
-        id_to_tokens = dict(zip(data_logger.ids, tokenized_labels))
-        self.logger_config.id_to_tokens[data_logger.split_key].update(id_to_tokens)
+        batch_aligned_data = align_tokens_to_character_spans(
+            encoded_data["offset_mapping"]
+        )
+
+        # Save the token_ids in the config (to share with the model logger)
+        id_to_tokens = dict(zip(ids, token_label_ids))
+        self.logger_config.id_to_tokens[split_key].update(id_to_tokens)
+
+        return batch_aligned_data, token_label_str
 
     def set_input_cutoff(self, df: DataFrame) -> DataFrame:
         """Calculate the cutoff index for the input strings.
@@ -208,11 +257,12 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
 
     def format_text(
         self,
-        tokenizer: PreTrainedTokenizerFast,
         text: List[str],
+        ids: List[int],
+        tokenizer: PreTrainedTokenizerFast,
         max_tokens: Optional[int],
-        data_logger: Seq2SeqDataLogger,
-    ) -> None:
+        split_key: str,
+    ) -> Tuple[AlignedTokenData, List[List[str]]]:
         """Further formatting for Decoder-Only
 
         Text is the formatted prompt of combined input/target
@@ -231,10 +281,12 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
         # For decoder-only the text is the formatted prompt (input/target combined)
         formatted_prompts = text
         max_input_tokens = max_tokens
+        use_special_tokens = True  # use this var to align encoding and decoding
         encoded_data = tokenizer(
             formatted_prompts,
             max_length=max_input_tokens,
             truncation=True,
+            add_special_tokens=use_special_tokens,
         )
         # Tokenized input/target combination
         tokenized_formatted_prompts = encoded_data["input_ids"]
@@ -246,36 +298,45 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
             tokenized_formatted_prompts, self.logger_config.response_template
         )
 
+        # Empty initialization
+        batch_aligned_data = AlignedTokenData([], [])
+        token_label_str = []
         # Decode then re-tokenize just the response labels to get correct offsets
-        for tokenized_response in tqdm(
+        for token_label_ids in tqdm(
             tokenized_labels,
             leave=False,
             desc="Aligning string characters with tokenizer representation",
         ):
-            aligned_data = align_response_tokens_to_character_spans(
-                tokenizer,
-                tokenized_response,
-                max_input_tokens,
-            )
-            data_logger.token_label_offsets.append(aligned_data.token_label_offsets[0])
-            data_logger.token_label_positions.append(
-                aligned_data.token_label_positions[0]
+            # Detokenize to save the token_str in the df (for ex for high DEP tokens)
+            token_label_str.append(
+                tokenizer.batch_decode(
+                    token_label_ids,
+                    skip_special_tokens=not use_special_tokens,
+                    clean_up_tokenization_spaces=True,
+                )
             )
 
+            response_aligned_data = align_response_tokens_to_character_spans(
+                tokenizer,
+                token_label_ids,
+                max_input_tokens,
+            )
+            batch_aligned_data.append(response_aligned_data)
+
         # Save the tokenized response labels for each samples
-        id_to_tokens = dict(zip(data_logger.ids, tokenized_labels))
-        self.logger_config.id_to_tokens[data_logger.split_key].update(id_to_tokens)
+        id_to_tokens = dict(zip(ids, tokenized_labels))
+        self.logger_config.id_to_tokens[split_key].update(id_to_tokens)
 
         # Save the length of the formatted prompt - used later to remove padding
         formatted_prompt_lengths = [
             len(prompt) for prompt in tokenized_formatted_prompts
         ]
-        id_to_formatted_prompt_length = dict(
-            zip(data_logger.ids, formatted_prompt_lengths)
-        )
-        self.logger_config.id_to_formatted_prompt_length[data_logger.split_key].update(
+        id_to_formatted_prompt_length = dict(zip(ids, formatted_prompt_lengths))
+        self.logger_config.id_to_formatted_prompt_length[split_key].update(
             id_to_formatted_prompt_length
         )
+
+        return batch_aligned_data, token_label_str
 
     def set_input_cutoff(self, df: DataFrame) -> DataFrame:
         """Calculate the cutoff index for the inputs

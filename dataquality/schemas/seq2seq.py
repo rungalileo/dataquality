@@ -32,6 +32,7 @@ class Seq2SeqInputCols(str, Enum):
     input_cutoff = "input_cutoff"
     target_cutoff = "target_cutoff"
     # Columns saved as pyarrow arrays
+    token_label_str = "token_label_str"
     token_label_positions = "token_label_positions"
     token_label_offsets = "token_label_offsets"
     system_prompts = "system_prompts"
@@ -70,6 +71,23 @@ class Seq2SeqOutputCols(str, Enum):
 class AlignedTokenData:
     token_label_offsets: List[List[Tuple[int, int]]]
     token_label_positions: List[List[Set[int]]]
+
+    def append(self, aligned_token_data: "AlignedTokenData") -> None:
+        """Append offsets and positions for a *single* sample
+
+        Assumes that `sample_aligned_token_data` holds alignment info for
+        a *single* data sample. As such, when appending to `token_label_offsets`
+        and `token_label_positions` we remove the "batch" dimensions respectively.
+            e.g.
+            >> sample_aligned_token_data.token_label_offsets[0]
+        """
+        assert (
+            len(aligned_token_data.token_label_offsets) == 1
+            and len(aligned_token_data.token_label_positions) == 1
+        )
+
+        self.token_label_offsets.append(aligned_token_data.token_label_offsets[0])
+        self.token_label_positions.append(aligned_token_data.token_label_positions[0])
 
 
 @dataclass
