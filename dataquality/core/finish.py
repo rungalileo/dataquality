@@ -40,8 +40,9 @@ def finish(
         via dq.metrics.get_data_embeddings(). Default True if a GPU is
         available, else default False.
     :param data_embs_col: Optional text col on which to compute data embeddings.
-        If not set, we default to 'text' which corresponds to the input text
-        Can also be set to `target` or `generated_output`
+        If not set, we default to 'text' which corresponds to the input text.
+        Can also be set to `target`, `generated_output` or any other column that is
+        logged as metadata.
     """
     a.log_function("dq/finish")
     if create_data_embs is None:

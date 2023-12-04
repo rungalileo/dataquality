@@ -12,6 +12,7 @@ from datasets import Dataset
 from transformers import GenerationConfig, T5ForConditionalGeneration
 
 import dataquality as dq
+from dataquality.exceptions import GalileoWarning
 from dataquality.integrations.seq2seq.core import set_tokenizer, watch
 from dataquality.loggers.data_logger.base_data_logger import DataSet
 from dataquality.loggers.data_logger.seq2seq.seq2seq_base import Seq2SeqDataLogger
@@ -28,7 +29,7 @@ from dataquality.utils.seq2seq.generation import (
     generate_sample_output,
 )
 from dataquality.utils.thread_pool import ThreadPoolManager
-from dataquality.utils.vaex import GALILEO_DATA_EMBS_ENCODER
+from dataquality.utils.vaex import GALILEO_DATA_EMBS_ENCODER, create_data_embs_df
 from tests.conftest import (
     LOCAL_MODEL_PATH,
     TestSessionVariables,
@@ -340,7 +341,6 @@ def test_tokenize_input_provide_maxlength(
     set_test_config: Callable,
     cleanup_after_use: Generator,
 ) -> None:
-    # TODO comment!
     """
     Test that as we generate output and the user provided the max_input_tokens argument,
     the input is tokenized correctly to the length set by max_input_tokens.
@@ -558,3 +558,94 @@ def test_create_and_upload_data_embs(
     assert data_embs.emb.values.ndim == 2
     # mini BERT model spits out 32 dims
     assert data_embs.emb.values.shape == (10, 32)
+
+
+def test_create_data_embs_df_bad_text_col_name(
+    cleanup_after_use: Callable,
+    set_test_config: Callable,
+    test_session_vars: TestSessionVariables,
+) -> None:
+    """Test data embeddings flow works with bad col name
+
+    When the wrong column name is passed, test that the flow still works
+    using the default value of "input".
+    """
+    set_test_config(task_type=TaskType.seq2seq)
+    # Use the local mini bert model
+    os.environ[GALILEO_DATA_EMBS_ENCODER] = LOCAL_MODEL_PATH
+
+    watch(tokenizer_T5, "encoder_decoder", generation_splits=[])
+
+    input_1, input_2 = "dog dog dog done - tricked you", "bird"
+    target_1, target_2 = "cat cat cat cat cat done", "cat"
+    ds = Dataset.from_dict(
+        {
+            "id": [0, 1],
+            "inpinp": [input_1, input_2],
+            "tongtong": [target_1, target_2],
+        }
+    )
+    data_logger = Seq2SeqDataLogger()
+    data_logger.log_dataset(ds, text="inpinp", label="tongtong", split="training")
+
+    df = vaex.open(f"{data_logger.input_data_path}/**/data*.arrow")
+
+    # Check that no exception is thrown and that data embs are created
+    assert "text" not in df.get_column_names()
+    with pytest.warns(GalileoWarning) as gw:
+        data_embs = create_data_embs_df(df, text_col="text")
+
+    warning_msg = "Column `text` not found, `input` will be used for data embeddings"
+    assert str(list(gw)[0].message) == warning_msg
+
+    assert len(data_embs) == 2
+    assert data_embs.get_column_names() == ["id", "emb"]
+    assert isinstance(data_embs.emb.values, np.ndarray)
+    assert data_embs.emb.values.ndim == 2
+    # mini BERT model spits out 32 dims
+    assert data_embs.emb.values.shape == (2, 32)
+
+
+def test_create_data_embs_df_custom_column(
+    cleanup_after_use: Callable,
+    set_test_config: Callable,
+    test_session_vars: TestSessionVariables,
+) -> None:
+    """Test that data embeddings work with a column specified by the user"""
+    set_test_config(task_type=TaskType.seq2seq)
+    # Use the local mini bert model
+    os.environ[GALILEO_DATA_EMBS_ENCODER] = LOCAL_MODEL_PATH
+
+    watch(tokenizer_T5, "encoder_decoder", generation_splits=[])
+
+    input_1, input_2 = "dog dog dog done - tricked you", "bird"
+    target_1, target_2 = "cat cat cat cat cat done", "cat"
+    other = "just some text"
+    ds = Dataset.from_dict(
+        {
+            "id": [0, 1],
+            "inpinp": [input_1, input_2],
+            "tartar": [target_1, target_2],
+            "other": [other, other],
+        }
+    )
+    data_logger = Seq2SeqDataLogger()
+    data_logger.log_dataset(
+        ds, text="inpinp", label="tartar", split="training", meta=["other"]
+    )
+
+    df = vaex.open(f"{data_logger.input_data_path}/**/data*.arrow")
+
+    # Check that no exception is thrown and that data embs are created
+    assert "text" not in df.get_column_names()
+    with pytest.warns(None):
+        data_embs = create_data_embs_df(df, text_col="other")
+
+    assert len(data_embs) == 2
+    assert data_embs.get_column_names() == ["id", "emb"]
+    np_emb = data_embs.emb.values
+    assert isinstance(np_emb, np.ndarray)
+    # mini BERT model spits out 32 dims
+    assert np_emb.shape == (2, 32)
+    # Check that the two embeddings are the same, i.e., we used the column "other"
+    assert np.isclose(np_emb[0], np_emb[1]).all()
