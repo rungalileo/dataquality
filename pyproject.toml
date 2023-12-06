@@ -28,7 +28,7 @@ dependencies = [
     "scipy>=1.7.0",
     "cachetools>=4.2.4",
     "importlib-metadata<6.0.1",
-    "datasets>=2.6",
+    "datasets>=2.14.6",
     "transformers>=4.17.0",
     "seqeval",
     "sentence-transformers>=2.2",
