@@ -148,3 +148,18 @@ def has_len(arr: Any) -> bool:
     except TypeError:
         has_len = bool(arr.shape[0])
     return has_len
+
+
+def validate_label_characters(labels: List[str]) -> None:
+    """Checks if the label is valid for the UI
+
+    The UI only supports alphanumeric characters, dashes, and underscores
+    """
+    for label in labels:
+        if not label:
+            return
+        if not label.replace("-", "").replace("_", "").isalnum():
+            raise GalileoException(
+                f"Label {label} is not valid. Only alphanumeric characters, dashes, "
+                "and underscores are supported."
+            )
