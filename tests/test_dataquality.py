@@ -207,6 +207,29 @@ def test_metadata_logging_invalid(
     assert len(c.meta) == MAX_META_COLS
 
 
+def test_metadata_logging_invalid_with_x_and_y(
+    cleanup_after_use: Callable, set_test_config: Callable
+) -> None:
+    """
+    Tests our metadata logging validation
+    """
+    meta = {
+        "x": [random() for _ in range(NUM_RECORDS * NUM_LOGS)],  # Reserved key
+        "y": [random() for _ in range(NUM_RECORDS * NUM_LOGS)],  # Reserved key
+        "data_x": [random() for _ in range(NUM_RECORDS * NUM_LOGS)],  # Reserved key
+        "data_y": [random() for _ in range(NUM_RECORDS * NUM_LOGS)],  # Reserved key
+    }
+
+    c = dataquality.get_data_logger("text_classification")
+    c.meta = meta
+    with pytest.warns(GalileoWarning) as gw:
+        c.validate_metadata(NUM_RECORDS * NUM_LOGS)
+
+    assert len(list(gw)) == 4
+    # All 4 columns should have been removed
+    assert c.meta == {}
+
+
 def test_logging_duplicate_ids(
     cleanup_after_use: Callable, set_test_config: Callable
 ) -> None:
