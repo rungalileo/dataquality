@@ -344,7 +344,8 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             split_key=split,
         )
         # The formatted_prompts column is no longer needed
-        df = df.drop([S2SIC.formatted_prompts])
+        if S2SIC.formatted_prompts in df.get_column_names():
+            df = df.drop([S2SIC.formatted_prompts])
 
         return df
 
