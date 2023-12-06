@@ -9,9 +9,22 @@ def isolate_response_tokens(
     tokenized_formatted_prompt: List[int], response_template: List[int]
 ) -> List[int]:
     """Identify the final instance of the response_template and use that to isolate just
-    the response tokens
+    the response tokens.
 
-    tokenized_formatted_prompt - shape = [num_tokens]
+    tokenized_formatted_prompt has = [num_tokens]
+
+    We search for the *final* occurrence of the response_template within the formatted
+    prompt through sublist matching. After isolating the final response_template, we
+    slice off the remaining tokens, representing the tokenized response.
+
+    Example:
+          >> tokenized_formatted_prompt = [[7, 1, 2, 3, 8, 5, 9, 1, 2, 3, 9, 10, 6]]
+          >> response_template = [1, 2, 3]
+          >> extract_tokenized_responses(tokenized_formatted_prompt, response_template)
+            [[9, 10, 6]]
+
+    If a sample does not contain the response_template we represent the
+    tokenized_response for that sample as [] - i.e. the <Empty String>.
     """
     # Reverse search over matches of the first token in the response template
     matched_indices = np.where(
@@ -53,22 +66,7 @@ def extract_tokenized_responses(
 ) -> List[List[int]]:
     """Extracts the tokenized responses from the formatted prompts
 
-    TODO Upate
-    For each sample, we search for the *final* occurrence of the
-    response_template within the formatted prompt - through
-    sublist matching.
-
-    After isolating the final response_template, we slice off
-    the remaining tokens, representing the tokenized response.
-
-    Example:
-          >> tokenized_formatted_prompt = [[7, 1, 2, 3, 8, 5, 9, 1, 2, 3, 9, 10, 6]]
-          >> response_template = [1, 2, 3]
-          >> extract_tokenized_responses(tokenized_formatted_prompt, response_template)
-            [[9, 10, 6]]
-
-    If a sample does not contain the response_template we represent the
-    tokenized_response for that sample as [] - i.e. the <Empty String>.
+    For each sample, we isolate the response (from the input) and return it.
     """
     tokenized_responses: List[List[int]] = []
     for t_prompt in tqdm(
