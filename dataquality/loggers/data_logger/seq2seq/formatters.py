@@ -132,7 +132,6 @@ class BaseSeq2SeqDataFormatter(ABC):
         generated_ids: np.ndarray,
         tokenizer: PreTrainedTokenizerFast,
     ) -> ModelGeneration:
-        # import pdb; pdb.set_trace()
         logprobs = (
             torch.nn.functional.log_softmax(generated_logits, dim=-1).cpu().numpy()
         )

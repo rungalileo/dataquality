@@ -8,6 +8,10 @@ import pytest
 import torch
 
 from dataquality.exceptions import GalileoException
+from dataquality.loggers.data_logger.seq2seq.formatters import (
+    EncoderDecoderDataFormatter,
+)
+from dataquality.loggers.logger_config.seq2seq.seq2seq_base import seq2seq_logger_config
 from dataquality.loggers.model_logger.seq2seq.formatters import get_model_formatter
 from dataquality.loggers.model_logger.seq2seq.seq2seq_base import Seq2SeqModelLogger
 from dataquality.schemas.seq2seq import (
@@ -19,10 +23,7 @@ from dataquality.schemas.seq2seq import (
 from dataquality.utils.seq2seq import (
     remove_padding,
 )
-from dataquality.utils.seq2seq.generation import (
-    generate_on_batch,
-    generate_sample_output,
-)
+from dataquality.utils.seq2seq.generation import generate_on_batch
 from dataquality.utils.seq2seq.logprobs import (
     get_top_logprob_indices,
     process_sample_logprobs,
@@ -115,8 +116,12 @@ def test_generate_on_batch(
         assert top_logprobs == [[("A", -1), ("B", -2)] for _ in range(num_tokens)]
 
 
-@mock.patch("dataquality.utils.seq2seq.generation.process_sample_logprobs")
-@mock.patch("dataquality.utils.seq2seq.generation.get_top_logprob_indices")
+@mock.patch(
+    "dataquality.loggers.data_logger.seq2seq.formatters.process_sample_logprobs"
+)
+@mock.patch(
+    "dataquality.loggers.data_logger.seq2seq.formatters.get_top_logprob_indices"
+)
 def test_generate_sample_output(
     mock_get_top_logprob_indices: mock.Mock, mock_process_sample_logprobs: mock.Mock
 ) -> None:
@@ -155,7 +160,7 @@ def test_generate_sample_output(
         logits: torch.tensor
 
     # Mock model output and model device
-    mock_model.return_value = mock.MagicMock(logits=torch.rand((1, 3, 20)))
+    mock_model.return_value = mock.MagicMock(logits=torch.rand((1, 3, 50)))
     mock_model.device = torch.device("cpu")
 
     # Mock generation_config
@@ -175,13 +180,19 @@ def test_generate_sample_output(
     )
 
     with mock.patch("torch.no_grad"):
-        model_generation = generate_sample_output(
-            "test str", mock_model, mock_tokenizer, 512, mock_generation_config
+        formatter = EncoderDecoderDataFormatter(seq2seq_logger_config)
+        model_generation = formatter.generate_sample(
+            "test str",
+            tokenizer=mock_tokenizer,
+            model=mock_model,
+            max_input_tokens=512,
+            generation_config=mock_generation_config,
+            input_id=0,
         )
 
     # Check logprobs
     logprobs = mock_get_top_logprob_indices.call_args.args[0]
-    assert logprobs.shape == (3, 20)
+    assert logprobs.shape == (3, 50)
     # Check that we infact have logprobs
     assert np.allclose(1.0, np.sum(np.exp(logprobs), axis=-1))
 
@@ -194,7 +205,7 @@ def test_generate_sample_output(
     assert model_generation.generated_logprob_data.top_logprobs == fake_top_logprob_data
 
 
-@mock.patch("dataquality.utils.seq2seq.generation.get_top_logprob_indices")
+@mock.patch("dataquality.utils.seq2seq.logprobs.get_top_logprob_indices")
 def test_generate_sample_output_empty_sample(mock_get_top_logprob_indices: mock.Mock):
     """Test that we properly handle genearted sequences of length 1 - just [EOS]
 
@@ -235,8 +246,14 @@ def test_generate_sample_output_empty_sample(mock_get_top_logprob_indices: mock.
     mock_get_top_logprob_indices.return_value = np.array([[1, 2, 3, 4, 5]])
 
     with mock.patch("torch.no_grad"):
-        model_generation = generate_sample_output(
-            "test str", mock_model, mock_tokenizer, 512, mock_generation_config
+        formatter = EncoderDecoderDataFormatter(seq2seq_logger_config)
+        model_generation = formatter.generate_sample(
+            "test str",
+            tokenizer=mock_tokenizer,
+            model=mock_model,
+            max_input_tokens=512,
+            generation_config=mock_generation_config,
+            input_id=0,
         )
 
     assert model_generation.generated_ids == np.array([1])

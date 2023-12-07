@@ -177,13 +177,13 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         meta: Union[List[str], List[int], None] = None,
     ) -> None:
         """Helper to log a pandas or vaex df"""
-        self.texts = df["input"].tolist()
-        self.ids = df["id"].tolist()
+        self.texts = df[S2SIC.input].tolist()
+        self.ids = df[S2SIC.id].tolist()
         # Inference case
-        if "target" in df:
-            self.labels = df["target"].tolist()
-        if "galileo_formatted_prompt" in df:
-            self.formatted_prompts = df["galileo_formatted_prompt"].tolist()
+        if S2SIC.target in df:
+            self.labels = df[S2SIC.target].tolist()
+        if S2SIC.formatted_prompts in df:
+            self.formatted_prompts = df[S2SIC.formatted_prompts].tolist()
         for meta_col in meta or []:
             self.meta[str(meta_col)] = df[meta_col].tolist()
         self.log()

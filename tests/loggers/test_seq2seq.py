@@ -15,6 +15,9 @@ import dataquality as dq
 from dataquality.exceptions import GalileoWarning
 from dataquality.integrations.seq2seq.core import set_tokenizer, watch
 from dataquality.loggers.data_logger.base_data_logger import DataSet
+from dataquality.loggers.data_logger.seq2seq.formatters import (
+    EncoderDecoderDataFormatter,
+)
 from dataquality.loggers.data_logger.seq2seq.seq2seq_base import Seq2SeqDataLogger
 from dataquality.loggers.logger_config.seq2seq.seq2seq_base import seq2seq_logger_config
 from dataquality.loggers.model_logger.seq2seq.seq2seq_base import Seq2SeqModelLogger
@@ -24,10 +27,7 @@ from dataquality.schemas.seq2seq import (
 )
 from dataquality.schemas.seq2seq import Seq2SeqOutputCols as C
 from dataquality.schemas.task_type import TaskType
-from dataquality.utils.seq2seq.generation import (
-    add_generated_output_to_df,
-    generate_sample_output,
-)
+from dataquality.utils.seq2seq.generation import add_generated_output_to_df
 from dataquality.utils.thread_pool import ThreadPoolManager
 from dataquality.utils.vaex import GALILEO_DATA_EMBS_ENCODER, create_data_embs_df
 from tests.conftest import (
@@ -332,12 +332,12 @@ def test_add_generated_output_to_df(
         assert top_logprobs == [[("A", -1), ("B", -2)] for _ in range(num_tokens)]
 
 
-@patch("dataquality.utils.seq2seq.generation.process_sample_logprobs")
-@patch("dataquality.utils.seq2seq.generation.get_top_logprob_indices")
+@patch("dataquality.loggers.data_logger.seq2seq.formatters.process_sample_logprobs")
+@patch("dataquality.loggers.data_logger.seq2seq.formatters.get_top_logprob_indices")
 def test_tokenize_input_provide_maxlength(
     mock_get_top_logprob_indices: Mock,
     mock_process_sample_logprobs: Mock,
-    seq2seq_generated_output: torch.Tensor,
+    seq2seq_generated_sample_output: torch.Tensor,
     set_test_config: Callable,
     cleanup_after_use: Generator,
 ) -> None:
@@ -349,17 +349,20 @@ def test_tokenize_input_provide_maxlength(
     mock_model = Mock(spec=T5ForConditionalGeneration)
     mock_model.device = "cpu"
     mock_model.return_value = Mock()
-    mock_model.generate.return_value = seq2seq_generated_output
+    mock_model.generate.return_value = seq2seq_generated_sample_output
     mock_generation_config = Mock(spec=GenerationConfig)
 
     set_tokenizer(tokenizer_T5, "encoder_decoder", max_input_tokens=7)
     input_text = "a b c d e f g h i j"
-    generate_sample_output(
+
+    formatter = EncoderDecoderDataFormatter(seq2seq_logger_config)
+    formatter.generate_sample(
         input_text,
-        mock_model,
-        tokenizer_T5,
-        seq2seq_logger_config.max_input_tokens,
-        mock_generation_config,
+        tokenizer=tokenizer_T5,
+        model=mock_model,
+        max_input_tokens=seq2seq_logger_config.max_input_tokens,
+        generation_config=mock_generation_config,
+        input_id=0,
     )
 
     # Check that the input to generation was of length 7 (i.e, truncated)
@@ -373,12 +376,12 @@ def test_tokenize_input_provide_maxlength(
     mock_process_sample_logprobs.assert_called_once()
 
 
-@patch("dataquality.utils.seq2seq.generation.process_sample_logprobs")
-@patch("dataquality.utils.seq2seq.generation.get_top_logprob_indices")
+@patch("dataquality.loggers.data_logger.seq2seq.formatters.process_sample_logprobs")
+@patch("dataquality.loggers.data_logger.seq2seq.formatters.get_top_logprob_indices")
 def test_tokenize_input_doesnt_provide_maxlength(
     mock_get_top_logprob_indices: Mock,
     mock_process_sample_logprobs: Mock,
-    seq2seq_generated_output: torch.Tensor,
+    seq2seq_generated_sample_output: torch.Tensor,
     set_test_config: Callable,
     cleanup_after_use: Generator,
 ) -> None:
@@ -391,17 +394,20 @@ def test_tokenize_input_doesnt_provide_maxlength(
     mock_model = Mock(spec=T5ForConditionalGeneration)
     mock_model.device = "cpu"
     mock_model.return_value = Mock()
-    mock_model.generate.return_value = seq2seq_generated_output
+    mock_model.generate.return_value = seq2seq_generated_sample_output
     mock_generation_config = Mock(spec=GenerationConfig)
 
     set_tokenizer(tokenizer_T5, "encoder_decoder")
     input_text = "a b c d e f g h i j" * 100
-    generate_sample_output(
+
+    formatter = EncoderDecoderDataFormatter(seq2seq_logger_config)
+    formatter.generate_sample(
         input_text,
-        mock_model,
-        tokenizer_T5,
-        seq2seq_logger_config.max_input_tokens,
-        mock_generation_config,
+        tokenizer=tokenizer_T5,
+        model=mock_model,
+        max_input_tokens=seq2seq_logger_config.max_input_tokens,
+        generation_config=mock_generation_config,
+        input_id=0,
     )
 
     # Make sure that the input is large enough to require truncation
