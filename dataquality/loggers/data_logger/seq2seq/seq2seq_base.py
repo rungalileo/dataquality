@@ -159,6 +159,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             S2SIC.split_.value: [self.split] * len(self.ids),
             S2SIC.token_label_positions.value: pa.array(self.token_label_positions),
             S2SIC.token_label_offsets.value: pa.array(self.token_label_offsets),
+            S2SIC.token_label_str.value: pa.array(self.token_label_str),
             **self.meta,
         }
         if len(self.formatted_prompts) != 0:

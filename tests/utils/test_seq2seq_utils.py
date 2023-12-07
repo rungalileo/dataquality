@@ -12,7 +12,9 @@ from dataquality.loggers.data_logger.seq2seq.formatters import (
     EncoderDecoderDataFormatter,
 )
 from dataquality.loggers.logger_config.seq2seq.seq2seq_base import seq2seq_logger_config
-from dataquality.loggers.model_logger.seq2seq.formatters import get_model_formatter
+from dataquality.loggers.model_logger.seq2seq.formatters import (
+    get_model_formatter,
+)
 from dataquality.loggers.model_logger.seq2seq.seq2seq_base import Seq2SeqModelLogger
 from dataquality.schemas.seq2seq import (
     TOP_K,
@@ -31,9 +33,7 @@ from dataquality.utils.seq2seq.logprobs import (
 
 
 @mock.patch("dataquality.utils.seq2seq.generation.align_tokens_to_character_spans")
-@mock.patch("dataquality.utils.seq2seq.generation.generate_sample_output")
 def test_generate_on_batch(
-    mock_generate_sample_output: mock.Mock,
     mock_align_tokens_to_character_spans: mock.Mock,
 ) -> None:
     """Test generating over a batch of text Inputs
@@ -47,7 +47,7 @@ def test_generate_on_batch(
         - Test the creation of the BatchGenerationData object
 
     Things to Mock:
-        - generate_sample_output: This can be fairly simple. The
+        - mock_formatter.generate_sample: This can be fairly simple. The
         one thing that we want to vary would be the length of things returned
         - tokenizer: decode can be quite simple + encode + max_input_tokens
         - model + generation_config: just to have as input params
@@ -80,7 +80,8 @@ def test_generate_on_batch(
         )
         return ModelGeneration(gen_ids, gen_logprob_data)
 
-    mock_generate_sample_output.return_value = mock_generate_output()
+    mock_formatter = mock.Mock()
+    mock_formatter.generate_sample.return_value = mock_generate_output()
 
     # Mock aligned output for a single sample
     fake_token_label_offsets = [[(0, 1), (1, 20), (20, 21), (21, 22), (22, 23)]]
@@ -94,7 +95,13 @@ def test_generate_on_batch(
     texts = pa.array(["Fake Input"] * 100)
 
     generated_data = generate_on_batch(
-        texts, mock_model, mock_tokenizer, mock_max_input_tokens, mock_generation_config
+        texts=texts,
+        model=mock_model,
+        tokenizer=mock_tokenizer,
+        formatter=mock_formatter,
+        ids=list(range(100)),
+        max_input_tokens=mock_max_input_tokens,
+        generation_config=mock_generation_config,
     )
 
     # Make sure everything is in check!
@@ -122,7 +129,7 @@ def test_generate_on_batch(
 @mock.patch(
     "dataquality.loggers.data_logger.seq2seq.formatters.get_top_logprob_indices"
 )
-def test_generate_sample_output(
+def test_generate_sample(
     mock_get_top_logprob_indices: mock.Mock, mock_process_sample_logprobs: mock.Mock
 ) -> None:
     """Test the logic for generating over a single sample.
@@ -206,7 +213,7 @@ def test_generate_sample_output(
 
 
 @mock.patch("dataquality.utils.seq2seq.logprobs.get_top_logprob_indices")
-def test_generate_sample_output_empty_sample(mock_get_top_logprob_indices: mock.Mock):
+def test_generate_sample_empty_sample(mock_get_top_logprob_indices: mock.Mock):
     """Test that we properly handle genearted sequences of length 1 - just [EOS]
 
     One tricky edge case if if the model immediately generates the EOS token. This is

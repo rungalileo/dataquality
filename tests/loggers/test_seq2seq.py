@@ -301,12 +301,14 @@ def test_add_generated_output_to_df(
     # Create fake df with vaex
     num_batches = 10
     df_size = batch_size * num_batches
-    df = vaex.from_dict({"input": ["Fake Input"] * df_size})
+    df = vaex.from_dict({"input": ["Fake Input"] * df_size, "id": list(range(df_size))})
 
     with patch(
         "dataquality.utils.seq2seq.generation.GENERATION_BATCH_SIZE", batch_size
     ):
-        df = add_generated_output_to_df(df, Mock(), Mock(), 512, Mock())
+        df = add_generated_output_to_df(
+            df, "input", Mock(), Mock(), Mock(), 512, Mock()
+        )
 
     # Check the df columns!
     assert len(df) == df_size
