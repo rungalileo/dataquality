@@ -36,6 +36,9 @@ class Seq2SeqInputCols(str, Enum):
     token_label_positions = "token_label_positions"
     token_label_offsets = "token_label_offsets"
     system_prompts = "system_prompts"
+
+
+class Seq2SeqInputTempCols(str, Enum):
     formatted_prompts = "galileo_formatted_prompts"
 
 

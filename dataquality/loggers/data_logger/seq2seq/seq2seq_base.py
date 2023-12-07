@@ -22,6 +22,7 @@ from dataquality.loggers.logger_config.seq2seq.seq2seq_base import (
 )
 from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.seq2seq import Seq2SeqInputCols as S2SIC
+from dataquality.schemas.seq2seq import Seq2SeqInputTempCols as S2SITC
 from dataquality.schemas.seq2seq import Seq2SeqModelType
 from dataquality.schemas.split import Split
 from dataquality.utils.emb import convert_pa_to_np
@@ -163,7 +164,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             **self.meta,
         }
         if len(self.formatted_prompts) != 0:
-            df_dict[S2SIC.formatted_prompts.value] = self.formatted_prompts
+            df_dict[S2SITC.formatted_prompts.value] = self.formatted_prompts
 
         data = vaex.from_dict(df_dict)
 
@@ -183,8 +184,8 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         # Inference case
         if S2SIC.target in df:
             self.labels = df[S2SIC.target].tolist()
-        if S2SIC.formatted_prompts in df:
-            self.formatted_prompts = df[S2SIC.formatted_prompts].tolist()
+        if S2SITC.formatted_prompts in df:
+            self.formatted_prompts = df[S2SITC.formatted_prompts].tolist()
         for meta_col in meta or []:
             self.meta[str(meta_col)] = df[meta_col].tolist()
         self.log()
@@ -286,7 +287,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         for text_col in [
             S2SIC.input.value,
             S2SIC.target.value,
-            S2SIC.formatted_prompts.value,
+            S2SITC.formatted_prompts.value,
         ]:
             if text_col in df_copy.get_column_names():
                 # Characters are each 1 byte. If more bytes > max,
@@ -332,7 +333,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         # Need to specify the column to generate over!
         generation_column = S2SIC.target.value
         if self.logger_config.model_type == Seq2SeqModelType.decoder_only:
-            generation_column = S2SIC.formatted_prompts.value
+            generation_column = S2SITC.formatted_prompts.value
 
         df = add_generated_output_to_df(
             df,
@@ -344,9 +345,6 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             generation_config=generation_config,
             split_key=split,
         )
-        # The formatted_prompts column is no longer needed
-        if S2SIC.formatted_prompts in df.get_column_names():
-            df = df.drop([S2SIC.formatted_prompts])
 
         return df
 
