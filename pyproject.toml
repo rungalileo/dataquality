@@ -83,7 +83,7 @@ test = [
     "fastai>=2.7.11",
     "portalocker==2.7.0",
     "types-PyYAML==6.0.12.9",
-    "setfit",
+    "setfit==0.7.0",
     "accelerate>=0.19.0",
     "typing-inspect==0.8.0",
     "typing-extensions==4.0.1",
@@ -111,7 +111,7 @@ minio = [
     "minio>=7.1.0,<7.2.0"
 ]
 setfit = [
-    "setfit"
+    "setfit==0.7.0"
 ]
 
 [tool.setuptools.dynamic]
