@@ -112,7 +112,8 @@ class BaseSeq2SeqDataFormatter(ABC):
         input_str: str
             Input string context used to seed the generation
         tokenizer: PreTrainedTokenizerFast
-        max_input_tokens: the max number of tokens to use for tokenization
+        max_input_tokens: int
+            the max number of tokens to use for tokenization
         model: PreTrainedModel
         generation_config: GenerationConfig
             Users generation config specifying the parameters for generation
