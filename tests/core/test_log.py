@@ -33,3 +33,35 @@ def test_set_labels_existing_run_same_labels_unsorted(
         dq.set_labels_for_run(["B", "C", "A"])
     assert str(e.value).startswith("The labels provided to do match")
     assert logger_config.labels == ["A", "B", "C"] == dq.get_current_run_labels()
+
+
+@pytest.mark.parametrize("label", ["hello there", "abc.def", "!!!"])
+def test_set_labels_invalid_label_name(label: str, set_test_config: Callable) -> None:
+    with pytest.raises(GalileoException) as e:
+        dq.set_labels_for_run([label, "B"])
+    assert str(e.value) == (
+        f"Label `{label}` is not valid. Only alphanumeric "
+        "characters, dashes, and underscores are supported."
+    )
+
+
+@pytest.mark.parametrize("label", ["hello there", "abc.def", "!!!"])
+def test_set_labels_invalid_label_name_multi_label(
+    label: str, set_test_config: Callable
+) -> None:
+    with pytest.raises(GalileoException) as e:
+        dq.set_labels_for_run([[label, "A"], [label, "B"]])
+    assert str(e.value) == (
+        f"Label `{label}` is not valid. Only alphanumeric "
+        "characters, dashes, and underscores are supported."
+    )
+
+
+@pytest.mark.parametrize("task", ["hello there", "abc.def", "!!!"])
+def test_set_tasks_invalid_task_name(task: str, set_test_config: Callable) -> None:
+    with pytest.raises(GalileoException) as e:
+        dq.set_tasks_for_run([task, "B"])
+    assert str(e.value) == (
+        f"Task `{task}` is not valid. Only alphanumeric "
+        "characters, dashes, and underscores are supported."
+    )

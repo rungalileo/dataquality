@@ -28,7 +28,7 @@ from dataquality.loggers.model_logger.object_detection import ObjectDetectionMod
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
-from dataquality.utils.helpers import check_noop, validate_label_characters
+from dataquality.utils.helpers import check_noop, validate_labels_and_tasks
 from dataquality.utils.task_helpers import get_task_type
 
 DEFAULT_RANDOM_EMB_DIM = 2
@@ -494,7 +494,7 @@ def set_labels_for_run(labels: Union[List[List[str]], List[str]]) -> None:
     In the multi-label case, the outer order (order of the tasks) must match the
     task-order of the task-probabilities logged as well.
     """
-    validate_label_characters(labels)
+    validate_labels_and_tasks(labels, "Label")
 
     if get_data_logger().logger_config.existing_run:
         if not isinstance(labels, list):
@@ -535,7 +535,7 @@ def set_tasks_for_run(tasks: List[str], binary: bool = True) -> None:
     be set as your labels, and you should NOT call `dq.set_labels_for_run` it will be
     handled for you. Default True
     """
-    validate_label_characters(tasks)
+    validate_labels_and_tasks(tasks, "Task")
 
     if config.task_type != TaskType.text_multi_label:
         raise GalileoException("You can only set task names for multi-label use cases.")

@@ -1,7 +1,7 @@
 import os
 import webbrowser
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar
+from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar, Union
 
 from typing_extensions import ParamSpec
 
@@ -150,16 +150,38 @@ def has_len(arr: Any) -> bool:
     return has_len
 
 
-def validate_label_characters(labels: List[str]) -> None:
-    """Checks if the label is valid for the UI
+def _validate_str(
+    label_or_task: str,
+    labels_or_tasks_name: str,
+) -> None:
+    """Checks if the labels and tasks are valid for the UI
 
     The UI only supports alphanumeric characters, dashes, and underscores
     """
-    for label in labels:
-        if not label:
-            return
-        if not label.replace("-", "").replace("_", "").isalnum():
-            raise GalileoException(
-                f"Label {label} is not valid. Only alphanumeric characters, dashes, "
-                "and underscores are supported."
-            )
+    if not label_or_task.replace("-", "").replace("_", "").isalnum():
+        raise GalileoException(
+            f"{labels_or_tasks_name} `{label_or_task}` is not valid. Only alphanumeric "
+            "characters, dashes, and underscores are supported."
+        )
+
+
+def validate_labels_and_tasks(
+    labels_or_tasks: Union[List[List[str]], List[str]],
+    labels_or_tasks_name: str,
+) -> None:
+    """Checks if the labels and tasks are valid for the UI
+
+    The UI only supports alphanumeric characters, dashes, and underscores
+    """
+    if len(labels_or_tasks) == 0:
+        return
+
+    if isinstance(labels_or_tasks[0], list):
+        for lst in labels_or_tasks:
+            assert isinstance(lst, list)
+            validate_labels_and_tasks(lst, labels_or_tasks_name)
+
+    elif isinstance(labels_or_tasks[0], str):
+        for val in labels_or_tasks:
+            assert isinstance(val, str)
+            _validate_str(val, labels_or_tasks_name)
