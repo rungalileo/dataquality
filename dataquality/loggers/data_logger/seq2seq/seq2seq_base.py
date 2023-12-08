@@ -213,12 +213,12 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             column_map[label] = "target"
         if isinstance(dataset, pd.DataFrame):
             if formatted_prompt and formatted_prompt in dataset.columns:
-                column_map[formatted_prompt] = "galileo_formatted_prompt"
+                column_map[formatted_prompt] = S2SITC.formatted_prompts
             dataset = dataset.rename(columns=column_map)
             self._log_df(dataset, meta)
         elif isinstance(dataset, DataFrame):
             if formatted_prompt and formatted_prompt in dataset.get_column_names():
-                column_map[formatted_prompt] = "galileo_formatted_prompt"
+                column_map[formatted_prompt] = S2SITC.formatted_prompts
             for chunk in range(0, len(dataset), batch_size):
                 chunk_df = dataset[chunk : chunk + batch_size]
                 chunk_df = rename_df(chunk_df, column_map)
@@ -226,7 +226,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         elif self.is_hf_dataset(dataset):
             ds = cast("Dataset", dataset)  # For typing
             if formatted_prompt and formatted_prompt in ds.column_names:
-                column_map[formatted_prompt] = "galileo_formatted_prompt"
+                column_map[formatted_prompt] = S2SITC.formatted_prompts
             for chunk in range(0, len(ds), batch_size):
                 chunk = ds[chunk : chunk + batch_size]
                 chunk_df = pd.DataFrame(chunk)
@@ -283,7 +283,6 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         See BaseDataLogger.convert_large_string for more details
         """
         df_copy = df.copy()
-        # TODO Include formatted prompt?
         for text_col in [
             S2SIC.input.value,
             S2SIC.target.value,
@@ -305,7 +304,6 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         Adds the generated output to the dataframe, and also adds the
         `token_label_positions` column
         """
-        # logger_config = cls.logger_config
         if split not in self.logger_config.generation_splits:
             return df
 

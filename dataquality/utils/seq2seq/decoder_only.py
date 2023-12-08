@@ -31,8 +31,8 @@ def isolate_response_tokens(
         np.array(tokenized_formatted_prompt) == response_template[0]
     )[0]
     response_token_ids_start_idx = None
-    for i in range(len(matched_indices)):
-        match_idx = matched_indices[-(i + 1)]
+    for match_idx in reversed(matched_indices):
+        # match_idx = matched_indices[-(i + 1)]
         # Check for exact match of the response template token ids.
         # Once found break to avoid finding further matches + short-circuit
         # search.
