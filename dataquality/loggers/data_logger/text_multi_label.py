@@ -298,7 +298,7 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
                 f"task_{i}" for i in range(cls.logger_config.observed_num_tasks)
             ]
             warnings.warn(
-                f"No tasks were set for this run. Setting tasks to "
+                "No tasks were set for this run. Setting tasks to "
                 f"{cls.logger_config.tasks}"
             )
 
@@ -306,14 +306,19 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
             f"You set your task names as {cls.logger_config.tasks} "
             f"({len(cls.logger_config.tasks)} tasks but based on training, your model "
             f"has {cls.logger_config.observed_num_tasks} "
-            f"tasks. Use dataquality.set_tasks_for_run to update your config tasks."
+            "tasks. Use dataquality.set_tasks_for_run to update your config tasks."
         )
 
         assert len(cls.logger_config.labels) == cls.logger_config.observed_num_tasks, (
             f"You set your labels to be {cls.logger_config.labels} "
             f"({len(cls.logger_config.labels)} tasks) but based on training, your "
             f"model has {cls.logger_config.observed_num_tasks} tasks. "
-            f"Use dataquality.set_labels_for_run to update your config labels."
+            "Use dataquality.set_labels_for_run to update your config labels."
+        )
+        assert cls.logger_config.observed_num_labels is not None, (
+            "There were no observed labels from the model output. Did you "
+            "log model outputs? Try calling dq.log_model_outputs() or using "
+            "`watch(trainer)` in your training loop."
         )
         assert isinstance(cls.logger_config.observed_num_labels, list), (
             f"Is your task_type correct? The observed number of labels is "
@@ -325,7 +330,7 @@ class TextMultiLabelDataLogger(TextClassificationDataLogger):
             == cls.logger_config.observed_num_tasks
         ), (
             "Something went wrong with model output logging. Based on training, the "
-            f"observed number of labels per task is "
+            "observed number of labels per task is "
             f"{cls.logger_config.observed_num_labels} indicating "
             f"{len(cls.logger_config.observed_num_labels)} tasks, but the observed "
             f"number of tasks is only {cls.logger_config.observed_num_tasks}. Ensure "

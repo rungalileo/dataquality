@@ -74,6 +74,11 @@ class BaseLoggerAttributes(str, Enum):
     input_cutoff = "input_cutoff"
     target_cutoff = "target_cutoff"
     system_prompts = "system_prompts"
+    # Embedding attributes
+    x = "x"
+    y = "y"
+    data_x = "data_x"
+    data_y = "data_y"
 
     @staticmethod
     def get_valid() -> List[str]:
