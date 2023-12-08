@@ -489,20 +489,21 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
             verbose=False,
             return_tensors="pt",
         )["input_ids"]
-        # TODO Watch for empty targets!
-        just_prompt_ids = formatted_prompt_ids[:, :-num_response_labels].to(
+
+        len_prompt_ids_without_response = len(formatted_prompt_ids[0]) - num_response_labels
+        prompt_ids_without_response = formatted_prompt_ids[:, :len_prompt_ids_without_response].to(
             model.device
         )
 
         # This returns ALL the ids (prompt + response)
         full_gen_ids = model.generate(
-            input_ids=just_prompt_ids,
+            input_ids=prompt_ids_without_response,
             generation_config=generation_config,
         )
 
         # Remove batch dimension
         full_gen_ids_cpu = full_gen_ids.cpu().numpy()
-        gen_ids = full_gen_ids_cpu[0, len(just_prompt_ids[0]) :]
+        gen_ids = full_gen_ids_cpu[0, len(prompt_ids_without_response[0]) :]
 
         # Pass generated output through the model to get the logits
         model_outputs = model(input_ids=full_gen_ids, labels=full_gen_ids.clone())

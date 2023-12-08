@@ -59,7 +59,7 @@ def generate_on_batch(
             model=model,
             max_input_tokens=max_input_tokens,
             generation_config=generation_config,
-            input_id=int(sample_id),
+            input_id=sample_id.as_py(),  # Convert to int from pyarrow type
             split_key=split_key,
         )
 
