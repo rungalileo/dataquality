@@ -538,11 +538,17 @@ class TextClassificationDataLogger(BaseGalileoDataLogger):
             "See `dataquality.set_labels_for_run`"
         )
 
+        assert cls.logger_config.observed_num_labels, (
+            "There were no observed labels from the model output. Did you "
+            "log model outputs? Try calling dq.log_model_outputs() or using "
+            "`watch(trainer)` in your training loop."
+        )
+
         assert len(cls.logger_config.labels) == cls.logger_config.observed_num_labels, (
             f"You set your labels to be {cls.logger_config.labels} "
             f"({len(cls.logger_config.labels)} labels) but based on training, your "
             f"model is expecting {cls.logger_config.observed_num_labels} labels. "
-            f"Use dataquality.set_labels_for_run to update your config labels."
+            "Use dataquality.set_labels_for_run to update your config labels."
         )
 
         assert cls.logger_config.observed_labels.issubset(cls.logger_config.labels), (
