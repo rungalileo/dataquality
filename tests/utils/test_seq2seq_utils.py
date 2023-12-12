@@ -8,7 +8,13 @@ import pytest
 import torch
 
 from dataquality.exceptions import GalileoException
-from dataquality.loggers.model_logger.seq2seq.formatters import get_model_formatter
+from dataquality.loggers.data_logger.seq2seq.formatters import (
+    EncoderDecoderDataFormatter,
+)
+from dataquality.loggers.logger_config.seq2seq.seq2seq_base import seq2seq_logger_config
+from dataquality.loggers.model_logger.seq2seq.formatters import (
+    get_model_formatter,
+)
 from dataquality.loggers.model_logger.seq2seq.seq2seq_base import Seq2SeqModelLogger
 from dataquality.schemas.seq2seq import (
     TOP_K,
@@ -19,10 +25,7 @@ from dataquality.schemas.seq2seq import (
 from dataquality.utils.seq2seq import (
     remove_padding,
 )
-from dataquality.utils.seq2seq.generation import (
-    generate_on_batch,
-    generate_sample_output,
-)
+from dataquality.utils.seq2seq.generation import generate_on_batch
 from dataquality.utils.seq2seq.logprobs import (
     get_top_logprob_indices,
     process_sample_logprobs,
@@ -30,9 +33,7 @@ from dataquality.utils.seq2seq.logprobs import (
 
 
 @mock.patch("dataquality.utils.seq2seq.generation.align_tokens_to_character_spans")
-@mock.patch("dataquality.utils.seq2seq.generation.generate_sample_output")
 def test_generate_on_batch(
-    mock_generate_sample_output: mock.Mock,
     mock_align_tokens_to_character_spans: mock.Mock,
 ) -> None:
     """Test generating over a batch of text Inputs
@@ -46,7 +47,7 @@ def test_generate_on_batch(
         - Test the creation of the BatchGenerationData object
 
     Things to Mock:
-        - generate_sample_output: This can be fairly simple. The
+        - mock_formatter.generate_sample: This can be fairly simple. The
         one thing that we want to vary would be the length of things returned
         - tokenizer: decode can be quite simple + encode + max_input_tokens
         - model + generation_config: just to have as input params
@@ -79,7 +80,8 @@ def test_generate_on_batch(
         )
         return ModelGeneration(gen_ids, gen_logprob_data)
 
-    mock_generate_sample_output.return_value = mock_generate_output()
+    mock_formatter = mock.Mock()
+    mock_formatter.generate_sample.return_value = mock_generate_output()
 
     # Mock aligned output for a single sample
     fake_token_label_offsets = [[(0, 1), (1, 20), (20, 21), (21, 22), (22, 23)]]
@@ -93,7 +95,13 @@ def test_generate_on_batch(
     texts = pa.array(["Fake Input"] * 100)
 
     generated_data = generate_on_batch(
-        texts, mock_model, mock_tokenizer, mock_max_input_tokens, mock_generation_config
+        texts=texts,
+        model=mock_model,
+        tokenizer=mock_tokenizer,
+        formatter=mock_formatter,
+        ids=pa.array(list(range(100))),
+        max_input_tokens=mock_max_input_tokens,
+        generation_config=mock_generation_config,
     )
 
     # Make sure everything is in check!
@@ -115,9 +123,13 @@ def test_generate_on_batch(
         assert top_logprobs == [[("A", -1), ("B", -2)] for _ in range(num_tokens)]
 
 
-@mock.patch("dataquality.utils.seq2seq.generation.process_sample_logprobs")
-@mock.patch("dataquality.utils.seq2seq.generation.get_top_logprob_indices")
-def test_generate_sample_output(
+@mock.patch(
+    "dataquality.loggers.data_logger.seq2seq.formatters.process_sample_logprobs"
+)
+@mock.patch(
+    "dataquality.loggers.data_logger.seq2seq.formatters.get_top_logprob_indices"
+)
+def test_generate_sample(
     mock_get_top_logprob_indices: mock.Mock, mock_process_sample_logprobs: mock.Mock
 ) -> None:
     """Test the logic for generating over a single sample.
@@ -155,7 +167,7 @@ def test_generate_sample_output(
         logits: torch.tensor
 
     # Mock model output and model device
-    mock_model.return_value = mock.MagicMock(logits=torch.rand((1, 3, 20)))
+    mock_model.return_value = mock.MagicMock(logits=torch.rand((1, 3, 50)))
     mock_model.device = torch.device("cpu")
 
     # Mock generation_config
@@ -175,13 +187,19 @@ def test_generate_sample_output(
     )
 
     with mock.patch("torch.no_grad"):
-        model_generation = generate_sample_output(
-            "test str", mock_model, mock_tokenizer, 512, mock_generation_config
+        formatter = EncoderDecoderDataFormatter(seq2seq_logger_config)
+        model_generation = formatter.generate_sample(
+            "test str",
+            tokenizer=mock_tokenizer,
+            model=mock_model,
+            max_input_tokens=512,
+            generation_config=mock_generation_config,
+            input_id=0,
         )
 
     # Check logprobs
     logprobs = mock_get_top_logprob_indices.call_args.args[0]
-    assert logprobs.shape == (3, 20)
+    assert logprobs.shape == (3, 50)
     # Check that we infact have logprobs
     assert np.allclose(1.0, np.sum(np.exp(logprobs), axis=-1))
 
@@ -194,8 +212,8 @@ def test_generate_sample_output(
     assert model_generation.generated_logprob_data.top_logprobs == fake_top_logprob_data
 
 
-@mock.patch("dataquality.utils.seq2seq.generation.get_top_logprob_indices")
-def test_generate_sample_output_empty_sample(mock_get_top_logprob_indices: mock.Mock):
+@mock.patch("dataquality.utils.seq2seq.logprobs.get_top_logprob_indices")
+def test_generate_sample_empty_sample(mock_get_top_logprob_indices: mock.Mock):
     """Test that we properly handle genearted sequences of length 1 - just [EOS]
 
     One tricky edge case if if the model immediately generates the EOS token. This is
@@ -235,8 +253,14 @@ def test_generate_sample_output_empty_sample(mock_get_top_logprob_indices: mock.
     mock_get_top_logprob_indices.return_value = np.array([[1, 2, 3, 4, 5]])
 
     with mock.patch("torch.no_grad"):
-        model_generation = generate_sample_output(
-            "test str", mock_model, mock_tokenizer, 512, mock_generation_config
+        formatter = EncoderDecoderDataFormatter(seq2seq_logger_config)
+        model_generation = formatter.generate_sample(
+            "test str",
+            tokenizer=mock_tokenizer,
+            model=mock_model,
+            max_input_tokens=512,
+            generation_config=mock_generation_config,
+            input_id=0,
         )
 
     assert model_generation.generated_ids == np.array([1])

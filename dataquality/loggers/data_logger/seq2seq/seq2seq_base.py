@@ -13,6 +13,7 @@ from dataquality.loggers.data_logger.base_data_logger import (
     MetasType,
 )
 from dataquality.loggers.data_logger.seq2seq.formatters import (
+    BaseSeq2SeqDataFormatter,
     get_data_formatter,
 )
 from dataquality.loggers.logger_config.seq2seq.seq2seq_base import (
@@ -21,6 +22,7 @@ from dataquality.loggers.logger_config.seq2seq.seq2seq_base import (
 )
 from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.seq2seq import Seq2SeqInputCols as S2SIC
+from dataquality.schemas.seq2seq import Seq2SeqInputTempCols as S2SITC
 from dataquality.schemas.seq2seq import Seq2SeqModelType
 from dataquality.schemas.split import Split
 from dataquality.utils.emb import convert_pa_to_np
@@ -88,14 +90,11 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         self.ids: List[int] = []
         self.texts: List[str] = []
         self.labels: List[str] = []
-        # Only requied for Decoder-Only models
+        # Only required for Decoder-Only models
         self.formatted_prompts: List[str] = []
         # Formatter distinguishes behavior between EncoderDecoder and DecoderOnly
-        from dataquality.loggers.data_logger.seq2seq.formatters import (
-            BaseSeq2SeqDataFormatter,
-        )
 
-        self.formatter: Optional["BaseSeq2SeqDataFormatter"] = None
+        self.formatter: Optional[BaseSeq2SeqDataFormatter] = None
         if self.logger_config.model_type is not None:
             self.formatter = get_data_formatter(
                 self.logger_config.model_type, self.logger_config
@@ -140,6 +139,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         else:
             texts = self.labels
             max_tokens = self.logger_config.max_target_tokens
+        assert max_tokens
 
         batch_aligned_token_data, token_label_str = self.formatter.format_text(
             text=texts,
@@ -153,18 +153,21 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         self.token_label_str = token_label_str
 
     def _get_input_df(self) -> DataFrame:
-        data = vaex.from_dict(
-            {
-                S2SIC.id.value: self.ids,
-                S2SIC.input.value: self.texts,
-                S2SIC.target.value: self.labels,
-                S2SIC.split_.value: [self.split] * len(self.ids),
-                S2SIC.token_label_str.value: pa.array(self.token_label_str),
-                S2SIC.token_label_positions.value: pa.array(self.token_label_positions),
-                S2SIC.token_label_offsets.value: pa.array(self.token_label_offsets),
-                **self.meta,
-            }
-        )
+        df_dict = {
+            S2SIC.id.value: self.ids,
+            S2SIC.input.value: self.texts,
+            S2SIC.target.value: self.labels,
+            S2SIC.split_.value: [self.split] * len(self.ids),
+            S2SIC.token_label_positions.value: pa.array(self.token_label_positions),
+            S2SIC.token_label_offsets.value: pa.array(self.token_label_offsets),
+            S2SIC.token_label_str.value: pa.array(self.token_label_str),
+            **self.meta,
+        }
+        if len(self.formatted_prompts) != 0:
+            df_dict[S2SITC.formatted_prompts.value] = self.formatted_prompts
+
+        data = vaex.from_dict(df_dict)
+
         if S2SIC.system_prompts in self.meta:
             # We must store nested dicts as pyarrow arrays to support vaex export
             data[S2SIC.system_prompts.value] = pa.array(self.meta[S2SIC.system_prompts])
@@ -176,13 +179,13 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         meta: Union[List[str], List[int], None] = None,
     ) -> None:
         """Helper to log a pandas or vaex df"""
-        self.texts = df["input"].tolist()
-        self.ids = df["id"].tolist()
+        self.texts = df[S2SIC.input].tolist()
+        self.ids = df[S2SIC.id].tolist()
         # Inference case
-        if "target" in df:
-            self.labels = df["target"].tolist()
-        if "galileo_formatted_prompt" in df:
-            self.formatted_prompts = df["galileo_formatted_prompt"].tolist()
+        if S2SIC.target in df:
+            self.labels = df[S2SIC.target].tolist()
+        if S2SITC.formatted_prompts in df:
+            self.formatted_prompts = df[S2SITC.formatted_prompts].tolist()
         for meta_col in meta or []:
             self.meta[str(meta_col)] = df[meta_col].tolist()
         self.log()
@@ -210,12 +213,12 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             column_map[label] = "target"
         if isinstance(dataset, pd.DataFrame):
             if formatted_prompt and formatted_prompt in dataset.columns:
-                column_map[formatted_prompt] = "galileo_formatted_prompt"
+                column_map[formatted_prompt] = S2SITC.formatted_prompts
             dataset = dataset.rename(columns=column_map)
             self._log_df(dataset, meta)
         elif isinstance(dataset, DataFrame):
             if formatted_prompt and formatted_prompt in dataset.get_column_names():
-                column_map[formatted_prompt] = "galileo_formatted_prompt"
+                column_map[formatted_prompt] = S2SITC.formatted_prompts
             for chunk in range(0, len(dataset), batch_size):
                 chunk_df = dataset[chunk : chunk + batch_size]
                 chunk_df = rename_df(chunk_df, column_map)
@@ -223,7 +226,7 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         elif self.is_hf_dataset(dataset):
             ds = cast("Dataset", dataset)  # For typing
             if formatted_prompt and formatted_prompt in ds.column_names:
-                column_map[formatted_prompt] = "galileo_formatted_prompt"
+                column_map[formatted_prompt] = S2SITC.formatted_prompts
             for chunk in range(0, len(ds), batch_size):
                 chunk = ds[chunk : chunk + batch_size]
                 chunk_df = pd.DataFrame(chunk)
@@ -280,7 +283,11 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         See BaseDataLogger.convert_large_string for more details
         """
         df_copy = df.copy()
-        for text_col in [S2SIC.input.value, S2SIC.target.value]:
+        for text_col in [
+            S2SIC.input.value,
+            S2SIC.target.value,
+            S2SITC.formatted_prompts.value,
+        ]:
             if text_col in df_copy.get_column_names():
                 # Characters are each 1 byte. If more bytes > max,
                 # it needs to be large_string
@@ -290,22 +297,20 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
 
             return df_copy
 
-    @classmethod
     def add_generated_output_to_df(
-        cls, df: DataFrame, split: str
+        self, df: DataFrame, split: str
     ) -> Optional[DataFrame]:
         """Adds the generated output to the dataframe
         Adds the generated output to the dataframe, and also adds the
         `token_label_positions` column
         """
-        logger_config = cls.logger_config
-        if split not in logger_config.generation_splits:
+        if split not in self.logger_config.generation_splits:
             return df
 
-        model = logger_config.model
-        tokenizer = logger_config.tokenizer
-        max_input_tokens = logger_config.max_input_tokens
-        generation_config = logger_config.generation_config
+        model = self.logger_config.model
+        tokenizer = self.logger_config.tokenizer
+        max_input_tokens = self.logger_config.max_input_tokens
+        generation_config = self.logger_config.generation_config
         if model is None and generation_config is not None:
             raise GalileoException(
                 "To perform generation you must set your model before logging. "
@@ -318,10 +323,27 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             )
         assert isinstance(max_input_tokens, int)
 
+        assert generation_config is not None
+        # TODO When would this be None?
+        assert self.formatter is not None
+
         print(f"Generating {len(df)} samples for split {split}")
+        # Need to specify the column to generate over!
+        generation_column = S2SIC.target.value
+        if self.logger_config.model_type == Seq2SeqModelType.decoder_only:
+            generation_column = S2SITC.formatted_prompts.value
+
         df = add_generated_output_to_df(
-            df, model, tokenizer, max_input_tokens, generation_config
+            df,
+            generation_column=generation_column,
+            formatter=self.formatter,
+            tokenizer=tokenizer,
+            model=model,
+            max_input_tokens=max_input_tokens,
+            generation_config=generation_config,
+            split_key=split,
         )
+
         return df
 
     @classmethod

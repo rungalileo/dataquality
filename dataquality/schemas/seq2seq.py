@@ -38,6 +38,10 @@ class Seq2SeqInputCols(str, Enum):
     system_prompts = "system_prompts"
 
 
+class Seq2SeqInputTempCols(str, Enum):
+    formatted_prompts = "galileo_formatted_prompts"
+
+
 class Seq2SeqOutputCols(str, Enum):
     id = "id"
     emb = "emb"

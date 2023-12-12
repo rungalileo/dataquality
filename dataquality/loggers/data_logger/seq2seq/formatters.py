@@ -1,14 +1,24 @@
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Tuple, Type
 
+import numpy as np
+import torch
 from tqdm.auto import tqdm
-from transformers import PreTrainedTokenizerFast
+from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizerFast
 from vaex import DataFrame
 
 from dataquality.loggers.logger_config.seq2seq.seq2seq_base import Seq2SeqLoggerConfig
-from dataquality.schemas.seq2seq import AlignedTokenData, Seq2SeqModelType
+from dataquality.schemas.seq2seq import (
+    AlignedTokenData,
+    ModelGeneration,
+    Seq2SeqModelType,
+)
 from dataquality.schemas.seq2seq import Seq2SeqInputCols as S2SIC
 from dataquality.utils.seq2seq.decoder_only import extract_tokenized_responses
+from dataquality.utils.seq2seq.logprobs import (
+    get_top_logprob_indices,
+    process_sample_logprobs,
+)
 from dataquality.utils.seq2seq.offsets import (
     add_input_cutoff_to_df,
     add_target_cutoff_to_df,
@@ -70,6 +80,74 @@ class BaseSeq2SeqDataFormatter(ABC):
             The target tokens (as strings) - see `Seq2SeqDataLogger.token_label_str`
         """
         pass
+
+    @torch.no_grad()
+    @abstractmethod
+    def generate_sample(
+        self,
+        input_str: str,
+        tokenizer: PreTrainedTokenizerFast,
+        model: PreTrainedModel,
+        max_input_tokens: int,
+        generation_config: GenerationConfig,
+        input_id: Optional[int] = None,
+        split_key: Optional[str] = None,
+    ) -> ModelGeneration:
+        """Generate and extract model logprobs
+
+        Tokenize the input string and then use `hf.generate`
+        to generate just the output tokens.
+
+        We don't rely on the scores returned by hf since these
+        can be altered by hf internally depending on the generation
+        config / can be hard to parse in the case of BEAM Search.
+
+        Instead, we pass the generated output back through the model
+        to extract the token logprobs. We effectively ask the model
+        to evaluate its own generation - which is identical to generation
+        because of causal language modeling.
+
+        Parameters:
+        -----------
+        input_str: str
+            Input string context used to seed the generation
+        tokenizer: PreTrainedTokenizerFast
+        max_input_tokens: int
+            the max number of tokens to use for tokenization
+        model: PreTrainedModel
+        generation_config: GenerationConfig
+            Users generation config specifying the parameters for generation
+
+        Return:
+        -------
+        model_generation: ModelGeneration
+            - generated_ids: np.ndarray of shape - [seq_len]
+            - generated_token_logprobs: np.ndarray of shape - [seq_len]
+            - generated_top_logprobs: List[List[Tuple[str, float]]]
+        """
+        pass
+
+    @staticmethod
+    def process_generated_logits(
+        generated_logits: torch.Tensor,
+        generated_ids: np.ndarray,
+        tokenizer: PreTrainedTokenizerFast,
+    ) -> ModelGeneration:
+        logprobs = (
+            torch.nn.functional.log_softmax(generated_logits, dim=-1).cpu().numpy()
+        )
+        top_logprobs_indices = get_top_logprob_indices(logprobs)
+
+        gen_logprob_data = process_sample_logprobs(
+            logprobs,
+            sample_labels=generated_ids,
+            sample_top_indices=top_logprobs_indices,
+            tokenizer=tokenizer,
+        )
+
+        return ModelGeneration(
+            generated_ids=generated_ids, generated_logprob_data=gen_logprob_data
+        )
 
 
 class EncoderDecoderDataFormatter(BaseSeq2SeqDataFormatter):
@@ -152,12 +230,11 @@ class EncoderDecoderDataFormatter(BaseSeq2SeqDataFormatter):
                 sample id to tokenized label (sample_id -> List[token_id])
         """
         targets = text
-        max_target_tokens = max_tokens
         use_special_tokens = True  # use this var to align encoding and decoding
         encoded_data = tokenizer(
             targets,
             return_offsets_mapping=True,
-            max_length=max_target_tokens,
+            max_length=max_tokens,
             truncation=True,
             add_special_tokens=use_special_tokens,
         )
@@ -181,6 +258,49 @@ class EncoderDecoderDataFormatter(BaseSeq2SeqDataFormatter):
         self.logger_config.id_to_tokens[split_key].update(id_to_tokens)
 
         return batch_aligned_data, token_label_str
+
+    @torch.no_grad()
+    def generate_sample(
+        self,
+        input_str: str,
+        tokenizer: PreTrainedTokenizerFast,
+        model: PreTrainedModel,
+        max_input_tokens: int,
+        generation_config: GenerationConfig,
+        input_id: Optional[int] = None,
+        split_key: Optional[str] = None,
+    ) -> ModelGeneration:
+        """Generate response for a single sample - Encoder Decoder"""
+
+        # Shape - [1, seq_len]
+        # We make sure to tokenize with the same max_length as they did during training
+        input_ids = tokenizer(
+            input_str,
+            truncation=True,
+            max_length=max_input_tokens,
+            verbose=False,
+            return_tensors="pt",
+        )["input_ids"].to(model.device)
+
+        gen_ids = model.generate(
+            input_ids=input_ids,
+            generation_config=generation_config,
+        )
+
+        # Strip the beginning <pad> token and keep as Tensor
+        gen_ids = gen_ids[..., 1:]
+
+        # Pass the generated output through the model to get the logits
+        model_outputs = model(input_ids=input_ids, labels=gen_ids)
+        logits = model_outputs.logits
+
+        # Remove singleton batch dimension
+        logits = logits.squeeze(0)  # [seq_len, vocab_size]
+        gen_ids = gen_ids.squeeze(0).cpu().numpy()  # [seq_len]
+
+        return self.process_generated_logits(
+            logits, generated_ids=gen_ids, tokenizer=tokenizer
+        )
 
     def set_input_cutoff(self, df: DataFrame) -> DataFrame:
         """Calculate the cutoff index for the input strings.
@@ -284,7 +404,7 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
         use_special_tokens = True  # use this var to align encoding and decoding
         encoded_data = tokenizer(
             formatted_prompts,
-            max_length=max_input_tokens,
+            max_length=max_tokens,
             truncation=True,
             add_special_tokens=use_special_tokens,
         )
@@ -337,6 +457,66 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
         )
 
         return batch_aligned_data, token_label_str
+
+    @torch.no_grad()
+    def generate_sample(
+        self,
+        input_str: str,
+        tokenizer: PreTrainedTokenizerFast,
+        model: PreTrainedModel,
+        max_input_tokens: int,
+        generation_config: GenerationConfig,
+        input_id: Optional[int] = None,
+        split_key: Optional[str] = None,
+    ) -> ModelGeneration:
+        """Generate response for a single sample - Decoder Only"""
+
+        # Retrieve the length of the response tokens
+        assert split_key, "Decoder-Only models require a valid `split_key`"
+        assert input_id is not None, (
+            "Decoder-Only models require the `sample_id` "
+            "that is being used for generation"
+        )
+        response_labels = self.logger_config.id_to_tokens[split_key][input_id]
+        num_response_labels = len(response_labels)
+
+        # Shape - [1, seq_len]
+        # We make sure to tokenize with the same max_length as they did during training
+        formatted_prompt_ids = tokenizer(
+            input_str,
+            truncation=True,
+            max_length=max_input_tokens,
+            verbose=False,
+            return_tensors="pt",
+        )["input_ids"]
+
+        len_prompt_ids_without_response = (
+            len(formatted_prompt_ids[0]) - num_response_labels
+        )
+        prompt_ids_without_response = formatted_prompt_ids[
+            :, :len_prompt_ids_without_response
+        ].to(model.device)
+
+        # This returns ALL the ids (prompt + response)
+        full_gen_ids = model.generate(
+            input_ids=prompt_ids_without_response,
+            generation_config=generation_config,
+        )
+
+        # Remove batch dimension
+        full_gen_ids_cpu = full_gen_ids.cpu().numpy()
+        gen_ids = full_gen_ids_cpu[0, len(prompt_ids_without_response[0]) :]
+
+        # Pass generated output through the model to get the logits
+        model_outputs = model(input_ids=full_gen_ids, labels=full_gen_ids.clone())
+
+        logits = model_outputs.logits
+        # Shift sample tokens such that tokens < n predict token n.
+        response_logits = logits[0, -(len(gen_ids) + 1) : -1]
+
+        return self.process_generated_logits(
+            response_logits, generated_ids=gen_ids, tokenizer=tokenizer
+        )
 
     def set_input_cutoff(self, df: DataFrame) -> DataFrame:
         """Calculate the cutoff index for the inputs
