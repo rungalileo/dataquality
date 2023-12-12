@@ -490,10 +490,12 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
             return_tensors="pt",
         )["input_ids"]
 
-        len_prompt_ids_without_response = len(formatted_prompt_ids[0]) - num_response_labels
-        prompt_ids_without_response = formatted_prompt_ids[:, :len_prompt_ids_without_response].to(
-            model.device
+        len_prompt_ids_without_response = (
+            len(formatted_prompt_ids[0]) - num_response_labels
         )
+        prompt_ids_without_response = formatted_prompt_ids[
+            :, :len_prompt_ids_without_response
+        ].to(model.device)
 
         # This returns ALL the ids (prompt + response)
         full_gen_ids = model.generate(
