@@ -99,7 +99,7 @@ def test_generate_on_batch(
         model=mock_model,
         tokenizer=mock_tokenizer,
         formatter=mock_formatter,
-        ids=list(range(100)),
+        ids=pa.array(list(range(100))),
         max_input_tokens=mock_max_input_tokens,
         generation_config=mock_generation_config,
     )
