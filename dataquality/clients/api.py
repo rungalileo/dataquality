@@ -1,9 +1,10 @@
 import json
 import os
 from json import JSONDecodeError
-from time import sleep
+from time import sleep, time
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+import jwt
 import requests
 from pydantic.types import UUID4
 from requests import Response
@@ -20,9 +21,85 @@ from dataquality.utils.auth import headers
 
 
 class ApiClient:
-    def __check_login(self) -> None:
-        if not config.token:
-            raise GalileoException("You are not logged in. Call dataquality.login()")
+    def refresh_token(self) -> None:
+        username = os.getenv("GALILEO_USERNAME")
+        password = os.getenv("GALILEO_PASSWORD")
+        if username is None or password is None:
+            raise GalileoException(
+                "You are not logged in. Call dataquality.login()\n"
+                "GALILEO_USERNAME and GALILEO_PASSWORD must be set"
+            )
+
+        res = requests.post(
+            f"{config.api_url}/login",
+            data={
+                "username": username,
+                "password": password,
+                "auth_method": "email",
+            },
+            headers={"X-Galileo-Request-Source": "dataquality_python_client"},
+        )
+        if res.status_code != 200:
+            raise GalileoException(
+                (
+                    f"Issue authenticating: {res.json()['detail']} "
+                    "If you need to reset your password, "
+                    f"go to {config.api_url.replace('api', 'console')}/forgot-password"
+                )
+            )
+
+        access_token = res.json().get("access_token", "")
+        config.token = access_token
+        config.update_file_config()
+        return access_token
+
+    def get_token(self) -> None:
+        token = config.token
+        if not token:
+            token = self.refresh_token()
+
+        # Check to see if our token is expired before making a request
+        # and refresh token if it's expired
+        # if url is not Routes.login and self.token:
+        if token:
+            claims = jwt.decode(token, options={"verify_signature": False})
+            if claims.get("exp", 0) < time():
+                token = self.refresh_token()
+
+        return token
+
+    def make_request(
+        self,
+        request: RequestType,
+        url: str,
+        body: Optional[Dict] = None,
+        data: Optional[Dict] = None,
+        params: Optional[Dict] = None,
+        header: Optional[Dict] = None,
+        timeout: Union[int, None] = None,
+        files: Optional[Dict] = None,
+        return_response_without_validation: bool = False,
+    ) -> Any:
+        """Makes an HTTP request.
+
+        This is the center point of all functions and the main entry/exit for the
+        dataquality client to interact with the server.
+        """
+        token = self.get_token()
+        header = header or headers(token)
+        res = RequestType.get_method(request.value)(
+            url,
+            json=body,
+            params=params,
+            headers=header,
+            data=data,
+            timeout=timeout,
+            files=files,
+        )
+        if return_response_without_validation:
+            return res
+        self._validate_response(res)
+        return res.json()
 
     def _validate_response(self, res: Response) -> None:
         if not res.ok:
@@ -42,11 +119,10 @@ class ApiClient:
             raise GalileoException(msg)
 
     def _get_user_id(self) -> UUID4:
-        self.__check_login()
         return self.get_current_user()["id"]
 
     def get_current_user(self) -> Dict:
-        if not config.token:
+        if not self.get_token():
             raise GalileoException(
                 "Current user is not set! Please ensure GALILEO_USERNAME "
                 "is set to the registered email"
@@ -62,39 +138,6 @@ class ApiClient:
             return True
         except GalileoException:
             return False
-
-    def make_request(
-        self,
-        request: RequestType,
-        url: str,
-        body: Optional[Dict] = None,
-        data: Optional[Dict] = None,
-        params: Optional[Dict] = None,
-        header: Optional[Dict] = None,
-        timeout: Union[int, None] = None,
-        files: Optional[Dict] = None,
-        return_response_without_validation: bool = False,
-    ) -> Any:
-        """Makes an HTTP request.
-
-        This is the center point of all functions and the main entry/exit for the
-        dataquality client to interact with the server.
-        """
-        self.__check_login()
-        header = header or headers(config.token)
-        res = RequestType.get_method(request.value)(
-            url,
-            json=body,
-            params=params,
-            headers=header,
-            data=data,
-            timeout=timeout,
-            files=files,
-        )
-        if return_response_without_validation:
-            return res
-        self._validate_response(res)
-        return res.json()
 
     def get_project(self, project_id: UUID4) -> Dict:
         return self.make_request(
@@ -768,8 +811,9 @@ class ApiClient:
     def _export_dataframe_request(
         self, url: str, body: Dict, params: Dict, file_name: str
     ) -> None:
+        token = self.get_token()
         with requests.post(
-            url, json=body, stream=True, headers=headers(config.token), params=params
+            url, json=body, stream=True, headers=headers(token), params=params
         ) as r:
             self._validate_response(r)
             with open(file_name, "wb") as f:

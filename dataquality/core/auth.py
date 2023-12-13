@@ -15,32 +15,12 @@ api_client = ApiClient()
 
 
 class _Auth:
-    def email_login(self) -> None:
-        username = os.getenv("GALILEO_USERNAME")
-        password = os.getenv("GALILEO_PASSWORD")
-        res = requests.post(
-            f"{config.api_url}/login",
-            data={
-                "username": username,
-                "password": password,
-                "auth_method": "email",
-            },
-            headers={"X-Galileo-Request-Source": "dataquality_python_client"},
-        )
-        if res.status_code != 200:
-            raise GalileoException(
-                (
-                    f"Issue authenticating: {res.json()['detail']} "
-                    "If you need to reset your password, "
-                    f"go to {config.api_url.replace('api', 'console')}/forgot-password"
-                )
-            )
+    def login_with_env_vars(self) -> None:
+        """Automatically log in with environment variables."""
+        api_client.get_token()
 
-        access_token = res.json().get("access_token")
-        config.token = access_token
-        config.update_file_config()
-
-    def token_login(self) -> None:
+    def login_with_token(self) -> None:
+        """Prompts a user to copy and paste a token from the console."""
         if url_is_localhost(url=config.api_url):
             token_url = f"{os.environ['GALILEO_CONSOLE_URL']}/{Route.token}"
         else:
@@ -76,9 +56,9 @@ def login() -> None:
 
     _auth = _Auth()
     if os.getenv("GALILEO_USERNAME") and os.getenv("GALILEO_PASSWORD"):
-        _auth.email_login()
+        _auth.login_with_env_vars()
     else:
-        _auth.token_login()
+        _auth.login_with_token()
 
     current_user_email = api_client.get_current_user().get("email")
     if not current_user_email:
