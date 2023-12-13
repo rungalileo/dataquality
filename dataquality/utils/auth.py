@@ -1,15 +1,9 @@
-import os
-from time import time
 from typing import Dict, Optional
-
-import jwt
-
-from dataquality.core.auth import _Auth
 
 
 def headers(token: Optional[str]) -> Dict[str, str]:
     """Return authorization headers for API requests
-    
+
     If token is expired, attempt to refresh it.
     """
     if not token:
