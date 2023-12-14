@@ -385,10 +385,12 @@ def log_model_outputs(
     assert all(
         [config.task_type, config.current_project_id, config.current_run_id]
     ), "You must call dataquality.init before logging data"
+    remove_embs = False
     if config.task_type in TaskType.get_seq2seq_tasks():
         # Custom embeddings are optional in seq2seq
         if embs is None:
             exclude_embs = True
+            remove_embs = True
         if log_probs is not None:
             probs = log_probs
 
@@ -414,6 +416,7 @@ def log_model_outputs(
         probs=probs.astype(np.float32) if isinstance(probs, np.ndarray) else probs,
         inference_name=inference_name,
     )
+    model_logger.logger_config.remove_embs = remove_embs
     model_logger.log()
 
 
