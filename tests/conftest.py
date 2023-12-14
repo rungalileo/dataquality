@@ -144,7 +144,7 @@ def disable_network_calls(request, monkeypatch):
 
 @pytest.fixture(autouse=True)
 def valid_jwt_token(monkeypatch):
-    def decode_token(token: str = "my-token") -> Dict:
+    def decode_token(token: str) -> Dict:
         """Unless it's a mocked call to healthcheck, disable network access"""
         if "expired" in token:
             return {"exp": 0}
