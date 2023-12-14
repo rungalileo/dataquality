@@ -2,10 +2,7 @@ from typing import Dict, Optional
 
 
 def headers(token: Optional[str]) -> Dict[str, str]:
-    """Return authorization headers for API requests
-
-    If token is expired, attempt to refresh it.
-    """
+    """Return authorization headers for API requests"""
     if not token:
         raise ValueError(
             "Missing token passed to headers utility! "
