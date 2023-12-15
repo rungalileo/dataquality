@@ -43,7 +43,7 @@ class BaseSeq2SeqDataFormatter(ABC):
         tokenizer: PreTrainedTokenizerFast,
         max_tokens: Optional[int],
         split_key: str,
-    ) -> Tuple[AlignedTokenData, List[List[str]], Optional[List[str]]]:
+    ) -> Tuple[AlignedTokenData, List[List[str]], List[str]]:
         """Tokenize and align the `text` samples
 
         `format_text` tokenizes and computes token alignments for
@@ -83,10 +83,10 @@ class BaseSeq2SeqDataFormatter(ABC):
             Aligned token data for *just* target tokens, based on `text`
         token_label_str: List[List[str]]
             The target tokens (as strings) - see `Seq2SeqDataLogger.token_label_str`
-        label_strs: Optional[List[str]]
+        targets: List[str]
             The decoded response tokens - i.e. the string representation of the
             Targets for each sample. Note that this is only computed for
-            Decoder-Only models.
+            Decoder-Only models. Returns [] for Encoder-Decoder
         """
         pass
 
@@ -221,7 +221,7 @@ class EncoderDecoderDataFormatter(BaseSeq2SeqDataFormatter):
         tokenizer: PreTrainedTokenizerFast,
         max_tokens: Optional[int],
         split_key: str,
-    ) -> Tuple[AlignedTokenData, List[List[str]], Optional[List[str]]]:
+    ) -> Tuple[AlignedTokenData, List[List[str]], List[str]]:
         """Further validation for Encoder-Decoder
 
         For Encoder-Decoder we need to:
@@ -266,7 +266,7 @@ class EncoderDecoderDataFormatter(BaseSeq2SeqDataFormatter):
         id_to_tokens = dict(zip(ids, token_label_ids))
         self.logger_config.id_to_tokens[split_key].update(id_to_tokens)
 
-        return batch_aligned_data, token_label_str, None
+        return batch_aligned_data, token_label_str, []
 
     @torch.no_grad()
     def generate_sample(
@@ -430,7 +430,7 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
         # Empty initialization
         batch_aligned_data = AlignedTokenData([], [])
         token_label_str = []
-        str_labels = []
+        targets = []
 
         # Decode then re-tokenize just the response labels to get correct offsets
         for token_label_ids in tqdm(
@@ -456,7 +456,7 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
                 max_input_tokens,
             )
             batch_aligned_data.append(response_aligned_data)
-            str_labels.append(response_str)
+            targets.append(response_str)
 
         # Save the tokenized response labels for each samples
         id_to_tokens = dict(zip(ids, tokenized_labels))
@@ -471,7 +471,7 @@ class DecoderOnlyDataFormatter(BaseSeq2SeqDataFormatter):
             id_to_formatted_prompt_length
         )
 
-        return batch_aligned_data, token_label_str, str_labels
+        return batch_aligned_data, token_label_str, targets
 
     @torch.no_grad()
     def generate_sample(
