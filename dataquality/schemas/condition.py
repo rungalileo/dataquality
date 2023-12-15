@@ -1,8 +1,7 @@
 from enum import Enum
 from typing import Dict, List, Optional, Tuple, Union
 
-from pydantic import BaseModel
-from pydantic.class_validators import validator
+from pydantic import BaseModel, ValidationInfo, field_validator, ConfigDict
 from vaex.dataframe import DataFrame
 
 
@@ -199,6 +198,7 @@ class Condition(BaseModel):
     threshold: float
     metric: Optional[str] = None
     filters: Optional[List[ConditionFilter]] = []
+    model_config = ConfigDict(validate_assignment=True)
 
     def evaluate(self, df: DataFrame) -> Tuple[bool, float]:
         filtered_df = self._apply_filters(df)
@@ -226,10 +226,15 @@ class Condition(BaseModel):
         """Asserts the condition"""
         assert self.evaluate(df)[0]
 
-    @validator("filters", pre=True, always=True)
+    @field_validator(
+        "filters",
+        mode="before",
+    )
+    @classmethod
     def validate_filters(
-        cls, v: Optional[List[ConditionFilter]], values: Dict
+        cls, v: Optional[List[ConditionFilter]], validation_info: ValidationInfo
     ) -> Optional[List[ConditionFilter]]:
+        values: Dict = validation_info.data
         if not v:
             agg = values["agg"]
             if agg == AggregateFunction.pct:
@@ -237,8 +242,15 @@ class Condition(BaseModel):
 
         return v
 
-    @validator("metric", pre=True, always=True)
-    def validate_metric(cls, v: Optional[str], values: Dict) -> Optional[str]:
+    @field_validator(
+        "metric",
+        mode="after",
+    )
+    @classmethod
+    def validate_metric(
+        cls, v: Optional[str], validation_info: ValidationInfo
+    ) -> Optional[str]:
+        values: Dict = validation_info.data
         if not v:
             agg = values["agg"]
             if agg != AggregateFunction.pct:

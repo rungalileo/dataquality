@@ -1,6 +1,6 @@
-from typing import Dict, List, Optional
+from typing import List, Optional
 
-from pydantic import BaseModel, Field, StrictStr, root_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictStr, model_validator
 
 
 class HashableBaseModel(BaseModel):
@@ -47,16 +47,20 @@ class LassoSelection(HashableBaseModel):
     provided by plotly when creating a lasso selection
     """
 
+    model_config = ConfigDict(validate_assignment=True)
+
     x: List[float]
     y: List[float]
 
-    @root_validator()
-    def validate_xy(cls: BaseModel, values: Dict[str, List]) -> Dict[str, List]:
-        if len(values.get("x", [])) != len(values.get("y", [])):
+    @model_validator(mode="after")
+    def validate_xy(self) -> "LassoSelection":
+        x, y = self.x, self.y
+        if len(x) != len(y):
             raise ValueError("x and y must have the same number of points")
-        if len(values.get("x", [])) < 1:
+        if len(x) < 1:
             raise ValueError("x and y must have at least 1 value")
-        return values
+
+        return self
 
 
 class FilterParams(HashableBaseModel):

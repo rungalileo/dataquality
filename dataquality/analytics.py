@@ -23,8 +23,8 @@ from dataquality.utils.profiler import (
 class ProfileModel(BaseModel):
     """User profile"""
 
-    packages: Optional[Dict[str, str]]
-    uuid: Optional[str]
+    packages: Optional[Dict[str, str]] = None
+    uuid: Optional[str] = None
 
 
 class Analytics(Borg):
@@ -106,7 +106,7 @@ class Analytics(Borg):
         """This function is used to setup the user information.
         This includes all installed packages.
         """
-        profile = ProfileModel(**{"uuid": str(hex(uuid.getnode()))})
+        profile = ProfileModel(uuid=str(hex(uuid.getnode())))
         try:
             profile.packages = _installed_modules()
         except Exception:

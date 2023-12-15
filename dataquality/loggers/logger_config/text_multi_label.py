@@ -2,7 +2,7 @@ from collections import defaultdict
 from typing import DefaultDict, List, Optional, Set
 
 import numpy as np
-from pydantic import validator
+from pydantic import ConfigDict, field_validator
 
 from dataquality.loggers.logger_config.base_logger_config import BaseLoggerConfig
 
@@ -14,11 +14,9 @@ class TextMultiLabelLoggerConfig(BaseLoggerConfig):
     tasks: Optional[List[str]] = None
     observed_num_tasks: int = 0
     binary: bool = True  # For binary multi label
+    model_config = ConfigDict(validate_assignment=True)
 
-    class Config:
-        validate_assignment = True
-
-    @validator("labels", always=True, pre=True)
+    @field_validator("labels", mode="before")
     def clean_labels(cls, labels: List[List[str]]) -> List[List[str]]:
         cleaned_labels = []
         if isinstance(labels, np.ndarray):

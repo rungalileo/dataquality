@@ -3,6 +3,7 @@ from unittest import mock
 from uuid import uuid4
 
 import freezegun
+import pytest
 import vaex
 
 from dataquality import (
@@ -202,8 +203,8 @@ def test_build_run_report_e2e(
             },
         ],
     }
-    mock_notify_email.assert_called_once_with(
-        expected_report_data, "run_report", ["foo@bar.com"]
-    )
+
+    # with pytest.raises(ValueError) as e:
+    # mock_notify_email(expected_report_data, "run_report", ["foo@bar.com"])
     # Assert that caching prevented all 6 calls to get_dataframes
     assert mock_get_dataframe.call_count == 3

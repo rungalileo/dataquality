@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum, unique
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from vaex.dataframe import DataFrame
 
 
@@ -9,9 +9,7 @@ class BaseLoggerDataFrames(BaseModel):
     prob: DataFrame
     emb: DataFrame
     data: DataFrame
-
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 @unique
