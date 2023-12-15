@@ -118,10 +118,16 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         label_len = len(self.labels)
         text_len = len(self.texts)
         id_len = len(self.ids)
-        assert id_len == text_len == label_len, (
-            "IDs, texts, and labels must be the same length, got "
-            f"({id_len} ids, {text_len} texts, {label_len} labels)"
-        )
+        if label_len > 0:  # Encoder-Decoder case
+            assert id_len == text_len == label_len, (
+                "IDs, texts, and labels must be the same length, got "
+                f"({id_len} ids, {text_len} texts, {label_len} labels)"
+            )
+        else:  # Decoder-Only case
+            assert id_len == text_len, (
+                "IDs and texts must be the same length, got "
+                f"({id_len} ids, {text_len} texts)"
+            )
         assert self.logger_config.tokenizer, (
             "You must set your tokenizer before logging. "
             "Use `dq.integrations.seq2seq.core.set_tokenizer`"
@@ -141,7 +147,11 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             max_tokens = self.logger_config.max_target_tokens
         assert max_tokens
 
-        batch_aligned_token_data, token_label_str = self.formatter.format_text(
+        (
+            batch_aligned_token_data,
+            token_label_str,
+            targets,
+        ) = self.formatter.format_text(
             text=texts,
             ids=self.ids,
             tokenizer=self.logger_config.tokenizer,
@@ -151,6 +161,8 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         self.token_label_offsets = batch_aligned_token_data.token_label_offsets
         self.token_label_positions = batch_aligned_token_data.token_label_positions
         self.token_label_str = token_label_str
+        if len(targets) > 0:  # For Decoder-Only we update the 'targets' here
+            self.labels = targets
 
     def _get_input_df(self) -> DataFrame:
         df_dict = {
