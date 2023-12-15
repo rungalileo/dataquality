@@ -274,7 +274,7 @@ def align_response_tokens_to_character_spans(
     tokenizer: PreTrainedTokenizerFast,
     tokenized_response: List[int],
     max_input_tokens: Optional[int],
-) -> AlignedTokenData:
+) -> Tuple[AlignedTokenData, str]:
     """Decodes then re-tokenizes the isolated response to get the character alignments
 
     TODO This can prob be done with just tokenizing the "target" in isolation!!
@@ -283,6 +283,15 @@ def align_response_tokens_to_character_spans(
         in the offset map and slice the offset map accordingly.
         This may also avoid strange space issues with tokenizers hanlding words
         at the start of a document.
+
+    Return:
+        -------
+        aligned_token_data: AlignedTokenData
+            Aligned token data for a single Response - batch dim = 1.
+        decoded_response: str
+            The string representation of the Response, used as the
+            Target string in the console. Note: we do not remove
+            special characters, so these will appear in the console!
     """
     decoded_response = tokenizer.decode(tokenized_response)
     re_tokenized_response = tokenizer(
@@ -293,6 +302,9 @@ def align_response_tokens_to_character_spans(
         # I believe that this should be handled! We can prob set to None
         max_length=max_input_tokens,
     )
-    return align_tokens_to_character_spans(
-        re_tokenized_response["offset_mapping"], disable_tqdm=True
+    return (
+        align_tokens_to_character_spans(
+            re_tokenized_response["offset_mapping"], disable_tqdm=True
+        ),
+        decoded_response,
     )
