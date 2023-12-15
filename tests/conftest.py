@@ -1,9 +1,11 @@
 import os
 import shutil
 import warnings
+from time import time
 from typing import Any, Callable, Dict, Generator, List, Optional, Union
 from uuid import UUID
 
+import jwt
 import pytest
 import requests
 import torch
@@ -138,6 +140,21 @@ def disable_network_calls(request, monkeypatch):
         raise RuntimeError("Network access not allowed during testing!")
 
     monkeypatch.setattr(requests, "get", lambda url, *args, **kwargs: stunted_get(url))
+
+
+@pytest.fixture(autouse=True)
+def valid_jwt_token(monkeypatch):
+    def decode_token(token: str) -> Dict:
+        """Unless it's a mocked call to healthcheck, disable network access"""
+        if "expired" in token:
+            return {"exp": 0}
+
+        one_hour = 60 * 60
+        return {"exp": time() + one_hour}
+
+    monkeypatch.setattr(
+        jwt, "decode", lambda token, *args, **kwargs: decode_token(token)
+    )
 
 
 @pytest.fixture(scope="function")

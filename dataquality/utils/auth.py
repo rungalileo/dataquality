@@ -2,6 +2,7 @@ from typing import Dict, Optional
 
 
 def headers(token: Optional[str]) -> Dict[str, str]:
+    """Return authorization headers for API requests"""
     if not token:
         raise ValueError(
             "Missing token passed to headers utility! "
@@ -9,4 +10,5 @@ def headers(token: Optional[str]) -> Dict[str, str]:
             "dataquality.config.email. "
             "Your account email should appear."
         )
+
     return {"Authorization": f"Bearer {token}"}
