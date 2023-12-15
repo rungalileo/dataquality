@@ -370,6 +370,9 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
             other_cols = [i for i in df_copy.get_column_names() if i not in ignore_cols]
             other_cols += ["id"]
 
+        if cls.logger_config.remove_embs:
+            emb_cols = ["id"]
+
         emb = df_copy[emb_cols]
         if "emb" in emb.get_column_names():
             # Convert emb to numpy array
