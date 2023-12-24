@@ -143,7 +143,7 @@ def add_generated_output_to_df(
     """
     model.eval()
     # During generation it is important to cache computation
-    # NOTE THAT WE SHOULD CHECK THIS!
+    # NOTE THAT WE SHOULD CHECK THAT THIS IS ALWAYS HERE!
     model_cache_flag = model.config.use_cache
     model.config.use_cache = True
 
