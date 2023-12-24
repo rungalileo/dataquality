@@ -142,6 +142,11 @@ def add_generated_output_to_df(
         Updated Dataframe with the generated columns added (see above)
     """
     model.eval()
+    # During generation it is important to cache computation
+    # NOTE THAT WE SHOULD CHECK THIS!
+    model_cache_flag = model.config.use_cache
+    model.config.use_cache = True
+
     generated_data = BatchGenerationData()
 
     num_batches = math.ceil(len(df) / GENERATION_BATCH_SIZE)
@@ -182,5 +187,8 @@ def add_generated_output_to_df(
     df[S2SOC.generated_top_logprobs.value] = pa.array(
         generated_data.generated_top_logprobs, type=TOP_LOGPROBS_SCHEMA
     )
+
+    # Reset the cache flag for the model
+    model.config.use_cache = model_cache_flag
 
     return df
