@@ -172,8 +172,7 @@ def watch(
 
     # A model of the correct type is required if we need to generate
     if generation_splits:
-        assert isinstance(model, PreTrainedModel) or isinstance(
-            model, PeftModel
+        assert isinstance(model, (PreTrainedModel, PeftModel))
         ), "model must be an instance of transformers PreTrainedModel"
         assert (
             model.can_generate()
