@@ -1,6 +1,7 @@
 from typing import List, Optional, Union
 from warnings import warn
 
+from peft import PeftModel
 from tokenizers import Tokenizer
 from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizerFast
 
@@ -172,8 +173,9 @@ def watch(
     # A model of the correct type is required if we need to generate
     if generation_splits:
         assert isinstance(
-            model, PreTrainedModel
+            model, (PreTrainedModel, PeftModel)
         ), "model must be an instance of transformers PreTrainedModel"
+
         assert (
             model.can_generate()
         ), "model must contain a `generate` method for seq2seq"
