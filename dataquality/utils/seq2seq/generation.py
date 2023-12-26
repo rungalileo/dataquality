@@ -142,8 +142,14 @@ def add_generated_output_to_df(
         Updated Dataframe with the generated columns added (see above)
     """
     model.eval()
-    # During generation it is important to cache computation
-    # NOTE THAT WE SHOULD CHECK THAT THIS IS ALWAYS HERE!
+    # When generating it is important to set `use_cache = True`.
+    # - WHAT? Caching stores intermediate token activations / representations.
+    #   During autoregressive generation, the cache is updated each time a token
+    #   is generated.
+    # - WHY? Caching prevents re-computing token information during auto-regressive
+    #   generation, DRAMATICALLY speeding up performance. Every time a new token is
+    #   generated, we only need to do the forward pass for a single new token, as we
+    #   leverage the cached information to compute transformer based attention.
     model_cache_flag = model.config.use_cache
     model.config.use_cache = True
 
