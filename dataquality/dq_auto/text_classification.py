@@ -6,7 +6,8 @@ from datasets import ClassLabel, Dataset, DatasetDict
 from transformers import Trainer
 
 import dataquality as dq
-from dataquality import Analytics, ApiClient
+from dataquality.analytics import Analytics
+from dataquality.clients.api import ApiClient
 from dataquality.dq_auto.base_data_manager import BaseDatasetManager
 from dataquality.dq_auto.tc_trainer import get_trainer
 from dataquality.schemas.split import Split
@@ -19,7 +20,7 @@ from dataquality.utils.auto import (
 )
 from dataquality.utils.auto_trainer import do_train
 
-a = Analytics(ApiClient, dq.config)
+a = Analytics(ApiClient, dq.get_config())
 a.log_import("auto_tc")
 
 

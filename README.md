@@ -24,9 +24,9 @@ Install the package.
 pip install dataquality
 ```
 
-Create an account at [Galileo](https://console.cloud.rungalileo.io/sign-up)
+Create an account at [Galileo](https://console-url.rungalileo.io/sign-up)
 
-Grab your [token](https://console.cloud.rungalileo.io/get-token)
+Grab your [token](https://console-url.rungalileo.io/get-token)
 
 Get your dataset and analyze it with `dq.auto`
 (You will be prompted for your token here)
@@ -50,7 +50,7 @@ By setting the token, you'll never be prompted to log in
 ```python
 import dataquality as dq
 
-dq.config.token = 'MY-TOKEN'
+dq.get_config().token = 'MY-TOKEN'
 ```
 For long-lived flows like CI/CD, see our docs on [environment variables](https://rungalileo.gitbook.io/galileo/python-library-api/environment-variables)
 

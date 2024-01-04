@@ -88,7 +88,7 @@ def test_open_console_raises_exc(mock_browser: mock.MagicMock):
     mock_open = mock.MagicMock()
     mock_open.side_effect = Exception("Bad!")
     mock_browser.open = mock_open
-    open_console_url("https://console.cloud.rungalileo.io")
+    open_console_url("https://console.fake.rungalileo.io")
     mock_open.assert_called_once()
 
 

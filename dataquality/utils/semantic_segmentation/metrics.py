@@ -6,8 +6,8 @@ import numpy as np
 import torch
 from PIL import Image, ImageColor
 
-from dataquality import config
 from dataquality.clients.objectstore import ObjectStore
+from dataquality.core._config import config
 from dataquality.schemas.semantic_segmentation import (
     Polygon,
     SemSegMetricData,

@@ -31,27 +31,13 @@ If you want to train without a model, you can use the auto framework:
 """
 
 
-__version__ = "1.4.2"
+__version__ = "1.5.0"
 
 import sys
 from typing import Any, List, Optional
 
-import dataquality.core._config
 import dataquality.integrations
-
-# We try/catch this in case the user installed dq inside of jupyter. You need to
-# restart the kernel after the install and we want to make that clear. This is because
-try:
-    import dataquality.metrics
-    from dataquality.analytics import Analytics
-    from dataquality.clients.api import ApiClient
-except (FileNotFoundError, AttributeError):
-    raise Exception(
-        "It looks like you've installed dataquality from a notebook. "
-        "Please restart the kernel before continuing"
-    ) from None
-from dataquality.core import configure, set_console_url
-from dataquality.core._config import config
+from dataquality.core import configure, get_config, set_console_url
 from dataquality.core.auth import login, logout
 from dataquality.core.finish import finish, get_run_status, wait_for_run
 from dataquality.core.init import init
@@ -99,10 +85,10 @@ __all__ = [
     "init",
     "log_data_samples",
     "log_model_outputs",
-    "config",
     "configure",
     "finish",
     "set_labels_for_run",
+    "get_config",
     "get_current_run_labels",
     "get_data_logger",
     "get_model_logger",
@@ -142,21 +128,6 @@ try:
     resource.setrlimit(resource.RLIMIT_NOFILE, (65535, 65535))
 except (ImportError, ValueError):  # The users limit is higher than our max, which is OK
     pass
-
-
-#  Logging is optional. If enabled, imports, method calls
-#  and exceptions can be logged by calling the logger.
-#  This is useful for debugging and detecting issues.
-#  Logging is disabled by default for enterprise users.
-#  To enable logging, set the environment variable
-#  DQ_TELEMETRICS=1
-#  To log initiate the Analytics class and pass in the gallileo ApiClient + dq.config
-#  a = Analytics(ApiClient, config)
-#  Once initialized you can start logging
-#  a.log_import("dataquality")
-#  a.log_method_call("dataquality.log_data_samples")
-a = Analytics(ApiClient, config)
-a.log_import("dataquality")
 
 
 class _DataQuality:

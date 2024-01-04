@@ -202,8 +202,8 @@ def init(
         run_name = create_run_name(project_name)
     run_name = validate_name(run_name, assign_random=False)
     run, run_created = _init.get_or_create_run(project_name, run_name, task_type)
-    dataquality.config.current_project_name = project_name
-    dataquality.config.current_run_name = run_name
+    config.current_project_name = project_name
+    config.current_run_name = run_name
 
     if not run_created:
         warnings.warn(

@@ -72,7 +72,7 @@ class ObjectStore:
         assert _bucket_name is not None, (
             "No bucket name provided to create_object. Please provide "
             "a bucket_name by setting the root_bucket_name in your config with "
-            "`dq.config.root_bucket_name = 'my-bucket-name'` or by passing a "
+            "`dq.get_config().root_bucket_name = 'my-bucket-name'` or by passing a "
             "bucket_name to this function."
         )
         if config.is_exoscale_cluster:
@@ -201,7 +201,7 @@ class ObjectStore:
         assert bucket is not None, (
             "No bucket name provided to create_object. Please provide "
             "a bucket_name by setting the root_bucket_name in your config with "
-            "`dq.config.root_bucket_name = 'my-bucket-name'` or by passing a "
+            "`dq.get_config().root_bucket_name = 'my-bucket-name'` or by passing a "
             "bucket_name to this function."
         )
         url = api_client.get_presigned_url(

@@ -466,7 +466,7 @@ def watch(
     """Watch the model for predictions and embeddings logging.
 
     :param model: the model to watch"""
-    assert dq.config.task_type == TaskType.object_detection, GalileoException(
+    assert dq.get_config().task_type == TaskType.object_detection, GalileoException(
         "dq client must be initialized for Object Detection. For example: "
         "dq.init('object_detection')"
     )

@@ -7,8 +7,8 @@ import numpy as np
 import pandas as pd
 import vaex
 
-from dataquality import config
 from dataquality.clients.api import ApiClient
+from dataquality.core._config import config
 from dataquality.loggers.base_logger import BaseGalileoLogger
 from dataquality.utils.name import validate_name
 
@@ -178,8 +178,6 @@ class TabularClassificationDataLogger(BaseGalileoDataLogger):
         We write the dfs to disk in the following locations:
         /Users/username/.galileo/logs/proj-id/run-id/training/data/data.hdf5
         /Users/username/.galileo/logs/proj-id/run-id/training/prob/prob.hdf5
-
-        NOTE: We don't restrict row or feature counts here for cloud users.
         """
         self.validate_and_prepare_logger()
 

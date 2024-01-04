@@ -6,9 +6,9 @@ from typing import Any, Optional
 from PIL import Image
 from pydantic import UUID4
 
-from dataquality import config
 from dataquality.clients.api import ApiClient
 from dataquality.clients.objectstore import ObjectStore
+from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
 
 object_store = ObjectStore()

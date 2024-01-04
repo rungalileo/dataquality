@@ -7,10 +7,8 @@ import pytest
 import requests
 from packaging import version
 
-import dataquality
 from dataquality import __version__ as dq_version
 from dataquality.core._config import (
-    CLOUD_URL,
     MINIMUM_API_VERSION,
     _check_dq_version,
     set_config,
@@ -77,21 +75,6 @@ def test_handle_extra_slash_in_console(set_test_config: Callable) -> None:
     os.environ["GALILEO_CONSOLE_URL"] = "https://console.mytest2.rungalileo.io///"
     cfg = set_config()
     assert cfg.api_url == "https://api.mytest2.rungalileo.io"
-
-
-@mock.patch("dataquality.core._config.os.path.exists", return_value=False)
-@mock.patch.object(dataquality.core._config.Config, "update_file_config")
-def test_config_defaults_cloud(
-    mock_update_config: mock.MagicMock, set_test_config: Callable
-) -> None:
-    """Calling set_config without an environment variable should default to CLOUD_URL"""
-    if os.getenv("GALILEO_CONSOLE_URL"):
-        del os.environ["GALILEO_CONSOLE_URL"]
-    if os.getenv("GALILEO_API_URL"):
-        del os.environ["GALILEO_API_URL"]
-    cfg = set_config()
-    assert cfg.api_url == CLOUD_URL.replace("console", "api")
-    mock_update_config.assert_called_once()
 
 
 @pytest.mark.parametrize("min_dq_version", ["0.0.0", dq_version])

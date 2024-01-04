@@ -11,9 +11,9 @@ from torch.nn import Module
 from torch.utils.hooks import RemovableHandle
 
 import dataquality
-from dataquality import config
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
+from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.logger_config.base_logger_config import BaseLoggerConfig
 from dataquality.schemas.cv import GAL_LOCAL_IMAGES_PATHS

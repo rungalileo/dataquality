@@ -1,5 +1,4 @@
 import gc
-import glob
 import os
 import sys
 import warnings
@@ -22,7 +21,6 @@ from dataquality.schemas.dataframe import BaseLoggerDataFrames, DFVar
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
 from dataquality.utils import tqdm
-from dataquality.utils.cloud import is_galileo_cloud
 from dataquality.utils.cuda import cuml_available
 from dataquality.utils.emb import (
     DATA_EMB_PATH,
@@ -66,7 +64,6 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     MAX_DOC_LEN = 10_000  # Max characters in document metadata attribute
     LIMIT_NUM_DOCS = 3  # Limit the number of documents logged per split
     INPUT_DATA_BASE = "input_data"
-    MAX_DATA_SIZE_CLOUD = 300_000
     # 2GB max size for arrow strings. We use 1.5GB for some buffer
     # https://issues.apache.org/jira/browse/ARROW-17828
     STRING_MAX_SIZE_B = 1.5e9
@@ -190,8 +187,6 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         os.makedirs(f"{self.input_data_path}/{self.split}", exist_ok=True)
 
         df = self._get_input_df()
-        # Validates cloud size limit
-        self.validate_data_size(df)
 
         ids = df["id"].tolist()
         self.validate_ids_for_split(ids)
@@ -710,24 +705,3 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     def set_tagging_schema(cls, tagging_schema: TaggingSchema) -> None:
         """Sets the tagging schema, if applicable. Must be implemented by child"""
         raise GalileoException(f"Cannot set tagging schema for {cls.__logger_name__}")
-
-    def validate_data_size(self, df: DataFrame) -> None:
-        """Validates that the data size is within the limits of Galileo Cloud
-
-        If the data size is too large, a warning is raised.
-        """
-        if not is_galileo_cloud():
-            return
-        samples_logged = len(df)
-        path_to_logged_data = f"{self.input_data_path}/*/*arrow"
-        if glob.glob(path_to_logged_data):
-            samples_logged += len(vaex.open(f"{self.input_data_path}/*/*arrow"))
-        nrows = BaseGalileoDataLogger.MAX_DATA_SIZE_CLOUD
-        if samples_logged > nrows:
-            warnings.warn(
-                f"⚠️ Hey there! You've logged over {nrows} rows in your input data. "
-                f"Galileo Cloud only supports up to {nrows} rows. "
-                "If you are using larger datasets, you may see degraded performance. "
-                "Please email us at team@rungalileo.io if you have any questions.",
-                GalileoWarning,
-            )

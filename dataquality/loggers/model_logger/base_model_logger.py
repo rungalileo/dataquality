@@ -6,9 +6,9 @@ from uuid import uuid4
 import numpy as np
 from scipy.special import expit, softmax
 
-from dataquality import config
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
+from dataquality.core._config import config
 from dataquality.exceptions import GalileoException, GalileoWarning, LogBatchError
 from dataquality.loggers.base_logger import BaseGalileoLogger
 from dataquality.loggers.data_logger import BaseGalileoDataLogger

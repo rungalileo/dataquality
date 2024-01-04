@@ -143,11 +143,13 @@ class DQTrainerCallback(TrainerCallback, TorchBaseInstance, Patch):
         # Setup the model only once
         if self._model_setup:
             return
-        assert dq.config.task_type, GalileoException(
+
+        task_type = dq.get_config().task_type
+        assert task_type, GalileoException(
             "dq client must be initialized. "
             "For example: dq.init('text_classification')"
         )
-        self.task = dq.config.task_type
+        self.task = task_type
         # Attach hooks to the model
         self._attach_hooks_to_model(
             model, self.classifier_layer, self.last_hidden_state_layer

@@ -20,7 +20,7 @@ from dataquality.schemas.split import Split, conform_split
 from dataquality.utils.helpers import check_noop
 from dataquality.utils.hf_tokenizer import LabelTokenizer
 
-a = Analytics(ApiClient, dq.config)
+a = Analytics(ApiClient, dq.get_config())
 a.log_import("hf")
 
 

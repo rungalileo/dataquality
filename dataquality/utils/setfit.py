@@ -180,8 +180,8 @@ def validate_setfit(
     from setfit import sample_dataset
 
     # Store the current project and run name
-    dq_project_name = dq.config.current_project_name
-    dq_run_name = dq.config.current_run_name
+    dq_project_name = dq.get_config().current_project_name
+    dq_run_name = dq.get_config().current_run_name
     # Create a random project and run name to avoid collisions
     random_id = str(uuid.uuid4())
     dq.init(

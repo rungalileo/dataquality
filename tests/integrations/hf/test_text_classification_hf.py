@@ -15,7 +15,7 @@ from transformers import (
 )
 
 import dataquality as dq
-from dataquality import config
+from dataquality.core._config import config
 from dataquality.integrations.transformers_trainer import watch
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
