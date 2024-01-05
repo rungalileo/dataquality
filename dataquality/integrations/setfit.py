@@ -132,9 +132,9 @@ def watch(
     pm = PatchManager()
     pm.unpatch()
     # If dq.init has been previously called, we don't need to call it again
-    # To detect this we check the paramater and the dq.get_config().task_type and
+    # To detect this we check the paramater and the dq.config.task_type and
     # no project_name
-    if project_name or dq.get_config().task_type != TaskType.text_classification:
+    if project_name or dq.config.task_type != TaskType.text_classification:
         init_kwargs: Dict[str, Any] = {}
         if project_name:
             init_kwargs["project_name"] = project_name

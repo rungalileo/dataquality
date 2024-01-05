@@ -20,7 +20,7 @@ from dataquality.utils.auto import (
 )
 from dataquality.utils.auto_trainer import do_train
 
-a = Analytics(ApiClient, dq.get_config())
+a = Analytics(ApiClient, dq.config)
 a.log_import("auto_tc")
 
 

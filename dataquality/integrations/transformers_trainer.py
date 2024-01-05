@@ -144,7 +144,7 @@ class DQTrainerCallback(TrainerCallback, TorchBaseInstance, Patch):
         if self._model_setup:
             return
 
-        task_type = dq.get_config().task_type
+        task_type = dq.config.task_type
         assert task_type, GalileoException(
             "dq client must be initialized. "
             "For example: dq.init('text_classification')"

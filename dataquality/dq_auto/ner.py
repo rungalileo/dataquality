@@ -4,6 +4,7 @@ import pandas as pd
 from datasets import Dataset, DatasetDict
 
 import dataquality as dq
+from dataquality import config
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
 from dataquality.dq_auto.base_data_manager import BaseDatasetManager
@@ -12,7 +13,7 @@ from dataquality.schemas.task_type import TaskType
 from dataquality.utils.auto import add_val_data_if_missing, run_name_from_hf_dataset
 from dataquality.utils.auto_trainer import do_train
 
-a = Analytics(ApiClient, dq.get_config())
+a = Analytics(ApiClient, config)
 a.log_import("auto_ner")
 
 

@@ -12,7 +12,7 @@ from dataquality.exceptions import GalileoException
 from dataquality.schemas.split import Split
 from dataquality.utils.tf import is_tf_2
 
-a = Analytics(ApiClient, dq.get_config())
+a = Analytics(ApiClient, dq.config)
 a.log_import("keras")
 
 # If this is TF 1.x

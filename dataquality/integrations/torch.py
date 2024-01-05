@@ -52,7 +52,7 @@ class TorchLogger(TorchBaseInstance):
         helper_data: Optional[Dict[str, Any]] = None,
         task: Union[TaskType, None] = TaskType.text_classification,
     ):
-        task_type = task or dq.get_config().task_type
+        task_type = task or dq.config.task_type
         assert task_type is not None, GalileoException(
             "Dataquality task cannot be None."
             "Setup with dq.init(task_type='text_classification')"
@@ -96,7 +96,7 @@ class TorchLogger(TorchBaseInstance):
                 model, self._dq_classifier_hook_with_step_end, classifier_layer
             )
         except Exception as e:
-            if dq.get_config().task_type != TaskType.semantic_segmentation:
+            if dq.config.task_type != TaskType.semantic_segmentation:
                 warn(
                     "Warning: Could not attach function to model layer."
                     f" {e}. Please check that the classifier layer name:"
@@ -233,7 +233,7 @@ def watch(
 
     """
     a.log_function("torch/watch")
-    assert dq.get_config().task_type, GalileoException(
+    assert dq.config.task_type, GalileoException(
         "dq client must be initialized. " "For example: dq.init('text_classification')"
     )
     if unpatch_on_start:
@@ -257,7 +257,7 @@ def watch(
         classifier_layer=classifier_layer,
         embedding_fn=embedding_fn,
         logits_fn=logits_fn,
-        task=dq.get_config().task_type,
+        task=dq.config.task_type,
         helper_data=helper_data,
     )
     # Patch the dataloader class if no dataloaders are passed

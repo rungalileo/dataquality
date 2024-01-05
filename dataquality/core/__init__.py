@@ -5,7 +5,7 @@ from typing import Optional
 import dataquality
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
-from dataquality.core._config import Config, config
+from dataquality.core._config import config
 from dataquality.exceptions import GalileoWarning
 from dataquality.utils.helpers import check_noop
 
@@ -31,6 +31,7 @@ def configure(do_login: bool = True, _internal: bool = False) -> None:
 
     if "GALILEO_API_URL" in os.environ:
         del os.environ["GALILEO_API_URL"]
+
     updated_config = dataquality.core._config.reset_config()
     for k, v in updated_config.dict().items():
         config.__setattr__(k, v)
@@ -54,8 +55,3 @@ def set_console_url(console_url: Optional[str] = None) -> None:
     if console_url:
         os.environ["GALILEO_CONSOLE_URL"] = console_url
     configure(do_login=False, _internal=True)
-
-
-def get_config() -> Config:
-    """Gets the current task type"""
-    return config

@@ -37,7 +37,8 @@ import sys
 from typing import Any, List, Optional
 
 import dataquality.integrations
-from dataquality.core import configure, get_config, set_console_url
+from dataquality.core import configure, set_console_url
+from dataquality.core._config import config
 from dataquality.core.auth import login, logout
 from dataquality.core.finish import finish, get_run_status, wait_for_run
 from dataquality.core.init import init
@@ -85,10 +86,10 @@ __all__ = [
     "init",
     "log_data_samples",
     "log_model_outputs",
+    "config",
     "configure",
     "finish",
     "set_labels_for_run",
-    "get_config",
     "get_current_run_labels",
     "get_data_logger",
     "get_model_logger",

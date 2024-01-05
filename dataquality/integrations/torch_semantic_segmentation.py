@@ -673,7 +673,7 @@ def watch(
     )
 
     a.log_function("torch/watch")
-    assert dq.get_config().task_type, GalileoException(
+    assert dq.config.task_type, GalileoException(
         "dq client must be initialized. " "For example: dq.init('text_classification')"
     )
     if unpatch_on_start:
