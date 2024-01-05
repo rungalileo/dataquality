@@ -5,8 +5,8 @@ import numpy as np
 import torch
 
 import dataquality as dq
+from dataquality import config
 from dataquality.clients.objectstore import ObjectStore
-from dataquality.core._config import config
 from dataquality.loggers.logger_config.semantic_segmentation import (
     SemanticSegmentationLoggerConfig,
     semantic_segmentation_logger_config,

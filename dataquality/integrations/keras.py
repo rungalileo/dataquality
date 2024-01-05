@@ -5,9 +5,9 @@ import tensorflow as tf
 from tensorflow import keras
 
 import dataquality as dq
+from dataquality import config
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
-from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.logger_config.base_logger_config import BaseLoggerConfig
 from dataquality.schemas.split import Split

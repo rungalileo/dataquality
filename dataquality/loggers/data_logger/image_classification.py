@@ -11,8 +11,8 @@ import pandas as pd
 import vaex
 from vaex.dataframe import DataFrame
 
+from dataquality import config
 from dataquality.clients.objectstore import ObjectStore
-from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger.base_data_logger import DataSet, MetasType
 from dataquality.loggers.data_logger.text_classification import (

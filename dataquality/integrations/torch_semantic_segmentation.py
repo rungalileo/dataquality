@@ -13,10 +13,10 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader
 
 import dataquality as dq
+from dataquality import config
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
 from dataquality.clients.objectstore import ObjectStore
-from dataquality.core._config import config
 from dataquality.exceptions import GalileoException, GalileoWarning
 from dataquality.integrations.torch import TorchLogger, unwatch
 from dataquality.loggers.model_logger.semantic_segmentation import (

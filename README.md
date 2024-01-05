@@ -50,7 +50,7 @@ By setting the token, you'll never be prompted to log in
 ```python
 import dataquality as dq
 
-config.token = 'MY-TOKEN'
+dq.config.token = 'MY-TOKEN'
 ```
 For long-lived flows like CI/CD, see our docs on [environment variables](https://rungalileo.gitbook.io/galileo/python-library-api/environment-variables)
 

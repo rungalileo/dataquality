@@ -7,8 +7,8 @@ import numpy as np
 import pandas as pd
 import vaex
 
+from dataquality import config
 from dataquality.clients.api import ApiClient
-from dataquality.core._config import config
 from dataquality.loggers.base_logger import BaseGalileoLogger
 from dataquality.utils.name import validate_name
 

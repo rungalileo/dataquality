@@ -8,8 +8,8 @@ import vaex
 from sklearn.decomposition import IncrementalPCA
 from vaex.dataframe import DataFrame
 
+from dataquality import config
 from dataquality.clients.objectstore import ObjectStore
-from dataquality.core._config import config
 from dataquality.exceptions import GalileoException, GalileoWarning
 from dataquality.loggers.base_logger import BaseLoggerAttributes
 from dataquality.schemas.split import Split

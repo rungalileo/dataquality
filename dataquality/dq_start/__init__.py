@@ -5,7 +5,7 @@ import random
 from typing import Any, Callable, Dict, List, Optional, Type
 
 import dataquality as dq
-from dataquality.core._config import config
+from dataquality import config
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.model import ModelFramework
 from dataquality.schemas.split import Split
