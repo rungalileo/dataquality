@@ -561,7 +561,7 @@ def test_log_outputs_binary(
 def test_calls_noop() -> None:
     os.environ["GALILEO_DISABLED"] = "True"
     c = dataquality.core._config.set_config()
-    assert c.api_url == "http://"
+    assert c.api_url == ""
     with mock.patch("dataquality.core.log.log_data_samples") as mock_log:
         dataquality.log_data_samples(texts=["test"], labels=["1"], ids=[1])
         mock_log.assert_not_called()
@@ -765,42 +765,6 @@ def test_log_assertion_error_raises(
         logger._log()
     mock_get_data.assert_not_called()
     mock_write.assert_not_called()
-
-
-@mock.patch("dataquality.loggers.data_logger.base_data_logger.is_galileo_cloud")
-def test_validate_data_size_cloud(mock_cloud: MagicMock) -> None:
-    mock_cloud.return_value = True
-    df = vaex.from_arrays(
-        id=list(range(BaseGalileoDataLogger.MAX_DATA_SIZE_CLOUD + 1)),
-        label=["a" for _ in range(BaseGalileoDataLogger.MAX_DATA_SIZE_CLOUD + 1)],
-        text=["text" for _ in range(BaseGalileoDataLogger.MAX_DATA_SIZE_CLOUD + 1)],
-    )
-    with pytest.warns(GalileoWarning):
-        BaseGalileoDataLogger().validate_data_size(df)
-
-
-@mock.patch("dataquality.loggers.data_logger.base_data_logger.is_galileo_cloud")
-def test_validate_under_data_size_cloud(mock_cloud: MagicMock) -> None:
-    mock_cloud.return_value = True
-    df = vaex.from_arrays(
-        id=list(range(BaseGalileoDataLogger.MAX_DATA_SIZE_CLOUD)),
-        label=["a" for _ in range(BaseGalileoDataLogger.MAX_DATA_SIZE_CLOUD)],
-        text=["text" for _ in range(BaseGalileoDataLogger.MAX_DATA_SIZE_CLOUD)],
-    )
-    with pytest.warns(None):
-        BaseGalileoDataLogger().validate_data_size(df)
-
-
-@mock.patch("dataquality.loggers.data_logger.base_data_logger.is_galileo_cloud")
-def test_validate_data_size_not_cloud(mock_cloud: MagicMock) -> None:
-    mock_cloud.return_value = False
-    df = vaex.from_arrays(
-        id=list(range(BaseGalileoDataLogger.MAX_DATA_SIZE_CLOUD + 1)),
-        label=["a" for _ in range(BaseGalileoDataLogger.MAX_DATA_SIZE_CLOUD + 1)],
-        text=["text" for _ in range(BaseGalileoDataLogger.MAX_DATA_SIZE_CLOUD + 1)],
-    )
-    with pytest.warns(None):
-        BaseGalileoDataLogger().validate_data_size(df)
 
 
 def test_attribute_subsets() -> None:

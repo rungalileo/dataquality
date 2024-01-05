@@ -14,7 +14,7 @@ a = Analytics(ApiClient, config)
 
 @check_noop
 def configure(do_login: bool = True, _internal: bool = False) -> None:
-    """[Not for cloud users] Update your active config with new information
+    """Update your active config with new information
 
     You can use environment variables to set the config, or wait for prompts
     Available environment variables to update:
@@ -31,7 +31,8 @@ def configure(do_login: bool = True, _internal: bool = False) -> None:
 
     if "GALILEO_API_URL" in os.environ:
         del os.environ["GALILEO_API_URL"]
-    updated_config = dataquality.core._config.reset_config(cloud=False)
+
+    updated_config = dataquality.core._config.reset_config()
     for k, v in updated_config.dict().items():
         config.__setattr__(k, v)
     config.token = None
