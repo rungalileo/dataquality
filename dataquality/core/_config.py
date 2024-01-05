@@ -98,7 +98,7 @@ class Config(BaseModel):
 
     @validator("api_url", pre=True, always=True, allow_reuse=True)
     def add_scheme(cls, v: str) -> str:
-        if not v.startswith("http"):
+        if v and not v.startswith("http"):
             # api url needs the scheme
             v = f"http://{v}"
         return v
@@ -198,7 +198,7 @@ def _check_console_url() -> None:
             set_platform_urls(console_url_str=console_url)
 
 
-def set_config() -> Config:
+def set_config(initial_startup: bool = False) -> Config:
     if galileo_disabled():
         return Config(api_url="")
     _check_console_url()
@@ -228,6 +228,9 @@ def set_config() -> Config:
         config = Config(**galileo_vars)
 
     else:
+        config = Config(api_url="")
+
+    if not initial_startup and not config.api_url:
         print(f"Welcome to Galileo {dq_version}!")
         print(
             "To skip this prompt in the future, set the following environment "
@@ -249,4 +252,4 @@ def reset_config() -> Config:
     return set_config()
 
 
-config = set_config()
+config = set_config(initial_startup=True)
