@@ -10,8 +10,8 @@ from tenacity import RetryError
 
 import dataquality
 import dataquality as dq
-from dataquality import config
 from dataquality.clients.api import ApiClient
+from dataquality.core._config import config
 from dataquality.core.auth import GALILEO_AUTH_METHOD
 from dataquality.core.init import create_run_name
 from dataquality.exceptions import GalileoException

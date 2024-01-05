@@ -7,8 +7,8 @@ from uuid import uuid4
 import pytest
 
 import dataquality.clients.api
-from dataquality import config
 from dataquality.clients.api import ApiClient
+from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
 from dataquality.schemas import RequestType
 from dataquality.schemas.task_type import TaskType

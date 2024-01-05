@@ -5,7 +5,7 @@ import webbrowser
 import requests
 
 from dataquality.clients.api import ApiClient
-from dataquality.core._config import config, url_is_localhost
+from dataquality.core._config import config, reset_config, url_is_localhost
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.route import Route
 from dataquality.utils.helpers import check_noop
@@ -65,6 +65,13 @@ def login() -> None:
     To skip the prompt for automated workflows, you can set `GALILEO_USERNAME`
     (your email) and GALILEO_PASSWORD if you signed up with an email and password
     """
+    if not config.api_url:
+        updated_config = reset_config()
+        for k, v in updated_config.dict().items():
+            config.__setattr__(k, v)
+        config.token = None
+        config.update_file_config()
+
     if api_client.valid_current_user():
         print(f"✅ Already logged in as {config.current_user}!")
         print("Use logout() if you want to change users")

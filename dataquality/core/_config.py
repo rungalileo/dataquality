@@ -18,7 +18,6 @@ from dataquality.schemas.route import Route
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.helpers import galileo_disabled
 
-CLOUD_URL = "https://console.cloud.rungalileo.io"
 MINIMUM_API_VERSION = "0.4.0"
 GALILEO_DEFAULT_IMG_BUCKET_NAME = "galileo-images"
 GALILEO_DEFAULT_RUN_BUCKET_NAME = "galileo-project-runs"
@@ -99,7 +98,7 @@ class Config(BaseModel):
 
     @validator("api_url", pre=True, always=True, allow_reuse=True)
     def add_scheme(cls, v: str) -> str:
-        if not v.startswith("http"):
+        if v and not v.startswith("http"):
             # api url needs the scheme
             v = f"http://{v}"
         return v
@@ -202,12 +201,14 @@ def _check_console_url() -> None:
             set_platform_urls(console_url_str=console_url)
 
 
-def set_config(cloud: bool = True) -> Config:
+def set_config(initial_startup: bool = False) -> Config:
     if galileo_disabled():
         return Config(api_url="")
     _check_console_url()
+
     if not os.path.isdir(config_data.DEFAULT_GALILEO_CONFIG_DIR):
         os.makedirs(config_data.DEFAULT_GALILEO_CONFIG_DIR, exist_ok=True)
+
     if os.path.exists(config_data.DEFAULT_GALILEO_CONFIG_FILE):
         with open(config_data.DEFAULT_GALILEO_CONFIG_FILE) as f:
             try:
@@ -230,28 +231,28 @@ def set_config(cloud: bool = True) -> Config:
         config = Config(**galileo_vars)
 
     else:
-        name = "Galileo Cloud" if cloud else "Galileo"
-        print(f"Welcome to {name} {dq_version}!")
-        if cloud:
-            console_url = CLOUD_URL
-        else:
-            print(
-                "To skip this prompt in the future, set the following environment "
-                "variable: GALILEO_CONSOLE_URL"
-            )
-            console_url = input("🔭 Enter the url of your Galileo console\n")
+        config = Config(api_url="")
+
+    if not initial_startup and not config.api_url:
+        print(f"Welcome to Galileo {dq_version}!")
+        print(
+            "To skip this prompt in the future, set the following environment "
+            "variable: GALILEO_CONSOLE_URL"
+        )
+        console_url = input("🔭 Enter the url of your Galileo console\n")
         set_platform_urls(console_url_str=console_url)
         galileo_vars = GalileoConfigVars.get_config_mapping()
         config = Config(**galileo_vars)
+
     config.update_file_config()
     return config
 
 
-def reset_config(cloud: bool = True) -> Config:
+def reset_config() -> Config:
     """Wipe the config file and reconfigure"""
     if os.path.isfile(config_data.DEFAULT_GALILEO_CONFIG_FILE):
         os.remove(config_data.DEFAULT_GALILEO_CONFIG_FILE)
-    return set_config(cloud)
+    return set_config()
 
 
-config = set_config()
+config = set_config(initial_startup=True)
