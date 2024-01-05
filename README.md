@@ -24,7 +24,7 @@ Install the package.
 pip install dataquality
 ```
 
-Create an account at [Galileo](https://console-url.rungalileo.io/sign-up)
+Create an account at [Galileo](https://{console-url}.rungalileo.io/sign-up)
 
 Grab your [token](https://console-url.rungalileo.io/get-token)
 
