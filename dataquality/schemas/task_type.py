@@ -29,6 +29,18 @@ class TaskType(str, Enum):
         ]
 
     @staticmethod
+    def get_label_tasks() -> List["TaskType"]:
+        """Tasks types that require a labels.json file."""
+        return [
+            TaskType.text_classification,
+            TaskType.text_multi_label,
+            TaskType.text_ner,
+            TaskType.image_classification,
+            TaskType.tabular_classification,
+            TaskType.object_detection,
+        ]
+
+    @staticmethod
     def get_seq2seq_tasks() -> List["TaskType"]:
         """Sequence to Sequence tasks types."""
         return [

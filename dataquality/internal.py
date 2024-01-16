@@ -29,10 +29,12 @@ def reprocess_run(
     project, run = api_client._get_project_run_id(project_name, run_name)
     task_type = api_client.get_task_type(project, run)
 
+    labels = []
     tasks = []
     ner_labels = []
     try:
-        labels = api_client.get_labels_for_run(project_name, run_name)
+        if task_type in TaskType.get_label_tasks():
+            labels = api_client.get_labels_for_run(project_name, run_name)
     except GalileoException as e:
         if "No data found" in str(e):
             e = GalileoException(
@@ -55,6 +57,7 @@ def reprocess_run(
         ner_labels = dataquality.metrics.get_labels_for_run(project_name, run_name)
     if alerts:
         api_client.delete_alerts(project_name, run_name)
+
     body = dict(
         project_id=str(project),
         run_id=str(run),
