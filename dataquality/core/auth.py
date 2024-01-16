@@ -53,8 +53,10 @@ def login() -> None:
     print(f"📡 {config.api_url.replace('api','console')}")
     print("🔭 Logging you into Galileo\n")
 
+    _auth = _Auth()
+    if os.getenv("GALILEO_USERNAME") and os.getenv("GALILEO_PASSWORD"):
+        _auth.login_with_env_vars()
     if not valid_current_user:
-        _auth = _Auth()
         _auth.login_with_token()
 
     current_user_email = api_client.get_current_user().get("email")
