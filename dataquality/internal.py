@@ -41,7 +41,8 @@ def reprocess_run(
         api_client.delete_alerts(project_name, run_name)
 
     job_data: Dict = job["request_data"]
-    # We need to remove the job_id from the job_data, otherwise the server will
+    # We need to remove the job_id from the job_data since the server will
+    # generate a new one
     job_data.pop("job_id")
     res = api_client.make_request(
         RequestType.POST, url=f"{config.api_url}/{Route.jobs}", body=job_data
