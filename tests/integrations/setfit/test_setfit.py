@@ -1,3 +1,4 @@
+import os
 from typing import Callable, Generator
 from unittest.mock import MagicMock, patch
 
@@ -197,7 +198,6 @@ def test_setfit_trainer(
     dq.finish()
 
 
-@patch.object(ApiClient, "valid_current_user", return_value=True)
 @patch.object(dq.core.init, "version_check")
 @patch.object(dq.core.finish, "_reset_run")
 @patch.object(dq.core.finish, "upload_dq_log_file")
@@ -220,26 +220,26 @@ def test_setfit_trainer(
         "minio_fqdn": "127.0.0.1:9000",
     },
 )
+@patch.object(ApiClient, "get_current_user", return_value={"email": "hi@example.com"})
 @patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
 def test_auto(
     mock_valid_user: MagicMock,
+    mock_get_current_user: MagicMock,
     mock_dq_healthcheck: MagicMock,
     mock_check_dq_version: MagicMock,
     mock_create_run: MagicMock,
     mock_get_project_run_by_name: MagicMock,
     mock_create_project: MagicMock,
     mock_get_project_by_name: MagicMock,
-    set_test_config: Callable,
     mock_wait_for_run: MagicMock,
     mock_make_request: MagicMock,
     mock_upload_log_file: MagicMock,
     mock_reset_run: MagicMock,
     mock_version_check: MagicMock,
+    set_test_config: Callable,
     cleanup_after_use: Generator,
     test_session_vars: TestSessionVariables,
 ) -> None:
-    import os
-
     mock_get_project_by_name.return_value = {"id": test_session_vars.DEFAULT_PROJECT_ID}
     mock_create_run.return_value = {"id": test_session_vars.DEFAULT_RUN_ID}
     set_test_config(current_project_id=None, current_run_id=None)

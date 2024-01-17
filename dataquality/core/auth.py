@@ -49,27 +49,25 @@ def login() -> None:
         config.token = None
         config.update_file_config()
 
-    if api_client.valid_current_user():
-        print(f"✅ Already logged in as {config.current_user}!")
-        print("Use logout() if you want to change users")
-
-        return
-
+    valid_current_user = api_client.valid_current_user()
     print(f"📡 {config.api_url.replace('api','console')}")
     print("🔭 Logging you into Galileo\n")
 
     _auth = _Auth()
     if os.getenv("GALILEO_USERNAME") and os.getenv("GALILEO_PASSWORD"):
         _auth.login_with_env_vars()
-    else:
+    if not valid_current_user:
         _auth.login_with_token()
 
     current_user_email = api_client.get_current_user().get("email")
     if not current_user_email:
         return
+
     config.current_user = current_user_email
     config.update_file_config()
+
     print(f"🚀 You're logged in to Galileo as {current_user_email}!")
+    print("Use logout() if you want to change users")
 
 
 @check_noop
