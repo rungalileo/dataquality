@@ -191,6 +191,14 @@ class Seq2SeqDataLogger(BaseGalileoDataLogger):
         meta: Union[List[str], List[int], None] = None,
     ) -> None:
         """Helper to log a pandas or vaex df"""
+        assert S2SIC.input in df, (
+            f"Input column {S2SIC.input} not found in dataframe. "
+            f"Please add a column titled {S2SIC.input} to your dataframe "
+        )
+        assert S2SIC.id in df, (
+            f"ID column {S2SIC.id} not found in dataframe. "
+            f"Please add a column titled {S2SIC.id} to your dataframe "
+        )
         self.texts = df[S2SIC.input].tolist()
         self.ids = df[S2SIC.id].tolist()
         # Inference case
