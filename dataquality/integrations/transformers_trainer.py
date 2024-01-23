@@ -94,6 +94,13 @@ class DQTrainerCallback(TrainerCallback, TorchBaseInstance, Patch):
             "`ds= dataset.map(lambda x, idx: {'id': idx}, with_indices=True)`\n"
             "id (index) column is needed in the dataset for logging"
         )
+        print("len(self.model_outputs_store.logits)")
+        print(len(self.model_outputs_store.logits))
+        print("len(self.model_outputs_store.embs)")
+        print(len(self.model_outputs_store.embs))
+        print("len(self.model_outputs_store.ids)")
+        print(len(self.model_outputs_store.ids))
+
         if (
             self.logger_config.gradient_accumulation
             and len(self.model_outputs_store.logits)
@@ -105,6 +112,8 @@ class DQTrainerCallback(TrainerCallback, TorchBaseInstance, Patch):
             self.model_outputs_store.ids = self.model_outputs_store.ids[
                 : len(self.model_outputs_store.logits)
             ]
+            print("new len(self.model_outputs_store.ids)")
+            print(len(self.model_outputs_store.ids))
 
         # 🔭🌕 Galileo logging
         dq.log_model_outputs(**self.model_outputs_store.to_dict())
