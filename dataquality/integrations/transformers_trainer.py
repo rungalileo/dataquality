@@ -1,6 +1,7 @@
 # Imports for the hook manager
 from typing import Any, Callable, Dict, Optional
 from warnings import warn
+from dataquality.core.log import get_data_logger
 
 from datasets import Dataset
 from torch.nn import Module
@@ -292,6 +293,7 @@ def watch(
     embedding_fn: Optional[Callable] = None,
     logits_fn: Optional[Callable] = None,
     last_hidden_state_layer: Optional[Layer] = None,
+    dataloader_random_sampling: bool = False
 ) -> None:
     """*Hook* into to the **trainer** to log to Galileo.
     :param trainer: Trainer object from the transformers library
@@ -306,6 +308,8 @@ def watch(
     """
     a.log_function("transformers_trainer/watch")
     helper_data = dq.get_model_logger().logger_config.helper_data
+    logger_config = get_data_logger().logger_config
+    logger_config.dataloader_random_sampling = dataloader_random_sampling
     torch_helper_data = TorchHelper()
     helper_data["torch_helper"] = torch_helper_data
     # Callback which we add to the trainer
