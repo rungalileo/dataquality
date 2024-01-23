@@ -91,7 +91,7 @@ def finish(
     if upload_model or os.environ.get("DQ_UPLOAD_MODEL"):
         try:
             upload_model_to_dq()
-            print(f"Model uploaded successfully.")
+            print("Model uploaded successfully.")
         except Exception as e:
             print(f"Error uploading model: {e}")
     if data_logger.logger_config.conditions:

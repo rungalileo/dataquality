@@ -11,7 +11,7 @@ from dataquality.core._config import config
 api_client = ApiClient()
 
 
-def create_tar_archive(source_folder: str, output_filename: str):
+def create_tar_archive(source_folder: str, output_filename: str) -> None:
     """
     Creates a tar archive from a folder / model.
     :param source_folder: The folder to archive.
@@ -46,6 +46,8 @@ def upload_model_to_dq() -> None:
     model = helper_data["model"]
     model_parameters = helper_data["model_parameters"]
     model_kind = helper_data["model_kind"]
+    assert config.current_project_id, "Project id is required"
+    assert config.current_run_id, "Run id is required"
     signed_url_body = api_client.get_presigned_url_for_model(
         project_id=config.current_project_id,
         run_id=config.current_run_id,
