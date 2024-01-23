@@ -1,3 +1,4 @@
+import warnings
 from collections import defaultdict
 from enum import Enum, unique
 from typing import Any, Dict, Iterable, List, Optional, Union
@@ -6,7 +7,7 @@ import pandas as pd
 import vaex
 from pandas import DataFrame
 
-from dataquality.exceptions import GalileoException
+from dataquality.exceptions import GalileoException, GalileoWarning
 from dataquality.loggers.data_logger.base_data_logger import (
     ITER_CHUNK_SIZE,
     BaseGalileoDataLogger,
@@ -237,9 +238,8 @@ class ObjectDetectionDataLogger(BaseGalileoDataLogger):
         """We skip this step because there is no 'text' field"""
         return df
 
-    @classmethod
     def prob_only(
-        cls,
+        self,
         epochs: List[str],
         split: str,
         epoch_or_inf_name: Union[int, str],
@@ -250,9 +250,13 @@ class ObjectDetectionDataLogger(BaseGalileoDataLogger):
 
     @classmethod
     def create_and_upload_data_embs(
-        cls, df: DataFrame, split: str, epoch_or_inf: str
+        cls, df: DataFrame, split: str, epoch_or_inf: str, data_embs_col: str
     ) -> None:
         """Data embeddings not yet supported for any CV task"""
+        warnings.warn(
+            "Data embeddings are not yet supported for NER.",
+            GalileoWarning,
+        )
 
     @classmethod
     def process_in_out_frames(

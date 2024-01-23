@@ -1,11 +1,14 @@
 from collections import defaultdict
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 import numpy as np
 import pyarrow as pa
 from tqdm.auto import tqdm
+from transformers import PreTrainedTokenizerFast
+from vaex import DataFrame, register_function
 
 from dataquality.schemas.seq2seq import AlignedTokenData
+from dataquality.schemas.seq2seq import Seq2SeqInputCols as S2SIC
 
 
 def _handle_overlapping_offsets(
@@ -146,6 +149,11 @@ def rollup_offset_mapping(
         and returned as
         [(0, 1), (1, 20), (20, 22), (22, 23)], [{0, 1}, {1}, {}, {2}]
     """
+    # In rare cases, we can have a completely empty offsets_mapping
+    # when we have a tokenized empty string with no special chars.
+    if len(offset_mapping) == 0:
+        return [], []
+
     # The ordered span offsets for backtracking in case of an overlap
     # Like [(0, 1), (1, 3), (3, 4)]
     # We guarantee that the spans here will be contiguous, non-repeating and
@@ -168,101 +176,135 @@ def rollup_offset_mapping(
 
 
 def align_tokens_to_character_spans(
-    samples_offsets: List[List[Tuple[int, int]]]
+    samples_offsets: List[List[Tuple[int, int]]], disable_tqdm: bool = False
 ) -> AlignedTokenData:
-    """Iterates through each samples offsets and creates character-aligned spans"""
+    """Iterates through each samples offsets and creates character-aligned spans
+
+    Parameters:
+    -----------
+    disable_tqdm: bool
+        Flag for disabling tqdm. Used generally when we are calling
+        align_tokens_to_character_spans over small (e.g. 1 sample) batches
+    """
     all_offsets = []
     all_token_positions = []
     for offset_mapping in tqdm(
-        samples_offsets, leave=False, desc="Aligning characters with tokens"
+        samples_offsets,
+        leave=False,
+        desc="Aligning characters with tokens",
+        disable=disable_tqdm,
     ):
         offsets, token_positions = rollup_offset_mapping(offset_mapping)
         all_offsets.append(offsets)
         all_token_positions.append(token_positions)
+
     return AlignedTokenData(
         token_label_offsets=all_offsets, token_label_positions=all_token_positions
     )
 
 
-def get_token_dep_from_labels(
-    probs: np.ndarray, labels: np.ndarray
-) -> Tuple[np.ndarray, np.ndarray]:
-    """Extracts DEP per token prediction using the labels as indexing tools
-
-    First, extract the probabilities of the GT token label
-
-    Probs is a numpy array of shape [batch_size, max_token_len, vocab_size] where
-    for each sample (text input) in the batch, every token of that sample has a
-    probability vector of size vocab_size (which can be 30k+).
-
-    Labels is of shape [batch_size, max_token_length], where for each sample, it
-    indicates the index into the vocab that the token should be (the token label).
-
-    We use advanced indexing to extract out only the probabilities for the token
-    label for each sample, for each batch.
-
-    Then, we get the second highest probabilities per token via similar indexing.
-
-    Finally, compute dep and return.
-
-    Returns: (token_dep, gold_probs)
-
-    NOTE: This function is not actively being used as we don't require the user
-    to pass in labels. However, if we want to support that flow (which would make
-    processing faster and more memory efficient), we can leverage these here.
+def add_input_cutoff_to_df(
+    df: DataFrame,
+    tokenizer: PreTrainedTokenizerFast,
+    text_col: str,
+    max_tokens: Optional[int] = None,
+) -> DataFrame:
     """
-    batch_size, max_sequence_length, vocab_size = probs.shape
-    clean_labels = labels.copy()
-    # The labels are set to -100 for ignored tokens. Since the shape is of
-    # `max_token_length`, many tokens in a particular sample may be ignored if they
-    # don't exist. Similarly, in the case of a decoder-only model, the inputs will
-    # be a part of the sample, so the labels are set to -100 so they are ignored
-    clean_labels[clean_labels == -100] = 0
+    Find the cutoff point in string coresponding to the last token.
 
-    # Create an array of indices for advanced indexing
-    batch_indices = np.arange(batch_size)[:, np.newaxis]
-    sequence_indices = np.arange(max_sequence_length)[np.newaxis, :]
-
-    # Use advanced indexing to extract the logits for the label tokens
-    gold_probs = probs[batch_indices, sequence_indices, clean_labels]
-
-    # Now we set the location of the gold_probs to 0 so we can easily get the
-    # second highest, _non_gold_ probs
-    probs_no_gold = probs.copy()
-    probs_no_gold[batch_indices, sequence_indices, labels] = 0
-    # The probability of the second highest for each token in the sample
-    second_probs = probs_no_gold.max(axis=-1)
-    token_dep = (1 - (gold_probs - second_probs)) / 2
-    return token_dep, gold_probs
-
-
-def unpad_dep_probs_from_labels(
-    token_dep: np.ndarray, token_gold_probs: np.ndarray, labels: np.ndarray
-) -> Tuple[pa.array, pa.array]:
-    """Unpads the incoming numpy array by looking for padded/ignored indices
-
-    Ignored/padded indices are indicated by a -100 in the labels array.
-
-    token_dep, token_gold_probs, and labels are of shape
-    [batch_size, max_token_length], but for each sample in the batch, the tokens
-    for that sample that are ignored are -100 in the labels matrix.
-    So we use that to get only the ones we care about.
-
-    We return a pyarrow array because each batch will have a different shape, which
-    can't be represented in numpy
-
-    NOTE: This function is not actively being used as we don't require the user
-    to pass in labels. However, if we want to support that flow (which would make
-    processing faster and more memory efficient), we can leverage these here.
+    We tokenize the text and truncate after max_tokens tokens, i.e., we only keep the
+    first max_tokens tokens. To find the position in the text corresponding to the
+    last token we use the offset_mapping returned by the tokenizer.
     """
-    batch_deps = []
-    batch_gold_probs = []
-    for batch_token_dep, batch_token_probs, batch_labels in zip(
-        token_dep, token_gold_probs, labels
-    ):
-        batch_deps.append(batch_token_dep[batch_labels != -100])
-        batch_gold_probs.append(batch_token_probs[batch_labels != -100])
+    df_copy = df.copy()
 
-    dep = pa.array(batch_deps)
-    gold_probs = pa.array(batch_gold_probs)
-    return dep, gold_probs
+    @register_function()
+    def _get_position_of_last_offset_input(texts: pa.array) -> np.ndarray:
+        """Tokenize the texts and find the position of the last offset."""
+        offset_mapping = tokenizer(
+            texts.to_pylist(),
+            truncation=True,
+            max_length=max_tokens,
+            return_offsets_mapping=True,
+        )["offset_mapping"]
+        # At least for the T5 tokenizer, the offset_mapping contains an extra offset
+        # (0,0) that is added at the end of the list (even when input = "").
+        # We skip it and take the previous to last element with offsets[-2].
+        input_cut_off = np.array(
+            [offsets[-2][-1] if len(offsets) >= 2 else 0 for offsets in offset_mapping],
+            dtype="int32",
+        )
+        return input_cut_off
+
+    df_copy[S2SIC.input_cutoff.value] = df_copy[
+        text_col
+    ]._get_position_of_last_offset_input()
+    # We materialize to run all data through tokenizer once and avoid running it
+    # multiple times when exporting the df
+    df_copy = df_copy.materialize(S2SIC.input_cutoff.value)
+    return df_copy
+
+
+def add_target_cutoff_to_df(df: DataFrame, target_offsets_col: str) -> DataFrame:
+    """
+    Look at the last offset of the tokenized target to find the position of the last
+    character of the target string that was used by the model.
+    Note that typically the model does not use the entire target during teacher forcing
+    and there is a cut-off point (for example 128 tokens, or 512 tokens, etc).
+    """
+    df_copy = df.copy()
+
+    @register_function()
+    def _get_position_of_last_offset_target(offsets: pa.array) -> np.ndarray:
+        return np.array(
+            [
+                offsets_row[-1][-1].as_py() if len(offsets_row) > 0 else 0
+                for offsets_row in offsets
+            ],
+            dtype="int32",
+        )
+
+    df_copy[S2SIC.target_cutoff.value] = df_copy[
+        target_offsets_col
+    ]._get_position_of_last_offset_target()
+    return df_copy
+
+
+def align_response_tokens_to_character_spans(
+    tokenizer: PreTrainedTokenizerFast,
+    tokenized_response: List[int],
+    max_input_tokens: Optional[int],
+) -> Tuple[AlignedTokenData, str]:
+    """Decodes then re-tokenizes the isolated response to get the character alignments
+
+    TODO This can prob be done with just tokenizing the "target" in isolation!!
+        Specifically, we tokenize the Targets, then we figure out the index
+        of the last token from the tokenized_response and find where that is
+        in the offset map and slice the offset map accordingly.
+        This may also avoid strange space issues with tokenizers hanlding words
+        at the start of a document.
+
+    Return:
+        -------
+        aligned_token_data: AlignedTokenData
+            Aligned token data for a single Response - batch dim = 1.
+        decoded_response: str
+            The string representation of the Response, used as the
+            Target string in the console. Note: we do not remove
+            special characters, so these will appear in the console!
+    """
+    decoded_response = tokenizer.decode(tokenized_response)
+    re_tokenized_response = tokenizer(
+        [decoded_response],
+        return_offsets_mapping=True,
+        add_special_tokens=False,
+        truncation=True,
+        # I believe that this should be handled! We can prob set to None
+        max_length=max_input_tokens,
+    )
+    return (
+        align_tokens_to_character_spans(
+            re_tokenized_response["offset_mapping"], disable_tqdm=True
+        ),
+        decoded_response,
+    )

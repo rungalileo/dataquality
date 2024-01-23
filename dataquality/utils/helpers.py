@@ -133,3 +133,18 @@ def mps_available() -> bool:
         return torch.backends.mps.is_available()
     except Exception:
         return False
+
+
+def has_len(arr: Any) -> bool:
+    """Checks if an array has length
+
+    Array can be list, numpy array, or tensorflow tensor. Tensorflow tensors don't
+    let you call len(), they throw a TypeError so we catch that here and check
+    shape https://github.com/tensorflow/tensorflow/blob/master/tensorflow/...
+    python/framework/ops.py#L929
+    """
+    try:
+        has_len = len(arr) != 0
+    except TypeError:
+        has_len = bool(arr.shape[0])
+    return has_len

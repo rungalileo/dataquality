@@ -24,9 +24,9 @@ Install the package.
 pip install dataquality
 ```
 
-Create an account at [Galileo](https://console.cloud.rungalileo.io/sign-up)
+Create an account at [Galileo](https://{console-url}.rungalileo.io/sign-up)
 
-Grab your [token](https://console.cloud.rungalileo.io/get-token)
+Grab your [token](https://console-url.rungalileo.io/get-token)
 
 Get your dataset and analyze it with `dq.auto`
 (You will be prompted for your token here)

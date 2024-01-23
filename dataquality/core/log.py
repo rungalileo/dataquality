@@ -4,9 +4,6 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
-from transformers import PreTrainedTokenizerFast
-
-from dataquality.loggers.logger_config.seq2seq import seq2seq_logger_config
 
 if TYPE_CHECKING:
     import xgboost as xgb
@@ -32,6 +29,7 @@ from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.helpers import check_noop
+from dataquality.utils.task_helpers import get_task_type
 
 DEFAULT_RANDOM_EMB_DIM = 2
 a = Analytics(ApiClient, config)  # type: ignore
@@ -163,8 +161,6 @@ def log_image_dataset(
         "This method is only supported for image tasks. "
         "Please use dq.log_samples for text tasks."
     )
-
-    # TODO: raise warning if imgs_local is None (and we provide no smart features)
 
     data_logger.log_image_dataset(
         dataset=dataset,
@@ -366,9 +362,9 @@ def log_model_outputs(
     epoch: Optional[int] = None,
     logits: Optional[Union[List, np.ndarray]] = None,
     probs: Optional[Union[List, np.ndarray]] = None,
+    log_probs: Optional[np.ndarray] = None,
     inference_name: Optional[str] = None,
     exclude_embs: bool = False,
-    labels: Optional[np.ndarray] = None,
 ) -> None:
     """Logs model outputs for model during training/test/validation.
 
@@ -389,19 +385,27 @@ def log_model_outputs(
     assert all(
         [config.task_type, config.current_project_id, config.current_run_id]
     ), "You must call dataquality.init before logging data"
+    remove_embs = False
+    if config.task_type in TaskType.get_seq2seq_tasks():
+        # Custom embeddings are optional in seq2seq
+        if embs is None:
+            exclude_embs = True
+            remove_embs = True
+        if log_probs is not None:
+            probs = log_probs
+
     assert (probs is not None) or (
         logits is not None
     ), "You must provide either logits or probs"
-    # No embeddings ever provided by user in seq2seq
-    if config.task_type == TaskType.seq2seq:
-        exclude_embs = True
-        embs = None
+
     assert (embs is None and exclude_embs) or (
         embs is not None and not exclude_embs
     ), "embs can be omitted if and only if exclude_embs is True"
     if embs is None and exclude_embs:
         embs = np.random.rand(len(ids), DEFAULT_RANDOM_EMB_DIM)
 
+    # Note: When `logits` is a very large tensor (e.g. in Seq2Seq)
+    # converting to float32 can take a non-trivial amount of time
     model_logger = get_model_logger(
         task_type=None,
         embs=embs.astype(np.float32) if isinstance(embs, np.ndarray) else embs,
@@ -411,8 +415,8 @@ def log_model_outputs(
         logits=logits.astype(np.float32) if isinstance(logits, np.ndarray) else logits,
         probs=probs.astype(np.float32) if isinstance(probs, np.ndarray) else probs,
         inference_name=inference_name,
-        labels=labels.astype(np.float32) if isinstance(labels, np.ndarray) else labels,
     )
+    model_logger.logger_config.remove_embs = remove_embs
     model_logger.log()
 
 
@@ -553,25 +557,15 @@ def set_tagging_schema(tagging_schema: TaggingSchema) -> None:
 def get_model_logger(
     task_type: Optional[TaskType] = None, *args: Any, **kwargs: Any
 ) -> BaseGalileoModelLogger:
-    task_type = _get_task_type(task_type)
+    task_type = get_task_type(task_type)
     return BaseGalileoModelLogger.get_logger(task_type)(*args, **kwargs)
 
 
 def get_data_logger(
     task_type: Optional[TaskType] = None, *args: Any, **kwargs: Any
 ) -> BaseGalileoDataLogger:
-    task_type = _get_task_type(task_type)
+    task_type = get_task_type(task_type)
     return BaseGalileoDataLogger.get_logger(task_type)(*args, **kwargs)
-
-
-def _get_task_type(task_type: Optional[TaskType] = None) -> TaskType:
-    task = task_type or config.task_type
-    if not task:
-        raise GalileoException(
-            "You must provide either a task_type or first call "
-            "dataqualtiy.init and provide one"
-        )
-    return task
 
 
 def docs() -> None:
@@ -616,25 +610,6 @@ def set_epoch_and_split(
     """
     set_epoch(epoch)
     set_split(split, inference_name)
-
-
-@check_noop
-def set_tokenizer(tokenizer: PreTrainedTokenizerFast) -> None:
-    """Seq2seq only. Set the tokenizer for your run
-
-    Must be a fast tokenizer, and must support `decode`, `encode`, `encode_plus`
-    """
-    task_type = _get_task_type()
-    assert task_type == TaskType.seq2seq, "This method is only supported for seq2seq"
-    assert isinstance(
-        tokenizer, PreTrainedTokenizerFast
-    ), "Tokenizer must be an instance of PreTrainedTokenizerFast"
-    assert getattr(tokenizer, "is_fast", False), "Tokenizer must be a fast tokenizer"
-    for attr in ["encode", "decode", "encode_plus", "padding_side"]:
-        assert hasattr(tokenizer, attr), f"Tokenizer must support `{attr}`"
-    seq2seq_logger_config.tokenizer = tokenizer
-    # Seq2Seq doesn't have labels but we need to set this to avoid validation errors
-    seq2seq_logger_config.labels = []
 
 
 @check_noop

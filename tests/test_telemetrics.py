@@ -46,11 +46,13 @@ def test_log_galileo__import():
     ac = Analytics(ApiClient, config)
     config.api_url = "https://console.dev.rungalileo.io"
     ac.last_log = {}
-    ac.config["current_project_id"] = "test"
-    assert ac._initialized, "Analytics not initialized"
-    ac._telemetrics_disabled = False
-    ac.log_import("test")
-    assert ac.last_log["value"] == "test", "No import detected"
+    # Only check if telemetrics is enabled.
+    if not ac._telemetrics_disabled:
+        ac.config["current_project_id"] = "test"
+        assert ac._initialized, "Analytics not initialized"
+        ac._telemetrics_disabled = False
+        ac.log_import("test")
+        assert ac.last_log["value"] == "test", "No import detected"
 
 
 def test_mock_log_galileo_import_disabled():

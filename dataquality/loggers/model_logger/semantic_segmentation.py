@@ -58,7 +58,6 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
         split: str = "",
         epoch: Optional[int] = None,
         inference_name: Optional[str] = None,
-        labels: Optional[np.ndarray] = None,
     ) -> None:
         """Takes in SemSeg inputs as a list of batches
 
@@ -178,7 +177,9 @@ class SemanticSegmentationModelLogger(BaseGalileoModelLogger):
                 mislabeled_class_pcts.append(
                     polygon.cls_error_data.mislabeled_class_pct
                 )
-                write_polygon_contours_to_disk(polygon, self.local_contours_path)
+                write_polygon_contours_to_disk(
+                    polygon, self.local_contours_path, image_id
+                )
                 polygon_ids.append(polygon.uuid)
 
         polygon_data = {

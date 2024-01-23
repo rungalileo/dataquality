@@ -2,6 +2,7 @@ from typing import Callable, Dict, Optional
 
 import pandas as pd
 import pytest
+import torch
 import xgboost as xgb
 from sklearn.datasets import load_wine
 from sklearn.model_selection import train_test_split
@@ -62,3 +63,8 @@ def create_logger(tab_data: Dict, fit_xgboost: xgb.XGBClassifier) -> Callable:
         )
 
     return curry
+
+
+@pytest.fixture
+def seq2seq_generated_sample_output() -> torch.Tensor:
+    return torch.tensor([[1, 2, 3, 4, 5, 6]])

@@ -19,15 +19,23 @@ dataquality.integrations.transformers_trainer
     :show-inheritance:
     :member-order: bysource
 
-dataquality.integrations.keras
+dataquality.integrations.lightning
 -----------
-.. automodule:: dataquality.integrations.keras
+.. automodule:: dataquality.integrations.lightning
+    :members: LightningDQCallback
+    :show-inheritance:
+    :member-order: bysource
+
+
+dataquality.integrations.legacy.keras
+-----------
+.. automodule:: dataquality.integrations.legacy.keras
     :members: 
     :show-inheritance:
 
-dataquality.integrations.experimental.keras
+dataquality.integrations.keras
 -----------
-.. automodule:: dataquality.integrations.experimental.keras
+.. automodule:: dataquality.integrations.keras
     :members: watch, unwatch
     :show-inheritance:
     :member-order: bysource
@@ -58,6 +66,13 @@ dataquality.integrations.setfit
 -----------
 .. automodule:: dataquality.integrations.setfit
     :members: watch, unwatch, auto
+    :show-inheritance:
+    :member-order: bysource
+
+dataquality.integrations.jsl
+-----------
+.. automodule:: dataquality.integrations.jsl
+    :members: JSLProject
     :show-inheritance:
     :member-order: bysource
 

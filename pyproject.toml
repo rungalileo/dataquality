@@ -11,7 +11,7 @@ name = "dataquality"
 dynamic = ["version"]
 readme = "README.md"
 license = {text = 'See LICENSE'}
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 dependencies = [
     "pydantic>=1.8.2,<2.0.0",
     "requests>=2.25.1",
@@ -28,7 +28,7 @@ dependencies = [
     "scipy>=1.7.0",
     "cachetools>=4.2.4",
     "importlib-metadata<6.0.1",
-    "datasets>=2.6",
+    "datasets>=2.14.6",
     "transformers>=4.17.0",
     "seqeval",
     "sentence-transformers>=2.2",
@@ -39,6 +39,11 @@ dependencies = [
     "evaluate",
     "accelerate",
     "ipywidgets>=8.1.0",
+    "imagededup>=0.3.1",
+    "pyjwt>=2.8.0",
+    "peft",
+    # Pin opencv for linting incompatibility
+    "opencv-python<=4.8.1.78",
 ]
 [[project.authors]]
 name = "Galileo Technologies, Inc."
@@ -62,13 +67,13 @@ doc = [
     "sphinx-markdown-builder"
 ]
 test = [
-    "ultralytics",
+    "ultralytics>=8.0.209",
     "pytest>=7.2.1",
     "freezegun>=1.2.2",
     "coverage[toml]>=7.0.5",
     "pytest-cov>=4.0.0",
     "scikit-learn>=1.0",
-    "tensorflow>=2.9.1,<2.13.0",
+    "tensorflow>=2.9.1",
     "pytest-env>=0.8.1",
     "pytest-xdist>=2.4.0",
     "types-setuptools>=67.3.0.1",
@@ -82,10 +87,11 @@ test = [
     "fastai>=2.7.11",
     "portalocker==2.7.0",
     "types-PyYAML==6.0.12.9",
-    "setfit",
+    "setfit==0.7.0",
     "accelerate>=0.19.0",
     "typing-inspect==0.8.0",
-    "typing-extensions==4.0.0",
+    "typing-extensions==4.0.1",
+    "lightning",
 ]
 dev = [
     "mypy>=1.0.0",
@@ -108,14 +114,8 @@ cuda = [
 minio = [
     "minio>=7.1.0,<7.2.0"
 ]
-py37 = [
-    "cachetools>=5.2.0",
-    "types-cachetools>=5.3.0.0",
-    "importlib-metadata<5.0.0",
-    "timm<=0.6.13",
-]
 setfit = [
-    "setfit"
+    "setfit==0.7.0"
 ]
 
 [tool.setuptools.dynamic]

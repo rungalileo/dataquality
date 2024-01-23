@@ -3,13 +3,15 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from urllib.parse import urljoin
 
 import torch
+import ultralytics
+from pkg_resources import parse_version
 from torchvision.ops.boxes import box_convert
 from ultralytics import YOLO, checks
-from ultralytics.yolo.engine.predictor import BasePredictor
-from ultralytics.yolo.engine.trainer import BaseTrainer
-from ultralytics.yolo.engine.validator import BaseValidator
-from ultralytics.yolo.utils.ops import scale_boxes
-from ultralytics.yolo.utils.tal import dist2bbox, make_anchors
+from ultralytics.engine.predictor import BasePredictor
+from ultralytics.engine.trainer import BaseTrainer
+from ultralytics.engine.validator import BaseValidator
+from ultralytics.utils.ops import scale_boxes
+from ultralytics.utils.tal import dist2bbox, make_anchors
 
 import dataquality as dq
 from dataquality import get_data_logger
@@ -24,6 +26,13 @@ from dataquality.utils.dqyolo import CONF_DEFAULT, IOU_DEFAULT
 from dataquality.utils.ultralytics import non_max_suppression, process_batch_data
 
 checks()
+
+if parse_version(ultralytics.__version__) < parse_version("8.0.190"):
+    raise GalileoException(
+        "This version of dqyolo is not compatible with ultralytics below 8.0.190."
+        "Please upgrade ultralytics with `pip install --upgrade ultralytics==8.0.190` "
+        "or higher."
+    )
 
 Coordinates = Union[Tuple, List]
 
@@ -149,6 +158,7 @@ class Callback:
 
     split: Optional[Split]
     file_map: Dict
+    model: YOLO
 
     def __init__(
         self,
@@ -336,6 +346,7 @@ class Callback:
             "Please use dq.log_dataset for text tasks."
         )
         split = data_logger.logger_config.cur_split
+
         assert split
         data_logger.log_dataset(ds, split=split)
 
@@ -384,7 +395,8 @@ class Callback:
         """
         self.split = Split.training
         self.trainer = trainer
-        self.register_hooks(trainer.model)
+        model = trainer.model or self.model
+        self.register_hooks(model.model)
         self.bl = BatchLogger(trainer.preprocess_batch)
         trainer.preprocess_batch = self.bl
 
@@ -395,15 +407,15 @@ class Callback:
         trainer.preprocess_batch = self.bl.old_function
 
     # -- Validator callbacks --
-
     def on_val_batch_start(self, validator: BaseValidator) -> None:
         """Register hooks and preprocess batch function on validation start
 
         :param validator: the validator"""
         self.split = Split.validation
         self.validator = validator
+        model = self.model
         if not self.hooked:
-            self.register_hooks(validator.model.model)
+            self.register_hooks(model.model)
             self.bl = BatchLogger(validator.preprocess)
             validator.preprocess = self.bl
             self.hooked = True
@@ -418,8 +430,9 @@ class Callback:
         :param predictor: the predictor"""
         self.split = Split.inference
         self.predictor = predictor
+        model = predictor.model or self.model
         if not self.hooked:
-            self.register_hooks(predictor.model.model)
+            self.register_hooks(model.model)
             # Not implemnted self.bl = BatchLogger(lambda x: x)
 
     def on_predict_batch_end(self, predictor: BasePredictor) -> None:
@@ -465,4 +478,5 @@ def watch(
         iou_thresh=iou_thresh,
         conf_thresh=conf_thresh,
     )
+    cb.model = model
     add_callback(model, cb)

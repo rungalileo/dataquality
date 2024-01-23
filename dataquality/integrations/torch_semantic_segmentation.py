@@ -1,5 +1,7 @@
 import json
 import os
+import warnings
+from collections import defaultdict
 from tempfile import NamedTemporaryFile
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
@@ -15,7 +17,7 @@ from dataquality import config
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
 from dataquality.clients.objectstore import ObjectStore
-from dataquality.exceptions import GalileoException
+from dataquality.exceptions import GalileoException, GalileoWarning
 from dataquality.integrations.torch import TorchLogger, unwatch
 from dataquality.loggers.model_logger.semantic_segmentation import (
     SemanticSegmentationModelLogger,
@@ -468,6 +470,18 @@ class SemanticTorchLogger(TorchLogger):
     def upload_contours_split(self, split: str) -> None:
         """Uploads all contours for a given split to minio
 
+        Structure of the contours.json file:
+        {
+            image_id: {
+                polygon_uuid: contours
+                polygon_uuid2: contours
+            }
+            image_id2: {
+                polygon_uuid3: contours
+                polygon_uuid4: contours
+            }
+        }
+
         Args:
             split (str): split name
         """
@@ -476,14 +490,31 @@ class SemanticTorchLogger(TorchLogger):
         local_contour_path = f"{project_path}/{config.current_run_id}/{split}/contours"
 
         files = os.listdir(local_contour_path)
-        all_contours = {}
-        for file in files:
-            with open(f"{local_contour_path}/{file}") as f:
-                contours = json.load(f)
+        image_to_contours_map: Dict = defaultdict(dict)
+        for fname in files:
+            pth = f"{local_contour_path}/{fname}"
+            with open(pth) as f:
+                # Dict image_id -> contours for a single polygon in the image
+                image_to_contours_single_polygon = json.load(f)
+                if not all(
+                    [
+                        isinstance(image_to_contours_single_polygon, dict),
+                        len(image_to_contours_single_polygon) > 0,
+                    ]
+                ):
+                    warnings.warn(
+                        f"Unable to load contours for {pth}, skipping.",
+                        GalileoWarning,
+                    )
+                    continue
+
+                image_id = list(image_to_contours_single_polygon.keys())[0]
+                contours = image_to_contours_single_polygon[image_id]
                 # uuid is the key for each contour from the polygon schema
-                all_contours[file.replace(".json", "")] = contours
+                polygon_uuid = fname.replace(".json", "")
+                image_to_contours_map[image_id][polygon_uuid] = contours
         with NamedTemporaryFile(mode="w+", delete=False) as temp_file:
-            json.dump(all_contours, temp_file)
+            json.dump(image_to_contours_map, temp_file)
 
         obj_name = f"{model_logger.proj_run}/{split}/contours/contours.json"
         object_store.create_object(

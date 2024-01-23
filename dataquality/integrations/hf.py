@@ -97,8 +97,7 @@ def _validate_dataset(dd: DatasetDict) -> DatasetDict:
             f"If this is a dataset, you can create a dataset dict by running\n"
             "dd = datasets.DatasetDict({'your_split': your_Dataset})"
         )
-    for key in dd.keys():
-        ds = dd[key]
+    for key, ds in dd.items():
         # Filter out the samples with no tokens
         ds = ds.filter(lambda row: len(row[HFCol.tokens]) != 0)
         # Non-inference split must have ner_tags or tags column (the labels)

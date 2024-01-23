@@ -1,10 +1,10 @@
 """Internal functions to help Galileans"""
-import dataquality.metrics
+from typing import Dict
+
 from dataquality import config
 from dataquality.clients.api import ApiClient
 from dataquality.exceptions import GalileoException
 from dataquality.schemas import RequestType, Route
-from dataquality.schemas.task_type import TaskType
 
 api_client = ApiClient()
 
@@ -27,52 +27,25 @@ def reprocess_run(
         fire and forget your process. Default True
     """
     project, run = api_client._get_project_run_id(project_name, run_name)
-    task_type = api_client.get_task_type(project, run)
+    api_client.get_task_type(project, run)
 
-    tasks = []
-    ner_labels = []
-    try:
-        labels = api_client.get_labels_for_run(project_name, run_name)
-    except GalileoException as e:
-        if "No data found" in str(e):
-            e = GalileoException(
-                f"It seems no data is available for run " f"{project_name}/{run_name}"
-            )
-        raise e from None
-    # There were no labels available for this run
-    except KeyError:
+    job = api_client.get_run_status(project_name, run_name)
+    if not job:
         raise GalileoException(
-            "It seems we cannot find the labels for this run. This means "
+            "It seems we cannot find the job for this run. This means "
             "that the run cannot be reprocessed, because it likely was never processed "
             "to begin with. Please call dq.init() and re-train your model "
         ) from None
-    # Multi-label has tasks and List[List] for labels
-    if task_type == TaskType.text_multi_label:
-        tasks = api_client.get_tasks_for_run(project_name, run_name)
-    if task_type == TaskType.text_ner:
-        # In NER, dq.metrics.get_labels_for_run will return the _full_ label set in NER
-        # form (ie B-PER, I-PER, O-PER, B-LOC, etc) which is needed for processing
-        ner_labels = dataquality.metrics.get_labels_for_run(project_name, run_name)
+
     if alerts:
         api_client.delete_alerts(project_name, run_name)
-    body = dict(
-        project_id=str(project),
-        run_id=str(run),
-        labels=labels,
-        tasks=tasks or None,
-        task_type=task_type,
-        ner_labels=ner_labels,
-        xray=alerts,
-        # We set the job name to inference and non_inference_logged to True because
-        # This will force the server to first reprocess the non-inference splits,
-        # and then reprocess all of the inference splits. If there are no inference
-        # splits, this will still work as expected, inference will just be skipped
-        job_name="inference",
-        process_existing_inference_runs=True,
-        non_inference_logged=True,
-    )
+
+    job_data: Dict = job["request_data"]
+    # We need to remove the job_id from the job_data since the server will
+    # generate a new one
+    job_data.pop("job_id")
     res = api_client.make_request(
-        RequestType.POST, url=f"{config.api_url}/{Route.jobs}", body=body
+        RequestType.POST, url=f"{config.api_url}/{Route.jobs}", body=job_data
     )
     print(
         f"Job {res['job_name']} successfully resubmitted. New results will be "
@@ -98,3 +71,16 @@ def rename_run(project_name: str, run_name: str, new_name: str) -> None:
         f"Successfully renamed run {project_name}/{run_name} to "
         f"{project_name}/{new_name}"
     )
+
+
+def rename_project(project_name: str, new_name: str) -> None:
+    """Renames a project
+
+    Useful if a project was named incorrectly, or if a project was created with a
+    temporary name and needs to be renamed to something more permanent
+
+    :param project_name: The name of the project
+    :param new_name: The new name to assign to the project
+    """
+    api_client.update_project_name(project_name, new_name)
+    print(f"Successfully renamed project {project_name} to " f"{new_name}")

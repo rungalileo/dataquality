@@ -3,10 +3,18 @@ from functools import partial
 from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 import tensorflow as tf
-from keras.engine import data_adapter
+from pkg_resources import parse_version
+
+try:
+    from keras.engine import data_adapter  # type: ignore
+except ImportError:
+    from tensorflow.python.distribute import input_lib
+    from tensorflow.python.keras.engine import data_adapter  # type: ignore
+
 from tensorflow import keras
 
 from dataquality.exceptions import GalileoException
+from dataquality.utils.patcher import Patch
 from dataquality.utils.tf import is_tf_2
 
 # If this is TF 1.x
@@ -247,3 +255,28 @@ def add_indices(dataset: Union[tf.data.Dataset, tf.Tensor]) -> tf.data.Dataset:
     if batch_size:
         zip_ds = zip_ds.batch(batch_size)
     return zip_ds
+
+
+class FixDistributedDatasetPatch(Patch):
+    """Fixes the dataset patch in TensorFlow 2.13.0"""
+
+    def __init__(self) -> None:
+        # check if tensorflow version is above 2.13.0
+        if parse_version(tf.__version__) < parse_version("2.13.0"):
+            self.patch_needed = False
+        else:
+            self.patch_needed = True
+            self.orgin_fn = data_adapter._is_distributed_dataset
+
+    def __call__(self, ds: tf.data.Dataset) -> bool:
+        return isinstance(ds, input_lib.distribute_types.DistributedDatasetInterface)
+
+    def _patch(self) -> tf.data.Dataset:
+        if not self.patch_needed:
+            return
+        data_adapter._is_distributed_dataset = self.__call__
+
+    def _unpatch(self) -> tf.data.Dataset:
+        if not self.patch_needed:
+            return
+        data_adapter._is_distributed_dataset = self.orgin_fn

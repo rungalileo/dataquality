@@ -4,7 +4,7 @@ import sys
 from typing import Dict
 
 from ultralytics import YOLO
-from ultralytics.yolo.utils import get_settings
+from ultralytics.utils import SettingsManager
 
 import dataquality as dq
 from dataquality.integrations.ultralytics import watch
@@ -37,7 +37,8 @@ def main() -> None:
 
     validate_args(sys.argv)
     original_cmd = sys.argv[1:]
-    runs_dir = get_settings().get("runs_dir") or input(
+    settings = SettingsManager()
+    runs_dir = settings.get("runs_dir") or input(
         "Enter runs dir default. For example home/runs"
     )
     run_path_glob = str(runs_dir) + "/detect/train*"

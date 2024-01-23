@@ -3,16 +3,60 @@ import os
 import re
 import warnings
 from datetime import datetime
-from random import choice
-from typing import Dict, List, Optional, Union
+from typing import Dict, Iterable, List, Optional, Set, Union
 
 import pandas as pd
 from datasets import ClassLabel, Dataset, DatasetDict, load_dataset
 
+from dataquality.dq_auto.schema import BaseAutoDatasetConfig
 from dataquality.exceptions import GalileoException, GalileoWarning
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.name import BAD_CHARS_REGEX
+
+
+def sample_dataset_dict(
+    dd: DatasetDict,
+    dataset_config: BaseAutoDatasetConfig,
+    max_train_size: Optional[int] = None,
+) -> DatasetDict:
+    """Samples the dataset dict to the max train size
+
+    A few important notes:
+    - If max train size is greater than the dataset size, we don't sample
+    - If max train size is None we also don't sample
+    - We set max eval size to be 25% of max train size
+    - Test and inference data are not sampled
+    """
+    max_train_sz = max_train_size or dataset_config.formatter.max_train_size
+    if not max_train_sz:
+        return dd
+
+    max_eval_sz = int(max_train_sz * 0.25)
+    for split, dataset in dd.items():
+        sampled_size = len(dataset)
+        if Split[split] == Split.training:
+            sampled_size = min(sampled_size, max_train_sz)
+        elif Split[split] == Split.validation:
+            sampled_size = min(sampled_size, max_eval_sz)
+
+        if len(dataset) > sampled_size:
+            # Slice the dataset to the max size
+            dataset = dataset.select(range(sampled_size))
+            dd[split] = dataset
+
+    return dd
+
+
+def get_meta_cols(
+    cols: Iterable, reserved_cols: Optional[Set[str]] = None
+) -> List[str]:
+    """Returns the meta columns of a dataset."""
+    reserved_cols = reserved_cols or set()
+    default_cols = {"text", "label", "id"}
+    default_cols = set(reserved_cols).union(default_cols)
+    meta_columns = [col for col in cols if col not in default_cols]
+    return list(meta_columns)
 
 
 def load_data_from_str(data: str) -> Union[pd.DataFrame, Dataset]:
@@ -33,6 +77,9 @@ def load_data_from_str(data: str) -> Union[pd.DataFrame, Dataset]:
             f"DatasetDict, consider passing it to `hf_data` (dq.auto(hf_data=data))"
         )
         return ds
+    elif ext == ".jsonl":
+        # If it's a jsonl file, we load it as a pandas dataframe
+        return pd.read_json(data, lines=True)
     else:
         # .csv -> read_csv, .parquet -> read_parquet
         func = f"read_{ext.lstrip('.')}"
@@ -44,32 +91,9 @@ def load_data_from_str(data: str) -> Union[pd.DataFrame, Dataset]:
         return getattr(pd, func)(data)
 
 
-def try_load_dataset_dict(
-    demo_datasets: List[str],
-    hf_data: Optional[Union[DatasetDict, str]] = None,
-    train_data: Optional[Union[pd.DataFrame, Dataset, str]] = None,
-) -> Optional[DatasetDict]:
-    """Tries to load the DatasetDict if available
-
-    If the user provided the hf_data param we load it from huggingface
-    If they provided nothing, we load the demo dataset
-    Otherwise, we return None, because the user provided train/test/val data, and that
-    requires task specific processing
-    """
-    if all([hf_data is None, train_data is None]):
-        hf_data = choice(demo_datasets)
-        print(f"No dataset provided, using {hf_data} for run")
-    if hf_data:
-        ds = load_dataset(hf_data) if isinstance(hf_data, str) else hf_data
-        assert isinstance(ds, DatasetDict), (
-            "hf_data must be a path to a huggingface DatasetDict in the hf hub or a "
-            "DatasetDict object. If this is just a Dataset, pass it to `train_data`"
-        )
-        return ds
-    return None
-
-
-def add_val_data_if_missing(dd: DatasetDict) -> DatasetDict:
+def add_val_data_if_missing(
+    dd: DatasetDict, task_type: Optional[TaskType] = None
+) -> DatasetDict:
     """Splits user provided training data if missing
 
     We need validation data in order to train a model properly, and it's required to
@@ -92,12 +116,15 @@ def add_val_data_if_missing(dd: DatasetDict) -> DatasetDict:
     )
     ds_train = dd[Split.train]
     label_col: Optional[str]
-    for label_col in ["tags", "ner_tags", "label"]:
-        if label_col in ds_train.features:
+    for col in ["tags", "ner_tags", "label"]:
+        if col in ds_train.features:
+            label_col = col
             break
-    assert label_col in ds_train.features, "Must have label, ner_tags, or tags"
-    # Can only stratify by a ClassLabel
-    is_classlabel = isinstance(ds_train.features[label_col], ClassLabel)
+    is_classlabel = False
+    if task_type and task_type != TaskType.seq2seq:
+        assert label_col in ds_train.features, "Must have label, ner_tags, or tags"
+        # Can only stratify by a ClassLabel
+        is_classlabel = isinstance(ds_train.features[label_col], ClassLabel)
     ds_train_test = ds_train.train_test_split(
         train_size=0.8, seed=42, stratify_by_column=label_col if is_classlabel else None
     )

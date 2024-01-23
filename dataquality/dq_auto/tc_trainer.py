@@ -38,8 +38,9 @@ except ImportError:
 def preprocess_function(
     input_data: Dataset, tokenizer: PreTrainedTokenizerBase, max_length: int
 ) -> BatchEncoding:
+    # Delay padding until batching - allowing for dynamic padding
     return tokenizer(
-        input_data["text"], padding="max_length", max_length=max_length, truncation=True
+        input_data["text"], padding=False, max_length=max_length, truncation=True
     )
 
 
@@ -103,7 +104,7 @@ def get_trainer(
         args=args,
         train_dataset=encoded_datasets[Split.train],  # type: ignore
         eval_dataset=encoded_datasets.get(Split.validation),  # type: ignore
-        tokenizer=tokenizer,
+        tokenizer=tokenizer,  # Ensures we use hf's default DataCollatorWithPadding
         compute_metrics=compute_metrics_partial,
         callbacks=callbacks,
     )
