@@ -1,7 +1,6 @@
 # Imports for the hook manager
 from typing import Any, Callable, Dict, Optional
 from warnings import warn
-from dataquality.core.log import get_data_logger
 
 from datasets import Dataset
 from torch.nn import Module
@@ -13,6 +12,7 @@ from transformers.training_args import TrainingArguments
 import dataquality as dq
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
+from dataquality.core.log import get_data_logger
 from dataquality.exceptions import GalileoException
 from dataquality.integrations.torch import TorchBaseInstance
 from dataquality.schemas.split import Split
@@ -77,6 +77,7 @@ class DQTrainerCallback(TrainerCallback, TorchBaseInstance, Patch):
         self.logits_fn = logits_fn
         self._init_dimension(embedding_dim, logits_dim)
         self.trainer = trainer
+        self.logger_config = get_data_logger().logger_config
 
     def _do_log(self) -> None:
         """Log the model outputs (called by the hook)"""
@@ -93,6 +94,16 @@ class DQTrainerCallback(TrainerCallback, TorchBaseInstance, Patch):
             "`ds= dataset.map(lambda x, idx: {'id': idx}, with_indices=True)`\n"
             "id (index) column is needed in the dataset for logging"
         )
+        if (
+            self.logger_config.gradient_accumulation
+            and len(self.model_outputs_store.logits)
+            == len(self.model_outputs_store.embs)
+            and len(self.model_outputs_store.logits)
+            == len(self.model_outputs_store.ids)
+        ):
+            self.model_outputs_store.ids = self.model_outputs_store.ids[
+                : len(self.model_outputs_store.logits)
+            ]
 
         # 🔭🌕 Galileo logging
         dq.log_model_outputs(**self.model_outputs_store.to_dict())
@@ -293,7 +304,7 @@ def watch(
     embedding_fn: Optional[Callable] = None,
     logits_fn: Optional[Callable] = None,
     last_hidden_state_layer: Optional[Layer] = None,
-    dataloader_random_sampling: bool = False
+    dataloader_random_sampling: bool = False,
 ) -> None:
     """*Hook* into to the **trainer** to log to Galileo.
     :param trainer: Trainer object from the transformers library
@@ -319,6 +330,8 @@ def watch(
     assert trainer.args.n_gpu <= 1, GalileoException(
         "Parallel GPUs are not supported. TrainingArguments.n_gpu should be set to 1"
     )
+    if trainer.args.gradient_accumulation_steps > 1:
+        logger_config.gradient_accumulation = True
     dqcallback = DQTrainerCallback(
         trainer=trainer,
         last_hidden_state_layer=last_hidden_state_layer,
