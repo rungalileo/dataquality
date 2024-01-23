@@ -41,7 +41,7 @@ class Route(str, Enum):
     token = "get-token"
     upload_file = "upload_file"
     upload_model = "upload_model"
-    model = "model_upload_complete"
+    model = "model"
     link = "link"
 
     @staticmethod
