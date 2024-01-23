@@ -102,11 +102,27 @@ class DQTrainerCallback(TrainerCallback, TorchBaseInstance, Patch):
             and len(self.model_outputs_store.logits)
             != len(self.model_outputs_store.ids)
         ):
-            
-            self.model_outputs_store.ids = self.model_outputs_store.ids[
-                : len(self.model_outputs_store.logits)
-            ]
-            
+            print("logits, embs, ids, grad_acc")
+            print(
+                len(self.model_outputs_store.logits),
+                len(self.model_outputs_store.embs),
+                len(self.model_outputs_store.ids),
+                len(self.torch_helper_data.gradient_accumulation_ids),
+            )
+            if len(self.model_outputs_store.ids) > len(self.model_outputs_store.logits):
+                saved_ids = self.model_outputs_store.ids[
+                    len(self.model_outputs_store.logits) :
+                ]
+                self.model_outputs_store.ids = self.model_outputs_store.ids[
+                    : len(self.model_outputs_store.logits)
+                ]
+                self.torch_helper_data.gradient_accumulation_ids = saved_ids
+            else:
+                self.model_outputs_store.ids = (
+                    self.torch_helper_data.gradient_accumulation_ids
+                    + self.model_outputs_store.ids
+                )
+                self.torch_helper_data.gradient_accumulation_ids = []
 
         # 🔭🌕 Galileo logging
         dq.log_model_outputs(**self.model_outputs_store.to_dict())
@@ -307,7 +323,6 @@ def watch(
     embedding_fn: Optional[Callable] = None,
     logits_fn: Optional[Callable] = None,
     last_hidden_state_layer: Optional[Layer] = None,
-    dataloader_random_sampling: bool = False,
 ) -> None:
     """*Hook* into to the **trainer** to log to Galileo.
     :param trainer: Trainer object from the transformers library
@@ -323,7 +338,6 @@ def watch(
     a.log_function("transformers_trainer/watch")
     helper_data = dq.get_model_logger().logger_config.helper_data
     logger_config = get_data_logger().logger_config
-    logger_config.dataloader_random_sampling = dataloader_random_sampling
     torch_helper_data = TorchHelper()
     helper_data["torch_helper"] = torch_helper_data
     # Callback which we add to the trainer
