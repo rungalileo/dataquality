@@ -335,9 +335,6 @@ def watch(
     )
     if trainer.args.gradient_accumulation_steps > 1:
         logger_config.gradient_accumulation = True
-        print("Added gradient_accumulation")
-    else:
-        print("gradient_accumulation not added")
     dqcallback = DQTrainerCallback(
         trainer=trainer,
         last_hidden_state_layer=last_hidden_state_layer,
