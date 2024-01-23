@@ -101,6 +101,7 @@ class DQTrainerCallback(TrainerCallback, TorchBaseInstance, Patch):
             and len(self.model_outputs_store.logits)
             == len(self.model_outputs_store.ids)
         ):
+            print("Gradient accumulation caused inequal logged data lenghts")
             self.model_outputs_store.ids = self.model_outputs_store.ids[
                 : len(self.model_outputs_store.logits)
             ]
@@ -332,6 +333,9 @@ def watch(
     )
     if trainer.args.gradient_accumulation_steps > 1:
         logger_config.gradient_accumulation = True
+        print("Added gradient_accumulation")
+    else:
+        print("gradient_accumulation not added")
     dqcallback = DQTrainerCallback(
         trainer=trainer,
         last_hidden_state_layer=last_hidden_state_layer,
