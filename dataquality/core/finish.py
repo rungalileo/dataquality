@@ -41,14 +41,11 @@ def finish(
         `data view` tab of the Galileo console. You can also access these embeddings
         via dq.metrics.get_data_embeddings(). Default True if a GPU is
         available, else default False.
-<<<<<<< HEAD
-    :param upload_model: If True, the model will be stored in the galileo project.
-=======
     :param data_embs_col: Optional text col on which to compute data embeddings.
         If not set, we default to 'text' which corresponds to the input text.
         Can also be set to `target`, `generated_output` or any other column that is
         logged as metadata.
->>>>>>> main
+    :param upload_model: If True, the model will be stored in the galileo project.
     """
     a.log_function("dq/finish")
     if create_data_embs is None:
