@@ -37,6 +37,7 @@ class BaseLoggerConfig(BaseModel):
     # True when calling `init` with a run that already exists
     existing_run: bool = False
     dataloader_random_sampling: bool = False
+    # model_config = ConfigDict(validate_assignment=True)
     remove_embs: bool = False
 
     model_config = ConfigDict(validate_assignment=True)

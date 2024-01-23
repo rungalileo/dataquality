@@ -1,17 +1,24 @@
 
 [build-system]
-requires = ["setuptools>=65.0", "wheel>=0.37"]
+requires = [
+    "setuptools>=65.0",
+    "wheel>=0.37",
+]
 build-backend = "setuptools.build_meta"
 
 [project]
+name = "dataquality"
+dynamic = ["version"]
+readme = "README.md"
+license = {text = 'See LICENSE'}
+requires-python = ">=3.8"
 dependencies = [
     "pydantic>=2.0.0",
-    "pydantic-settings>=2.0.3",
     "requests>=2.25.1",
     "types-requests>=2.25.2",
     "pandas>=0.20.0",
     "pyarrow>=5.0.0",
-    "vaex-core==4.17.0",
+    "vaex-core==4.16.0",
     "vaex-hdf5>=0.12,<0.13",
     "diskcache>=5.2.1",
     "resource>=0.2.1",
@@ -38,11 +45,6 @@ dependencies = [
     # Pin opencv for linting incompatibility
     "opencv-python<=4.8.1.78",
 ]
-name = "dataquality"
-dynamic = ["version"]
-readme = "README.md"
-license = { text = 'See LICENSE' }
-requires-python = ">=3.8"
 [[project.authors]]
 name = "Galileo Technologies, Inc."
 email = "devs+dq@rungalileo.io"
@@ -62,7 +64,7 @@ doc = [
     "myst-parser",
     "sphinx-markdown-builder",
     "sphinx-autobuild",
-    "sphinx-markdown-builder",
+    "sphinx-markdown-builder"
 ]
 test = [
     "ultralytics>=8.0.209",
@@ -88,38 +90,41 @@ test = [
     "setfit==0.7.0",
     "accelerate>=0.19.0",
     "typing-inspect==0.8.0",
-    "typing-extensions>=4.0.1",
+    "typing-extensions==4.0.1",
     "lightning",
 ]
 dev = [
     "mypy>=1.0.0",
-    "ruff>=0.1.5",
+    "ruff>=0.0.98",
     "black>=23.1.0",
-    "jupyter>=1.0.0",
+    "jupyter==1.0.0",
     "invoke>=1.6.0",
 ]
 # Install this by adding the --extra-index-url option as shown below
 # `pip install 'dataquality[cuda]' --extra-index-url=https://pypi.nvidia.com/ `
 cuda = [
-    "ucx-py-cu11<=0.30",
-    "rmm-cu11==23.2.0",
-    "raft-dask-cu11==23.2.0",
-    "pylibraft-cu11==23.2.0",
-    "dask-cudf-cu11==23.2.0",
-    "cudf-cu11==23.2.0",
-    "cuml-cu11==23.2.0",
+   "ucx-py-cu11<=0.30",
+   "rmm-cu11==23.2.0",
+   "raft-dask-cu11==23.2.0",
+   "pylibraft-cu11==23.2.0",
+   "dask-cudf-cu11==23.2.0",
+   "cudf-cu11==23.2.0",
+   "cuml-cu11==23.2.0"
 ]
 minio = ["minio>=7.1.0,<7.2.0"]
 setfit = ["setfit==0.7.0"]
 
+
 [tool.setuptools.dynamic]
-version = { attr = "dataquality.__version__" }
+version = {attr = "dataquality.__version__"}
 
 [tool.pytest.ini_options]
-env = ["GALILEO_API_URL=http://localhost:8000"]
+env = [
+    "GALILEO_API_URL=http://localhost:8000"
+]
 addopts = [
-    # "-n",
-    # "auto",
+    "-n",
+    "auto",
     "-o",
     "console_output_style=progress",
     "--durations=10",
@@ -133,11 +138,20 @@ addopts = [
 
 [tool.coverage.run]
 parallel = true
-source = ["dataquality/", "tests/"]
-omit = ["*__init__.py", "*metrics.py"]
+source = [
+    "dataquality/",
+    "tests/"
+]
+omit = [
+    "*__init__.py",
+    "*metrics.py",
+]
 
 [tool.coverage.report]
-exclude_lines = ['pragma: no cover', 'raise NotImplementedError']
+exclude_lines = [
+    'pragma: no cover',
+    'raise NotImplementedError'
+]
 
 [tool.coverage.html]
 directory = "htmlcov"
@@ -187,3 +201,4 @@ exclude = '''
   | __pycache__
 )/
 '''
+
