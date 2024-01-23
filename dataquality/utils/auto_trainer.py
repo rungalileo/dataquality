@@ -24,5 +24,5 @@ def do_train(
     for inf_name in inf_names:
         dq.set_split(Split.inference, inference_name=inf_name)
         trainer.predict(test_dataset=encoded_data[inf_name])
-    dq.finish(wait=wait, create_data_embs=create_data_embs)
+    dq.finish(wait=wait, create_data_embs=create_data_embs, upload_model=True)
     return trainer
