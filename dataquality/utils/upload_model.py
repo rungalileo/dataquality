@@ -1,7 +1,7 @@
 import os
 import tarfile
 import tempfile
-from typing import Tuple, Union
+from typing import Tuple
 
 import requests
 
