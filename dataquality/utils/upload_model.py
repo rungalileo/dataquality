@@ -1,6 +1,7 @@
 import os
 import tarfile
 import tempfile
+from typing import Tuple, Union
 
 import requests
 
@@ -23,7 +24,7 @@ def create_tar_archive(source_folder: str, output_filename: str) -> None:
             archive.add(full_path, arcname=item)
 
 
-def upload_to_minio_using_presigned_url(presigned_url: str, file_path: str) -> None:
+def upload_to_minio_using_presigned_url(presigned_url: str, file_path: str) -> Tuple:
     """
     Uploads a file to a presigned url.
     """
