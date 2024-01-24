@@ -204,7 +204,7 @@ def test_build_run_report_e2e(
         ],
     }
 
-    with raises(ValueError) as e:
+    with raises(ValueError):
         mock_notify_email(expected_report_data, "run_report", ["foo@bar.com"])
 
     # Assert that caching prevented all 6 calls to get_dataframes
