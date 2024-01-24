@@ -194,6 +194,7 @@ class TorchHelper:
     batch: Dict[str, Any] = field(default_factory=dict)
     ids: List[Any] = field(default_factory=list)
     patches: List[Dict] = field(default_factory=list)
+    gradient_accumulation_ids: List[Any] = field(default_factory=list)
 
     def clear(self) -> None:
         """Resets the arrays of the class."""
