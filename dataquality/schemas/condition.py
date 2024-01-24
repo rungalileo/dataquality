@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Dict, List, Optional, Tuple, Union
 
-from pydantic import BaseModel, ValidationInfo, field_validator, ConfigDict
+from pydantic import BaseModel, ConfigDict, ValidationInfo, field_validator
 from vaex.dataframe import DataFrame
 
 

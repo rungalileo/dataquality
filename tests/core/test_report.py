@@ -3,7 +3,6 @@ from unittest import mock
 from uuid import uuid4
 
 import freezegun
-import pytest
 import vaex
 
 from dataquality import (

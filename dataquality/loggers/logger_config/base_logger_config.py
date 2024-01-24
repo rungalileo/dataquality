@@ -48,12 +48,16 @@ class BaseLoggerConfig(BaseModel):
 
     @field_validator("cur_split", mode="after")
     @classmethod
-    def inference_sets_inference_name(cls, field_value: Split, validation_info: ValidationInfo) -> Split:
+    def inference_sets_inference_name(
+        cls, field_value: Split, validation_info: ValidationInfo
+    ) -> Split:
         values = validation_info.data
         if field_value == Split.inference:
             split_name = values.get("cur_inference_name")
             if not split_name:
-                raise ValueError("Please specify inference_name when setting split to inference")
+                raise ValueError(
+                    "Please specify inference_name when setting split to inference"
+                )
         return field_value
 
 
