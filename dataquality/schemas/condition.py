@@ -226,10 +226,7 @@ class Condition(BaseModel):
         """Asserts the condition"""
         assert self.evaluate(df)[0]
 
-    @field_validator(
-        "filters",
-        mode="before",
-    )
+    @field_validator("filters", mode="before")
     @classmethod
     def validate_filters(
         cls, v: Optional[List[ConditionFilter]], validation_info: ValidationInfo
@@ -242,10 +239,7 @@ class Condition(BaseModel):
 
         return v
 
-    @field_validator(
-        "metric",
-        mode="after",
-    )
+    @field_validator("metric", mode="after")
     @classmethod
     def validate_metric(
         cls, v: Optional[str], validation_info: ValidationInfo

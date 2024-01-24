@@ -4,6 +4,7 @@ from uuid import uuid4
 
 import freezegun
 import vaex
+from pytest import raises
 
 from dataquality import (
     AggregateFunction,
@@ -203,7 +204,8 @@ def test_build_run_report_e2e(
         ],
     }
 
-    # with pytest.raises(ValueError) as e:
-    # mock_notify_email(expected_report_data, "run_report", ["foo@bar.com"])
+    with raises(ValueError) as e:
+        mock_notify_email(expected_report_data, "run_report", ["foo@bar.com"])
+
     # Assert that caching prevented all 6 calls to get_dataframes
     assert mock_get_dataframe.call_count == 3

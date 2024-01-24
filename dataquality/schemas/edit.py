@@ -69,8 +69,7 @@ class Edit(BaseModel):
     note: Optional[StrictStr] = None
     edit_action: EditAction
 
-    @field_validator("edit_action")
-    @classmethod
+    @field_validator("edit_action", mode="before")
     def new_label_if_relabel(
         cls, edit_action: EditAction, validation_info: ValidationInfo
     ) -> EditAction:
@@ -81,7 +80,6 @@ class Edit(BaseModel):
         return edit_action
 
     @field_validator("edit_action", mode="before")
-    @classmethod
     def text_replacement_if_update_text(
         cls, edit_action: EditAction, validation_info: ValidationInfo
     ) -> EditAction:
@@ -97,7 +95,6 @@ class Edit(BaseModel):
         return edit_action
 
     @field_validator("edit_action", mode="before")
-    @classmethod
     def shift_span_validator(
         cls, edit_action: EditAction, validation_info: ValidationInfo
     ) -> EditAction:
@@ -117,7 +114,6 @@ class Edit(BaseModel):
         return edit_action
 
     @field_validator("edit_action", mode="before")
-    @classmethod
     def validate_edit_action_for_split(
         cls, edit_action: EditAction, validation_info: ValidationInfo
     ) -> EditAction:

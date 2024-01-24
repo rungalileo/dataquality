@@ -47,7 +47,6 @@ class BaseLoggerConfig(BaseModel):
         self.__init__()  # type: ignore
 
     @field_validator("cur_split", mode="after")
-    @classmethod
     def inference_sets_inference_name(
         cls, field_value: Split, validation_info: ValidationInfo
     ) -> Split:
