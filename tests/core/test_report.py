@@ -26,9 +26,7 @@ from dataquality.schemas.report import ConditionStatus
 freezegun.configure(extend_ignore_list=["transformers"])
 
 
-def test_register_run_report(
-    set_test_config: Callable, test_condition: Callable
-) -> None:
+def test_register_run_report(set_test_config: Callable, test_condition: Callable) -> None:
     condition = test_condition()
     assert get_data_logger().logger_config.conditions == []
     assert get_data_logger().logger_config.report_emails == []
@@ -45,9 +43,7 @@ def test_get_email_datetime() -> None:
 
 def test_condition_to_verbose_string(test_condition: Callable) -> None:
     condition = test_condition()
-    assert (
-        _condition_to_verbose_string(condition) == "Average confidence is less than 0.5"
-    )
+    assert _condition_to_verbose_string(condition) == "Average confidence is less than 0.5"
 
 
 def test_condition_valid_for_df(test_condition: Callable) -> None:
@@ -132,7 +128,7 @@ def test_build_run_report_e2e(
             ConditionFilter(
                 metric="is_drifted",
                 operator=Operator.eq,
-                value=True,
+                value=1.0,
             )
         ],
     )
@@ -180,10 +176,7 @@ def test_build_run_report_e2e(
             },
             {
                 "metric": "is_drifted",
-                "condition": (
-                    "Percentage (is_drifted is equal to 1.0) is greater than or "
-                    "equal to 0.5"
-                ),
+                "condition": ("Percentage (is_drifted is equal to 1.0) is greater than or " "equal to 0.5"),
                 "splits": [
                     {
                         "split": "inference",
@@ -204,8 +197,7 @@ def test_build_run_report_e2e(
         ],
     }
 
-    with raises(ValueError):
-        mock_notify_email(expected_report_data, "run_report", ["foo@bar.com"])
+    mock_notify_email.assert_called_once_with(expected_report_data, "run_report", ["foo@bar.com"])
 
     # Assert that caching prevented all 6 calls to get_dataframes
     assert mock_get_dataframe.call_count == 3
