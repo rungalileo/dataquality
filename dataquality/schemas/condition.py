@@ -197,9 +197,7 @@ class Condition(BaseModel):
     operator: Operator
     threshold: float
     metric: Optional[str] = Field(default=None, validate_default=True)
-    filters: Optional[List[ConditionFilter]] = Field(
-        default_factory=list, validate_default=True
-    )
+    filters: List[ConditionFilter] = Field(default_factory=list, validate_default=True)
     model_config = ConfigDict(validate_assignment=True)
 
     def evaluate(self, df: DataFrame) -> Tuple[bool, float]:
@@ -233,7 +231,7 @@ class Condition(BaseModel):
         cls, value: Optional[List[ConditionFilter]], validation_info: ValidationInfo
     ) -> Optional[List[ConditionFilter]]:
         values: Dict = validation_info.data
-        if value is not None:
+        if not value:
             agg = values["agg"]
             if agg == AggregateFunction.pct:
                 raise ValueError("Percentage aggregate requires a filter")
