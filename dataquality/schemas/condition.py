@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Dict, List, Optional, Tuple, Union
 
-from pydantic import BaseModel, ConfigDict, ValidationInfo, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 from vaex.dataframe import DataFrame
 
 
@@ -196,8 +196,8 @@ class Condition(BaseModel):
     agg: AggregateFunction
     operator: Operator
     threshold: float
-    metric: Optional[str] = None
-    filters: Optional[List[ConditionFilter]] = []
+    metric: Optional[str] = Field(default=None, validate_default=True)
+    filters: Optional[List[ConditionFilter]] = Field(default_factory=list, validate_default=True)
     model_config = ConfigDict(validate_assignment=True)
 
     def evaluate(self, df: DataFrame) -> Tuple[bool, float]:
@@ -226,22 +226,22 @@ class Condition(BaseModel):
 
     @field_validator("filters", mode="before")
     def validate_filters(
-        cls, v: Optional[List[ConditionFilter]], validation_info: ValidationInfo
+        cls, value: Optional[List[ConditionFilter]], validation_info: ValidationInfo
     ) -> Optional[List[ConditionFilter]]:
         values: Dict = validation_info.data
-        if not v:
+        if value is not None:
             agg = values["agg"]
             if agg == AggregateFunction.pct:
                 raise ValueError("Percentage aggregate requires a filter")
 
-        return v
+        return value
 
-    @field_validator("metric", mode="after")
-    def validate_metric(cls, v: Optional[str], validation_info: ValidationInfo) -> Optional[str]:
+    @field_validator("metric", mode="before")
+    def validate_metric(cls, value: Optional[str], validation_info: ValidationInfo) -> Optional[str]:
         values: Dict = validation_info.data
-        if not v:
-            agg = values["agg"]
+        if value is None:
+            agg = values.get("agg")
             if agg != AggregateFunction.pct:
                 raise ValueError(f"You must set a metric for non-percentage aggregate function {agg}")
 
-        return v
+        return value
