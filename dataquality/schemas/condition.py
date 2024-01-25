@@ -197,7 +197,9 @@ class Condition(BaseModel):
     operator: Operator
     threshold: float
     metric: Optional[str] = Field(default=None, validate_default=True)
-    filters: Optional[List[ConditionFilter]] = Field(default_factory=list, validate_default=True)
+    filters: Optional[List[ConditionFilter]] = Field(
+        default_factory=list, validate_default=True
+    )
     model_config = ConfigDict(validate_assignment=True)
 
     def evaluate(self, df: DataFrame) -> Tuple[bool, float]:
@@ -216,7 +218,9 @@ class Condition(BaseModel):
 
         filters = self.filters or []
         for filter in filters:
-            filtered_df = FILTER_OPERATORS[filter.operator](filtered_df, filter.metric, filter.value)
+            filtered_df = FILTER_OPERATORS[filter.operator](
+                filtered_df, filter.metric, filter.value
+            )
 
         return filtered_df
 
@@ -237,11 +241,15 @@ class Condition(BaseModel):
         return value
 
     @field_validator("metric", mode="before")
-    def validate_metric(cls, value: Optional[str], validation_info: ValidationInfo) -> Optional[str]:
+    def validate_metric(
+        cls, value: Optional[str], validation_info: ValidationInfo
+    ) -> Optional[str]:
         values: Dict = validation_info.data
         if value is None:
             agg = values.get("agg")
             if agg != AggregateFunction.pct:
-                raise ValueError(f"You must set a metric for non-percentage aggregate function {agg}")
+                raise ValueError(
+                    f"You must set a metric for non-percentage aggregate function {agg}"
+                )
 
         return value

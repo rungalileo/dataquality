@@ -224,7 +224,7 @@ def test_set_tasks_not_set_binary(
         dq.set_labels_for_run(tasks)
 
     err = e.value.errors()[0]["msg"]
-    assert err.startswith("Labels must be a list of lists.")
+    assert "Labels must be a list of lists." in err
     assert "If you are running a binary multi-label case," in err
 
 
