@@ -216,9 +216,7 @@ class Condition(BaseModel):
 
         filters = self.filters or []
         for filter in filters:
-            filtered_df = FILTER_OPERATORS[filter.operator](
-                filtered_df, filter.metric, filter.value
-            )
+            filtered_df = FILTER_OPERATORS[filter.operator](filtered_df, filter.metric, filter.value)
 
         return filtered_df
 
@@ -227,7 +225,6 @@ class Condition(BaseModel):
         assert self.evaluate(df)[0]
 
     @field_validator("filters", mode="before")
-    @classmethod
     def validate_filters(
         cls, v: Optional[List[ConditionFilter]], validation_info: ValidationInfo
     ) -> Optional[List[ConditionFilter]]:
@@ -240,16 +237,11 @@ class Condition(BaseModel):
         return v
 
     @field_validator("metric", mode="after")
-    @classmethod
-    def validate_metric(
-        cls, v: Optional[str], validation_info: ValidationInfo
-    ) -> Optional[str]:
+    def validate_metric(cls, v: Optional[str], validation_info: ValidationInfo) -> Optional[str]:
         values: Dict = validation_info.data
         if not v:
             agg = values["agg"]
             if agg != AggregateFunction.pct:
-                raise ValueError(
-                    f"You must set a metric for non-percentage aggregate function {agg}"
-                )
+                raise ValueError(f"You must set a metric for non-percentage aggregate function {agg}")
 
         return v
