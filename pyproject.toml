@@ -13,12 +13,13 @@ readme = "README.md"
 license = {text = 'See LICENSE'}
 requires-python = ">=3.8"
 dependencies = [
-    "pydantic>=1.8.2,<2.0.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
     "requests>=2.25.1",
     "types-requests>=2.25.2",
     "pandas>=0.20.0",
     "pyarrow>=5.0.0",
-    "vaex-core==4.16.0",
+    "vaex-core==4.17.1",
     "vaex-hdf5>=0.12,<0.13",
     "diskcache>=5.2.1",
     "resource>=0.2.1",
@@ -90,7 +91,7 @@ test = [
     "setfit==0.7.0",
     "accelerate>=0.19.0",
     "typing-inspect==0.8.0",
-    "typing-extensions==4.0.1",
+    "typing-extensions>=4.9.0",
     "lightning",
 ]
 dev = [
@@ -111,12 +112,9 @@ cuda = [
    "cudf-cu11==23.2.0",
    "cuml-cu11==23.2.0"
 ]
-minio = [
-    "minio>=7.1.0,<7.2.0"
-]
-setfit = [
-    "setfit==0.7.0"
-]
+minio = ["minio>=7.1.0,<7.2.0"]
+setfit = ["setfit==0.7.0"]
+
 
 [tool.setuptools.dynamic]
 version = {attr = "dataquality.__version__"}
@@ -204,5 +202,4 @@ exclude = '''
   | __pycache__
 )/
 '''
-
 

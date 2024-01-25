@@ -7,6 +7,6 @@ def test_nested_filter_params_are_hashable() -> None:
         "ids": [1, 2, 3, 4],
         "lasso": {"x": [0.1, 0.1, 0.2], "y": [0.4, 0.5, 0.6]},
         "inference_filter": {"is_otb": True},
-        "meta_filter": [{"name": "foo", "isin": [1, 2, 3]}],
+        "meta_filter": [{"name": "foo", "isin": ["1", "2", "3"]}],
     }
-    assert FilterParams(**f2).__hash__()
+    assert FilterParams.model_validate(f2).__hash__()

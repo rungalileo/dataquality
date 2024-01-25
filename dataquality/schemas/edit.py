@@ -1,7 +1,15 @@
 from enum import Enum, unique
-from typing import Any, Dict, Optional
+from typing import Dict, Optional
 
-from pydantic import UUID4, BaseModel, StrictInt, StrictStr, validator
+from pydantic import (
+    UUID4,
+    BaseModel,
+    ConfigDict,
+    StrictInt,
+    StrictStr,
+    ValidationInfo,
+    field_validator,
+)
 
 from dataquality.schemas.metrics import FilterParams
 
@@ -40,35 +48,42 @@ class Edit(BaseModel):
             How many words (forward or back) to shift the end of the span by
     """
 
-    filter: Optional[FilterParams]
+    model_config = ConfigDict(validate_assignment=True)
 
-    new_label: Optional[StrictStr]
+    filter: Optional[FilterParams] = None
 
-    search_string: Optional[StrictStr]
-    text_replacement: Optional[StrictStr]
+    new_label: Optional[StrictStr] = None
+
+    search_string: Optional[StrictStr] = None
+    text_replacement: Optional[StrictStr] = None
     use_regex: bool = False
 
-    shift_span_start_num_words: Optional[StrictInt]
-    shift_span_end_num_words: Optional[StrictInt]
+    shift_span_start_num_words: Optional[StrictInt] = None
+    shift_span_end_num_words: Optional[StrictInt] = None
 
-    project_id: Optional[UUID4]
-    run_id: Optional[UUID4]
-    split: Optional[str]
+    project_id: Optional[UUID4] = None
+    run_id: Optional[UUID4] = None
+    split: Optional[str] = None
     task: Optional[str] = None
     inference_name: Optional[str] = None
-    note: Optional[StrictStr]
+    note: Optional[StrictStr] = None
     edit_action: EditAction
 
-    @validator("edit_action", pre=True)
-    def new_label_if_relabel(cls, edit_action: EditAction, values: Dict) -> EditAction:
+    @field_validator("edit_action", mode="before")
+    def new_label_if_relabel(
+        cls, edit_action: EditAction, validation_info: ValidationInfo
+    ) -> EditAction:
+        values: Dict = validation_info.data
+
         if edit_action == EditAction.relabel and values.get("new_label") is None:
             raise ValueError("If your edit is relabel, you must set new_label")
         return edit_action
 
-    @validator("edit_action", pre=True)
+    @field_validator("edit_action", mode="before")
     def text_replacement_if_update_text(
-        cls, edit_action: EditAction, values: Dict
+        cls, edit_action: EditAction, validation_info: ValidationInfo
     ) -> EditAction:
+        values: Dict = validation_info.data
         if edit_action == EditAction.update_text and (
             values.get("text_replacement") is None
             or values.get("search_string") is None
@@ -79,8 +94,11 @@ class Edit(BaseModel):
             )
         return edit_action
 
-    @validator("edit_action", pre=True)
-    def shift_span_validator(cls, edit_action: EditAction, values: Dict) -> EditAction:
+    @field_validator("edit_action", mode="before")
+    def shift_span_validator(
+        cls, edit_action: EditAction, validation_info: ValidationInfo
+    ) -> EditAction:
+        values: Dict = validation_info.data
         err = (
             "If your edit is shift_span, you must set search_string and at least "
             "one of shift_span_start_num_words or shift_span_end_num_words"
@@ -95,10 +113,11 @@ class Edit(BaseModel):
                 raise ValueError(err)
         return edit_action
 
-    @validator("edit_action", pre=True, always=True)
+    @field_validator("edit_action", mode="before")
     def validate_edit_action_for_split(
-        cls, edit_action: EditAction, values: Dict[str, Any]
+        cls, edit_action: EditAction, validation_info: ValidationInfo
     ) -> EditAction:
+        values: Dict = validation_info.data
         if not values.get("split"):
             return edit_action
         split = values["split"]

@@ -3,12 +3,11 @@ import os
 import warnings
 from enum import Enum
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 import requests
 from packaging import version
-from pydantic import BaseModel
-from pydantic.class_validators import validator
+from pydantic import BaseModel, ConfigDict, field_validator
 from pydantic.types import UUID4
 from requests.exceptions import ConnectionError as ReqConnectionError
 
@@ -30,7 +29,7 @@ class GalileoConfigVars(str, Enum):
     CONSOLE_URL = "GALILEO_CONSOLE_URL"
 
     @staticmethod
-    def get_config_mapping() -> Dict[str, Optional[str]]:
+    def get_config_mapping() -> Dict[str, Any]:
         return {i.name.lower(): os.environ.get(i.value) for i in GalileoConfigVars}
 
     @staticmethod
@@ -85,10 +84,7 @@ class Config(BaseModel):
     minio_fqdn: Optional[str] = None
     is_exoscale_cluster: bool = False
 
-    class Config:
-        validate_assignment = True
-        arbitrary_types_allowed = True
-        underscore_attrs_are_private = True
+    model_config = ConfigDict(validate_assignment=True, arbitrary_types_allowed=True)
 
     def update_file_config(self) -> None:
         config_json = self.dict()
@@ -96,7 +92,7 @@ class Config(BaseModel):
         with open(config_data.DEFAULT_GALILEO_CONFIG_FILE, "w+") as f:
             f.write(json.dumps(config_json, default=str))
 
-    @validator("api_url", pre=True, always=True, allow_reuse=True)
+    @field_validator("api_url", mode="before")
     def add_scheme(cls, v: str) -> str:
         if v and not v.startswith("http"):
             # api url needs the scheme
@@ -209,7 +205,7 @@ def set_config(initial_startup: bool = False) -> Config:
     if os.path.exists(config_data.DEFAULT_GALILEO_CONFIG_FILE):
         with open(config_data.DEFAULT_GALILEO_CONFIG_FILE) as f:
             try:
-                config_vars: Dict[str, str] = json.load(f)
+                config_vars: Dict[str, Any] = json.load(f)
             # If there's an issue reading the config file for any reason, quit and
             # start fresh
             except Exception as e:

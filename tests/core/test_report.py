@@ -131,7 +131,7 @@ def test_build_run_report_e2e(
             ConditionFilter(
                 metric="is_drifted",
                 operator=Operator.eq,
-                value=True,
+                value=1.0,
             )
         ],
     )
@@ -202,8 +202,10 @@ def test_build_run_report_e2e(
             },
         ],
     }
+
     mock_notify_email.assert_called_once_with(
         expected_report_data, "run_report", ["foo@bar.com"]
     )
+
     # Assert that caching prevented all 6 calls to get_dataframes
     assert mock_get_dataframe.call_count == 3

@@ -2,6 +2,7 @@ from collections import defaultdict
 from typing import Dict, List, Optional, Set, Union
 
 from peft import PeftModel
+from pydantic import ConfigDict
 from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizerFast
 
 from dataquality.loggers.logger_config.base_logger_config import BaseLoggerConfig
@@ -23,9 +24,7 @@ class Seq2SeqLoggerConfig(BaseLoggerConfig):
     # Decoder only below
     id_to_formatted_prompt_length: Dict[str, Dict[int, int]] = defaultdict(dict)
     response_template: Optional[List[int]] = None
-
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 seq2seq_logger_config = Seq2SeqLoggerConfig()
