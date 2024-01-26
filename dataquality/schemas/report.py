@@ -11,9 +11,9 @@ class ConditionStatus(str, Enum):
 
 class SplitConditionData(BaseModel):
     split: str
-    inference_name: Optional[str]
+    inference_name: Optional[str] = None
     status: ConditionStatus
-    link: Optional[str]
+    link: Optional[str] = None
     ground_truth: float
 
 
