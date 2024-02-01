@@ -47,6 +47,7 @@ def finish(
         Can also be set to `target`, `generated_output` or any other column that is
         logged as metadata.
     :param upload_model: If True, the model will be stored in the galileo project.
+        Default False or set by the environment variable DQ_UPLOAD_MODEL.
     """
     a.log_function("dq/finish")
     if create_data_embs is None:
