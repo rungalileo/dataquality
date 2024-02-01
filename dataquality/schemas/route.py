@@ -40,7 +40,6 @@ class Route(str, Enum):
     notify = "notify/email"
     token = "get-token"
     upload_file = "upload_file"
-    upload_model = "upload_model"
     model = "model"
     link = "link"
 
