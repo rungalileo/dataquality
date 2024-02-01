@@ -13,7 +13,7 @@ readme = "README.md"
 license = {text = 'See LICENSE'}
 requires-python = ">=3.8"
 dependencies = [
-    "pydantic>=2.0.0",
+    "pydantic==2.5.3",
     "pydantic-settings>=2.0.0",
     "requests>=2.25.1",
     "types-requests>=2.25.2",
@@ -95,9 +95,9 @@ test = [
     "lightning",
 ]
 dev = [
-    "mypy>=1.0.0",
-    "ruff>=0.0.98",
-    "black>=23.1.0",
+    "mypy==1.8.0",
+    "ruff==0.1.14",
+    "black==23.12.1",
     "jupyter==1.0.0",
     "invoke>=1.6.0",
 ]
