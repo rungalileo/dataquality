@@ -1,9 +1,9 @@
 import os
+import warnings
 from typing import Callable, Generator
 from unittest.mock import MagicMock, Mock, patch
 
 import numpy as np
-import warnings
 import pandas as pd
 import pyarrow as pa
 import pytest
