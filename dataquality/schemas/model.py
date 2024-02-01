@@ -7,3 +7,9 @@ class ModelFramework(str, Enum):
     keras = "keras"
     hf = "hf"
     auto = "auto"
+
+
+@unique
+class ModelUploadType(str, Enum):
+    transformers = "transformers"
+    setfit = "setfit"

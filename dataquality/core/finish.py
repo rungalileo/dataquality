@@ -7,6 +7,7 @@ import dataquality
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
 from dataquality.core._config import config
+from dataquality.core.log import get_model_logger
 from dataquality.core.report import build_run_report
 from dataquality.schemas import RequestType, Route
 from dataquality.schemas.job import JobName
@@ -26,7 +27,7 @@ def finish(
     wait: bool = True,
     create_data_embs: Optional[bool] = None,
     data_embs_col: str = "text",
-    upload_model: bool = False,
+    upload_model: bool = bool(os.environ.get("DQ_UPLOAD_MODEL", False)),
 ) -> str:
     """
     Finishes the current run and invokes a job
@@ -88,10 +89,17 @@ def finish(
         f"Job {res['job_name']} successfully submitted. Results will be available "
         f"soon at {res['link']}"
     )
-    if upload_model or os.environ.get("DQ_UPLOAD_MODEL"):
+    if upload_model:
         try:
-            upload_model_to_dq()
-            print("Model uploaded successfully.")
+            helper_data = get_model_logger().logger_config.helper_data
+            model = helper_data["model"]
+            model_parameters = helper_data["model_parameters"]
+            model_kind = helper_data["model_kind"]
+            if helper_data and "model" in helper_data:
+                upload_model_to_dq(model, model_parameters, model_kind)
+                print("Model uploaded successfully.")
+            else:
+                print("No model to upload.")
         except Exception as e:
             print(f"Error uploading model: {e}")
     if data_logger.logger_config.conditions:

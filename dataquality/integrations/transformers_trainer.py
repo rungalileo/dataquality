@@ -14,6 +14,7 @@ from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
 from dataquality.exceptions import GalileoException
 from dataquality.integrations.torch import TorchBaseInstance
+from dataquality.schemas.model import ModelUploadType
 from dataquality.schemas.split import Split
 from dataquality.schemas.torch import DimensionSlice, InputDim, Layer
 from dataquality.utils.helpers import check_noop
@@ -346,7 +347,7 @@ def watch(
         "logits_fn": logits_fn,
         "last_hidden_state_layer": last_hidden_state_layer,
     }
-    helper_data["model_kind"] = "transformers"
+    helper_data["model_kind"] = ModelUploadType.transformers
 
 
 def unwatch(trainer: Trainer) -> None:

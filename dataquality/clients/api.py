@@ -898,16 +898,16 @@ class ApiClient:
 
     def get_presigned_url_for_model(
         self, project_id: UUID4, run_id: UUID4, model_kind: str, model_parameters: Dict
-    ) -> Dict[str, Any]:
+    ) -> str:
         """
         Returns a presigned url for uploading a model to S3
 
         """
         return self.make_request(
             RequestType.POST,
-            url=f"{config.api_url}/{Route.projects}/{str(project_id)}/{Route.runs}/{str(run_id)}/{Route.upload_model}",
+            url=f"{config.api_url}/{Route.projects}/{str(project_id)}/{Route.runs}/{str(run_id)}/{Route.model}",
             body={"kind": model_kind, "parameters": model_parameters},
-        )
+        )["upload_url"]
 
     def get_uploaded_model_info(self, project_id: UUID4, run_id: UUID4) -> Any:
         """
