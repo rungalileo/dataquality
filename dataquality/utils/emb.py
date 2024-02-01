@@ -2,6 +2,8 @@ import os
 import warnings
 from typing import Dict, Optional
 
+import numpy as np
+import pyarrow as pa
 import vaex
 from huggingface_hub.utils import HfHubHTTPError
 from pydantic import UUID4
@@ -85,6 +87,7 @@ def upload_umap_data_embs(
     input_data_dir: str,
     run_dir: str,
     last_epoch: Optional[int],
+    data_embs_col: str,
 ) -> None:
     """Given the location to _all_ input text, create and upload the data embs
 
@@ -99,7 +102,7 @@ def upload_umap_data_embs(
     """
     df = vaex.open(f"{input_data_dir}/**/data*.arrow")
     try:
-        df_emb = create_data_embs_df(df, lazy=False)
+        df_emb = create_data_embs_df(df, text_col=data_embs_col, lazy=False)
     except HfHubHTTPError as e:
         warnings.warn(
             "Unable to download transformer from huggingface. Data embeddings "
@@ -123,3 +126,54 @@ def upload_umap_data_embs(
                 df_inf = df_split[df_split["inference_name"] == inf_name][data_emb_cols]
                 minio_file = f"{proj_run_split}/{inf_name}/{DATA_EMB_PATH}"
                 object_store.create_project_run_object_from_df(df_inf, minio_file)
+
+
+def np_to_pa(embs: np.ndarray) -> pa.ListArray:
+    """Converts a numpy column to pyarrow array"""
+    if len(embs.shape) <= 2:
+        # Faster than the below method, but only works for 1 and 2 dim arrays
+        return pa.array(list(embs))
+    else:
+        return pa.ListArray.from_pandas(embs.tolist())
+
+
+def convert_np_to_pa(df: DataFrame, col: str) -> DataFrame:
+    """Vaex safe conversion of `np_to_pa` above
+
+    This function allows us to safely convert a high dimensional numpy array to a
+    pyarrow array. Since HDF5 files cannot store multi-dimensional numpy arrays,
+    in certain cases, such as embeddings in Seq2Seq, we must store them
+    as pyarrow arrays.
+
+    We convert the column in a memory safe way using a vaex register function.
+    """
+
+    @vaex.register_function()
+    def _np_to_pa(embs: np.ndarray) -> pa.ListArray:
+        return np_to_pa(embs)
+
+    df[col] = df[col]._np_to_pa()
+    return df
+
+
+def convert_pa_to_np(df: DataFrame, col: str) -> DataFrame:
+    """Converts a pyarrow array col to numpy column
+
+    This function allows us to safely convert a high dimensional pyarrow array to a
+    numpy array. It is the inverse of `convert_np_to_pa` and is used when calculating
+    things such as `similar_to` on the PCA embeddings, which assumes numpy arrays.
+
+    We convert the column in a memory safe way using a vaex register function.
+
+    While this fn is built primarily for 2d arrays, it will work for any dimensional
+    array.
+    """
+
+    @vaex.register_function()
+    def _pa_to_np(embs: pa.ChunkedArray) -> np.ndarray:
+        # np.array(embs) leads to a numpy array of shape (dim1,)
+        # np.array(embs.tolist()) leads to a numpy array of shape (dim1, dim2)
+        return np.array(embs.to_pylist())
+
+    df[col] = df[col]._pa_to_np()
+    return df

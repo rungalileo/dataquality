@@ -8,6 +8,7 @@ from transformers import PreTrainedTokenizerFast
 from vaex import DataFrame, register_function
 
 from dataquality.schemas.seq2seq import AlignedTokenData
+from dataquality.schemas.seq2seq import Seq2SeqInputCols as S2SIC
 
 
 def _handle_overlapping_offsets(
@@ -148,6 +149,11 @@ def rollup_offset_mapping(
         and returned as
         [(0, 1), (1, 20), (20, 22), (22, 23)], [{0, 1}, {1}, {}, {2}]
     """
+    # In rare cases, we can have a completely empty offsets_mapping
+    # when we have a tokenized empty string with no special chars.
+    if len(offset_mapping) == 0:
+        return [], []
+
     # The ordered span offsets for backtracking in case of an overlap
     # Like [(0, 1), (1, 3), (3, 4)]
     # We guarantee that the spans here will be contiguous, non-repeating and
@@ -191,24 +197,26 @@ def align_tokens_to_character_spans(
         offsets, token_positions = rollup_offset_mapping(offset_mapping)
         all_offsets.append(offsets)
         all_token_positions.append(token_positions)
+
     return AlignedTokenData(
         token_label_offsets=all_offsets, token_label_positions=all_token_positions
     )
 
 
-def get_cutoff_from_truncated_tokenization(
+def add_input_cutoff_to_df(
     df: DataFrame,
-    col_name: str,
     tokenizer: PreTrainedTokenizerFast,
-    max_n_tokens: Optional[int],
-) -> np.ndarray:
+    text_col: str,
+    max_tokens: Optional[int] = None,
+) -> DataFrame:
     """
     Find the cutoff point in string coresponding to the last token.
 
-    We tokenize the text and truncate after max_n_tokens tokens, i.e., we only keep the
-    first max_n_tokens tokens. To find the position in the text corresponding to the
+    We tokenize the text and truncate after max_tokens tokens, i.e., we only keep the
+    first max_tokens tokens. To find the position in the text corresponding to the
     last token we use the offset_mapping returned by the tokenizer.
     """
+    df_copy = df.copy()
 
     @register_function()
     def _get_position_of_last_offset_input(texts: pa.array) -> np.ndarray:
@@ -216,7 +224,7 @@ def get_cutoff_from_truncated_tokenization(
         offset_mapping = tokenizer(
             texts.to_pylist(),
             truncation=True,
-            max_length=max_n_tokens,
+            max_length=max_tokens,
             return_offsets_mapping=True,
         )["offset_mapping"]
         # At least for the T5 tokenizer, the offset_mapping contains an extra offset
@@ -228,16 +236,23 @@ def get_cutoff_from_truncated_tokenization(
         )
         return input_cut_off
 
-    return df.func._get_position_of_last_offset_input(df[col_name])
+    df_copy[S2SIC.input_cutoff.value] = df_copy[
+        text_col
+    ]._get_position_of_last_offset_input()
+    # We materialize to run all data through tokenizer once and avoid running it
+    # multiple times when exporting the df
+    df_copy = df_copy.materialize(S2SIC.input_cutoff.value)
+    return df_copy
 
 
-def get_cutoff_from_saved_offsets(df: DataFrame, col_name: str) -> np.ndarray:
+def add_target_cutoff_to_df(df: DataFrame, target_offsets_col: str) -> DataFrame:
     """
     Look at the last offset of the tokenized target to find the position of the last
     character of the target string that was used by the model.
     Note that typically the model does not use the entire target during teacher forcing
     and there is a cut-off point (for example 128 tokens, or 512 tokens, etc).
     """
+    df_copy = df.copy()
 
     @register_function()
     def _get_position_of_last_offset_target(offsets: pa.array) -> np.ndarray:
@@ -249,4 +264,47 @@ def get_cutoff_from_saved_offsets(df: DataFrame, col_name: str) -> np.ndarray:
             dtype="int32",
         )
 
-    return df.func._get_position_of_last_offset_target(df[col_name])
+    df_copy[S2SIC.target_cutoff.value] = df_copy[
+        target_offsets_col
+    ]._get_position_of_last_offset_target()
+    return df_copy
+
+
+def align_response_tokens_to_character_spans(
+    tokenizer: PreTrainedTokenizerFast,
+    tokenized_response: List[int],
+    max_input_tokens: Optional[int],
+) -> Tuple[AlignedTokenData, str]:
+    """Decodes then re-tokenizes the isolated response to get the character alignments
+
+    TODO This can prob be done with just tokenizing the "target" in isolation!!
+        Specifically, we tokenize the Targets, then we figure out the index
+        of the last token from the tokenized_response and find where that is
+        in the offset map and slice the offset map accordingly.
+        This may also avoid strange space issues with tokenizers hanlding words
+        at the start of a document.
+
+    Return:
+        -------
+        aligned_token_data: AlignedTokenData
+            Aligned token data for a single Response - batch dim = 1.
+        decoded_response: str
+            The string representation of the Response, used as the
+            Target string in the console. Note: we do not remove
+            special characters, so these will appear in the console!
+    """
+    decoded_response = tokenizer.decode(tokenized_response)
+    re_tokenized_response = tokenizer(
+        [decoded_response],
+        return_offsets_mapping=True,
+        add_special_tokens=False,
+        truncation=True,
+        # I believe that this should be handled! We can prob set to None
+        max_length=max_input_tokens,
+    )
+    return (
+        align_tokens_to_character_spans(
+            re_tokenized_response["offset_mapping"], disable_tqdm=True
+        ),
+        decoded_response,
+    )

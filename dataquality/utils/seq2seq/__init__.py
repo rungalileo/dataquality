@@ -2,7 +2,9 @@ import numpy as np
 
 
 def remove_padding(
-    labels: np.ndarray, padding_side: str, padded_token_seq: np.ndarray
+    padded_token_seq: np.ndarray,
+    num_tokens: int,
+    padding_side: str,
 ) -> np.ndarray:
     """Remove padding tokens from a single token sequence
 
@@ -15,16 +17,15 @@ def remove_padding(
 
     Parameters:
     -----------
-    labels: np.ndarray of shape - [num_tokens]
-        Token label ids for the sample. Used to get length of
-        non-padding logits.
-    padding_side: str
-        Comes from the tokenizer used for the model, determines
-        which side padding is applied.
     padded_token_seq: np.ndarray of shape - [max_seq_len, ...]
         Padded token sequence. The first dimension must be the token
         dimension and be >= num_tokens. The following dimensions are
         unrestricted.
+    num_tokens: int
+        Length of the non-padded logits.
+    padding_side: str
+        Comes from the tokenizer used for the model, determines
+        which side padding is applied.
 
     Returns:
     -------
@@ -33,7 +34,6 @@ def remove_padding(
         un-altered.
     """
     # Remove padding based on the padding_side of the tokenizer
-    num_tokens = len(labels)
     if padding_side == "right":
         return padded_token_seq[:num_tokens]
 

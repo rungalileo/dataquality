@@ -7,8 +7,8 @@ from uuid import uuid4
 import pytest
 
 import dataquality.clients.api
-from dataquality import config
 from dataquality.clients.api import ApiClient
+from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
 from dataquality.schemas import RequestType
 from dataquality.schemas.task_type import TaskType
@@ -24,6 +24,18 @@ from tests.test_utils.mock_request import (
 )
 
 api_client = ApiClient()
+
+
+@mock.patch.object(ApiClient, "_refresh_token")
+def test_refresh_token(
+    mock_refresh_token: MagicMock, set_test_config: Callable
+) -> None:
+    """Base case: Tests creating a new project and run"""
+    set_test_config(token="expired-token")
+    mock_refresh_token.return_value = "my-token"
+    token = api_client.get_token()
+    assert token == "my-token"
+    mock_refresh_token.assert_called_once()
 
 
 @mock.patch("requests.get", side_effect=mocked_get_project_run)

@@ -66,5 +66,5 @@ def create_logger(tab_data: Dict, fit_xgboost: xgb.XGBClassifier) -> Callable:
 
 
 @pytest.fixture
-def seq2seq_generated_output() -> torch.Tensor:
-    return torch.tensor([[1, 2, 3], [4, 5, 6]])
+def seq2seq_generated_sample_output() -> torch.Tensor:
+    return torch.tensor([[1, 2, 3, 4, 5, 6]])

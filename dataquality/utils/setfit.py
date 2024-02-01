@@ -1,6 +1,6 @@
 import uuid
 from dataclasses import asdict, dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -10,6 +10,7 @@ from torch import Tensor
 import dataquality as dq
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
+from dataquality.utils.auto import get_meta_cols
 from dataquality.utils.patcher import Patch, PatchManager
 
 BATCH_LOG_SIZE = 10_000
@@ -33,13 +34,6 @@ class DataSampleLogArgs:
         self.ids.clear()
         self.labels.clear()
         self.meta.clear()
-
-
-def _get_meta_cols(cols: Iterable) -> List[str]:
-    """Returns the meta columns of a dataset."""
-    default_cols = ["text", "label", "id"]
-    meta_columns = [col for col in cols if col not in default_cols]
-    return meta_columns
 
 
 def log_preds_setfit(
@@ -79,7 +73,7 @@ def log_preds_setfit(
     skip_logging = logger_config.helper_data[f"setfit_skip_input_log_{split}"]
     # Iterate over the dataset in batches and log the data samples
     # and model outputs
-    meta = _get_meta_cols(dataset.column_names)
+    meta = get_meta_cols(dataset.column_names)
     for i in range(0, len(dataset), batch_size):
         batch = dataset[i : i + batch_size]
         assert text_col in batch, f"column '{text_col}' must be in batch"

@@ -1,4 +1,5 @@
 import os
+import warnings
 from typing import Dict, List, Union
 
 import numpy as np
@@ -9,7 +10,7 @@ from vaex.dataframe import DataFrame
 
 from dataquality import config
 from dataquality.clients.objectstore import ObjectStore
-from dataquality.exceptions import GalileoException
+from dataquality.exceptions import GalileoException, GalileoWarning
 from dataquality.loggers.base_logger import BaseLoggerAttributes
 from dataquality.schemas.split import Split
 from dataquality.utils.cuda import (
@@ -182,12 +183,37 @@ def add_umap_pca_to_df(df: DataFrame, data_embs: bool = False) -> DataFrame:
     return dfc
 
 
-def create_data_embs_df(df: DataFrame, lazy: bool = True) -> DataFrame:
+def create_data_embs_df(df: DataFrame, text_col: str, lazy: bool = True) -> DataFrame:
     """Runs sentence transformer on raw text to get off the shelf data embeddings
 
-    :param df: The dataframe to get data embeddings for. Must have text col
+    text_col can be passed in as "input" or "target" for Seq2Seq tasks.
+    text_col can also be any given metadata text column.
+
+    :param df: The dataframe to get data embeddings for. Must have the text_col
+    :param text_col: The column to use for calculating data embeddings
     :param lazy: If true, we lazily apply the model to encode the text
     """
+    # If the specified column doesn't exist, fall back on default columns
+    col_to_encode = text_col
+    if col_to_encode not in df.get_column_names():
+        col_to_encode = ""
+        for col in ["text", "input"]:
+            if col in df.get_column_names():
+                warnings.warn(
+                    f"Column `{text_col}` not found, `{col}` will be used for data "
+                    "embeddings",
+                    GalileoWarning,
+                )
+                col_to_encode = col
+                break
+
+    # If user specified col and default cols don't exist, raise error
+    if not col_to_encode:
+        raise GalileoException(
+            f"The specified column create_data_embs={text_col} in dq.finish does not "
+            "exist in the dataframe. Re-run dq.finish with an existing column name."
+        )
+
     # This import takes up to 25 seconds, so we don't want to eagerly import it
     import transformers
     from sentence_transformers import SentenceTransformer
@@ -205,7 +231,7 @@ def create_data_embs_df(df: DataFrame, lazy: bool = True) -> DataFrame:
         )
 
     if lazy:
-        df_copy["emb"] = df_copy["text"].apply_sentence_transformer()
+        df_copy["emb"] = df_copy[col_to_encode].apply_sentence_transformer()
         df_copy = df_copy[["id", "emb"]]
     else:
         import torch
@@ -213,7 +239,7 @@ def create_data_embs_df(df: DataFrame, lazy: bool = True) -> DataFrame:
         # Downcasts to float16 where possible, speeds up processing by 10 it/sec
         with torch.autocast("cuda"):
             df_copy["emb"] = data_model.encode(
-                df_copy["text"].tolist(), show_progress_bar=True
+                df_copy[col_to_encode].tolist(), show_progress_bar=True
             ).astype(np.float32)
 
     return df_copy

@@ -133,7 +133,7 @@ def calculate_classification_error(
     # count the number of pixels in the pred mask relevant region that are
     # not the correct class
     areas = np.bincount(incorrect_pixels, minlength=number_classes)
-    argmax = np.argmax(areas)
+    argmax = int(np.argmax(areas))
     return ClassificationErrorData(
         accuracy=float_accuracy,
         mislabeled_class=argmax,

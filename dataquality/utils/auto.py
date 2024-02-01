@@ -3,15 +3,60 @@ import os
 import re
 import warnings
 from datetime import datetime
-from typing import Dict, List, Optional, Union
+from typing import Dict, Iterable, List, Optional, Set, Union
 
 import pandas as pd
 from datasets import ClassLabel, Dataset, DatasetDict, load_dataset
 
+from dataquality.dq_auto.schema import BaseAutoDatasetConfig
 from dataquality.exceptions import GalileoException, GalileoWarning
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.name import BAD_CHARS_REGEX
+
+
+def sample_dataset_dict(
+    dd: DatasetDict,
+    dataset_config: BaseAutoDatasetConfig,
+    max_train_size: Optional[int] = None,
+) -> DatasetDict:
+    """Samples the dataset dict to the max train size
+
+    A few important notes:
+    - If max train size is greater than the dataset size, we don't sample
+    - If max train size is None we also don't sample
+    - We set max eval size to be 25% of max train size
+    - Test and inference data are not sampled
+    """
+    max_train_sz = max_train_size or dataset_config.formatter.max_train_size
+    if not max_train_sz:
+        return dd
+
+    max_eval_sz = int(max_train_sz * 0.25)
+    for split, dataset in dd.items():
+        sampled_size = len(dataset)
+        if Split[split] == Split.training:
+            sampled_size = min(sampled_size, max_train_sz)
+        elif Split[split] == Split.validation:
+            sampled_size = min(sampled_size, max_eval_sz)
+
+        if len(dataset) > sampled_size:
+            # Slice the dataset to the max size
+            dataset = dataset.select(range(sampled_size))
+            dd[split] = dataset
+
+    return dd
+
+
+def get_meta_cols(
+    cols: Iterable, reserved_cols: Optional[Set[str]] = None
+) -> List[str]:
+    """Returns the meta columns of a dataset."""
+    reserved_cols = reserved_cols or set()
+    default_cols = {"text", "label", "id"}
+    default_cols = set(reserved_cols).union(default_cols)
+    meta_columns = [col for col in cols if col not in default_cols]
+    return list(meta_columns)
 
 
 def load_data_from_str(data: str) -> Union[pd.DataFrame, Dataset]:

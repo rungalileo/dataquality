@@ -1,8 +1,7 @@
 from enum import Enum
 from typing import Dict, List, Optional, Tuple, Union
 
-from pydantic import BaseModel
-from pydantic.class_validators import validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 from vaex.dataframe import DataFrame
 
 
@@ -197,8 +196,9 @@ class Condition(BaseModel):
     agg: AggregateFunction
     operator: Operator
     threshold: float
-    metric: Optional[str] = None
-    filters: Optional[List[ConditionFilter]] = []
+    metric: Optional[str] = Field(default=None, validate_default=True)
+    filters: List[ConditionFilter] = Field(default_factory=list, validate_default=True)
+    model_config = ConfigDict(validate_assignment=True)
 
     def evaluate(self, df: DataFrame) -> Tuple[bool, float]:
         filtered_df = self._apply_filters(df)
@@ -226,24 +226,28 @@ class Condition(BaseModel):
         """Asserts the condition"""
         assert self.evaluate(df)[0]
 
-    @validator("filters", pre=True, always=True)
+    @field_validator("filters", mode="before")
     def validate_filters(
-        cls, v: Optional[List[ConditionFilter]], values: Dict
+        cls, value: Optional[List[ConditionFilter]], validation_info: ValidationInfo
     ) -> Optional[List[ConditionFilter]]:
-        if not v:
+        values: Dict = validation_info.data
+        if not value:
             agg = values["agg"]
             if agg == AggregateFunction.pct:
                 raise ValueError("Percentage aggregate requires a filter")
 
-        return v
+        return value
 
-    @validator("metric", pre=True, always=True)
-    def validate_metric(cls, v: Optional[str], values: Dict) -> Optional[str]:
-        if not v:
-            agg = values["agg"]
+    @field_validator("metric", mode="before")
+    def validate_metric(
+        cls, value: Optional[str], validation_info: ValidationInfo
+    ) -> Optional[str]:
+        values: Dict = validation_info.data
+        if value is None:
+            agg = values.get("agg")
             if agg != AggregateFunction.pct:
                 raise ValueError(
                     f"You must set a metric for non-percentage aggregate function {agg}"
                 )
 
-        return v
+        return value

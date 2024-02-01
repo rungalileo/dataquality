@@ -14,8 +14,10 @@ class TaskType(str, Enum):
     object_detection = "object_detection"
     semantic_segmentation = "semantic_segmentation"
     prompt_evaluation = "prompt_evaluation"
-    seq2seq = "seq2seq"
+    seq2seq = "seq2seq"  # soon to be deprecated in favor or chat or completion
     llm_monitor = "llm_monitor"
+    seq2seq_completion = "seq2seq_completion"
+    seq2seq_chat = "seq2seq_chat"
 
     @staticmethod
     def get_valid_tasks() -> List["TaskType"]:
@@ -24,6 +26,15 @@ class TaskType(str, Enum):
             task_type
             for task_type in TaskType
             if task_type not in [TaskType.prompt_evaluation, TaskType.llm_monitor]
+        ]
+
+    @staticmethod
+    def get_seq2seq_tasks() -> List["TaskType"]:
+        """Sequence to Sequence tasks types."""
+        return [
+            TaskType.seq2seq,
+            TaskType.seq2seq_completion,
+            TaskType.seq2seq_chat,
         ]
 
     @staticmethod
@@ -38,6 +49,8 @@ class TaskType(str, Enum):
             5: TaskType.object_detection,
             6: TaskType.semantic_segmentation,
             7: TaskType.prompt_evaluation,
-            8: TaskType.seq2seq,
+            8: TaskType.seq2seq,  # soon to be deprecated in favor or chat or completion
             9: TaskType.llm_monitor,
+            10: TaskType.seq2seq_completion,
+            11: TaskType.seq2seq_chat,
         }[task_int]

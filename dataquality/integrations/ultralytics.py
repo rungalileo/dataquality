@@ -413,7 +413,7 @@ class Callback:
         :param validator: the validator"""
         self.split = Split.validation
         self.validator = validator
-        model = validator.model or self.model
+        model = self.model
         if not self.hooked:
             self.register_hooks(model.model)
             self.bl = BatchLogger(validator.preprocess)

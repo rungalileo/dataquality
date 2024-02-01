@@ -362,9 +362,9 @@ def log_model_outputs(
     epoch: Optional[int] = None,
     logits: Optional[Union[List, np.ndarray]] = None,
     probs: Optional[Union[List, np.ndarray]] = None,
+    log_probs: Optional[np.ndarray] = None,
     inference_name: Optional[str] = None,
     exclude_embs: bool = False,
-    labels: Optional[np.ndarray] = None,
 ) -> None:
     """Logs model outputs for model during training/test/validation.
 
@@ -385,19 +385,27 @@ def log_model_outputs(
     assert all(
         [config.task_type, config.current_project_id, config.current_run_id]
     ), "You must call dataquality.init before logging data"
+    remove_embs = False
+    if config.task_type in TaskType.get_seq2seq_tasks():
+        # Custom embeddings are optional in seq2seq
+        if embs is None:
+            exclude_embs = True
+            remove_embs = True
+        if log_probs is not None:
+            probs = log_probs
+
     assert (probs is not None) or (
         logits is not None
     ), "You must provide either logits or probs"
-    # No embeddings ever provided by user in seq2seq
-    if config.task_type == TaskType.seq2seq:
-        exclude_embs = True
-        embs = None
+
     assert (embs is None and exclude_embs) or (
         embs is not None and not exclude_embs
     ), "embs can be omitted if and only if exclude_embs is True"
     if embs is None and exclude_embs:
         embs = np.random.rand(len(ids), DEFAULT_RANDOM_EMB_DIM)
 
+    # Note: When `logits` is a very large tensor (e.g. in Seq2Seq)
+    # converting to float32 can take a non-trivial amount of time
     model_logger = get_model_logger(
         task_type=None,
         embs=embs.astype(np.float32) if isinstance(embs, np.ndarray) else embs,
@@ -407,8 +415,8 @@ def log_model_outputs(
         logits=logits.astype(np.float32) if isinstance(logits, np.ndarray) else logits,
         probs=probs.astype(np.float32) if isinstance(probs, np.ndarray) else probs,
         inference_name=inference_name,
-        labels=labels.astype(np.float32) if isinstance(labels, np.ndarray) else labels,
     )
+    model_logger.logger_config.remove_embs = remove_embs
     model_logger.log()
 
 

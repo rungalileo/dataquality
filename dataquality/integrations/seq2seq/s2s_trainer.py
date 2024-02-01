@@ -1,5 +1,6 @@
+from contextlib import nullcontext
 from dataclasses import asdict
-from typing import Dict, Tuple
+from typing import ContextManager, Dict, TextIO, Tuple, Union
 
 import torch
 from datasets import Dataset, DatasetDict
@@ -17,13 +18,35 @@ from transformers import (
 )
 
 import dataquality as dq
-from dataquality.integrations.seq2seq.hf import watch
+from dataquality.exceptions import GalileoException
+from dataquality.integrations.seq2seq.core import watch
 from dataquality.integrations.seq2seq.schema import (
     Seq2SeqGenerationConfig,
     Seq2SeqTrainingConfig,
 )
+from dataquality.schemas.seq2seq import Seq2SeqModelType
 from dataquality.schemas.split import Split
 from dataquality.utils.torch import cleanup_cuda
+
+
+def validate_cols(ds: Dataset, input_col: str, target_col: str) -> None:
+    """Validates that the input and target columns are in the dataset"""
+    template = (
+        "{col} column {val} not found in dataset. "
+        "Please check the DatasetConfig to ensure the {col_name} is correct."
+        "If you are using a custom formatter, please ensure that the "
+        "{col_name} is being set correctly.\n\n"
+    )
+    error_msg = ""
+    if input_col not in ds.column_names:
+        error_msg += template.format(col="Input", val=input_col, col_name="input_col")
+    if target_col not in ds.column_names:
+        error_msg += template.format(
+            col="Target", val=target_col, col_name="target_col"
+        )
+
+    if error_msg:
+        raise GalileoException(error_msg)
 
 
 def tokenize(
@@ -34,6 +57,8 @@ def tokenize(
     max_input_length: int,
     max_target_length: int,
 ) -> Dataset:
+    validate_cols(ds, input_col, target_col)
+
     def _tokenize(row: Dict) -> BatchEncoding:
         """Tokenize the input and outputs
 
@@ -129,14 +154,14 @@ def get_trainer(
     )
 
     watch(
-        model=model,
         tokenizer=tokenizer,
+        model_type=Seq2SeqModelType.encoder_decoder,
+        model=model,
         generation_config=hf_generation_config,
         generation_splits=generation_config.generation_splits,
         max_input_tokens=max_input_tokens,
         max_target_tokens=max_target_tokens,
     )
-
     return model, dataloaders
 
 
@@ -164,26 +189,36 @@ def do_train(
     if not train_dataloader:
         raise ValueError("Training data must be provided for Seq2Seq `auto`")
 
-    for epoch in range(training_config.epochs):
+    skip_train = training_config.epochs == 0
+    train_context: Union[TextIO, ContextManager[None]] = (
+        torch.no_grad() if skip_train else nullcontext()
+    )  # simply defining the context, setting the type is to make the linter happy
+
+    # If skip_train=True, we add 1 epoch so we can do inference and still log the data
+    for epoch in range(training_config.epochs + int(skip_train)):
         dq.set_epoch_and_split(split=Split.train, epoch=epoch)
-        model.train()
+        model.eval() if skip_train else model.train()
         train_epoch_loss = 0.0
         for step, batch in enumerate(tqdm(train_dataloader)):
             ids = batch["id"]
             batch = {k: v.to(device) for k, v in batch.items() if k != "id"}
-            outputs = model(**batch)
+
+            with train_context:
+                outputs = model(**batch)
+
             logits = outputs.logits  # Shape - [bs, bs_seq_ln, vocab]
             dq.log_model_outputs(logits=logits, ids=ids)
 
             loss = outputs.loss / training_config.accumulation_steps
 
-            loss.backward()
-            # Grad Accumulation
-            if ((step + 1) % training_config.accumulation_steps == 0) or (
-                (step + 1) == len(train_dataloader)
-            ):
-                optimizer.step()
-                optimizer.zero_grad()
+            if not skip_train:
+                loss.backward()
+                # Grad Accumulation
+                if ((step + 1) % training_config.accumulation_steps == 0) or (
+                    (step + 1) == len(train_dataloader)
+                ):
+                    optimizer.step()
+                    optimizer.zero_grad()
 
             step_loss = loss.detach().cpu().item()
             train_epoch_loss += step_loss
@@ -233,5 +268,9 @@ def do_train(
     # Cleanup all unused data on the GPU and any references
     # to that data
     cleanup_cuda(optimizer=optimizer, tensors=[logits, loss, batch, outputs])
-    dq.finish(wait=wait, create_data_embs=training_config.create_data_embs)
+    dq.finish(
+        wait=wait,
+        create_data_embs=training_config.create_data_embs,
+        data_embs_col=training_config.data_embs_col,
+    )
     return model

@@ -1,9 +1,11 @@
 import os
 import shutil
 import warnings
+from time import time
 from typing import Any, Callable, Dict, Generator, List, Optional, Union
 from uuid import UUID
 
+import jwt
 import pytest
 import requests
 import torch
@@ -11,6 +13,7 @@ from transformers import (
     AutoModelForSequenceClassification,
     AutoTokenizer,
     T5ForConditionalGeneration,
+    T5Tokenizer,
 )
 from vaex.dataframe import DataFrame
 
@@ -60,6 +63,16 @@ try:
 except Exception:
     tokenizer_T5 = AutoTokenizer.from_pretrained(HF_TEST_T5_PATH, device="cpu")
     tokenizer_T5.save_pretrained(LOCAL_T5_PATH)
+
+try:
+    tokenizer_T5_not_auto = T5Tokenizer.from_pretrained(
+        LOCAL_T5_PATH, use_fast=True, device="cpu"
+    )
+except Exception:
+    tokenizer_T5_not_auto = T5Tokenizer.from_pretrained(
+        HF_TEST_T5_PATH, use_fast=True, device="cpu"
+    )
+    tokenizer_T5_not_auto.save_pretrained(LOCAL_T5_PATH)
 
 try:
     model_T5 = T5ForConditionalGeneration.from_pretrained(LOCAL_T5_PATH).to("cpu")
@@ -127,6 +140,21 @@ def disable_network_calls(request, monkeypatch):
         raise RuntimeError("Network access not allowed during testing!")
 
     monkeypatch.setattr(requests, "get", lambda url, *args, **kwargs: stunted_get(url))
+
+
+@pytest.fixture(autouse=True)
+def valid_jwt_token(monkeypatch):
+    def decode_token(token: str) -> Dict:
+        """Unless it's a mocked call to healthcheck, disable network access"""
+        if "expired" in token:
+            return {"exp": 0}
+
+        one_hour = 60 * 60
+        return {"exp": time() + one_hour}
+
+    monkeypatch.setattr(
+        jwt, "decode", lambda token, *args, **kwargs: decode_token(token)
+    )
 
 
 @pytest.fixture(scope="function")

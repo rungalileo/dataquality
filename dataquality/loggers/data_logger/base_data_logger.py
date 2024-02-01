@@ -1,5 +1,4 @@
 import gc
-import glob
 import os
 import sys
 import warnings
@@ -22,7 +21,6 @@ from dataquality.schemas.dataframe import BaseLoggerDataFrames, DFVar
 from dataquality.schemas.ner import TaggingSchema
 from dataquality.schemas.split import Split
 from dataquality.utils import tqdm
-from dataquality.utils.cloud import is_galileo_cloud
 from dataquality.utils.cuda import cuml_available
 from dataquality.utils.emb import (
     DATA_EMB_PATH,
@@ -66,7 +64,6 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     MAX_DOC_LEN = 10_000  # Max characters in document metadata attribute
     LIMIT_NUM_DOCS = 3  # Limit the number of documents logged per split
     INPUT_DATA_BASE = "input_data"
-    MAX_DATA_SIZE_CLOUD = 300_000
     # 2GB max size for arrow strings. We use 1.5GB for some buffer
     # https://issues.apache.org/jira/browse/ARROW-17828
     STRING_MAX_SIZE_B = 1.5e9
@@ -190,8 +187,6 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         os.makedirs(f"{self.input_data_path}/{self.split}", exist_ok=True)
 
         df = self._get_input_df()
-        # Validates cloud size limit
-        self.validate_data_size(df)
 
         ids = df["id"].tolist()
         self.validate_ids_for_split(ids)
@@ -245,7 +240,10 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         return dataset
 
     def upload(
-        self, last_epoch: Optional[int] = None, create_data_embs: bool = False
+        self,
+        last_epoch: Optional[int] = None,
+        create_data_embs: bool = False,
+        data_embs_col: str = "text",
     ) -> None:
         """
         Iterates through all of each splits children folders [data/emb/prob] for each
@@ -274,11 +272,12 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             if self.support_data_embs and create_data_embs:
                 print("Creating and uploading data embeddings")
                 upload_umap_data_embs(
-                    config.current_project_id,
-                    config.current_run_id,
-                    self.input_data_path,
-                    location,
-                    last_epoch,
+                    project_id=config.current_project_id,
+                    run_id=config.current_run_id,
+                    input_data_dir=self.input_data_path,
+                    run_dir=location,
+                    last_epoch=last_epoch,
+                    data_embs_col=data_embs_col,
                 )
                 # We have already created them here, so don't try again later
                 create_data_embs = False
@@ -292,7 +291,12 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
         for split in Split.get_valid_attributes():
             self.upload_split(
-                location, split, object_store, last_epoch, create_data_embs
+                location=location,
+                split=split,
+                object_store=object_store,
+                last_epoch=last_epoch,
+                create_data_embs=create_data_embs,
+                data_embs_col=data_embs_col,
             )
 
     def upload_split(
@@ -302,6 +306,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         object_store: ObjectStore,
         last_epoch: Optional[int],
         create_data_embs: bool,
+        data_embs_col: str,
     ) -> None:
         split_loc = f"{location}/{split}"
         in_frame_path = f"{self.input_data_path}/{split}"
@@ -320,12 +325,13 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         in_frame_split = vaex.open(f"{in_frame_path}/*.{self.INPUT_DATA_FILE_EXT}")
         in_frame_split = self.convert_large_string(in_frame_split)
         self.upload_split_from_in_frame(
-            object_store,
-            in_frame_split,
-            split,
-            split_loc,
-            last_epoch,
-            create_data_embs,
+            object_store=object_store,
+            in_frame=in_frame_split,
+            split=split,
+            split_loc=split_loc,
+            last_epoch=last_epoch,
+            create_data_embs=create_data_embs,
+            data_embs_col=data_embs_col,
         )
         in_frame_split.close()
         _shutil_rmtree_retry(in_frame_path)
@@ -333,13 +339,13 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
     @classmethod
     def create_and_upload_data_embs(
-        cls, df: DataFrame, split: str, epoch_or_inf: str
+        cls, df: DataFrame, split: str, epoch_or_inf: str, data_embs_col: str
     ) -> None:
         """Uploads off the shelf data embeddings for a split"""
         object_store = ObjectStore()
         df_copy = df.copy()
         try:
-            data_embs = create_data_embs_df(df_copy)
+            data_embs = create_data_embs_df(df_copy, text_col=data_embs_col)
         except HfHubHTTPError as e:
             warnings.warn(
                 "Unable to download transformer from huggingface. Data embeddings "
@@ -368,15 +374,15 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             df_copy["text"] = df_copy['astype(text, "large_string")']
         return df_copy
 
-    @classmethod
     def upload_split_from_in_frame(
-        cls,
+        self,
         object_store: ObjectStore,
         in_frame: DataFrame,
         split: str,
         split_loc: str,
-        last_epoch: Optional[int] = None,
-        create_data_embs: bool = False,
+        last_epoch: Optional[int],
+        create_data_embs: bool,
+        data_embs_col: str,
     ) -> None:
         epochs_or_infs = os.listdir(split_loc)
         epochs_or_infs = sorted(
@@ -399,7 +405,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             file=sys.stdout,
         ):
             input_batch = in_frame.copy()
-            prob_only = cls.prob_only(epochs_or_infs, split, epoch_or_inf, last_epoch)
+            prob_only = self.prob_only(epochs_or_infs, split, epoch_or_inf, last_epoch)
             if split == Split.inference:
                 input_batch = filter_df(input_batch, "inference_name", epoch_or_inf)
                 if not len(input_batch):
@@ -415,17 +421,21 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             ):
                 name = f"{split}/{epoch_or_inf}" if split == Split.inference else split
                 print(f"Creating and uploading data embeddings for {name}")
-                cls.create_and_upload_data_embs(input_batch, split, epoch_or_inf)
+                self.create_and_upload_data_embs(
+                    df=input_batch,
+                    split=split,
+                    epoch_or_inf=epoch_or_inf,
+                    data_embs_col=data_embs_col,
+                )
 
             dir_name = f"{split_loc}/{epoch_or_inf}"
-            in_out_frames = cls.create_in_out_frames(
+            in_out_frames = self.create_in_out_frames(
                 input_batch, dir_name, prob_only, split, epoch_or_inf
             )
-            cls.upload_in_out_frames(object_store, in_out_frames, split, epoch_or_inf)
+            self.upload_in_out_frames(object_store, in_out_frames, split, epoch_or_inf)
 
-    @classmethod
     def create_in_out_frames(
-        cls,
+        self,
         in_frame: DataFrame,
         dir_name: str,
         prob_only: bool,
@@ -448,7 +458,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         """
         out_frame = get_output_df(dir_name, prob_only, split, epoch_or_inf)
         epoch_or_inf_name = "inference_name" if split == Split.inference else "epoch"
-        return cls.process_in_out_frames(
+        return self.process_in_out_frames(
             in_frame, out_frame, prob_only, epoch_or_inf_name, split
         )
 
@@ -534,9 +544,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             elif dt == "int" and dt != "int32":
                 df[col] = df[col].astype("int32")
 
-    @classmethod
     def prob_only(
-        cls,
+        self,
         epochs: List[str],
         split: str,
         epoch_or_inf_name: Union[int, str],
@@ -612,7 +621,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
                 )
                 continue
             # Values must be a point, not an iterable
-            valid_types = (str, int, float, np.floating, np.integer)
+            valid_types = (str, int, float, bool, np.floating, np.integer)
             invalid_values = filter(lambda t: not isinstance(t, valid_types), values)
             bad_val = next(invalid_values, None)
             if bad_val:
@@ -696,24 +705,3 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     def set_tagging_schema(cls, tagging_schema: TaggingSchema) -> None:
         """Sets the tagging schema, if applicable. Must be implemented by child"""
         raise GalileoException(f"Cannot set tagging schema for {cls.__logger_name__}")
-
-    def validate_data_size(self, df: DataFrame) -> None:
-        """Validates that the data size is within the limits of Galileo Cloud
-
-        If the data size is too large, a warning is raised.
-        """
-        if not is_galileo_cloud():
-            return
-        samples_logged = len(df)
-        path_to_logged_data = f"{self.input_data_path}/*/*arrow"
-        if glob.glob(path_to_logged_data):
-            samples_logged += len(vaex.open(f"{self.input_data_path}/*/*arrow"))
-        nrows = BaseGalileoDataLogger.MAX_DATA_SIZE_CLOUD
-        if samples_logged > nrows:
-            warnings.warn(
-                f"⚠️ Hey there! You've logged over {nrows} rows in your input data. "
-                f"Galileo Cloud only supports up to {nrows} rows. "
-                "If you are using larger datasets, you may see degraded performance. "
-                "Please email us at team@rungalileo.io if you have any questions.",
-                GalileoWarning,
-            )

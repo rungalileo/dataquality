@@ -794,10 +794,10 @@ class TextNERDataLogger(BaseGalileoDataLogger):
 
     @classmethod
     def create_and_upload_data_embs(
-        cls, df: DataFrame, split: str, epoch_or_inf: str
+        cls, df: DataFrame, split: str, epoch_or_inf: str, data_embs_col: str
     ) -> None:
         """Not yet supported for NER. Coming soon!"""
         warnings.warn(
-            "Data embeddings are not yet supported for NER. Coming soon!",
+            "Data embeddings are not yet supported for NER.",
             GalileoWarning,
         )

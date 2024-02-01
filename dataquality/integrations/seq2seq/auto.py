@@ -6,7 +6,7 @@ from transformers import PreTrainedModel
 
 import dataquality as dq
 from dataquality.dq_auto.base_data_manager import BaseDatasetManager
-from dataquality.integrations.seq2seq.formatter import get_formatter
+from dataquality.integrations.seq2seq.formatters import get_formatter
 from dataquality.integrations.seq2seq.s2s_trainer import do_train, get_trainer
 from dataquality.integrations.seq2seq.schema import (
     Seq2SeqDatasetConfig,
@@ -17,7 +17,9 @@ from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.auto import (
     add_val_data_if_missing,
+    get_meta_cols,
     run_name_from_hf_dataset,
+    sample_dataset_dict,
 )
 from dataquality.utils.torch import cleanup_cuda
 
@@ -53,7 +55,7 @@ class S2SDatasetManager(BaseDatasetManager):
             hf_data = dataset_config.hf_data
             if isinstance(hf_data, str):
                 dd = load_dataset(hf_data)
-                self.formatter = get_formatter(hf_data)
+                dataset_config.formatter = get_formatter(hf_data)
             elif isinstance(hf_data, DatasetDict):
                 dd = hf_data
             else:
@@ -63,8 +65,8 @@ class S2SDatasetManager(BaseDatasetManager):
                     "If this is just a Dataset, pass it to `train_data`"
                 )
 
-            # Apply the datasets custom formatter on load dataset dict
-            dd = dd.map(self.formatter.format_sample)
+            dataset_config.input_col = dataset_config.formatter.input_col
+            dataset_config.target_col = dataset_config.formatter.target_col
             return dd, dataset_config
 
         return None, dataset_config
@@ -72,6 +74,8 @@ class S2SDatasetManager(BaseDatasetManager):
     def get_dataset_dict_from_config(
         self,
         dataset_config: Optional[Seq2SeqDatasetConfig],
+        max_train_size: Optional[int] = None,
+        create_val_data_if_missing: bool = True,
     ) -> Tuple[DatasetDict, Seq2SeqDatasetConfig]:
         """Creates and/or validates the DatasetDict provided by the user.
 
@@ -108,13 +112,36 @@ class S2SDatasetManager(BaseDatasetManager):
             if test_data is not None:
                 dd[Split.test] = self._convert_to_hf_dataset(test_data)
 
-        return self._validate_dataset_dict(dd, []), dataset_config
+        # Minimize dataset if user provided a max_train_size
+        dd = sample_dataset_dict(dd, dataset_config, max_train_size)
+        # Add validation data if missing, add 'id' column
+        dd = self._validate_dataset_dict(
+            dd, [], create_val_data_if_missing=create_val_data_if_missing
+        )
+        formatter = dataset_config.formatter
+        if formatter.process_batch:
+            # Apply the dataset's custom formatter on dataset dict
+            dd = dd.map(
+                formatter.format_batch,
+                batched=True,
+                remove_columns=dd[Split.train].column_names,
+                with_indices=True,
+            )
+            # We must re-add the id column if it's been dropped
+            dd = self._validate_dataset_dict(
+                dd, [], create_val_data_if_missing=create_val_data_if_missing
+            )
+        else:
+            dd = dd.map(formatter.format_sample, remove_columns=formatter.remove_cols)
+
+        return dd, dataset_config
 
     def _validate_dataset_dict(
         self,
         dd: DatasetDict,
         inference_names: List[str],
         labels: Optional[List[str]] = None,
+        create_val_data_if_missing: bool = True,
     ) -> DatasetDict:
         """Validates the core components of the provided (or created) DatasetDict
 
@@ -123,7 +150,12 @@ class S2SDatasetManager(BaseDatasetManager):
             * all keys must be one of our valid key names
 
         We then also convert the keys of the DatasetDict to our `Split` key enum so
-        we can access it easier in the future
+        we can access it easier in the future.
+
+        If create_val_data_if_missing=True, we additionally ensure that we have
+        validation data. If validation data is missing, we use the test split as
+        validation (if available), or else we create a validation split from the
+        training data.
         """
         clean_dd = super()._validate_dataset_dict(dd, inference_names, labels)
         for key in list(clean_dd.keys()):
@@ -131,7 +163,11 @@ class S2SDatasetManager(BaseDatasetManager):
             if "id" not in ds.features:
                 ds = ds.add_column("id", list(range(ds.num_rows)))
             clean_dd[key] = ds
-        return add_val_data_if_missing(clean_dd, TaskType.seq2seq)
+
+        if create_val_data_if_missing:
+            clean_dd = add_val_data_if_missing(clean_dd, TaskType.seq2seq)
+
+        return clean_dd
 
 
 def _log_dataset_dict(dd: DatasetDict, input_col: str, target_col: str) -> None:
@@ -142,8 +178,12 @@ def _log_dataset_dict(dd: DatasetDict, input_col: str, target_col: str) -> None:
                 ds = ds.rename_columns({"text": "_metadata_text"})
             if target_col != "label" and "label" in ds.column_names:
                 ds = ds.rename_columns({"label": "_metadata_label"})
-
-            dq.log_dataset(ds, text=input_col, label=target_col, split=key)
+            if input_col != "input" and "input" in ds.column_names:
+                ds = ds.rename_columns({"input": "_metadata_input"})
+            if target_col != "target" and "target" in ds.column_names:
+                ds = ds.rename_columns({"target": "_metadata_target"})
+            meta = get_meta_cols(ds.features, {input_col, target_col})
+            dq.log_dataset(ds, text=input_col, label=target_col, split=key, meta=meta)
 
 
 def auto(
@@ -152,25 +192,28 @@ def auto(
     dataset_config: Optional[Seq2SeqDatasetConfig] = None,
     training_config: Optional[Seq2SeqTrainingConfig] = None,
     generation_config: Optional[Seq2SeqGenerationConfig] = None,
+    max_train_size: Optional[int] = None,
     wait: bool = True,
 ) -> Optional[PreTrainedModel]:
     """Automatically get insights on a Seq2Seq dataset
 
     Given either a pandas dataframe, file_path, or huggingface dataset path, this
     function will load the data, train a huggingface transformer model, and
-    provide Galileo insights via a link to the Galileo Console
+    provide Galileo insights via a link to the Galileo Console. If the number of epochs
+    in training_config is set to 0, training/fine-tuning will be skipped and we will
+    only do a forward pass (on all the splits).
 
     One of DatasetConfig `hf_data`, `train_path`, or `train_data` should be provided.
     If none of those is, a demo dataset will be loaded by Galileo for training.
 
     The validation data is what is used for the evaluation dataset in training.
     If not provided, but test_data is, that will be used as the evaluation
-    set. If neither val nor test are available, the train data will be randomly
-    split 80/20 for use as evaluation data.
+    set. If neither val nor test are available (and training is not skipped), the train
+    data will be randomly split 80/20 for use as evaluation data.
 
-    The test data, if provided with val,
-    will be used after training is complete, as the hold-out set. If no validation
-    data is provided, this will instead be used as the evaluation set.
+    The test data, if provided with val, will be used after training is complete, as the
+    hold-out set. If no validation data is provided, this will instead be used as the
+    evaluation set.
 
     :param project_name: Optional project name. If not set, a random name will
         be generated
@@ -182,6 +225,7 @@ def auto(
         See `Seq2SeqTrainingConfig` for more details
     :param generation_config: Optional config for generating predictions.
         See `Seq2SeqGenerationConfig` for more details
+    :param max_train_size: Optional max number of training examples to use.
     :param wait: Whether to wait for Galileo to complete processing your run.
         Default True
 
@@ -221,7 +265,11 @@ def auto(
     generation_config = generation_config or Seq2SeqGenerationConfig()
 
     manager = S2SDatasetManager()
-    dd, dataset_config = manager.get_dataset_dict_from_config(dataset_config)
+    # Only force the creation of validation data if we actually fine-tune the model
+    create_val_data_if_missing = training_config.epochs > 0
+    dd, dataset_config = manager.get_dataset_dict_from_config(
+        dataset_config, max_train_size, create_val_data_if_missing
+    )
 
     if not run_name and isinstance(dataset_config.hf_data, str):
         run_name = run_name_from_hf_dataset(dataset_config.hf_data)
@@ -230,7 +278,6 @@ def auto(
     dq.init(TaskType.seq2seq, project_name=project_name, run_name=run_name)
     input_col = dataset_config.input_col
     target_col = dataset_config.target_col
-
     # We 'watch' in get_trainer, which must happen before logging datasets
     model, dataloaders = get_trainer(
         dd,

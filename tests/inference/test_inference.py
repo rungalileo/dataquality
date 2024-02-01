@@ -30,8 +30,8 @@ class TestSetSplitInference:
             dataquality.set_split("inference")
 
         assert (
-            e.value.errors()[0]["msg"]
-            == "Please specify inference_name when setting split to inference"
+            "Please specify inference_name when setting split to inference"
+            in e.value.errors()[0]["msg"]
         )
 
 
