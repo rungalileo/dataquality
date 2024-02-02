@@ -23,14 +23,16 @@ class MockClient:
 
 
 def test_mock_log_galileo_import():
-    a = Analytics(MockClient, {"api_url": "https://console.dev.rungalileo.io"})
+    os.environ["DQ_TELEMETRICS"] = "1"
+    a = Analytics(MockClient, config)
     a.last_log = {}
     a.log_import("test")
     assert a.last_log["value"] == "test", "No import detected"
 
 
 def test_log_galileo_exception():
-    a = Analytics(MockClient, {"api_url": "https://console.dev.rungalileo.io"})
+    os.environ["DQ_TELEMETRICS"] = "1"
+    a = Analytics(MockClient, config)
     assert a._initialized, "Analytics not initialized"
     try:
         10 / 0
