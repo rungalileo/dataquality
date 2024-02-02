@@ -578,7 +578,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
 
     @classmethod
     @abstractmethod
-    def validate_labels(cls) -> None: ...
+    def validate_labels(cls) -> None:
+        ...
 
     def validate_metadata(self, batch_size: int) -> None:
         if len(self.meta.keys()) > self.MAX_META_COLS:
@@ -688,7 +689,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
     @abstractmethod
     def separate_dataframe(
         cls, df: DataFrame, prob_only: bool = False, split: Optional[str] = None
-    ) -> BaseLoggerDataFrames: ...
+    ) -> BaseLoggerDataFrames:
+        ...
 
     def validate_kwargs(self, kwargs: Dict) -> None:
         """Raises if a function that shouldn't get kwargs gets any"""
@@ -696,7 +698,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             raise GalileoException(f"Unexpected arguments: {tuple(kwargs.keys())}")
 
     @abstractmethod
-    def _get_input_df(self) -> DataFrame: ...
+    def _get_input_df(self) -> DataFrame:
+        ...
 
     @classmethod
     def set_tagging_schema(cls, tagging_schema: TaggingSchema) -> None:

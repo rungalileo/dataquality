@@ -208,7 +208,8 @@ class BaseGalileoLogger:
         )
 
     @abstractmethod
-    def log(self) -> None: ...
+    def log(self) -> None:
+        ...
 
     @staticmethod
     def _convert_tensor_ndarray(
@@ -326,7 +327,8 @@ class BaseGalileoLogger:
         pm = PatchManager()
         pm.unpatch()
 
-    def upload(self) -> None: ...
+    def upload(self) -> None:
+        ...
 
     @classmethod
     def get_all_subclasses(cls: Type[T]) -> List[Type[T]]:
