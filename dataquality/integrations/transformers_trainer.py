@@ -14,6 +14,7 @@ from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
 from dataquality.exceptions import GalileoException
 from dataquality.integrations.torch import TorchBaseInstance
+from dataquality.schemas.model import ModelUploadType
 from dataquality.schemas.split import Split
 from dataquality.schemas.torch import DimensionSlice, InputDim, Layer
 from dataquality.utils.helpers import check_noop
@@ -337,6 +338,16 @@ def watch(
     # Unpatch Trainer after logging (when finished is called)
     cleanup_manager = RefManager(lambda: unwatch(trainer))
     helper_data["cleaner"] = Cleanup(cleanup_manager)
+    helper_data["model"] = trainer.model
+    helper_data["model_parameters"] = {
+        "classifier_layer": classifier_layer,
+        "embedding_dim": embedding_dim,
+        "logits_dim": logits_dim,
+        "embedding_fn": embedding_fn,
+        "logits_fn": logits_fn,
+        "last_hidden_state_layer": last_hidden_state_layer,
+    }
+    helper_data["model_kind"] = ModelUploadType.transformers
 
 
 def unwatch(trainer: Trainer) -> None:

@@ -7,6 +7,7 @@ import dataquality
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
 from dataquality.core._config import config
+from dataquality.core.log import get_model_logger
 from dataquality.core.report import build_run_report
 from dataquality.schemas import RequestType, Route
 from dataquality.schemas.job import JobName
@@ -14,6 +15,7 @@ from dataquality.schemas.task_type import TaskType
 from dataquality.utils.dq_logger import DQ_LOG_FILE_HOME, upload_dq_log_file
 from dataquality.utils.helpers import check_noop, gpu_available
 from dataquality.utils.thread_pool import ThreadPoolManager
+from dataquality.utils.upload_model import upload_model_to_dq
 
 api_client = ApiClient()
 a = Analytics(ApiClient, config)  # type: ignore
@@ -25,6 +27,7 @@ def finish(
     wait: bool = True,
     create_data_embs: Optional[bool] = None,
     data_embs_col: str = "text",
+    upload_model: bool = bool(os.environ.get("DQ_UPLOAD_MODEL", False)),
 ) -> str:
     """
     Finishes the current run and invokes a job
@@ -43,6 +46,8 @@ def finish(
         If not set, we default to 'text' which corresponds to the input text.
         Can also be set to `target`, `generated_output` or any other column that is
         logged as metadata.
+    :param upload_model: If True, the model will be stored in the galileo project.
+        Default False or set by the environment variable DQ_UPLOAD_MODEL.
     """
     a.log_function("dq/finish")
     if create_data_embs is None:
@@ -85,6 +90,19 @@ def finish(
         f"Job {res['job_name']} successfully submitted. Results will be available "
         f"soon at {res['link']}"
     )
+    if upload_model:
+        try:
+            helper_data = get_model_logger().logger_config.helper_data
+            if helper_data and "model" in helper_data:
+                model = helper_data["model"]
+                model_parameters = helper_data["model_parameters"]
+                model_kind = helper_data["model_kind"]
+                upload_model_to_dq(model, model_parameters, model_kind)
+                print("Model uploaded successfully.")
+            else:
+                print("No model to upload.")
+        except Exception as e:
+            print(f"Error uploading model: {e}")
     if data_logger.logger_config.conditions:
         print(
             "Waiting for run to process before building run report... "

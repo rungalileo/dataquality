@@ -164,3 +164,34 @@ def test_finish_with_conditions(
         run_id=test_session_vars.DEFAULT_RUN_ID,
         link="https://www.example.com",
     )
+
+
+@mock.patch.object(dataquality.core.finish, "_reset_run")
+@mock.patch.object(dataquality.core.finish, "upload_dq_log_file")
+@mock.patch.object(dataquality.clients.api.ApiClient, "make_request")
+@mock.patch.object(
+    dataquality.core.finish.dataquality,
+    "get_data_logger",
+)
+@mock.patch.object(dataquality.core.finish, "upload_model_to_dq")
+@mock.patch.object(dataquality.core.finish, "wait_for_run")
+def test_finish_dq_upload(
+    mock_wait_for_run: MagicMock,
+    mock_upload_model_to_dq: MagicMock,
+    mock_get_data_logger: MagicMock,
+    mock_make_request: MagicMock,
+    mock_upload_log_file: MagicMock,
+    mock_reset_run: MagicMock,
+    set_test_config,
+) -> None:
+    set_test_config(task_type=TaskType.text_classification)
+    mock_get_data_logger.return_value = MagicMock(
+        logger_config=MagicMock(conditions=None)
+    )
+    helper_data = dataquality.core.log.get_model_logger().logger_config.helper_data
+    helper_data["model"] = "model"
+    helper_data["model_parameters"] = "model_parameters"
+    helper_data["model_kind"] = "model_kind"
+    dataquality.finish(upload_model=True)
+    mock_wait_for_run.assert_called_once()
+    mock_upload_model_to_dq.assert_called()
