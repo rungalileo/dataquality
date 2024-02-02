@@ -1,5 +1,6 @@
 import os
 from typing import Dict
+from uuid import uuid4
 
 import pytest
 
@@ -44,13 +45,14 @@ def test_log_galileo_exception():
         10 / "1"
 
 
-def test_log_galileo__import():
+def test_log_galileo_import():
+    os.environ["DQ_TELEMETRICS"] = "1"
     ac = Analytics(ApiClient, config)
     config.api_url = "https://console.dev.rungalileo.io"
     ac.last_log = {}
     # Only check if telemetrics is enabled.
     if not ac._telemetrics_disabled:
-        ac.config["current_project_id"] = "test"
+        ac.config.current_project_id = uuid4()
         assert ac._initialized, "Analytics not initialized"
         ac._telemetrics_disabled = False
         ac.log_import("test")
@@ -58,7 +60,8 @@ def test_log_galileo__import():
 
 
 def test_mock_log_galileo_import_disabled():
-    a_telemetrics_disabled = Analytics(MockClient, {"api_url": "https://customer"})
+    os.environ["DQ_TELEMETRICS"] = "0"
+    a_telemetrics_disabled = Analytics(MockClient, config)
     a_telemetrics_disabled.last_log = {}
     a_telemetrics_disabled.log_import("test")
     log_result = a_telemetrics_disabled.last_log.get("value", "")
