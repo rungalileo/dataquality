@@ -1,4 +1,5 @@
 """Internal functions to help Galileans"""
+
 from typing import Dict
 
 import dataquality

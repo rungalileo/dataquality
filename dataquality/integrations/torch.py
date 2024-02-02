@@ -296,10 +296,10 @@ def watch(
 def unwatch(model: Optional[Module] = None, force: bool = True) -> None:
     """Unwatches the model. Run after the run is finished.
     :param force: Force unwatch even if the model is not watched"""
-    torch_helper_data: TorchHelper = (
-        dq.get_model_logger().logger_config.helper_data.get(
-            "torch_helper", TorchHelper()
-        )
+    torch_helper_data: (
+        TorchHelper
+    ) = dq.get_model_logger().logger_config.helper_data.get(
+        "torch_helper", TorchHelper()
     )
 
     model = model or torch_helper_data.model
