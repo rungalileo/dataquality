@@ -6,7 +6,6 @@ import pytest
 
 from dataquality import config
 from dataquality.analytics import Analytics
-from dataquality.clients.api import ApiClient
 
 os.environ["DQ_DEBUG"] = "1"
 
