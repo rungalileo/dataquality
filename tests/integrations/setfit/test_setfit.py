@@ -191,7 +191,7 @@ def test_setfit_trainer(
     dq_evaluate(
         dataset,
         split="test",
-        column_mapping=column_mapping
+        column_mapping=column_mapping,
         # for inference set the split to inference
         # and pass an inference_name="inference_run_1"
     )

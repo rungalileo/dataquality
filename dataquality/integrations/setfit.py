@@ -353,7 +353,7 @@ def do_model_eval(
             dq_evaluate(
                 encoded_data[split],
                 split=split,
-                meta=meta_columns
+                meta=meta_columns,
                 # for inference set the split to inference
                 # and pass an inference_name="inference_run_1"
             )

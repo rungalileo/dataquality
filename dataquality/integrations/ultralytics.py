@@ -234,8 +234,8 @@ class Callback:
             logging_data = process_batch_data(self.bl.batch)
             if not self.nms_fn:
                 raise Exception("NMS function not found")
-            postprocess = (
-                lambda x: x if self.split == Split.validation else self.postprocess
+            postprocess = lambda x: (
+                x if self.split == Split.validation else self.postprocess
             )
             preds = postprocess(preds)
             nms = self.nms_fn(
