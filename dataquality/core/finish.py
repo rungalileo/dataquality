@@ -93,10 +93,10 @@ def finish(
     if upload_model:
         try:
             helper_data = get_model_logger().logger_config.helper_data
-            model = helper_data["model"]
-            model_parameters = helper_data["model_parameters"]
-            model_kind = helper_data["model_kind"]
             if helper_data and "model" in helper_data:
+                model = helper_data["model"]
+                model_parameters = helper_data["model_parameters"]
+                model_kind = helper_data["model_kind"]
                 upload_model_to_dq(model, model_parameters, model_kind)
                 print("Model uploaded successfully.")
             else:
