@@ -32,8 +32,10 @@ jobs:
       - name: install dependencies
         run: inv install --no-editable
 
-      - name: lint
-        run: inv lint
+      # We run the `mypy` check here since it requires all of the packages to be installed.
+      # Doing that in the pre-commit step would be duplicative and spend more time in CI.
+      - name: validate mypy
+        run: inv type-check
 
       - name: test
         run: inv test

@@ -81,47 +81,6 @@ def setup_pre_commit(ctx: Context) -> None:
 
 
 @task
-def lint(ctx: Context) -> None:
-    """lint
-
-    Check typing and formatting.
-    """
-    ctx.run(
-        "mypy dataquality tasks.py",
-        pty=True,
-        echo=True,
-    )
-    ctx.run(
-        f"black {SOURCES} --check",
-        pty=True,
-        echo=True,
-    )
-    ctx.run(
-        f"ruff {SOURCES}",
-        pty=True,
-        echo=True,
-    )
-
-
-@task
-def format(ctx: Context) -> None:
-    """format
-
-    Format the code.
-    """
-    ctx.run(
-        f"black {SOURCES}",
-        pty=True,
-        echo=True,
-    )
-    ctx.run(
-        f"ruff {SOURCES} --fix",
-        pty=True,
-        echo=True,
-    )
-
-
-@task
 def test(ctx: Context) -> None:
     """test
 
@@ -178,8 +137,6 @@ def all(ctx: Context) -> None:
     """
     clean(ctx)
     install(ctx)
-    format(ctx)
-    lint(ctx)
     test(ctx)
 
 
