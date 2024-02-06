@@ -71,44 +71,13 @@ def install(ctx: Context, extras: Optional[str] = None, editable: bool = True) -
 
 
 @task
-def lint(ctx: Context) -> None:
-    """lint
-
-    Check typing and formatting.
-    """
-    ctx.run(
-        "mypy dataquality tasks.py",
-        pty=True,
-        echo=True,
-    )
-    ctx.run(
-        f"black {SOURCES} --check",
-        pty=True,
-        echo=True,
-    )
-    ctx.run(
-        f"ruff {SOURCES}",
-        pty=True,
-        echo=True,
-    )
+def type_check(ctx: Context) -> None:
+    ctx.run("mypy --package dataquality --namespace-packages")
 
 
 @task
-def format(ctx: Context) -> None:
-    """format
-
-    Format the code.
-    """
-    ctx.run(
-        f"black {SOURCES}",
-        pty=True,
-        echo=True,
-    )
-    ctx.run(
-        f"ruff {SOURCES} --fix",
-        pty=True,
-        echo=True,
-    )
+def setup_pre_commit(ctx: Context) -> None:
+    ctx.run("pre-commit install --hook-type pre-push")
 
 
 @task
@@ -168,8 +137,6 @@ def all(ctx: Context) -> None:
     """
     clean(ctx)
     install(ctx)
-    format(ctx)
-    lint(ctx)
     test(ctx)
 
 
