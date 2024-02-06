@@ -100,6 +100,7 @@ dev = [
     "black>=23.1.0",
     "jupyter==1.0.0",
     "invoke>=1.6.0",
+    "pre-commit>=3.6.0",
 ]
 # Install this by adding the --extra-index-url option as shown below
 # `pip install 'dataquality[cuda]' --extra-index-url=https://pypi.nvidia.com/ `

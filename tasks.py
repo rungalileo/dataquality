@@ -71,6 +71,16 @@ def install(ctx: Context, extras: Optional[str] = None, editable: bool = True) -
 
 
 @task
+def type_check(ctx: Context) -> None:
+    ctx.run("mypy --package dataquality --namespace-packages")
+
+
+@task
+def setup_pre_commit(ctx: Context) -> None:
+    ctx.run("pre-commit install --hook-type pre-push")
+
+
+@task
 def lint(ctx: Context) -> None:
     """lint
 
