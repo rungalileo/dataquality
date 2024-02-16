@@ -60,11 +60,9 @@ cudf-cu11 = {version = "^24.2.0", source = "nvidia", optional=true}
 cuml-cu11 = {version = "^24.2.0", source = "nvidia", optional=true}
 
 [tool.poetry.group.dev.dependencies]
-mypy = ">=1.0.0"
-ruff = ">=0.0.98"
-black = ">=23.1.0"
-jupyter = "1.0.0"
+mypy = "^1.8.0"
 invoke = ">=1.6.0"
+pre-commit = "^3.6.1"
 
 
 [tool.poetry.extras]
