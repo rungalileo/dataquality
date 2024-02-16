@@ -72,13 +72,15 @@ cuda = ["ucx-py-cu11", "rmm-cu11", "raft-dask-cu11", "pylibraft-cu11", "dask-cud
 minio = ["minio"]
 setfit = ["setfit"]
 
-[tool.poetry.group.doc.dependencies]
-furo = "*"
-sphinx = "*"
-sphinx-autodoc-typehints = "*"
-myst-parser = "*"
-sphinx-markdown-builder = "*"
-sphinx-autobuild = "*"
+
+[tool.poetry.group.docs.dependencies]
+furo = "^2024.0.0"
+sphinx-autodoc-typehints = "^2.0.0"
+myst-parser = "^2.0.0"
+sphinx-markdown-builder = "^0.6.5"
+sphinx-autobuild = "^2021.3.14"
+autodoc-pydantic = "^2.0.1"
+
 
 [tool.poetry.group.test.dependencies]
 ultralytics = ">=8.0.209"
