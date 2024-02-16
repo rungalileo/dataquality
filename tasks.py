@@ -4,7 +4,7 @@ from invoke.tasks import task
 
 @task
 def install(ctx: Context) -> None:
-    ctx.run("poetry install --all-extras --without docs --no-root", echo=True)
+    ctx.run("poetry install --all-extras --without cuda,docs --no-root", echo=True)
 
 
 @task
