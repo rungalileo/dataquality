@@ -65,7 +65,8 @@ doc = [
     "myst-parser",
     "sphinx-markdown-builder",
     "sphinx-autobuild",
-    "sphinx-markdown-builder"
+    "sphinx-markdown-builder",
+    "autodoc-pydantic"
 ]
 test = [
     "ultralytics>=8.0.209",
