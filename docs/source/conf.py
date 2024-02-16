@@ -8,11 +8,14 @@
 
 from datetime import datetime
 
+
+from dataquality import __version__
+
 project = "dataquality"
 copyright = f"{datetime.now().year}, Galileo Technologies Inc."
 
 author = "Galileo Technologies Inc."
-release = "0.29.1"
+release = __version__
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
