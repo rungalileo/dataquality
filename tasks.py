@@ -146,12 +146,9 @@ def docs_build(ctx: Context) -> None:
 
     Build the docs.
     """
-    with ctx.cd("docs/autodocs"):
-        ctx.run(
-            "make markdown",
-            pty=True,
-            echo=True,
-        )
+    ctx.run("sphinx-apidoc -f -o docs/source/ dataquality/", pty=True, echo=True)
+    ctx.run("sphinx-build -M markdown docs/source docs/build/md", echo=True)
+    ctx.run("sphinx-build -b html docs/source/ docs/build/html", echo=True)
 
 
 @unique
