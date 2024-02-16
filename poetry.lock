@@ -370,6 +370,28 @@ tests-mypy = ["mypy (>=1.6)", "pytest-mypy-plugins"]
 tests-no-zope = ["attrs[tests-mypy]", "cloudpickle", "hypothesis", "pympler", "pytest (>=4.3.0)", "pytest-xdist[psutil]"]
 
 [[package]]
+name = "autodoc-pydantic"
+version = "2.0.1"
+description = "Seamlessly integrate pydantic models in your Sphinx documentation."
+optional = false
+python-versions = ">=3.7.1,<4.0.0"
+files = [
+    {file = "autodoc_pydantic-2.0.1-py3-none-any.whl", hash = "sha256:d3c302fdb6d37edb5b721f0f540252fa79cea7018bc1a9a85bf70f33a68b0ce4"},
+    {file = "autodoc_pydantic-2.0.1.tar.gz", hash = "sha256:7a125a4ff18e4903e27be71e4ddb3269380860eacab4a584d6cc2e212fa96991"},
+]
+
+[package.dependencies]
+pydantic = ">=2.0,<3.0.0"
+pydantic-settings = ">=2.0,<3.0.0"
+Sphinx = ">=4.0"
+
+[package.extras]
+dev = ["coverage (>=7,<8)", "flake8 (>=3,<4)", "pytest (>=7,<8)", "sphinx-copybutton (>=0.4,<0.5)", "sphinx-rtd-theme (>=1.0,<2.0)", "sphinx-tabs (>=3,<4)", "sphinxcontrib-mermaid (>=0.7,<0.8)", "tox (>=3,<4)"]
+docs = ["sphinx-copybutton (>=0.4,<0.5)", "sphinx-rtd-theme (>=1.0,<2.0)", "sphinx-tabs (>=3,<4)", "sphinxcontrib-mermaid (>=0.7,<0.8)"]
+erdantic = ["erdantic (>=0.6,<0.7)"]
+test = ["coverage (>=7,<8)", "pytest (>=7,<8)"]
+
+[[package]]
 name = "babel"
 version = "2.14.0"
 description = "Internationalization utilities"
@@ -6564,13 +6586,13 @@ test = ["cython (>=3.0)", "filelock", "html5lib", "pytest (>=4.6)", "setuptools 
 
 [[package]]
 name = "sphinx-autobuild"
-version = "2024.2.4"
+version = "2021.3.14"
 description = "Rebuild Sphinx documentation on changes, with live-reload in the browser."
 optional = false
-python-versions = ">=3.9"
+python-versions = ">=3.6"
 files = [
-    {file = "sphinx_autobuild-2024.2.4-py3-none-any.whl", hash = "sha256:63fd87ab7505872a89aef468ce6503f65e794a195f4ae62269db3b85b72d4854"},
-    {file = "sphinx_autobuild-2024.2.4.tar.gz", hash = "sha256:cb9d2121a176d62d45471624872afc5fad7755ad662738abe400ecf4a7954303"},
+    {file = "sphinx-autobuild-2021.3.14.tar.gz", hash = "sha256:de1ca3b66e271d2b5b5140c35034c89e47f263f2cd5db302c9217065f7443f05"},
+    {file = "sphinx_autobuild-2021.3.14-py3-none-any.whl", hash = "sha256:8fe8cbfdb75db04475232f05187c776f46f6e9e04cacf1e49ce81bdac649ccac"},
 ]
 
 [package.dependencies]
@@ -6579,7 +6601,7 @@ livereload = "*"
 sphinx = "*"
 
 [package.extras]
-test = ["pytest (>=6.0)", "pytest-cov"]
+test = ["pytest", "pytest-cov"]
 
 [[package]]
 name = "sphinx-autodoc-typehints"
@@ -8424,4 +8446,4 @@ setfit = ["setfit"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9,<3.12"
-content-hash = "77d02ecc248eec7534bd80b06b028f48aff44124aa7d37caa0ae41592b3c1ce0"
+content-hash = "26386e6f29a9b74a9b17743ac91b74a8f10a79a9fa665444f6a6855b9db9b14c"

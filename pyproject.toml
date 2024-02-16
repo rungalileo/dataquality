@@ -47,6 +47,8 @@ peft = "*"
 # Pin opencv for linting incompatibility
 opencv-python = "<=4.8.1.78"
 pydantic-settings = ">=2.0.0"
+minio = {version = ">=7.1.0,<7.2.0", optional=true}
+setfit = {version ="==0.7.0", optional = true}
 
 # Cuda.
 ucx-py-cu11 = { version ="^0.36", source = "nvidia", optional = true }
@@ -56,8 +58,6 @@ pylibraft-cu11 = {version = "^24.2.0", source = "nvidia", optional=true}
 dask-cudf-cu11 = {version = "^24.2.0", source = "nvidia", optional=true}
 cudf-cu11 = {version = "^24.2.0", source = "nvidia", optional=true}
 cuml-cu11 = {version = "^24.2.0", source = "nvidia", optional=true}
-minio = {version = ">=7.1.0,<7.2.0", optional=true}
-setfit = {version ="==0.7.0", optional = true}
 
 [tool.poetry.group.dev.dependencies]
 mypy = ">=1.0.0"
