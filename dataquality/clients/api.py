@@ -21,9 +21,10 @@ from dataquality.utils.auth import headers
 
 
 class ApiClient:
-    def _refresh_token(self) -> str:
+    def _refresh_jwt_token(self) -> str:
         username = os.getenv("GALILEO_USERNAME")
         password = os.getenv("GALILEO_PASSWORD")
+        api_key = os.getenv("GALILEO_API_KEY")
         if username is None or password is None:
             raise GalileoException(
                 "You are not logged in. Call dataquality.login()\n"
@@ -56,7 +57,7 @@ class ApiClient:
     def get_token(self) -> str:
         token = config.token
         if not token:
-            token = self._refresh_token()
+            token = self._refresh_jwt_token()
 
         # Check to see if our token is expired before making a request
         # and refresh token if it's expired
@@ -64,7 +65,7 @@ class ApiClient:
         if token:
             claims = jwt.decode(token, options={"verify_signature": False})
             if claims.get("exp", 0) < time():
-                token = self._refresh_token()
+                token = self._refresh_jwt_token()
 
         return token
 
