@@ -97,6 +97,11 @@ class TestSessionVariables:
         self.TEST_PATH = TEST_PATH
 
 
+@pytest.fixture(autouse=True)
+def clear_env_variables():
+    os.environ.clear()
+
+
 @pytest.fixture(scope="session")
 def test_session_vars() -> TestSessionVariables:
     pid = str(os.getpid())
