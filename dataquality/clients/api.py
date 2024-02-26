@@ -24,7 +24,7 @@ class ApiClient:
     def _refresh_jwt_token(self) -> str:
         username = os.getenv("GALILEO_USERNAME")
         password = os.getenv("GALILEO_PASSWORD")
-        api_key = os.getenv("GALILEO_API_KEY")
+        # api_key = os.getenv("GALILEO_API_KEY")
         if username is None or password is None:
             raise GalileoException(
                 "You are not logged in. Call dataquality.login()\n"
