@@ -18,12 +18,22 @@ config = dataquality.config
 
 @mock.patch("requests.post", side_effect=mocked_login_requests)
 @mock.patch("requests.get", side_effect=mocked_login_requests)
-def test_good_login(
+def test_login_username_password(
     mock_get_current_user: MagicMock, mock_login: MagicMock, set_test_config: Callable
 ) -> None:
     os.environ[GALILEO_AUTH_METHOD] = "email"
     os.environ["GALILEO_USERNAME"] = "user"
     os.environ["GALILEO_PASSWORD"] = "password"
+    set_test_config(token="mytoken")
+    dataquality.login()
+
+
+@mock.patch("requests.post", side_effect=mocked_login_requests)
+@mock.patch("requests.get", side_effect=mocked_login_requests)
+def test_login_api_key(
+    mock_get_current_user: MagicMock, mock_login: MagicMock, set_test_config: Callable
+) -> None:
+    os.environ["GALILEO_API_KEY"] = "long-secret-key"
     set_test_config(token="mytoken")
     dataquality.login()
 

@@ -51,7 +51,7 @@ def mocked_login_requests(
     timeout: Union[int, None] = None,
     files: Union[Dict, None] = None,
 ) -> MockResponse:
-    if request_url.endswith("login"):
+    if request_url.endswith("login") or request_url.endswith("api_key"):
         return MockResponse(
             {
                 "access_token": "mock_token",

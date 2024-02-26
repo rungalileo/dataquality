@@ -24,22 +24,29 @@ class ApiClient:
     def _refresh_jwt_token(self) -> str:
         username = os.getenv("GALILEO_USERNAME")
         password = os.getenv("GALILEO_PASSWORD")
-        # api_key = os.getenv("GALILEO_API_KEY")
-        if username is None or password is None:
+        api_key = os.getenv("GALILEO_API_KEY")
+
+        if api_key is not None:
+            res = requests.post(
+                f"{config.api_url}/login/api_key",
+                json={"api_key": api_key},
+            )
+        elif username is not None and password is not None:
+            res = requests.post(
+                f"{config.api_url}/login",
+                data={
+                    "username": username,
+                    "password": password,
+                    "auth_method": "email",
+                },
+                headers={"X-Galileo-Request-Source": "dataquality_python_client"},
+            )
+        else:
             raise GalileoException(
                 "You are not logged in. Call dataquality.login()\n"
                 "GALILEO_USERNAME and GALILEO_PASSWORD must be set"
             )
 
-        res = requests.post(
-            f"{config.api_url}/login",
-            data={
-                "username": username,
-                "password": password,
-                "auth_method": "email",
-            },
-            headers={"X-Galileo-Request-Source": "dataquality_python_client"},
-        )
         if res.status_code != 200:
             raise GalileoException(
                 (
