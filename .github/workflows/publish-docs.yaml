@@ -1,0 +1,47 @@
+name: Publish Docs
+
+on:
+  workflow_run:
+    workflows: ["publish"]
+    types:
+      - completed
+
+jobs:
+  publish-docs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          cache: "pip"
+          cache-dependency-path: "pyproject.toml"
+
+      - name: Install Dependencies
+        # Install all dependencies so that the docs can use the function and type signatures.
+        run: |
+          pipx install invoke
+          invoke install
+
+      - name: Build Docs
+        run: invoke docs-build
+
+      - name: Add GitHub Pages Config
+        run: |
+          touch docs/build/html/.nojekyll
+          echo "dataquality.docs.rungalileo.io" > docs/build/html/CNAME
+
+      - name: Pushes to another repository
+        uses: cpina/github-action-push-to-another-repository@main
+        env:
+          SSH_DEPLOY_KEY: ${{ secrets.SSH_DATAQUALITY_DOCS_DEPLOY_KEY }}
+        with:
+          source-directory: "docs/build/html"
+          target-directory: "docs/"
+          destination-github-username: "rungalileo"
+          destination-repository-name: "dataquality-docs"
+          user-name: galileo-automation
+          user-email: ci@rungalileo.io
