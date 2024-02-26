@@ -56,7 +56,9 @@ def login() -> None:
 
     _auth = _Auth()
     has_api_key = os.getenv("GALILEO_API_KEY")
-    has_username_password = os.getenv("GALILEO_USERNAME") and os.getenv("GALILEO_PASSWORD")
+    has_username_password = os.getenv("GALILEO_USERNAME") and os.getenv(
+        "GALILEO_PASSWORD"
+    )
     if has_api_key or has_username_password:
         _auth.login_with_env_vars()
     if not valid_current_user:

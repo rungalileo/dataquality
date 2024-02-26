@@ -12,16 +12,12 @@ from dataquality.core._config import config
 from dataquality.exceptions import GalileoException
 from dataquality.schemas import RequestType
 from dataquality.schemas.task_type import TaskType
-from tests.test_utils.mock_request import (
-    EXISTING_PROJECT,
-    EXISTING_RUN,
-    FAKE_NEW_RUN,
-    MockResponse,
-    mocked_delete_project_not_found,
-    mocked_delete_project_run,
-    mocked_get_project_run,
-    mocked_missing_project_name,
-)
+from tests.test_utils.mock_request import (EXISTING_PROJECT, EXISTING_RUN,
+                                           FAKE_NEW_RUN, MockResponse,
+                                           mocked_delete_project_not_found,
+                                           mocked_delete_project_run,
+                                           mocked_get_project_run,
+                                           mocked_missing_project_name)
 
 api_client = ApiClient()
 
