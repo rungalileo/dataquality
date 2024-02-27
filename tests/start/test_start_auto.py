@@ -2,6 +2,7 @@ from typing import Callable, Generator
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
+import pytest
 from sklearn.datasets import fetch_20newsgroups
 
 import dataquality
@@ -10,6 +11,7 @@ from dataquality.clients.api import ApiClient
 from tests.conftest import LOCAL_MODEL_PATH, TestSessionVariables
 
 
+@pytest.mark.xdist_group(name="group1")
 @patch.object(dq.core.init, "version_check")
 @patch.object(dq.core.finish, "_reset_run")
 @patch.object(dq.core.finish, "upload_dq_log_file")
