@@ -8,7 +8,6 @@ from uuid import uuid4
 
 import numpy as np
 import pytest
-from sklearn.datasets import fetch_20newsgroups
 import vaex
 
 import dataquality
@@ -39,19 +38,7 @@ MAX_STR_LEN = BaseGalileoDataLogger.MAX_STR_LEN
 MAX_DOC_LEN = BaseGalileoDataLogger.MAX_DOC_LEN
 
 
-# Fetch the 20 newsgroups dataset at the beginning of the test suite
-# to avoid caching conflict issues later on that were causing
-# flaky tests
-fetch_20newsgroups(
-    subset="train",
-    remove=("headers", "footers", "quotes"),
-)
-fetch_20newsgroups(
-    subset="test",
-    remove=("headers", "footers", "quotes"),
-)
-
-
+@pytest.mark.xdist_group(name="group1")
 def test_threaded_logging_and_upload(
     cleanup_after_use: Callable,
     set_test_config: Callable,
@@ -83,6 +70,7 @@ def test_threaded_logging_and_upload(
         ThreadPoolManager.wait_for_threads()
 
 
+@pytest.mark.xdist_group(name="group1")
 def test_multi_label_logging(
     cleanup_after_use: Callable,
     set_test_config: Callable,
@@ -116,6 +104,7 @@ def test_multi_label_logging(
         ThreadPoolManager.wait_for_threads()
 
 
+@pytest.mark.xdist_group(name="group1")
 def test_metadata_logging(
     cleanup_after_use: Callable,
     set_test_config: Callable,
@@ -244,6 +233,7 @@ def test_metadata_logging_invalid_with_x_and_y(
     assert c.meta == {}
 
 
+@pytest.mark.xdist_group(name="group1")
 def test_logging_duplicate_ids(
     cleanup_after_use: Callable, set_test_config: Callable
 ) -> None:
