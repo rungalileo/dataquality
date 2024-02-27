@@ -174,7 +174,8 @@ def cleanup_after_use(test_session_vars: TestSessionVariables) -> Generator:
         dataquality.get_data_logger(task_type).logger_config.reset()
     try:
         if os.path.isdir(test_session_vars.LOCATION):
-            shutil.rmtree(test_session_vars.LOCATION)
+            # ignore_errors True to delete the folder and its contents
+            shutil.rmtree(test_session_vars.LOCATION, ignore_errors=True)
         if not os.path.isdir(test_session_vars.TEST_PATH):
             for split in SPLITS:
                 for subdir in SUBDIRS:
@@ -183,8 +184,11 @@ def cleanup_after_use(test_session_vars: TestSessionVariables) -> Generator:
             os.makedirs(test_session_vars.DQ_LOG_FILE_LOCATION)
         yield
     finally:
-        if os.path.exists(test_session_vars.LOCATION):
-            shutil.rmtree(test_session_vars.LOCATION)
+        if os.path.exists(test_session_vars.LOCATION) and os.path.isdir(
+            test_session_vars.LOCATION
+        ):
+            # ignore_errors True to delete the folder and its contents
+            shutil.rmtree(test_session_vars.LOCATION, ignore_errors=True)
         if os.path.exists(test_session_vars.DQ_LOG_FILE_LOCATION):
             shutil.rmtree(test_session_vars.DQ_LOG_FILE_LOCATION)
         for task_type in TaskType.get_valid_tasks():

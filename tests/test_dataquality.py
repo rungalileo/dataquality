@@ -8,6 +8,7 @@ from uuid import uuid4
 
 import numpy as np
 import pytest
+from sklearn.datasets import fetch_20newsgroups
 import vaex
 
 import dataquality
@@ -36,6 +37,19 @@ from tests.test_utils.data_utils import (
 MAX_META_COLS = BaseGalileoDataLogger.MAX_META_COLS
 MAX_STR_LEN = BaseGalileoDataLogger.MAX_STR_LEN
 MAX_DOC_LEN = BaseGalileoDataLogger.MAX_DOC_LEN
+
+
+# Fetch the 20 newsgroups dataset at the beginning of the test suite
+# to avoid caching conflict issues later on that were causing
+# flaky tests
+fetch_20newsgroups(
+    subset="train",
+    remove=("headers", "footers", "quotes"),
+)
+fetch_20newsgroups(
+    subset="test",
+    remove=("headers", "footers", "quotes"),
+)
 
 
 def test_threaded_logging_and_upload(
