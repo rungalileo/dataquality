@@ -39,7 +39,6 @@ class ApiClient:
                     "password": password,
                     "auth_method": "email",
                 },
-                headers={"X-Galileo-Request-Source": "dataquality_python_client"},
             )
         else:
             raise GalileoException(
