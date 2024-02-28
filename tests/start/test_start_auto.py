@@ -1,9 +1,7 @@
-from typing import Callable, Generator
+from typing import Callable, Generator, Tuple
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
-import pytest
-from sklearn.datasets import fetch_20newsgroups
 
 import dataquality
 import dataquality as dq
@@ -11,7 +9,6 @@ from dataquality.clients.api import ApiClient
 from tests.conftest import LOCAL_MODEL_PATH, TestSessionVariables
 
 
-@pytest.mark.xdist_group(name="group1")
 @patch.object(dq.core.init, "version_check")
 @patch.object(dq.core.finish, "_reset_run")
 @patch.object(dq.core.finish, "upload_dq_log_file")
@@ -50,6 +47,8 @@ def test_auto(
     mock_upload_log_file: MagicMock,
     mock_reset_run: MagicMock,
     mock_version_check: MagicMock,
+    newsgroups_train,
+    newsgroups_test,
     set_test_config: Callable,
     cleanup_after_use: Generator,
     test_session_vars: TestSessionVariables,
@@ -66,15 +65,6 @@ def test_auto(
     #    task="text_classification",
     # ):
     #    dataquality.get_insights()
-
-    # Load the newsgroups dataset from sklearn
-    newsgroups_train = fetch_20newsgroups(
-        subset="train", remove=("headers", "footers", "quotes")
-    )
-    newsgroups_test = fetch_20newsgroups(
-        subset="test", remove=("headers", "footers", "quotes")
-    )
-
     df_train = pd.DataFrame(
         {"text": newsgroups_train.data, "label": newsgroups_train.target}
     ).head(4)

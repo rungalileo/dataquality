@@ -9,6 +9,8 @@ import jwt
 import pytest
 import requests
 import torch
+from sklearn.datasets import fetch_20newsgroups
+from sklearn.utils import Bunch
 from transformers import (
     AutoModelForSequenceClassification,
     AutoTokenizer,
@@ -166,6 +168,20 @@ def valid_jwt_token(monkeypatch):
     monkeypatch.setattr(
         jwt, "decode", lambda token, *args, **kwargs: decode_token(token)
     )
+
+
+@pytest.fixture(scope="session")
+def newsgroups_train() -> Bunch:
+    # Load the newsgroups dataset from sklearn
+    return fetch_20newsgroups(subset="train", remove=("headers", "footers", "quotes"))
+
+
+@pytest.fixture(scope="session")
+def newsgroups_test() -> Bunch:
+    # Load the newsgroups dataset from sklearn
+    # prepare something ahead of all tests
+    # request.addfinalizer(finalizer_function)
+    return fetch_20newsgroups(subset="test", remove=("headers", "footers", "quotes"))
 
 
 @pytest.fixture(scope="function")
