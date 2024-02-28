@@ -39,6 +39,7 @@ MAX_STR_LEN = BaseGalileoDataLogger.MAX_STR_LEN
 MAX_DOC_LEN = BaseGalileoDataLogger.MAX_DOC_LEN
 
 
+@pytest.mark.xdist_group(name="group1")
 def test_threaded_logging_and_upload(
     newsgroups_train: Bunch,
     newsgroups_test: Bunch,
@@ -76,6 +77,7 @@ def test_threaded_logging_and_upload(
         ThreadPoolManager.wait_for_threads()
 
 
+@pytest.mark.xdist_group(name="group1")
 def test_multi_label_logging(
     newsgroups_train: Bunch,
     newsgroups_test: Bunch,
@@ -116,6 +118,7 @@ def test_multi_label_logging(
         ThreadPoolManager.wait_for_threads()
 
 
+@pytest.mark.xdist_group(name="group1")
 def test_metadata_logging(
     newsgroups_train: Bunch,
     newsgroups_test: Bunch,
@@ -246,6 +249,7 @@ def test_metadata_logging_invalid_with_x_and_y(
     assert c.meta == {}
 
 
+@pytest.mark.xdist_group(name="group1")
 def test_logging_duplicate_ids(
     newsgroups_train: Bunch,
     newsgroups_test: Bunch,
