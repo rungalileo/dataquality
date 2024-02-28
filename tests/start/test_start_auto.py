@@ -68,8 +68,12 @@ def test_auto(
     #    dataquality.get_insights()
 
     # Load the newsgroups dataset from sklearn
-    newsgroups_train = fetch_20newsgroups(subset="train")
-    newsgroups_test = fetch_20newsgroups(subset="test")
+    newsgroups_train = fetch_20newsgroups(
+        subset="train", remove=("headers", "footers", "quotes")
+    )
+    newsgroups_test = fetch_20newsgroups(
+        subset="test", remove=("headers", "footers", "quotes")
+    )
 
     df_train = pd.DataFrame(
         {"text": newsgroups_train.data, "label": newsgroups_train.target}
