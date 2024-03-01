@@ -9,34 +9,15 @@ jobs:
   main:
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        python-version: ["3.9"]
-
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: apt-get update
-        run: sudo apt-get update -y
-
-      - name: set up python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: "pip"
-          cache-dependency-path: "pyproject.toml"
-
-      - name: install invoke
-        run: pip install invoke
-
-      - name: build
-        run: inv build
-
-      - name: publish
+      - name: Publish to PyPI
         env:
-          TWINE_USERNAME: ${{ secrets.FLIT_USERNAME }}
-          TWINE_PASSWORD: ${{ secrets.FLIT_PASSWORD }}
-        run: inv publish
+          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.POETRY_PYPI_TOKEN_PYPI }}
+        run: |
+          pipx install poetry=="1.7.0"
+          poetry publish --build
