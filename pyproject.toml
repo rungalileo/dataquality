@@ -8,7 +8,7 @@ version = "1.1.1"
 description = ""
 authors = ["Galileo Technologies, Inc. <team@rungalileo.io>"]
 readme = "README.md"
-license = "See LICENSE"
+license = "Apache-2.0"
 homepage = "https://github.com/rungalileo/dataquality"
 documentation = "https://rungalileo.gitbook.io/galileo"
 scripts = { dqyolo = "dataquality.dqyolo:main" }
