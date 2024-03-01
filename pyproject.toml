@@ -58,6 +58,7 @@ pylibraft-cu11 = {version = "^24.2.0", source = "nvidia", optional=true}
 dask-cudf-cu11 = {version = "^24.2.0", source = "nvidia", optional=true}
 cudf-cu11 = {version = "^24.2.0", source = "nvidia", optional=true}
 cuml-cu11 = {version = "^24.2.0", source = "nvidia", optional=true}
+sentencepiece = "^0.2.0"
 
 [tool.poetry.group.dev.dependencies]
 mypy = "^1.8.0"
