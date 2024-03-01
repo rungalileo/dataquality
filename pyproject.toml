@@ -14,7 +14,7 @@ documentation = "https://rungalileo.gitbook.io/galileo"
 scripts = { dqyolo = "dataquality.dqyolo:main" }
 
 [tool.poetry.dependencies]
-python = "^3.9,<3.12"
+python = "^3.9,<3.11"
 pydantic = ">=2.0.0"
 requests = ">=2.25.1"
 types-requests = ">=2.25.2"
