@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "dataquality"
-version = "1.1.1"
+version = "2.0.0"
 description = ""
 authors = ["Galileo Technologies, Inc. <team@rungalileo.io>"]
 readme = "README.md"
