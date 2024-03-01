@@ -23,7 +23,7 @@ jobs:
       - name: Install Dependencies
         # Install all dependencies so that the docs can use the function and type signatures.
         run: |
-          pipx install invoke
+          pipx install invoke poetry=="1.7.0"
           invoke install
 
       - name: Build Docs
