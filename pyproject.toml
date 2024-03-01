@@ -1,131 +1,122 @@
-
 [build-system]
-requires = [
-    "setuptools>=65.0",
-    "wheel>=0.37",
-]
-build-backend = "setuptools.build_meta"
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
 
-[project]
+[tool.poetry]
 name = "dataquality"
-dynamic = ["version"]
+version = "2.0.0"
+description = ""
+authors = ["Galileo Technologies, Inc. <team@rungalileo.io>"]
 readme = "README.md"
-license = {text = 'See LICENSE'}
-requires-python = ">=3.8"
-dependencies = [
-    "pydantic>=2.0.0",
-    "pydantic-settings>=2.0.0",
-    "requests>=2.25.1",
-    "types-requests>=2.25.2",
-    "pandas>=0.20.0",
-    "pyarrow>=5.0.0",
-    "vaex-core==4.17.1",
-    "vaex-hdf5>=0.12,<0.13",
-    "diskcache>=5.2.1",
-    "resource>=0.2.1",
-    "tqdm>=4.62.3",
-    "blake3>=0.2.1",
-    "wrapt>=1.13.3",
-    "scipy>=1.7.0",
-    "cachetools>=4.2.4",
-    "importlib-metadata<6.0.1",
-    "datasets>=2.14.6",
-    "transformers>=4.17.0",
-    "seqeval",
-    "sentence-transformers>=2.2",
-    "Pillow",
-    "h5py >=3.1.0",
-    "numpy<1.24.0",
-    "tenacity>=8.1.0",
-    "evaluate",
-    "accelerate",
-    "ipywidgets>=8.1.0",
-    "imagededup>=0.3.1",
-    "pyjwt>=2.8.0",
-    "peft",
-    # Pin opencv for linting incompatibility
-    "opencv-python<=4.8.1.78",
-]
-[[project.authors]]
-name = "Galileo Technologies, Inc."
-email = "devs+dq@rungalileo.io"
+license = "Apache-2.0"
+homepage = "https://github.com/rungalileo/dataquality"
+documentation = "https://rungalileo.gitbook.io/galileo"
+scripts = { dqyolo = "dataquality.dqyolo:main" }
 
-[project.scripts]
-dqyolo = "dataquality.dqyolo:main"
+[tool.poetry.dependencies]
+python = "^3.9,<3.11"
+pydantic = ">=2.0.0"
+requests = ">=2.25.1"
+types-requests = ">=2.25.2"
+pandas = ">=0.20.0"
+pyarrow = ">=5.0.0"
+vaex-core = "4.17.1"
+vaex-hdf5 = ">=0.12,<0.13"
+diskcache = ">=5.2.1"
+resource = ">=0.2.1"
+tqdm = ">=4.62.3"
+blake3 = ">=0.2.1"
+wrapt = ">=1.13.3"
+scipy = ">=1.7.0"
+cachetools = ">=4.2.4"
+importlib-metadata = "<6.0.1"
+datasets = ">=2.14.6"
+transformers = ">=4.17.0"
+seqeval = "*"
+sentence-transformers = ">=2.2"
+Pillow = "*"
+h5py = ">=3.1.0"
+numpy = "<1.24.0"
+tenacity = ">=8.1.0"
+evaluate = "*"
+accelerate = "*"
+ipywidgets = ">=8.1.0"
+imagededup = ">=0.3.1,<0.3.2"
+pyjwt = ">=2.8.0"
+peft = "*"
+# Pin opencv for linting incompatibility
+opencv-python = "<=4.8.1.78"
+pydantic-settings = ">=2.0.0"
+minio = {version = ">=7.1.0,<7.2.0", optional=true}
+setfit = {version ="==0.7.0", optional = true}
 
-[project.urls]
-Homepage = "https://github.com/rungalileo/dataquality"
-Documentation = "https://rungalileo.gitbook.io/galileo"
+# Cuda.
+ucx-py-cu11 = { version ="^0.36", source = "nvidia", optional = true }
+rmm-cu11 = {version = "^24.2.0", source = "nvidia", optional=true}
+raft-dask-cu11 = {version = "^24.2.0", source = "nvidia", optional=true}
+pylibraft-cu11 = {version = "^24.2.0", source = "nvidia", optional=true}
+dask-cudf-cu11 = {version = "^24.2.0", source = "nvidia", optional=true}
+cudf-cu11 = {version = "^24.2.0", source = "nvidia", optional=true}
+cuml-cu11 = {version = "^24.2.0", source = "nvidia", optional=true}
+sentencepiece = "^0.2.0"
 
-[project.optional-dependencies]
-doc = [
-    "furo",
-    "sphinx",
-    "sphinx-autodoc-typehints",
-    "myst-parser",
-    "sphinx-markdown-builder",
-    "sphinx-autobuild",
-    "sphinx-markdown-builder",
-    "autodoc-pydantic"
-]
-test = [
-    "ultralytics>=8.0.209",
-    "pytest>=7.2.1",
-    "freezegun>=1.2.2",
-    "coverage[toml]>=7.0.5",
-    "pytest-cov>=4.0.0",
-    "scikit-learn>=1.0",
-    "tensorflow>=2.9.1",
-    "pytest-env>=0.8.1",
-    "pytest-xdist>=2.4.0",
-    "types-setuptools>=67.3.0.1",
-    "types-cachetools>=4.2.4",
-    "torchvision>=0.13.1",
-    "torch>=1.12.1",
-    "torchtext>=0.13.1",
-    "torchdata>=0.4.1",
-    "xgboost>=1.6.2",
-    "timm>=0.6.12",
-    "fastai>=2.7.11",
-    "portalocker==2.7.0",
-    "types-PyYAML==6.0.12.9",
-    "setfit==0.7.0",
-    "accelerate>=0.19.0",
-    "typing-inspect==0.8.0",
-    "typing-extensions>=4.9.0",
-    "lightning",
-]
-dev = [
-    "mypy>=1.0.0",
-    "ruff>=0.0.98",
-    "black>=23.1.0",
-    "jupyter==1.0.0",
-    "invoke>=1.6.0",
-    # Python 3.8 doesn't support pre-commit >=3.6.0
-    "pre-commit==3.5.0",
-]
-# Install this by adding the --extra-index-url option as shown below
-# `pip install 'dataquality[cuda]' --extra-index-url=https://pypi.nvidia.com/ `
-cuda = [
-   "ucx-py-cu11<=0.30",
-   "rmm-cu11==23.2.0",
-   "raft-dask-cu11==23.2.0",
-   "pylibraft-cu11==23.2.0",
-   "dask-cudf-cu11==23.2.0",
-   "cudf-cu11==23.2.0",
-   "cuml-cu11==23.2.0"
-]
-minio = ["minio>=7.1.0,<7.2.0"]
-setfit = ["setfit==0.7.0"]
+[tool.poetry.group.dev.dependencies]
+mypy = "^1.8.0"
+invoke = ">=1.6.0"
+pre-commit = "^3.6.1"
 
 
-[tool.setuptools.dynamic]
-version = {attr = "dataquality.__version__"}
+[tool.poetry.extras]
+cuda = ["ucx-py-cu11", "rmm-cu11", "raft-dask-cu11", "pylibraft-cu11", "dask-cudf-cu11", "cudf-cu11", "cuml-cu11"]
+minio = ["minio"]
+setfit = ["setfit"]
+
+
+[tool.poetry.group.docs.dependencies]
+furo = "^2024.0.0"
+sphinx-autodoc-typehints = "^2.0.0"
+myst-parser = "^2.0.0"
+sphinx-markdown-builder = "^0.6.5"
+sphinx-autobuild = "^2021.3.14"
+autodoc-pydantic = "^2.0.1"
+
+
+[tool.poetry.group.test.dependencies]
+ultralytics = ">=8.0.209"
+pytest = ">=7.2.1"
+freezegun = ">=1.2.2"
+coverage = { version = ">=7.0.5", extras = ["toml"] }
+pytest-cov = ">=4.0.0"
+scikit-learn = ">=1.0"
+tensorflow = ">=2.9.1"
+pytest-env = ">=0.8.1"
+pytest-xdist = ">=2.4.0"
+types-setuptools = ">=67.3.0.1"
+types-cachetools = ">=4.2.4"
+torchvision = ">=0.13.1"
+torch = ">=1.12.1"
+torchtext = ">=0.13.1"
+torchdata = ">=0.4.1"
+xgboost = ">=1.6.2"
+timm = ">=0.6.12"
+fastai = ">=2.7.11"
+portalocker = "==2.7.0"
+types-PyYAML = "==6.0.12.9"
+setfit = "==0.7.0"
+accelerate = ">=0.19.0"
+typing-inspect = "==0.8.0"
+typing-extensions = ">=4.9.0"
+lightning = "*"  # Assuming you want the latest version as no version was specified
+
+
+
+[[tool.poetry.source]]
+name = "nvidia"
+url = "https://pypi.nvidia.com"
+priority = "supplemental"
 
 [tool.pytest.ini_options]
-env = [
-    "GALILEO_API_URL=http://localhost:8000"
-]
+env = ["GALILEO_API_URL=http://localhost:8000"]
 addopts = [
     "-n",
     "auto",
@@ -142,20 +133,11 @@ addopts = [
 
 [tool.coverage.run]
 parallel = true
-source = [
-    "dataquality/",
-    "tests/"
-]
-omit = [
-    "*__init__.py",
-    "*metrics.py",
-]
+source = ["dataquality/", "tests/"]
+omit = ["*__init__.py", "*metrics.py"]
 
 [tool.coverage.report]
-exclude_lines = [
-    'pragma: no cover',
-    'raise NotImplementedError'
-]
+exclude_lines = ['pragma: no cover', 'raise NotImplementedError']
 
 [tool.coverage.html]
 directory = "htmlcov"
