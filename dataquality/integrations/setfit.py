@@ -11,10 +11,7 @@ import dataquality as dq
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
 from dataquality.core.log import get_data_logger
-from dataquality.dq_auto.text_classification import (
-    TCDatasetManager,
-    _get_labels,
-)
+from dataquality.dq_auto.text_classification import TCDatasetManager, _get_labels
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.auto import (

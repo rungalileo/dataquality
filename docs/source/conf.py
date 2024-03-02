@@ -8,7 +8,6 @@
 
 from datetime import datetime
 
-
 from dataquality import __version__
 
 project = "dataquality"

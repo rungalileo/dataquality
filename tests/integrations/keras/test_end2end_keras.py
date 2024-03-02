@@ -12,6 +12,7 @@ try:
     from keras.engine import data_adapter  # type: ignore
 except ImportError:
     from tensorflow.python.keras.engine import data_adapter  # type: ignore
+
 from transformers import (
     AutoTokenizer,
     DataCollatorWithPadding,

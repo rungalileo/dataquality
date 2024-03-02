@@ -15,9 +15,7 @@ import dataquality as dq
 from dataquality.integrations.lightning import LightningDQCallback
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
-from tests.conftest import (
-    TestSessionVariables,
-)
+from tests.conftest import TestSessionVariables
 
 load_transforms = transforms.Compose(
     [
