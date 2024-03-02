@@ -3,6 +3,7 @@ repos:
     rev: "v0.3.0"
     hooks:
       - id: ruff
+        args: ["--fix"]
   # We run `mypy` as a local hook because otherwise it doesn't validate against the
   # pacakges' types and arguments. Or we'd need to install all of the dependencies again
   # within the `mypy` venv as `additional_dependecies`, which is a bit silly.
