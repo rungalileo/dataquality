@@ -1,7 +1,8 @@
-from typing import Callable, Generator, Tuple
+from typing import Callable, Generator
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
+from sklearn.datasets import fetch_20newsgroups
 
 import dataquality
 import dataquality as dq
@@ -47,8 +48,6 @@ def test_auto(
     mock_upload_log_file: MagicMock,
     mock_reset_run: MagicMock,
     mock_version_check: MagicMock,
-    newsgroups_train,
-    newsgroups_test,
     set_test_config: Callable,
     cleanup_after_use: Generator,
     test_session_vars: TestSessionVariables,
@@ -65,6 +64,11 @@ def test_auto(
     #    task="text_classification",
     # ):
     #    dataquality.get_insights()
+
+    # Load the newsgroups dataset from sklearn
+    newsgroups_train = fetch_20newsgroups(subset="train")
+    newsgroups_test = fetch_20newsgroups(subset="test")
+
     df_train = pd.DataFrame(
         {"text": newsgroups_train.data, "label": newsgroups_train.target}
     ).head(4)

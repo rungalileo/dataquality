@@ -9,7 +9,6 @@ from uuid import uuid4
 import numpy as np
 import pytest
 import vaex
-from sklearn.utils import Bunch
 
 import dataquality
 import dataquality as dq
@@ -39,10 +38,7 @@ MAX_STR_LEN = BaseGalileoDataLogger.MAX_STR_LEN
 MAX_DOC_LEN = BaseGalileoDataLogger.MAX_DOC_LEN
 
 
-@pytest.mark.xdist_group(name="group1")
 def test_threaded_logging_and_upload(
-    newsgroups_train: Bunch,
-    newsgroups_test: Bunch,
     cleanup_after_use: Callable,
     set_test_config: Callable,
     test_session_vars: TestSessionVariables,
@@ -54,11 +50,7 @@ def test_threaded_logging_and_upload(
     num_logs = 20
     num_embs = 50
     _log_text_classification_data(
-        newsgroups_train,
-        newsgroups_test,
-        num_records=num_records,
-        num_logs=num_logs,
-        num_embs=num_embs,
+        num_records=num_records, num_logs=num_logs, num_embs=num_embs
     )
     try:
         # Equivalent to the users `finish` call, but we don't want to clean up files yet
@@ -77,10 +69,7 @@ def test_threaded_logging_and_upload(
         ThreadPoolManager.wait_for_threads()
 
 
-@pytest.mark.xdist_group(name="group1")
 def test_multi_label_logging(
-    newsgroups_train: Bunch,
-    newsgroups_test: Bunch,
     cleanup_after_use: Callable,
     set_test_config: Callable,
     test_session_vars: TestSessionVariables,
@@ -93,12 +82,7 @@ def test_multi_label_logging(
     num_logs = 20
     num_embs = 50
     _log_text_classification_data(
-        newsgroups_train,
-        newsgroups_test,
-        num_records=num_records,
-        num_logs=num_logs,
-        num_embs=num_embs,
-        multi_label=True,
+        num_records=num_records, num_logs=num_logs, num_embs=num_embs, multi_label=True
     )
     try:
         # Equivalent to the users `finish` call, but we don't want to clean up files yet
@@ -118,10 +102,7 @@ def test_multi_label_logging(
         ThreadPoolManager.wait_for_threads()
 
 
-@pytest.mark.xdist_group(name="group1")
 def test_metadata_logging(
-    newsgroups_train: Bunch,
-    newsgroups_test: Bunch,
     cleanup_after_use: Callable,
     set_test_config: Callable,
     test_session_vars: TestSessionVariables,
@@ -133,7 +114,7 @@ def test_metadata_logging(
     meta = {}
     for i in meta_cols:
         meta[i] = [random() for _ in range(NUM_RECORDS * NUM_LOGS)]
-    _log_text_classification_data(newsgroups_train, newsgroups_test, meta=meta)
+    _log_text_classification_data(meta=meta)
     try:
         # Equivalent to the users `finish` call, but we don't want to clean up files yet
         ThreadPoolManager.wait_for_threads()
@@ -249,20 +230,14 @@ def test_metadata_logging_invalid_with_x_and_y(
     assert c.meta == {}
 
 
-@pytest.mark.xdist_group(name="group1")
 def test_logging_duplicate_ids(
-    newsgroups_train: Bunch,
-    newsgroups_test: Bunch,
-    cleanup_after_use: Callable,
-    set_test_config: Callable,
+    cleanup_after_use: Callable, set_test_config: Callable
 ) -> None:
     """
     Tests that logging duplicate ids triggers a failure
     """
     num_records = 50
-    _log_text_classification_data(
-        newsgroups_train, newsgroups_test, num_records=num_records, unique_ids=False
-    )
+    _log_text_classification_data(num_records=num_records, unique_ids=False)
     try:
         # Equivalent to the users `finish` call, but we don't want to clean up files yet
         ThreadPoolManager.wait_for_threads()

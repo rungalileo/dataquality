@@ -6,7 +6,7 @@ from typing import List, Optional
 import numpy as np
 import pandas as pd
 import vaex
-from sklearn.utils import Bunch
+from sklearn.datasets import fetch_20newsgroups
 from tqdm import tqdm
 
 import dataquality
@@ -96,8 +96,6 @@ def validate_cleanup_data(test_session_vars: TestSessionVariables):
 
 
 def _log_text_classification_data(
-    train_data: Bunch,
-    test_data: Bunch,
     num_records=NUM_RECORDS,
     num_logs=NUM_LOGS,
     unique_ids=True,
@@ -111,13 +109,17 @@ def _log_text_classification_data(
     meta = meta or {}
     # Log train/test data
     num_labels_in_task = np.random.randint(low=1, high=10, size=MULTI_LABEL_NUM_TASKS)
-    for split, split_data in [(Split.test, test_data), (Split.training, train_data)]:
+    for split in [Split.test, Split.training]:
+        newsgroups_train = fetch_20newsgroups(
+            subset="train" if split == Split.training else split.value,
+            remove=("headers", "footers", "quotes"),
+        )
         assert num_records * num_logs <= len(
-            split_data.data
-        ), f"num_records*num_logs must be less than {len(split_data.data)} "
+            newsgroups_train.data
+        ), f"num_records*num_logs must be less than {len(newsgroups_train.data)} "
         dataset = pd.DataFrame()
-        dataset["text"] = split_data.data
-        dataset["label"] = split_data.target
+        dataset["text"] = newsgroups_train.data
+        dataset["label"] = newsgroups_train.target
         dataset = dataset[: num_records * num_logs]
 
         if multi_label:
