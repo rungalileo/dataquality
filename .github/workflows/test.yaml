@@ -1,4 +1,4 @@
-name: test
+name: Test
 
 on:
   push:
@@ -13,34 +13,32 @@ jobs:
 
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10"]
-      fail-fast: false
+        python-version: ["3.9", "3.10"]
 
     steps:
-      - uses: actions/checkout@v3
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: install poetry
+        run: pipx install poetry=="1.7.0"
 
       - name: set up python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          cache: "pip"
-          cache-dependency-path: "pyproject.toml"
+          cache: "poetry"
           python-version: ${{ matrix.python-version }}
+          cache-dependency-path: "pyproject.toml"
 
       - name: install invoke
-        run: pip install invoke
+        run: pipx install invoke
 
       - name: install dependencies
-        run: inv install --no-editable
+        run: invoke install
 
       # We run the `mypy` check here since it requires all of the packages to be installed.
       # Doing that in the pre-commit step would be duplicative and spend more time in CI.
       - name: validate mypy
-        run: inv type-check
+        run: invoke type-check
 
-      - name: test
-        run: inv test
-
-      - name: upload coverage
-        uses: codecov/codecov-action@v3
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
+      - name: run tests
+        run: invoke test

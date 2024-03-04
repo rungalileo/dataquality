@@ -1,0 +1,8 @@
+name: "Close Stale"
+on:
+  schedule:
+    - cron: "30 1 * * *"
+
+jobs:
+  pre-commit:
+    uses: rungalileo/.github/.github/workflows/stale.yaml@main

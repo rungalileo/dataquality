@@ -28,17 +28,19 @@ $ which python pip
 
 ## Development
 
-This project uses `setuptools` to manage our project's dependencies and `invoke` for running tasks.
+This project uses `poetry` to manage our project's dependencies and `invoke` for running tasks.
+
+If you haven't already, make sure to [install poetry](https://python-poetry.org/docs/#installation).
 
 After activating the environment as described above, install `invoke` and setup your local environment:
 
 ```sh
 pip install --upgrade pip
 pip install invoke
-inv all
+inv install
 ```
 
-To install a development version of the package in another python environment, simply use that virtual enviroment's pip:
+To install a development version of the package in another python environment, simply use that virtual environment's pip:
 
 ```sh
 pip install -e .

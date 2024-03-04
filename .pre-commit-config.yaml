@@ -1,8 +1,9 @@
 repos:
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: "v0.1.9"
+    rev: "v0.3.0"
     hooks:
       - id: ruff
+        args: ["--fix"]
   # We run `mypy` as a local hook because otherwise it doesn't validate against the
   # pacakges' types and arguments. Or we'd need to install all of the dependencies again
   # within the `mypy` venv as `additional_dependecies`, which is a bit silly.
@@ -18,7 +19,7 @@ repos:
         # Ensure it is only called once per commit.
         require_serial: true
   - repo: https://github.com/psf/black
-    rev: 23.12.1
+    rev: 24.2.0
     hooks:
       - id: black
   - repo: https://github.com/pycqa/isort
