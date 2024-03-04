@@ -26,12 +26,8 @@ from dataquality.schemas.seq2seq import Seq2SeqInputTempCols as S2SITC
 from dataquality.schemas.seq2seq import Seq2SeqModelType
 from dataquality.schemas.split import Split
 from dataquality.utils.emb import convert_pa_to_np
-from dataquality.utils.seq2seq.generation import (
-    add_generated_output_to_df,
-)
-from dataquality.utils.seq2seq.offsets import (
-    add_target_cutoff_to_df,
-)
+from dataquality.utils.seq2seq.generation import add_generated_output_to_df
+from dataquality.utils.seq2seq.offsets import add_target_cutoff_to_df
 from dataquality.utils.vaex import rename_df
 
 if TYPE_CHECKING:

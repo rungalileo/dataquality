@@ -7,4 +7,10 @@ on:
 
 jobs:
   pre-commit:
-    uses: rungalileo/.github/.github/workflows/pre-commit.yaml@main
+    runs-on: ubuntu-latest
+    env:
+      SKIP: "mypy"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+      - uses: pre-commit/action@v3.0.1

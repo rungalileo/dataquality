@@ -4,7 +4,10 @@ from invoke.tasks import task
 
 @task
 def install(ctx: Context) -> None:
-    ctx.run("poetry install --extras minio --extras setfit --with test,dev --no-root", echo=True)
+    ctx.run(
+        "poetry install --extras minio --extras setfit --with test,dev --no-root",
+        echo=True,
+    )
 
 
 @task

@@ -8,11 +8,7 @@ from dataquality.loggers.data_logger import (
     text_ner,
 )
 from dataquality.loggers.data_logger.base_data_logger import BaseGalileoDataLogger
-from dataquality.loggers.data_logger.seq2seq import (
-    chat,
-    completion,
-    seq2seq_base,
-)
+from dataquality.loggers.data_logger.seq2seq import chat, completion, seq2seq_base
 
 __all__ = [
     "image_classification",
