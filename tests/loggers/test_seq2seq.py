@@ -22,10 +22,7 @@ from dataquality.loggers.data_logger.seq2seq.formatters import (
 from dataquality.loggers.data_logger.seq2seq.seq2seq_base import Seq2SeqDataLogger
 from dataquality.loggers.logger_config.seq2seq.seq2seq_base import seq2seq_logger_config
 from dataquality.loggers.model_logger.seq2seq.seq2seq_base import Seq2SeqModelLogger
-from dataquality.schemas.seq2seq import (
-    TOP_K,
-    BatchGenerationData,
-)
+from dataquality.schemas.seq2seq import TOP_K, BatchGenerationData
 from dataquality.schemas.seq2seq import Seq2SeqOutputCols as C
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.seq2seq.generation import add_generated_output_to_df

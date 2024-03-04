@@ -4,10 +4,7 @@ import numpy as np
 from transformers import PreTrainedTokenizerFast
 
 from dataquality.exceptions import GalileoException
-from dataquality.schemas.seq2seq import (
-    TOP_K,
-    LogprobData,
-)
+from dataquality.schemas.seq2seq import TOP_K, LogprobData
 
 
 def get_top_logprob_indices(logprobs: np.ndarray) -> np.ndarray:

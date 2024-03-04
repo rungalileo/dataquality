@@ -6,10 +6,7 @@ from datasets import Dataset, DatasetDict, load_dataset
 
 from dataquality.exceptions import GalileoException
 from dataquality.schemas.split import Split
-from dataquality.utils.auto import (
-    _apply_column_mapping,
-    load_data_from_str,
-)
+from dataquality.utils.auto import _apply_column_mapping, load_data_from_str
 
 
 class BaseDatasetManager:

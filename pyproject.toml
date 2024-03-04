@@ -151,10 +151,10 @@ disallow_untyped_defs = true
 
 [tool.ruff]
 line-length = 88
+
+[tool.ruff.lint]
 ignore = ["D10"]
-include = ["*.py"]
 select = ["E", "F", "I"]
-target-version = "py310"
 extend-ignore = [
     "D203",
     "D204",
@@ -172,7 +172,7 @@ extend-ignore = [
 ]
 
 [tool.black]
-target-version = ['py310']
+line-length = 88
 include = '\.pyi?$'
 exclude = '''
 /(
@@ -187,3 +187,6 @@ exclude = '''
   | __pycache__
 )/
 '''
+
+[tool.isort]
+profile = "black"
