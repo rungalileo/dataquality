@@ -8,24 +8,20 @@ import pytest
 import torch
 
 from dataquality.exceptions import GalileoException
-from dataquality.loggers.data_logger.seq2seq.formatters import (
-    EncoderDecoderDataFormatter,
-)
-from dataquality.loggers.logger_config.seq2seq.seq2seq_base import seq2seq_logger_config
-from dataquality.loggers.model_logger.seq2seq.formatters import get_model_formatter
-from dataquality.loggers.model_logger.seq2seq.seq2seq_base import Seq2SeqModelLogger
-from dataquality.schemas.seq2seq import (
-    TOP_K,
-    AlignedTokenData,
-    LogprobData,
-    ModelGeneration,
-)
+from dataquality.loggers.data_logger.seq2seq.formatters import \
+    EncoderDecoderDataFormatter
+from dataquality.loggers.logger_config.seq2seq.seq2seq_base import \
+    seq2seq_logger_config
+from dataquality.loggers.model_logger.seq2seq.formatters import \
+    get_model_formatter
+from dataquality.loggers.model_logger.seq2seq.seq2seq_base import \
+    Seq2SeqModelLogger
+from dataquality.schemas.seq2seq import (TOP_K, AlignedTokenData, LogprobData,
+                                         ModelGeneration)
 from dataquality.utils.seq2seq import remove_padding
 from dataquality.utils.seq2seq.generation import generate_on_batch
-from dataquality.utils.seq2seq.logprobs import (
-    get_top_logprob_indices,
-    process_sample_logprobs,
-)
+from dataquality.utils.seq2seq.logprobs import (get_top_logprob_indices,
+                                                process_sample_logprobs)
 
 
 @mock.patch("dataquality.utils.seq2seq.generation.align_tokens_to_character_spans")

@@ -13,18 +13,16 @@ try:
 except ImportError:
     from tensorflow.python.keras.engine import data_adapter  # type: ignore
 
-from transformers import (
-    AutoTokenizer,
-    DataCollatorWithPadding,
-    TFAutoModelForSequenceClassification,
-)
+from transformers import (AutoTokenizer, DataCollatorWithPadding,
+                          TFAutoModelForSequenceClassification)
 
 import dataquality as dq
 from dataquality.integrations.keras import unwatch, watch
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.thread_pool import ThreadPoolManager
 from tests.conftest import TestSessionVariables
-from tests.test_utils.hf_datasets_mock import mock_dataset_numbered, mock_hf_dataset
+from tests.test_utils.hf_datasets_mock import (mock_dataset_numbered,
+                                               mock_hf_dataset)
 
 tmp_checkpoint = "tmp/tiny-distillbert"
 checkpoint = "hf-internal-testing/tiny-bert-for-token-classification"

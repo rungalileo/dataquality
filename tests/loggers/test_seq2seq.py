@@ -16,25 +16,23 @@ import dataquality as dq
 from dataquality.exceptions import GalileoWarning
 from dataquality.integrations.seq2seq.core import set_tokenizer, watch
 from dataquality.loggers.data_logger.base_data_logger import DataSet
-from dataquality.loggers.data_logger.seq2seq.formatters import (
-    EncoderDecoderDataFormatter,
-)
-from dataquality.loggers.data_logger.seq2seq.seq2seq_base import Seq2SeqDataLogger
-from dataquality.loggers.logger_config.seq2seq.seq2seq_base import seq2seq_logger_config
-from dataquality.loggers.model_logger.seq2seq.seq2seq_base import Seq2SeqModelLogger
+from dataquality.loggers.data_logger.seq2seq.formatters import \
+    EncoderDecoderDataFormatter
+from dataquality.loggers.data_logger.seq2seq.seq2seq_base import \
+    Seq2SeqDataLogger
+from dataquality.loggers.logger_config.seq2seq.seq2seq_base import \
+    seq2seq_logger_config
+from dataquality.loggers.model_logger.seq2seq.seq2seq_base import \
+    Seq2SeqModelLogger
 from dataquality.schemas.seq2seq import TOP_K, BatchGenerationData
 from dataquality.schemas.seq2seq import Seq2SeqOutputCols as C
 from dataquality.schemas.task_type import TaskType
 from dataquality.utils.seq2seq.generation import add_generated_output_to_df
 from dataquality.utils.thread_pool import ThreadPoolManager
-from dataquality.utils.vaex import GALILEO_DATA_EMBS_ENCODER, create_data_embs_df
-from tests.conftest import (
-    LOCAL_MODEL_PATH,
-    TestSessionVariables,
-    model_T5,
-    tokenizer,
-    tokenizer_T5,
-)
+from dataquality.utils.vaex import (GALILEO_DATA_EMBS_ENCODER,
+                                    create_data_embs_df)
+from tests.conftest import (LOCAL_MODEL_PATH, TestSessionVariables, model_T5,
+                            tokenizer, tokenizer_T5)
 
 
 @pytest.mark.parametrize(

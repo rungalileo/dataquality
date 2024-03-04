@@ -11,23 +11,16 @@ import dataquality as dq
 from dataquality.analytics import Analytics
 from dataquality.clients.api import ApiClient
 from dataquality.core.log import get_data_logger
-from dataquality.dq_auto.text_classification import TCDatasetManager, _get_labels
+from dataquality.dq_auto.text_classification import (TCDatasetManager,
+                                                     _get_labels)
 from dataquality.schemas.split import Split
 from dataquality.schemas.task_type import TaskType
-from dataquality.utils.auto import (
-    _apply_column_mapping,
-    get_meta_cols,
-    run_name_from_hf_dataset,
-)
+from dataquality.utils.auto import (_apply_column_mapping, get_meta_cols,
+                                    run_name_from_hf_dataset)
 from dataquality.utils.patcher import PatchManager
-from dataquality.utils.setfit import (
-    SetFitModelHook,
-    _prepare_config,
-    _setup_patches,
-    get_trainer,
-    log_preds_setfit,
-    validate_setfit,
-)
+from dataquality.utils.setfit import (SetFitModelHook, _prepare_config,
+                                      _setup_patches, get_trainer,
+                                      log_preds_setfit, validate_setfit)
 
 a = Analytics(ApiClient, dq.config)  # type: ignore
 a.log_import("setfit")

@@ -4,27 +4,20 @@ from typing import Dict, List, Optional, Tuple, Type
 import numpy as np
 import torch
 from tqdm.auto import tqdm
-from transformers import GenerationConfig, PreTrainedModel, PreTrainedTokenizerFast
+from transformers import (GenerationConfig, PreTrainedModel,
+                          PreTrainedTokenizerFast)
 from vaex import DataFrame
 
-from dataquality.loggers.logger_config.seq2seq.seq2seq_base import Seq2SeqLoggerConfig
-from dataquality.schemas.seq2seq import (
-    AlignedTokenData,
-    ModelGeneration,
-    Seq2SeqInputCols,
-    Seq2SeqModelType,
-)
+from dataquality.loggers.logger_config.seq2seq.seq2seq_base import \
+    Seq2SeqLoggerConfig
+from dataquality.schemas.seq2seq import (AlignedTokenData, ModelGeneration,
+                                         Seq2SeqInputCols, Seq2SeqModelType)
 from dataquality.utils.seq2seq.decoder_only import extract_tokenized_responses
-from dataquality.utils.seq2seq.logprobs import (
-    get_top_logprob_indices,
-    process_sample_logprobs,
-)
+from dataquality.utils.seq2seq.logprobs import (get_top_logprob_indices,
+                                                process_sample_logprobs)
 from dataquality.utils.seq2seq.offsets import (
-    add_input_cutoff_to_df,
-    add_target_cutoff_to_df,
-    align_response_tokens_to_character_spans,
-    align_tokens_to_character_spans,
-)
+    add_input_cutoff_to_df, add_target_cutoff_to_df,
+    align_response_tokens_to_character_spans, align_tokens_to_character_spans)
 
 
 class BaseSeq2SeqDataFormatter(ABC):

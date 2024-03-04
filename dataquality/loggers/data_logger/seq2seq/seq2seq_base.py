@@ -7,19 +7,11 @@ from vaex import DataFrame
 
 from dataquality.exceptions import GalileoException
 from dataquality.loggers.data_logger.base_data_logger import (
-    ITER_CHUNK_SIZE,
-    BaseGalileoDataLogger,
-    DataSet,
-    MetasType,
-)
+    ITER_CHUNK_SIZE, BaseGalileoDataLogger, DataSet, MetasType)
 from dataquality.loggers.data_logger.seq2seq.formatters import (
-    BaseSeq2SeqDataFormatter,
-    get_data_formatter,
-)
+    BaseSeq2SeqDataFormatter, get_data_formatter)
 from dataquality.loggers.logger_config.seq2seq.seq2seq_base import (
-    Seq2SeqLoggerConfig,
-    seq2seq_logger_config,
-)
+    Seq2SeqLoggerConfig, seq2seq_logger_config)
 from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.seq2seq import Seq2SeqInputCols as S2SIC
 from dataquality.schemas.seq2seq import Seq2SeqInputTempCols as S2SITC
