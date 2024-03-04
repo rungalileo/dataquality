@@ -97,17 +97,6 @@ class TestSessionVariables:
         self.TEST_PATH = TEST_PATH
 
 
-@pytest.fixture(autouse=True)
-def clear_env_variables(monkeypatch: pytest.MonkeyPatch):
-    for var in [
-        "GALILEO_CONSOLE_URL",
-        "GALILEO_USERNAME",
-        "GALILEO_PASSWORD",
-        "GALILEO_API_KEY",
-    ]:
-        monkeypatch.delenv(var, raising=False)
-
-
 @pytest.fixture(scope="session")
 def test_session_vars() -> TestSessionVariables:
     pid = str(os.getpid())
