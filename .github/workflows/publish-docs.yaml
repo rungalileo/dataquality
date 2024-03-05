@@ -24,8 +24,7 @@ jobs:
         # Install all dependencies so that the docs can use the function and type signatures.
         run: |
           pipx install invoke poetry=="1.7.0"
-          invoke install
-          poetry install --only-root
+          poetry install --extras minio --extras setfit --with test,dev,docs
 
       - name: Build Docs
         run: invoke docs-build
