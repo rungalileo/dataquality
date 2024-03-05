@@ -26,16 +26,16 @@ from tests.test_utils.mock_request import (
 api_client = ApiClient()
 
 
-@mock.patch.object(ApiClient, "_refresh_token")
-def test_refresh_token(
-    mock_refresh_token: MagicMock, set_test_config: Callable
+@mock.patch.object(ApiClient, "_refresh_jwt_token")
+def test_refresh_jwt_token(
+    mock_refresh_jwt_token: MagicMock, set_test_config: Callable
 ) -> None:
     """Base case: Tests creating a new project and run"""
     set_test_config(token="expired-token")
-    mock_refresh_token.return_value = "my-token"
+    mock_refresh_jwt_token.return_value = "my-token"
     token = api_client.get_token()
     assert token == "my-token"
-    mock_refresh_token.assert_called_once()
+    mock_refresh_jwt_token.assert_called_once()
 
 
 @mock.patch("requests.get", side_effect=mocked_get_project_run)

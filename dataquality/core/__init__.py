@@ -21,6 +21,7 @@ def configure(do_login: bool = True, _internal: bool = False) -> None:
     * GALILEO_CONSOLE_URL
     * GALILEO_USERNAME
     * GALILEO_PASSWORD
+    * GALILEO_API_KEY
     """
     a.log_function("dq/configure")
     if not _internal:

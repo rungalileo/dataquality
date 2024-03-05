@@ -30,6 +30,8 @@ try:
     torch.set_default_device("cpu")
 except AttributeError:
     warnings.warn("Torch default device not set to CPU", GalileoWarning)
+
+
 DEFAULT_API_URL = "http://localhost:8088"
 UUID_STR = "399057bc-b276-4027-a5cf-48893ac45388"
 TEST_STORE_DIR = "TEST_STORE"
@@ -95,6 +97,13 @@ class TestSessionVariables:
         self.LOCATION = LOCATION
         self.DQ_LOG_FILE_LOCATION = DQ_LOG_FILE_LOCATION
         self.TEST_PATH = TEST_PATH
+
+
+@pytest.fixture(autouse=True)
+def set_scikitlearn_data_folder() -> None:
+    if os.environ.get("PYTEST_XDIST_WORKER_COUNT"):
+        pid = os.getpid()
+        os.environ["SCIKIT_LEARN_DATA"] = f"~/scikit_learn_data_{pid}"
 
 
 @pytest.fixture(scope="session")

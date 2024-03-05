@@ -603,13 +603,16 @@ def test_reconfigure_sets_env_vars(mock_login: MagicMock) -> None:
     assert mock_login.call_count == 2
 
 
+@patch("dataquality.core._config.input")
 @patch("requests.post", side_effect=mocked_login_requests)
 @patch("requests.get", side_effect=mocked_login_requests)
 def test_reconfigure_resets_user_token(
     mock_get_request: MagicMock,
     mock_post_request: MagicMock,
+    mock_input: MagicMock,
     set_test_config: Callable,
 ) -> None:
+    mock_input.return_value = "mock_url"
     set_test_config(token="old_token")
 
     os.environ[GALILEO_AUTH_METHOD] = "email"

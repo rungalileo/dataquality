@@ -40,7 +40,8 @@ def login() -> None:
     access from the console.
 
     To skip the prompt for automated workflows, you can set `GALILEO_USERNAME`
-    (your email) and GALILEO_PASSWORD if you signed up with an email and password
+    (your email) and GALILEO_PASSWORD if you signed up with an email and password.
+    You can set `GALILEO_API_KEY` to your API key if you have one.
     """
     if not config.api_url:
         updated_config = reset_config()
@@ -54,7 +55,11 @@ def login() -> None:
     print("🔭 Logging you into Galileo\n")
 
     _auth = _Auth()
-    if os.getenv("GALILEO_USERNAME") and os.getenv("GALILEO_PASSWORD"):
+    has_api_key = os.getenv("GALILEO_API_KEY")
+    has_username_password = os.getenv("GALILEO_USERNAME") and os.getenv(
+        "GALILEO_PASSWORD"
+    )
+    if has_api_key or has_username_password:
         _auth.login_with_env_vars()
     if not valid_current_user:
         _auth.login_with_token()
