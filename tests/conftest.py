@@ -33,7 +33,7 @@ except AttributeError:
 
 if os.environ.get("PYTEST_XDIST_WORKER_COUNT"):
     pid = os.getpid()
-    os.environ["SCIKIT_LEARN_DATA"] = f"{os.environ['SCIKIT_LEARN_DATA']}_{pid}"
+    os.environ["SCIKIT_LEARN_DATA"] = f"~/scikit_learn_data_{pid}"
 
 
 DEFAULT_API_URL = "http://localhost:8088"
