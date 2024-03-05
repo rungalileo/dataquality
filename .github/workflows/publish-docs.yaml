@@ -25,6 +25,7 @@ jobs:
         run: |
           pipx install invoke poetry=="1.7.0"
           invoke install
+          poetry install --only-root
 
       - name: Build Docs
         run: invoke docs-build
