@@ -39,10 +39,12 @@ def test_login_api_key(
 
 
 @mock.patch("requests.post", side_effect=mocked_failed_login_requests)
-def test_bad_login(mock_post: MagicMock, set_test_config: Callable) -> None:
+def test_bad_login(
+    mock_post: MagicMock, set_test_config: Callable, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("GALILEO_API_KEY", raising=False)
     set_test_config(token=None)
     os.environ[GALILEO_AUTH_METHOD] = "email"
-    del os.environ["GALILEO_API_KEY"]
     os.environ["GALILEO_USERNAME"] = "user"
     os.environ["GALILEO_PASSWORD"] = "password"
     with pytest.raises(GalileoException) as e:
