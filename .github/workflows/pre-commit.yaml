@@ -1,21 +1,16 @@
-name: "Close Stale"
+name: "Style Check"
+
 on:
-  workflow_call:
-  schedule:
-    - cron: "30 1 * * *"
+  pull_request:
+  push:
+    branches: [main]
 
 jobs:
-  stale:
+  pre-commit:
     runs-on: ubuntu-latest
-    permissions:
-      issues: write
-      pull-requests: write
+    env:
+      SKIP: "mypy"
     steps:
-      - uses: actions/stale@v9
-        with:
-          stale-issue-message: "This issue has been identified as stale. Please leave a comment if it's still current or it'll be closed."
-          stale-pr-message: "This pull request has been identified as stale. Please leave a comment if it's still current or it'll be closed."
-          days-before-issue-stale: 30
-          days-before-pr-stale: 30
-          days-before-issue-close: 5
-          days-before-pr-close: 5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+      - uses: pre-commit/action@v3.0.1
