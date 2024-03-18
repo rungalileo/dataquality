@@ -42,8 +42,10 @@ class Cleanup:
         """Call the cleanup function when the object is garbage collected."""
         # This will be called when the object is garbage collected.
         # However, it's not guaranteed to be called in all situations.
-        self.cleanup_manager._cleanup_callback(weakref.ref(self))
-
+        try:
+            self.cleanup_manager._cleanup_callback(weakref.ref(self))
+        except TypeError:
+            pass
 
 class Borg:
     """Borg class making class attributes global"""
