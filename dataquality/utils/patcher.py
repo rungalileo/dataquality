@@ -47,6 +47,7 @@ class Cleanup:
         except TypeError:
             pass
 
+
 class Borg:
     """Borg class making class attributes global"""
 
