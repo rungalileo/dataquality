@@ -67,7 +67,6 @@ args_default = TrainingArguments(
 
 
 @patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=True)
-@patch.object(dataquality.core.init, "version_check")
 @patch.object(dataquality.core.finish, "_reset_run")
 @patch.object(dataquality.core.finish, "upload_dq_log_file")
 @patch.object(dataquality.clients.api.ApiClient, "make_request")
@@ -103,7 +102,6 @@ def test_start_hf_tc(
     mock_make_request: MagicMock,
     mock_upload_log_file: MagicMock,
     mock_reset_run: MagicMock,
-    mock_version_check: MagicMock,
     cleanup_after_use: Generator,
     test_session_vars: TestSessionVariables,
 ) -> None:

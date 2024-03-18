@@ -85,7 +85,6 @@ metric_name = "accuracy"
 
 
 @patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
-@patch.object(dq.core.init, "version_check")
 @patch.object(dq.core.finish, "_reset_run")
 @patch.object(dq.core.finish, "upload_dq_log_file")
 @patch.object(dq.clients.api.ApiClient, "make_request")
@@ -95,7 +94,6 @@ def test_hf_watch_e2e_numbered(
     mock_make_request: MagicMock,
     mock_upload_log_file: MagicMock,
     mock_reset_run: MagicMock,
-    mock_version_check: MagicMock,
     mock_valid_user: MagicMock,
     set_test_config: Callable,
     cleanup_after_use: Generator,
@@ -155,7 +153,6 @@ def test_hf_watch_e2e_numbered(
 
 
 @patch.object(dq.core.init.ApiClient, "valid_current_user", return_value=True)
-@patch.object(dq.core.init, "version_check")
 @patch.object(dq.core.finish, "_reset_run")
 @patch.object(dq.core.finish, "upload_dq_log_file")
 @patch.object(dq.clients.api.ApiClient, "make_request")
@@ -165,7 +162,6 @@ def test_tf_watch_e2e_numbered(
     mock_make_request: MagicMock,
     mock_upload_log_file: MagicMock,
     mock_reset_run: MagicMock,
-    mock_version_check: MagicMock,
     mock_valid_user: MagicMock,
     set_test_config: Callable,
     cleanup_after_use: Generator,
