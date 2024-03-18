@@ -103,7 +103,7 @@ fastai = ">=2.7.11"
 portalocker = "==2.7.0"
 types-PyYAML = "==6.0.12.9"
 setfit = "==0.7.0"
-accelerate = "==0.27.2"
+accelerate = ">=0.27.2"
 typing-inspect = "==0.8.0"
 typing-extensions = ">=4.9.0"
 lightning = "*"  # Assuming you want the latest version as no version was specified
