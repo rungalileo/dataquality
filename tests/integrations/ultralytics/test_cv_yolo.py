@@ -19,7 +19,6 @@ from tests.conftest import TestSessionVariables
 
 
 @patch.object(ApiClient, "valid_current_user", return_value=True)
-@patch.object(dq.core.init, "version_check")
 @patch.object(dq.core.finish, "_reset_run")
 @patch.object(dq.core.finish, "upload_dq_log_file")
 @patch.object(ApiClient, "make_request")
@@ -55,7 +54,6 @@ def test_end2end_yolov8(
     mock_make_request: MagicMock,
     mock_upload_log_file: MagicMock,
     mock_reset_run: MagicMock,
-    mock_version_check: MagicMock,
     cleanup_after_use: Generator,
     test_session_vars: TestSessionVariables,
 ) -> None:
