@@ -51,6 +51,10 @@ minio = {version = ">=7.1.0,<7.2.0", optional=true}
 setfit = {version ="==0.7.0", optional = true}
 sentencepiece = "^0.2.0"
 
+[tool.poetry.group.cuda12]
+optional = true
+
+[tool.poetry.group.cuda12.dependencies]
 # Cuda 12
 ucx-py-cu12 = { version ="^0.36", source = "nvidia", optional = true }
 rmm-cu12 = {version = "^24.2.0", source = "nvidia", optional=true}
@@ -59,6 +63,12 @@ pylibraft-cu12 = {version = "^24.2.0", source = "nvidia", optional=true}
 dask-cudf-cu12 = {version = "^24.2.0", source = "nvidia", optional=true}
 cudf-cu12 = {version = "^24.2.0", source = "nvidia", optional=true}
 cuml-cu12 = {version = "^24.2.0", source = "nvidia", optional=true}
+
+
+[tool.poetry.group.cuda11]
+optional = true
+
+[tool.poetry.group.cuda11.dependencies]
 # Cuda 11
 ucx-py-cu11 = { version ="^0.36", source = "nvidia", optional = true }
 rmm-cu11 = {version = "^24.2.0", source = "nvidia", optional=true}
@@ -75,8 +85,9 @@ pre-commit = "^3.6.1"
 
 
 [tool.poetry.extras]
-cuda = ["ucx-py-cu11", "rmm-cu11", "raft-dask-cu11", "pylibraft-cu11", "dask-cudf-cu11", "cudf-cu11", "cuml-cu11"]
+cuda11 = ["ucx-py-cu11", "rmm-cu11", "raft-dask-cu11", "pylibraft-cu11", "dask-cudf-cu11", "cudf-cu11", "cuml-cu11"]
 cuda12 = ["ucx-py-cu12", "rmm-cu12", "raft-dask-cu12", "pylibraft-cu12", "dask-cudf-cu12", "cudf-cu12", "cuml-cu12"]
+cuda = ["ucx-py-cu12", "rmm-cu12", "raft-dask-cu12", "pylibraft-cu12", "dask-cudf-cu12", "cudf-cu12", "cuml-cu12"]
 minio = ["minio"]
 setfit = ["setfit"]
 
