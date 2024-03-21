@@ -49,7 +49,7 @@ class ObjectStore:
             "API Key."
         )
         return Minio(
-            endpoint=config.minio_fqdn,
+            endpoint=str(config.minio_fqdn),
             access_key=access_key,
             secret_key=secret_key,
             secure=True,
