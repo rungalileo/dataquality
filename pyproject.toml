@@ -38,9 +38,6 @@ dependencies = [
     "tenacity>=8.1.0",
     "evaluate",
     "accelerate",
-    "ipywidgets>=8.1.0",
-    "pyjwt>=2.8.0",
-    "peft",
 ]
 [[project.authors]]
 name = "Galileo Technologies, Inc."
