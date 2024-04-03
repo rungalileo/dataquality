@@ -2,7 +2,7 @@ import base64
 from io import BytesIO
 
 from datasets import load_dataset
-from PIL import Image
+from PIL.Image import Image
 from torchvision.transforms import Compose, Normalize, RandomResizedCrop, ToTensor
 from transformers import (
     AutoFeatureExtractor,

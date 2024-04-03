@@ -4,7 +4,8 @@ from typing import List
 
 import numpy as np
 import torch
-from PIL import Image, ImageColor
+from PIL import ImageColor
+from PIL.Image import Image, fromarray
 
 from dataquality import config
 from dataquality.clients.objectstore import ObjectStore
@@ -36,7 +37,7 @@ def calculate_and_upload_dep(
     return dep_heatmaps
 
 
-def colorize_dep_heatmap(image: Image.Image, dep_mean: int) -> Image.Image:
+def colorize_dep_heatmap(image: Image, dep_mean: int) -> Image:
     """Recolors a grayscale image to a color image based on our dep mapping"""
     color_1 = ImageColor.getrgb("#9bc33f")  # Red
     color_2 = ImageColor.getrgb("#ece113")  # Yellow
@@ -62,7 +63,7 @@ def colorize_dep_heatmap(image: Image.Image, dep_mean: int) -> Image.Image:
     colorized_image[~threshold_mask, 1] = (1 - ratio) * color_2[1] + ratio * color_3[1]
     colorized_image[~threshold_mask, 2] = (1 - ratio) * color_2[2] + ratio * color_3[2]
 
-    return Image.fromarray(colorized_image.astype(np.uint8))
+    return fromarray(colorized_image.astype(np.uint8))
 
 
 def calculate_dep_heatmaps(
@@ -166,7 +167,7 @@ def dep_heatmap_to_img(dep_heatmap: np.ndarray) -> Image:
     # Scale the array values to the range [0, 255]
     dep_heatmap = (dep_heatmap * 255).astype(np.uint8)
     # Create a PIL Image object from the numpy array as grey-scale
-    img = Image.fromarray(dep_heatmap, mode="L")
+    img = fromarray(dep_heatmap, mode="L")
     if img.size[0] > MAX_DEP_HEATMAP_SIZE or img.size[1] > MAX_DEP_HEATMAP_SIZE:
         img = img.resize((MAX_DEP_HEATMAP_SIZE, MAX_DEP_HEATMAP_SIZE))
     return img
