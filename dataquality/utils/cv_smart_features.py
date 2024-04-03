@@ -5,7 +5,9 @@ import numpy as np
 import vaex
 from imagededup.methods import PHash
 from multiprocess import Pool, cpu_count
-from PIL import Image, ImageFilter, ImageStat
+from PIL import ImageFilter, ImageStat
+from PIL.Image import Image
+from PIL.Image import open as Image_open
 from vaex.dataframe import DataFrame
 
 from dataquality.exceptions import GalileoWarning
@@ -19,7 +21,7 @@ of minimizing the number of False Positives that they return.
 METHODS: the methods for detecting smart feature all follow the same architecture with
 a first method to quantify the anomaly (as a real number) followed by a method to
 threshold it and return a boolean (qualitive).
-For example to detect if a method is blurry we call 
+For example to detect if a method is blurry we call
     blurriness = _blurry_laplace(image_gray)
     is_blurry = _is_blurry_laplace(blurriness)
 These methods are kept separate to allow easy generalization to the use-case where we
@@ -256,7 +258,7 @@ def _is_under_exposed(
     return q_max_over <= under_exposed_max_thresh
 
 
-def _blurry_laplace(image_gray: Image.Image) -> float:
+def _blurry_laplace(image_gray: Image) -> float:
     """
     Bluriness detector method where we compute the Variance of the Laplacian.
     We use PIL to estimate the Laplacian via the 3x3 convolution filter
@@ -284,7 +286,7 @@ def _is_blurry_laplace(
     return blurriness < blurry_thresh
 
 
-def _image_content_entropy(image: Image.Image) -> float:
+def _image_content_entropy(image: Image) -> float:
     """
     Returns the entropy of the pixels on the image. A high entropy means a more complex
     image with lots of variation in the pixel values (histogram closer to being uniform)
@@ -396,7 +398,7 @@ def _is_near_duplicate(in_frame: DataFrame) -> np.ndarray:
     return np_is_near_duplicate
 
 
-def _open_and_resize(image_path: str) -> Tuple[Image.Image, Image.Image, np.ndarray]:
+def _open_and_resize(image_path: str) -> Tuple[Image, Image, np.ndarray]:
     """
     Open the image at the given path and return a triple with
     - the original image opened with PIL
@@ -406,7 +408,7 @@ def _open_and_resize(image_path: str) -> Tuple[Image.Image, Image.Image, np.ndar
     If any of the sides of the image is larger than 2**11, resize the image so that the
     largest side is now 2**11.
     """
-    image = Image.open(image_path)
+    image = Image_open(image_path)
     image_gray = image.convert(
         "L"
     )  # TODO: check if image already grey, faster to skip that ?

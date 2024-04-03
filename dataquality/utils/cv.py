@@ -3,7 +3,8 @@ import os
 from io import BytesIO
 from typing import Any, Optional
 
-from PIL import Image
+from PIL.Image import Image
+from PIL.Image import open as Image_open
 from pydantic import UUID4
 
 from dataquality import config
@@ -18,7 +19,7 @@ api_client = ApiClient()
 
 
 def _bytes_to_img(b: bytes) -> Image:
-    return Image.open(BytesIO(b))
+    return Image_open(BytesIO(b))
 
 
 def _write_img_bytes_to_file(

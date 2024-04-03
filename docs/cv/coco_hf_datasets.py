@@ -4,7 +4,7 @@ from typing import Dict, Optional, Union
 import numpy as np
 import torch
 from google.cloud import storage
-from PIL import Image
+from PIL.Image import Image
 from torchvision import transforms
 from tqdm import tqdm
 

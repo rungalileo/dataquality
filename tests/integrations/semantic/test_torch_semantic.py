@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import torch
 import torch.nn as nn
-from PIL import Image
+from PIL.Image import Image
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
