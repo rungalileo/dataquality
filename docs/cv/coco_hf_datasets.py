@@ -4,7 +4,7 @@ from typing import Dict, Optional, Union
 import numpy as np
 import torch
 from google.cloud import storage
-from PIL.Image import Image
+from PIL.Image import Image, Resampling
 from torchvision import transforms
 from tqdm import tqdm
 
@@ -57,7 +57,7 @@ class coco_hf_dataset_disk(torch.utils.data.Dataset):
         if mask_transform is None:
             mask_transform = transforms.Compose(
                 [
-                    transforms.Resize((size, size), resample=Image.NEAREST),
+                    transforms.Resize((size, size), resample=Resampling.NEAREST),
                     transforms.ToTensor(),
                 ]
             )
@@ -117,7 +117,7 @@ class coco_hf_dataset_disk(torch.utils.data.Dataset):
 
         # resize image and mask to given size
         unnormalized_image = image.copy().resize(
-            (self.size, self.size), resample=Image.NEAREST
+            (self.size, self.size), resample=Resampling.NEAREST
         )
         unnormalized_image = transforms.ToTensor()(unnormalized_image)
         unnormalized_image = expand_gray_channel()(unnormalized_image)
