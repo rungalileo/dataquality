@@ -49,17 +49,16 @@ opencv-python = "<=4.8.1.78"
 pydantic-settings = ">=2.0.0"
 minio = {version = ">=7.1.0,<7.2.0", optional=true}
 setfit = {version ="==0.7.0", optional = true}
-sentencepiece =  {version ="^0.2.0", optional = true}
+sentencepiece = {version ="^0.2.0", optional = true}
 
-[tool.poetry.group.cu11.dependencies]
-# Cuda 11
-ucx-py-cu11 = { version ="^0.36", source = "nvidia", optional = true }
-rmm-cu11 = {version = "^24.2.0", source = "nvidia", optional=true}
-raft-dask-cu11 = {version = "^24.2.0", source = "nvidia", optional=true}
-pylibraft-cu11 = {version = "^24.2.0", source = "nvidia", optional=true}
-dask-cudf-cu11 = {version = "^24.2.0", source = "nvidia", optional=true}
-cudf-cu11 = {version = "^24.2.0", source = "nvidia", optional=true}
-cuml-cu11 = {version = "^24.2.0", source = "nvidia", optional=true}
+# Cuda.
+ucx-py-cu12 = { version ="^0.36", source = "nvidia", optional = true }
+rmm-cu12 = {version = "^24.2.0", source = "nvidia", optional=true}
+raft-dask-cu12 = {version = "^24.2.0", source = "nvidia", optional=true}
+pylibraft-cu12 = {version = "^24.2.0", source = "nvidia", optional=true}
+dask-cudf-cu12 = {version = "^24.2.0", source = "nvidia", optional=true}
+cudf-cu12 = {version = "^24.2.0", source = "nvidia", optional=true}
+cuml-cu12 = {version = "^24.2.0", source = "nvidia", optional=true}
 
 [tool.poetry.group.dev.dependencies]
 mypy = "^1.8.0"
@@ -68,8 +67,7 @@ pre-commit = "^3.6.1"
 
 
 [tool.poetry.extras]
-cuda11 = ["ucx-py-cu11", "rmm-cu11", "raft-dask-cu11", "pylibraft-cu11", "dask-cudf-cu11", "cudf-cu11", "cuml-cu11"]
-
+cuda12 = ["ucx-py-cu11", "rmm-cu11", "raft-dask-cu11", "pylibraft-cu11", "dask-cudf-cu11", "cudf-cu11", "cuml-cu11"]
 minio = ["minio"]
 setfit = ["setfit"]
 
@@ -105,7 +103,7 @@ fastai = ">=2.7.11"
 portalocker = "==2.7.0"
 types-PyYAML = "==6.0.12.9"
 setfit = "==0.7.0"
-accelerate = ">=0.27.2"
+accelerate = ">=0.19.0"
 typing-inspect = "==0.8.0"
 typing-extensions = ">=4.9.0"
 lightning = "*"  # Assuming you want the latest version as no version was specified

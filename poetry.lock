@@ -750,57 +750,45 @@ tomli = {version = "*", optional = true, markers = "python_full_version <= \"3.1
 toml = ["tomli"]
 
 [[package]]
-name = "cubinlinker-cu11"
-version = "0.3.0.post1"
-description = "A fake package to warn the user they are not installing the correct package."
-optional = true
-python-versions = "*"
-files = [
-    {file = "cubinlinker_cu11-0.3.0.post1.tar.gz", hash = "sha256:4dbe346f287a6e4202ccb270913dc57820f22137b8e155cb55c76042a8cb5506"},
-]
-
-[[package]]
 name = "cuda-python"
-version = "11.8.3"
+version = "12.4.0"
 description = "Python bindings for CUDA"
 optional = true
 python-versions = "*"
 files = [
-    {file = "cuda_python-11.8.3-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:2f076369ed57ad60c34e2b29b098ad9bee44b370322e9bd2c48ec1723a3c7602"},
-    {file = "cuda_python-11.8.3-cp310-cp310-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:508c557cb388951624542d770a724ba58c8f04f28a6d5b604c84eb21f0d4b0e7"},
-    {file = "cuda_python-11.8.3-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:220b21a95071a17a7556183db4c3d96749beee00f3cdc7e5f7e23610f201cf82"},
-    {file = "cuda_python-11.8.3-cp310-cp310-win_amd64.whl", hash = "sha256:d4e8c04de8d010603d7dad0254402ff94f201a37d713f1542e2fcc055f82d09d"},
-    {file = "cuda_python-11.8.3-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:da807ad47a35ef3f314a07654813fbed636c773aec288dfb064c43a4b7d13d4a"},
-    {file = "cuda_python-11.8.3-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:81fd593997a95a317b50e687382779ce067a04d09bc6705c9c39d71c01b644da"},
-    {file = "cuda_python-11.8.3-cp311-cp311-win_amd64.whl", hash = "sha256:1be5377227cc3af975ec17e3f9b9d1637946660d0bc01042e1d87c92ee9e3135"},
-    {file = "cuda_python-11.8.3-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:2be241bbe8910d442d04a93621d6cfd9a7e365f9d3658d9d9a7898555504b38f"},
-    {file = "cuda_python-11.8.3-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:789cbdc13dbd4430d02b808f6ae8c48b9371e00d0d16f6ba4c23d8902deb801d"},
-    {file = "cuda_python-11.8.3-cp312-cp312-win_amd64.whl", hash = "sha256:f87449a413c1b9b1656ba5c387af0766d19fd147884176b6a49cd24adfe5ef5a"},
-    {file = "cuda_python-11.8.3-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:36638aebfd9f4a8a5988aed10be91f0c825f8d03f463010fbb1b0ac323738b3a"},
-    {file = "cuda_python-11.8.3-cp39-cp39-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:667a6ae979d671f7831090ed176c5c41e3c704caf5ec7827987f4347f6b90c5b"},
-    {file = "cuda_python-11.8.3-cp39-cp39-win_amd64.whl", hash = "sha256:0939b8c1018ae007fca380882eefa19e848bb01b15c37ef8658d5dd837646947"},
+    {file = "cuda_python-12.4.0-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:3a9ddcbfe14a9b38eedf7e98323f680acc8c61ed6529638da2c7d4a5a8787e12"},
+    {file = "cuda_python-12.4.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:d9e1a2cf38d71be0c85f1063967409b48badc06fb4294dd72fdf05de852f42fb"},
+    {file = "cuda_python-12.4.0-cp310-cp310-win_amd64.whl", hash = "sha256:8d505667cae5f793435dbe5fcaab4bff4a2a3029024148ce16e4003bae43cf45"},
+    {file = "cuda_python-12.4.0-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:e845338ad9634be2778b787f12f3a05b0116d49610a9a517f017fd91e79b1b97"},
+    {file = "cuda_python-12.4.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:6dde31841f204f3de78e5e121252f7c43f1cfcf207ff3a0cf1d1017acb08dabf"},
+    {file = "cuda_python-12.4.0-cp311-cp311-win_amd64.whl", hash = "sha256:43d92a8f7531c5fa8d9d68e24b36dd352d1653353791583c4a3b10a629176fd4"},
+    {file = "cuda_python-12.4.0-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:84cd4f3a174fc116a6c1496efb3d60a7d4dce791194456461582908653ac67b2"},
+    {file = "cuda_python-12.4.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:dcf44462196af79e34d2516f4416c5e46691a4d6b9faa13e75664115bdc40d4c"},
+    {file = "cuda_python-12.4.0-cp312-cp312-win_amd64.whl", hash = "sha256:07db8b89ac34ba4520b070f8de971f0266229fabe2443608ca91a8b93d572c09"},
+    {file = "cuda_python-12.4.0-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:f2202ed9793c5948282e4e575e8227c127adb29e21fd31cb6d80098f93a2c14e"},
+    {file = "cuda_python-12.4.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:7146ed28810c28704649204f83ca60a9609263b3e8f08f77a33e154501cd84dd"},
+    {file = "cuda_python-12.4.0-cp39-cp39-win_amd64.whl", hash = "sha256:de0a2cb4ce6ea8e302010a580576ab78a2e95d015963e0d6933bb2508f65bd6a"},
 ]
 
 [[package]]
-name = "cudf-cu11"
+name = "cudf-cu12"
 version = "24.2.2"
 description = "cuDF - GPU Dataframe"
 optional = true
 python-versions = ">=3.9"
 files = [
-    {file = "cudf_cu11-24.2.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:fde049e176bb089e104964aed81e204430c114644c00bffefeed463a45148a13"},
-    {file = "cudf_cu11-24.2.2-cp310-cp310-manylinux_2_28_aarch64.whl", hash = "sha256:9fb3ac3f35497806b536d12bfa93a5345d4347d54d5d079982437421edc488f1"},
-    {file = "cudf_cu11-24.2.2-cp310-cp310-manylinux_2_28_x86_64.whl", hash = "sha256:d4a96ad2237a964955cff56fe128e3c8e3ded3defcb244d4a7cf05e72fefa808"},
-    {file = "cudf_cu11-24.2.2-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:fee05ef60553963ac949908611dbf0a8069e0c421c3b426fc16f846bf9057884"},
-    {file = "cudf_cu11-24.2.2-cp39-cp39-manylinux_2_28_aarch64.whl", hash = "sha256:3e1467e2e827f1acb1d1345a650296d97a3502a8a8db56ee696f036ef909c4c3"},
-    {file = "cudf_cu11-24.2.2-cp39-cp39-manylinux_2_28_x86_64.whl", hash = "sha256:19ff8ac7d649b7cdd9249bf5b422098a5bf23a484ce5305540ade70e6acf9c3b"},
+    {file = "cudf_cu12-24.2.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:32055c4824371421164e33e2d1ea25329fe9b546e0d7d19f3230320438c31525"},
+    {file = "cudf_cu12-24.2.2-cp310-cp310-manylinux_2_28_aarch64.whl", hash = "sha256:0eafe9753e796bc35a060c72ffe09e4778dc6b096269ab8b93bbd89e0bf80110"},
+    {file = "cudf_cu12-24.2.2-cp310-cp310-manylinux_2_28_x86_64.whl", hash = "sha256:95a1dbb03104e60ee7ecfedd479730cecd205e0c1238393968538c6daff8a5e8"},
+    {file = "cudf_cu12-24.2.2-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ec158eb0835bdd38118f9e01c2bc694a3d13ea35edb193f289bb1059562f967e"},
+    {file = "cudf_cu12-24.2.2-cp39-cp39-manylinux_2_28_aarch64.whl", hash = "sha256:22090598b184b198e94029d3ff9c32f525ff4711aa6e7c127a6263c05ec4e2ac"},
+    {file = "cudf_cu12-24.2.2-cp39-cp39-manylinux_2_28_x86_64.whl", hash = "sha256:0073255248a2eca13324f03ee6e3ccf3be01900984c11ee0e2d5a05493e70ca3"},
 ]
 
 [package.dependencies]
 cachetools = "*"
-cubinlinker-cu11 = "*"
-cuda-python = ">=11.7.1,<12.0a0"
-cupy-cuda11x = ">=12.0.0"
+cuda-python = ">=12.0,<13.0a0"
+cupy-cuda12x = ">=12.0.0"
 fsspec = ">=0.6.0"
 numba = ">=0.57"
 numpy = ">=1.21,<1.25"
@@ -808,10 +796,10 @@ nvtx = ">=0.2.1"
 packaging = "*"
 pandas = ">=1.3,<1.6.0dev0"
 protobuf = ">=4.21,<5"
-ptxcompiler-cu11 = "*"
 pyarrow = ">=14.0.1,<15.0.0a0"
+pynvjitlink-cu12 = "*"
 rich = "*"
-rmm-cu11 = "==24.2.*"
+rmm-cu12 = "==24.2.*"
 typing_extensions = ">=4.0.0"
 
 [package.extras]
@@ -825,29 +813,29 @@ url = "https://pypi.nvidia.com"
 reference = "nvidia"
 
 [[package]]
-name = "cuml-cu11"
+name = "cuml-cu12"
 version = "24.2.0"
 description = "cuML - RAPIDS ML Algorithms"
 optional = true
 python-versions = ">=3.9"
 files = [
-    {file = "cuml_cu11-24.2.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:a5a77b9186e131a08a4e00debe82082aecf38a8fe94844a02e88f5e5bb44ec44"},
-    {file = "cuml_cu11-24.2.0-cp310-cp310-manylinux_2_28_aarch64.whl", hash = "sha256:fecf298bce1e124e14c723919805d6cf5c9479f93659e37fa2e6a0789cebf3fd"},
-    {file = "cuml_cu11-24.2.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:6b641498c0cb419cfc77ab20e6f7c441623ff44d372e81b81a4acd0f73133721"},
-    {file = "cuml_cu11-24.2.0-cp39-cp39-manylinux_2_28_aarch64.whl", hash = "sha256:ac60e522d88bb4639825beff9ffa13d2d1b76f09c9fac05b2bf4e02bfc15e51f"},
+    {file = "cuml_cu12-24.2.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b76a939481c907f87785181e0df88eaa72dce992ab3aafec5ad37a9d1a5fac25"},
+    {file = "cuml_cu12-24.2.0-cp310-cp310-manylinux_2_28_aarch64.whl", hash = "sha256:693a182c63023d2f29cd2af0b9ee3f19e51a1057b2a33a74190c6a24c32195fa"},
+    {file = "cuml_cu12-24.2.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:85327b0d981adadbc7636cad353d688eb13a738d32b69779e040610680fb8208"},
+    {file = "cuml_cu12-24.2.0-cp39-cp39-manylinux_2_28_aarch64.whl", hash = "sha256:030f32014c35bc3b76a70e697c17a85fd76009111e0b022d1f6c07f4a8513041"},
 ]
 
 [package.dependencies]
-cudf-cu11 = "==24.2.*"
-cupy-cuda11x = ">=12.0.0"
+cudf-cu12 = "==24.2.*"
+cupy-cuda12x = ">=12.0.0"
 dask-cuda = "==24.2.*"
-dask-cudf-cu11 = "==24.2.*"
+dask-cudf-cu12 = "==24.2.*"
 joblib = ">=0.11"
 numba = ">=0.57"
-pylibraft-cu11 = "==24.2.*"
-raft-dask-cu11 = "==24.2.*"
+pylibraft-cu12 = "==24.2.*"
+raft-dask-cu12 = "==24.2.*"
 rapids-dask-dependency = "==24.2.*"
-rmm-cu11 = "==24.2.*"
+rmm-cu12 = "==24.2.*"
 scipy = ">=1.8.0"
 treelite = "4.0.0"
 
@@ -860,24 +848,24 @@ url = "https://pypi.nvidia.com"
 reference = "nvidia"
 
 [[package]]
-name = "cupy-cuda11x"
+name = "cupy-cuda12x"
 version = "13.0.0"
 description = "CuPy: NumPy & SciPy for GPU"
 optional = true
 python-versions = ">=3.9"
 files = [
-    {file = "cupy_cuda11x-13.0.0-cp310-cp310-manylinux2014_aarch64.whl", hash = "sha256:b47a79b6ec203096e2903d33ea2291bcec60b596e8b66c86fe51e94fa5b51ffa"},
-    {file = "cupy_cuda11x-13.0.0-cp310-cp310-manylinux2014_x86_64.whl", hash = "sha256:96e65c62788e0cfe7c4fa5747611fb13898251c54a0daaa24207d900148dc59b"},
-    {file = "cupy_cuda11x-13.0.0-cp310-cp310-win_amd64.whl", hash = "sha256:3647d1ef3bcf44df33efba642583aa222d7c5635915a205db8a4f27e55162554"},
-    {file = "cupy_cuda11x-13.0.0-cp311-cp311-manylinux2014_aarch64.whl", hash = "sha256:58d8c424f9376a3da27569f29544140dc35ea7829cb892b628cbefb2552bfb5d"},
-    {file = "cupy_cuda11x-13.0.0-cp311-cp311-manylinux2014_x86_64.whl", hash = "sha256:2dbe1c5b7df110d44c2bfe3f0a32398be27199b216ee03127f61427b0f667fcd"},
-    {file = "cupy_cuda11x-13.0.0-cp311-cp311-win_amd64.whl", hash = "sha256:14947832d2d80a9d61ed03ffbbcee97bc5e93150b9c45f87bc9d43482249d54f"},
-    {file = "cupy_cuda11x-13.0.0-cp312-cp312-manylinux2014_aarch64.whl", hash = "sha256:7944d8e967f1815f7b4ea2fe123cbbeb0c1f91bf531b35a6598253ed92409701"},
-    {file = "cupy_cuda11x-13.0.0-cp312-cp312-manylinux2014_x86_64.whl", hash = "sha256:24e869b71651ac24bcf2efff47f31b179edf34ceea838a6688bd5e724a95965c"},
-    {file = "cupy_cuda11x-13.0.0-cp312-cp312-win_amd64.whl", hash = "sha256:e726edceae3920aafb671bc47d8186970c1cf069397cb6565b97a09e8c6f50a8"},
-    {file = "cupy_cuda11x-13.0.0-cp39-cp39-manylinux2014_aarch64.whl", hash = "sha256:c4a6b083ac599cc898b86135abf4961dc32c3cad3034e6a0a94e231762db19f5"},
-    {file = "cupy_cuda11x-13.0.0-cp39-cp39-manylinux2014_x86_64.whl", hash = "sha256:7a91631199771e1e311615e3fd5bb77c484c0ad11e0dd3f8dc4ad8c385ce25f5"},
-    {file = "cupy_cuda11x-13.0.0-cp39-cp39-win_amd64.whl", hash = "sha256:d76cb695153b83504b8769f24a95fe8e316bbbe4e2de71d34b2946923cdc32c8"},
+    {file = "cupy_cuda12x-13.0.0-cp310-cp310-manylinux2014_aarch64.whl", hash = "sha256:a59a271c2e7bb08eb5afc34ce69fbfd3ee1b9700bafbdf43e7e994b15ddc670e"},
+    {file = "cupy_cuda12x-13.0.0-cp310-cp310-manylinux2014_x86_64.whl", hash = "sha256:79ff0786dce91f3e940f1388ae370e3e612ac09d4578362805047da0845377ab"},
+    {file = "cupy_cuda12x-13.0.0-cp310-cp310-win_amd64.whl", hash = "sha256:9387713644d4951a5bd381db213c6410add212a7ebee6631c03ca543e1ab3053"},
+    {file = "cupy_cuda12x-13.0.0-cp311-cp311-manylinux2014_aarch64.whl", hash = "sha256:6fd9568e7d491c035199ac3f6053c648a8774d9a539816a3232fbd6401bd1553"},
+    {file = "cupy_cuda12x-13.0.0-cp311-cp311-manylinux2014_x86_64.whl", hash = "sha256:0517b85ab818dfa93cc403149dae38ccc71f8c760ddff74c87d64d9893e77eb8"},
+    {file = "cupy_cuda12x-13.0.0-cp311-cp311-win_amd64.whl", hash = "sha256:1b3b33f3d10cf4bc11c9c257b4020529efb8b15da5bb8a7a4824d9321a7ebd7e"},
+    {file = "cupy_cuda12x-13.0.0-cp312-cp312-manylinux2014_aarch64.whl", hash = "sha256:ef4c7e0ccb0e77c0f76bc04c849470970102c0889207aa53c8fcc12532dac693"},
+    {file = "cupy_cuda12x-13.0.0-cp312-cp312-manylinux2014_x86_64.whl", hash = "sha256:976d69b35c76f10039b4eb21fc8d75e3072f110e06df12a800baae428db6c2d2"},
+    {file = "cupy_cuda12x-13.0.0-cp312-cp312-win_amd64.whl", hash = "sha256:61afe1085487a06e804febdbef8497e5d69cf25f0be095288f4e595133b5cc96"},
+    {file = "cupy_cuda12x-13.0.0-cp39-cp39-manylinux2014_aarch64.whl", hash = "sha256:dde8ce3f48899e9f5873258a7c88ae9c6b8b84d0c27b5dec259d19890d7c84c5"},
+    {file = "cupy_cuda12x-13.0.0-cp39-cp39-manylinux2014_x86_64.whl", hash = "sha256:00947c4f5362453eaec27b43488962829fbcba6cbc843005b75c696808cd62e2"},
+    {file = "cupy_cuda12x-13.0.0-cp39-cp39-win_amd64.whl", hash = "sha256:5e855e2ee95328c8884119aa935880d4ae5a9222f93e3c46a94e987943a31cce"},
 ]
 
 [package.dependencies]
@@ -999,18 +987,18 @@ docs = ["numpydoc (>=1.1.0)", "sphinx", "sphinx-click (>=2.7.1)", "sphinx-rtd-th
 test = ["cudf (==24.2.*)", "dask-cudf (==24.2.*)", "kvikio (==24.2.*)", "pytest", "pytest-cov", "ucx-py (==0.36.*)"]
 
 [[package]]
-name = "dask-cudf-cu11"
+name = "dask-cudf-cu12"
 version = "24.2.2"
 description = "Utilities for Dask and cuDF interactions"
 optional = true
 python-versions = ">=3.9"
 files = [
-    {file = "dask_cudf_cu11-24.2.2-py3-none-any.whl", hash = "sha256:3ced22e2bd60043339f39188de1ae5ec9981ef1e37eea51ca5f93aaf140b49f1"},
+    {file = "dask_cudf_cu12-24.2.2-py3-none-any.whl", hash = "sha256:70abe2e9febe3a446a35842ea51612b79b4a339ac4e0765242a059bde36dd349"},
 ]
 
 [package.dependencies]
-cudf-cu11 = "==24.2.*"
-cupy-cuda11x = ">=12.0.0"
+cudf-cu12 = "==24.2.*"
+cupy-cuda12x = ">=12.0.0"
 fsspec = ">=0.6.0"
 numpy = ">=1.21,<1.25"
 pandas = ">=1.3,<1.6.0dev0"
@@ -3843,16 +3831,6 @@ files = [
 test = ["enum34", "ipaddress", "mock", "pywin32", "wmi"]
 
 [[package]]
-name = "ptxcompiler-cu11"
-version = "0.8.1.post1"
-description = "A fake package to warn the user they are not installing the correct package."
-optional = true
-python-versions = "*"
-files = [
-    {file = "ptxcompiler-cu11-0.8.1.post1.tar.gz", hash = "sha256:f52e54917c175a6d51508562d757371b508167d950444cff594cb8b90cc673a6"},
-]
-
-[[package]]
 name = "ptyprocess"
 version = "0.7.0"
 description = "Run a subprocess in a pseudo terminal"
@@ -4134,30 +4112,40 @@ docs = ["sphinx (>=4.5.0,<5.0.0)", "sphinx-rtd-theme", "zope.interface"]
 tests = ["coverage[toml] (==5.0.4)", "pytest (>=6.0.0,<7.0.0)"]
 
 [[package]]
-name = "pylibraft-cu11"
+name = "pylibraft-cu12"
 version = "24.2.0"
 description = "RAFT: Reusable Algorithms Functions and other Tools"
 optional = true
 python-versions = ">=3.9"
 files = [
-    {file = "pylibraft_cu11-24.2.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:d19496447e8f7ef9f0a4273cdd26782a2ea928feb67071c6a037a217ac84d7ee"},
-    {file = "pylibraft_cu11-24.2.0-cp310-cp310-manylinux_2_28_aarch64.whl", hash = "sha256:bfa42be03bd4d3305eabf07c73fa5a0c96fa395bc0c4a5b9bd6be2323e01fb1d"},
-    {file = "pylibraft_cu11-24.2.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:4b9bc1b47ca89ceb7848c8d9b24f9d72dd3b8aa9977bab42debc4538d0e2933c"},
-    {file = "pylibraft_cu11-24.2.0-cp39-cp39-manylinux_2_28_aarch64.whl", hash = "sha256:df1221ccf9b0498f3dd22eaab04ff9d71ae03ef5daf017e23d352d870886cc19"},
+    {file = "pylibraft_cu12-24.2.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:725b3625dc471515af2358e11f24c40c34a572ccb5215a567d65c475c49e32d0"},
+    {file = "pylibraft_cu12-24.2.0-cp310-cp310-manylinux_2_28_aarch64.whl", hash = "sha256:026ad7a5864f161d7638899a78730db1f8975e99ec72e68efdb290d874392c27"},
+    {file = "pylibraft_cu12-24.2.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b50ca4b9367007000c50fe58a4ee63648d878d78af5fc12c3fa55d3e329a62be"},
+    {file = "pylibraft_cu12-24.2.0-cp39-cp39-manylinux_2_28_aarch64.whl", hash = "sha256:1e036c731c1e93945c235c3185f761617318ca66681838a12cf5030b5d0474dd"},
 ]
 
 [package.dependencies]
-cuda-python = ">=11.7.1,<12.0a0"
+cuda-python = ">=12.0,<13.0a0"
 numpy = ">=1.21"
-rmm-cu11 = "==24.2.*"
+rmm-cu12 = "==24.2.*"
 
 [package.extras]
-test = ["cupy-cuda11x (>=12.0.0)", "pytest (==7.*)", "pytest-cov", "scikit-learn", "scipy"]
+test = ["cupy-cuda12x (>=12.0.0)", "pytest (==7.*)", "pytest-cov", "scikit-learn", "scipy"]
 
 [package.source]
 type = "legacy"
 url = "https://pypi.nvidia.com"
 reference = "nvidia"
+
+[[package]]
+name = "pynvjitlink-cu12"
+version = "0.1.14"
+description = "A fake package to warn the user they are not installing the correct package."
+optional = true
+python-versions = ">=3.9"
+files = [
+    {file = "pynvjitlink-cu12-0.1.14.tar.gz", hash = "sha256:430c1aa161d81effd6a461a0273c6769acc128f9e7174096e700b7cfbad1a45f"},
+]
 
 [[package]]
 name = "pynvml"
@@ -4487,16 +4475,16 @@ files = [
 ]
 
 [[package]]
-name = "raft-dask-cu11"
+name = "raft-dask-cu12"
 version = "24.2.0"
 description = "Reusable Accelerated Functions & Tools Dask Infrastructure"
 optional = true
 python-versions = ">=3.9"
 files = [
-    {file = "raft_dask_cu11-24.2.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:6aab91cf2aed8522938ee872b8d6a795529c469e026798cf985be89755be07ac"},
-    {file = "raft_dask_cu11-24.2.0-cp310-cp310-manylinux_2_28_aarch64.whl", hash = "sha256:8afdfdc5ae73f8a0fba2d9d01b171bcee7f6e002049384c1123e2fc7ea1b047e"},
-    {file = "raft_dask_cu11-24.2.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ec76210e3b9157985054de31d1bd666022cddf85615bc349d64f3e0217fdfd4a"},
-    {file = "raft_dask_cu11-24.2.0-cp39-cp39-manylinux_2_28_aarch64.whl", hash = "sha256:6af65124294ea31854c572c56a2ac180d86dfbacf06bb6b5a26dfed792b078c5"},
+    {file = "raft_dask_cu12-24.2.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:db088928e9d3d3396a952c38a1fbab85c2963e9e5ae73be37fb3826319f0a38e"},
+    {file = "raft_dask_cu12-24.2.0-cp310-cp310-manylinux_2_28_aarch64.whl", hash = "sha256:c7a11867763b1c13f553a94100ddc4119a8d1e7eead5bc65348286b8b175c7e0"},
+    {file = "raft_dask_cu12-24.2.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:bab9d3dd53fc2b6012392110321070e8651f49d2962b2dba4e404a3ea48cd0cc"},
+    {file = "raft_dask_cu12-24.2.0-cp39-cp39-manylinux_2_28_aarch64.whl", hash = "sha256:b92b878efb4e99ad489f44025732f16e53702b4f74f9c202df5f31d9c57bddc1"},
 ]
 
 [package.dependencies]
@@ -4504,9 +4492,9 @@ dask-cuda = "==24.2.*"
 joblib = ">=0.11"
 numba = ">=0.57"
 numpy = ">=1.21"
-pylibraft-cu11 = "==24.2.*"
+pylibraft-cu12 = "==24.2.*"
 rapids-dask-dependency = "==24.2.*"
-ucx-py-cu11 = "==0.36.*"
+ucx-py-cu12 = "==0.36.*"
 
 [package.extras]
 test = ["pytest (==7.*)", "pytest-cov"]
@@ -4739,20 +4727,20 @@ pygments = ">=2.13.0,<3.0.0"
 jupyter = ["ipywidgets (>=7.5.1,<9)"]
 
 [[package]]
-name = "rmm-cu11"
+name = "rmm-cu12"
 version = "24.2.0"
 description = "rmm - RAPIDS Memory Manager"
 optional = true
 python-versions = ">=3.9"
 files = [
-    {file = "rmm_cu11-24.2.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b27d5be6196313aeeba0a4a4f6c2c9d261dc05633c061536af249f6d4831cdc7"},
-    {file = "rmm_cu11-24.2.0-cp310-cp310-manylinux_2_28_aarch64.manylinux_2_24_aarch64.whl", hash = "sha256:767b85a08a915ce863444f74e86b4ceed3d2989e015d43637141d38199edbe9a"},
-    {file = "rmm_cu11-24.2.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:99af308434e36fe19d7911ae266b3164326f5304e7ef7fa666a61f523f0886f0"},
-    {file = "rmm_cu11-24.2.0-cp39-cp39-manylinux_2_28_aarch64.manylinux_2_24_aarch64.whl", hash = "sha256:80778748ea4777c7d1b8d429877d9e44b6ccf7cba8da9cf1dae361043bc4bc01"},
+    {file = "rmm_cu12-24.2.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:764f5704af8d053b07a42e1083f1942ccba73923b31f641158554fbb438a9b18"},
+    {file = "rmm_cu12-24.2.0-cp310-cp310-manylinux_2_28_aarch64.manylinux_2_24_aarch64.whl", hash = "sha256:6e31766e8629526c2bec639d75bc6dc0a726ddd0dd52486cc5e3f114df6b4b16"},
+    {file = "rmm_cu12-24.2.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b5f1a13bd7012380b1eb81b92f91ef0d92a61e89d71eb4f9d41deda415e9bab0"},
+    {file = "rmm_cu12-24.2.0-cp39-cp39-manylinux_2_28_aarch64.manylinux_2_24_aarch64.whl", hash = "sha256:79ac3ebf33a493c5b2f1a8c7ee2ad85081f6a54a935c72740c6404fd6497ce5b"},
 ]
 
 [package.dependencies]
-cuda-python = ">=11.7.1,<12.0a0"
+cuda-python = ">=12.0,<13.0a0"
 numba = ">=0.57"
 numpy = ">=1.21"
 
@@ -6627,16 +6615,16 @@ mypy-extensions = ">=0.3.0"
 typing-extensions = ">=3.7.4"
 
 [[package]]
-name = "ucx-py-cu11"
+name = "ucx-py-cu12"
 version = "0.36.0"
 description = "Python Bindings for the Unified Communication X library (UCX)"
 optional = true
 python-versions = ">=3.9"
 files = [
-    {file = "ucx_py_cu11-0.36.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:766661a13a411d81b98418535a62910b236d586cdd5e0b2b509f473574803376"},
-    {file = "ucx_py_cu11-0.36.0-cp310-cp310-manylinux_2_28_aarch64.whl", hash = "sha256:e8d277c1cdac5846e423029f189a56aed408b036d33d1a8c2458a2fa8e58d7e2"},
-    {file = "ucx_py_cu11-0.36.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b247335bbfa3e5f85d968e16647abf04600aa3841b0581a53208a83421e1bd38"},
-    {file = "ucx_py_cu11-0.36.0-cp39-cp39-manylinux_2_28_aarch64.whl", hash = "sha256:cba8e901f2629737a08c645c03c7e806574bfecb91ccb29d9db3942b08f17e90"},
+    {file = "ucx_py_cu12-0.36.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:cdacf11caa22c28ce0543963ce2ccdd8171028ee14e7319f97f200197f32b419"},
+    {file = "ucx_py_cu12-0.36.0-cp310-cp310-manylinux_2_28_aarch64.whl", hash = "sha256:710a089c51f8df2687748ed3d9491e683423fbce0cf3174666ecdeab876b1621"},
+    {file = "ucx_py_cu12-0.36.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:de00d043411df43a272ee32d8815ef5e3c6d5c171b2f20f73c1e94c77f082cb1"},
+    {file = "ucx_py_cu12-0.36.0-cp39-cp39-manylinux_2_28_aarch64.whl", hash = "sha256:a1c992c4cbc1fa2a70c993128e3b97e0533842e15c3f4a31cbe9e792a96b8593"},
 ]
 
 [package.dependencies]
@@ -6644,7 +6632,7 @@ numpy = ">=1.21"
 pynvml = ">=11.4.1"
 
 [package.extras]
-test = ["cloudpickle", "cudf-cu11 (==24.2.*)", "cupy-cuda11x (>=12.0.0)", "dask", "distributed", "numba (>=0.57)", "pytest (==7.*)", "pytest-asyncio", "pytest-rerunfailures"]
+test = ["cloudpickle", "cudf-cu12 (==24.2.*)", "cupy-cuda12x (>=12.0.0)", "dask", "distributed", "numba (>=0.57)", "pytest (==7.*)", "pytest-asyncio", "pytest-rerunfailures"]
 
 [package.source]
 type = "legacy"
@@ -7239,11 +7227,11 @@ docs = ["furo", "jaraco.packaging (>=9.3)", "jaraco.tidelift (>=1.4)", "rst.link
 testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "pytest (>=6)", "pytest-black (>=0.3.7)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=2.2)", "pytest-ignore-flaky", "pytest-mypy (>=0.9.1)", "pytest-ruff"]
 
 [extras]
-cuda11 = []
+cuda12 = []
 minio = ["minio"]
 setfit = ["setfit"]
 
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9,<3.11"
-content-hash = "ea4a79f5cfa7c4dd643be70765b2774d7f2805c2f76abb13db70f2bde26659ad"
+content-hash = "1da439c8a2825b2d75961efec33ec503e7fed37cae50a1276bfb6ddd143c1f6f"

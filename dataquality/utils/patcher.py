@@ -46,6 +46,7 @@ class Cleanup:
         if self.cleanup_manager and callable(self.cleanup_manager._cleanup_callback):
             self.cleanup_manager._cleanup_callback(weakref.ref(self))
 
+
 class Borg:
     """Borg class making class attributes global"""
 

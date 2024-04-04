@@ -285,7 +285,7 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
             print(
                 "CuML libraries not found, running standard process. "
                 "For faster Galileo processing, consider installing\n"
-                "`pip install 'dataquality[cuda]' --extra-index-url="
+                "`pip install 'dataquality[cuda12]' --extra-index-url="
                 "https://pypi.nvidia.com/`"
             )
 
