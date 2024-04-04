@@ -7227,11 +7227,11 @@ docs = ["furo", "jaraco.packaging (>=9.3)", "jaraco.tidelift (>=1.4)", "rst.link
 testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "pytest (>=6)", "pytest-black (>=0.3.7)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=2.2)", "pytest-ignore-flaky", "pytest-mypy (>=0.9.1)", "pytest-ruff"]
 
 [extras]
-cuda12 = []
+cuda12 = ["cudf-cu12", "cuml-cu12", "dask-cudf-cu12", "pylibraft-cu12", "raft-dask-cu12", "rmm-cu12", "ucx-py-cu12"]
 minio = ["minio"]
 setfit = ["setfit"]
 
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9,<3.11"
-content-hash = "1da439c8a2825b2d75961efec33ec503e7fed37cae50a1276bfb6ddd143c1f6f"
+content-hash = "19d1dd645c542bf325d3d9b4e2faea13f7ac50ec46134cac4f0756028bf0a66d"
