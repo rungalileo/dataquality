@@ -1,0 +1,31 @@
+name: publish-cuda12
+
+on:
+  release:
+    types:
+      - created
+
+jobs:
+  main:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Publish to PyPI
+        env:
+          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.POETRY_PYPI_TOKEN_PYPI }}
+        # temporary workaround for CUDA 12
+        run: |
+          pipx install poetry=="1.7.0"
+          sed -i 's/cu11/cu12/g' pyproject.toml
+          sed -i 's/cuda11/cuda12/g' pyproject.toml
+          poetry lock --no-update
+          poetry publish --build
+
+
+
+
