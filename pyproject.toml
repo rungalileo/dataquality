@@ -61,7 +61,24 @@ pre-commit = "^3.6.1"
 
 
 [tool.poetry.extras]
-cuda11 = ["ucx-py-cu11", "rmm-cu11", "raft-dask-cu11", "pylibraft-cu11", "dask-cudf-cu11", "cudf-cu11", "cuml-cu11"]
+cuda = [
+    "ucx-py-cu11",
+    "rmm-cu11",
+    "raft-dask-cu11",
+    "pylibraft-cu11",
+    "dask-cudf-cu11",
+    "cudf-cu11", 
+    "cuml-cu11"
+]
+cuda11 = [
+    "ucx-py-cu11",
+    "rmm-cu11",
+    "raft-dask-cu11",
+    "pylibraft-cu11",
+    "dask-cudf-cu11",
+    "cudf-cu11", 
+    "cuml-cu11"
+]
 cuda12 = [
     "ucx-py-cu12",
     "rmm-cu12",
