@@ -67,9 +67,15 @@ pre-commit = "^3.6.1"
 
 
 [tool.poetry.extras]
-cuda = ["ucx-py-cu11", "rmm-cu11", "raft-dask-cu11", "pylibraft-cu11", "dask-cudf-cu11", "cudf-cu11", "cuml-cu11"]
-minio = ["minio"]
-setfit = ["setfit"]
+cuda = [
+    "ucx-py-cu12",
+    "rmm-cu12",
+    "raft-dask-cu12",
+    "pylibraft-cu12",
+    "dask-cudf-cu12",
+    "cudf-cu12",
+    "cuml-cu12"
+]
 
 
 [tool.poetry.group.docs.dependencies]
