@@ -117,7 +117,7 @@ freezegun = ">=1.2.2"
 coverage = { version = ">=7.0.5", extras = ["toml"] }
 pytest-cov = ">=4.0.0"
 scikit-learn = ">=1.0"
-tensorflow = ">=2.9.1"
+tensorflow = "<=2.15.0"
 pytest-env = ">=0.8.1"
 pytest-xdist = ">=2.4.0"
 types-setuptools = ">=67.3.0.1"
