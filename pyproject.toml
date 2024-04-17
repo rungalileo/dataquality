@@ -49,16 +49,20 @@ opencv-python = "<=4.8.1.78"
 pydantic-settings = ">=2.0.0"
 minio = {version = ">=7.1.0,<7.2.0", optional=true}
 setfit = {version ="==0.7.0", optional = true}
-
-# Cuda.
-ucx-py-cu11 = { version ="^0.36", source = "nvidia", optional = true }
-rmm-cu11 = {version = "^24.2.0", source = "nvidia", optional=true}
-raft-dask-cu11 = {version = "^24.2.0", source = "nvidia", optional=true}
-pylibraft-cu11 = {version = "^24.2.0", source = "nvidia", optional=true}
-dask-cudf-cu11 = {version = "^24.2.0", source = "nvidia", optional=true}
-cudf-cu11 = {version = "^24.2.0", source = "nvidia", optional=true}
-cuml-cu11 = {version = "^24.2.0", source = "nvidia", optional=true}
 sentencepiece = "^0.2.0"
+
+# cuda dependencies
+ucx-py-cu12 = { version ="^0.36", source = "nvidia", optional = true }
+rmm-cu12 = {version = "^24.2.0", source = "nvidia", optional=true}
+raft-dask-cu12 = {version = "^24.2.0", source = "nvidia", optional=true}
+pylibraft-cu12 = {version = "^24.2.0", source = "nvidia", optional=true}
+dask-cudf-cu12 = {version = "^24.2.0", source = "nvidia", optional=true}
+cudf-cu12 = {version = "^24.2.0", source = "nvidia", optional=true}
+cuml-cu12 = {version = "^24.2.0", source = "nvidia", optional=true}
+tensorflow = ">=2.9.1,<2.15.0"
+
+
+
 
 [tool.poetry.group.dev.dependencies]
 mypy = "^1.8.0"
@@ -67,7 +71,33 @@ pre-commit = "^3.6.1"
 
 
 [tool.poetry.extras]
-cuda = ["ucx-py-cu11", "rmm-cu11", "raft-dask-cu11", "pylibraft-cu11", "dask-cudf-cu11", "cudf-cu11", "cuml-cu11"]
+cuda = [
+    "ucx-py-cu12",
+    "rmm-cu12",
+    "raft-dask-cu12",
+    "pylibraft-cu12",
+    "dask-cudf-cu12",
+    "cudf-cu12",
+    "cuml-cu12"
+]
+cuda11 = [
+    "ucx-py-cu11",
+    "rmm-cu11",
+    "raft-dask-cu11",
+    "pylibraft-cu11",
+    "dask-cudf-cu11",
+    "cudf-cu11", 
+    "cuml-cu11"
+]
+cuda12 = [
+    "ucx-py-cu12",
+    "rmm-cu12",
+    "raft-dask-cu12",
+    "pylibraft-cu12",
+    "dask-cudf-cu12",
+    "cudf-cu12",
+    "cuml-cu12"
+]
 minio = ["minio"]
 setfit = ["setfit"]
 
@@ -88,7 +118,7 @@ freezegun = ">=1.2.2"
 coverage = { version = ">=7.0.5", extras = ["toml"] }
 pytest-cov = ">=4.0.0"
 scikit-learn = ">=1.0"
-tensorflow = ">=2.9.1"
+tensorflow = "<=2.15.0"
 pytest-env = ">=0.8.1"
 pytest-xdist = ">=2.4.0"
 types-setuptools = ">=67.3.0.1"
