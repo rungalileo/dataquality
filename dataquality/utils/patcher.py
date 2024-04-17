@@ -24,7 +24,8 @@ class RefManager:
         """Call the cleanup function when the object is garbage collected.
         :param weak_instance: The weak reference to the object that was
         garbage collected."""
-        self.cleanup_func()
+        if callable(self.cleanup_func):
+            self.cleanup_func()
         self._instances.discard(weak_instance)
 
 
