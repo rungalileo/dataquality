@@ -59,6 +59,7 @@ pylibraft-cu12 = {version = "^24.2.0", source = "nvidia", optional=true}
 dask-cudf-cu12 = {version = "^24.2.0", source = "nvidia", optional=true}
 cudf-cu12 = {version = "^24.2.0", source = "nvidia", optional=true}
 cuml-cu12 = {version = "^24.2.0", source = "nvidia", optional=true}
+tensorflow = ">=2.9.1,<2.15.0"
 
 
 
