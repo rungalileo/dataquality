@@ -52,13 +52,13 @@ setfit = {version ="==0.7.0", optional = true}
 sentencepiece = "^0.2.0"
 
 # cuda dependencies
-ucx-py-cu12 = { version ="^0.36", source = "nvidia", optional = true }
-rmm-cu12 = {version = "^24.2.0", source = "nvidia", optional=true}
-raft-dask-cu12 = {version = "^24.2.0", source = "nvidia", optional=true}
-pylibraft-cu12 = {version = "^24.2.0", source = "nvidia", optional=true}
-dask-cudf-cu12 = {version = "^24.2.0", source = "nvidia", optional=true}
-cudf-cu12 = {version = "^24.2.0", source = "nvidia", optional=true}
-cuml-cu12 = {version = "^24.2.0", source = "nvidia", optional=true}
+ucx-py-cu12 = { version ="==0.36", source = "nvidia", optional = true }
+rmm-cu12 = {version = "==24.2.0", source = "nvidia", optional=true}
+raft-dask-cu12 = {version = "==24.2.0", source = "nvidia", optional=true}
+pylibraft-cu12 = {version = "==24.2.0", source = "nvidia", optional=true}
+dask-cudf-cu12 = {version = "==24.2.0", source = "nvidia", optional=true}
+cudf-cu12 = {version = "==24.2.0", source = "nvidia", optional=true}
+cuml-cu12 = {version = "==24.2.0", source = "nvidia", optional=true}
 tensorflow = ">=2.9.1,<2.15.0"
 
 
