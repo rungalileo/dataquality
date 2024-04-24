@@ -772,17 +772,17 @@ files = [
 
 [[package]]
 name = "cudf-cu12"
-version = "24.2.2"
+version = "24.2.0"
 description = "cuDF - GPU Dataframe"
 optional = true
 python-versions = ">=3.9"
 files = [
-    {file = "cudf_cu12-24.2.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:32055c4824371421164e33e2d1ea25329fe9b546e0d7d19f3230320438c31525"},
-    {file = "cudf_cu12-24.2.2-cp310-cp310-manylinux_2_28_aarch64.whl", hash = "sha256:0eafe9753e796bc35a060c72ffe09e4778dc6b096269ab8b93bbd89e0bf80110"},
-    {file = "cudf_cu12-24.2.2-cp310-cp310-manylinux_2_28_x86_64.whl", hash = "sha256:95a1dbb03104e60ee7ecfedd479730cecd205e0c1238393968538c6daff8a5e8"},
-    {file = "cudf_cu12-24.2.2-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ec158eb0835bdd38118f9e01c2bc694a3d13ea35edb193f289bb1059562f967e"},
-    {file = "cudf_cu12-24.2.2-cp39-cp39-manylinux_2_28_aarch64.whl", hash = "sha256:22090598b184b198e94029d3ff9c32f525ff4711aa6e7c127a6263c05ec4e2ac"},
-    {file = "cudf_cu12-24.2.2-cp39-cp39-manylinux_2_28_x86_64.whl", hash = "sha256:0073255248a2eca13324f03ee6e3ccf3be01900984c11ee0e2d5a05493e70ca3"},
+    {file = "cudf_cu12-24.2.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:e0b27f364c43fccad69eda18976ff849e88e0fba3d9c393c47966ff5752e9194"},
+    {file = "cudf_cu12-24.2.0-cp310-cp310-manylinux_2_28_aarch64.whl", hash = "sha256:685f92a0f82572afd8101510ad45595d0ec9df593bafd5e945e387305f110b39"},
+    {file = "cudf_cu12-24.2.0-cp310-cp310-manylinux_2_28_x86_64.whl", hash = "sha256:40b9c1570275505a4d2df12c9494033a728c5382c001bfe53226764b2895c007"},
+    {file = "cudf_cu12-24.2.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:3c7a9266dce266defad261784b95d926da09bbc75dbfeedbf867270da61ebc63"},
+    {file = "cudf_cu12-24.2.0-cp39-cp39-manylinux_2_28_aarch64.whl", hash = "sha256:f6ab831582b003b40410bf316d5b677090249b9ea57cd4203906dc27e2ce5452"},
+    {file = "cudf_cu12-24.2.0-cp39-cp39-manylinux_2_28_x86_64.whl", hash = "sha256:55993fcfcc6b9f25da67d5a87b0c6752555559f17ba004899879a2157c181c5c"},
 ]
 
 [package.dependencies]
@@ -988,12 +988,12 @@ test = ["cudf (==24.2.*)", "dask-cudf (==24.2.*)", "kvikio (==24.2.*)", "pytest"
 
 [[package]]
 name = "dask-cudf-cu12"
-version = "24.2.2"
+version = "24.2.0"
 description = "Utilities for Dask and cuDF interactions"
 optional = true
 python-versions = ">=3.9"
 files = [
-    {file = "dask_cudf_cu12-24.2.2-py3-none-any.whl", hash = "sha256:70abe2e9febe3a446a35842ea51612b79b4a339ac4e0765242a059bde36dd349"},
+    {file = "dask_cudf_cu12-24.2.0-py3-none-any.whl", hash = "sha256:1236b299937ec58536e0f66213f98e2f2bd73d242240deee13215900374973db"},
 ]
 
 [package.dependencies]
@@ -3377,9 +3377,9 @@ files = [
 [package.dependencies]
 numpy = [
     {version = ">=1.21.0", markers = "python_version == \"3.9\" and platform_system == \"Darwin\" and platform_machine == \"arm64\""},
-    {version = ">=1.19.3", markers = "platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version >= \"3.8\" and python_version < \"3.10\" or python_version > \"3.9\" and python_version < \"3.10\" or python_version >= \"3.9\" and platform_system != \"Darwin\" and python_version < \"3.10\" or python_version >= \"3.9\" and platform_machine != \"arm64\" and python_version < \"3.10\""},
     {version = ">=1.21.4", markers = "python_version >= \"3.10\" and platform_system == \"Darwin\""},
     {version = ">=1.21.2", markers = "platform_system != \"Darwin\" and python_version >= \"3.10\""},
+    {version = ">=1.19.3", markers = "platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version >= \"3.8\" and python_version < \"3.10\" or python_version > \"3.9\" and python_version < \"3.10\" or python_version >= \"3.9\" and platform_system != \"Darwin\" and python_version < \"3.10\" or python_version >= \"3.9\" and platform_machine != \"arm64\" and python_version < \"3.10\""},
 ]
 
 [[package]]
@@ -7241,4 +7241,4 @@ setfit = ["setfit"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9,<3.11"
-content-hash = "3f1d32e0771aaedf7c09ab040ee46b46756b68289f664d55d8a6fa4966c5c381"
+content-hash = "dd922709ee3b9b4d2acda54b4ed7d9b56767577ab2d3b6f0da0dd008653c4e6f"
