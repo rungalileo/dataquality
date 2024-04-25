@@ -339,6 +339,7 @@ def watch(
     cleanup_manager = RefManager(lambda: unwatch(trainer))
     helper_data["cleaner"] = Cleanup(cleanup_manager)
     helper_data["model"] = trainer.model
+    helper_data["tokenizer"] = trainer.tokenizer
     helper_data["model_parameters"] = {
         "classifier_layer": classifier_layer,
         "embedding_dim": embedding_dim,

@@ -190,6 +190,7 @@ def test_finish_dq_upload(
     )
     helper_data = dataquality.core.log.get_model_logger().logger_config.helper_data
     helper_data["model"] = "model"
+    helper_data["tokenizer"] = "model"
     helper_data["model_parameters"] = "model_parameters"
     helper_data["model_kind"] = "model_kind"
     dataquality.finish(upload_model=True)
