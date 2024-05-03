@@ -4,6 +4,7 @@ import tempfile
 from typing import Any, Dict, Tuple
 
 import requests
+from transformers import PreTrainedTokenizer
 
 from dataquality.clients.api import ApiClient
 from dataquality.core._config import config
@@ -34,7 +35,10 @@ def upload_to_minio_using_presigned_url(presigned_url: str, file_path: str) -> T
 
 
 def upload_model_to_dq(
-    model: Any, model_parameters: Dict[str, Any], model_kind: ModelUploadType
+    model: Any,
+    model_parameters: Dict[str, Any],
+    model_kind: ModelUploadType,
+    tokenizer: PreTrainedTokenizer,
 ) -> None:
     """
     Uploads the model to the Galileo platform.
@@ -52,6 +56,7 @@ def upload_model_to_dq(
     # save to temporary folder
     with tempfile.TemporaryDirectory() as tmpdirname:
         model.save_pretrained(f"{tmpdirname}/model_export")
+        tokenizer.save_pretrained(f"{tmpdirname}/model_export")
         tar_path = f"{tmpdirname}/model.tar.gz"
         create_tar_archive(f"{tmpdirname}/model_export", tar_path)
         upload_to_minio_using_presigned_url(signed_url, tar_path)

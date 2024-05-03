@@ -97,7 +97,8 @@ def finish(
                 model = helper_data["model"]
                 model_parameters = helper_data["model_parameters"]
                 model_kind = helper_data["model_kind"]
-                upload_model_to_dq(model, model_parameters, model_kind)
+                tokenizer = helper_data["tokenizer"]
+                upload_model_to_dq(model, model_parameters, model_kind, tokenizer)
                 print("Model uploaded successfully.")
             else:
                 print("No model to upload.")
