@@ -3377,9 +3377,9 @@ files = [
 [package.dependencies]
 numpy = [
     {version = ">=1.21.0", markers = "python_version == \"3.9\" and platform_system == \"Darwin\" and platform_machine == \"arm64\""},
+    {version = ">=1.19.3", markers = "platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version >= \"3.8\" and python_version < \"3.10\" or python_version > \"3.9\" and python_version < \"3.10\" or python_version >= \"3.9\" and platform_system != \"Darwin\" and python_version < \"3.10\" or python_version >= \"3.9\" and platform_machine != \"arm64\" and python_version < \"3.10\""},
     {version = ">=1.21.4", markers = "python_version >= \"3.10\" and platform_system == \"Darwin\""},
     {version = ">=1.21.2", markers = "platform_system != \"Darwin\" and python_version >= \"3.10\""},
-    {version = ">=1.19.3", markers = "platform_system == \"Linux\" and platform_machine == \"aarch64\" and python_version >= \"3.8\" and python_version < \"3.10\" or python_version > \"3.9\" and python_version < \"3.10\" or python_version >= \"3.9\" and platform_system != \"Darwin\" and python_version < \"3.10\" or python_version >= \"3.9\" and platform_machine != \"arm64\" and python_version < \"3.10\""},
 ]
 
 [[package]]
@@ -4139,6 +4139,12 @@ optional = true
 python-versions = ">=3.9"
 files = [
     {file = "pynvjitlink-cu12-0.1.14.tar.gz", hash = "sha256:430c1aa161d81effd6a461a0273c6769acc128f9e7174096e700b7cfbad1a45f"},
+    {file = "pynvjitlink_cu12-0.1.14-cp310-cp310-manylinux_2_17_x86_64.whl", hash = "sha256:b508d558cc46834d3190f9267fffc633c5c60f866756089dd587b65fd5a13e2e"},
+    {file = "pynvjitlink_cu12-0.1.14-cp310-cp310-manylinux_2_28_aarch64.whl", hash = "sha256:8f6e46534e74e895c56a0955654d5dffdd46dd56c5569a8aa9de3830e4a284b2"},
+    {file = "pynvjitlink_cu12-0.1.14-cp311-cp311-manylinux_2_17_x86_64.whl", hash = "sha256:81042067fc7fc077363ae3eaee30a7869766efe0689ddf9bf696fd11b91ddd21"},
+    {file = "pynvjitlink_cu12-0.1.14-cp311-cp311-manylinux_2_28_aarch64.whl", hash = "sha256:e987ebab85741a69f02e56329047053e556824cd110ec3b3d48deeeaa2859096"},
+    {file = "pynvjitlink_cu12-0.1.14-cp39-cp39-manylinux_2_17_x86_64.whl", hash = "sha256:f988afd09dfec3e411b40f3b2079e931f34ac8b81361756945d1ce9dfaf44c0e"},
+    {file = "pynvjitlink_cu12-0.1.14-cp39-cp39-manylinux_2_28_aarch64.whl", hash = "sha256:48b9651a076448a8add9d46aec9a4780d5ca3f1f3e3423d754d8ecdc40dee090"},
 ]
 
 [[package]]
@@ -6377,13 +6383,13 @@ files = [
 
 [[package]]
 name = "tqdm"
-version = "4.66.2"
+version = "4.66.3"
 description = "Fast, Extensible Progress Meter"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "tqdm-4.66.2-py3-none-any.whl", hash = "sha256:1ee4f8a893eb9bef51c6e35730cebf234d5d0b6bd112b0271e10ed7c24a02bd9"},
-    {file = "tqdm-4.66.2.tar.gz", hash = "sha256:6cd52cdf0fef0e0f543299cfc96fec90d7b8a7e88745f411ec33eb44d5ed3531"},
+    {file = "tqdm-4.66.3-py3-none-any.whl", hash = "sha256:4f41d54107ff9a223dca80b53efe4fb654c67efaba7f47bada3ee9d50e05bd53"},
+    {file = "tqdm-4.66.3.tar.gz", hash = "sha256:23097a41eba115ba99ecae40d06444c15d1c0c698d527a01c6c8bd1c5d0647e5"},
 ]
 
 [package.dependencies]
