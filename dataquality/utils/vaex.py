@@ -169,7 +169,8 @@ def add_umap_pca_to_df(df: DataFrame, data_embs: bool = False) -> DataFrame:
     note = "[data embs]" if data_embs else "[embs]"
     print(f"{note} Found cuda ML libraries")
     print(f"{note} Applying dimensionality reduction step 1/2")
-    emb_pca, components, mean = get_pca_embeddings(dfc["emb"].to_numpy())
+    dfcemb = dfc["emb"]
+    emb_pca, components, mean = get_pca_embeddings(dfcemb.to_numpy())
     print(f"{note} Applying dimensionality reduction step 2/2")
     emb_xy = get_umap_embeddings(emb_pca)
     x, y = ("data_x", "data_y") if data_embs else ("x", "y")
