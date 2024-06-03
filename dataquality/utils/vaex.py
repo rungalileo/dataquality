@@ -231,6 +231,12 @@ def create_data_embs_df(df: DataFrame, text_col: str, lazy: bool = True) -> Data
         )
 
     if lazy:
+        print(col_to_encode)
+        print(df_copy[col_to_encode])
+        print(df_copy.loc[0, col_to_encode])
+        print("Eval emb")
+        print(df_copy["emb"])
+        
         df_copy["emb"] = df_copy[col_to_encode].apply_sentence_transformer()
         df_copy = df_copy[["id", "emb"]]
     else:
