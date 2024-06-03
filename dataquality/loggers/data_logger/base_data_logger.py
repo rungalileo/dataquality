@@ -265,7 +265,8 @@ class BaseGalileoDataLogger(BaseGalileoLogger):
         location = f"{self.LOG_FILE_DIR}/{proj_run}"
 
         if cuml_available():
-            if self.support_embs:
+            # Only run UMAP if we have embeddings and we won't remove them later
+            if self.support_embs and not self.logger_config.remove_embs:
                 print("Applying UMAP to embeddings")
                 apply_umap_to_embs(location, last_epoch)
 
