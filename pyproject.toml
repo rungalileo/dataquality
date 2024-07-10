@@ -86,7 +86,7 @@ cuda11 = [
     "raft-dask-cu11",
     "pylibraft-cu11",
     "dask-cudf-cu11",
-    "cudf-cu11", 
+    "cudf-cu11",
     "cuml-cu11"
 ]
 cuda12 = [
@@ -136,7 +136,7 @@ setfit = "==0.7.0"
 accelerate = ">=0.19.0"
 typing-inspect = "==0.8.0"
 typing-extensions = ">=4.9.0"
-lightning = "*"  # Assuming you want the latest version as no version was specified
+lightning = "^2.3.1"  # Assuming you want the latest version as no version was specified
 
 
 
