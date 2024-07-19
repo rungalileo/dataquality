@@ -26,8 +26,8 @@ class _Auth:
             webbrowser.open(token_url)
         except Exception:
             pass
-        print(f"Go to {token_url} to generate a new API Key")
-        access_token = getpass.getpass("🔐 Enter your API Key:")
+        print(f"Go to {token_url} to generate a new Galileo token.")
+        access_token = getpass.getpass("🔐 Enter your Galileo token: ")
         config.token = access_token
         config.update_file_config()
 
