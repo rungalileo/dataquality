@@ -61,7 +61,7 @@ def test_init(
     assert config.current_project_id == test_session_vars.DEFAULT_PROJECT_ID
 
     mock_get_project_by_name.assert_called_once_with(ANY)
-    mock_create_project.assert_called_once_with(ANY, is_public=True)
+    mock_create_project.assert_called_once_with(ANY)
     mock_get_project_run_by_name.assert_called_once_with(ANY, ANY)
     # assert run is created with right task type
     mock_create_run.assert_called_once_with(ANY, ANY, task_type=TaskType[task_type])
@@ -90,40 +90,6 @@ def test_init_reset_logger_config(
     dataquality.set_labels_for_run(["a", "b", "c", "d"])
     dataquality.init(task_type="text_classification")
     assert not dataquality.get_data_logger().logger_config.labels
-
-
-@patch.object(ApiClient, "get_project_by_name", return_value={})
-@patch.object(ApiClient, "create_project")
-@patch.object(ApiClient, "get_project_run_by_name", return_value={})
-@patch.object(ApiClient, "create_run")
-@patch("dataquality.core.init._check_dq_version")
-@patch.object(dataquality.core.init.ApiClient, "valid_current_user", return_value=True)
-@patch("dataquality.core.init.create_run_name", return_value="foo")
-def test_init_new_private_project(
-    mock_create_run_name: MagicMock,
-    mock_valid_user: MagicMock,
-    mock_check_dq_version: MagicMock,
-    mock_create_run: MagicMock,
-    mock_get_project_run_by_name: MagicMock,
-    mock_create_project: MagicMock,
-    mock_get_project_by_name: MagicMock,
-    set_test_config: Callable,
-    test_session_vars: TestSessionVariables,
-) -> None:
-    """Base case: Tests creating a new project and run"""
-    mock_create_project.return_value = {"id": test_session_vars.DEFAULT_PROJECT_ID}
-    mock_create_run.return_value = {"id": test_session_vars.DEFAULT_RUN_ID}
-
-    dataquality.init(task_type="text_classification", is_public=False)
-    assert config.current_run_id == test_session_vars.DEFAULT_RUN_ID
-    assert config.current_project_id == test_session_vars.DEFAULT_PROJECT_ID
-
-    mock_get_project_by_name.assert_called_once_with(ANY)
-    mock_create_project.assert_called_once_with(ANY, is_public=False)
-    mock_get_project_run_by_name.assert_called_once_with(ANY, ANY)
-    mock_create_run.assert_called_once_with(
-        ANY, ANY, task_type=TaskType["text_classification"]
-    )
 
 
 @patch.object(ApiClient, "get_project_by_name")
@@ -190,7 +156,7 @@ def test_init_new_project(
     assert config.current_project_id == test_session_vars.DEFAULT_PROJECT_ID
 
     mock_get_project_by_name.assert_called_once_with("new_proj")
-    mock_create_project.assert_called_once_with("new_proj", is_public=True)
+    mock_create_project.assert_called_once_with("new_proj")
     mock_get_project_run_by_name.assert_called_once_with("new_proj", ANY)
     mock_create_run.assert_called_once_with(
         "new_proj", ANY, task_type=TaskType["text_classification"]
@@ -299,7 +265,7 @@ def test_init_new_project_run(
     assert config.current_project_id == test_session_vars.DEFAULT_PROJECT_ID
 
     mock_get_project_by_name.assert_called_once_with("new_proj")
-    mock_create_project.assert_called_once_with("new_proj", is_public=True)
+    mock_create_project.assert_called_once_with("new_proj")
     mock_get_project_run_by_name.assert_called_once_with("new_proj", "new_run")
     mock_create_run.assert_called_once_with(
         "new_proj", "new_run", task_type=TaskType["text_classification"]
