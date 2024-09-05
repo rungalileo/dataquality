@@ -39,9 +39,7 @@ class InitManager:
         wait=wait_exponential_jitter(initial=0.1, max=2),
         stop=stop_after_attempt(5),
     )
-    def get_or_create_project(
-        self, project_name: str, is_public: bool
-    ) -> Tuple[Dict, bool]:
+    def get_or_create_project(self, project_name: str) -> Tuple[Dict, bool]:
         """Gets a project by name, or creates a new one if it doesn't exist.
 
         Returns:
@@ -51,12 +49,11 @@ class InitManager:
         project = api_client.get_project_by_name(project_name)
         created = False
         if not project:
-            project = api_client.create_project(project_name, is_public=is_public)
+            project = api_client.create_project(project_name)
             created = True
 
-        visibility = "public" if is_public else "private"
         created_str = "new" if created else "existing"
-        print(f"✨ Initializing {created_str} {visibility} project '{project_name}'")
+        print(f"✨ Initializing {created_str} project '{project_name}'")
         return project, created
 
     def get_or_create_run(
@@ -149,7 +146,6 @@ def init(
     task_type: str,
     project_name: Optional[str] = None,
     run_name: Optional[str] = None,
-    is_public: bool = True,
     overwrite_local: bool = True,
 ) -> None:
     """
@@ -174,7 +170,6 @@ def init(
     :param run_name: The run name. If not passed in, a random one will be
     generated. If provided, and the project does not exist, it will be created. If it
     does exist, it will be set.
-    :param is_public: Boolean value that sets the project's visibility. Default True.
     :param overwrite_local: If True, the current project/run log directory will be
     cleared during this function. If logging over many sessions with checkpoints, you
     may want to set this to False. Default True
@@ -194,7 +189,7 @@ def init(
         return
 
     project_name = validate_name(project_name, assign_random=True)
-    project, proj_created = _init.get_or_create_project(project_name, is_public)
+    project, proj_created = _init.get_or_create_project(project_name)
 
     if not run_name:
         run_name = create_run_name(project_name)
