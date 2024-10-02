@@ -23,11 +23,11 @@ class BaseInsights(abc.ABC):
     _model: Any
 
     @property
-    def model(self)-> Any:
+    def model(self) -> Any:
         return self._model
 
     @model.setter
-    def model(self, value: Any)-> None:
+    def model(self, value: Any) -> None:
         self._model = value
 
     def __init__(self, model: Any, *args: Any, **kwargs: Any) -> None:

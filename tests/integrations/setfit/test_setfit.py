@@ -153,7 +153,8 @@ def test_setfit_trainer(
     dataset = dataset.map(
         lambda x, idx: {"id": idx, "meta_col": "meta"}, with_indices=True
     )
-    model.model_head = model.model_head.cpu()
+    model.model_head.to("cpu")
+    model.to("cpu")
     trainer = SetFitTrainer(
         model=model,
         train_dataset=dataset,

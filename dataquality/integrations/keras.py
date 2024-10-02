@@ -30,7 +30,7 @@ a.log_import("integrations/experimental/keras")
 
 class DataQualityCallback(keras.callbacks.Callback):
     store: Dict[str, Any]
-    model: tf.keras.layers.Layer
+    _model: tf.keras.layers.Layer
     logger_config: BaseLoggerConfig
 
     def __init__(
@@ -50,7 +50,7 @@ class DataQualityCallback(keras.callbacks.Callback):
         self.log_function = log_function
         self.store = store
         self.logger_config = logger_config
-        self.model = model
+        self._model = model
         super(DataQualityCallback, self).__init__()
         if not tf.executing_eagerly():
             raise GalileoException(
@@ -61,13 +61,13 @@ class DataQualityCallback(keras.callbacks.Callback):
     def on_train_begin(self, logs: Optional[Any] = None) -> None:
         """Initialize the training by extracting the model input arguments.
         and from it generate the indices of the batches."""
-        assert self.model.run_eagerly, GalileoException(
+        assert self._model.run_eagerly, GalileoException(
             "Model must be run run eagerly."
             "Set `model.compile(run_eagerly=True)` to fix this"
         )
 
         self.fit_kwargs = combine_with_default_kwargs(
-            self.model.fit,  # model fit function for default kwargs
+            self._model.fit,  # model fit function for default kwargs
             self.store["model_fit"].get("args", ()),  # model fit args
             self.store["model_fit"].get("kwargs"),  # model fit kwargs
         )
@@ -186,7 +186,7 @@ class DataQualityCallback(keras.callbacks.Callback):
         predict_args = self.store["model_predict"].get("args", ())
 
         predict_kwargs = combine_with_default_kwargs(
-            self.model.predict, predict_args, predict_kwargs
+            self._model.predict, predict_args, predict_kwargs
         )
 
         x_len = get_x_len(predict_kwargs.get("x"))
