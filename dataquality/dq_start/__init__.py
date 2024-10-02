@@ -20,6 +20,15 @@ class BaseInsights(abc.ABC):
     watch: Optional[Callable]
     unwatch: Optional[Callable]
     call_finish: bool = True
+    _model: Any
+
+    @property
+    def model(self)-> Any:
+        return self._model
+
+    @model.setter
+    def model(self, value: Any)-> None:
+        self._model = value
 
     def __init__(self, model: Any, *args: Any, **kwargs: Any) -> None:
         """Initialize the base class.
@@ -28,7 +37,7 @@ class BaseInsights(abc.ABC):
         :param kwargs: Keyword arguments to be passed to the watch function
         """
 
-        self.model = model
+        self._model = model
         self.args, self.kwargs = args, kwargs
 
     def enter(self) -> None:
@@ -38,12 +47,12 @@ class BaseInsights(abc.ABC):
             func_kwargs = {
                 k: v for k, v in self.kwargs.items() if k in func_signature.parameters
             }
-            self.watch(self.model, **func_kwargs)
+            self.watch(self._model, **func_kwargs)
 
     def exit(self) -> None:
         """Call the unwatch function (called in __exit__)."""
         if hasattr(self, "unwatch") and self.unwatch:
-            self.unwatch(self.model)
+            self.unwatch(self._model)
 
     def set_project_run(
         self,
@@ -202,8 +211,8 @@ class AutoInsights(BaseInsights):
             auto_kwargs["project_name"] = self.project
         if self.run:
             auto_kwargs["run_name"] = self.run
-        if isinstance(self.model, str):
-            auto_kwargs["hf_model"] = self.model
+        if isinstance(self._model, str):
+            auto_kwargs["hf_model"] = self._model
 
     def init_project(self, task: TaskType, project: str = "", run: str = "") -> None:
         """Initialize the project and run but dq init is not called.
@@ -296,7 +305,7 @@ class DataQuality:
                 dq.finish()
         """
         self.args, self.kwargs = args, kwargs
-        self.model = model
+        self._model = model
         if model:
             cls = detect_model(model, framework)
         else:

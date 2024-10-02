@@ -20,8 +20,8 @@ requests = ">=2.25.1"
 types-requests = ">=2.25.2"
 pandas = ">=0.20.0"
 pyarrow = ">=5.0.0"
-vaex-core = "4.17.1"
-vaex-hdf5 = ">=0.12,<0.13"
+vaex-core = ">=4.17.1"
+vaex-hdf5 = ">=0.12"
 diskcache = ">=5.2.1"
 resource = ">=0.2.1"
 tqdm = ">=4.62.3"
@@ -29,14 +29,14 @@ blake3 = ">=0.2.1"
 wrapt = ">=1.13.3"
 scipy = ">=1.7.0"
 cachetools = ">=4.2.4"
-importlib-metadata = "<6.0.1"
+importlib-metadata = ">=4.0.0,<9.0.0"
 datasets = ">=2.14.6"
 transformers = ">=4.17.0"
 seqeval = "*"
 sentence-transformers = ">=2.2"
 Pillow = "*"
 h5py = ">=3.1.0"
-numpy = "<1.24.0"
+numpy = ">=1.17.0,<2.0.0"
 tenacity = ">=8.1.0"
 evaluate = "*"
 accelerate = "*"
@@ -45,9 +45,9 @@ imagededup = ">=0.3.1,<0.3.2"
 pyjwt = ">=2.8.0"
 peft = "*"
 # Pin opencv for linting incompatibility
-opencv-python = "<=4.8.1.78"
+opencv-python = ">=4.5.0,<4.10.0.85"
 pydantic-settings = ">=2.0.0"
-minio = {version = ">=7.1.0,<7.2.0", optional=true}
+minio = {version = ">=7.1.0", optional=true}
 setfit = {version ="==0.7.0", optional = true}
 sentencepiece = "^0.2.0"
 
@@ -59,7 +59,7 @@ pylibraft-cu12 = {version = "==24.2.0", source = "nvidia", optional=true}
 dask-cudf-cu12 = {version = "==24.2.0", source = "nvidia", optional=true}
 cudf-cu12 = {version = "==24.2.0", source = "nvidia", optional=true}
 cuml-cu12 = {version = "==24.2.0", source = "nvidia", optional=true}
-tensorflow = ">=2.9.1,<2.15.0"
+tensorflow = ">=2.9.1"
 
 
 
@@ -118,7 +118,7 @@ freezegun = ">=1.2.2"
 coverage = { version = ">=7.0.5", extras = ["toml"] }
 pytest-cov = ">=4.0.0"
 scikit-learn = ">=1.0"
-tensorflow = "<=2.15.0"
+tensorflow = ">=2.15.0"
 pytest-env = ">=0.8.1"
 pytest-xdist = ">=2.4.0"
 types-setuptools = ">=67.3.0.1"
