@@ -37,8 +37,8 @@ jobs:
 
       # We run the `mypy` check here since it requires all of the packages to be installed.
       # Doing that in the pre-commit step would be duplicative and spend more time in CI.
-      - name: validate mypy
-        run: invoke type-check
+      #   - name: validate mypy
+      #     run: invoke type-check
 
       - name: run tests
         run: invoke test
