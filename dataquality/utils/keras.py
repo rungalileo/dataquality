@@ -11,7 +11,7 @@ except ImportError:
     from tensorflow.python.distribute import input_lib
     from tensorflow.python.keras.engine import data_adapter  # type: ignore
 
-from tensorflow import keras
+import tf_keras as keras
 
 from dataquality.exceptions import GalileoException
 from dataquality.utils.patcher import Patch

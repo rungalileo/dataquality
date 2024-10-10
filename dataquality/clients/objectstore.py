@@ -48,6 +48,11 @@ class ObjectStore:
             "Please set these variables with the values from your Exoscale "
             "API Key."
         )
+        assert config.minio_fqdn is not None, (
+            "The minio_fqdn must be set in the config. "
+            "Please set the minio_fqdn in your config with "
+            "`dq.config.minio_fqdn = 'https://minio.example.com'`."
+        )
         return Minio(
             endpoint=config.minio_fqdn,
             access_key=access_key,
