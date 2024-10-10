@@ -30,7 +30,6 @@ a.log_import("integrations/experimental/keras")
 
 class DataQualityCallback(callbacks.Callback):
     store: Dict[str, Any]
-    _model: tf.keras.layers.Layer
     logger_config: BaseLoggerConfig
 
     def __init__(

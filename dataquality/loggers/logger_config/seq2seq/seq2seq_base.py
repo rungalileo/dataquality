@@ -24,7 +24,7 @@ class Seq2SeqLoggerConfig(BaseLoggerConfig):
     # Decoder only below
     id_to_formatted_prompt_length: Dict[str, Dict[int, int]] = defaultdict(dict)
     response_template: Optional[List[int]] = None
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config = ConfigDict(arbitrary_types_allowed=True, protected_namespaces=())
 
 
 seq2seq_logger_config = Seq2SeqLoggerConfig()
