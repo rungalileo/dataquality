@@ -3,7 +3,6 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import tensorflow as tf
-from tensorflow import keras
 from tf_keras import callbacks
 
 import dataquality as dq

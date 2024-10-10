@@ -273,7 +273,7 @@ def test_model() -> None:
         1, activation="linear", use_bias=False, name="classifier"
     )
     layer2.build((None, 2))
-    
+
     # create a sequential model
     model = tf.keras.models.Sequential([layer1, layer2])
     layer1.set_weights(

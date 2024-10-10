@@ -2,7 +2,6 @@ from functools import partial
 from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 import tensorflow as tf
-from tensorflow import keras
 from tf_keras import callbacks
 
 import dataquality as dq
