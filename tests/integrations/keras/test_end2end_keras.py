@@ -267,10 +267,13 @@ def test_create_epoch_data() -> None:
 
 def test_model() -> None:
     layer1 = tf.keras.layers.Embedding(output_dim=2, input_dim=7)
+    layer1.build((None,))
     # create a classifier layer
     layer2 = tf.keras.layers.Dense(
         1, activation="linear", use_bias=False, name="classifier"
     )
+    layer2.build((None, 2))
+    
     # create a sequential model
     model = tf.keras.models.Sequential([layer1, layer2])
     layer1.set_weights(

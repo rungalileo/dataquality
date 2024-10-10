@@ -3798,24 +3798,6 @@ cymem = ">=2.0.2,<2.1.0"
 murmurhash = ">=0.28.0,<1.1.0"
 
 [[package]]
-name = "progressbar2"
-version = "4.4.2"
-description = "A Python Progressbar library to provide visual (yet text based) progress to long running operations."
-optional = false
-python-versions = ">=3.8"
-files = [
-    {file = "progressbar2-4.4.2-py3-none-any.whl", hash = "sha256:ec157391635b008b8a422326fb05c27045ffbb2dc8dab5e4d90d4d412c4ffd39"},
-    {file = "progressbar2-4.4.2.tar.gz", hash = "sha256:3fda2e0c60693600a6585a784c9d3bc4e1dac57e99e133f8c0f5c8cf3df374a2"},
-]
-
-[package.dependencies]
-python-utils = ">=3.8.1"
-
-[package.extras]
-docs = ["sphinx (>=1.8.5)", "sphinx-autodoc-typehints (>=1.6.0)"]
-tests = ["dill (>=0.3.6)", "flake8 (>=3.7.7)", "freezegun (>=0.3.11)", "pytest (>=4.6.9)", "pytest-cov (>=2.6.1)", "pytest-mypy", "pywin32", "sphinx (>=1.8.5)"]
-
-[[package]]
 name = "prompt-toolkit"
 version = "3.0.43"
 description = "Library for building powerful interactive command lines in Python"
@@ -4320,25 +4302,6 @@ files = [
 [package.dependencies]
 PyYAML = "*"
 six = "*"
-
-[[package]]
-name = "python-utils"
-version = "3.8.2"
-description = "Python Utils is a module with some convenient utilities not included with the standard Python install"
-optional = false
-python-versions = ">3.8.0"
-files = [
-    {file = "python-utils-3.8.2.tar.gz", hash = "sha256:c5d161e4ca58ce3f8c540f035e018850b261a41e7cb98f6ccf8e1deb7174a1f1"},
-    {file = "python_utils-3.8.2-py2.py3-none-any.whl", hash = "sha256:ad0ccdbd6f856d015cace07f74828b9840b5c4072d9e868a7f6a14fd195555a8"},
-]
-
-[package.dependencies]
-typing-extensions = ">3.10.0.2"
-
-[package.extras]
-docs = ["mock", "python-utils", "sphinx"]
-loguru = ["loguru"]
-tests = ["flake8", "loguru", "pytest", "pytest-asyncio", "pytest-cov", "pytest-mypy", "sphinx", "types-setuptools"]
 
 [[package]]
 name = "pytorch-lightning"
@@ -6704,59 +6667,66 @@ zstd = ["zstandard (>=0.18.0)"]
 
 [[package]]
 name = "vaex-core"
-version = "4.17.1"
+version = "4.18.1"
 description = "Core of vaex"
 optional = false
-python-versions = "*"
+python-versions = "<3.13,>=3.8"
 files = [
-    {file = "vaex-core-4.17.1.tar.gz", hash = "sha256:ca433ca719c8dc8f2eae961e24249ced4ce7765e2179f403ac257237fa2dfde7"},
-    {file = "vaex_core-4.17.1-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:94c2cc000cedb60124cffe411083d7a72e442e8d3a512e16e3fa4fef44d0a6c1"},
-    {file = "vaex_core-4.17.1-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:0d074ab138565f2462fdaf218e2ee67b76389f9b20dfd2d2b4e0324c20bc17ad"},
-    {file = "vaex_core-4.17.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:05ca0d26f0001bdd94454ead97531cc237024e1960fd525781600323329162dd"},
-    {file = "vaex_core-4.17.1-cp310-cp310-musllinux_1_1_x86_64.whl", hash = "sha256:72f82e716921195c14d4591910aa945194e6fd4a588b8b2eeda50136eb028a33"},
-    {file = "vaex_core-4.17.1-cp310-cp310-win_amd64.whl", hash = "sha256:dc242a72f1de89641a61db56c2106a539a5e52125057c7adfa5af9688c80e0e1"},
-    {file = "vaex_core-4.17.1-cp36-cp36m-macosx_10_9_x86_64.whl", hash = "sha256:149c370b942b219de173474b0090e7d150d3dc868321ef2cc4b3a2536c67e2d3"},
-    {file = "vaex_core-4.17.1-cp36-cp36m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:7d72a55becac9771517731479c9a1b52047c3a7747e77dc8fcb4e19f18d8a29e"},
-    {file = "vaex_core-4.17.1-cp36-cp36m-musllinux_1_1_x86_64.whl", hash = "sha256:f769a250f92bcc7e8997e69abcd1c561fc3222e5cac4b53bb3235a5480554a1a"},
-    {file = "vaex_core-4.17.1-cp36-cp36m-win_amd64.whl", hash = "sha256:6dabd68c68af59abcc1304dfe724ad14ab5dbe9739fe214982a41afba80c50b4"},
-    {file = "vaex_core-4.17.1-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:89f23c308eb696110d3f564f82c86874a651921c2becfff616fc8064b1867588"},
-    {file = "vaex_core-4.17.1-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:2d78d8ad99b6decf7568c5c448a0edc78cb2650b5e4b8fbbf733798380c2b60c"},
-    {file = "vaex_core-4.17.1-cp37-cp37m-musllinux_1_1_x86_64.whl", hash = "sha256:ce820c5e9a9d854f7151a2513e6ef99ca9eec6bd860f6b7388c505bf04f98a8e"},
-    {file = "vaex_core-4.17.1-cp37-cp37m-win_amd64.whl", hash = "sha256:8c8a2f7679d21ac63c211725352ed15d83384f29a3d2a286deaa8f4cddd10c6b"},
-    {file = "vaex_core-4.17.1-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:b663b129424f8c77cc7e84ffe866094395130dd250df0c3a77f230a39b48fa86"},
-    {file = "vaex_core-4.17.1-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:a25a55c4d0d48a2b1b089b0a26d84d4624315bc80b7c7e799d8613aa44919618"},
-    {file = "vaex_core-4.17.1-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:2fbf4b21951419489e37e94f3484fce1859f200947d0254b6103ef5734ddd330"},
-    {file = "vaex_core-4.17.1-cp38-cp38-musllinux_1_1_x86_64.whl", hash = "sha256:bca6a79e2ffcd2e17c2e4463af470f2add4ce323d8c194306373628ad3e5da2a"},
-    {file = "vaex_core-4.17.1-cp38-cp38-win_amd64.whl", hash = "sha256:50d3d2d5c2fdacdf3bcfb513a65f4da64dd5ce7d283cfb9cd73cfae5d5e8fb51"},
-    {file = "vaex_core-4.17.1-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:318de591c7674f4dbceb1eef5ab6ae25e28a14f1ad405bcba9ec9d890a8119ac"},
-    {file = "vaex_core-4.17.1-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:407996592ec9a966263dc64a3eb4e8100638234279c2ede5563167040143cfb8"},
-    {file = "vaex_core-4.17.1-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:8565eb9d1c067ace8d40bd0fea5c092198185b550bcaf6346eef2ce78edece62"},
-    {file = "vaex_core-4.17.1-cp39-cp39-musllinux_1_1_x86_64.whl", hash = "sha256:c1209e3395b085d46467067205e13f7ed46b0ab97635ffc9e7e936ae05d6ab1a"},
-    {file = "vaex_core-4.17.1-cp39-cp39-win_amd64.whl", hash = "sha256:5629402fb440376a5966841ee19cb72f0ef9c00aaaa2243c6bb2ced6ff80b36a"},
+    {file = "vaex_core-4.18.1-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:81b3247a7b42c02de456bc7ef5aea529090d137da5a53e41c6b4cdef48e70a68"},
+    {file = "vaex_core-4.18.1-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:b47ff69190bb8d1879fc43088787fc1b80fbb5d4c7e49dd231a8bb180dd2c9b8"},
+    {file = "vaex_core-4.18.1-cp310-cp310-manylinux_2_28_aarch64.whl", hash = "sha256:51b04104c3442190fe14251d269e36bc01bdba257a1e0cfab33b9384f2acedca"},
+    {file = "vaex_core-4.18.1-cp310-cp310-manylinux_2_28_x86_64.whl", hash = "sha256:65f02f1fd969092080c42aa2d4f191168fee40217d9d220cd3a97ca023279770"},
+    {file = "vaex_core-4.18.1-cp310-cp310-musllinux_1_1_aarch64.whl", hash = "sha256:4abb035240d3ce9c7f3b8f38a5b817459b0a62d3e0e28a106f090aba1425da5b"},
+    {file = "vaex_core-4.18.1-cp310-cp310-musllinux_1_1_x86_64.whl", hash = "sha256:83a8e037813b658d8606ec3f4def04985ccb9db14b67f260e321b0b1410bb525"},
+    {file = "vaex_core-4.18.1-cp310-cp310-win_amd64.whl", hash = "sha256:253f2da9bebe392fabee387effd98a988944a5b671b47cf5cabda6b749bbd971"},
+    {file = "vaex_core-4.18.1-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:9aa73ef96cf0e2c20eab5024f9e55e895ca3f67a083a69665001c041dcca5215"},
+    {file = "vaex_core-4.18.1-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:2afb9cd3b91499586929b4770b783f043102327d8e6cc015b200d2bfb5fceb5c"},
+    {file = "vaex_core-4.18.1-cp311-cp311-manylinux_2_28_aarch64.whl", hash = "sha256:54712ea8d686c98da127cdb47a81c318b7041cdd14d3c2db433ae471452a1716"},
+    {file = "vaex_core-4.18.1-cp311-cp311-manylinux_2_28_x86_64.whl", hash = "sha256:1eb9f3bf52ff1a6b54870bb0e6c6a5b686dde5a2e42ab4866980e748730d60e7"},
+    {file = "vaex_core-4.18.1-cp311-cp311-musllinux_1_1_aarch64.whl", hash = "sha256:3655cfa0c8e0a622cd03ec115ce76bf5b3a9a1d91f691e8f87c3cd3b66bb20c7"},
+    {file = "vaex_core-4.18.1-cp311-cp311-musllinux_1_1_x86_64.whl", hash = "sha256:0ca186ca0ae2ad821c4356003eca3755bc91ac7885eb8cd2f2b5a651cc1502c7"},
+    {file = "vaex_core-4.18.1-cp311-cp311-win_amd64.whl", hash = "sha256:801d8906ce9d937901d1984a6999d90498376992d565ef500400ab4f1f573f69"},
+    {file = "vaex_core-4.18.1-cp312-cp312-macosx_10_9_x86_64.whl", hash = "sha256:f99a4ea349dd6f0625e6d0759bb0eb7fbf05af0d22c7fb0cbc6e616b622f6755"},
+    {file = "vaex_core-4.18.1-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:c2616506f98929b289813eb6563bd7b009b558d44c361fbce05cb8bdffe71547"},
+    {file = "vaex_core-4.18.1-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:8740c607e03f0c5d776af42a48ccfa1fac9c0e22f190deea9267efac326d27fa"},
+    {file = "vaex_core-4.18.1-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:931964ef18d28fb6a10b2fc10ba071e921a116843c5ffdf1dd5ace65e91c63e3"},
+    {file = "vaex_core-4.18.1-cp312-cp312-musllinux_1_1_aarch64.whl", hash = "sha256:792dab7d69d710eb67d218c15137e74cbccff2bc832ef52d9d2c3b3ed8ae736c"},
+    {file = "vaex_core-4.18.1-cp312-cp312-musllinux_1_1_x86_64.whl", hash = "sha256:04c0ad4a2ce527cc2ab0d2c39bdcffd2310972c6d40a880b94153977a33d1bfd"},
+    {file = "vaex_core-4.18.1-cp312-cp312-win_amd64.whl", hash = "sha256:fe6059ce2bf0b76d3fd8dfd51888da0574fdde1473dfe793c7fb8a8e86cdd386"},
+    {file = "vaex_core-4.18.1-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:5fa649dbf7b7499e940f33fc61a87ddecf8f6dee7c338243ad48d15ffddde268"},
+    {file = "vaex_core-4.18.1-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:f8ce598025155d7609d7869e2b54f064a601003e3db52574a2780ff34ce69e5e"},
+    {file = "vaex_core-4.18.1-cp38-cp38-manylinux_2_28_aarch64.whl", hash = "sha256:9cfd9f7075b26941f54c3caa7647908bfd3d2b1a13ea61ccd5a3414cb0cc6efc"},
+    {file = "vaex_core-4.18.1-cp38-cp38-manylinux_2_28_x86_64.whl", hash = "sha256:b9129663aa313fa6aceea0b6671610008e43212d5f4b996cd5dadaae69eaa8a3"},
+    {file = "vaex_core-4.18.1-cp38-cp38-musllinux_1_1_x86_64.whl", hash = "sha256:daa77bc78ba22053fd5c4f49e870e21c4b0c5f5b829411816d814b13ece1d1bc"},
+    {file = "vaex_core-4.18.1-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:04ec98368d3d97cf713ee450eb2cf9681ea82e89dccd2b3cb80fd9ec63115d76"},
+    {file = "vaex_core-4.18.1-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:00a9e603a1b7b160b1fbde949b509435901950e384bf5f241f1ab261fab6dcd3"},
+    {file = "vaex_core-4.18.1-cp39-cp39-manylinux_2_28_aarch64.whl", hash = "sha256:84eb8251e57bf1808effa2b6ae857fc4cd098a7d6200601754c533d21153067d"},
+    {file = "vaex_core-4.18.1-cp39-cp39-manylinux_2_28_x86_64.whl", hash = "sha256:04a8760cafb299083dd5317ae38ce499cadd95e1356459f1ba406a7b15b108b4"},
+    {file = "vaex_core-4.18.1-cp39-cp39-musllinux_1_1_aarch64.whl", hash = "sha256:2198e1ba921fa4c1f601ab547d9c5fa3fbc7af8eaecb2bd436652d06b8171c86"},
+    {file = "vaex_core-4.18.1-cp39-cp39-musllinux_1_1_x86_64.whl", hash = "sha256:5c92c270f9ecfa752667adb44aad5761ccfc55c645a7c8b3ae2b9c3e4ae63637"},
+    {file = "vaex_core-4.18.1-cp39-cp39-win_amd64.whl", hash = "sha256:920f12c23d26b3cf4a410757bf1ca84f676035d076a98c394aba3b595222763b"},
 ]
 
 [package.dependencies]
 aplus = "*"
 blake3 = "*"
 cloudpickle = "*"
-dask = "!=2022.4.0"
+dask = "<2022.4.0 || >2022.4.0,<2024.9"
 filelock = "*"
 frozendict = "!=2.2.0"
 future = ">=0.15.2"
 nest-asyncio = ">=1.3.3"
-numpy = ">=1.16"
-pandas = "*"
-progressbar2 = "*"
+numpy = ">=1.17,<2.0"
+pandas = ">=1.0,<3"
 pyarrow = ">=5.0.0"
 pydantic = ">=1.8.0"
 pyyaml = "*"
-requests = "*"
 rich = "*"
 six = "*"
 tabulate = ">=0.8.3"
 
 [package.extras]
-all = ["gcsfs (>=0.6.2)", "s3fs"]
+all = ["aplus", "diskcache", "fsspec", "gcsfs (>=0.6.2)", "graphviz", "h5py", "httpx", "ipyvolume", "psutil", "s3fs"]
 
 [[package]]
 name = "vaex-hdf5"
@@ -7248,4 +7218,4 @@ setfit = ["setfit"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9,<3.11"
-content-hash = "bf32648f1b7a8ef017a5870b56a8bb3ed79fce02ac715ff1d8fcb5745341026e"
+content-hash = "218e770e82ddac0f7d34711dcfc0a575311b4eb5922f9b08c920a50ff4fb6832"

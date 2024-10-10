@@ -3,6 +3,7 @@ from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 import tensorflow as tf
 from tensorflow import keras
+from tf_keras import callbacks
 
 import dataquality as dq
 from dataquality import config
@@ -28,7 +29,7 @@ a = Analytics(ApiClient, config)
 a.log_import("integrations/experimental/keras")
 
 
-class DataQualityCallback(keras.callbacks.Callback):
+class DataQualityCallback(callbacks.Callback):
     store: Dict[str, Any]
     _model: tf.keras.layers.Layer
     logger_config: BaseLoggerConfig
@@ -50,7 +51,6 @@ class DataQualityCallback(keras.callbacks.Callback):
         self.log_function = log_function
         self.store = store
         self.logger_config = logger_config
-        self._model = model
         super(DataQualityCallback, self).__init__()
         if not tf.executing_eagerly():
             raise GalileoException(
@@ -61,13 +61,13 @@ class DataQualityCallback(keras.callbacks.Callback):
     def on_train_begin(self, logs: Optional[Any] = None) -> None:
         """Initialize the training by extracting the model input arguments.
         and from it generate the indices of the batches."""
-        assert self._model.run_eagerly, GalileoException(
+        assert tf.executing_eagerly(), GalileoException(
             "Model must be run run eagerly."
             "Set `model.compile(run_eagerly=True)` to fix this"
         )
 
         self.fit_kwargs = combine_with_default_kwargs(
-            self._model.fit,  # model fit function for default kwargs
+            self.model.fit,  # model fit function for default kwargs
             self.store["model_fit"].get("args", ()),  # model fit args
             self.store["model_fit"].get("kwargs"),  # model fit kwargs
         )
@@ -186,7 +186,7 @@ class DataQualityCallback(keras.callbacks.Callback):
         predict_args = self.store["model_predict"].get("args", ())
 
         predict_kwargs = combine_with_default_kwargs(
-            self._model.predict, predict_args, predict_kwargs
+            self.model.predict, predict_args, predict_kwargs
         )
 
         x_len = get_x_len(predict_kwargs.get("x"))

@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
+from tf_keras import callbacks
 
 import dataquality as dq
 from dataquality.analytics import Analytics
@@ -86,7 +87,7 @@ class DataQualityLoggingLayer(tf.keras.layers.Layer):
         return inputs
 
 
-class DataQualityCallback(keras.callbacks.Callback):
+class DataQualityCallback(callbacks.Callback):
     def __init__(self) -> None:
         a.log_function("keras/dqcallback")
         super(DataQualityCallback, self).__init__()
