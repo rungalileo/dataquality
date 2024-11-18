@@ -228,7 +228,7 @@ class ApiClient:
 
     def create_project(self, project_name: str) -> Dict:
         """Creates a project given a name and returns the project information"""
-        body = {"name": project_name}
+        body = {"name": project_name, "type": "training_inference"}
         return self.make_request(
             RequestType.POST, url=f"{config.api_url}/{Route.projects}", body=body
         )
