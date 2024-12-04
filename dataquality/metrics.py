@@ -355,7 +355,7 @@ def get_edited_dataframe(
     include_token_indices: bool = False,
     hf_format: bool = False,
     tagging_schema: Optional[TaggingSchema] = None,
-    approved_only: Optional[bool] = False,
+    reviewed_only: Optional[bool] = False,
     as_pandas: bool = True,
     include_data_embs: bool = False,
 ) -> Union[pd.DataFrame, DataFrame]:
@@ -384,7 +384,7 @@ def get_edited_dataframe(
         Whether to export the dataframe in a HuggingFace compatible format
     :param tagging_schema: (NER only)
         If hf_format is True, you must pass a tagging schema
-    :param approved_only: Whether to export only approved edits or all edits.
+    :param reviewed_only: Whether to export only reviewed edits or all edits.
         Default: False (all edits)
     :param as_pandas: Whether to return the dataframe as a pandas df (or vaex if False)
         If you are having memory issues (the data is too large), set this to False,
@@ -406,7 +406,7 @@ def get_edited_dataframe(
         file_name=file_name,
         hf_format=hf_format,
         tagging_schema=tagging_schema,
-        approved_only=approved_only,
+        reviewed_only=reviewed_only,
     )
     data_df = vaex.open(file_name)
     return _process_exported_dataframe(

@@ -758,7 +758,7 @@ class ApiClient:
         run_name: str,
         split: str,
         inference_name: Optional[str] = None,
-        approved_only: Optional[bool] = False,
+        reviewed_only: Optional[bool] = False,
     ) -> List:
         """Gets all edits for a run/split"""
         project, run = self._get_project_run_id(project_name, run_name)
@@ -767,7 +767,7 @@ class ApiClient:
         url = (
             f"{config.api_url}/{Route.content_path(project, run, split)}/{Route.edits}"
         )
-        params = {"inference_name": inference_name, "approved_only": approved_only}
+        params = {"inference_name": inference_name, "reviewed_only": reviewed_only}
         return self.make_request(RequestType.GET, url, params=params)
 
     def export_edits(
@@ -781,7 +781,7 @@ class ApiClient:
         col_mapping: Optional[Dict[str, str]] = None,
         hf_format: bool = False,
         tagging_schema: Optional[TaggingSchema] = None,
-        approved_only: Optional[bool] = False,
+        reviewed_only: Optional[bool] = False,
     ) -> None:
         """Export the edits of a project/run/split to disk as a file
 
@@ -800,11 +800,11 @@ class ApiClient:
             If hf_format is True, you must pass a tagging schema
         :param filter_params: Filters to apply to the dataframe before exporting. Only
         rows with matching filters will be included in the exported data. If a slice
-        :param approved_only: Whether to export only approved edits or all edits.
+        :param reviewed_only: Whether to export only reviewed edits or all edits.
             Default: False (all edits)
         """
         edits = self.get_edits(
-            project_name, run_name, split, inference_name, approved_only=approved_only
+            project_name, run_name, split, inference_name, reviewed_only=reviewed_only
         )
 
         ext = os.path.splitext(file_name)[-1].lstrip(".")
