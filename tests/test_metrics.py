@@ -65,11 +65,11 @@ def test_get_edited_dataframe_all_edits(mocker):
     )
 
     assert response == _process_exported_dataframe_mock.return_value
-    assert conform_split_mock.assert_called_once_with(split)
-    assert api_mock._get_project_run_id.assert_called_once_with(project_name, run_name)
-    assert api_mock.get_task_type.assert_called_once_with(project_id, run_id)
+    conform_split_mock.assert_called_once_with(split)
+    api_mock._get_project_run_id.assert_called_once_with(project_name, run_name)
+    api_mock.get_task_type.assert_called_once_with(project_id, run_id)
 
-    assert api_mock.export_edits.assert_called_once_with(
+    api_mock.export_edits.assert_called_once_with(
         project_name,
         run_name,
         split_mock,
@@ -79,7 +79,7 @@ def test_get_edited_dataframe_all_edits(mocker):
         tagging_schema=tagging_schema,
     )
 
-    assert _process_exported_dataframe_mock.assert_called_once_with(
+    _process_exported_dataframe_mock.assert_called_once_with(
         test_df,
         project_name,
         run_name,
@@ -164,11 +164,11 @@ def test_get_edited_dataframe_reviewed_only_edits(mocker):
     )
 
     assert response == _process_exported_dataframe_mock.return_value
-    assert conform_split_mock.assert_called_once_with(split)
-    assert api_mock._get_project_run_id.assert_called_once_with(project_name, run_name)
-    assert api_mock.get_task_type.assert_called_once_with(project_id, run_id)
+    conform_split_mock.assert_called_once_with(split)
+    api_mock._get_project_run_id.assert_called_once_with(project_name, run_name)
+    api_mock.get_task_type.assert_called_once_with(project_id, run_id)
 
-    assert api_mock.export_edits.assert_called_once_with(
+    api_mock.export_edits.assert_called_once_with(
         project_name,
         run_name,
         split_mock,
@@ -178,7 +178,7 @@ def test_get_edited_dataframe_reviewed_only_edits(mocker):
         tagging_schema=tagging_schema,
     )
 
-    assert _process_exported_dataframe_mock.assert_called_once_with(
+    _process_exported_dataframe_mock.assert_called_once_with(
         expected_df,
         project_name,
         run_name,
