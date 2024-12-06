@@ -1,6 +1,8 @@
 from unittest.mock import Mock
-from dataquality import metrics
+
 import vaex
+
+from dataquality import metrics
 
 
 def test_get_edited_dataframe_all_edits(mocker):
@@ -22,12 +24,14 @@ def test_get_edited_dataframe_all_edits(mocker):
     include_probs = False
     include_token_indices = False
 
-    test_df = vaex.from_dict({
-        "id": range(0, 10),
-        "confidence": [0.7] * 10,
-        "is_drifted": [False] * 7 + [True] * 3,
-        "reviewers": [[]] * 7 + [["review1"]] * 3,
-    })
+    test_df = vaex.from_dict(
+        {
+            "id": range(0, 10),
+            "confidence": [0.7] * 10,
+            "is_drifted": [False] * 7 + [True] * 3,
+            "reviewers": [[]] * 7 + [["review1"]] * 3,
+        }
+    )
 
     api_mock = mocker.patch.object(metrics, "api_client")
     split = Mock()
@@ -37,12 +41,28 @@ def test_get_edited_dataframe_all_edits(mocker):
     api_mock._get_project_run_id.return_value = [project_id, run_id]
     api_mock.get_task_type.return_value = task_type
 
-    mocker.patch("dataquality.metrics.uuid4", return_value = uuid)
-    mocker.patch("dataquality.vaex.open", return_value = test_df)
+    mocker.patch("dataquality.metrics.uuid4", return_value=uuid)
+    mocker.patch("dataquality.vaex.open", return_value=test_df)
 
-    _process_exported_dataframe_mock = Mock("dataquality.metrics._process_exported_dataframe")
+    _process_exported_dataframe_mock = Mock(
+        "dataquality.metrics._process_exported_dataframe"
+    )
 
-    response = metrics.get_edited_dataframe(project_name, run_name, split, inference_name, file_type, include_embs, include_probs, include_token_indices, hf_format, tagging_schema, reviewed_only, as_pandas, include_data_embs)
+    response = metrics.get_edited_dataframe(
+        project_name,
+        run_name,
+        split,
+        inference_name,
+        file_type,
+        include_embs,
+        include_probs,
+        include_token_indices,
+        hf_format,
+        tagging_schema,
+        reviewed_only,
+        as_pandas,
+        include_data_embs,
+    )
 
     assert response == _process_exported_dataframe_mock.return_value
     assert conform_split_mock.assert_called_once_with(split)
@@ -53,10 +73,10 @@ def test_get_edited_dataframe_all_edits(mocker):
         project_name,
         run_name,
         split_mock,
-        inference_name = inference_name,
-        file_name = f"/tmp/{uuid}-data.{file_type}",
-        hf_format = hf_format,
-        tagging_schema = tagging_schema,
+        inference_name=inference_name,
+        file_name=f"/tmp/{uuid}-data.{file_type}",
+        hf_format=hf_format,
+        tagging_schema=tagging_schema,
     )
 
     assert _process_exported_dataframe_mock.assert_called_once_with(
@@ -94,19 +114,23 @@ def test_get_edited_dataframe_reviewed_only_edits(mocker):
     include_probs = False
     include_token_indices = False
 
-    test_df = vaex.from_dict({
-        "id": range(0, 10),
-        "confidence": [0.7] * 10,
-        "is_drifted": [False] * 7 + [True] * 3,
-        "reviewers": [[]] * 7 + [["review1"]] * 3,
-    })
+    test_df = vaex.from_dict(
+        {
+            "id": range(0, 10),
+            "confidence": [0.7] * 10,
+            "is_drifted": [False] * 7 + [True] * 3,
+            "reviewers": [[]] * 7 + [["review1"]] * 3,
+        }
+    )
 
-    expected_df = vaex.from_dict({
-        "id": range(7, 10),
-        "confidence": [0.7] * 3,
-        "is_drifted": [True] * 3,
-        "reviewers": [["review1"]] * 3,
-    })
+    expected_df = vaex.from_dict(
+        {
+            "id": range(7, 10),
+            "confidence": [0.7] * 3,
+            "is_drifted": [True] * 3,
+            "reviewers": [["review1"]] * 3,
+        }
+    )
 
     api_mock = mocker.patch.object(metrics, "api_client")
     split = Mock()
@@ -116,12 +140,28 @@ def test_get_edited_dataframe_reviewed_only_edits(mocker):
     api_mock._get_project_run_id.return_value = [project_id, run_id]
     api_mock.get_task_type.return_value = task_type
 
-    mocker.patch("dataquality.metrics.uuid4", return_value = uuid)
-    mocker.patch("dataquality.vaex.open", return_value = test_df)
+    mocker.patch("dataquality.metrics.uuid4", return_value=uuid)
+    mocker.patch("dataquality.vaex.open", return_value=test_df)
 
-    _process_exported_dataframe_mock = Mock("dataquality.metrics._process_exported_dataframe")
+    _process_exported_dataframe_mock = Mock(
+        "dataquality.metrics._process_exported_dataframe"
+    )
 
-    response = metrics.get_edited_dataframe(project_name, run_name, split, inference_name, file_type, include_embs, include_probs, include_token_indices, hf_format, tagging_schema, reviewed_only, as_pandas, include_data_embs)
+    response = metrics.get_edited_dataframe(
+        project_name,
+        run_name,
+        split,
+        inference_name,
+        file_type,
+        include_embs,
+        include_probs,
+        include_token_indices,
+        hf_format,
+        tagging_schema,
+        reviewed_only,
+        as_pandas,
+        include_data_embs,
+    )
 
     assert response == _process_exported_dataframe_mock.return_value
     assert conform_split_mock.assert_called_once_with(split)
@@ -132,10 +172,10 @@ def test_get_edited_dataframe_reviewed_only_edits(mocker):
         project_name,
         run_name,
         split_mock,
-        inference_name = inference_name,
-        file_name = f"/tmp/{uuid}-data.{file_type}",
-        hf_format = hf_format,
-        tagging_schema = tagging_schema,
+        inference_name=inference_name,
+        file_name=f"/tmp/{uuid}-data.{file_type}",
+        hf_format=hf_format,
+        tagging_schema=tagging_schema,
     )
 
     assert _process_exported_dataframe_mock.assert_called_once_with(
