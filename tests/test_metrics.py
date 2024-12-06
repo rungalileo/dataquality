@@ -196,6 +196,5 @@ def test_get_edited_dataframe_reviewed_only_edits(mocker):
     )
 
     call_df = _process_exported_dataframe_mock.call_args_list[0][0][0]
-    print(f"CALL_DF: {_process_exported_dataframe_mock.call_args_list[0][0][0]}")
-    assert call_df.reviewers == [["review1"]] * 3
+    assert call_df.reviewers.tolist() == [["review1"]] * 3
     assert call_df.equals(expected_df)
