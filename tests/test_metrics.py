@@ -128,9 +128,11 @@ def test_get_edited_dataframe_reviewed_only_edits(mocker):
             "id": range(7, 10),
             "confidence": [0.7] * 3,
             "is_drifted": [True] * 3,
-            "reviewers": [["review1"]] * 3,
         }
     )
+    pandas_df = expected_df.to_pandas_df()
+    pandas_df["reviewers"] = [["review1"]] * 3
+    expected_df = vaex.from_pandas(pandas_df)
 
     api_mock = mocker.patch.object(metrics, "api_client")
     split = Mock()
