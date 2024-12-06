@@ -42,7 +42,7 @@ def test_get_edited_dataframe_all_edits(mocker):
     api_mock.get_task_type.return_value = task_type
 
     mocker.patch("dataquality.metrics.uuid4", return_value=uuid)
-    mocker.patch("dataquality.vaex.open", return_value=test_df)
+    mocker.patch("dataquality.metrics.vaex.open", return_value=test_df)
 
     _process_exported_dataframe_mock = Mock(
         "dataquality.metrics._process_exported_dataframe"
