@@ -195,13 +195,7 @@ def test_get_edited_dataframe_reviewed_only_edits(mocker):
         include_data_embs,
     )
 
-    print(f"CALL ARGS LIST: {_process_exported_dataframe_mock.call_args_list}")
-    print(f"CALL ARGS LIST [0]: {_process_exported_dataframe_mock.call_args_list[0]}")
-    print(
-        f"CALL ARGS LIST [0][0]: {_process_exported_dataframe_mock.call_args_list[0][0]}"
-    )
-
-    assert (
-        _process_exported_dataframe_mock.call_args_list[0][0].reviewers
-        == [["reviewer1"]] * 3
-    )
+    call_df = _process_exported_dataframe_mock.call_args_list[0][0][0]
+    print(f"CALL_DF: {_process_exported_dataframe_mock.call_args_list[0][0][0]}")
+    assert call_df.reviewers == [["reviewer1"]] * 3
+    assert call_df.equals(expected_df)
