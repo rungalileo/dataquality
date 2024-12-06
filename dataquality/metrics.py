@@ -410,7 +410,9 @@ def get_edited_dataframe(
     data_df = vaex.open(file_name)
 
     if reviewed_only:
+        print(f"DataFrame before reviewed_only filtering: {data_df}")
         data_df = data_df[data_df.reviewers]
+        print(f"DataFrame after reviewed_only filtering: {data_df}")
 
     return _process_exported_dataframe(
         data_df,
