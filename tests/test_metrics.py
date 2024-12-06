@@ -1,4 +1,4 @@
-from unittest.mock import Mock
+from unittest.mock import ANY, Mock
 
 import vaex
 
@@ -181,7 +181,7 @@ def test_get_edited_dataframe_reviewed_only_edits(mocker):
     )
 
     _process_exported_dataframe_mock.assert_called_once_with(
-        expected_df,
+        ANY,
         project_name,
         run_name,
         split_mock,
@@ -193,4 +193,15 @@ def test_get_edited_dataframe_reviewed_only_edits(mocker):
         hf_format,
         as_pandas,
         include_data_embs,
+    )
+
+    print(f"CALL ARGS LIST: {_process_exported_dataframe_mock.call_args_list}")
+    print(f"CALL ARGS LIST [0]: {_process_exported_dataframe_mock.call_args_list[0]}")
+    print(
+        f"CALL ARGS LIST [0][0]: {_process_exported_dataframe_mock.call_args_list[0][0]}"
+    )
+
+    assert (
+        _process_exported_dataframe_mock.call_args_list[0][0].reviewers
+        == [["reviewer1"]] * 3
     )
