@@ -137,6 +137,7 @@ accelerate = ">=0.19.0"
 typing-inspect = "==0.8.0"
 typing-extensions = ">=4.9.0"
 lightning = "^2.3.1"  # Assuming you want the latest version as no version was specified
+pytest-mock = "^3.14.0"
 
 
 
