@@ -422,6 +422,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
 
         # Import here because `imadededup` is not a required dependency.
         from dataquality.utils.cv_smart_features import generate_smart_features
+
         print(
             f"🔲 Calculating Smart Features for split {split} (can take a few minutes "
             "depending on the size of your dataset)"
