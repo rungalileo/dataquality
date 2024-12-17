@@ -25,7 +25,6 @@ from dataquality.loggers.logger_config.image_classification import (
 from dataquality.schemas.cv import GAL_LOCAL_IMAGES_PATHS
 from dataquality.schemas.dataframe import BaseLoggerDataFrames
 from dataquality.schemas.split import Split
-from dataquality.utils.cv_smart_features import generate_smart_features
 from dataquality.utils.upload import chunk_load_then_upload_df
 
 # smaller than ITER_CHUNK_SIZE from base_data_logger because very large chunks
@@ -420,6 +419,9 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         """
         if GAL_LOCAL_IMAGES_PATHS not in in_frame.get_column_names():
             return in_frame
+
+        # Import here because `imagededup` is not a required dependency.
+        from dataquality.utils.cv_smart_features import generate_smart_features
 
         print(
             f"🔲 Calculating Smart Features for split {split} (can take a few minutes "
