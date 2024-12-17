@@ -420,7 +420,7 @@ class ImageClassificationDataLogger(TextClassificationDataLogger):
         if GAL_LOCAL_IMAGES_PATHS not in in_frame.get_column_names():
             return in_frame
 
-        # Import here because `imadededup` is not a required dependency.
+        # Import here because `imagededup` is not a required dependency.
         from dataquality.utils.cv_smart_features import generate_smart_features
 
         print(
