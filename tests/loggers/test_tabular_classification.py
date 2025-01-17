@@ -800,7 +800,7 @@ class TestTabularClassificationE2E:
         dq.finish(wait=False)
 
         # We upload df and prob_df for each split (2 inf)
-        assert mock_upload_df_to_minio.call_count == 4
+        assert mock_upload_df_to_minio.call_count == 6
         assert mock_save_feature_importances.call_count == 1
         mock_create_job.assert_called_once_with(
             RequestType.POST,
