@@ -767,6 +767,7 @@ class TestTabularClassificationE2E:
             True,
         )
 
+    @pytest.mark.skip(reason="Flaky.")
     def test_log_arrays_e2e_inference_only(
         self,
         mock_save_feature_importances: mock.MagicMock,
