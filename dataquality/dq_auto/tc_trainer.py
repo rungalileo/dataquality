@@ -108,6 +108,6 @@ def get_trainer(
         compute_metrics=compute_metrics_partial,
         callbacks=callbacks,
     )
-    
+
     print(f"Trainer: {trainer.args.per_device_train_batch_size}")
     return trainer, encoded_datasets
