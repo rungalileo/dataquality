@@ -122,6 +122,7 @@ def auto(
     inference_data: Optional[Dict[str, Union[pd.DataFrame, Dataset, str]]] = None,
     max_padding_length: int = 200,
     num_train_epochs: int = 15,
+    batch_size: int = 64,
     hf_model: str = "distilbert-base-uncased",
     labels: Optional[List[str]] = None,
     project_name: str = "auto_tc",
@@ -266,6 +267,7 @@ def auto(
         hf_model,
         max_padding_length,
         num_train_epochs,
+        batch_size=batch_size,
         early_stopping=early_stopping,
     )
     return do_train(trainer, encoded_data, wait, create_data_embs)

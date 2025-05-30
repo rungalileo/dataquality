@@ -58,6 +58,7 @@ def get_trainer(
     model_checkpoint: str,
     max_padding_length: int,
     num_train_epochs: int,
+    batch_size: int,
     early_stopping: bool = True,
 ) -> Tuple[Trainer, DatasetDict]:
     tokenizer = AutoTokenizer.from_pretrained(model_checkpoint, use_fast=True)
@@ -76,7 +77,6 @@ def get_trainer(
     metric = evaluate.load(EVAL_METRIC)
     # We use the users chosen evaluation metric by preloading it into the partial
     compute_metrics_partial = partial(compute_metrics, metric)
-    batch_size = 64
     has_val = Split.validation in encoded_datasets
     eval_strat = IntervalStrategy.EPOCH if has_val else IntervalStrategy.NO
     load_best_model = has_val  # Can only load the best model if we have validation data
@@ -108,4 +108,6 @@ def get_trainer(
         compute_metrics=compute_metrics_partial,
         callbacks=callbacks,
     )
+    
+    print(f"Trainer: {trainer.args.per_device_train_batch_size}")
     return trainer, encoded_datasets
