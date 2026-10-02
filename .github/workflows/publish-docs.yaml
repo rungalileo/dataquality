@@ -44,4 +44,4 @@ jobs:
           destination-github-username: "rungalileo"
           destination-repository-name: "dataquality-docs"
           user-name: galileo-automation
-          user-email: ci@rungalileo.io
+          user-email: ${{ vars.SAO_PLATFORM_AUTOMATION_EMAIL }}
